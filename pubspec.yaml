@@ -1,0 +1,154 @@
+name: barky_matches_fixed
+description: A Flutter application for dog playdates.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+
+  cupertino_icons: ^1.0.8
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  image_picker: ^1.2.0
+  path_provider: ^2.1.5
+  flutter_local_notifications: ^19.4.1
+  timezone: ^0.10.1
+  shared_preferences: ^2.3.3
+  image: ^4.3.0
+  lottie: ^3.1.3
+  permission_handler: ^12.0.1
+  geolocator: ^14.0.2
+  http: ^1.4.0
+  cached_network_image: ^3.4.1
+  google_maps_flutter: ^2.13.1
+  url_launcher: ^6.3.1
+  carousel_slider: ^5.0.0
+  sqflite: ^2.3.3+1
+  google_mobile_ads: ^6.0.0
+  provider: ^6.1.5+1
+  collection: ^1.18.0
+  badges: ^3.0.3
+  isolate_handler: ^1.0.2
+  google_fonts: ^6.3.1
+  cache_manager: ^1.0.0+4
+  pointycastle: ^4.0.0
+  basic_utils: ^5.7.0
+  crypto: ^3.0.3
+  uuid: ^4.0.0
+  debounce_throttle: ^2.0.0
+
+  # Firebase dependencies (اصلاح شده به نسخه‌های پایدار)
+  firebase_core: ^4.1.1
+  firebase_auth: ^6.1.0
+  cloud_firestore: ^6.0.2
+  cloud_functions: ^6.0.2
+  firebase_app_check: ^0.4.1+1
+  firebase_messaging: ^16.0.2
+  firebase_analytics: ^12.0.2
+  firebase_storage: ^13.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  hive_generator: ^2.0.1
+  flutter_launcher_icons: ^0.14.4
+  analyzer: ^6.4.1
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/image/dog1.jpg
+    - assets/image/dog1_1.jpg
+    - assets/image/dog1_2.jpg
+    - assets/image/dog1_3.jpg
+    - assets/image/dog2.jpg
+    - assets/image/dog2_1.jpg
+    - assets/image/dog2_2.jpg
+    - assets/image/dog2_3.jpg
+    - assets/image/default_dog.png
+    - assets/image/placeholder.png
+    - assets/image/sad_dog.png
+    - assets/image/logo.png
+    - assets/animations/dog_animation.json
+    - assets/icon.png
+    - assets/map_style.json
+    - assets/marker_icon.png
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Poppins-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Poppins-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Poppins-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-MediumItalic.ttf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-SemiBoldItalic.ttf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/Poppins-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/Poppins-ExtraLightItalic.ttf
+          weight: 200
+          style: italic
+        - asset: assets/fonts/Poppins-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Poppins-ExtraBoldItalic.ttf
+          weight: 800
+          style: italic
+        - asset: assets/fonts/Poppins-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/Poppins-ThinItalic.ttf
+          weight: 100
+          style: italic
+        - asset: assets/fonts/Poppins-Black.ttf
+          weight: 900
+        - asset: assets/fonts/Poppins-BlackItalic.ttf
+          weight: 900
+          style: italic
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-Regular.ttf
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-Light.ttf
+          weight: 300
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-Black.ttf
+          weight: 900
+        - asset: assets/fonts/fonts/ttf/Vazirmatn-Thin.ttf
+          weight: 100
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21

@@ -1,0 +1,3 @@
+[        ] Running 1 shutdown hook
+[   +2 ms] Shutdown hooks complete
+[        ] exiting with code 64
