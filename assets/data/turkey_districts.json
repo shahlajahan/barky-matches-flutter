@@ -1,0 +1,17 @@
+{
+  "Istanbul": ["Adalar","Arnavutkoy","Ataşehir","Avcilar","Bagcilar","Bahcelievler","Bakirkoy","Basaksehir","Bayrampasa","Besiktas","Beykoz","Beylikduzu","Beyoglu","Buyukcekmece","Catalca","Cekmekoy","Esenler","Esenyurt","Eyupsultan","Fatih","Gaziosmanpasa","Gungoren","Kadikoy","Kagithane","Kartal","Kucukcekmece","Maltepe","Pendik","Sancaktepe","Sariyer","Silivri","Sisli","Sultanbeyli","Sultangazi","Tuzla","Umraniye","Uskudar","Zeytinburnu"],
+
+  "Ankara": ["Akyurt","Altindag","Ayas","Bala","Beypazari","Camlidere","Cankaya","Cubuk","Elmadag","Etimesgut","Evren","Golbasi","Gudul","Haymana","Kahramankazan","Kalecik","Kecioren","Kizilcahamam","Mamak","Nallihan","Polatli","Pursaklar","Sincan","Sereflikochisar","Yenimahalle"],
+
+  "Izmir": ["Aliaga","Balcova","Bayindir","Bayrakli","Bergama","Beydag","Bornova","Buca","Cesme","Cigli","Dikili","Foca","Gaziemir","Guzelbahce","Karabaglar","Karaburun","Karsiyaka","Kemalpasa","Kinik","Kiraz","Konak","Menderes","Menemen","Narlidere","Odemis","Seferihisar","Selcuk","Tire","Torbalı","Urla"],
+
+  "Bursa": ["Buyukorhan","Gemlik","Gursu","Harmancik","Inegol","Iznik","Karacabey","Keles","Mudanya","Mustafakemalpasa","Nilufer","Orhaneli","Orhangazi","Osmangazi","Yenişehir","Yildirim"],
+
+  "Adana": ["Aladag","Ceyhan","Cukurova","Feke","Imamoglu","Karaisali","Karatas","Kozan","Pozanti","Saimbeyli","Sariçam","Seyhan","Tufanbeyli","Yumurtalik","Yuregir"],
+
+  "Antalya": ["Akseki","Aksu","Alanya","Demre","Dosemealti","Elmali","Finike","Gazipasa","Gundogmus","Ibradi","Kale","Kas","Kemer","Kepez","Konyaalti","Korkuteli","Kumluca","Manavgat","Muratpasa","Serik"],
+
+  "Konya": ["Ahirli","Akören","Aksehir","Altinekin","Beysehir","Bozkir","Celtik","Cihanbeyli","Cumra","Derbent","Derebucak","Doganhisar","Emirgazi","Eregli","Gunevysn","Hadim","Halkapinar","Huyuk","Ilgin","Kadinhani","Karapinar","Karatay","Kulu","Meram","Sarayonu","Selcuklu","Seydisehir","Taskent","Tuzlukcu","Yalihuyuk","Yunak"],
+
+  "...": ["تمام استان‌های دیگر نیز همین ساختار را ادامه بده"]
+}

@@ -30,7 +30,7 @@ class DefaultFirebaseOptions {
         return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for Linux - '
+          'DefaultFirebaseOptions have not been configured for linux - '
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       default:
@@ -42,24 +42,6 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyAgrDy5XULhjwxMOsfGWuHdo5hNiepSQjg',
-    appId: '1:188282684447:web:f0384517e41a6b7c53412a',
-    messagingSenderId: '188282684447',
-    projectId: 'barkymatches-new',
-    authDomain: 'barkymatches-new.firebaseapp.com',
-    storageBucket: 'barkymatches-new.firebasestorage.app',
-    measurementId: 'G-0FXJL7LFM6',
-  );
-
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB_NO1hEaDryeu8Rh6tmXHn-4DdCQvWVj4',
-    appId: '1:188282684447:android:38cea1857a2f204453412a',
-    messagingSenderId: '188282684447',
-    projectId: 'barkymatches-new',
-    storageBucket: 'barkymatches-new.firebasestorage.app',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAgrDy5XULhjwxMOsfGWuHdo5hNiepSQjg',
     appId: '1:188282684447:web:2e04b07cfdc75dcc53412a',
     messagingSenderId: '188282684447',
     projectId: 'barkymatches-new',
@@ -68,26 +50,44 @@ class DefaultFirebaseOptions {
     measurementId: 'G-H9GWX3C874',
   );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCAT0G07izlYU9vT1Hfw4z487lic4KZOQ8',
-    appId: '1:188282684447:ios:6615fe9c81c0766753412a',
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyBRuO42-h4sAkkNGYh3zcDLuAl_mtfRgtI',
+    appId: '1:188282684447:android:3c21182a80460adc53412a',
     messagingSenderId: '188282684447',
     projectId: 'barkymatches-new',
     storageBucket: 'barkymatches-new.firebasestorage.app',
-    androidClientId: '188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com',
-    iosClientId: '188282684447-d3j7jscc680fdd4drqd27d5elko54jh1.apps.googleusercontent.com',
-    iosBundleId: 'com.example.barkyMatchesFresh',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCAT0G07izlYU9vT1Hfw4z487lic4KZOQ8',
-    appId: '1:188282684447:ios:6615fe9c81c0766753412a',
+    apiKey: 'AIzaSyCN_Y8FNV_XI7Ru4S4UKKckrBi7HkI-GcY',
+    appId: '1:188282684447:ios:9be764f38d8f1a9c53412a',
     messagingSenderId: '188282684447',
     projectId: 'barkymatches-new',
     storageBucket: 'barkymatches-new.firebasestorage.app',
     androidClientId: '188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com',
-    iosClientId: '188282684447-d3j7jscc680fdd4drqd27d5elko54jh1.apps.googleusercontent.com',
-    iosBundleId: 'com.example.barkyMatchesFresh',
+    iosClientId: '188282684447-p21o2aijk2h39d84hot9trip42hsa0g5.apps.googleusercontent.com',
+    iosBundleId: 'com.shahlajahan.barkymatches.dev',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCAT0G07izlYU9vT1Hfw4z487lic4KZOQ8',
+    appId: '1:188282684447:ios:c930439c183265a753412a',
+    messagingSenderId: '188282684447',
+    projectId: 'barkymatches-new',
+    storageBucket: 'barkymatches-new.firebasestorage.app',
+    androidClientId: '188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com',
+    iosClientId: '188282684447-9jk0ajkuch7471e17lsod6miu1lfqlna.apps.googleusercontent.com',
+    iosBundleId: 'com.example.barkyMatchesFixed',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyAgrDy5XULhjwxMOsfGWuHdo5hNiepSQjg',
+    appId: '1:188282684447:web:35a399986880721553412a',
+    messagingSenderId: '188282684447',
+    projectId: 'barkymatches-new',
+    authDomain: 'barkymatches-new.firebaseapp.com',
+    storageBucket: 'barkymatches-new.firebasestorage.app',
+    measurementId: 'G-DHPZ7HLBSS',
   );
 
 }

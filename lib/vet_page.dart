@@ -2,331 +2,308 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+
+import 'package:barky_matches_fixed/app_state.dart' as app;
+import 'package:barky_matches_fixed/ui/vet/vet_card.dart';
+import 'package:barky_matches_fixed/ui/vet/vet_card_data.dart';
+import 'package:barky_matches_fixed/ui/vet/vet_appointment_page.dart';
+
+
+
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
 
   @override
-  _VetPageState createState() => _VetPageState();
+  State<VetPage> createState() => _VetPageState();
 }
 
-class _VetPageState extends State<VetPage> {
-  Position? _currentPosition;
-  bool _isLoading = true;
+class _VetPageState extends State<VetPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
-  // لیست کامل‌تر دامپزشک‌ها
-  final List<Map<String, dynamic>> _vets = [
+  bool _loading = true;
+  Position? _position;
+
+  // ✅ Memoize: حتی اگر VetPage دوباره ساخته شد، یک resolve بیشتر نزن
+  static Future<Position?>? _cachedResolveFuture;
+  static Position? _cachedPosition; // آخرین position موفق
+
+  static const _fallbackLat = 41.0103;
+  static const _fallbackLng = 28.6724;
+
+  
+
+  final List<Map<String, dynamic>> _vets = const [
     {
       'name': 'Dr. Ayşe Yılmaz',
       'specialty': 'General Vet',
-      'latitude': 41.0082,
-      'longitude': 28.9784,
+      'lat': 41.0082,
+      'lng': 28.9784,
       'phone': '+905551234567',
-      'address': 'Kadiköy, İstanbul',
+      'address': 'Kadıköy, İstanbul',
     },
     {
       'name': 'Dr. Mehmet Özkan',
       'specialty': 'Surgeon',
-      'latitude': 41.0137,
-      'longitude': 28.9815,
+      'lat': 41.0137,
+      'lng': 28.9815,
       'phone': '+905551234568',
       'address': 'Sultanahmet, İstanbul',
-    },
-    {
-      'name': 'Dr. Elif Kaya',
-      'specialty': 'Dermatologist',
-      'latitude': 41.0425,
-      'longitude': 28.9941,
-      'phone': '+905551234569',
-      'address': 'Şişli, İstanbul',
-    },
-    {
-      'name': 'Dr. Burak Şahin',
-      'specialty': 'General Vet',
-      'latitude': 40.9707,
-      'longitude': 29.0359,
-      'phone': '+905551234570',
-      'address': 'Fenerbahçe, İstanbul',
-    },
-    {
-      'name': 'Dr. Selin Demir',
-      'specialty': 'Nutritionist',
-      'latitude': 41.1058,
-      'longitude': 29.0557,
-      'phone': '+905551234571',
-      'address': 'Sarıyer, İstanbul',
-    },
-    {
-      'name': 'Dr. Can Ekinci',
-      'specialty': 'Orthopedist',
-      'latitude': 41.1833,
-      'longitude': 28.9833,
-      'phone': '+905551234572',
-      'address': 'Belgrad Ormanı, İstanbul',
-    },
-    {
-      'name': 'Dr. Zeynep Arslan',
-      'specialty': 'General Vet',
-      'latitude': 40.9667,
-      'longitude': 29.0667,
-      'phone': '+905551234573',
-      'address': 'Caddebostan, İstanbul',
-    },
-    {
-      'name': 'Dr. Kaan Mert',
-      'specialty': 'Dentist',
-      'latitude': 40.9833,
-      'longitude': 28.8167,
-      'phone': '+905551234574',
-      'address': 'Bakırköy, İstanbul',
     },
   ];
 
   @override
   void initState() {
     super.initState();
-    _requestPermissions();
-  }
 
-  Future<void> _requestPermissions() async {
-    // درخواست مجوز موقعیت مکانی
-    var locationStatus = await Permission.location.status;
-    if (!locationStatus.isGranted) {
-      locationStatus = await Permission.location.request();
-      if (!locationStatus.isGranted) {
-        print('VetPage - Location permission denied');
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location permission is required to show nearby vets.'),
-          ),
-        );
+    // اگر قبلاً position موفق داشتیم → فوراً UI رو سریع پر کن
+    if (_cachedPosition != null) {
+      _position = _cachedPosition;
+      _loading = false;
+    } else {
+      _loading = true;
+    }
+
+    // resolve رو memoize کن
+    _cachedResolveFuture ??= _resolveLocationSmart();
+
+    // نتیجه رو apply کن (اگر لازم شد)
+    _cachedResolveFuture!.then((pos) {
+      if (!mounted) return;
+      if (pos == null) {
+        // اگر هنوز position نداریم، fallback بده
+        if (_position == null) _applyFallback();
         return;
       }
-    }
-
-    // درخواست مجوز دسترسی به موقعیت در پس‌زمینه (برای Android 10 و بالاتر)
-    var backgroundStatus = await Permission.locationAlways.status;
-    if (!backgroundStatus.isGranted) {
-      backgroundStatus = await Permission.locationAlways.request();
-      if (!backgroundStatus.isGranted) {
-        print('VetPage - Background location permission denied');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Background location permission is recommended for better navigation.'),
-          ),
-        );
-        // همچنان ادامه می‌دهیم، چون دسترسی پس‌زمینه اجباری نیست
-      }
-    }
-
-    // بعد از گرفتن مجوزها، موقعیت فعلی رو دریافت می‌کنیم
-    _getCurrentLocation();
+      _cachedPosition = pos;
+      setState(() {
+        _position = pos;
+        _loading = false;
+      });
+    });
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _openDirections(double lat, double lng) async {
+  final uri = Uri.parse(
+    'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+  );
+
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+
+  Future<Position?> _resolveLocationSmart() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        print('VetPage - Location services are disabled.');
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enable location services to continue.'),
-          ),
-        );
-        return;
-      }
+      // 1) سرویس روشن؟
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return null;
 
-      LocationPermission permission = await Geolocator.checkPermission();
+      // 2) permission
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        print('VetPage - Location permissions are denied.');
-        setState(() {
-          _isLoading = false;
-        });
-        return;
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        print('VetPage - Location permissions are permanently denied.');
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location permissions are permanently denied. Please enable them from settings.'),
-          ),
-        );
-        return;
+      // 3) سریع‌ترین گزینه: last known
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) {
+        // ✅ همینو برگردون تا UI سریع بالا بیاد
+        // و هم‌زمان یه تلاش سبک‌تر برای دقیق‌تر انجام بده:
+        _upgradeToBetterPositionInBackground();
+        return last;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      // 4) اگر last نبود: یه getCurrentPosition سبک‌تر (نه high)
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 2),
       );
-      setState(() {
-        _currentPosition = position;
-        _isLoading = false;
-        print('VetPage - Location acquired: Latitude: ${position.latitude}, Longitude: ${position.longitude}');
-      });
-    } catch (e) {
-      print('VetPage - Error getting location: $e');
-      setState(() {
-        _isLoading = false;
-      });
+
+      return pos;
+    } catch (_) {
+      return null;
     }
   }
 
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    double distanceInMeters = Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
-    return distanceInMeters / 1000; // تبدیل به کیلومتر
+  void _upgradeToBetterPositionInBackground() async {
+    try {
+      // فقط اگر قبلاً یک cachedPosition داریم یا UI از last استفاده کرده
+      // اینجا یک تلاش “بهتر” می‌کنیم ولی با limit کوتاه تا battery/UI رو نکشه
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 2),
+      );
+
+      _cachedPosition = pos;
+      if (!mounted) return;
+
+      // اگر روی صفحه Vet هستیم، آپدیت کن؛ اگر نیستیم هم cached می‌مونه
+      setState(() {
+        _position = pos;
+        _loading = false;
+      });
+    } catch (_) {
+      // ignore
+    }
   }
 
-  Future<void> _connectToVet(String vetName, String phone) async {
-    // نمایش SnackBar برای اطلاع‌رسانی
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connecting to $vetName...'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-
-    // باز کردن برنامه تلفن
-    final Uri phoneUri = Uri(scheme: 'tel', path: phone);
-    try {
-      if (await canLaunchUrl(phoneUri)) {
-        await launchUrl(phoneUri);
-        print('VetPage - Opening phone app with number: $phone');
-        // نمایش SnackBar برای موفقیت
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Connected to $vetName! Calling: $phone'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else {
-        print('VetPage - Could not launch phone app for number: $phone');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open phone app'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      print('VetPage - Error launching phone app: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error connecting to $vetName: $e'),
-          duration: const Duration(seconds: 3),
-        ),
+  void _applyFallback() {
+    setState(() {
+      _position = Position(
+        latitude: _fallbackLat,
+        longitude: _fallbackLng,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
       );
+      _loading = false;
+    });
+  }
+
+  double _distanceKm(double lat, double lng) {
+    final p = _position;
+    if (p == null) return 0;
+    return Geolocator.distanceBetween(
+          p.latitude,
+          p.longitude,
+          lat,
+          lng,
+        ) /
+        1000;
+  }
+
+  Future<void> _callVet(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.pink, Colors.pinkAccent],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Text(
-          'Visit Vet',
-          style: GoogleFonts.dancingScript(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.pink, Colors.pinkAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          _isLoading
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(color: Colors.white),
-                      SizedBox(height: 16),
-                      Text(
-                        'Loading vets...',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                )
-              : _currentPosition == null
-                  ? const Center(
-                      child: Text(
-                        'Unable to get location. Please enable location services.',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16.0),
-                      itemCount: _vets.length,
-                      itemBuilder: (context, index) {
-                        final vet = _vets[index];
-                        final distance = _calculateDistance(
-                          _currentPosition!.latitude,
-                          _currentPosition!.longitude,
-                          vet['latitude'],
-                          vet['longitude'],
-                        ).toStringAsFixed(2);
+Widget build(BuildContext context) {
+  super.build(context);
 
-                        return Card(
-                          color: Colors.white.withOpacity(0.9),
-                          child: ListTile(
-                            title: Text(
-                              vet['name'],
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              'Specialty: ${vet['specialty']}\nDistance: $distance km\nAddress: ${vet['address']}\nPhone: ${vet['phone']}',
-                              style: GoogleFonts.poppins(),
-                            ),
-                            trailing: ElevatedButton(
-                              onPressed: () {
-                                _connectToVet(vet['name'], vet['phone']);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.pink,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: Text(
-                                'Connect',
-                                style: GoogleFonts.poppins(),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-        ],
-      ),
-    );
+  final appState = context.watch<app.AppState>();
+  final currentUserId = appState.currentUserId;
+
+  // ⏳ هنوز یوزر لود نشده
+  if (currentUserId == null) {
+    return const Center(child: CircularProgressIndicator());
   }
+
+  // 🔀 TYPE D – Vet Appointment (Full Page)
+  if (appState.businessSubPage == app.BusinessSubPage.appointment &&
+    appState.businessAppointment != null) {
+   return VetAppointmentPage(
+  vet: appState.businessAppointment!,
+);
+
+  }
+
+  // 🧱 TYPE A – Vet Tab Page
+  return Container(
+    color: const Color(0xFFFFF6F8),
+    child: _loading
+        ? const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFFFFC107),
+            ),
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _vets.length,
+            itemBuilder: (context, index) {
+              final vet = _vets[index];
+
+              final km = _distanceKm(
+                vet['lat'] as double,
+                vet['lng'] as double,
+              ).toStringAsFixed(1);
+
+              // 📍 Address parsing
+              final fullAddress = vet['address'] as String;
+              final parts = fullAddress.split(',');
+
+              final district =
+                  parts.isNotEmpty ? parts.first.trim() : 'Unknown';
+              final city =
+                  parts.length > 1 ? parts.last.trim() : 'Istanbul';
+
+              final vetData = VetCardData(
+                id: 'local_$index',
+                name: vet['name'],
+                city: city,
+                district: district,
+                address: fullAddress,
+                distanceKm: double.tryParse(km),
+                specialties: [vet['specialty']],
+                phone: vet['phone'],
+
+                // 👇 Detail data
+                rating: 4.6,
+                reviewsCount: 128,
+                isPartner: vet['name'] == 'Dr. Ayşe Yılmaz', // 🔥 فقط موقت برای تست// فعلاً یکی partner
+                whatsapp: '+905551234567',
+                services: const [
+                  'General Check-up',
+                  'Vaccination',
+                  'Surgery',
+                  'Dental Care',
+                  'Emergency Service',
+                ],
+                description:
+                    'Experienced veterinary clinic providing comprehensive care for pets. Equipped with modern diagnostic tools.',
+                workingHours: const {
+                  'Mon–Fri': '09:00 – 19:00',
+                  'Saturday': '10:00 – 16:00',
+                  'Sunday': 'Closed',
+                },
+                is24h: false,
+                isEmergency: true,
+              );
+
+              return VetCard(
+                data: vetData,
+
+                // 🩺 Open overlay
+                onTap: () {
+                  debugPrint('🟣 TAP vet=${vetData.name} partner=${vetData.isPartner}');
+appState.openBusinessDetails(vetData);
+                },
+
+                // 📞 Call
+                onCallTap: vetData.phone == null
+                    ? null
+                    : () => _callVet(vetData.phone!),
+
+                // 🧭 Directions
+                onDirectionsTap: () {
+                  _openDirections(
+                    vet['lat'] as double,
+                    vet['lng'] as double,
+                  );
+                },
+
+                onWhatsAppTap: null,
+              );
+            },
+          ),
+  );
 }
+
+}
+

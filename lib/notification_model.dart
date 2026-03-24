@@ -40,7 +40,7 @@ class AppNotification {
       id: id,
       title: map['title'] as String?, // اختیاری
       body: map['body'] as String?, // اختیاری
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      timestamp: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       payload: map['payload'] as String?,
       isRead: map['isRead'] as bool? ?? false, // اضافه کردن isRead با مقدار پیش‌فرض
       type: map['type'] as String?, // اختیاری

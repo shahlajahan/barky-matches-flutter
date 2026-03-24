@@ -1,0 +1,112 @@
+{
+  "project_info": {
+    "project_number": "188282684447",
+    "project_id": "barkymatches-new",
+    "storage_bucket": "barkymatches-new.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188282684447:android:3c21182a80460adc53412a",
+        "android_client_info": {
+          "package_name": "com.example.barky_matches_fixed"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRuO42-h4sAkkNGYh3zcDLuAl_mtfRgtI"
+        },
+        {
+          "current_key": "AIzaSyB_NO1hEaDryeu8Rh6tmXHn-4DdCQvWVj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "188282684447-2db08bneotbs1bvv0al6vos3hg76p5r5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.pharos.barkymatches.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188282684447:android:38cea1857a2f204453412a",
+        "android_client_info": {
+          "package_name": "com.example.barky_matches_fresh"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.barky_matches_fresh",
+            "certificate_hash": "b57c122f41af11656f040eb85a9b5108988acefa"
+          }
+        },
+        {
+          "client_id": "188282684447-g6le9advmb1kajskdgougkkfg1caqrhn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.barky_matches_fresh",
+            "certificate_hash": "871cca66aed0fc7b818d12f1b9cd95bd9b94fd84"
+          }
+        },
+        {
+          "client_id": "188282684447-oj5e10h4l1f2t4kdmta7pektp64iv4g9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.barky_matches_fresh",
+            "certificate_hash": "7154e9bf78c3842b142a5a6e28b227b8a93b28ce"
+          }
+        },
+        {
+          "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRuO42-h4sAkkNGYh3zcDLuAl_mtfRgtI"
+        },
+        {
+          "current_key": "AIzaSyB_NO1hEaDryeu8Rh6tmXHn-4DdCQvWVj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "188282684447-2db08bneotbs1bvv0al6vos3hg76p5r5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.pharos.barkymatches.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

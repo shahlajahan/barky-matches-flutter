@@ -1,3 +1,5 @@
+
+
 import 'dart:async';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/dog.dart';
@@ -8,24 +10,26 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
-import 'package:badges/badges.dart' as badges;
 import 'dog_card.dart';
 import 'filter_page.dart';
-import 'favorites_page.dart';
-import 'user_profile_page.dart';
-import 'vet_page.dart';
-import 'all_notifications_page.dart';
-import 'dog_park_page.dart';
 import 'adoption_page.dart';
-import 'offers_manager.dart';
-import 'screens/lost_dogs_list_page.dart';
-import 'screens/found_dogs_list_page.dart';
 import 'dart:io' show InternetAddress, SocketException;
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/utils/localization_utils.dart';
-import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
+import 'package:barky_matches_fixed/ui/shell/barky_scaffold.dart';
+import 'ui/shell/nav_tab.dart';
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'other_user_dog_page.dart';
+import 'debug/firestore_debug.dart';
+
+
+enum PlaymatePageMode {
+  browse,
+  selectDogForPlaydate,
+}
 
 
 class PlaymatePage extends StatefulWidget {
@@ -33,6 +37,7 @@ class PlaymatePage extends StatefulWidget {
   final String currentUserId;
   final List<Dog>? favoriteDogs;
   final void Function(Dog)? onToggleFavorite;
+  final PlaymatePageMode mode; // ✅ ADD
 
   const PlaymatePage({
     super.key,
@@ -40,19 +45,27 @@ class PlaymatePage extends StatefulWidget {
     required this.currentUserId,
     this.favoriteDogs,
     this.onToggleFavorite,
+    this.mode = PlaymatePageMode.browse, // ✅ DEFAULT
   });
+
+
 
   @override
   State<PlaymatePage> createState() => _PlaymatePageState();
 }
 
-class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClientMixin, LocalizationUtils {
+class _PlaymatePageState extends State<PlaymatePage>
+    with AutomaticKeepAliveClientMixin, LocalizationUtils, SingleTickerProviderStateMixin {
+
+  late AnimationController _overlayController;
+  late Animation<double> _overlayAnimation;
   String? selectedBreed;
   String? selectedGender;
   RangeValues? ageRange;
   bool? selectedNeutered;
   String? selectedHealthStatus;
   List<Dog> _filteredDogs = [];
+  List<Dog> _allDogs = [];
   late Box<Dog> dogsBox;
   double? _userLatitude;
   double? _userLongitude;
@@ -61,56 +74,284 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
   bool _isPremiumLoaded = false;
   bool _isLoading = true;
   int _unreadNotificationsCount = 0;
-  late StreamSubscription<QuerySnapshot> _notificationsSubscription;
+  bool get isSelectMode =>
+    widget.mode == PlaymatePageMode.selectDogForPlaydate;
+Timer? _searchDebounce;
+List<Dog> _sourceDogs = []; // 🔥 SOURCE OF TRUTH
+StreamSubscription<QuerySnapshot>? _dogsSubscription;
+  String _searchQuery = '';
+  StreamSubscription<QuerySnapshot>? _notificationsSubscription;
+      static bool _safeBool(dynamic v) {
+  if (v is bool) return v;
+  if (v is num) return v != 0;
+  return false;
+}
 
-  @override
+ 
   bool get wantKeepAlive => true;
+@override
+void initState() {
+  super.initState();
+  dogsBox = Hive.box<Dog>('dogsBox');
 
-  @override
-  void initState() {
-    super.initState();
-    dogsBox = Hive.box<Dog>('dogsBox');
-    if (kDebugMode) {
-      print('PlaymatePage - Init: Current userId: ${widget.currentUserId}, Dogs count: ${widget.dogs.length}');
-    }
-    _loadData();
-    _checkInternetAndStartStream();
+  if (kDebugMode) {
+    print('PlaymatePage - Init: mode=${widget.mode}');
   }
+final appState = context.read<AppState>();
+
+if (appState.isGuest) {
+  debugPrint("👀 Guest mode → Playmate limited mode");
+}
+  if (!isSelectMode) {
+   //_loadData();
+    _checkInternetAndStartStream();
+    _startDogsStream();
+    Future.delayed(const Duration(milliseconds: 500), () {
+  if (mounted) {
+    _precacheDogImages(_filteredDogs);
+  }
+});
+  } else {
+  final appState = context.read<AppState>();
+
+  _allDogs = appState.allDogs;
+  _filteredDogs = _allDogs;
+  _isLoading = false;
+
+  if (kDebugMode) {
+    print(
+      '🟢 PlaymatePage SELECT MODE → using AppState.allDogs only: ${_filteredDogs.length}',
+    );
+  }
+
+  }
+  _overlayController = AnimationController(
+  vsync: this,
+  duration: const Duration(milliseconds: 250),
+);
+
+_overlayAnimation = CurvedAnimation(
+  parent: _overlayController,
+  curve: Curves.easeOut,
+);
+}
+
+// ===============================
+// 🧠 FILTER FUNCTION (MOVE HERE)
+// ===============================
+List<Dog> _applyFiltersMainThread({
+  required List<Dog> sourceDogs,
+  required String currentUserId,
+  required String? selectedBreed,
+  required String? selectedGender,
+  required RangeValues? ageRange,
+  required double? userLatitude,
+  required double? userLongitude,
+  required double maxDistance,
+  required bool? selectedNeutered,
+  required String? selectedHealthStatus,
+}) {
+  return sourceDogs.where((dog) {
+
+    if (dog.isHidden == true) return false;
+    if (dog.ownerProfileVisible != true) return false;
+    if (dog.dogProfileVisible != true) return false;
+    if (dog.ownerId == currentUserId) return false;
+
+    final matchesBreed =
+        selectedBreed == null || dog.breed == selectedBreed;
+
+    final matchesGender =
+        selectedGender == null || dog.gender == selectedGender;
+
+    final matchesAge =
+        ageRange == null ||
+        (dog.age >= ageRange.start &&
+            dog.age <= ageRange.end);
+
+    bool matchesDistance = true;
+
+    if (userLatitude != null &&
+        userLongitude != null &&
+        dog.latitude != null &&
+        dog.longitude != null) {
+
+      final meters = Geolocator.distanceBetween(
+        userLatitude,
+        userLongitude,
+        dog.latitude!,
+        dog.longitude!,
+      );
+
+      matchesDistance = (meters / 1000) <= maxDistance;
+    }
+
+    final matchesNeutered =
+        selectedNeutered == null ||
+        dog.isNeutered == selectedNeutered;
+
+    final matchesHealth =
+        selectedHealthStatus == null ||
+        dog.healthStatus == selectedHealthStatus;
+
+    return matchesBreed &&
+        matchesGender &&
+        matchesAge &&
+        matchesDistance &&
+        matchesNeutered &&
+        matchesHealth;
+
+  }).toList();
+}
+
+void _startDogsStream() {
+  if (_dogsSubscription != null) return;
+
+  _dogsSubscription = FirebaseFirestore.instance
+      .collection('dogs')
+      .snapshots()
+      .listen((snapshot) {
+
+    final appState = context.read<AppState>();
+
+    // 🐶 MAP DATA
+    final List<Dog> sourceDogs = snapshot.docs.map((doc) {
+      final data = doc.data();
+
+      return Dog(
+        id: doc.id,
+        name: data['name'] ?? '',
+        breed: data['breed'] ?? '',
+        age: (data['age'] ?? 0),
+        gender: data['gender'] ?? '',
+        healthStatus: data['healthStatus'] ?? '',
+        isNeutered: data['isNeutered'] ?? false,
+        description: data['description'] ?? '',
+        traits: List<String>.from(data['traits'] ?? []),
+        ownerGender: data['ownerGender'] ?? '',
+        imagePaths: List<String>.from(data['imagePaths'] ?? []),
+        isAvailableForAdoption: data['isAvailableForAdoption'] ?? false,
+        isOwner: data['isOwner'] ?? false,
+        ownerId: data['ownerId'] ?? '',
+        latitude: (data['latitude'] as num?)?.toDouble(),
+        longitude: (data['longitude'] as num?)?.toDouble(),
+        isHidden: data['isHidden'] ?? false,
+        dogProfileVisible: data['dogProfileVisible'] ?? true,
+        ownerProfileVisible: data['ownerProfileVisible'] ?? true,
+      );
+    }).toList();
+
+    // 🔥 جلوگیری از update بی‌خودی AppState
+    final currentDogs = appState.allDogs;
+
+    final isSame = listEquals(
+      currentDogs.map((e) => e.id).toList(),
+      sourceDogs.map((e) => e.id).toList(),
+    );
+
+    if (!isSame) {
+      appState.setAllDogs(sourceDogs);
+    }
+
+    // 🔍 APPLY FILTERS
+    final filtered = _applyFiltersMainThread(
+      sourceDogs: sourceDogs,
+      currentUserId: appState.currentUserId ?? '',
+      selectedBreed: selectedBreed,
+      selectedGender: selectedGender,
+      ageRange: ageRange,
+      userLatitude: _userLatitude,
+      userLongitude: _userLongitude,
+      maxDistance: _maxDistance,
+      selectedNeutered: selectedNeutered,
+      selectedHealthStatus: selectedHealthStatus,
+    );
+
+    // 🔍 APPLY SEARCH
+    final finalList = _searchQuery.isEmpty
+        ? filtered
+        : filtered.where((dog) {
+            return dog.name.toLowerCase().contains(_searchQuery);
+          }).toList();
+
+    // 🧹 REMOVE DUPLICATES
+    final Map<String, Dog> uniqueDogs = {};
+    for (final dog in finalList) {
+      uniqueDogs.putIfAbsent(dog.id, () => dog);
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      
+      _sourceDogs = sourceDogs;
+      _filteredDogs = uniqueDogs.values.toList();
+      _isLoading = false;
+
+      debugPrint("🔥 SOURCE DOGS: ${_sourceDogs.length}");
+      debugPrint("🎯 FINAL DOGS: ${_filteredDogs.length}");
+    });
+_precacheDogImages(_filteredDogs);
+  });
+}
+
+Future<void> _precacheDogImages(List<Dog> dogs) async {
+  if (!mounted) return;
+
+  for (final dog in dogs.take(6)) { // 👈 فقط 6 تا اول (performance safe)
+    for (final path in dog.imagePaths.take(1)) { // 👈 فقط عکس اول
+      try {
+        final imageProvider = NetworkImage(path);
+
+        await precacheImage(imageProvider, context);
+
+        debugPrint("🧠 precached: $path");
+      } catch (e) {
+        debugPrint("❌ precache failed: $e");
+      }
+    }
+  }
+}
 
   Future<void> _checkInternetAndStartStream() async {
-    bool hasInternet = await _checkInternetConnection();
-    if (hasInternet) {
-      _notificationsSubscription = FirebaseFirestore.instance
-          .collection('notifications')
-          .where('recipientUserId', isEqualTo: widget.currentUserId)
-          .where('isRead', isEqualTo: false)
-          .snapshots()
-          .listen((snapshot) {
-        if (mounted) {
-          setState(() {
-            _unreadNotificationsCount = snapshot.docs.length;
-            if (kDebugMode) {
-              print('PlaymatePage - Updated unread notifications count (realtime): $_unreadNotificationsCount');
-            }
-          });
-        }
-      }, onError: (e, stackTrace) {
-        if (kDebugMode) {
-          print('PlaymatePage - Error in notifications stream: $e');
-          print('StackTrace: $stackTrace');
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.errorLoadingNotifications(e.toString()), style: GoogleFonts.poppins())),
-          );
-        }
-      });
-    } else {
-      await Future.delayed(const Duration(seconds: 5));
-      await _checkInternetAndStartStream();
-    }
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  // 🚨 اگر logout شده باشد listener اصلاً شروع نمی‌شود
+  if (user == null) {
+    debugPrint('🛑 PlaymatePage: user is null, notifications stream blocked');
+    return;
   }
 
+  if (_notificationsSubscription != null) return;
+
+  bool hasInternet = await _checkInternetConnection();
+  if (!hasInternet) {
+    await Future.delayed(const Duration(seconds: 5));
+    if (mounted) {
+      _checkInternetAndStartStream();
+    }
+    return;
+  }
+
+ _notificationsSubscription = debugSnapshots(
+  FirebaseFirestore.instance
+      .collection('notifications')
+      .where('recipientUserId', isEqualTo: user.uid)
+      .where('isRead', isEqualTo: false),
+  "PlaymatePage notifications",
+).listen((snapshot) {
+
+        if (!mounted) return;
+
+        setState(() {
+          _unreadNotificationsCount = snapshot.docs.length;
+        });
+
+      }, onError: (e) {
+        debugPrint('❌ notifications listener error: $e');
+      });
+}
   Future<bool> _checkInternetConnection() async {
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -121,21 +362,23 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
   }
 
   Future<void> _loadUnreadNotificationsCount() async {
+    final appState = context.read<AppState>();
     try {
       final notificationsSnapshot = await FirebaseFirestore.instance
           .collection('notifications')
-          .where('recipientUserId', isEqualTo: widget.currentUserId)
+          .where('recipientUserId', isEqualTo: appState.currentUserId ?? '')
           .where('isRead', isEqualTo: false)
           .get();
-      if (mounted) {
-        setState(() {
+      if (!mounted) return;
+
+setState(() {
           _unreadNotificationsCount = notificationsSnapshot.docs.length;
           if (kDebugMode) {
             print('PlaymatePage - Loaded unread notifications count: $_unreadNotificationsCount');
           }
         });
       }
-    } catch (e, stackTrace) {
+     catch (e, stackTrace) {
       if (kDebugMode) {
         print('PlaymatePage - Error loading unread notifications count: $e');
         print('StackTrace: $stackTrace');
@@ -148,14 +391,24 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
     }
   }
 
-  Future<void> _loadData() async {
-    if (kDebugMode) {
-      print('PlaymatePage - Starting _loadData');
-    }
-    setState(() {
-      _isLoading = true;
-    });
+  
 
+  Future<void> _loadData() async {
+  if (isSelectMode) {
+    if (kDebugMode) {
+      print('⛔ _loadData blocked (selectDogForPlaydate)');
+    }
+    return;
+  }
+if (!mounted) return;
+
+final appState = context.read<AppState>();
+
+if (!mounted) return;
+
+setState(() {
+  _isLoading = true;
+});
     try {
       bool isPremium = false;
       double maxDistance = 50.0;
@@ -166,6 +419,8 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
               .collection('users')
               .doc(user.uid)
               .get();
+if (!mounted) return;
+
           isPremium = userDoc.data()?['isPremium'] as bool? ?? false;
           maxDistance = isPremium ? 100.0 : 50.0;
           if (kDebugMode) {
@@ -200,17 +455,29 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
               }
             }
           }
-          if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
-            final position = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.high,
-              timeLimit: const Duration(seconds: 5),
-            );
-            userLatitude = position.latitude;
-            userLongitude = position.longitude;
-            if (kDebugMode) {
-              print('PlaymatePage - Current position: $userLatitude, $userLongitude');
-            }
-          }
+          if (permission == LocationPermission.whileInUse ||
+    permission == LocationPermission.always) {
+
+  final lastPosition = await Geolocator.getLastKnownPosition();
+
+  if (lastPosition != null) {
+    userLatitude = lastPosition.latitude;
+    userLongitude = lastPosition.longitude;
+  } else {
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.medium,
+    );
+
+    userLatitude = position.latitude;
+    userLongitude = position.longitude;
+  }
+
+  if (!mounted) return;
+
+  if (kDebugMode) {
+    print('PlaymatePage - Current position: $userLatitude, $userLongitude');
+  }
+}
         }
       } catch (e) {
         userLatitude = 41.0103;
@@ -220,72 +487,39 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
         }
       }
 
-      final dogsList = widget.dogs.map((dog) => {
-        'name': dog.name,
-        'breed': dog.breed,
-        'age': dog.age,
-        'gender': dog.gender,
-        'healthStatus': dog.healthStatus,
-        'isNeutered': dog.isNeutered,
-        'description': dog.description,
-        'traits': dog.traits,
-        'ownerGender': dog.ownerGender,
-        'imagePaths': dog.imagePaths,
-        'isAvailableForAdoption': dog.isAvailableForAdoption,
-        'isOwner': dog.isOwner,
-        'ownerId': dog.ownerId,
-        'latitude': dog.latitude,
-        'longitude': dog.longitude,
-        'id': dog.id,
-      }).toList();
+      // ===============================
+// 🧹 Hive Sync (Always ON)
+// ===============================
 
-      final filteredDogs = await compute(_applyFiltersIsolate, [
-        dogsList,
-        widget.currentUserId,
-        selectedBreed,
-        selectedGender,
-        ageRange,
-        userLatitude,
-        userLongitude,
-        maxDistance,
-        selectedNeutered,
-        selectedHealthStatus,
-      ]);
+// 1️⃣ حذف سگ‌های قدیمی که دیگه در uniqueDogs نیستن
 
-      final uniqueDogs = <String, Dog>{};
-      for (var dog in filteredDogs) {
-        if (!uniqueDogs.containsKey(dog.id)) {
-          uniqueDogs[dog.id] = dog;
-          if (kDebugMode) {
-            print('PlaymatePage - Using dog: ${dog.name}, id: ${dog.id}');
-          }
-        } else {
-          if (kDebugMode) {
-            print('PlaymatePage - Skipping duplicate dog: ${dog.name}, id: ${dog.id}');
-          }
-        }
-      }
 
-      final existingKeys = dogsBox.keys.cast<String>().toList();
-      for (var key in existingKeys) {
-        if (!uniqueDogs.containsKey(key)) {
-          await dogsBox.delete(key);
-          if (kDebugMode) {
-            print('PlaymatePage - Deleted stale dog from Hive: $key');
-          }
-        }
-      }
-      for (final entry in uniqueDogs.entries) {
-        if (!dogsBox.containsKey(entry.key)) {
-          await dogsBox.put(entry.key, entry.value);
-          if (kDebugMode) {
-            print('PlaymatePage - Added dog to dogsBox: ${entry.value.name}, id: ${entry.value.id}');
-          }
-        }
-      }
-      if (kDebugMode) {
-        print('PlaymatePage - Loaded ${uniqueDogs.length} unique dogs into Hive');
-      }
+  if (!isSelectMode) {
+
+  final existingKeys = dogsBox.keys.cast<String>().toList();
+
+  for (final key in existingKeys) {
+    if (!_allDogs.any((d) => d.id == key)) {
+      await dogsBox.delete(key);
+    }
+  }
+
+  for (final dog in _allDogs) {
+    await dogsBox.put(dog.id, dog);
+  }
+
+}
+
+// 2️⃣ اضافه‌کردن یا آپدیت سگ‌های جدید
+
+
+  
+
+if (kDebugMode) {
+  print(
+    'PlaymatePage - Hive sync completed, total dogs in Hive: ${dogsBox.length}',
+  );
+}
 
       if (mounted) {
         setState(() {
@@ -293,14 +527,15 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
           _maxDistance = maxDistance;
           _userLatitude = userLatitude;
           _userLongitude = userLongitude;
-          _filteredDogs = uniqueDogs.values.toList();
+         _filteredDogs = _sourceDogs;
           _isPremiumLoaded = true;
           _isLoading = false;
           if (kDebugMode) {
             print('PlaymatePage - _isLoading set to false, filteredDogs: ${_filteredDogs.length}');
           }
         });
-        _loadUnreadNotificationsCount();
+        if (!mounted) return;
+_loadUnreadNotificationsCount();
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
@@ -337,13 +572,22 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
     final String? selectedHealthStatus = args[9] as String?;
 
     final filteredDogs = dogs.where((dogMap) {
-      final notOwnDog = (dogMap['ownerId']?.toLowerCase() ?? '') != currentUserId.toLowerCase();
-      if (!notOwnDog) {
-        if (kDebugMode) {
-          print('PlaymatePage - Excluding dog ${dogMap['name']} because ownerId (${dogMap['ownerId']}) matches currentUserId ($currentUserId)');
-        }
-        return false;
-      }
+      if (dogMap['isHidden'] == true) return false;
+
+if (dogMap['ownerProfileVisible'] == false) return false;
+
+if (dogMap['dogProfileVisible'] == false) return false;
+      //final notOwnDog = (dogMap['ownerId']?.toLowerCase() ?? '') != currentUserId.toLowerCase();
+      final ownerId = dogMap['ownerId'] as String?;
+
+if (ownerId == currentUserId) {
+  if (kDebugMode) {
+    print(
+      'PlaymatePage - Excluding dog ${dogMap['name']} because ownerId ($ownerId) matches currentUserId ($currentUserId)',
+    );
+  }
+  return false;
+}
 
       bool matchesBreed = selectedBreed == null || dogMap['breed'] == selectedBreed;
       bool matchesGender = selectedGender == null || dogMap['gender'] == selectedGender;
@@ -377,22 +621,27 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
           age: (dogMap['age'] as num).toInt(),
           gender: dogMap['gender'] as String,
           healthStatus: dogMap['healthStatus'] as String,
-          isNeutered: dogMap['isNeutered'] as bool,
+          isNeutered: _safeBool(dogMap['isNeutered']),
           description: dogMap['description'] as String,
           traits: List<String>.from(dogMap['traits'] ?? []),
           ownerGender: dogMap['ownerGender'] as String,
           imagePaths: List<String>.from(dogMap['imagePaths'] ?? []),
-          isAvailableForAdoption: dogMap['isAvailableForAdoption'] as bool,
-          isOwner: dogMap['isOwner'] as bool,
+          isAvailableForAdoption: _safeBool(dogMap['isAvailableForAdoption']),
+          isOwner: _safeBool(dogMap['isOwner']),
           ownerId: dogMap['ownerId'] as String,
-          latitude: dogMap['latitude'] as double,
-          longitude: dogMap['longitude'] as double,
+          latitude: (dogMap['latitude'] as num?)?.toDouble() ?? 0.0,
+longitude: (dogMap['longitude'] as num?)?.toDouble() ?? 0.0,
+reportCount: dogMap['reportCount'] ?? 0,
+isHidden: dogMap['isHidden'] ?? false,
+moderationStatus: dogMap['moderationStatus'] ?? "active",
+
         )).toList();
 
     return filteredDogs;
   }
 
   Future<void> _applyFiltersAsync({Map<String, dynamic>? filters}) async {
+    final appState = context.read<AppState>();
     if (kDebugMode) {
       print('PlaymatePage - Starting _applyFiltersAsync with filters: $filters');
     }
@@ -411,7 +660,7 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
     }
 
     try {
-      final dogsList = _filteredDogs.map((dog) => {
+      final dogsList = _sourceDogs.map((dog) => {
         'name': dog.name,
         'breed': dog.breed,
         'age': dog.age,
@@ -427,12 +676,18 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
         'ownerId': dog.ownerId,
         'latitude': dog.latitude,
         'longitude': dog.longitude,
+        'reportCount': dog.reportCount,
+'isHidden': dog.isHidden,
+'moderationStatus': dog.moderationStatus,
         'id': dog.id,
       }).toList();
 
+
+
+
       final filteredDogs = await compute(_applyFiltersIsolate, [
         dogsList,
-        widget.currentUserId,
+        appState.currentUserId ?? '',
         selectedBreed,
         selectedGender,
         ageRange,
@@ -442,7 +697,7 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
         selectedNeutered,
         selectedHealthStatus,
       ]);
-
+print("🧠 AFTER FILTER ASYNC: ${filteredDogs.length}");
       final uniqueDogs = <String, Dog>{};
       for (var dog in filteredDogs) {
         if (!uniqueDogs.containsKey(dog.id)) {
@@ -467,6 +722,7 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
             }
           }
         });
+        _precacheDogImages(_filteredDogs);
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
@@ -519,552 +775,463 @@ class _PlaymatePageState extends State<PlaymatePage> with AutomaticKeepAliveClie
   }
 
   @override
-  void dispose() {
-    _notificationsSubscription.cancel();
-    super.dispose();
-  }
+void dispose() {
+  _overlayController.dispose(); // 🔥 خیلی مهم
+  _dogsSubscription?.cancel();
+  _notificationsSubscription?.cancel();
+  _searchDebounce?.cancel();
+  super.dispose();
+}
 
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final availableBreeds = [...getDogBreeds(context), ..._filteredDogs.map((dog) => dog.breed).toSet()];
-    final List<String> uniqueBreeds = availableBreeds.cast<String>().toSet().toList();
-    final appState = context.watch<AppState>();
-    final favs = widget.favoriteDogs ?? appState.favoriteDogs ?? const <Dog>[];
+ Widget _buildPlaymateBody(
+  BuildContext context,
+  List<Dog> favs,
+  AppState appState,
+) {
+  final localizations = AppLocalizations.of(context)!;
+  final dogs = _filteredDogs;
 
-    if (kDebugMode) {
-      print('PlaymatePage - Building UI with _isLoading: $_isLoading, filteredDogs: ${_filteredDogs.length}');
-    }
+  return Container(
+    color: AppTheme.bg,
+    child: SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
 
-    final localizations = AppLocalizations.of(context)!;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          localizations.findPlaymateTitle,
-          style: GoogleFonts.dancingScript(color: const Color(0xFFFFC107)),
-        ),
-        backgroundColor: Colors.pink,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFFFFC107)),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-        actions: [
-          badges.Badge(
-            showBadge: _unreadNotificationsCount > 0,
-            badgeContent: Text(
-              '$_unreadNotificationsCount',
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.notifications, color: Color(0xFFFFC107)),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AllNotificationsPage(
-                      currentUserId: widget.currentUserId,
-                      dogsList: _filteredDogs,
-                      favoriteDogs: favs,
-                      onToggleFavorite: widget.onToggleFavorite ?? appState.toggleFavorite,
-                    ),
+          // 🔹 Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text(
+                  "Playmates",
+                  style: AppTheme.h1(),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: _openFilterPage,
+                  icon: Icon(
+                    Icons.tune,
+                    color: AppTheme.primary,
                   ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 🔎 Search
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: "Search by name...",
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) {
+                if (_searchDebounce?.isActive ?? false) {
+                  _searchDebounce!.cancel();
+                }
+
+                _searchDebounce = Timer(
+                  const Duration(milliseconds: 300),
+                  () {
+                    _searchQuery = value.toLowerCase();
+
+                    final filtered = _applyFiltersMainThread(
+                      sourceDogs: _sourceDogs,
+                      currentUserId:
+                          appState.currentUserId ?? '',
+                      selectedBreed: selectedBreed,
+                      selectedGender: selectedGender,
+                      ageRange: ageRange,
+                      userLatitude: _userLatitude,
+                      userLongitude: _userLongitude,
+                      maxDistance: _maxDistance,
+                      selectedNeutered: selectedNeutered,
+                      selectedHealthStatus:
+                          selectedHealthStatus,
+                    );
+
+                    final finalList = _searchQuery.isEmpty
+                        ? filtered
+                        : filtered.where((dog) {
+                            return dog.name
+                                .toLowerCase()
+                                .contains(_searchQuery);
+                          }).toList();
+
+                    if (!mounted) return;
+
+                    setState(() {
+                      _filteredDogs = finalList;
+                    });
+
+                    _precacheDogImages(_filteredDogs);
+                  },
                 );
               },
-              tooltip: localizations.notificationsTooltip,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.chat, color: Color(0xFFFFC107)),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(localizations.chatNotImplemented, style: GoogleFonts.poppins())),
-              );
-            },
-            tooltip: localizations.chatTooltip,
+
+          const SizedBox(height: 12),
+
+          // 🐶 LIST
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.accent,
+                    ),
+                  )
+                : dogs.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        cacheExtent: 1000,
+                        addRepaintBoundaries: true,
+                        addAutomaticKeepAlives: true,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        itemCount: dogs.length,
+                        itemBuilder: (context, index) {
+                          final dog = dogs[index];
+
+                          return Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: 12),
+                            child: RepaintBoundary(
+                              child: DogCard(
+                                disableTap: appState.isGuest, // ✅ ADD THIS
+                                key: ValueKey(dog.id),
+                                dog: dog,
+                                mode: DogCardMode.compact,
+                                allDogs: _filteredDogs,
+                                currentUserId:
+                                    appState.currentUserId ?? '',
+                                favoriteDogs: favs,
+                                onToggleFavorite: (dog) {
+  if (appState.isGuest) {
+    showLoginDialog(context);
+    return;
+  }
+
+  appState.toggleFavorite(dog);
+},
+                                onAdopt: dog.isAvailableForAdoption
+    ? () {
+        if (appState.isGuest) {
+          showLoginDialog(context);
+          return;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdoptionPage(
+              dogs: appState.allDogs,
+              favoriteDogs: favs,
+              onToggleFavorite: (dog) {
+                appState.toggleFavorite(dog);
+              },
+            ),
+          ),
+        );
+      }
+    : null,
+                                selectedRequesterDogId:
+                                    isSelectMode
+                                        ? null
+                                        : appState
+                                            .selectedRequesterDogId,
+                                onRequesterDogChanged:
+    isSelectMode
+        ? null
+        : (value) {
+            if (appState.isGuest) {
+              showLoginDialog(context);
+              return;
+            }
+
+            appState.setSelectedRequesterDogId(value);
+          },
+                                showDogSelection:
+                                    isSelectMode,
+                                likers: appState
+                                        .dogLikes[dog.id] ??
+                                    [],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
-      drawer: Drawer(
-        width: 240.0,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.pink),
-              child: Text(
-                localizations.menuTitle ?? 'Menu',
-                style: GoogleFonts.poppins(color: const Color(0xFFFFC107), fontSize: 24),
+    ),
+  );
+}
+
+Widget _buildEmptyState() {
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+  Icons.pets,
+  size: 56,
+  color: AppTheme.muted.withOpacity(0.6),
+),
+        const SizedBox(height: 10),
+        Text(
+          "No dogs found",
+          style: AppTheme.h2(color: AppTheme.muted),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          "Try adjusting your filters",
+          style: AppTheme.caption(),
+        ),
+      ],
+    ),
+  );
+}
+
+@override
+Widget build(BuildContext context) {
+  final appState = context.watch<AppState>(); // 🔥 watch کن نه read
+
+  final isGuest = appState.isGuest; // ✅ ADD
+
+  debugPrint("🧨 PlaymatePage BUILD | isGuest=$isGuest");
+
+  return Container(
+    color: AppTheme.bg,
+    child: _buildPlaymateBody(
+      context,
+      appState.favoriteDogs,
+      appState,
+    ),
+  );
+}
+
+}
+class PlaymateProfileOverlay extends StatelessWidget {
+  final String targetUserId;
+  final List<Dog> dogsList;
+
+  const PlaymateProfileOverlay({
+    super.key,
+    required this.targetUserId,
+    required this.dogsList,
+  });
+
+  @override
+Widget build(BuildContext context) {
+  debugPrint("🧨 POPUP BUILD");
+
+  final appState = context.read<AppState>();
+
+  final userDogs =
+      dogsList.where((d) => d.ownerId == targetUserId).toList();
+
+  final content = userDogs.isEmpty
+      ? const Center(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Text(
+              "No dogs found",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        )
+      : Column(
+          children: userDogs.map((dog) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: DogCard(
+                dog: dog,
+                mode: DogCardMode.playdate,
+                disableTap: true,
+                allDogs: dogsList,
+                currentUserId: appState.currentUserId ?? '',
+                favoriteDogs: appState.favoriteDogs,
+                onToggleFavorite: (d) =>
+                    appState.toggleFavorite(d),
+                likers: appState.dogLikes[dog.id] ?? [],
+                enableEdit: false,
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home, color: Colors.black),
-              title: Text(localizations.homeMenuItem ?? 'Home', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/playmate');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.pets, color: Colors.black),
-              title: Text(localizations.myDogsMenuItem ?? 'My Dogs', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => UserProfilePage(
-                      dogsList: _filteredDogs,
-                      favoriteDogs: favs,
-                      onToggleFavorite: widget.onToggleFavorite ?? appState.toggleFavorite,
-                      userId: widget.currentUserId,
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.favorite, color: Colors.black),
-              title: Text(localizations.favoritesMenuItem ?? 'Favorites', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => FavoritesPage(
-                      favoriteDogs: favs,
-                      dogsList: _filteredDogs,
-                      onToggleFavorite: widget.onToggleFavorite ?? appState.toggleFavorite,
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.pets, color: Colors.black),
-              title: Text(localizations.adoptionCenterMenuItem ?? 'Adoption Center', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AdoptionPage(
-                      dogs: _filteredDogs,
-                      favoriteDogs: favs,
-                      onToggleFavorite: widget.onToggleFavorite ?? appState.toggleFavorite,
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.park, color: Colors.black),
-              title: Text(localizations.dogParkMenuItem ?? 'Dog Park', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DogParkPage(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.report, color: Colors.black),
-              title: Text(localizations.reportLostDogMenuItem ?? 'Report Lost Dog', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/lost_dog_report');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.list, color: Colors.black),
-              title: Text(localizations.lostDogsMenuItem ?? 'Lost Dogs', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LostDogsListPage(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.report, color: Colors.black),
-              title: Text(localizations.reportFoundDogMenuItem ?? 'Report Found Dog', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/found_dog_report');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.list, color: Colors.black),
-              title: Text(localizations.foundDogsMenuItem ?? 'Found Dogs', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const FoundDogsListPage(),
-                  ),
-                );
-              },
-            ),
-          ],
+            );
+          }).toList(),
+        );
+
+  return Stack(
+    children: [
+
+      // ===============================
+      // 🔥 BACKGROUND
+      // ===============================
+      Positioned.fill(
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            context.read<AppState>().closePlaymateProfile();
+          },
+          child: Container(color: Colors.black54),
         ),
       ),
-      body: Container(
-        color: Colors.pink,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
+
+      // ===============================
+      // 🎴 CARD
+      // ===============================
+      Center(
+        child: TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 250),
+          tween: Tween(begin: 0.8, end: 1),
+          curve: Curves.easeOutBack,
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value,
+              child: Opacity(
+                opacity: value.clamp(0.0, 1.0),
+                child: child,
+              ),
+            );
+          },
+
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF9E1B4F),
+                borderRadius: BorderRadius.circular(20),
+              ),
+
+              child: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
-                    const Center(
-                      child: SizedBox(
-                        width: 150,
-                        height: 150,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
-                          child: Icon(
-                            Icons.pets,
-                            size: 80,
-                            color: Color(0xFFFFC107),
+
+                    // ===============================
+                    // 🔝 HEADER (FIXED CLEAN)
+                    // ===============================
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () {
+                            context.read<AppState>().closePlaymateProfile();
+                          },
+                        ),
+
+                        const SizedBox(width: 6),
+
+                        Expanded(
+                          child: Text(
+                            "Dogs of this User",
+                            style: AppTheme.h2(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      child: Text(
-                        localizations.helloMessage(FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? 'User'),
-                        style: GoogleFonts.dancingScript(
-                          color: const Color(0xFFFFC107),
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
+
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          onPressed: () {
+                            _showUserActions(context);
+                          },
                         ),
-                      ),
+                      ],
                     ),
-                    OffersManager.buildOffersSection(_isPremium),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          SizedBox(
-                            width: 150,
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              hint: Text(
-                                localizations.selectBreedHint,
-                                style: GoogleFonts.poppins(
-                                  color: const Color(0xFFFFC107),
-                                ),
-                              ),
-                              value: selectedBreed,
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedBreed = value;
-                                });
-                                _applyFiltersAsync();
-                              },
-                              items: uniqueBreeds
-                                  .map((breed) => DropdownMenuItem<String>(
-                                        value: breed,
-                                        child: Text(
-                                          breed,
-                                          style: GoogleFonts.poppins(),
-                                        ),
-                                      ))
-                                  .toList(),
-                              dropdownColor: Colors.pinkAccent,
-                              style: GoogleFonts.poppins(color: const Color(0xFFFFC107)),
-                              iconEnabledColor: const Color(0xFFFFC107),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 150,
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              hint: Text(
-                                localizations.selectGenderHint,
-                                style: GoogleFonts.poppins(
-                                  color: const Color(0xFFFFC107),
-                                ),
-                              ),
-                              value: selectedGender,
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedGender = value;
-                                });
-                                _applyFiltersAsync();
-                              },
-                              items: [
-                                DropdownMenuItem<String>(
-                                  value: null,
-                                  child: Text(
-                                    localizations.anyGender,
-                                    style: GoogleFonts.poppins(),
-                                  ),
-                                ),
-                                DropdownMenuItem<String>(
-                                  value: 'Male',
-                                  child: Text(
-                                    'Male',
-                                    style: GoogleFonts.poppins(),
-                                  ),
-                                ),
-                                DropdownMenuItem<String>(
-                                  value: 'Female',
-                                  child: Text(
-                                    'Female',
-                                    style: GoogleFonts.poppins(),
-                                  ),
-                                ),
-                              ],
-                              dropdownColor: Colors.pinkAccent,
-                              style: GoogleFonts.poppins(color: const Color(0xFFFFC107)),
-                              iconEnabledColor: const Color(0xFFFFC107),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          SizedBox(
-                            width: 100,
-                            child: Text(
-                              localizations.distanceLabel(_maxDistance.toStringAsFixed(1)),
-                              style: GoogleFonts.poppins(
-                                color: const Color(0xFFFFC107),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Expanded(
-                            child: Slider(
-                              value: _maxDistance,
-                              min: 1,
-                              max: _isPremium ? 100.0 : 50.0,
-                              divisions: _isPremium ? 99 : 49,
-                              label: _maxDistance.toStringAsFixed(1),
-                              onChanged: (value) {
-                                setState(() {
-                                  _maxDistance = value;
-                                });
-                                _applyFiltersAsync();
-                              },
-                              activeColor: const Color(0xFFFFC107),
-                              inactiveColor: Colors.white.withOpacity(0.3),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ElevatedButton(
-                            onPressed: _resetFilters,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFFFFC107),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            ),
-                            child: Text(
-                              localizations.resetFiltersButton,
-                              style: GoogleFonts.poppins(fontSize: 12),
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: _openFilterPage,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFFFFC107),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            ),
-                            child: Text(
-                              localizations.moreFiltersButton,
-                              style: GoogleFonts.poppins(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _filteredDogs.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                Text(
-                                  localizations.noDogsMatchFilters,
-                                  style: GoogleFonts.poppins(
-                                    color: const Color(0xFFFFC107),
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                Text(
-                                  localizations.adjustFiltersSuggestion,
-                                  style: GoogleFonts.poppins(
-                                    color: const Color(0xFFFFC107),
-                                    fontSize: 14,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            key: const ValueKey('dog_list'),
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            cacheExtent: 1000.0,
-                            itemCount: _filteredDogs.length,
-                            itemBuilder: (context, index) {
-                              final dog = _filteredDogs[index];
-                              if (kDebugMode) {
-                                print(
-                                    'PlaymatePage - Displaying dog at index $index: Name=${dog.name}, Breed=${dog.breed}, Age=${dog.age}, Gender=${dog.gender}, ImagePaths=${dog.imagePaths}, ID=${dog.id}');
-                              }
-                              return RepaintBoundary(
-                                child: DogCard(
-                                  key: ValueKey(dog.id),
-                                  dog: dog,
-                                  allDogs: widget.dogs,
-                                  currentUserId: widget.currentUserId,
-                                  favoriteDogs: favs,
-                                  onToggleFavorite: widget.onToggleFavorite ?? appState.toggleFavorite,
-                                  selectedRequesterDogId: appState.selectedRequesterDogId,
-                                  onRequesterDogChanged: (value) {
-                                    appState.setSelectedRequesterDogId(value);
-                                    if (kDebugMode) {
-                                      print('PlaymatePage - Selected requester dog changed: $value');
-                                    }
-                                  },
-                                  onDogUpdated: (updatedDog) {
-                                    if (mounted) {
-                                      setState(() {
-                                        dogsBox.put(updatedDog.id, updatedDog);
-                                        FirebaseFirestore.instance.collection('dogs').doc(updatedDog.id).set({
-                                          'id': updatedDog.id,
-                                          'name': updatedDog.name,
-                                          'breed': updatedDog.breed,
-                                          'age': updatedDog.age,
-                                          'gender': updatedDog.gender,
-                                          'healthStatus': updatedDog.healthStatus,
-                                          'isNeutered': updatedDog.isNeutered,
-                                          'description': updatedDog.description,
-                                          'traits': updatedDog.traits,
-                                          'ownerGender': updatedDog.ownerGender,
-                                          'imagePaths': updatedDog.imagePaths,
-                                          'isAvailableForAdoption': updatedDog.isAvailableForAdoption,
-                                          'isOwner': updatedDog.isOwner,
-                                          'ownerId': updatedDog.ownerId,
-                                          'latitude': updatedDog.latitude,
-                                          'longitude': updatedDog.longitude,
-                                        }, SetOptions(merge: true));
-                                        _applyFiltersAsync();
-                                        if (kDebugMode) {
-                                          print('PlaymatePage - Updated dog: ${updatedDog.name}, id: ${updatedDog.id}');
-                                        }
-                                      });
-                                    }
-                                  },
-                                  getSelectedDog: () {
-                                    final selectedId = appState.selectedRequesterDogId;
-                                    return selectedId != null
-                                        ? widget.dogs.firstWhereOrNull(
-                                            (d) => d.id == selectedId,
-                                          )
-                                        : null;
-                                  },
-                                  showDogSelection: false,
-                                  likers: appState.dogLikes[dog.id] ?? [],
-                                ),
-                              );
-                            },
-                          ),
+
+                    const SizedBox(height: 16),
+
+                    // ===============================
+                    // 🐶 CONTENT
+                    // ===============================
+                    content,
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.home), label: localizations.homeNavItem),
-          BottomNavigationBarItem(icon: const Icon(Icons.favorite), label: localizations.favoritesNavItem),
-          BottomNavigationBarItem(icon: const Icon(Icons.local_hospital), label: localizations.visitVetNavItem),
-          BottomNavigationBarItem(icon: const Icon(Icons.calendar_today), label: localizations.playdateNavItem),
-          BottomNavigationBarItem(icon: const Icon(Icons.person), label: localizations.profileNavItem),
-        ],
-        selectedItemColor: const Color(0xFFFFC107),
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.pink,
-        currentIndex: 0,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushNamed(context, '/playmate');
-              break;
-            case 1:
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FavoritesPage(
-                    favoriteDogs: favs,
-                    dogsList: _filteredDogs,
-                    onToggleFavorite: widget.onToggleFavorite ?? appState.toggleFavorite,
-                  ),
-                ),
-              );
-              break;
-            case 2:
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const VetPage(),
-                ),
-              );
-              break;
-            case 3:
-              Navigator.pushNamed(context, '/schedule_playdate');
-              break;
-            case 4:
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => UserProfilePage(
-                    dogsList: _filteredDogs,
-                    favoriteDogs: favs,
-                    onToggleFavorite: widget.onToggleFavorite ?? appState.toggleFavorite,
-                    userId: widget.currentUserId,
-                  ),
-                ),
-              );
-              break;
-          }
-        },
-      ),
-    );
+    ],
+  );
+}
+void _showUserActions(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (_) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+
+            ListTile(
+              leading: const Icon(Icons.flag, color: Colors.red),
+              title: const Text("Report User"),
+              onTap: () {
+  final appState = context.read<AppState>();
+
+  if (appState.isGuest) {
+    Navigator.pop(context);
+    showLoginDialog(context);
+    return;
   }
+
+  Navigator.pop(context);
+  debugPrint("🚨 REPORT CLICKED");
+},
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.block),
+              title: const Text("Block User"),
+              onTap: () {
+                Navigator.pop(context);
+                debugPrint("⛔ BLOCK CLICKED");
+              },
+            ),
+
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    },
+  );
+}
+}
+void showLoginDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Login required"),
+      content: const Text("Please sign in to use this feature"),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            Navigator.pushNamed(context, '/auth');
+          },
+          child: const Text("Sign in"),
+        ),
+      ],
+    ),
+  );
 }

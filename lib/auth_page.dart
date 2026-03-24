@@ -15,7 +15,14 @@ import 'terms_page.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/main.dart';
 
+import 'package:barky_matches_fixed/home_gate.dart';
+import 'package:barky_matches_fixed/debug/auth_trap.dart';
+
+import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -213,6 +220,30 @@ const List<Map<String, String>> countryCodes = [
   {'name': 'Zimbabwe', 'code': '+263'},
 ];
 
+Future<String?> safeGetFcmToken() async {
+  try {
+    final messaging = FirebaseMessaging.instance;
+
+    // درخواست permission (safe – اگر قبلاً داده شده، مشکلی نیست)
+    await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // کمی صبر برای iOS
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final token = await messaging.getToken();
+    return token;
+  } catch (e) {
+    debugPrint('FCM not ready yet (safe): $e');
+    return null;
+  }
+}
+
+
+
 // تابع اطمینان از مقداردهی اولیه Firebase
 Future<void> ensureFirebase() async {
   if (Firebase.apps.isEmpty) {
@@ -392,14 +423,14 @@ class SimpleTestPage extends StatelessWidget {
 class AuthPage extends StatefulWidget {
   final bool isLogin;
   final Function(Dog)? onDogAdded;
-  final List<Dog> dogsList;
+  //final List<Dog> dogsList;
   final List<Dog> favoriteDogs;
   final Function(Dog) onToggleFavorite;
   const AuthPage({
     super.key,
     required this.isLogin,
     required this.onDogAdded,
-    required this.dogsList,
+    //required this.dogsList,
     required this.favoriteDogs,
     required this.onToggleFavorite,
   });
@@ -426,64 +457,69 @@ class _AuthPageState extends State<AuthPage> {
   bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsFlutterBinding.ensureInitialized();
-    BackgroundIsolateBinaryMessenger.ensureInitialized(RootIsolateToken.instance!);
-    final currentUserBox = Hive.box<String>('currentUserBox');
-    final isLoginString = currentUserBox.get('isLogin', defaultValue: widget.isLogin.toString());
-    _isLogin = isLoginString == 'true';
-    print('AuthPage - Initial isLogin: $_isLogin');
-    _loadSavedCredentials();
+void initState() {
+  super.initState();
+
+  final currentUserBox = Hive.box<String>('currentUserBox');
+  final isLoginString =
+      currentUserBox.get('isLogin', defaultValue: widget.isLogin.toString());
+  _isLogin = isLoginString == 'true';
+
+  _loadSavedCredentials();
+}
+Future<void> _retryFcmToken() async {
+  try {
+    final currentUserId =
+        Hive.box<String>('currentUserBox').get('currentUserId');
+
+    if (currentUserId == null || currentUserId == 'guest') return;
+
+    final fcmToken = await safeGetFcmToken();
+
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .set({'fcmToken': fcmToken}, SetOptions(merge: true));
+
+      debugPrint('AuthPage - Delayed FCM token saved');
+    }
+  } catch (e) {
+    debugPrint('AuthPage - FCM retry failed (ignored): $e');
   }
+}
+
+
 
   Future<void> _loadSavedCredentials() async {
-    try {
-      final currentUserBox = Hive.box<String>('currentUserBox');
-      final currentUserId = currentUserBox.get('currentUserId');
-      print('AuthPage - Checking currentUserId: $currentUserId');
-      if (currentUserId == null) {
-        print('AuthPage - No current user, skipping credential load');
-        setState(() {
-          _emailController.text = '';
-          _passwordController.text = '';
-          _usernameController.text = '';
-          _phoneController.text = '';
-          _rememberMe = false;
-        });
-        await currentUserBox.clear();
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.clear();
-        print('AuthPage - Cleared all data after logout');
-        return;
-      }
-      final savedEmail = currentUserBox.get('savedEmail');
-      final savedPassword = currentUserBox.get('savedPassword');
-      final rememberMe = currentUserBox.get('rememberMe', defaultValue: 'false');
-      print('AuthPage - Loading saved credentials: email=$savedEmail, password=$savedPassword, rememberMe=$rememberMe');
-      if (rememberMe == 'true' && savedEmail != null && savedPassword != null) {
-        setState(() {
-          _emailController.text = savedEmail;
-          _passwordController.text = savedPassword;
-          _rememberMe = true;
-        });
-        print('AuthPage - Successfully loaded saved credentials: email=$savedEmail');
-      } else {
-        print('AuthPage - No saved credentials found or Remember Me is disabled');
-        setState(() {
-          _emailController.text = '';
-          _passwordController.text = '';
-          _usernameController.text = '';
-          _phoneController.text = '';
-          _rememberMe = false;
-        });
-        await currentUserBox.delete('savedEmail');
-        await currentUserBox.delete('savedPassword');
-        await currentUserBox.delete('rememberMe');
-        print('AuthPage - Cleared saved credentials due to missing data');
-      }
-    } catch (e) {
-      print('AuthPage - Error loading saved credentials: $e');
+  try {
+    final currentUserBox = Hive.box<String>('currentUserBox');
+
+    final currentUserId = currentUserBox.get('currentUserId');
+    final savedEmail = currentUserBox.get('savedEmail');
+    final savedPassword = currentUserBox.get('savedPassword');
+    final rememberMe =
+        currentUserBox.get('rememberMe', defaultValue: 'false');
+
+    print('AuthPage - Checking currentUserId: $currentUserId');
+    print(
+        'AuthPage - Saved credentials → email=$savedEmail, rememberMe=$rememberMe');
+
+    // 🔵 مهم: هیچ چیزی پاک نکن
+    // فقط بررسی کن اگر RememberMe فعال است، فیلدها را پر کن
+
+    if (rememberMe == 'true' &&
+        savedEmail != null &&
+        savedPassword != null) {
+      setState(() {
+        _emailController.text = savedEmail;
+        _passwordController.text = savedPassword;
+        _rememberMe = true;
+      });
+
+      print('AuthPage - Loaded saved credentials successfully');
+    } else {
+      // اگر RememberMe فعال نیست فقط فیلدها خالی باشند
       setState(() {
         _emailController.text = '';
         _passwordController.text = '';
@@ -491,8 +527,22 @@ class _AuthPageState extends State<AuthPage> {
         _phoneController.text = '';
         _rememberMe = false;
       });
+
+      print('AuthPage - RememberMe disabled or no saved data');
     }
+  } catch (e) {
+    print('AuthPage - Error loading saved credentials: $e');
+
+    // در صورت خطا فقط فیلدها ریست شوند، چیزی پاک نشود
+    setState(() {
+      _emailController.text = '';
+      _passwordController.text = '';
+      _usernameController.text = '';
+      _phoneController.text = '';
+      _rememberMe = false;
+    });
   }
+}
 
   Future<void> _saveCredentials() async {
     final currentUserBox = Hive.box<String>('currentUserBox');
@@ -530,6 +580,7 @@ class _AuthPageState extends State<AuthPage> {
   Future<Map<String, dynamic>> _signInWithFirebase(String email, String password) async {
     final l10n = AppLocalizations.of(context)!;
     final currentUserBox = Hive.box<String>('currentUserBox');
+    
     final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
     bool isAuthenticated = false;
     String? errorMessage;
@@ -557,13 +608,19 @@ class _AuthPageState extends State<AuthPage> {
       await userCredential.user?.reload();
       await Future.delayed(const Duration(seconds: 1)); // تأخیر برای اطمینان از توکن
       userId = userCredential.user!.uid;
-      String? fcmToken = await FirebaseMessaging.instance.getToken();
-      if (fcmToken != null) {
-        await FirebaseFirestore.instance.collection('users').doc(userId).set({
-          'fcmToken': fcmToken,
-        }, SetOptions(merge: true));
-        print('AuthPage - FCM token updated for user $userId: $fcmToken');
-      }
+      String? fcmToken = await safeGetFcmToken();
+
+if (fcmToken != null && fcmToken.isNotEmpty) {
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(userId)
+      .set({'fcmToken': fcmToken}, SetOptions(merge: true));
+
+  print('AuthPage - FCM token saved: $fcmToken');
+} else {
+  print('AuthPage - FCM token not available yet, skipping');
+}
+
       final lowerCaseUserId = userId.toLowerCase();
       if (userDataBox.containsKey(lowerCaseUserId)) {
         await userDataBox.delete(lowerCaseUserId);
@@ -601,12 +658,11 @@ class _AuthPageState extends State<AuthPage> {
             }, SetOptions(merge: true));
         print('AuthPage - Updated username in Firestore: ${userData['username']}');
       }
-      final hiveUserData = Map<String, dynamic>.from(userData);
-      if (hiveUserData.containsKey('createdAt') && (hiveUserData['createdAt'] is FieldValue || hiveUserData['createdAt'] is Timestamp)) {
-        hiveUserData['createdAt'] = DateTime.now().toIso8601String();
-      }
-      await userDataBox.put(userId, hiveUserData);
-      print('AuthPage - Stored user data in userDataBox with key $userId: $hiveUserData');
+      final cleanedData =
+    cleanDeep(Map<String, dynamic>.from(userData));
+
+await userDataBox.put(userId, cleanedData);
+      print('AuthPage - Stored user data in userDataBox with key $userId: $cleanedData');
       await currentUserBox.put('currentUserId', userId);
       print('AuthPage - Stored currentUserId: $userId');
       await _saveCredentials();
@@ -641,29 +697,33 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-  static Future<Map<String, dynamic>> _fetchUserDataIsolate(String userId) async {
-    try {
-      WidgetsFlutterBinding.ensureInitialized();
-      BackgroundIsolateBinaryMessenger.ensureInitialized(RootIsolateToken.instance!);
-      await ensureFirebase();
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      if (!doc.exists) {
-        print('AuthPage - No user data found for userId: $userId');
-        return {};
-      }
-      final data = doc.data() ?? {};
-      if (data.containsKey('createdAt') && data['createdAt'] is Timestamp) {
-        data['createdAt'] = (data['createdAt'] as Timestamp).toDate().toIso8601String();
-      }
-      return data;
-    } catch (e) {
-      print('AuthPage - Error fetching user data: $e');
-      return {};
+  static Future<Map<String, dynamic>> _fetchUserDataIsolate(
+    String userId) async {
+  try {
+    await ensureFirebase();
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+
+    if (!doc.exists) {
+      print('AuthPage - No user data found for userId: $userId');
+      return <String, dynamic>{};
     }
+
+    final raw =
+        Map<String, dynamic>.from(doc.data() ?? {});
+
+    final cleaned =
+    cleanDeep(raw);
+
+    return Map<String, dynamic>.from(cleaned);
+  } catch (e) {
+    print('AuthPage - Error fetching user data: $e');
+    return <String, dynamic>{};
   }
+}
 
   Future<Map<String, dynamic>> _registerWithFirebase(
       String email,
@@ -689,7 +749,7 @@ class _AuthPageState extends State<AuthPage> {
           .collection('users')
           .doc(userId)
           .set(userData, SetOptions(merge: true));
-      final fcmToken = await FirebaseMessaging.instance.getToken();
+      final fcmToken = await safeGetFcmToken();
       if (fcmToken != null) {
         await FirebaseFirestore.instance
             .collection('users')
@@ -778,10 +838,19 @@ class _AuthPageState extends State<AuthPage> {
       }
       final data = jsonDecode(resp.body);
       final verificationCode = data['verificationCode'] as String;
-      final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
-      final hiveUserData = Map<String, dynamic>.from(userData);
-      hiveUserData['createdAt'] = DateTime.now().toIso8601String();
-      await userDataBox.put(userId, hiveUserData);
+      final userDataBox =
+    Hive.box<Map<dynamic, dynamic>>('userDataBox');
+
+final hiveUserData =
+    Map<String, dynamic>.from(userData);
+
+hiveUserData['createdAt'] =
+    DateTime.now().toIso8601String();
+
+final cleaned =
+    cleanDeep(hiveUserData);
+
+await userDataBox.put(userId, cleaned);
       await Hive.box<String>('currentUserBox').put('currentUserId', userId);
       return {
         'success': true,
@@ -896,7 +965,7 @@ class _AuthPageState extends State<AuthPage> {
     final l10n = AppLocalizations.of(context)!;
     print('AuthPage - Logging out...');
     try {
-      FirebaseAuth.instance.signOut();
+      AuthTrap.signOut(reason: 'PUT_REASON_HERE');
       print('AuthPage - Signed out from Firebase');
       final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
       final currentUserBox = Hive.box<String>('currentUserBox');
@@ -928,171 +997,165 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   void _submit() async {
-    final l10n = AppLocalizations.of(context)!;
-    print('AuthPage - Submit button pressed');
-    print('AuthPage - Form validation started');
-    print('AuthPage - Email: ${_emailController.text}');
-    print('AuthPage - Password: ${_passwordController.text}');
-    print('AuthPage - Confirm Password: ${_confirmPasswordController.text}');
-    print('AuthPage - Username: ${_usernameController.text}');
-    print('AuthPage - Phone: ${_phoneController.text}');
-    print('AuthPage - Terms Accepted: $_agreeToTerms');
-    if (_formKey.currentState!.validate()) {
+  final l10n = AppLocalizations.of(context)!;
+  print('AuthPage - Submit button pressed');
+  print('AuthPage - Form validation started');
+  print('AuthPage - Email: ${_emailController.text}');
+  print('AuthPage - Password: ${_passwordController.text}');
+  print('AuthPage - Confirm Password: ${_confirmPasswordController.text}');
+  print('AuthPage - Username: ${_usernameController.text}');
+  print('AuthPage - Phone: ${_phoneController.text}');
+  print('AuthPage - Terms Accepted: $_agreeToTerms');
+
+  if (!_formKey.currentState!.validate()) {
+    print('AuthPage - Validation failed: All fields must be filled');
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+    if (mounted && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.pleaseFillRequiredFields)),
+      );
+    }
+    return;
+  }
+
+  if (!mounted) return;
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    if (_isLogin) {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      final Map<String, dynamic> result =
+          await _signInWithFirebase(email, password);
+
+      if (!mounted) return;
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
-      try {
-        if (_isLogin) {
-          final email = _emailController.text.trim();
-          final password = _passwordController.text.trim();
-          Map<String, dynamic> result = await _signInWithFirebase(email, password);
-          setState(() {
-            _isLoading = false;
-          });
-          bool isAuthenticated = result['isAuthenticated'] ?? false;
-          String? errorMessage = result['errorMessage'];
-          String? username = result['username'];
-          String userId = result['userId'] ?? '';
-          if (isAuthenticated && userId.isNotEmpty && mounted && context.mounted) {
-            final dogsBox = Hive.box<Dog>('dogsBox');
-            print('AuthPage - Navigating to PlaymatePage with userId: $userId');
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PlaymatePage(
-                  dogs: dogsBox.values.toList(),
-                  favoriteDogs: widget.favoriteDogs,
-                  onToggleFavorite: widget.onToggleFavorite,
-                  currentUserId: userId,
-                ),
-              ),
-              (Route<dynamic> route) => false,
-            );
-            print('AuthPage - Navigation to PlaymatePage triggered');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.welcomeBack(username ?? ''))),
-            );
-          } else if (errorMessage != null && mounted && context.mounted) {
-            print('AuthPage - Sign-in failed: $errorMessage');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(errorMessage)),
-            );
-          }
-        } else {
-          if (!_agreeToTerms) {
-            setState(() {
-              _isLoading = false;
-            });
-            if (mounted && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.termsRequired)),
-              );
-            }
-            return;
-          }
-          final username = _usernameController.text.trim();
-          final email = _emailController.text.trim();
-          final phone = _phoneController.text.trim();
-          final password = _passwordController.text.trim();
-          Map<String, dynamic> result = await _registerWithFirebase(email, password, username, phone);
-          setState(() {
-            _isLoading = false;
-          });
-          bool success = result['success'] ?? false;
-          String? verificationCode = result['verificationCode'];
-          String? errorMessage = result['errorMessage'];
-          String? userId = result['userId'];
-          if (success && userId != null && mounted && context.mounted) {
-            final currentUserBoxStorage = Hive.box<String>('currentUserBox');
-            await currentUserBoxStorage.put('receiveNews', _receiveNews.toString());
-            print('AuthPage - Receive news preference saved: $_receiveNews');
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VerifyEmailPage(
-                  email: email,
-                  verificationCode: verificationCode!,
-                ),
-              ),
-            ).then((isVerified) {
-              if (isVerified == true && mounted && context.mounted) {
-                final dogsBox = Hive.box<Dog>('dogsBox');
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PlaymatePage(
-                      dogs: dogsBox.values.toList(),
-                      favoriteDogs: widget.favoriteDogs,
-                      onToggleFavorite: widget.onToggleFavorite,
-                      currentUserId: userId,
-                    ),
-                  ),
-                  (Route<dynamic> route) => false,
-                );
-                print('AuthPage - Navigation to PlaymatePage after verification triggered');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddDogPage(
-                      onDogAdded: widget.onDogAdded,
-                      favoriteDogs: widget.favoriteDogs,
-                      onToggleFavorite: widget.onToggleFavorite,
-                    ),
-                  ),
-                ).then((_) {
-                  if (mounted && context.mounted) {
-                    final updatedDogsBox = Hive.box<Dog>('dogsBox');
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PlaymatePage(
-                          dogs: updatedDogsBox.values.toList(),
-                          favoriteDogs: widget.favoriteDogs,
-                          onToggleFavorite: widget.onToggleFavorite,
-                          currentUserId: userId,
-                        ),
-                      ),
-                      (Route<dynamic> route) => false,
-                    );
-                    print('AuthPage - Navigation to PlaymatePage after AddDogPage triggered');
-                  }
-                });
-              } else if (mounted && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.verifyEmailTitle)),
-                );
-              }
-            });
-          } else if (errorMessage != null && mounted && context.mounted) {
-            print('AuthPage - Registration failed: $errorMessage');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(errorMessage)),
-            );
-          }
-        }
-      } catch (e) {
-        print('AuthPage - Error during login/signup: $e');
+
+      final bool isAuthenticated = result['isAuthenticated'] ?? false;
+      final String? errorMessage = result['errorMessage'];
+      final String userId = result['userId'] ?? '';
+
+      if (isAuthenticated && userId.isNotEmpty && mounted) {
+        final appState = context.read<AppState>();
+        appState.updateUserId(userId);
+
+        // فقط یک‌بار init
+       // await appState.initUser();
+
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+  MaterialPageRoute(builder: (_) => const HomeGate()),
+  (route) => false,
+);
+      } else if (errorMessage != null && mounted && context.mounted) {
+        print('AuthPage - Sign-in failed: $errorMessage');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } else {
+      if (!_agreeToTerms) {
+        if (!mounted) return;
         setState(() {
           _isLoading = false;
         });
         if (mounted && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
+            SnackBar(content: Text(l10n.termsRequired)),
           );
         }
+        return;
       }
-    } else {
-      print('AuthPage - Validation failed: All fields must be filled');
+
+      final username = _usernameController.text.trim();
+      final email = _emailController.text.trim();
+      final phone = _phoneController.text.trim();
+      final password = _passwordController.text.trim();
+
+      final Map<String, dynamic> result =
+          await _registerWithFirebase(email, password, username, phone);
+
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
-      if (mounted && context.mounted) {
+
+      final bool success = result['success'] ?? false;
+      final String? verificationCode = result['verificationCode'];
+      final String? errorMessage = result['errorMessage'];
+      final String? userId = result['userId'];
+
+      if (success && userId != null && mounted && context.mounted) {
+        final currentUserBoxStorage = Hive.box<String>('currentUserBox');
+        await currentUserBoxStorage.put(
+          'receiveNews',
+          _receiveNews.toString(),
+        );
+        print('AuthPage - Receive news preference saved: $_receiveNews');
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VerifyEmailPage(
+              email: email,
+              verificationCode: verificationCode!,
+            ),
+          ),
+        ).then((isVerified) async {
+          if (!mounted) return;
+
+          if (isVerified == true && context.mounted) {
+            Provider.of<AppState>(context, listen: false)
+                .updateUserId(userId);
+
+            print(
+                'AuthPage - Navigation to PlaymatePage after verification triggered');
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddDogPage(
+                  onDogAdded: widget.onDogAdded,
+                  favoriteDogs: widget.favoriteDogs,
+                  onToggleFavorite: widget.onToggleFavorite,
+                ),
+              ),
+            );
+          } else if (mounted && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.verifyEmailTitle)),
+            );
+          }
+        });
+      } else if (errorMessage != null && mounted && context.mounted) {
+        print('AuthPage - Registration failed: $errorMessage');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.pleaseFillRequiredFields)),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     }
+  } catch (e) {
+    print('AuthPage - Error during login/signup: $e');
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+    if (mounted && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
+      );
+    }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -1546,7 +1609,7 @@ class _AuthPageState extends State<AuthPage> {
                                     await Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => PlaymatePage(
+                                        builder: (context) =>  PlaymatePage(
                                           dogs: dogsBox.values.toList(),
                                           favoriteDogs: widget.favoriteDogs,
                                           onToggleFavorite: widget.onToggleFavorite,
@@ -1573,7 +1636,7 @@ class _AuthPageState extends State<AuthPage> {
                                         await Navigator.pushReplacement(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (context) => PlaymatePage(
+                                            builder: (context) =>  PlaymatePage(
                                               dogs: updatedDogsBox.values.toList(),
                                               favoriteDogs: widget.favoriteDogs,
                                               onToggleFavorite: widget.onToggleFavorite,
@@ -1616,3 +1679,5 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 }
+
+

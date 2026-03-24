@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dog.dart';
 import 'auth_page.dart';
-import 'home_page.dart';
+
 import 'vet_page.dart';
 import 'adoption_page.dart';
 import 'dog_park_page.dart';
 import 'add_dog_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'home_page.dart';
+import 'package:barky_matches_fixed/home_gate.dart';
+
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
  // اضافه کردن برای محلی‌سازی
 
@@ -46,15 +49,12 @@ class _GreetingState extends State<Greeting> {
 
   void _continueAsGuest() {
     Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomePage(
-          dogsList: widget.dogsList,
-          favoriteDogs: widget.favoriteDogs,
-          onToggleFavorite: widget.onToggleFavorite,
-        ),
-      ),
-    );
+  context,
+  MaterialPageRoute(
+    builder: (context) => const HomeGate(),
+  ),
+);
+
   }
 
   @override
@@ -118,31 +118,28 @@ class _GreetingState extends State<Greeting> {
                         icon: Icons.pets,
                         title: l10n.playmateService, // به جای 'Playmate'
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => HomePage(
-                                dogsList: widget.dogsList,
-                                favoriteDogs: widget.favoriteDogs,
-                                onToggleFavorite: widget.onToggleFavorite,
-                              ),
-                            ),
-                          );
+                          Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => const HomeGate(),
+  ),
+);
+
                         },
                       ),
                       _buildServiceCard(
-                        context,
-                        icon: Icons.local_hospital,
-                        title: l10n.vetServices, // به جای 'Vet Services'
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const VetPage(),
-                            ),
-                          );
-                        },
-                      ),
+  context,
+  icon: Icons.local_hospital,
+  title: l10n.vetServices,
+  onTap: () {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.vetServicesAvailableAfterLogin),
+      ),
+    );
+  },
+),
+
                       _buildServiceCard(
                         context,
                         icon: Icons.favorite,

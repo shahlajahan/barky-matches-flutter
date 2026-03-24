@@ -1,138 +1,103 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:lottie/lottie.dart';
-import 'welcome_page.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/foundation.dart';
 
+import 'welcome_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _textAnimation;
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _textAnimation;
+
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) {
-      print('SplashScreen - Initializing...');
-    }
+    debugPrint('SplashScreen - init');
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5), // تنظیم مدت زمان انیمیشن
+      duration: const Duration(seconds: 3),
     );
-    _controller.addStatusListener((status) {
-      if (kDebugMode) {
-        print('SplashScreen - Animation status: $status');
-      }
-      if (status == AnimationStatus.completed) {
-        if (kDebugMode) {
-          print('SplashScreen - Animation completed, navigating to WelcomePage');
-        }
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomePage()),
-        );
-      }
-    });
 
-    // انیمیشن برای متن
-    _textAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _textAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+        curve: const Interval(0.4, 1.0, curve: Curves.easeInOut),
       ),
     );
 
-    // هدایت خودکار بعد از 10 ثانیه در صورت شکست انیمیشن
-    Future.delayed(const Duration(seconds: 10), () {
-      if (mounted && !_controller.isCompleted) {
-        if (kDebugMode) {
-          print('SplashScreen - Animation timeout, forcing navigation to WelcomePage');
-        }
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomePage()),
-        );
-      }
-    });
-
-    // شروع انیمیشن
-    if (kDebugMode) {
-      print('SplashScreen - Starting animation');
-    }
     _controller.forward();
+
+    // ⏱ بعد از اسپلش → همیشه Welcome
+    Future.delayed(const Duration(seconds: 3), _goToWelcome);
+  }
+
+  void _goToWelcome() {
+    if (!mounted || _navigated) return;
+    _navigated = true;
+
+    debugPrint('SplashScreen - navigate to Welcome');
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const WelcomePage()),
+    );
   }
 
   @override
   void dispose() {
-    if (kDebugMode) {
-      print('SplashScreen - Disposing controller');
-    }
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode) {
-      print('SplashScreen - Building UI');
-    }
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.pink, Colors.pink],
+            colors: [Colors.pink, Colors.pinkAccent],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              width: 200,
-              height: 200,
+              width: 180,
+              height: 180,
               child: Lottie.asset(
                 'assets/animations/dog_animation.json',
                 controller: _controller,
-                onLoaded: (composition) {
-                  if (kDebugMode) {
-                    print('SplashScreen - Lottie animation loaded, duration: ${composition.duration}');
-                  }
-                  _controller
-                    ..duration = composition.duration
-                    ..forward();
-                },
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  if (kDebugMode) {
-                    print('SplashScreen - Error loading Lottie animation: $error');
-                  }
-                  return const Icon(Icons.error, size: 100, color: Colors.white);
+                onLoaded: (composition) {
+                  _controller.duration = composition.duration;
+                  _controller.forward();
                 },
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             FadeTransition(
               opacity: _textAnimation,
-              child: Text(
-                'Find the perfect playmate for your pup!',
-                style: GoogleFonts.dancingScript(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFFFC107),
-                ),
+              child: const Text(
+                'See who’s nearby 👀!',
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFFFC107),
+                ),
               ),
             ),
           ],

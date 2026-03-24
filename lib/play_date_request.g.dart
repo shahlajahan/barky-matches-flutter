@@ -28,13 +28,15 @@ class PlayDateRequestAdapter extends TypeAdapter<PlayDateRequest> {
       requesterName: fields[8] as String?,
       message: fields[9] as String?,
       location: fields[10] as String?,
+      requesterDogId: fields[11] as String,
+      requestedDogId: fields[12] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, PlayDateRequest obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.requestId)
       ..writeByte(1)
@@ -56,7 +58,11 @@ class PlayDateRequestAdapter extends TypeAdapter<PlayDateRequest> {
       ..writeByte(9)
       ..write(obj.message)
       ..writeByte(10)
-      ..write(obj.location);
+      ..write(obj.location)
+      ..writeByte(11)
+      ..write(obj.requesterDogId)
+      ..writeByte(12)
+      ..write(obj.requestedDogId);
   }
 
   @override

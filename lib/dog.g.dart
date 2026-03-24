@@ -33,13 +33,18 @@ class DogAdapter extends TypeAdapter<Dog> {
       ownerId: fields[13] as String?,
       latitude: fields[14] as double?,
       longitude: fields[15] as double?,
+      reportCount: fields[16] as int,
+      isHidden: fields[17] as bool,
+      moderationStatus: fields[18] as String,
+      ownerProfileVisible: fields[19] as bool,
+      dogProfileVisible: fields[20] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, Dog obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -71,7 +76,17 @@ class DogAdapter extends TypeAdapter<Dog> {
       ..writeByte(14)
       ..write(obj.latitude)
       ..writeByte(15)
-      ..write(obj.longitude);
+      ..write(obj.longitude)
+      ..writeByte(16)
+      ..write(obj.reportCount)
+      ..writeByte(17)
+      ..write(obj.isHidden)
+      ..writeByte(18)
+      ..write(obj.moderationStatus)
+      ..writeByte(19)
+      ..write(obj.ownerProfileVisible)
+      ..writeByte(20)
+      ..write(obj.dogProfileVisible);
   }
 
   @override

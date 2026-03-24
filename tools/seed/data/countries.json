@@ -1,0 +1,26 @@
+[
+    {
+        "code": "TR",
+        "name": "Turkey",
+        "name_local": "Türkiye",
+        "dial_code": "+90",
+        "enabled": true,
+        "sort": 10
+    },
+    {
+        "code": "DE",
+        "name": "Germany",
+        "name_local": "Deutschland",
+        "dial_code": "+49",
+        "enabled": true,
+        "sort": 20
+    },
+    {
+        "code": "US",
+        "name": "United States",
+        "name_local": "United States",
+        "dial_code": "+1",
+        "enabled": true,
+        "sort": 30
+    }
+]

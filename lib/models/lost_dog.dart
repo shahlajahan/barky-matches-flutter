@@ -1,21 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LostDog {
-  final String id; // اختیاری، برای شناسایی سند
+  final String id;
   final String name;
   final String breed;
   final double latitude;
   final double longitude;
   final DateTime reportedAt;
   final String reportedBy;
-  final String? color; // اختیاری
-  final String? weight; // اختیاری
-  final String? collarType; // اختیاری
-  final String? clothingColor; // اختیاری
-  final String lostLocation; // الزامی
-  final String contactInfo; // الزامی
-  final String? description; // اختیاری
-  final bool isFound; // جدید
+
+  final String? color;
+  final String? weight;
+  final String? collarType;
+  final String? clothingColor;
+  final String lostLocation;
+  final Map<String, dynamic>? contactInfo;
+  final String? description;
+  final bool isFound;
+final int? age;
+
+  // ✅ NEW FIELDS
+  final String? imageUrl;
+  final String? gender;
+  final String? healthStatus;
 
   LostDog({
     this.id = '',
@@ -30,12 +37,18 @@ class LostDog {
     this.collarType,
     this.clothingColor,
     required this.lostLocation,
-    required this.contactInfo,
+    this.contactInfo,
     this.description,
-    this.isFound = false, // پیش‌فرض false
+    this.isFound = false,
+    this.age,
+    
+
+    // 👇 مهم — این‌ها باید داخل constructor باشند
+    this.imageUrl,
+    this.gender,
+    this.healthStatus,
   });
 
-  // تبدیل داده‌ها به Map برای ذخیره در Firestore
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -53,10 +66,15 @@ class LostDog {
       'contactInfo': contactInfo,
       'description': description,
       'isFound': isFound,
+      'age': age,
+
+      // ✅ NEW
+      'imageUrl': imageUrl,
+      'gender': gender,
+      'healthStatus': healthStatus,
     };
   }
 
-  // ساخت شیء از Map (مثلاً از داده‌های Firestore) با مدیریت انواع مختلف
   factory LostDog.fromMap(Map<String, dynamic> map) {
     DateTime parseReportedAt(dynamic value) {
       if (value is Timestamp) {
@@ -64,8 +82,7 @@ class LostDog {
       } else if (value is String) {
         try {
           return DateTime.parse(value);
-        } catch (e) {
-          print('Error parsing reportedAt string: $e');
+        } catch (_) {
           return DateTime.now();
         }
       }
@@ -85,13 +102,22 @@ class LostDog {
       collarType: map['collarType'] as String?,
       clothingColor: map['clothingColor'] as String?,
       lostLocation: map['lostLocation'] as String? ?? '',
-      contactInfo: map['contactInfo'] as String? ?? '',
+      contactInfo: map['contactInfo'] is Map
+          ? Map<String, dynamic>.from(map['contactInfo'])
+          : map['contactInfo'] is String
+              ? {"type": "legacy", "value": map['contactInfo']}
+              : null,
       description: map['description'] as String?,
       isFound: map['isFound'] as bool? ?? false,
+      age: (map['age'] as num?)?.toInt(),
+
+      // ✅ NEW SAFE
+      imageUrl: map['imageUrl'] as String?,
+      gender: map['gender'] as String?,
+      healthStatus: map['healthStatus'] as String?,
     );
   }
 
-  // متد copyWith برای کپی با تغییرات
   LostDog copyWith({
     String? id,
     String? name,
@@ -105,9 +131,13 @@ class LostDog {
     String? collarType,
     String? clothingColor,
     String? lostLocation,
-    String? contactInfo,
+    Map<String, dynamic>? contactInfo,
     String? description,
     bool? isFound,
+    int? age,
+    String? imageUrl,
+    String? gender,
+    String? healthStatus,
   }) {
     return LostDog(
       id: id ?? this.id,
@@ -125,6 +155,10 @@ class LostDog {
       contactInfo: contactInfo ?? this.contactInfo,
       description: description ?? this.description,
       isFound: isFound ?? this.isFound,
+      imageUrl: imageUrl ?? this.imageUrl,
+      gender: gender ?? this.gender,
+      age: age ?? this.age,
+      healthStatus: healthStatus ?? this.healthStatus,
     );
   }
 }

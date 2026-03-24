@@ -3,6 +3,8 @@ import 'dog.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/utils/localization_utils.dart';
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
 
 typedef EditDogCallback = void Function(Dog updatedDog)?;
 
@@ -76,19 +78,13 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
     super.dispose();
   }
 
-  void _saveDog() {
+ Future<void> _saveDog() async {
     if (_isSaving) {
       print('EditDogPage - Save already in progress for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
       return;
     }
 
-    if (widget.onEditDog == null) {
-      print('EditDogPage - Cannot save dog: ${widget.dog.name}, ID: ${widget.dog.id}, onEditDog is null');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.editDogPermissionDenied)),
-      );
-      return;
-    }
+   
 
     setState(() {
       _isSaving = true;
@@ -122,6 +118,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
       return;
     }
 
+/*
     final localizations = AppLocalizations.of(context)!;
     final healthStatus = _selectedHealthStatus == 'editDogHealthHealthy' ? localizations.editDogHealthHealthy :
                         _selectedHealthStatus == 'editDogHealthNeedsCare' ? localizations.editDogHealthNeedsCare :
@@ -132,17 +129,19 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                        _selectedOwnerGender == 'editDogOwnerGenderFemale' ? localizations.editDogOwnerGenderFemale :
                        localizations.editDogOwnerGenderOther;
 
+*/
+
     final updatedDog = Dog(
       id: widget.dog.id,
       name: name,
       breed: widget.dog.breed,
       age: age,
       gender: widget.dog.gender,
-      healthStatus: healthStatus,
+      healthStatus: _selectedHealthStatus ?? widget.dog.healthStatus,
       isNeutered: _isNeutered,
       description: description,
       traits: _selectedTraits,
-      ownerGender: ownerGender,
+      ownerGender: _selectedOwnerGender ?? widget.dog.ownerGender,
       imagePaths: _imagePaths,
       isAvailableForAdoption: _isAvailableForAdoption,
       isOwner: widget.dog.isOwner,
@@ -152,12 +151,19 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
     );
 
     print('EditDogPage - Dog updated: ${updatedDog.name}, ID: ${updatedDog.id}, calling onEditDog');
-    widget.onEditDog!(updatedDog);
-    Navigator.pop(context);
+   try {
+  await context.read<AppState>().saveEditedDog(updatedDog);
+
+  if (!mounted) return;
+
+  Navigator.of(context, rootNavigator: true).pop();
+} finally {
+  if (mounted) {
     setState(() {
       _isSaving = false;
-      print('EditDogPage - Save completed for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
     });
+  }
+}
   }
 
   @override

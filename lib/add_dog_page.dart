@@ -11,7 +11,8 @@ import 'dog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/auth_page.dart';
+
 
 class AddDogPage extends StatefulWidget {
   final Function(Dog)? onDogAdded;
@@ -67,12 +68,17 @@ class _AddDogPageState extends State<AddDogPage> {
     'traitGoodWithKids',
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    print('AddDogPage - initState called');
+  bool _didInitLocation = false;
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+
+  if (!_didInitLocation) {
+    _didInitLocation = true;
     _checkUserAndGetLocation();
   }
+}
 
   String translateTrait(String traitKey) {
     final l10n = AppLocalizations.of(context)!;
@@ -190,17 +196,15 @@ class _AddDogPageState extends State<AddDogPage> {
   }
 
   Future<void> _checkUserAndGetLocation() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      print('AddDogPage - No user logged in, redirecting to WelcomePage');
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/welcome');
-      }
-      return;
-    }
-    await _getCurrentLocation();
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    print("AddDogPage - No user logged in");
+    return;
   }
 
+  await _getCurrentLocation();
+}
   Future<void> _getCurrentLocation() async {
     final l10n = AppLocalizations.of(context)!;
     print('AddDogPage - Attempting to get current location');
@@ -316,27 +320,55 @@ class _AddDogPageState extends State<AddDogPage> {
   }
 
   Future<List<String>> _uploadImages(String dogId) async {
-    List<String> urls = [];
-    for (var imageFile in _imageFiles) {
-      try {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('dog_images/$dogId/${DateTime.now().millisecondsSinceEpoch}.jpg');
-        await ref.putFile(File(imageFile.path));
-        final url = await ref.getDownloadURL();
-        urls.add(url);
-        print('AddDogPage - Uploaded image: $url for dogId: $dogId');
-      } catch (e) {
-        print('AddDogPage - Error uploading image: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)?.errorUploadingImage(e.toString()) ?? 'Error uploading image: $e')),
-          );
-        }
-      }
-    }
+  List<String> urls = [];
+
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    print('AddDogPage - Upload failed: user not logged in');
     return urls;
   }
+
+  final userId = user.uid;
+
+  for (var imageFile in _imageFiles) {
+    try {
+      final file = File(imageFile.path);
+
+      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('dog_images/$userId/$dogId/$fileName.jpg');
+
+      print("AddDogPage - Uploading image to ${ref.fullPath}");
+
+      await ref.putFile(file);
+
+      final url = await ref.getDownloadURL();
+
+      urls.add(url);
+
+      print("AddDogPage - Uploaded image URL: $url");
+
+    } catch (e) {
+      print('AddDogPage - Error uploading image: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)
+                      ?.errorUploadingImage(e.toString()) ??
+                  'Error uploading image: $e',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  return urls;
+}
 
   Future<void> _submit() async {
     print('AddDogPage - Add Dog button pressed');
@@ -415,12 +447,14 @@ class _AddDogPageState extends State<AddDogPage> {
       try {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
-          print('AddDogPage - No user logged in, redirecting to WelcomePage');
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/welcome');
-          }
-          return;
-        }
+  print('AddDogPage - No user logged in');
+
+  if (mounted) {
+    print("AddDogPage - User lost session");
+  }
+
+  return;
+}
         final userId = user.uid;
         print('AddDogPage - Current userId: $userId');
 
@@ -488,6 +522,11 @@ class _AddDogPageState extends State<AddDogPage> {
           'ownerId': userId,
           'latitude': newDog.latitude,
           'longitude': newDog.longitude,
+
+          // 🔐 Trust & Safety fields
+  'reportCount': 0,
+  'isHidden': false,
+  'moderationStatus': 'active',
         });
         print('AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId');
 

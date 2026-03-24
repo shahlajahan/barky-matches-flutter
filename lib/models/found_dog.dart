@@ -1,21 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FoundDog {
-  final String id; // اختیاری، برای شناسایی سند
+  final String id;
   final String name;
   final String breed;
   final double latitude;
   final double longitude;
   final DateTime reportedAt;
   final String reportedBy;
-  final String? color; // اختیاری
-  final String? weight; // اختیاری
-  final String? collarType; // اختیاری
-  final String? clothingColor; // اختیاری
-  final String foundLocation; // الزامی
-  final String contactInfo; // الزامی
-  final String? description; // اختیاری
-  final bool isClaimed; // جدید
+  final String? color;
+  final String? weight;
+  final String? collarType;
+  final String? clothingColor;
+  final String foundLocation;
+  final Map<String, dynamic> contactInfo; // ✅ FIXED
+  final String? description;
+  final bool isClaimed;
+  final String? imageUrl;
 
   FoundDog({
     this.id = '',
@@ -32,10 +33,10 @@ class FoundDog {
     required this.foundLocation,
     required this.contactInfo,
     this.description,
-    this.isClaimed = false, // پیش‌فرض false
+    this.isClaimed = false,
+    this.imageUrl,
   });
 
-  // تبدیل داده‌ها به Map برای ذخیره در Firestore
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -53,21 +54,19 @@ class FoundDog {
       'contactInfo': contactInfo,
       'description': description,
       'isClaimed': isClaimed,
+      'imageUrl': imageUrl,
     };
   }
 
-  // ساخت شیء از Map (مثلاً از داده‌های Firestore) با مدیریت انواع مختلف
   factory FoundDog.fromMap(Map<String, dynamic> map) {
     DateTime parseReportedAt(dynamic value) {
       if (value is Timestamp) {
         return value.toDate();
-      } else if (value is String) {
+      }
+      if (value is String) {
         try {
           return DateTime.parse(value);
-        } catch (e) {
-          print('Error parsing reportedAt string: $e');
-          return DateTime.now();
-        }
+        } catch (_) {}
       }
       return DateTime.now();
     }
@@ -85,13 +84,13 @@ class FoundDog {
       collarType: map['collarType'] as String?,
       clothingColor: map['clothingColor'] as String?,
       foundLocation: map['foundLocation'] as String? ?? '',
-      contactInfo: map['contactInfo'] as String? ?? '',
+      contactInfo: _parseContactInfo(map['contactInfo']),
       description: map['description'] as String?,
       isClaimed: map['isClaimed'] as bool? ?? false,
+      imageUrl: map['imageUrl'] as String?,
     );
   }
 
-  // متد copyWith برای کپی با تغییرات
   FoundDog copyWith({
     String? id,
     String? name,
@@ -105,9 +104,10 @@ class FoundDog {
     String? collarType,
     String? clothingColor,
     String? foundLocation,
-    String? contactInfo,
+    Map<String, dynamic>? contactInfo, // ✅ FIXED
     String? description,
     bool? isClaimed,
+    String? imageUrl,
   }) {
     return FoundDog(
       id: id ?? this.id,
@@ -122,9 +122,37 @@ class FoundDog {
       collarType: collarType ?? this.collarType,
       clothingColor: clothingColor ?? this.clothingColor,
       foundLocation: foundLocation ?? this.foundLocation,
-      contactInfo: contactInfo ?? this.contactInfo,
+      contactInfo: contactInfo ?? this.contactInfo, // ✅ FIXED
       description: description ?? this.description,
       isClaimed: isClaimed ?? this.isClaimed,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
+static Map<String, dynamic> _parseContactInfo(dynamic value) {
+  if (value == null) {
+    return {
+      "type": "",
+      "value": "",
+    };
+  }
+
+  // اگر قبلاً Map بوده
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+
+  // اگر قبلاً String بوده (نسخه قدیمی دیتابیس)
+  if (value is String) {
+    return {
+      "type": "Phone",
+      "value": value,
+    };
+  }
+
+  return {
+    "type": "",
+    "value": "",
+  };
+}
+
 }

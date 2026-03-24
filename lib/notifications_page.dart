@@ -1,248 +1,287 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'app_notification.dart';
-import 'app_state.dart';
-import 'other_user_dog_page.dart';
-import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../../app_state.dart'; // مسیر رو اگر فرق داره اصلاح کن
 
 class NotificationsPage extends StatefulWidget {
   final String? currentUserId;
+  final void Function(Map<String, dynamic> payload) onNotificationSelected;
 
-  const NotificationsPage({super.key, required this.currentUserId});
+  const NotificationsPage({
+    super.key,
+    required this.currentUserId,
+    required this.onNotificationSelected,
+  });
 
   @override
-  _NotificationsPageState createState() => _NotificationsPageState();
+  State<NotificationsPage> createState() => _NotificationsPageState();
 }
 
-class _NotificationsPageState extends State<NotificationsPage> {
+class _NotificationsPageState extends State<NotificationsPage>
+    with WidgetsBindingObserver {
+
+  bool _handlingTap = false;
+
+  static const Color _cardColor = Color(0xFF9E1B4F);
+
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('🔄 NotificationsPage resumed');
+      FirebaseFirestore.instance.enableNetwork();
+    }
+  }
+
+  Widget _buildNotificationsBody(BuildContext context) {
+
     if (widget.currentUserId == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(
-            'Notifications',
-            style: GoogleFonts.dancingScript(color: const Color(0xFFFFC107)),
-          ),
-          backgroundColor: Colors.pink,
-        ),
-        body: Center(
-          child: Text(
-            'User not logged in.',
-            style: GoogleFonts.poppins(
-              color: const Color(0xFFFFC107),
-              fontSize: 18,
-            ),
-          ),
-        ),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
-    return DefaultTextStyle.merge(
-      style: GoogleFonts.poppins(),
-      child: Builder(
-        builder: (context) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
-            ),
-            child: DefaultTextStyle(
-              style: GoogleFonts.poppins(
-                textStyle: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                      fontSize: 16,
-                      color: const Color(0xFFFFC107),
-                    ),
+    return Container(
+      color: const Color(0xFFFFF6F8),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('notifications')
+            .where('recipientUserId', isEqualTo: widget.currentUserId)
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+
+          if (snapshot.hasError) {
+            debugPrint("🔥 FIRESTORE ERROR: ${snapshot.error}");
+            return Center(
+              child: Text(
+                snapshot.error.toString(),
+                style: const TextStyle(color: Colors.red),
               ),
-              child: Scaffold(
-                appBar: AppBar(
-                  title: Text(
-                    'Notifications',
-                    style: GoogleFonts.dancingScript(color: const Color(0xFFFFC107)),
-                  ),
-                  backgroundColor: Colors.pink,
-                ),
-                backgroundColor: Colors.pink, // تنظیم رنگ پس‌زمینه به‌صورت یکنواخت
-                body: Container(
-                  color: Colors.pink, // تنظیم رنگ کونتینر به‌صورت یکنواخت
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'Test Font',
-                          style: GoogleFonts.poppins(color: Colors.red, fontSize: 24),
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          color: Colors.pink,
-                          child: DefaultTextStyle(
-                            style: GoogleFonts.poppins(
-                              textStyle: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                                    color: const Color(0xFFFFC107),
-                                  ),
-                            ),
-                            child: StreamBuilder<QuerySnapshot>(
-                              stream: FirebaseFirestore.instance
-                                  .collection('notifications')
-                                  .where('recipientUserId', isEqualTo: widget.currentUserId)
-                                  .orderBy('timestamp', descending: true)
-                                  .snapshots(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const Center(child: CircularProgressIndicator());
-                                }
-                                if (snapshot.hasError) {
-                                  print('NotificationsPage - Error loading notifications: ${snapshot.error}');
-                                  return Center(child: Text('Error: ${snapshot.error}'));
-                                }
-                                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                                  return Container(
-                                    color: Colors.pink,
-                                    child: Center(
-                                      child: Text(
-                                        'No notifications available.',
-                                        style: GoogleFonts.poppins(
-                                          color: const Color(0xFFFFC107),
-                                          fontSize: 18,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }
-                                final notifications = snapshot.data!.docs
-                                    .map((doc) => AppNotification.fromMap(doc.id, doc.data() as Map<String, dynamic>))
-                                    .toList();
-                                return Container(
-                                  color: Colors.pink,
-                                  child: ListView.builder(
-                                    itemCount: notifications.length,
-                                    itemBuilder: (context, index) {
-                                      final notification = notifications[index];
-                                      final payload = notification.payload != null ? jsonDecode(notification.payload!) : {};
-                                      return ListTile(
-                                        leading: Icon(
-                                          notification.isRead ? Icons.notifications_outlined : Icons.notifications_active,
-                                          color: const Color(0xFFFFC107),
-                                        ),
-                                        title: Text(
-                                          notification.title,
-                                          style: GoogleFonts.poppins(
-                                            color: const Color(0xFFFFC107),
-                                            fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              notification.body,
-                                              style: GoogleFonts.poppins(
-                                                color: const Color(0xFFFFC107),
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            Text(
-                                              notification.timestamp.toString(),
-                                              style: GoogleFonts.poppins(
-                                                color: const Color(0xFFFFC107).withOpacity(0.7),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        tileColor: notification.isRead ? Colors.pink.withOpacity(0.2) : Colors.pink.withOpacity(0.5),
-                                        onTap: () async {
-                                          if (!mounted) return;
-                                          await FirebaseFirestore.instance
-                                              .collection('notifications')
-                                              .doc(notification.id)
-                                              .update({'isRead': true});
-                                          print('NotificationsPage - Marked notification ${notification.id} as read');
+            );
+          }
 
-                                          // بررسی نوع نوتیفیکیشن و هدایت به DogCard کاربر مقابل
-                                          String? targetUserId;
-                                          if (payload['type'] == 'playDateRequest' && payload['requesterUserId'] != null) {
-                                            targetUserId = payload['requesterUserId'] as String;
-                                          } else if (payload['type'] == 'like' && payload['likerUserId'] != null) {
-                                            targetUserId = payload['likerUserId'] as String;
-                                          } else if (payload['type'] == 'favorite' && payload['likerUserId'] != null) {
-                                            targetUserId = payload['likerUserId'] as String;
-                                          } else if (payload['type'] == 'dislike' && payload['likerUserId'] != null) { // اضافه کردن پشتیبانی از dislike
-                                            targetUserId = payload['likerUserId'] as String;
-                                          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                                          if (targetUserId != null && targetUserId != widget.currentUserId && targetUserId.isNotEmpty) {
-                                            if (mounted) {
-                                              await Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) => OtherUserDogPage(
-                                                    targetUserId: targetUserId!,
-                                                    dogsList: Provider.of<AppState>(context, listen: false).dogsList,
-                                                    favoriteDogs: Provider.of<AppState>(context, listen: false).favoriteDogs,
-                                                    onToggleFavorite: Provider.of<AppState>(context, listen: false).onToggleFavorite,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } else if (payload['type'] == 'instant_notification') {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('Opened: ${notification.title}')),
-                                              );
-                                            }
-                                          } else {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('Unsupported notification type: ${payload['type']}')),
-                                              );
-                                            }
-                                          }
-                                        },
-                                        trailing: IconButton(
-                                          icon: const Icon(Icons.delete, color: Colors.yellow),
-                                          onPressed: () async {
-                                            if (!mounted) return;
-                                            try {
-                                              await FirebaseFirestore.instance
-                                                  .collection('notifications')
-                                                  .doc(notification.id)
-                                                  .delete();
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('Notification deleted')),
-                                                );
-                                              }
-                                            } catch (e) {
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Error: $e')),
-                                                );
-                                              }
-                                            }
-                                          },
-                                        ),
-                                      );
-                                    },
+          final docs = snapshot.data!.docs;
+
+          if (docs.isEmpty) {
+            return Center(
+              child: Text(
+                'No notifications available.',
+                style: GoogleFonts.poppins(fontSize: 16),
+              ),
+            );
+          }
+
+          final notifications = docs
+              .map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return AppNotification.fromMap(doc.id, data);
+              })
+              .whereType<AppNotification>()
+              .toList();
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            itemCount: notifications.length,
+            itemBuilder: (context, index) {
+
+              final notification = notifications[index];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Material(
+                  color: _cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  elevation: 3,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+  if (!mounted || _handlingTap) return;
+
+  _handlingTap = true;
+
+  try {
+    await FirebaseFirestore.instance
+        .collection('notifications')
+        .doc(notification.id)
+        .update({'isRead': true});
+
+    final docSnap = await FirebaseFirestore.instance
+        .collection('notifications')
+        .doc(notification.id)
+        .get();
+
+    final data = docSnap.data() ?? {};
+    final rawType =
+        (data['type'] ?? '').toString().toLowerCase().trim();
+
+    debugPrint("🔔 Notification tapped → type=$rawType");
+
+    // ✅ اول overlay بسته شود
+    context.read<AppState>().closeNotifications();
+
+    switch (rawType) {
+
+      case 'lost_dog':
+        widget.onNotificationSelected({
+          'type': 'lost_dog',
+          'lostDogId': data['lostDogId'],
+        });
+        break;
+
+      case 'found_dog':
+        widget.onNotificationSelected({
+          'type': 'found_dog',
+          'foundDogId': data['foundDogId'],
+        });
+        break;
+
+      case 'playdaterequest':
+      case 'playdate_request':
+        widget.onNotificationSelected({
+          'type': 'playdate_request',
+          'requestId': data['requestId'],
+        });
+        break;
+
+      case 'playdate_response':
+        widget.onNotificationSelected({
+          'type': 'playdate_response',
+          'requestId': data['requestId'],
+        });
+        break;
+
+      case 'playdate_reminder':
+        widget.onNotificationSelected({
+          'type': 'playdate_reminder',
+          'requestId': data['requestId'],
+        });
+        break;
+
+        case 'adoption_request': // ✅ این اضافه شد
+    widget.onNotificationSelected({
+      'type': 'adoption_request',
+      'requestId': data['requestId'],
+    });
+    break;
+
+    case 'business_resolution':
+  widget.onNotificationSelected({
+    'type': 'business_resolution',
+    'status': data['status'],
+    'centerId': data['centerId'],
+    'reason': data['reason'],
+  });
+  break;
+
+      default:
+        debugPrint('⚠️ Unknown notification type: $rawType');
+    }
+
+  } finally {
+    if (mounted) {
+      _handlingTap = false;
+    }
+  }
+},
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+
+                          Icon(
+                            notification.isRead
+                                ? Icons.notifications_none
+                                : Icons.notifications_active,
+                            color: Colors.amber,
+                            size: 26,
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+
+                                Text(
+                                  notification.title,
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
                                   ),
-                                );
-                              },
+                                ),
+
+                                const SizedBox(height: 4),
+
+                                Text(
+                                  notification.body,
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 6),
+
+                                Text(
+                                  notification.timestamp?.toString() ?? '',
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white38,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete,
+                              color: Colors.amber,
+                            ),
+                            onPressed: () async {
+                              await FirebaseFirestore.instance
+                                  .collection('notifications')
+                                  .doc(notification.id)
+                                  .delete();
+                            },
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildNotificationsBody(context);
   }
 }

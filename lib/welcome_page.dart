@@ -5,13 +5,21 @@ import 'home_page.dart';
 import 'vet_page.dart';
 import 'adoption_page.dart';
 import 'dog_park_page.dart';
-import 'app_state.dart' as MyAppState;
+//import 'app_state.dart' as MyAppState;
 import 'auth_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'offers_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'main.dart'; // برای دسترسی به MyApp
+import 'package:barky_matches_fixed/ui/welcome/preview_dogs_section.dart';
+import 'theme/app_theme.dart';
+import 'package:barky_matches_fixed/app_state.dart' as app;
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+//import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/home_gate.dart';
+import 'package:flutter/foundation.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -20,312 +28,426 @@ class WelcomePage extends StatefulWidget {
   _WelcomePageState createState() => _WelcomePageState();
 }
 
-class _WelcomePageState extends State<WelcomePage> {
+class _WelcomePageState extends State<WelcomePage>
+    with SingleTickerProviderStateMixin {
   bool _isInitialized = false;
+  bool _isLoading = false;
+  final GlobalKey _offerKey = GlobalKey();
+double _offerRealHeight = 0;
+AnimationController? _pulseController;
+Animation<double>? _pulseAnimation;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _postFirstFrameInit());
-    OffersManager.loadOffers();
-  }
+void initState() {
+  super.initState();
 
-  Future<void> _postFirstFrameInit() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
-    if (mounted) {
-      setState(() => _isInitialized = true);
-      print('WelcomePage - Using dogs from AppState: ${MyAppState.AppState.of(context).dogsList.length} dogs');
-    }
-  }
+  _initPage(); // 🔥 مهم
 
+  // 🔥 PULSE INIT
+  _pulseController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2000),
+  )..repeat(reverse: true);
+
+  _pulseAnimation = Tween<double>(
+    begin: 1.18,
+    end: 1.26,
+  ).animate(
+    CurvedAnimation(
+      parent: _pulseController!,
+      curve: Curves.easeInOut,
+    ),
+  );
+}
+
+Future<void> _initPage() async {
+  await OffersManager.loadOffersOnce(); // ⬅️ منتظر بمون
+
+  if (!mounted) return;
+
+  setState(() {
+    _isInitialized = true; // ⬅️ همزمان UI رو آپدیت کن
+  });
+}
+
+Widget _buildQuickAction({
+  required IconData icon,
+  required String title,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    borderRadius: BorderRadius.circular(16),
+    onTap: onTap,
+    child: Ink(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.cardShadow(),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: AppTheme.primary),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: AppTheme.body(),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
   @override
-  void dispose() {
-    super.dispose();
-  }
+void dispose() {
+  _pulseController?.dispose();
+  super.dispose();
+}
+void _measureOffer() {
+  final offerContext = _offerKey.currentContext;
+  if (offerContext == null) return;
 
-  @override
-  Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!;
-    final appState = MyAppState.AppState.of(context);
-    return Scaffold(
-      body: _isInitialized
-          ? RepaintBoundary(
-              child: Stack(
-                children: [
-                  const _BackgroundGradient(),
-                  SafeArea(
-                    child: SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: MediaQuery.of(context).size.height,
+  final box = offerContext.findRenderObject() as RenderBox?;
+  if (box == null) return;
+
+  final height = box.size.height;
+
+  if (height != _offerRealHeight) {
+    setState(() {
+      _offerRealHeight = height;
+    });
+  }
+}
+ @override
+Widget build(BuildContext context) {
+  final localizations = AppLocalizations.of(context)!;
+  final appState = context.watch<app.AppState>();
+
+  final previewDogs = appState.allDogs.take(3).toList();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+  _measureOffer();
+});
+
+  
+  return Scaffold(
+    backgroundColor: AppTheme.bg,
+    body: Stack(
+      children: [
+
+        // 🟢 MAIN CONTENT
+        _isInitialized
+            ? SafeArea(
+                top: true,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      const SizedBox(height: 8),
+
+                      // 👋 HEADER
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          "Welcome back 👋",
+                          style: AppTheme.h1(),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
+                      ),
+
+                      const SizedBox(height: 9),
+
+                      // 🎁 OFFERS
+                      Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  child: Row(
+    children: [
+
+      // 🎁 OFFER
+      Expanded(
+  child: AspectRatio(
+    aspectRatio: 1.6,
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+
+        // 🔥 GOLD GRADIENT
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFD54F), // light gold
+            Color(0xFFFFC107), // main gold
+            Color(0xFFFFA000), // deep gold
+          ],
+        ),
+
+        // 🔥 SUBTLE GLOW + DEPTH
+        boxShadow: [
+          // glow
+          BoxShadow(
+            color: Color(0xFFFFC107).withOpacity(0.35),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: Offset(0, 6),
+          ),
+
+          // depth shadow
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+
+            // ✨ LIGHT REFLECTION (خیلی subtle)
+            Positioned(
+              top: -20,
+              left: -20,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.12),
+                ),
+              ),
+            ),
+
+            // 🎁 CONTENT
+            OffersManager.buildOffersSection(context, null),
+          ],
+        ),
+      ),
+    ),
+  ),
+),
+
+      const SizedBox(width: 12),
+
+      // 🐾 LOGO
+      Expanded(
+  child: AspectRatio(
+    aspectRatio: 1.6,
+    child: Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF9E1B4F),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center( // 🔥 مهم
+        child: _pulseAnimation == null
+            ? Image.asset(
+                "assets/image/logo.png",
+                height: 90,
+              )
+            : AnimatedBuilder(
+                animation: _pulseAnimation!,
+                builder: (context, child) {
+                 
+
+                  return Transform.scale(
+                    scale: _pulseAnimation!.value,
+                    child: child,
+                  );
+                },
+                child: Image.asset(
+                  "assets/image/logo.png",
+                  height: 90, // 🔥 خیلی مهم → بدون این دیده نمیشه
+                ),
+              ),
+      ),
+    ),
+  ),
+),
+    ],
+  ),
+),
+                      const SizedBox(height: 8),
+
+                      PreviewDogsSection(
+                        previewDogs: previewDogs,
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // ⚡ QUICK ACTIONS
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          localizations.appFeatures,
+                          style: AppTheme.h1().copyWith(
+                            color: const Color(0xFF9E1B4F),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          childAspectRatio: 1.4,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
                           children: [
-                            const SizedBox(height: 40),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  localizations.welcomeTo,
-                                  style: GoogleFonts.dancingScript(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  localizations.barkyMatches,
-                                  style: GoogleFonts.dancingScript(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.8),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: FutureBuilder(
-                                  future: OffersManager.loadOffers(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState == ConnectionState.waiting) {
-                                      return const Center(child: CircularProgressIndicator());
-                                    } else if (snapshot.hasError) {
-                                      return Center(child: Text(localizations.errorLoadingOffers(snapshot.error.toString())));
-                                    }
-                                    return OffersManager.buildOffersSection(false);
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              localizations.appFeatures,
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            SizedBox(
-                              height: 200,
-                              child: RepaintBoundary(
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  cacheExtent: 1000, // بهینه‌سازی رندر
-                                  itemCount: 6,
-                                  itemBuilder: (context, index) {
-                                    switch (index) {
-                                      case 0:
-                                        return _buildServiceCard(
-                                          icon: Icons.pets,
-                                          title: localizations.playmateService,
-                                          onTap: () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text(localizations.signInToAccessPlaymate)),
-                                            );
-                                          },
-                                        );
-                                      case 1:
-                                        return _buildServiceCard(
-                                          icon: Icons.local_hospital,
-                                          title: localizations.vetServices,
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => const VetPage(),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      case 2:
-                                        return _buildServiceCard(
-                                          icon: Icons.favorite,
-                                          title: localizations.adoptionCenter,
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => AdoptionPage(
-                                                  dogs: appState.dogsList,
-                                                  favoriteDogs: appState.favoriteDogsNotifier.value,
-                                                  onToggleFavorite: appState.onToggleFavorite,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      case 3:
-                                        return _buildServiceCard(
-                                          icon: Icons.school,
-                                          title: localizations.dogTraining,
-                                          onTap: () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text(localizations.dogTrainingComingSoon)),
-                                            );
-                                          },
-                                        );
-                                      case 4:
-                                        return _buildServiceCard(
-                                          icon: Icons.park,
-                                          title: localizations.dogPark,
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => const DogParkPage(),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      case 5:
-                                        return _buildServiceCard(
-                                          icon: Icons.group,
-                                          title: localizations.findFriends,
-                                          onTap: () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text(localizations.signInToFindFriends)),
-                                            );
-                                          },
-                                          customIcon: const Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.pets,
-                                                size: 20,
-                                                color: Colors.red,
-                                              ),
-                                              SizedBox(width: 5),
-                                              Icon(
-                                                Icons.pets,
-                                                size: 20,
-                                                color: Colors.red,
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      default:
-                                        return const SizedBox.shrink();
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
-                            // فلش به سمت راست برای نشان دادن قابلیت اسکرول
-                            const Padding(
-                              padding: EdgeInsets.only(left: 8.0, top: 5.0),
-                              child: Icon(
-                                Icons.chevron_right,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Icon(
-                              Icons.pets,
-                              size: 120,
-                              color: Colors.red,
-                            ),
-                            const SizedBox(height: 10),
-                            // اضافه کردن گزینه انتخاب زبان
-                            FutureBuilder<String>(
-                              future: _loadSavedLanguage(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const SizedBox.shrink();
-                                }
-                                final selectedLanguage = snapshot.data ?? 'en';
-                                return DropdownButton<String>(
-                                  value: selectedLanguage,
-                                  items: <String>['en', 'fa', 'tr'].map((String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(
-                                        value == 'en' ? 'English' : value == 'fa' ? 'فارسی' : 'Türkçe',
-                                        style: GoogleFonts.poppins(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (String? newValue) {
-                                    if (newValue != null) {
-                                      _saveLanguage(newValue);
-                                      MyApp.setLocale(context, Locale(newValue));
-                                    }
-                                  },
-                                  dropdownColor: Colors.pink.withOpacity(0.9),
-                                  iconEnabledColor: Colors.white,
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
+
+                            _buildQuickAction(
+                              icon: Icons.pets,
+                              title: localizations.playmateService,
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(localizations.signInToAccessPlaymate)),
                                 );
                               },
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  _SignInButton(
-                                    onDogAdded: (newDog) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => HomePage(
-                                            dogsList: appState.dogsList,
-                                            favoriteDogs: appState.favoriteDogsNotifier.value,
-                                            onToggleFavorite: appState.onToggleFavorite,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    favoriteDogs: appState.favoriteDogsNotifier.value,
-                                    onToggleFavorite: appState.onToggleFavorite,
-                                  ),
-                                  _SignUpButton(
-                                    onDogAdded: (newDog) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => HomePage(
-                                            dogsList: appState.dogsList,
-                                            favoriteDogs: appState.favoriteDogsNotifier.value,
-                                            onToggleFavorite: appState.onToggleFavorite,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    favoriteDogs: appState.favoriteDogsNotifier.value,
-                                    onToggleFavorite: appState.onToggleFavorite,
-                                  ),
-                                ],
-                              ),
+
+                            _buildQuickAction(
+                              icon: Icons.local_hospital,
+                              title: localizations.vetServices,
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(localizations.signInToAccessPlaymate)),
+                                );
+                              },
                             ),
-                            const SizedBox(height: 60),
+
+                            // 🔥 ADOPTION
+                            _buildQuickAction(
+                              icon: Icons.favorite,
+                              title: localizations.adoptionCenter,
+                              onTap: () async {
+                                debugPrint("🟡 Welcome → set tab = NavTab.adoption");
+
+                                setState(() {
+                                  _isLoading = true;
+                                });
+
+                                final appState = context.read<app.AppState>();
+
+                                appState.setGuestUser();
+                                appState.setCurrentTab(NavTab.adoption);
+
+                                await Future.delayed(const Duration(milliseconds: 300));
+
+                                if (!mounted) return;
+
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const HomeGate()),
+                                  (route) => false,
+                                );
+                              },
+                            ),
+
+                            _buildQuickAction(
+                              icon: Icons.school,
+                              title: localizations.dogTraining,
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(localizations.dogTrainingComingSoon)),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : const Center(child: CircularProgressIndicator()),
-    );
-  }
 
+                      const SizedBox(height: 16),
+
+                      // 🌍 LANGUAGE
+                      Center(
+                        child: FutureBuilder<String>(
+                          future: _loadSavedLanguage(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const SizedBox();
+
+                            final selectedLanguage = snapshot.data ?? 'en';
+
+                            return DropdownButton<String>(
+                              value: selectedLanguage,
+                              items: ['en', 'fa', 'tr'].map((value) {
+                                return DropdownMenuItem(
+                                  value: value,
+                                  child: Text(
+                                    value == 'en'
+                                        ? 'English'
+                                        : value == 'fa'
+                                            ? 'فارسی'
+                                            : 'Türkçe',
+                                    style: AppTheme.body(),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  _saveLanguage(value);
+                                  context.read<app.AppState>().setLocale(value);
+                                }
+                              },
+                              dropdownColor: Colors.white,
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // 🔐 AUTH BUTTONS
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _SignInButton(
+                                onDogAdded: (_) {
+                                  Navigator.pushReplacementNamed(context, '/home');
+                                },
+                                favoriteDogs: appState.favoriteDogsNotifier.value,
+                                onToggleFavorite: appState.onToggleFavorite,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _SignUpButton(
+                                onDogAdded: (_) {
+                                  Navigator.pushReplacementNamed(context, '/home');
+                                },
+                                favoriteDogs: appState.favoriteDogsNotifier.value,
+                                onToggleFavorite: appState.onToggleFavorite,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              )
+            : const Center(child: CircularProgressIndicator()),
+
+
+        // 🔥 SPINNER OVERLAY
+        if (_isLoading)
+          Container(
+            color: Colors.white.withOpacity(0.6),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+      ],
+    ),
+  );
+}
   Future<String> _loadSavedLanguage() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('language') ?? 'en';
@@ -334,26 +456,7 @@ class _WelcomePageState extends State<WelcomePage> {
   Future<void> _saveLanguage(String language) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', language);
-    MyApp.setLocale(context, Locale(language));
-  }
-}
-
-class _BackgroundGradient extends StatelessWidget {
-  const _BackgroundGradient();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.pink, Colors.pinkAccent],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-    );
+    context.watch<app.AppState>().setLocale(language);
   }
 }
 
@@ -379,9 +482,10 @@ class _SignInButton extends StatelessWidget {
             builder: (context) => AuthPage(
               isLogin: true,
               onDogAdded: onDogAdded,
-              dogsList: MyAppState.AppState.of(context).dogsList,
-              favoriteDogs: MyAppState.AppState.of(context).favoriteDogsNotifier.value,
-              onToggleFavorite: MyAppState.AppState.of(context).onToggleFavorite,
+              //dogs: AppState.of(context).allDogs,
+
+              favoriteDogs: context.watch<app.AppState>().favoriteDogsNotifier.value,
+              onToggleFavorite: context.watch<app.AppState>().onToggleFavorite,
             ),
           ),
         );
@@ -424,9 +528,10 @@ class _SignUpButton extends StatelessWidget {
             builder: (context) => AuthPage(
               isLogin: false,
               onDogAdded: onDogAdded,
-              dogsList: MyAppState.AppState.of(context).dogsList,
-              favoriteDogs: MyAppState.AppState.of(context).favoriteDogsNotifier.value,
-              onToggleFavorite: MyAppState.AppState.of(context).onToggleFavorite,
+              //dogs: AppState.of(context).allDogs,
+
+              favoriteDogs: context.watch<app.AppState>().favoriteDogsNotifier.value,
+              onToggleFavorite: context.watch<app.AppState>().onToggleFavorite,
             ),
           ),
         );
@@ -484,4 +589,5 @@ Widget _buildServiceCard({
       ),
     ),
   );
+  
 }

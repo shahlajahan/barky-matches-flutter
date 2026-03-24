@@ -1,183 +1,119 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'dog.dart';
-import 'dog_view_page.dart';
-import 'app_state.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:barky_matches_fixed/l10n/app_localizations.dart';
- // اضافه کردن برای محلی‌سازی
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/dog.dart';
+import 'package:barky_matches_fixed/dog_card.dart';
+import 'package:barky_matches_fixed/theme/app_theme.dart';
 
-class FavoritesPage extends StatefulWidget {
-  final List<Dog> favoriteDogs;
-  final List<Dog> dogsList;
-  final Function(Dog) onToggleFavorite;
-
-  const FavoritesPage({
-    super.key,
-    required this.favoriteDogs,
-    required this.dogsList,
-    required this.onToggleFavorite,
-  });
-
-  @override
-  _FavoritesPageState createState() => _FavoritesPageState();
-}
-
-class _FavoritesPageState extends State<FavoritesPage> {
-  late Box<Dog> favoritesBox;
-
-  @override
-  void initState() {
-    super.initState();
-    favoritesBox = Hive.box<Dog>('favoritesBox');
-    print('FavoritesPage - Initial favorite dogs count: ${widget.favoriteDogs.length}');
-  }
+class FavoritesPage extends StatelessWidget {
+  const FavoritesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!; // دسترسی به متن‌های محلی‌سازی‌شده
-    final currentUserId = Hive.box<String>('currentUserBox').get('currentUserId');
+    final appState = context.watch<AppState>();
 
-    return ValueListenableBuilder<List<Dog>>(
-      valueListenable: AppState.of(context).favoriteDogsNotifier,
-      builder: (context, favoriteDogs, child) {
-        final filteredFavoriteDogs = favoriteDogs
-            .where((dog) => dog.ownerId != currentUserId)
-            .toList();
+    final favoriteDogs = appState.favoriteDogs;
+    final currentUserId = appState.currentUserId ?? '';
 
-        print('FavoritesPage - Favorite dogs count: ${filteredFavoriteDogs.length}');
-        for (var dog in filteredFavoriteDogs) {
-          print('FavoritesPage - Favorite dog: ${dog.name}, ownerId: ${dog.ownerId}');
-        }
+    final filteredFavoriteDogs = favoriteDogs
+        .where((dog) => dog.ownerId != currentUserId)
+        .toList();
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              l10n.favoritesPageTitle, // به جای 'Favorite Dogs'
-              style: GoogleFonts.poppins(),
+    return Container(
+  color: AppTheme.bg,
+  child: SafeArea(
+    top: false,
+    child: filteredFavoriteDogs.isEmpty
+        ? _buildEmptyState()
+        : ListView.builder(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
             ),
-            backgroundColor: Colors.pink[400],
+            itemCount: filteredFavoriteDogs.length,
+            itemBuilder: (context, index) {
+              final dog = filteredFavoriteDogs[index];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DogCard(
+                  key: ValueKey(dog.id),
+                  dog: dog,
+                  mode: DogCardMode.compact,
+                  allDogs: appState.allDogs,
+                  currentUserId: currentUserId,
+                  favoriteDogs: appState.favoriteDogs,
+                  onToggleFavorite: appState.toggleFavorite,
+                  likers: appState.dogLikes[dog.id] ?? [],
+                ),
+              );
+            },
           ),
-          body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.pink, Colors.pinkAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+  ),
+);
+  }
+
+  Widget _buildEmptyState() {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 💗 Soft Heart Icon (Brand Accent)
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.primary.withOpacity(0.08),
+            ),
+            child: Icon(
+              Icons.favorite_border_rounded,
+              size: 48,
+              color: AppTheme.primary.withOpacity(0.7),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // 🐾 Title
+          Text(
+            "No tail-wagging crushes yet 🐾",
+            textAlign: TextAlign.center,
+            style: AppTheme.h2(),
+          ),
+
+          const SizedBox(height: 10),
+
+          // 💬 Subtitle
+          Text(
+            "When you find a pup you adore,\ntap the heart and they’ll live here.",
+            textAlign: TextAlign.center,
+            style: AppTheme.body(color: AppTheme.muted),
+          ),
+
+          const SizedBox(height: 28),
+
+          // ✨ Soft hint badge (like Playdate Accepted style)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.card.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "Go explore Playmates 💛",
+              style: AppTheme.caption(
+                color: AppTheme.primary,
               ),
             ),
-            child: filteredFavoriteDogs.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/image/sad_dog.png',
-                          width: 100,
-                          height: 100,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          l10n.noFavoriteDogsYet, // به جای 'No favorite dogs yet!'
-                          style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.addFavoriteSuggestion, // به جای 'Go back to the home page and add some dogs to your favorites.'
-                          style: GoogleFonts.poppins(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
-                    itemExtent: 100,
-                    itemCount: filteredFavoriteDogs.length,
-                    itemBuilder: (context, index) {
-                      final dog = filteredFavoriteDogs[index];
-                      return Card(
-                        color: Colors.white.withOpacity(0.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.pink[100],
-                            child: dog.imagePaths.isNotEmpty &&
-                                    dog.imagePaths[0].isNotEmpty &&
-                                    dog.imagePaths[0].startsWith('http')
-                                ? CachedNetworkImage(
-                                    imageUrl: dog.imagePaths[0],
-                                    placeholder: (context, url) =>
-                                        const CircularProgressIndicator(color: Colors.white),
-                                    errorWidget: (context, url, error) {
-                                      print('FavoritesPage - Error loading image for ${dog.name}: $error');
-                                      return const Image(
-                                        image: AssetImage('assets/image/default_dog.png'),
-                                        width: 50,
-                                        height: 50,
-                                        fit: BoxFit.cover,
-                                      );
-                                    },
-                                    fit: BoxFit.cover,
-                                    width: 50,
-                                    height: 50,
-                                  )
-                                : const Image(
-                                    image: AssetImage('assets/image/default_dog.png'),
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                  ),
-                          ),
-                          title: Text(
-                            dog.name,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 18,
-                            ),
-                          ),
-                          subtitle: Text(
-                            dog.breed,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DogViewPage(
-                                  dog: dog,
-                                  favoriteDogs: filteredFavoriteDogs,
-                                  onToggleFavorite: AppState.of(context).toggleFavorite,
-                                ),
-                              ),
-                            );
-                          },
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.white),
-                            tooltip: l10n.removeFavoriteTooltip, // به جای 'Remove Favorite'
-                            onPressed: () {
-                              AppState.of(context).toggleFavorite(dog);
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
           ),
-        );
-      },
-    );
-  }
+        ],
+      ),
+    ),
+  );
+}
 }

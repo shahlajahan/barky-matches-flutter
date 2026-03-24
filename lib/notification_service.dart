@@ -1,228 +1,174 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'dart:convert';
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'user_profile_page.dart';
-import 'dog.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'app_state.dart';
-import 'firebase_options.dart';
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class NotificationService {
-  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
+  static final NotificationService _instance =
+      NotificationService._internal();
+
+  factory NotificationService() => _instance;
+
+  NotificationService._internal();
+
+  final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
+  bool _initialized = false;
+
+  // ─────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────
   Future<void> init() async {
-    if (!Firebase.apps.contains(Firebase.app())) {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      await Future.delayed(const Duration(milliseconds: 1000));
-      print('NotificationService - Firebase initialized');
-    } else {
-      print('NotificationService - Firebase already initialized');
-    }
+    if (_initialized) return;
 
     tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Asia/Tehran'));
+    tz.setLocalLocation(tz.local);
 
-    const AndroidInitializationSettings initializationSettingsAndroid =
+    const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
     );
 
-    await _flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        print('NotificationService - Notification clicked with payload: ${response.payload}');
-        if (response.payload != null) {
-          try {
-            final payload = jsonDecode(response.payload!) as Map<String, dynamic>;
-            if (payload['type'] == 'like' && payload['likerUserId'] != null) {
-              final likerUserId = payload['likerUserId'] as String;
-              navigatorKey.currentState?.push(
-                MaterialPageRoute(
-                  builder: (context) {
-                    final appState = AppState.of(context);
-                    return UserProfilePage(
-                      dogsList: Hive.box<Dog>('dogsBox').values.toList(),
-                      favoriteDogs: appState.favoriteDogs,
-                      onToggleFavorite: appState.onToggleFavorite,
-                      userId: likerUserId,
-                    );
-                  },
-                ),
-              );
-            } else if (payload['type'] == 'playDateRequest' && payload['requestId'] != null) {
-              navigatorKey.currentState?.pushNamed('/play_date_requests');
-            } else if (payload['type'] == 'lost_dog' && payload['lostDogId'] != null) {
-              navigatorKey.currentState?.pushNamed('/lost_dogs_list');
-            } else {
-              navigatorKey.currentState?.pushNamed('/home');
-            }
-          } catch (e) {
-            print('NotificationService - Error parsing notification payload: $e');
-          }
-        }
-      },
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
     );
 
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'high_importance_channel',
-      'High Importance Notifications',
-      description: 'This channel is used for important notifications.',
-      importance: Importance.max,
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse:
+          notificationTapBackground,
     );
 
-    await _flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    if (Platform.isAndroid) {
+      const channel = AndroidNotificationChannel(
+        'high_importance_channel',
+        'High Importance Notifications',
+        importance: Importance.max,
+      );
 
-    await scheduleTestNotification();
-    print('NotificationService initialized');
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+    }
+
+    _initialized = true;
+
+    if (kDebugMode) {
+      print('NotificationService - initialized successfully');
+    }
   }
 
+  @pragma('vm:entry-point')
+  static void notificationTapBackground(NotificationResponse response) {
+    if (kDebugMode) {
+      print(
+        'NotificationService(background) tapped: ${response.payload}',
+      );
+    }
+  }
+
+  void _onNotificationResponse(NotificationResponse response) {
+    if (kDebugMode) {
+      print(
+        'NotificationService tapped: ${response.payload}',
+      );
+    }
+  }
+
+  // ─────────────────────────────────────
+  // SHOW
+  // ─────────────────────────────────────
   Future<void> showNotification({
     required int id,
     required String title,
     required String body,
-    String? likerUserId,
-    String? payload,
+    Map<String, dynamic>? payload,
   }) async {
-    try {
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails(
-        'high_importance_channel',
-        'High Importance Notifications',
-        channelDescription: 'This channel is used for important notifications.',
-        importance: Importance.max,
-        priority: Priority.high,
-        showWhen: true,
-      );
+    if (!_initialized) return;
 
-      const NotificationDetails platformChannelSpecifics =
-          NotificationDetails(android: androidPlatformChannelSpecifics);
+    const androidDetails = AndroidNotificationDetails(
+      'high_importance_channel',
+      'High Importance Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
 
-      await _flutterLocalNotificationsPlugin.show(
-        id,
-        title,
-        body,
-        platformChannelSpecifics,
-        payload: payload,
-      );
-      print('NotificationService - Notification shown: id=$id, title=$title, body=$body');
-    } catch (e) {
-      print('NotificationService - Error showing notification: $e');
-    }
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _plugin.show(
+      id,
+      title,
+      body,
+      details,
+      payload: payload == null ? null : jsonEncode(payload),
+    );
   }
 
-  Future<void> scheduleReminderNotification({
-    required String id,
+  // ─────────────────────────────────────
+  // SCHEDULE
+  // ─────────────────────────────────────
+  Future<void> scheduleReminder({
+    required String uniqueId,
     required DateTime scheduledTime,
     required String title,
     required String body,
+    Map<String, dynamic>? payload,
   }) async {
-    print('NotificationService - Scheduling reminder for $id at $scheduledTime');
-    try {
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails(
-        'high_importance_channel',
-        'High Importance Notifications',
-        channelDescription: 'This channel is used for important notifications.',
-        importance: Importance.max,
-        priority: Priority.high,
-        showWhen: true,
-      );
+    if (!_initialized) return;
 
-      const NotificationDetails platformChannelSpecifics =
-          NotificationDetails(android: androidPlatformChannelSpecifics);
+    final tzTime = tz.TZDateTime.from(scheduledTime, tz.local);
+    if (tzTime.isBefore(tz.TZDateTime.now(tz.local))) return;
 
-      await _flutterLocalNotificationsPlugin.zonedSchedule(
-        id.hashCode,
-        title,
-        body,
-        tz.TZDateTime.from(scheduledTime, tz.local),
-        platformChannelSpecifics,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
-      print('NotificationService - Reminder scheduled for $id');
-    } catch (e) {
-      print('NotificationService - Failed to schedule notification: $e');
-      throw Exception('Failed to schedule notification. Please ensure exact alarm permissions are granted.');
-    }
+    const androidDetails = AndroidNotificationDetails(
+      'high_importance_channel',
+      'High Importance Notifications',
+      importance: Importance.max,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _plugin.zonedSchedule(
+      uniqueId.hashCode,
+      title,
+      body,
+      tzTime,
+      details,
+      payload: payload == null ? null : jsonEncode(payload),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
   }
 
-  Future<void> sendInstantNotificationToUser(
-    String recipientUserId,
-    String title,
-    String body,
-  ) async {
-    try {
-      if (!Firebase.apps.contains(Firebase.app())) {
-        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-        await Future.delayed(const Duration(milliseconds: 1000));
-        print('NotificationService - Firebase initialized for sendInstantNotification');
-      }
-
-      final db = FirebaseFirestore.instance;
-      await db.collection('notifications').add({
-        'recipientUserId': recipientUserId,
-        'timestamp': FieldValue.serverTimestamp(),
-        'title': title,
-        'body': body,
-        'payload': jsonEncode({
-          'type': 'instant_notification',
-        }),
-        'isRead': false,
-      });
-      print('NotificationService - Sent instant notification to user $recipientUserId: $title - $body');
-    } catch (e) {
-      print('NotificationService - Failed to send instant notification to user $recipientUserId: $e');
-      throw Exception('Failed to send instant notification: $e');
-    }
-  }
-
-  Future<void> cancelNotification(int id) async {
-    await _flutterLocalNotificationsPlugin.cancel(id);
-  }
-
-  Future<void> cancelAllNotifications() async {
-    await _flutterLocalNotificationsPlugin.cancelAll();
-  }
-
-  Future<void> scheduleTestNotification() async {
-    try {
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails(
-        'high_importance_channel',
-        'High Importance Notifications',
-        channelDescription: 'This channel is used for important notifications.',
-        importance: Importance.max,
-        priority: Priority.high,
-        showWhen: true,
-      );
-
-      const NotificationDetails platformChannelSpecifics =
-          NotificationDetails(android: androidPlatformChannelSpecifics);
-
-      await _flutterLocalNotificationsPlugin.zonedSchedule(
-        'test_notification'.hashCode,
-        'Test Reminder',
-        'This is a test notification!',
-        tz.TZDateTime.now(tz.local).add(const Duration(minutes: 5)),
-        platformChannelSpecifics,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
-      print('NotificationService - Scheduled test notification for 5 minutes from now');
-    } catch (e) {
-      print('NotificationService - Failed to schedule test notification: $e');
-    }
-  }
+  Future<void> cancel(int id) => _plugin.cancel(id);
+  Future<void> cancelByUniqueId(String id) =>
+      _plugin.cancel(id.hashCode);
+  Future<void> cancelAll() => _plugin.cancelAll();
 }

@@ -20,45 +20,133 @@ class OfferDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFC107), // 🔥 gold background
       appBar: AppBar(
-        title: const Text('Offer Details'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black,
+        title: const Text('Offer'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (imageUrl != null)
-              Image.network(
-                imageUrl!,
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 150,
-                    color: Colors.grey,
-                    child: const Center(child: Text('Image not available')),
-                  );
-                },
+
+            // 🔥 DISCOUNT BIG
+            Text(
+              "${discount ?? 0}%",
+              style: GoogleFonts.poppins(
+                fontSize: 48,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
               ),
-            const SizedBox(height: 10),
-            Text(
-              'Title: ${title ?? 'N/A'}',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+
+            const SizedBox(height: 4),
+
             Text(
-              'Discount: ${discount ?? 0}%',
-              style: GoogleFonts.poppins(fontSize: 16),
+              "OFF",
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Colors.black.withOpacity(0.7),
+              ),
             ),
+
+            const SizedBox(height: 20),
+
+            // 🔥 TITLE
             Text(
-              'Code: ${code ?? 'N/A'}',
-              style: GoogleFonts.poppins(fontSize: 16),
+              title ?? "Special Offer",
+              style: GoogleFonts.poppins(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
             ),
+
+            const SizedBox(height: 8),
+
+            // 🔥 PROVIDER
             Text(
-              'Provider: ${provider ?? 'N/A'}',
-              style: GoogleFonts.poppins(fontSize: 16),
+              provider ?? "",
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: Colors.black.withOpacity(0.7),
+              ),
             ),
+
+            const SizedBox(height: 30),
+
+            // 🔥 CODE (premium style, بدون باکس سنگین)
+            Row(
+              children: [
+                Text(
+                  "Use code:",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  code ?? "---",
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 30),
+
+            // 🔥 CTA BUTTON
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  // 🔥 copy code or redirect
+                  if (code != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Code copied: $code")),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text(
+                  "Use This Offer",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 🔥 IMAGE (optional پایین)
+            if (imageUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  imageUrl!,
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
           ],
         ),
       ),

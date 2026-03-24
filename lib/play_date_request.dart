@@ -1,62 +1,184 @@
+import 'dart:convert';
 import 'package:hive/hive.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // اضافه کردن import برای Timestamp
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dog.dart';
+
 part 'play_date_request.g.dart';
+
+
 
 @HiveType(typeId: 2)
 class PlayDateRequest {
   @HiveField(0)
   final String requestId;
+
   @HiveField(1)
   final String requesterUserId;
+
   @HiveField(2)
   final String? requestedUserId;
+
   @HiveField(3)
   final Dog requesterDog;
+
   @HiveField(4)
   final Dog requestedDog;
+
   @HiveField(5)
   final String status;
+
   @HiveField(6)
   final DateTime? requestDate;
+
   @HiveField(7)
   final DateTime? scheduledDateTime;
+
   @HiveField(8)
   final String? requesterName;
+
   @HiveField(9)
   final String? message;
+
   @HiveField(10)
   final String? location;
 
-  PlayDateRequest({
-    required this.requestId,
-    required this.requesterUserId,
-    this.requestedUserId,
-    required this.requesterDog,
-    required this.requestedDog,
-    required this.status,
-    this.requestDate,
-    this.scheduledDateTime,
-    this.requesterName,
-    this.message,
-    this.location,
-  });
+  @HiveField(11)
+final String requesterDogId;
 
-  factory PlayDateRequest.fromFirestore(String id, Map<String, dynamic> data) {
+@HiveField(12)
+final String requestedDogId;
+
+
+  PlayDateRequest({
+  required this.requestId,
+  required this.requesterUserId,
+  this.requestedUserId,
+
+  required this.requesterDog,
+  required this.requestedDog,
+
+  required this.status,
+  this.requestDate,
+  this.scheduledDateTime,
+  this.requesterName,
+  this.message,
+  this.location,
+
+  // ⭐️ آخر
+  required this.requesterDogId,
+  required this.requestedDogId,
+});
+
+
+  // 🔒 فقط برای جلوگیری از کرش Map → String
+  static String? _safeString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    if (value is Map || value is List) return jsonEncode(value);
+    return value.toString();
+  }
+
+  static Map<String, dynamic> _safeDogMap(
+    dynamic raw,
+    String fallbackId,
+  ) {
+    if (raw is! Map) {
+  return {
+    'id': fallbackId,
+    // ⛔️ اسم اینجا ست نمی‌شه
+    // اسم باید از dogs collection بیاد
+    'name': null,
+    'ownerId': null,
+  };
+}
+
+
+    final map = Map<String, dynamic>.from(raw);
+
+    return {
+  'id': map['id'] ?? fallbackId,
+  // ⛔️ حتی اگه اسم بود، اینجا استفاده نکن
+  'name': null,
+  'ownerId': map['ownerId'],
+};
+
+  }
+
+  factory PlayDateRequest.fromFirestore(
+  String id,
+  Map<String, dynamic> data,
+) {
+  final requesterDogIdSafe =
+      data['requesterDogId']?.toString() ?? 'unknown_requester';
+
+  final requestedDogIdSafe =
+      data['requestedDogId']?.toString() ?? 'unknown_requested';
+
+  final requesterDogSafe =
+      _safeDogMap(data['requesterDog'], requesterDogIdSafe);
+
+  final requestedDogSafe =
+      _safeDogMap(data['requestedDog'], requestedDogIdSafe);
+
+  return PlayDateRequest(
+    requestId: id,
+
+    requesterUserId: data['requesterUserId']?.toString() ?? '',
+    requestedUserId: data['requestedUserId']?.toString(),
+
+    // ✅ null-safe
+    requesterDogId: requesterDogIdSafe,
+    requestedDogId: requestedDogIdSafe,
+
+    requesterDog:
+        Dog.fromMap(requesterDogSafe, requesterDogIdSafe),
+
+    requestedDog:
+        Dog.fromMap(requestedDogSafe, requestedDogIdSafe),
+
+    status: data['status']?.toString() ?? 'pending',
+
+    requestDate:
+        (data['requestDate'] as Timestamp?)?.toDate(),
+
+    scheduledDateTime:
+        (data['scheduledDateTime'] as Timestamp?)?.toDate(),
+
+    requesterName: _safeString(data['requesterName']),
+    message: _safeString(data['message']),
+    location: _safeString(data['location']),
+  );
+}
+
+    /// 🧨 وقتی notification میاد ولی doc از Firestore حذف شده
+  factory PlayDateRequest.deleted(String requestId) {
     return PlayDateRequest(
-      requestId: id,
-      requesterUserId: data['requesterUserId'] ?? '',
-      requestedUserId: data['requestedUserId'] as String?,
-      requesterDog: Dog.fromMap(data['requesterDog'] ?? {}),
-      requestedDog: Dog.fromMap(data['requestedDog'] ?? {}),
-      status: data['status'] ?? 'pending',
-      requestDate: (data['requestDate'] as Timestamp?)?.toDate(),
-      scheduledDateTime: (data['scheduledDateTime'] as Timestamp?)?.toDate(),
-      requesterName: data['requesterName'] as String?,
-      message: data['message'] as String?,
-      location: data['location'] as String?,
+      requestId: requestId,
+      requesterUserId: '',
+      requestedUserId: null,
+
+      // 👇 Dog ها placeholder هستن (اسم بعداً از dogs collection میاد)
+      requesterDogId: 'deleted',
+      requestedDogId: 'deleted',
+
+      requesterDog: Dog.fromMap(
+        {'id': 'deleted', 'name': null, 'ownerId': null},
+        'deleted',
+      ),
+      requestedDog: Dog.fromMap(
+        {'id': 'deleted', 'name': null, 'ownerId': null},
+        'deleted',
+      ),
+
+      status: 'deleted',
+      requestDate: null,
+      scheduledDateTime: null,
+      requesterName: null,
+      message: null,
+      location: null,
     );
   }
+
 
   Map<String, dynamic> toMap() {
     return {
@@ -66,8 +188,11 @@ class PlayDateRequest {
       'requesterDog': requesterDog.toMap(),
       'requestedDog': requestedDog.toMap(),
       'status': status,
-      'requestDate': requestDate != null ? Timestamp.fromDate(requestDate!) : null,
-      'scheduledDateTime': scheduledDateTime != null ? Timestamp.fromDate(scheduledDateTime!) : null,
+      'requestDate':
+          requestDate != null ? Timestamp.fromDate(requestDate!) : null,
+      'scheduledDateTime': scheduledDateTime != null
+          ? Timestamp.fromDate(scheduledDateTime!)
+          : null,
       'requesterName': requesterName,
       'message': message,
       'location': location,
@@ -78,6 +203,7 @@ class PlayDateRequest {
   String toString() {
     return 'PlayDateRequest{requestId: $requestId, requesterUserId: $requesterUserId, requestedUserId: $requestedUserId, requesterDog: $requesterDog, requestedDog: $requestedDog, status: $status, requestDate: $requestDate, scheduledDateTime: $scheduledDateTime, requesterName: $requesterName, message: $message, location: $location}';
   }
+
 
   // پدینگ برای حفظ تعداد خطوط (177 خط)
   // خط 20
