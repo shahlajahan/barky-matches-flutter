@@ -47,7 +47,7 @@ dependencies:
   google_places_flutter: ^2.0.6
   geocoding: ^2.1.1
   photo_view: ^0.15.0
- in_app_purchase: ^3.1.13
+  in_app_purchase: ^3.1.13
   
 
   # Firebase dependencies (اصلاح شده به نسخه‌های پایدار)
