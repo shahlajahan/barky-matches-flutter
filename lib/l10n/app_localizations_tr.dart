@@ -69,13 +69,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get editProfile => 'Profili Düzenle';
 
   @override
-  String get username => 'Kullanıcı Adı';
+  String get usernameLabel => 'Kullanıcı Adı';
 
   @override
-  String get email => 'E-posta';
+  String get emailLabel => 'E-posta';
 
   @override
-  String get phoneNumber => 'Telefon Numarası';
+  String get phoneLabel => 'Telefon Numarası';
 
   @override
   String get enterPhoneNumberOptional => 'Telefon numarasını girin (isteğe bağlı)';
@@ -117,13 +117,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get loadingUserData => 'Kullanıcı verileri yükleniyor...';
 
   @override
-  String get welcomeToBarkyMatches => 'Barky Matches\'e hoş geldiniz!';
+  String get welcomeToPetSopu => 'Barky Matches\'e hoş geldiniz!';
 
   @override
   String get welcomeTo => 'Hoş geldiniz';
 
   @override
-  String get barkyMatches => 'Barky Matches!';
+  String get petSopu => 'Barky Matches';
 
   @override
   String welcomeBack(Object username) {
@@ -149,15 +149,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get continueAsGuest => 'Misafir olarak devam et';
-
-  @override
-  String get emailLabel => 'E-posta';
-
-  @override
-  String get usernameLabel => 'Kullanıcı Adı';
-
-  @override
-  String get phoneLabel => 'Telefon Numarası';
 
   @override
   String get passwordLabel => 'Şifre';
@@ -259,7 +250,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get signInToAccessPlaymate => 'Playmate\'e erişmek için lütfen giriş yapın';
 
   @override
-  String get signInToFindFriends => 'Arkadaş bulmak için lütfen giriş yapın';
+  String get findPlaymates => 'Arkadaş Bul';
+
+  @override
+  String get signInToFindFriends => 'Evcil hayvanın için arkadaş bul';
 
   @override
   String get addYourDog => 'Köpeğinizi Ekleyin';
@@ -367,7 +361,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get save => 'Kaydet';
 
   @override
-  String dogNameExists(Object name) {
+  String dogNameAlreadyExists(Object name) {
     return '$name adında bir köpek zaten mevcut!';
   }
 
@@ -449,11 +443,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get dogDetailsAdoptionLabel => 'Sahiplenmek için Uygun:';
-
-  @override
-  String dogDetailsNameExistsError(Object name) {
-    return '$name adında bir köpek zaten mevcut!';
-  }
 
   @override
   String get editDogPermissionDenied => 'Bu köpeği düzenleme izniniz yok.';
@@ -590,7 +579,15 @@ class AppLocalizationsTr extends AppLocalizations {
   String get pleaseLoginToCreateRequest => 'Talep oluşturmak için lütfen giriş yapın';
 
   @override
-  String playdateRequestMessage(Object requesterDog, Object requestedDog) {
+  String get playdateRequestTitle => 'Oyun Randevusu Talebi';
+
+  @override
+  String playdateRequestBody(Object requesterDog, Object requestedDog) {
+    return '$requesterDog, $requestedDog ile oynamak istiyor!';
+  }
+
+  @override
+  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog) {
     return '$requesterDog, $requestedDog ile oynamak istiyor!';
   }
 
@@ -608,10 +605,10 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get newPlaydateRequest => 'Yeni Oyun Randevusu Talebi!';
+  String get newPlaydateRequestTitle => 'Yeni Oyun Randevusu Talebi!';
 
   @override
-  String playdateRequestBody(Object requesterDog, Object requestedDog) {
+  String newPlaydateRequestBody(Object requesterDog, Object requestedDog) {
     return '$requesterDog, $requestedDog ile oynamak istiyor!';
   }
 
@@ -784,14 +781,6 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String newLikeBody(Object username, Object dogName) {
     return '$username, $dogName köpeğinizi beğendi!';
-  }
-
-  @override
-  String get newPlayDateRequestTitle => 'Yeni Oyun Randevusu Talebi!';
-
-  @override
-  String newPlayDateRequestBody(Object dogName) {
-    return '$dogName adlı köpekten yeni bir oyun randevusu talebiniz var.';
   }
 
   @override
@@ -1760,4 +1749,180 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get errorNoOwnerFound => 'Bu köpek için geçerli bir sahip bulunamadı';
+
+  @override
+  String get offerHotDeal => '🔥 Fırsat';
+
+  @override
+  String get offerPremiumBadge => 'Premium';
+
+  @override
+  String get offerFallbackTitle => 'Barky kullanıcılarına özel teklif';
+
+  @override
+  String get offerFallbackProvider => 'İş ortağı marka';
+
+  @override
+  String get offerUnlock => 'Aç';
+
+  @override
+  String get offerView => 'Görüntüle';
+
+  @override
+  String offerDiscountPercent(Object discount) {
+    return '%$discount İNDİRİM';
+  }
+
+  @override
+  String get offerPremiumRequiredTitle => 'Premium Gerekli';
+
+  @override
+  String get offerPremiumRequiredMessage => 'Bu teklif yalnızca premium üyeler içindir.';
+
+  @override
+  String get offerCancel => 'İptal';
+
+  @override
+  String get offerUpgrade => 'Yükselt';
+
+  @override
+  String get offerUnlockingMessage => 'Teklifiniz açılıyor...';
+
+  @override
+  String get offerChooseContinueTitle => 'Nasıl devam etmek istersiniz?';
+
+  @override
+  String get offerChooseContinueSubtitle => 'Bu teklif için tercih ettiğiniz iletişim seçeneğini seçin.';
+
+  @override
+  String get offerOpenWebsite => 'Web Sitesini Aç';
+
+  @override
+  String get offerInstagram => 'Instagram';
+
+  @override
+  String get playdatesTitle => 'Oyun Buluşmaları';
+
+  @override
+  String get manageRequests => 'İstekleri yönet';
+
+  @override
+  String get adoptionTitle => 'Sahiplendirme';
+
+  @override
+  String get giveLove => 'Sevgi ver';
+
+  @override
+  String get alertsTitle => 'Uyarılar';
+
+  @override
+  String get lostAndFound => 'Kayıp & Bulunan';
+
+  @override
+  String get vetTitle => 'Veteriner';
+
+  @override
+  String get nearbyClinics => 'Yakındaki klinikler';
+
+  @override
+  String get groomyTitle => 'Bakım';
+
+  @override
+  String get bookGrooming => 'Bakım randevusu al';
+
+  @override
+  String get petShopTitle => 'Pet Shop';
+
+  @override
+  String get shopNearYou => 'Yakındaki ürünleri keşfet';
+
+  @override
+  String get featuredDeal => 'Öne Çıkan Fırsat';
+
+  @override
+  String get premiumLabel => 'Premium';
+
+  @override
+  String get goldLabel => 'Gold';
+
+  @override
+  String discountOff(Object percent) {
+    return '%$percent İndirim';
+  }
+
+  @override
+  String get socialAndPlay => 'Sosyal & Oyun';
+
+  @override
+  String get careAndServices => 'Bakım & Hizmetler';
+
+  @override
+  String get outdoorAndLifestyle => 'Açık Hava & Yaşam';
+
+  @override
+  String get exploreNearbyParks => 'Yakındaki parkları keşfet';
+
+  @override
+  String get trainingTitle => 'Eğitim';
+
+  @override
+  String get comingSoon => 'Çok yakında';
+
+  @override
+  String get trainingComingSoonMessage => 'Eğitim özelliği yakında geliyor 🐾';
+
+  @override
+  String get communityHub => 'Topluluk Merkezi';
+
+  @override
+  String activeCount(Object count) {
+    return '$count aktif';
+  }
+
+  @override
+  String get reportTitle => 'Bildirim';
+
+  @override
+  String get lostDogTitle => 'Kayıp Köpek';
+
+  @override
+  String get foundDogTitle => 'Bulunan Köpek';
+
+  @override
+  String get lostTitle => 'Kayıp';
+
+  @override
+  String get dogsTitle => 'Köpekler';
+
+  @override
+  String get foundTitle => 'Bulunan';
+
+  @override
+  String get petShopDealName => 'Pet Shop A';
+
+  @override
+  String get petShopDealDesc => 'Tüm mamalarda %15 indirim';
+
+  @override
+  String get groomyDealName => 'Groomy Studio';
+
+  @override
+  String get groomyDealDesc => 'Bu hafta bakımda %20 indirim';
+
+  @override
+  String get vetDealName => 'VetPlus';
+
+  @override
+  String get vetDealDesc => 'Gold üyeler için ücretsiz kontrol';
+
+  @override
+  String get offerWhatsApp => 'WhatsApp';
+
+  @override
+  String offerCodeCopied(Object code) {
+    return 'Kod kopyalandı: $code';
+  }
+
+  @override
+  String get offerOpenError => 'Teklif açılırken hata oluştu';
 }

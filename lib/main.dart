@@ -1,11 +1,17 @@
 import 'dart:convert';
-import 'dart:io' show InternetAddress, Platform, SocketException, File, Directory;
+import 'dart:io'
+    show
+        InternetAddress,
+        Platform,
+        SocketException,
+        File,
+        Directory,
+        HttpClient;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'app_entry.dart';
-//import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -40,11 +46,12 @@ import 'ui/shell/nav_tab.dart';
 import 'home_gate.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'nav_logger.dart';
-import 'debug/auth_trap.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
-import 'package:barky_matches_fixed/subscription/iap_service.dart';
-
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:uni_links/uni_links.dart';
+import 'ui/orders/order_detail_page.dart';
 
 late Box<Dog> dogsBox;
 late Box<Dog> favoritesBox;
@@ -62,8 +69,6 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
   'High Importance Notifications',
   importance: Importance.max,
 );
-
-
 
 Future<void> clearHive() async {
   try {
@@ -93,73 +98,117 @@ Future<void> saveIosPushDebug({
         .collection('debug_tokens')
         .doc('ios_${stage}')
         .set({
-      'platform': Platform.isIOS ? 'ios' : 'other',
-      'stage': stage,
-      'apnsToken': apnsToken,
-      'fcmToken': fcmToken,
-      'error': error,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+          'platform': Platform.isIOS ? 'ios' : 'other',
+          'stage': stage,
+          'apnsToken': apnsToken,
+          'fcmToken': fcmToken,
+          'error': error,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   } catch (_) {
     // intentionally silent (debug helper)
   }
 }
 
-bool _appCheckActivated = false;
+Future<void> waitForInternet() async {
+  final connectivity = Connectivity();
+
+  for (int i = 0; i < 10; i++) {
+    final result = await connectivity.checkConnectivity();
+
+    if (result != ConnectivityResult.none) {
+      debugPrint('🌐 Internet is AVAILABLE');
+      return;
+    }
+
+    debugPrint('⏳ Waiting for internet... (${i + 1})');
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  throw Exception('No internet connection detected');
+}
 
 Future<void> ensureFirebaseInitialized() async {
   if (Firebase.apps.isEmpty) {
-    if (kDebugMode) {
-      print('Main - Initializing Firebase...');
-    }
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-
-AuthTrap.start();
-    
   }
 
-  // =========================
-  // 🔐 Firebase App Check
-  // =========================
-  
-  // =========================
-  // 🔥 Firestore settings
-  // =========================
   FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    persistenceEnabled: false,
   );
 
-  if (kDebugMode) {
-    print('🔥 Firebase AppId = ${DefaultFirebaseOptions.currentPlatform.appId}');
-    print('🔥 Firebase ProjectId = ${DefaultFirebaseOptions.currentPlatform.projectId}');
-    print('🔥 Firebase Bundle = ${DefaultFirebaseOptions.currentPlatform.iosBundleId}');
-    print('Main - Firebase initialized successfully');
-  }
+  print("🔥 Firebase initialized");
+
+  await Future.delayed(const Duration(seconds: 1));
+
+  debugPrint('🔥 Firebase ready');
 }
 
+Future<void> ensureFirestoreReady() async {
+  int retries = 0;
 
+  while (retries < 5) {
+    try {
+      await FirebaseFirestore.instance.enableNetwork();
+
+      debugPrint("🔥 Firestore NETWORK ENABLED");
+
+      return;
+    } catch (e) {
+      debugPrint("⏳ Firestore retry ${retries + 1} → $e");
+
+      await Future.delayed(Duration(seconds: retries + 1));
+
+      retries++;
+    }
+  }
+
+  debugPrint("❌ Firestore FAILED");
+}
+
+/*
+Future<void> ensureFirestoreReady() async {
+  int retries = 0;
+
+  while (retries < 10) {
+    try {
+      await FirebaseFirestore.instance
+          .collection('admin_logs') // 👈 collection واقعی خودت
+          .limit(1)
+          .get();
+
+      print("🔥 Firestore CONNECTED");
+      return;
+    } catch (e) {
+      print("⏳ retry ${retries + 1} → $e");
+      await Future.delayed(Duration(seconds: 2 * (retries + 1)));
+      retries++;
+    }
+  }
+
+  print("❌ Firestore FAILED after retries");
+}
+*/
 Future<T> retry<T>(Future<T> Function() run) async {
-  var delay = const Duration(milliseconds: 300);
-  for (var i = 0; i < 5; i++) {
+  var delay = const Duration(milliseconds: 500);
+
+  for (var i = 0; i < 7; i++) {
     try {
       return await run();
     } catch (e) {
-      if (i == 4) {
-        if (kDebugMode) {
-          print('Main - Retry failed after 5 attempts: $e');
-        }
-        rethrow;
-      }
       if (kDebugMode) {
-        print('Main - Retry attempt ${i + 1} failed: $e');
+        debugPrint('🔥 RETRY ${i + 1} FAILED → $e');
       }
+
+      if (i == 6) rethrow;
+
       await Future.delayed(delay);
       delay *= 2;
     }
   }
+
   throw Exception('unreachable');
 }
 
@@ -169,7 +218,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   final data = message.data;
   final user = FirebaseAuth.instance.currentUser;
-/*
+  /*
   if (user != null && data['type'] == 'playdate_request') {
     await FirebaseFirestore.instance.collection('notifications').add({
       'title': message.notification?.title ?? 'BarkyMatches',
@@ -183,13 +232,24 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   */
 }
 
-
-
 Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
   final data = message.data;
   final notification = message.notification;
 
   debugPrint("📩 Foreground message received → data=$data");
+  final context = navigatorKey.currentContext;
+
+  if (context == null) {
+    debugPrint('🚫 No context → skip foreground notification');
+    return;
+  }
+
+  final appState = context.read<AppState>();
+
+  if (appState.isGuestUser) {
+    debugPrint('🚫 Guest → skip foreground notification');
+    return;
+  }
 
   // 🔹 1️⃣ ذخیره در Firestore (اگر لازم)
   final user = FirebaseAuth.instance.currentUser;
@@ -215,7 +275,9 @@ Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
   // اگر iOS هست و message.notification وجود دارد،
   // سیستم خودش alert را نشان می‌دهد → local نساز
   if (Platform.isIOS && notification != null) {
-    debugPrint("🍏 iOS system notification will handle display (no local show)");
+    debugPrint(
+      "🍏 iOS system notification will handle display (no local show)",
+    );
     return;
   }
 
@@ -223,7 +285,7 @@ Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
   try {
     await flutterLocalNotificationsPlugin.show(
       message.hashCode, // unique ID
-      notification?.title ?? 'BarkyMatches',
+      notification?.title ?? 'PetSopu',
       notification?.body ?? '',
       const NotificationDetails(
         iOS: DarwinNotificationDetails(
@@ -249,7 +311,9 @@ Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
 
 Future<bool> checkInternetConnection() async {
   try {
-    final result = await InternetAddress.lookup('dns.google').timeout(const Duration(seconds: 3));
+    final result = await InternetAddress.lookup(
+      'dns.google',
+    ).timeout(const Duration(seconds: 3));
     if (result.isNotEmpty && result.first.rawAddress.isNotEmpty) {
       if (kDebugMode) {
         print('Main - Internet connection detected via dns.google');
@@ -263,10 +327,14 @@ Future<bool> checkInternetConnection() async {
   }
 
   try {
-    final result = await InternetAddress.lookup('firebaseappcheck.googleapis.com').timeout(const Duration(seconds: 3));
+    final result = await InternetAddress.lookup(
+      'firebaseappcheck.googleapis.com',
+    ).timeout(const Duration(seconds: 3));
     if (result.isNotEmpty && result.first.rawAddress.isNotEmpty) {
       if (kDebugMode) {
-        print('Main - Internet connection detected via firebaseappcheck.googleapis.com');
+        print(
+          'Main - Internet connection detected via firebaseappcheck.googleapis.com',
+        );
       }
       return true;
     }
@@ -282,155 +350,141 @@ Future<bool> checkInternetConnection() async {
   return false;
 }
 
+Future<void> testHttps() async {
+  try {
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 5);
+
+    final request = await client.getUrl(
+      Uri.parse('https://securetoken.googleapis.com'),
+    );
+
+    final response = await request.close();
+    debugPrint('✅ HTTPS OK → ${response.statusCode}');
+    client.close(force: true);
+  } catch (e) {
+    debugPrint('❌ HTTPS FAIL → $e');
+  }
+}
+
 Future<void> setupFCM() async {
+  final context = navigatorKey.currentContext;
+  final appState = context?.read<AppState>();
+
+  if (appState == null ||
+      appState.isGuestUser ||
+      !appState.isUserProfileReady ||
+      appState.currentUserId == null) {
+    debugPrint('🚫 Auth not ready/guest → skip FCM setup');
+    return;
+  }
+
   try {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    final settings = await messaging.getNotificationSettings();
 
     if (kDebugMode) {
-      print('Main - User granted permission: ${settings.authorizationStatus}');
-    }
-
-    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-      if (kDebugMode) {
-        print('Main - Requesting permission again for notifications');
-      }
-      settings = await messaging.requestPermission();
-    }
-
-    // iOS Foreground notifications نمایش داده شوند
-    if (Platform.isIOS) {
-      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-        alert: true,
-        badge: true,
-        sound: true,
+      print(
+        'Main - Notification permission status: ${settings.authorizationStatus}',
       );
+    }
+
+    if (settings.authorizationStatus == AuthorizationStatus.denied ||
+        settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+      debugPrint(
+        '🚫 setupFCM skipped: notification permission not granted yet',
+      );
+      return;
+    }
+
+    // iOS Foreground
+    if (Platform.isIOS) {
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
     }
 
     String? apnsToken;
 
     if (Platform.isIOS) {
-      // optional ولی کمک می‌کند
       await messaging.setAutoInitEnabled(true);
 
       if (kDebugMode) {
-  debugPrint('iOS: AutoInit enabled');
-}
+        debugPrint('iOS: AutoInit enabled');
+      }
 
-
-      // Retry تا APNs token آماده شود (در Release معمولاً چند ثانیه طول می‌کشه)
       for (int i = 0; i < 10; i++) {
         apnsToken = await messaging.getAPNSToken();
         if (apnsToken != null && apnsToken.isNotEmpty) break;
         await Future.delayed(const Duration(milliseconds: 500));
       }
 
-      await saveIosPushDebug(
-        stage: 'after_apns_check',
-        apnsToken: apnsToken,
-      );
-
       if (apnsToken == null || apnsToken.isEmpty) {
-        await saveIosPushDebug(
-          stage: 'apns_missing',
-          apnsToken: apnsToken,
-          error: 'APNS_TOKEN_NULL',
-        );
-        return; // تا APNs نیاد، FCM رو ادامه نمی‌دیم
+        debugPrint("⚠️ APNS not ready");
       }
     }
 
-    // اینجا دیگه token رو shadow نمی‌کنیم
+    // 🔥 FCM TOKEN
     token = await messaging.getToken();
 
-    if (kDebugMode) {
-  debugPrint('🔥 FCM Token = $token');
-}
+    debugPrint("🔥 FCM Token = $token");
 
-FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
-  token = newToken;
-  if (kDebugMode) {
-    debugPrint('♻️ FCM Token refreshed = $newToken');
-  }
-});
-
-
-    await saveIosPushDebug(
-      stage: 'after_fcm',
-      apnsToken: apnsToken,
-      fcmToken: token,
-    );
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      token = newToken;
+      debugPrint('♻️ Token refreshed = $newToken');
+    });
 
     if (token != null) {
-      if (kDebugMode) {
-        print('Main - FCM Token: $token');
-
-      }
-      if (kDebugMode) {
-  debugPrint('🍏 APNS Token = $apnsToken');
-}
-
-
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-         
-        final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-        try {
-          final userDoc = await retry(() => userDocRef.get(GetOptions(source: Source.cache)).catchError((e) async {
-            if (kDebugMode) {
-              print('Main - Failed to get user document from cache: $e');
-            }
-            return await userDocRef.get(GetOptions(source: Source.server));
-          }));
 
-          if (userDoc.exists) {
-            try {
-              await retry(() => userDocRef.update({'fcmToken': token}));
-              if (kDebugMode) {
-                print('Main - Updated FCM token for user: ${user.uid}');
-              }
-            } catch (e) {
-              if (kDebugMode) {
-                print('Main - Failed to update FCM token: $e');
-              }
-            }
-          } else {
-            try {
-              await retry(() => userDocRef.set({
-                    'fcmToken': token,
-                    'username': 'Anonymous',
-                    'createdAt': FieldValue.serverTimestamp(),
-                  }));
-              if (kDebugMode) {
-                print('Main - Created new user document with FCM token for user: ${user.uid}');
-              }
-            } catch (e) {
-              if (kDebugMode) {
-                print('Main - Failed to create user document: $e');
-              }
-            }
+      if (user != null) {
+        final userDocRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid);
+
+        final userDoc = await retry(() => userDocRef.get());
+
+        // ==========================
+        // 👤 USER TOKEN
+        // ==========================
+        if (userDoc.exists) {
+          await retry(() => userDocRef.update({'fcmToken': token}));
+
+          // ==========================
+          // ☁️ SYNC BUSINESS TOKEN (Cloud Function)
+          // ==========================
+          try {
+            await FirebaseFunctions.instance
+                .httpsCallable('syncBusinessToken')
+                .call({'token': token});
+
+            debugPrint("☁️ Business token synced via Cloud Function");
+          } catch (e) {
+            debugPrint("❌ syncBusinessToken failed: $e");
           }
-        } catch (e) {
-          if (kDebugMode) {
-            print('Main - Error accessing Firestore for FCM setup: $e');
-          }
+
+          debugPrint("✅ User token updated: ${user.uid}");
+        } else {
+          await retry(
+            () => userDocRef.set({
+              'fcmToken': token,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+          );
+
+          debugPrint("✅ User created with token");
         }
       } else {
-        if (kDebugMode) {
-          print('Main - No user signed in, skipping FCM token update');
-        }
+        debugPrint('❌ No user logged in');
       }
     } else {
-      if (kDebugMode) {
-        print('Main - Failed to get FCM token');
-      }
+      debugPrint('❌ Failed to get FCM token');
     }
-
+    /*
     try {
       await retry(() => messaging.subscribeToTopic('all_users'));
       if (kDebugMode) {
@@ -441,13 +495,35 @@ FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
         print('Main - Failed to subscribe to topic: $e');
       }
     }
+*/
 
-    FirebaseMessaging.onMessage.listen(_firebaseMessagingForegroundHandler);
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      final context = navigatorKey.currentContext;
 
-FirebaseMessaging.onMessageOpenedApp.listen((message) {
-  _handleRemoteMessage(message);
-});
+      if (context == null) return;
 
+      final appState = context.read<AppState>();
+
+      if (appState.isGuestUser) return;
+
+      final data = message.data;
+      final type = (data['type'] ?? '').toString();
+
+      // 🔥 APPOINTMENT PAID
+      if (type == 'appointment_paid' && data['appointmentId'] != null) {
+        final appointmentId = data['appointmentId'].toString();
+
+        debugPrint("💰 BACKGROUND TAP → $appointmentId");
+
+        appState.setSelectedAppointmentId(appointmentId);
+        appState.setCurrentTab(NavTab.profile);
+        appState.openProfileSubPage(ProfileSubPage.businessDashboard);
+
+        return;
+      }
+
+      _handleRemoteMessage(message);
+    });
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -455,25 +531,53 @@ FirebaseMessaging.onMessageOpenedApp.listen((message) {
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings();
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
 
     bool? initialized = await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
-  if (kDebugMode) {
-    print('Main - Notification clicked: $response');
-  }
+        final context = navigatorKey.currentContext;
 
-  if (response.payload == null) return;
+        if (context == null) return;
 
-  try {
-    final payload = jsonDecode(response.payload!);
+        final appState = context.read<AppState>();
 
-    final type = (payload['type'] ?? '').toString();
-/*
+        if (appState.isGuestUser) {
+          debugPrint('🚫 Guest → skip notification tap navigation');
+          return;
+        }
+
+        if (kDebugMode) {
+          print('Main - Notification clicked: $response');
+        }
+
+        if (response.payload == null) return;
+
+        try {
+          final payload = jsonDecode(response.payload!);
+
+          final type = (payload['type'] ?? '').toString();
+
+          // ───────────────── APPOINTMENT PAID TAP 🔥 ─────────────────
+          if (type == 'appointment_paid' && payload['appointmentId'] != null) {
+            final appointmentId = payload['appointmentId'].toString();
+
+            debugPrint("💰 TAP → OPEN APPOINTMENT $appointmentId");
+
+            final appState = context.read<AppState>();
+
+            appState.setSelectedAppointmentId(appointmentId);
+
+            appState.setCurrentTab(NavTab.profile);
+            appState.openProfileSubPage(ProfileSubPage.businessDashboard);
+
+            return;
+          }
+          /*
 if ((type == 'playdateRequest' ||
      type == 'playdateResponse') &&
     payload['requestId'] != null) {
@@ -493,41 +597,39 @@ if ((type == 'playdateRequest' ||
 
 */
 
+          if ((type == 'like' || type == 'favorite') &&
+              payload['likerUserId'] != null) {
+            navigatorKey.currentState?.pushNamedAndRemoveUntil(
+              '/user_profile',
+              (route) => false,
+              arguments: {'userId': payload['likerUserId']},
+            );
+            return;
+          }
 
-    if ((type == 'like' || type == 'favorite') && payload['likerUserId'] != null) {
-  navigatorKey.currentState?.pushNamedAndRemoveUntil(
-    '/user_profile',
-    (route) => false,
-    arguments: {'userId': payload['likerUserId']},
-  );
-  return;
-}
+          if (type == 'lost_dog' && payload['lostDogId'] != null) {
+            navigatorKey.currentState?.pushNamedAndRemoveUntil(
+              '/lost_dogs_list',
+              (route) => false,
+            );
+            return;
+          }
 
-if (type == 'lost_dog' && payload['lostDogId'] != null) {
-  navigatorKey.currentState?.pushNamedAndRemoveUntil(
-    '/lost_dogs_list',
-    (route) => false,
-  );
-  return;
-}
+          if (type == 'found_dog' && payload['foundDogId'] != null) {
+            navigatorKey.currentState?.pushNamedAndRemoveUntil(
+              '/found_dogs_list',
+              (route) => false,
+            );
+            return;
+          }
 
-if (type == 'found_dog' && payload['foundDogId'] != null) {
-  navigatorKey.currentState?.pushNamedAndRemoveUntil(
-    '/found_dogs_list',
-    (route) => false,
-  );
-  return;
-}
-
-
-    //navigatorKey.currentState?.pushNamedAndRemoveUntil('/home', (route) => false);
-  } catch (e) {
-    if (kDebugMode) {
-      print('Main - Error handling notification click: $e');
-    }
-  }
-},
-
+          //navigatorKey.currentState?.pushNamedAndRemoveUntil('/home', (route) => false);
+        } catch (e) {
+          if (kDebugMode) {
+            print('Main - Error handling notification click: $e');
+          }
+        }
+      },
     );
 
     if (kDebugMode) {
@@ -536,7 +638,9 @@ if (type == 'found_dog' && payload['foundDogId'] != null) {
 
     if (Platform.isAndroid) {
       await flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
       if (kDebugMode) {
         print('Main - Notification channel created: high_importance_channel');
@@ -544,16 +648,22 @@ if (type == 'found_dog' && payload['foundDogId'] != null) {
     }
 
     bool? exactAlarmPermissionGranted = await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestExactAlarmsPermission();
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.canScheduleExactNotifications();
 
     if (kDebugMode) {
-      print('Main - Exact alarms permission granted: $exactAlarmPermissionGranted');
+      print(
+        'Main - Exact alarms permission granted: $exactAlarmPermissionGranted',
+      );
     }
 
     if (exactAlarmPermissionGranted != true) {
       if (kDebugMode) {
-        print('Main - Warning: Exact alarms permission not granted. Notifications may not work as expected.');
+        print(
+          'Main - Warning: Exact alarms permission not granted. Notifications may not work as expected.',
+        );
       }
     }
   } catch (e) {
@@ -572,15 +682,33 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
   debugPrint("🟨 HANDLE REMOTE MESSAGE: $data");
 
   final appState = navigatorKey.currentContext?.read<AppState>();
-  if (appState == null) return;
+
+  if (appState == null || appState.isGuestUser) {
+    debugPrint('🚫 Guest/no appState → skip remote message navigation');
+    return;
+  }
 
   if ((type == 'playdate_request' || type == 'playdate_response') &&
       data['requestId'] != null) {
-
     appState.ignoreNextNotificationTap(); // ✅ این خط اصلاح شد
 
     appState.setInitialPlaydateRequest(data['requestId'].toString());
     appState.setCurrentTab(NavTab.playdate);
+  }
+  // ───────────────── APPOINTMENT PAID 🔥 ─────────────────
+  if (type == 'appointment_paid' && data['appointmentId'] != null) {
+    final appointmentId = data['appointmentId'].toString();
+
+    debugPrint("💰 AUTO OPEN APPOINTMENT → $appointmentId");
+
+    appState.ignoreNextNotificationTap();
+
+    appState.setSelectedAppointmentId(appointmentId);
+
+    appState.setCurrentTab(NavTab.profile);
+    appState.openProfileSubPage(ProfileSubPage.businessDashboard);
+
+    return;
   }
 }
 
@@ -592,21 +720,29 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   GoogleFonts.config.allowRuntimeFetching = true;
-
+  await waitForInternet();
   await ensureFirebaseInitialized();
+  //await FirebaseAuth.instance.signOut();
+  //await AuthTrap.signOut(reason: 'manual_logout');
 
-  
+  // 👇 این خط جدید (اینجااااا)
+  //await FirebaseAuth.instance.authStateChanges().first;
 
- if (kDebugMode) {
-  await clearHive();
-}
+  // 🔥 wait until Firestore actually ready (real gate)
 
+  await testHttps();
+
+  // 🔥 INTERNET TEST
+  final hasInternet = await checkInternetConnection();
+  print("🌐 INTERNET STATUS = $hasInternet");
+  if (kDebugMode) {
+    await clearHive();
+  }
 
   try {
     await NotificationService().init();
 
-
-  print("🔥 FCM TOKEN REALTIME = $token");
+    print("🔥 FCM TOKEN REALTIME = $token");
 
     if (kDebugMode) {
       print('Main - NotificationService initialized (MAIN)');
@@ -616,18 +752,18 @@ void main() async {
       print('Main - NotificationService init failed in main: $e');
     }
   }
-await Hive.initFlutter();
+  await Hive.initFlutter();
 
-Hive.registerAdapter(DogAdapter());
+  Hive.registerAdapter(DogAdapter());
 
-// 🔥 TEMP FIX (Hive migration issue)
-await Hive.deleteBoxFromDisk('dogsBox');
+  // 🔥 TEMP FIX (Hive migration issue)
+  await Hive.deleteBoxFromDisk('dogsBox');
 
-dogsBox = await Hive.openBox<Dog>('dogsBox');
-favoritesBox = await Hive.openBox<Dog>('favoritesBox');
-currentUserBox = await Hive.openBox<String>('currentUserBox');
-userBox = await Hive.openBox<String>('userBox');
-userDataBox = await Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
+  dogsBox = await Hive.openBox<Dog>('dogsBox');
+  favoritesBox = await Hive.openBox<Dog>('favoritesBox');
+  currentUserBox = await Hive.openBox<String>('currentUserBox');
+  userBox = await Hive.openBox<String>('userBox');
+  userDataBox = await Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
 
   if (kDebugMode) {
     print('Main - Hive initialized, dogsBox size: ${dogsBox.length}');
@@ -643,63 +779,85 @@ userDataBox = await Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
     print('Main - firestoreDogs count: ${firestoreDogs.length}');
   }
 
+  Future<void> initializeAsync() async {
+    final context = navigatorKey.currentContext;
+    var authGateOpen = context == null;
 
-  await OffersManager.loadOffersOnce();
+    if (context != null) {
+      for (int i = 0; i < 80; i++) {
+        final appState = context.read<AppState>();
+        final uid = appState.currentUserId;
 
-Future<void> initializeAsync() async {
-  await setupFCM();
-/*
-  final initialMessage =
-      await FirebaseMessaging.instance.getInitialMessage();
+        if (appState.isUserProfileReady &&
+            (appState.isGuestUser || (uid != null && uid.isNotEmpty))) {
+          debugPrint('✅ Startup auth gate open → uid=$uid');
+          authGateOpen = true;
+          break;
+        }
 
-  if (initialMessage != null) {
-    debugPrint('🔥 Initial message detected (terminated state)');
-    await _handleRemoteMessage(initialMessage);
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+    }
+
+    if (!authGateOpen) {
+      debugPrint(
+        '⚠️ Startup auth gate did not open; deferring Firestore reads',
+      );
+      return;
+    }
+
+    await OffersManager.loadOffersOnce();
+    await setupFCM();
+
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+
+    if (initialMessage != null) {
+      debugPrint('🔥 Initial message detected (terminated state)');
+      await _handleRemoteMessage(initialMessage);
+    }
   }
 
-  */
-}
-
-
-// final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-//if (initialMessage != null) {
+  // final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  //if (initialMessage != null) {
   //await _handleRemoteMessage(initialMessage);
-//}
+  //}
 
+  //unawaited(initializeAsync());
 
-//unawaited(initializeAsync());
+  if (false) {
+    AuthTrap.signOut(reason: 'session_expired');
+  } // 👈 فقط برای تست
 
-if (false) {
-  await AuthTrap.signOut(reason: 'PUT_REASON_HERE');
-} // 👈 فقط برای تست
-
-await IapService.instance.init();
-
+  await IapService.instance.init();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    initializeAsync();
+  });
   runApp(
-  ChangeNotifierProvider(
-    create: (context) {
-      final appState = AppState(
-        favoriteDogs: favoriteDogs,
+    ChangeNotifierProvider(
+      create: (context) {
+        final appState = AppState(
+          favoriteDogs: favoriteDogs,
 
-        favoriteDogsNotifier: ValueNotifier<List<Dog>>(favoriteDogs),
-        likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
-        onToggleFavorite: (Dog dog) async {
-          await Provider.of<AppState>(context, listen: false)
-              .toggleFavorite(dog);
-        },
-        notificationService: NotificationService(),
-      );
+          favoriteDogsNotifier: ValueNotifier<List<Dog>>(favoriteDogs),
+          likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
+          onToggleFavorite: (Dog dog) async {
+            await Provider.of<AppState>(
+              context,
+              listen: false,
+            ).toggleFavorite(dog);
+          },
+          notificationService: NotificationService(),
+        );
 
-      // ❗️ خیلی مهم: فقط این
-      appState.startAuthListener();
+        // ❗️ خیلی مهم: فقط این
+        appState.startAuthListener();
 
-      return appState;
-    },
-    child: const MyApp(),
-  ),
-);
-debugPrint('🧨 startAuthListener fired');
-
+        return appState;
+      },
+      child: const MyApp(),
+    ),
+  );
+  debugPrint('🧨 startAuthListener fired');
 }
 
 class AppEntry extends StatelessWidget {
@@ -714,7 +872,7 @@ class AppEntry extends StatelessWidget {
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-/*
+  /*
   static void setLocale(BuildContext context, Locale newLocale) {
     final state = context.findAncestorStateOfType<State<MyApp>>();
     state?.setState(() {
@@ -726,68 +884,173 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => MyAppState();
 }
 
-class MyAppState extends State<MyApp>
-    with WidgetsBindingObserver {
+class MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  StreamSubscription? _sub;
 
   //Locale _locale = const Locale('en');
 
   @override
-void initState() {
-  super.initState();
-  WidgetsBinding.instance.addObserver(this);
-}
+  void initState() {
+    super.initState();
 
-@override
-void dispose() {
-  WidgetsBinding.instance.removeObserver(this);
-  super.dispose();
-}
+    // 🔥 when app is opened from terminated
+    getInitialUri().then((uri) {
+      if (uri != null) {
+        debugPrint("🔥 INITIAL LINK: $uri");
+        handleDeepLink(uri);
+      }
+    });
 
-@override
-void didChangeAppLifecycleState(AppLifecycleState state) {
-  if (state == AppLifecycleState.resumed) {
-    debugPrint('🔄 App resumed → forcing Firestore reconnect');
+    // 🔥 when app is in background
+    _sub = uriLinkStream.listen((Uri? uri) {
+      if (uri != null) {
+        debugPrint("🔥 DEEP LINK RECEIVED: $uri");
+        handleDeepLink(uri);
+      }
+    });
 
-    FirebaseFirestore.instance.enableNetwork();
-
-    final appState = context.read<AppState>();
-
-    // 👇 فقط از AppState استفاده کن
-    appState.ignoreNotificationIconTapFor(
-      const Duration(milliseconds: 600),
-    );
+    WidgetsBinding.instance.addObserver(this);
   }
-}
-
-
-
 
   @override
-Widget build(BuildContext context) {
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sub?.cancel();
+    super.dispose();
+  }
 
-  final locale = context.watch<AppState>().locale;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('🔄 App resumed');
 
-  return MaterialApp(
-    debugShowCheckedModeBanner: false,
-    navigatorKey: navigatorKey,
+      final appState = context.read<AppState>();
 
-    theme: AppTheme.theme(locale: locale),
-    locale: locale,
+      appState.ignoreNotificationIconTapFor(const Duration(milliseconds: 600));
+    }
+  }
 
-    localizationsDelegates: const [
-      AppLocalizations.delegate,
-      GlobalMaterialLocalizations.delegate,
-      GlobalWidgetsLocalizations.delegate,
-      GlobalCupertinoLocalizations.delegate,
-    ],
+  @override
+  Widget build(BuildContext context) {
+    final locale = context.watch<AppState>().locale;
 
-    supportedLocales: const [
-      Locale('en'),
-      Locale('fa'),
-      Locale('tr'),
-    ],
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
+      theme: AppTheme.theme(locale: locale),
+      locale: locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en'), Locale('fa'), Locale('tr')],
+      routes: {
+        '/orderDetail': (context) => OrderDetailPage(
+          sellerOrderId: ModalRoute.of(context)!.settings.arguments as String,
+        ),
+      },
+      home: const AppEntry(),
+    );
+  }
 
-    home: const AppEntry(),
-  );
-}
+  void handleDeepLink(Uri uri) async {
+    debugPrint("🔗 DEEP LINK RECEIVED: $uri");
+
+    /// فقط payment success
+    if (uri.host != "payment-success") return;
+
+    final orderId = uri.queryParameters["orderId"];
+
+    debugPrint("🔥 VERIFY ORDER ID FROM DEEPLINK: $orderId");
+
+    if (orderId == null || orderId.isEmpty) {
+      debugPrint("❌ ORDER ID NULL OR EMPTY");
+      return;
+    }
+
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('verifyPayment');
+
+      Map<String, dynamic>? data;
+
+      /// 🔁 retry (max 5)
+      for (int i = 0; i < 5; i++) {
+        debugPrint("🔁 VERIFY TRY: $i");
+
+        await Future.delayed(const Duration(seconds: 2));
+
+        debugPrint("🚀 SENDING TO VERIFY: orderId=$orderId");
+
+        final res = await callable.call({"orderId": orderId});
+
+        debugPrint("✅ VERIFY RESULT: ${res.data}");
+
+        data = Map<String, dynamic>.from(res.data);
+
+        /// اگر هنوز pending → retry
+        if (data["pending"] == true) continue;
+
+        break;
+      }
+
+      /// ❌ هیچ data نگرفتیم
+      if (data == null) {
+        debugPrint("❌ VERIFY FAILED COMPLETELY");
+        return;
+      }
+
+      /// ❌ پرداخت موفق نیست
+      if (data["success"] != true) {
+        debugPrint("❌ PAYMENT NOT SUCCESS");
+        return;
+      }
+
+      /// 📦 seller orders
+      final List sellerOrderIds = (data["sellerOrderIds"] ?? []) as List;
+
+      if (sellerOrderIds.isEmpty) {
+        debugPrint("❌ NO SELLER ORDERS");
+        return;
+      }
+
+      /// 🔥 فعلاً اولین seller (later: multi-seller UI)
+      final sellerOrderId = sellerOrderIds.first.toString();
+
+      debugPrint("📦 OPEN SELLER ORDER: $sellerOrderId");
+
+      final context = navigatorKey.currentContext;
+      if (context == null) {
+        debugPrint("❌ CONTEXT NULL");
+        return;
+      }
+
+      final appState = context.read<AppState>();
+
+      /// 🧹 پاک کردن cart
+      appState.clearCart();
+
+      /// 🏠 reset navigation stack
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeGate()),
+        (route) => false,
+      );
+
+      /// ⏳ صبر برای stable navigation
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      /// 📦 رفتن به order detail (sellerOrderId ✅)
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => OrderDetailPage(sellerOrderId: sellerOrderId),
+        ),
+      );
+    } catch (e, stack) {
+      debugPrint("❌ VERIFY ERROR: $e");
+      debugPrint("📛 STACK: $stack");
+    }
+  }
 }

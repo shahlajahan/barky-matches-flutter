@@ -6,6 +6,9 @@ import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../services/adoption_request_service.dart';
 import '../../app_state.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+
 
 class AdoptionInboxPage extends StatefulWidget {
   const AdoptionInboxPage({super.key});
@@ -485,20 +488,20 @@ Widget _imageThumb(String url) {
           backgroundColor: Colors.black,
           insetPadding: const EdgeInsets.all(16),
           child: InteractiveViewer(
-            child: Image.network(url),
+            child: SmartMedia(url: url),
           ),
         ),
       );
     },
     child: ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.network(
-        url,
-        width: 90,
-        height: 90,
-        fit: BoxFit.cover,
-      ),
-    ),
+  borderRadius: BorderRadius.circular(12),
+  child: SmartMedia(
+    url: url,
+    width: 90,
+    height: 90,
+    fit: BoxFit.cover,
+  ),
+),
   );
 }
 }

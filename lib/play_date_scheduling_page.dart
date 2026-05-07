@@ -20,6 +20,9 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/utils/dog_filter.dart';
+import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 
 
 
@@ -41,7 +44,7 @@ class PlayDateSchedulingPage extends StatefulWidget {
 
 class _PlayDateSchedulingPageState extends State<PlayDateSchedulingPage> {
   late AppState appState;
-
+List<Dog> _friendDogs = [];
   static const Duration _minPlaydateLeadTime = Duration(minutes: 15);
 
   bool get _isPresetPark => appState.activePlaydatePark != null;
@@ -58,37 +61,40 @@ String? _lastPresetParkName;
 
   bool _sending = false;
 
-  @override
+ @override
 void initState() {
   super.initState();
   appState = context.read<AppState>();
 
-  // 🐶 اگر از DogCard وارد شده باشیم (friend dog از قبل مشخص است)
+  final uid = appState.currentUserId;
+
+ 
+
+  /// 🐶 حالت قبلی (اگر از DogCard اومدی)
   final requestedDogId = appState.selectedRequesterDogId;
+
   if (requestedDogId != null) {
     final box = Hive.box<Dog>('dogsBox');
     final allDogs = box.values.toList();
 
     try {
-      _selectedRequestedDog =
+      final selectedDog =
           allDogs.firstWhere((d) => d.id == requestedDogId);
+
+      _selectedRequestedDog = selectedDog;
+
+     // _loadFriendDogs(selectedDog.ownerId!); // ✅ اینم میمونه
+
     } catch (_) {
-      // اگر به هر دلیلی سگ پیدا نشد، قفل نمی‌کنیم
       _selectedRequestedDog = null;
+      _friendDogs = [];
     }
   }
-/*
-  // 📍 اگر از Park وارد شده باشیم، لوکیشن preset می‌شود
-  final park = appState.activePlaydatePark;
-  if (park != null) {
-    _selectedLocationText = park['name']?.toString();
-    _selectedLat = (park['lat'] as num?)?.toDouble() ?? 41.0103;
-_selectedLng = (park['lng'] as num?)?.toDouble() ?? 28.6724;
 
+  if (appState.myDogs.isNotEmpty && _selectedRequesterDogId == null) {
+    _selectedRequesterDogId = appState.myDogs.first.id;
   }
-  */
 }
-
   Future<void> _pickDate() async {
   final l10n = AppLocalizations.of(context)!;
   final now = DateTime.now();
@@ -386,220 +392,187 @@ _selectedLng = (park['lng'] as num?)?.toDouble() ?? 28.6724;
 
 
   Future<void> _createRequest() async {
-    final l10n = AppLocalizations.of(context)!;
-    if (_sending) return;
+  final l10n = AppLocalizations.of(context)!;
+  if (_sending) return;
 
-    final appState = context.read<AppState>();
-    final callable = FirebaseFunctions.instanceFor(region: 'europe-west3')
-    .httpsCallable('createPlayDateRequest');
+  final appState = context.read<AppState>();
 
-debugPrint("🌍 Functions region: europe-west3");
+  debugPrint("🌍 Functions region: europe-west3");
+  debugPrint("🚀 BEFORE CALL - mounted=$mounted");
 
-debugPrint("🚀 BEFORE CALL - mounted=$mounted");
+  final clientRequestId =
+      DateTime.now().millisecondsSinceEpoch.toString();
 
-debugPrint("🔥 CREATE REQUEST DEBUG:");
-debugPrint("uid(appState.currentUserId) = ${appState.currentUserId}");
-debugPrint("activePlaydatePark = ${appState.activePlaydatePark}");
-debugPrint("selectedRequesterDogId(appState) = ${appState.selectedRequesterDogId}");
-debugPrint("_selectedRequesterDogId(local) = $_selectedRequesterDogId");
-debugPrint("_selectedRequestedDog(local) = ${_selectedRequestedDog?.id} / ${_selectedRequestedDog?.name}");
-debugPrint("_selectedLocationText = $_selectedLocationText");
-debugPrint("_selectedLatLng = $_selectedLat , $_selectedLng");
-debugPrint("_dateTimeLocal = ${_selectedDate} / ${_selectedTime}");
+  debugPrint("🆔 clientRequestId = $clientRequestId");
 
-final clientRequestId =
-    DateTime.now().millisecondsSinceEpoch.toString();
+  final myDogs = appState.myDogs;
 
-debugPrint("🆔 clientRequestId = $clientRequestId");
-
-
-
-    // اعتبارسنجی‌های ساده
-    final allDogs = appState.allDogs;
-    final uid = appState.currentUserId!;
-    final myDogs = allDogs.where((d) => d.ownerId == uid).toList();
-
-    if (myDogs.isEmpty || _selectedRequesterDogId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.selectYourDogHint, style: GoogleFonts.poppins())),
-      );
-      return;
-    }
-
-    final scheduled = _buildScheduledDateTime();
-if (scheduled == null) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Please select date and time.'),
-    ),
-  );
-  return;
-}
-// ⛔️ DEBUG: check park coordinates
-if (_selectedLat == null || _selectedLng == null) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Park location coordinates missing.'),
-    ),
-  );
-  debugPrint("🚀 AFTER CALL - mounted=$mounted");
-
-  debugPrint('❌ locationLat/locationLng are NULL');
-  return;
-}
-
-
-// ⛔️ RULE: must be at least 15 minutes later
-final nowUtc = DateTime.now().toUtc();
-
-if (scheduled.isBefore(nowUtc.add(const Duration(minutes: 15)))) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text(
-        'Playdate must be scheduled at least 15 minutes in advance.',
-      ),
-    ),
-  );
-  return;
-}
-
-
-
-
-    if (!_isPresetPark &&
-        (_selectedLocationText == null || _selectedLocationText!.trim().isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.selectLocation, style: GoogleFonts.poppins())),
-      );
-      return;
-    }
-
-    Dog? requesterDog;
-try {
-  requesterDog =
-      myDogs.firstWhere((d) => d.id == _selectedRequesterDogId);
-} catch (_) {
-  requesterDog = null;
-}
-
-    if (requesterDog == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.selectYourDogHint, style: GoogleFonts.poppins())),
-      );
-      return;
-    }
-
-    final requestedDog = _selectedRequestedDog;
-    if (requestedDog == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.selectFriendsDog, style: GoogleFonts.poppins())),
-      );
-      return;
-    }
-
-    final requestedOwnerId = requestedDog.ownerId ?? '';
-    if (requestedOwnerId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.errorNoOwnerFound, style: GoogleFonts.poppins())),
-      );
-      return;
-    }
-
-    setState(() => _sending = true);
-
-    // ✅ اگر preset park است ولی مختصات نداریم، اصلاً call نکن
-if (_isPresetPark && (_selectedLat == null || _selectedLng == null)) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Park location coordinates missing.'),
-    ),
-  );
-  return;
-}
-
-
-    try {
-  debugPrint("🚀 SEND REQUEST PRESSED");
-debugPrint("🔥 Firebase apps: ${Firebase.apps}");
-debugPrint("🔥 Current user UID: ${FirebaseAuth.instance.currentUser?.uid}");
-  final functions = FirebaseFunctions.instanceFor(
-    region: 'europe-west3',
-  );
-
-  debugPrint("📡 About to call createPlayDateRequest");
-
-  debugPrint("AUTH UID = ${FirebaseAuth.instance.currentUser?.uid}");
-debugPrint("APPSTATE UID = ${appState.currentUserId}");
-
-  
-
-  final result = await functions
-      .httpsCallable(
-        'createPlayDateRequest',
-        options: HttpsCallableOptions(
-          timeout: const Duration(seconds: 30),
-        ),
-      )
-      .call({
-  'clientRequestId': clientRequestId,
-  'requesterUserId': appState.currentUserId,
-  'requestedUserId': requestedOwnerId,
-  'requesterDogName': requesterDog.name,
-  'requestedDogName': requestedDog.name,
-  'scheduledDateTime': scheduled.toUtc().toIso8601String(),
-  'requesterDogId': requesterDog.id,
-  'requestedDogId': requestedDog.id,
-  'locationText': _selectedLocationText,
-  'locationLat': _selectedLat != null ? _selectedLat! * 1.0 : null,
-  'locationLng': _selectedLng != null ? _selectedLng! * 1.0 : null,
-  'isPresetPark': _isPresetPark,
-});
-
-
-  debugPrint("✅ FUNCTION RESPONSE: ${result.data}");
-  debugPrint("🟢 AFTER FUNCTION CALL SUCCESS");
-
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.requestCreatedSuccess,
-            style: GoogleFonts.poppins(),
-          ),
-        ),
-      );
-
-      appState.clearPlaydateFlow();
-
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e, stack) {
-  debugPrint("❌ FUNCTION ERROR: $e");
-  debugPrint("📍 STACK: $stack");
-
-      if (!mounted) return;
-
-      String errorMsg = l10n.errorCreatingRequest(e.toString());
-      if (e is FirebaseFunctionsException) {
-        errorMsg = e.message ?? errorMsg;
-         debugPrint("🔥 CODE: ${e.code}");
-    debugPrint("🔥 MESSAGE: ${e.message}");
-    debugPrint("🔥 DETAILS: ${e.details}");
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMsg, style: GoogleFonts.poppins()),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
+  if (myDogs.isEmpty || _selectedRequesterDogId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.selectYourDogHint)),
+    );
+    return;
   }
+
+  final scheduled = _buildScheduledDateTime();
+  if (scheduled == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select date and time.')),
+    );
+    return;
+  }
+
+  if (_selectedLat == null || _selectedLng == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Park location coordinates missing.')),
+    );
+    return;
+  }
+
+  final nowUtc = DateTime.now().toUtc();
+  if (scheduled.isBefore(nowUtc.add(const Duration(minutes: 15)))) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Playdate must be scheduled at least 15 minutes in advance.',
+        ),
+      ),
+    );
+    return;
+  }
+
+  if (!_isPresetPark &&
+      (_selectedLocationText == null ||
+          _selectedLocationText!.trim().isEmpty)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.selectLocation)),
+    );
+    return;
+  }
+
+  Dog? requesterDog;
+  try {
+    requesterDog =
+        myDogs.firstWhere((d) => d.id == _selectedRequesterDogId);
+  } catch (_) {
+    requesterDog = null;
+  }
+
+  if (requesterDog == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.selectYourDogHint)),
+    );
+    return;
+  }
+
+  final requestedDog = _selectedRequestedDog;
+  if (requestedDog == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.selectFriendsDog)),
+    );
+    return;
+  }
+
+  final requestedOwnerId = requestedDog.ownerId ?? '';
+  if (requestedOwnerId.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.errorNoOwnerFound)),
+    );
+    return;
+  }
+
+  setState(() => _sending = true);
+
+  try {
+    debugPrint("🚀 SEND REQUEST PRESSED");
+
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'europe-west3',
+    ).httpsCallable(
+      'createPlayDateRequest',
+      options: HttpsCallableOptions(
+        timeout: const Duration(seconds: 30),
+      ),
+    );
+
+    debugPrint("📡 About to call createPlayDateRequest");
+
+    final result = await callable.call({
+      'clientRequestId': clientRequestId,
+      'requesterUserId': appState.currentUserId,
+      'requestedUserId': requestedOwnerId,
+      'requesterDogName': requesterDog.name,
+      'requestedDogName': requestedDog.name,
+      'scheduledDateTime': scheduled.toUtc().toIso8601String(),
+      'requesterDogId': requesterDog.id,
+      'requestedDogId': requestedDog.id,
+      'locationText': _selectedLocationText,
+      'locationLat': _selectedLat,
+      'locationLng': _selectedLng,
+      'isPresetPark': _isPresetPark,
+    });
+
+    final data = result.data;
+
+    debugPrint("🟢 FUNCTION RESPONSE DATA: $data");
+
+    /// 🧠 HANDLE TIME CONFLICT (🔥 مهم)
+    if (data is Map && data['success'] == false) {
+      if (data['reason'] == 'time_conflict') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "This dog already has a playdate around this time 🐾",
+            ),
+          ),
+        );
+
+        setState(() => _sending = false);
+        return;
+      }
+    }
+
+    debugPrint("✅ FUNCTION RESPONSE: $data");
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.requestCreatedSuccess)),
+    );
+
+    appState.clearPlaydateFlow();
+
+    if (mounted) {
+     appState.setCurrentTab(NavTab.home);
+    }
+
+  } catch (e, stack) {
+    debugPrint("❌ FUNCTION ERROR: $e");
+    debugPrint("📍 STACK: $stack");
+
+    if (!mounted) return;
+
+    String errorMsg = l10n.errorCreatingRequest(e.toString());
+
+    if (e is FirebaseFunctionsException) {
+      errorMsg = e.message ?? errorMsg;
+
+      debugPrint("🔥 CODE: ${e.code}");
+      debugPrint("🔥 MESSAGE: ${e.message}");
+      debugPrint("🔥 DETAILS: ${e.details}");
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMsg),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+
+  } finally {
+    if (mounted) setState(() => _sending = false);
+  }
+}
 
   Widget _buildFriendDogSelector(
   AppLocalizations l10n,
@@ -697,10 +670,23 @@ Widget build(BuildContext context) {
   final appState = context.watch<AppState>();
 
   final uid = appState.currentUserId;
+
   if (uid == null) {
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),
     );
+  }
+
+  final myDogs = appState.myDogs;
+
+  final friendDogs = appState.allDogs
+      .where((d) => d.ownerId != uid)
+      .toList();
+
+  debugPrint("🐶 FRIEND DOGS COUNT: ${friendDogs.length}");
+
+  if (_selectedRequesterDogId == null && myDogs.isNotEmpty) {
+    _selectedRequesterDogId = myDogs.first.id;
   }
 
   final park = appState.activePlaydatePark;
@@ -712,141 +698,284 @@ Widget build(BuildContext context) {
     _selectedLng = (park['lng'] as num?)?.toDouble();
   }
 
-  final allDogs = appState.allDogs;
-  final myDogs = allDogs.where((d) => d.ownerId == uid).toList();
-  final dogsNotMine = allDogs.where((d) => d.ownerId != uid).toList();
-
-  final friendDogs = dogsNotMine;
-
   final scheduledText = _buildScheduledDateTime() == null
       ? l10n.selectDateAndTime
       : '${DateFormat('yyyy-MM-dd').format(_selectedDate!)} • ${_selectedTime!.format(context)}';
 
   return Scaffold(
     backgroundColor: AppTheme.bg,
-    //appBar: AppBar(
-      //title: Text(l10n.schedulePlayDate),
-    //),
+
     bottomNavigationBar: SafeArea(
-      minimum: const EdgeInsets.all(16),
-      child: ElevatedButton(
-        onPressed: (_sending || friendDogs.isEmpty || myDogs.isEmpty)
-            ? null
-            : _createRequest,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.accent,
-          foregroundColor: Colors.black,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radius),
+      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: SizedBox(
+        height: 54,
+        child: ElevatedButton(
+          onPressed: (_sending ||
+                  friendDogs.isEmpty ||
+                  myDogs.isEmpty ||
+                  _selectedRequesterDogId == null)
+              ? null
+              : _createRequest,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.accent,
+            disabledBackgroundColor: Colors.grey.withOpacity(0.25),
+            foregroundColor: Colors.black,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
           ),
+          child: _sending
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: Colors.black,
+                  ),
+                )
+              : Text(
+                  l10n.sendRequestButton,
+                  style: AppTheme.button().copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
         ),
-        child: Text(_sending ? l10n.sending : l10n.sendRequestButton),
       ),
     ),
+
     body: SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            /// DATE & TIME
-            Text(l10n.selectDateAndTime, style: AppTheme.h2()),
-            const SizedBox(height: 12),
-
-            _dateTimeTile(
-              icon: Icons.calendar_today,
-              value: _selectedDate == null
-                  ? l10n.pickDate
-                  : DateFormat('yyyy-MM-dd').format(_selectedDate!),
-              onTap: _pickDate,
+            Text(
+              "Schedule a Playdate 🐾",
+              style: AppTheme.h1(
+                color: const Color(0xFF9E1B4F),
+                size: 24,
+              ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
 
-            _dateTimeTile(
-              icon: Icons.access_time,
-              value: _selectedTime == null
-                  ? l10n.pickTime
-                  : _selectedTime!.format(context),
-              onTap: _pickTime,
+            Text(
+              "Pick date, time, location and dogs for the playdate.",
+              style: AppTheme.body(
+                color: Colors.black54,
+                size: 13,
+              ),
             ),
 
-            if (_buildScheduledDateTime() != null) ...[
-              const SizedBox(height: 8),
-              Text(scheduledText, style: AppTheme.caption()),
-            ],
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: AppTheme.cardShadow(opacity: 0.08),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.selectDateAndTime,
+                    style: AppTheme.h2(
+                      color: const Color(0xFF9E1B4F),
+                    ),
+                  ),
 
-            /// LOCATION
-            Text(l10n.selectLocation, style: AppTheme.h2()),
-            const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-            if (isPresetPark)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.park, color: Colors.green),
-                    const SizedBox(width: 10),
-                    Expanded(
+                  _dateTimeTile(
+                    icon: Icons.calendar_today,
+                    value: _selectedDate == null
+                        ? l10n.pickDate
+                        : DateFormat('yyyy-MM-dd').format(_selectedDate!),
+                    onTap: _pickDate,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _dateTimeTile(
+                    icon: Icons.access_time,
+                    value: _selectedTime == null
+                        ? l10n.pickTime
+                        : _selectedTime!.format(context),
+                    onTap: _pickTime,
+                  ),
+
+                  if (_buildScheduledDateTime() != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3F7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Text(
-                        _selectedLocationText ?? '',
-                        style: AppTheme.body(),
+                        scheduledText,
+                        style: AppTheme.caption(
+                          color: const Color(0xFF9E1B4F),
+                          weight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
-                ),
-              )
-            else
-              _dateTimeTile(
-                icon: Icons.location_on,
-                value: _selectedLocationText ?? l10n.selectLocation,
-                onTap: _pickLocation,
+                ],
               ),
+            ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            /// YOUR DOG
-            Text(l10n.selectYourDog, style: AppTheme.h2()),
-            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: AppTheme.cardShadow(opacity: 0.08),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.selectLocation,
+                    style: AppTheme.h2(
+                      color: const Color(0xFF9E1B4F),
+                    ),
+                  ),
 
-            if (myDogs.isEmpty)
-              Text(l10n.selectYourDogHint, style: AppTheme.caption())
-            else
-              DropdownButtonFormField<String>(
-                value: _selectedRequesterDogId,
-                isExpanded: true,
-                decoration: const InputDecoration(),
-                items: myDogs
-                    .map(
-                      (d) => DropdownMenuItem<String>(
-                        value: d.id,
-                        child: Text(d.name),
+                  const SizedBox(height: 12),
+
+                  if (isPresetPark)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.green.withOpacity(0.18),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.park,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _selectedLocationText ?? '',
+                              style: AppTheme.body(
+                                color: Colors.black87,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     )
-                    .toList(),
-                onChanged: (v) {
-                  setState(() => _selectedRequesterDogId = v);
-                },
+                  else
+                    _dateTimeTile(
+                      icon: Icons.location_on,
+                      value: _selectedLocationText ?? l10n.selectLocation,
+                      onTap: _pickLocation,
+                    ),
+                ],
               ),
+            ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            /// FRIEND DOG
-            Text(l10n.selectFriendsDog, style: AppTheme.h2()),
-            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: AppTheme.cardShadow(opacity: 0.08),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.selectYourDog,
+                    style: AppTheme.h2(
+                      color: const Color(0xFF9E1B4F),
+                    ),
+                  ),
 
-            if (friendDogs.isEmpty)
-              Text("No available dogs", style: AppTheme.caption())
-            else
-              _buildFriendDogSelector(l10n, friendDogs),
+                  const SizedBox(height: 10),
+
+                  if (myDogs.isEmpty)
+                    Text(
+                      l10n.selectYourDogHint,
+                      style: AppTheme.caption(),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      value: _selectedRequesterDogId,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0xFFFFF3F7),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      items: myDogs
+                          .map(
+                            (d) => DropdownMenuItem<String>(
+                              value: d.id,
+                              child: Text(
+                                '${d.name} • ${d.breed}',
+                                style: AppTheme.body(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        setState(() => _selectedRequesterDogId = v);
+                      },
+                    ),
+
+                  const SizedBox(height: 18),
+
+                  Text(
+                    l10n.selectFriendsDog,
+                    style: AppTheme.h2(
+                      color: const Color(0xFF9E1B4F),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  if (friendDogs.isEmpty)
+                    Text(
+                      "No available dogs",
+                      style: AppTheme.caption(),
+                    )
+                  else
+                    _buildFriendDogSelector(l10n, friendDogs),
+                ],
+              ),
+            ),
 
             const SizedBox(height: 100),
           ],
@@ -854,6 +983,41 @@ Widget build(BuildContext context) {
       ),
     ),
   );
+}
+
+Future<void> _loadFriendDogs(String ownerId) async {
+  try {
+    debugPrint("🐶 OWNER ID: $ownerId");
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('dogs')
+        .where('ownerId', isEqualTo: ownerId)
+        .get();
+
+    final dogs = snapshot.docs.map((doc) {
+      final data = doc.data();
+
+      debugPrint("🐶 RAW DATA: $data");
+
+      if (!shouldIncludeDog(data, DogFilterMode.playdate)) {
+  debugPrint("🚫 FILTERED OUT: ${data['name']}");
+  return null;
+}
+
+      return Dog.fromMap(data, doc.id);
+    })
+    .whereType<Dog>() // حذف null ها
+    .toList();
+
+    debugPrint("🐶 FINAL FRIEND DOGS: ${dogs.length}");
+
+    setState(() {
+      _friendDogs = dogs;
+    });
+
+  } catch (e) {
+    debugPrint('❌ Failed to load friend dogs: $e');
+  }
 }
 }
 

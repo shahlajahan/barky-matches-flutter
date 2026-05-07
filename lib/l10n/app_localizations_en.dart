@@ -69,13 +69,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editProfile => 'Edit Profile';
 
   @override
-  String get username => 'Username';
+  String get usernameLabel => 'Username';
 
   @override
-  String get email => 'Email';
+  String get emailLabel => 'Email';
 
   @override
-  String get phoneNumber => 'Phone Number';
+  String get phoneLabel => 'Phone Number';
 
   @override
   String get enterPhoneNumberOptional => 'Enter phone number (optional)';
@@ -111,19 +111,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDogsAddedYet => 'No dogs added yet.';
 
   @override
-  String get appTitle => 'Barky Matches';
+  String get appTitle => 'PetSupo';
 
   @override
   String get loadingUserData => 'Loading user data...';
 
   @override
-  String get welcomeToBarkyMatches => 'Welcome to Barky Matches!';
+  String get welcomeToPetSopu => 'Welcome to PetSopu!';
 
   @override
   String get welcomeTo => 'Welcome to';
 
   @override
-  String get barkyMatches => 'Barky Matches!';
+  String get petSopu => 'PetSopu';
 
   @override
   String welcomeBack(Object username) {
@@ -149,15 +149,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get continueAsGuest => 'Continue as Guest';
-
-  @override
-  String get emailLabel => 'Email';
-
-  @override
-  String get usernameLabel => 'Username';
-
-  @override
-  String get phoneLabel => 'Phone Number';
 
   @override
   String get passwordLabel => 'Password';
@@ -259,7 +250,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signInToAccessPlaymate => 'Please Sign In to access Playmate';
 
   @override
-  String get signInToFindFriends => 'Please Sign In to find friends';
+  String get findPlaymates => 'Find Playmates';
+
+  @override
+  String get signInToFindFriends => 'Find friends for your pet';
 
   @override
   String get addYourDog => 'Add Your Dog';
@@ -367,7 +361,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get save => 'Save';
 
   @override
-  String dogNameExists(Object name) {
+  String dogNameAlreadyExists(Object name) {
     return 'A dog with the name $name already exists!';
   }
 
@@ -449,11 +443,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dogDetailsAdoptionLabel => 'Available for Adoption:';
-
-  @override
-  String dogDetailsNameExistsError(Object name) {
-    return 'A dog with the name $name already exists!';
-  }
 
   @override
   String get editDogPermissionDenied => 'You do not have permission to edit this dog.';
@@ -590,7 +579,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pleaseLoginToCreateRequest => 'Please log in to create a request';
 
   @override
-  String playdateRequestMessage(Object requesterDog, Object requestedDog) {
+  String get playdateRequestTitle => 'Playdate Request';
+
+  @override
+  String playdateRequestBody(Object requesterDog, Object requestedDog) {
+    return '$requesterDog wants to play with $requestedDog!';
+  }
+
+  @override
+  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog) {
     return '$requesterDog wants to play with $requestedDog!';
   }
 
@@ -608,10 +605,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get newPlaydateRequest => 'New Playdate Request!';
+  String get newPlaydateRequestTitle => 'New Playdate Request!';
 
   @override
-  String playdateRequestBody(Object requesterDog, Object requestedDog) {
+  String newPlaydateRequestBody(Object requesterDog, Object requestedDog) {
     return '$requesterDog wants to play with $requestedDog!';
   }
 
@@ -784,14 +781,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String newLikeBody(Object username, Object dogName) {
     return '$username liked your dog $dogName!';
-  }
-
-  @override
-  String get newPlayDateRequestTitle => 'New Playdate Request!';
-
-  @override
-  String newPlayDateRequestBody(Object dogName) {
-    return 'You have a new playdate request from $dogName.';
   }
 
   @override
@@ -1082,7 +1071,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatNotImplemented => 'Chat functionality not implemented yet';
 
   @override
-  String get dogParkTitle => 'Dog Parks';
+  String get dogParkTitle => 'Dog Park';
 
   @override
   String dogParkDateLabel(Object date) {
@@ -1760,4 +1749,180 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorNoOwnerFound => 'No valid owner found for this dog';
+
+  @override
+  String get offerHotDeal => '🔥 Hot Deal';
+
+  @override
+  String get offerPremiumBadge => 'Premium';
+
+  @override
+  String get offerFallbackTitle => 'Special offer for Barky users';
+
+  @override
+  String get offerFallbackProvider => 'Partner brand';
+
+  @override
+  String get offerUnlock => 'Unlock';
+
+  @override
+  String get offerView => 'View';
+
+  @override
+  String offerDiscountPercent(Object discount) {
+    return '$discount% OFF';
+  }
+
+  @override
+  String get offerPremiumRequiredTitle => 'Premium Required';
+
+  @override
+  String get offerPremiumRequiredMessage => 'This offer is only for premium members.';
+
+  @override
+  String get offerCancel => 'Cancel';
+
+  @override
+  String get offerUpgrade => 'Upgrade';
+
+  @override
+  String get offerUnlockingMessage => 'Unlocking your deal...';
+
+  @override
+  String get offerChooseContinueTitle => 'Choose where to continue';
+
+  @override
+  String get offerChooseContinueSubtitle => 'Pick your preferred contact option for this offer.';
+
+  @override
+  String get offerOpenWebsite => 'Open Website';
+
+  @override
+  String get offerInstagram => 'Instagram';
+
+  @override
+  String get playdatesTitle => 'Playdates';
+
+  @override
+  String get manageRequests => 'Manage requests';
+
+  @override
+  String get adoptionTitle => 'Adoption';
+
+  @override
+  String get giveLove => 'Give love';
+
+  @override
+  String get alertsTitle => 'Alerts';
+
+  @override
+  String get lostAndFound => 'Lost & Found';
+
+  @override
+  String get vetTitle => 'Vet';
+
+  @override
+  String get nearbyClinics => 'Nearby clinics';
+
+  @override
+  String get groomyTitle => 'Groomy';
+
+  @override
+  String get bookGrooming => 'Book grooming';
+
+  @override
+  String get petShopTitle => 'Pet Shop';
+
+  @override
+  String get shopNearYou => 'Shop near you';
+
+  @override
+  String get featuredDeal => 'Featured Deal';
+
+  @override
+  String get premiumLabel => 'Premium';
+
+  @override
+  String get goldLabel => 'Gold';
+
+  @override
+  String discountOff(Object percent) {
+    return '$percent% OFF';
+  }
+
+  @override
+  String get socialAndPlay => 'Social & Play';
+
+  @override
+  String get careAndServices => 'Care & Services';
+
+  @override
+  String get outdoorAndLifestyle => 'Outdoor & Lifestyle';
+
+  @override
+  String get exploreNearbyParks => 'Explore nearby parks';
+
+  @override
+  String get trainingTitle => 'Training';
+
+  @override
+  String get comingSoon => 'Coming soon';
+
+  @override
+  String get trainingComingSoonMessage => 'Training feature coming soon 🐾';
+
+  @override
+  String get communityHub => 'Community Hub';
+
+  @override
+  String activeCount(Object count) {
+    return '$count active';
+  }
+
+  @override
+  String get reportTitle => 'Report';
+
+  @override
+  String get lostDogTitle => 'Lost Dog';
+
+  @override
+  String get foundDogTitle => 'Found Dog';
+
+  @override
+  String get lostTitle => 'Lost';
+
+  @override
+  String get dogsTitle => 'Dogs';
+
+  @override
+  String get foundTitle => 'Found';
+
+  @override
+  String get petShopDealName => 'Pet Shop A';
+
+  @override
+  String get petShopDealDesc => '15% OFF on all food';
+
+  @override
+  String get groomyDealName => 'Groomy Studio';
+
+  @override
+  String get groomyDealDesc => '20% OFF grooming this week';
+
+  @override
+  String get vetDealName => 'VetPlus';
+
+  @override
+  String get vetDealDesc => 'Gold members: free checkup';
+
+  @override
+  String get offerWhatsApp => 'WhatsApp';
+
+  @override
+  String offerCodeCopied(Object code) {
+    return 'Code copied: $code';
+  }
+
+  @override
+  String get offerOpenError => 'Error opening offer';
 }

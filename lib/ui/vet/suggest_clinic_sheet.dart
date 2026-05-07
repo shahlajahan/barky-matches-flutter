@@ -19,8 +19,8 @@ class SuggestClinicSheet extends StatelessWidget {
 
     await Share.share(
       'Hi 👋\n\n'
-      'BarkyMatches helps pet owners find and book veterinary appointments easily 🐶🐾\n\n'
-      'We would love to see *$vetName* join BarkyMatches!\n\n'
+      'PetSopu helps pet owners find and book veterinary appointments easily 🐶🐾\n\n'
+      'We would love to see *$vetName* join PetSopu!\n\n'
       '👉 https://barkymatches.com',
       sharePositionOrigin:
           box.localToGlobal(Offset.zero) & box.size,
@@ -64,7 +64,7 @@ class SuggestClinicSheet extends StatelessWidget {
           const SizedBox(height: 16),
 
           const Text(
-            'Help us grow BarkyMatches',
+            'Help us grow PetSopu',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,
@@ -75,7 +75,7 @@ class SuggestClinicSheet extends StatelessWidget {
           const SizedBox(height: 8),
 
           Text(
-            'Suggest $vetName to join BarkyMatches and help pet owners book appointments more easily.',
+            'Suggest $vetName to join PetSopu and help pet owners book appointments more easily.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,

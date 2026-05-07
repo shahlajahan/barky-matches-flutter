@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/home_page.dart';
@@ -25,6 +25,9 @@ import 'app_state.dart';
 import 'package:barky_matches_fixed/play_date_scheduling_page.dart';
 import 'package:barky_matches_fixed/ui/adoption/adoption_inbox_page.dart';
 import 'package:barky_matches_fixed/playmate_page.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
 
 // ─────────────────────────────────────────────
 // HomeGate
@@ -45,23 +48,51 @@ class _HomeGateState extends State<HomeGate> {
     debugPrint('🧩 HomeGate initState hash=${identityHashCode(this)}');
   }
 
-  Future<void> _handleInitialNotification() async {
-    final message =
-        await FirebaseMessaging.instance.getInitialMessage();
+ Future<void> _handleInitialNotification() async {
+  final appState = context.read<AppState>();
+
+  if (appState.isGuestUser) {
+    debugPrint('🚫 Guest → skip initial notification handling');
+    return;
+  }
+
+  final message =
+      await FirebaseMessaging.instance.getInitialMessage();
 
     if (message == null) return;
 
     await Future.doWhile(() async {
       final uid = context.read<AppState>().currentUserId;
-      if (uid != null && uid.isNotEmpty) return false;
+      final appState = context.read<AppState>();
+
+if (appState.isGuestUser) return false;
+
+if (uid != null && uid.isNotEmpty) return false;
       await Future.delayed(const Duration(milliseconds: 100));
       return true;
     });
+
+    
 
     if (!mounted) return;
 
     final data = message.data;
     final type = (data['type'] ?? '').toString();
+if (context.read<AppState>().isGuestUser) {
+  debugPrint('🚫 Guest → skip notification navigation');
+  return;
+}
+
+// 🔥 FIXED POSITION
+if (type == 'vet_appointment_request' && data['appointmentId'] != null) {
+  final appState = context.read<AppState>();
+
+  if (!appState.consumeNotificationNavigation()) return;
+
+  appState.setCurrentTab(NavTab.vet);
+
+  debugPrint("🐾 Navigate to vet from notification");
+}
 
     if ((type == 'playdateRequest' ||
             type == 'playdateResponse') &&
@@ -194,6 +225,28 @@ void _startTransition() {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+
+    // ==========================
+// 🔥 APPOINTMENT PAYMENT NAVIGATION
+// ==========================
+if (appState.selectedAppointmentId != null) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    final appointmentId = appState.selectedAppointmentId!;
+    debugPrint("💳 NAVIGATE TO PAYMENT PAGE → $appointmentId");
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AppointmentPaymentPage(
+          appointmentId: appointmentId,
+        ),
+      ),
+    );
+
+    appState.consumeSelectedAppointment();
+  });
+}
 var currentTab = appState.currentTab;
 
 if (_lastTab != null && _lastTab != currentTab) {
@@ -348,7 +401,7 @@ class _PlaydateTab extends StatelessWidget {
     if (requestId != null && requestId.isNotEmpty) {
       return PlayDateRequestsPageNew(
         key: ValueKey(requestId),
-        dogsList: appState.allDogs,
+        dogsList: appState.myDogs,
         favoriteDogs: appState.favoriteDogs,
         onToggleFavorite: appState.onToggleFavorite,
         initialRequestId: requestId,

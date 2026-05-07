@@ -51,16 +51,18 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   Widget _buildNotificationsBody(BuildContext context) {
 
-    if (widget.currentUserId == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final userId = widget.currentUserId;
+
+if (userId == null || userId.isEmpty || userId == 'guest') {
+  return _buildGuestNotification();
+}
 
     return Container(
       color: const Color(0xFFFFF6F8),
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('notifications')
-            .where('recipientUserId', isEqualTo: widget.currentUserId)
+            .where('recipientUserId', isEqualTo: userId)
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -114,9 +116,12 @@ class _NotificationsPageState extends State<NotificationsPage>
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
-  if (!mounted || _handlingTap) return;
 
-  _handlingTap = true;
+                      if (widget.currentUserId == null || widget.currentUserId == 'guest') {
+  debugPrint('🚫 Guest → tap ignored');
+  return;
+}
+
 
   try {
     await FirebaseFirestore.instance
@@ -136,9 +141,16 @@ class _NotificationsPageState extends State<NotificationsPage>
     debugPrint("🔔 Notification tapped → type=$rawType");
 
     // ✅ اول overlay بسته شود
-    context.read<AppState>().closeNotifications();
+    //context.read<AppState>().closeNotifications();
 
     switch (rawType) {
+
+      case 'appointment_paid':
+  widget.onNotificationSelected({
+    'type': 'appointment_paid',
+    'appointmentId': data['appointmentId'],
+  });
+  break;
 
       case 'lost_dog':
         widget.onNotificationSelected({
@@ -154,6 +166,22 @@ class _NotificationsPageState extends State<NotificationsPage>
         });
         break;
 
+        case 'vet_appointment_request':
+  widget.onNotificationSelected({
+    'type': 'vet_appointment_request',
+    'appointmentId': data['appointmentId'],
+    'businessId': data['businessId'],
+  });
+  break;
+
+  case 'vet_appointment_response':
+  widget.onNotificationSelected({
+    'type': 'vet_appointment_response',
+    'appointmentId': data['appointmentId'],
+    'status': data['status'], // 🔥 خیلی مهم
+  });
+  break;
+
       case 'playdaterequest':
       case 'playdate_request':
         widget.onNotificationSelected({
@@ -168,6 +196,29 @@ class _NotificationsPageState extends State<NotificationsPage>
           'requestId': data['requestId'],
         });
         break;
+
+       case 'new_order':
+case 'order_paid':
+case 'order_update':
+case 'order_created':
+case 'new_paid_order':
+
+// بعد از switch
+Future.microtask(() {
+  if (mounted) {
+    context.read<AppState>().closeNotifications();
+  }
+});
+
+  widget.onNotificationSelected({
+    'type': rawType,
+
+    // ✅ هر دو رو بفرست
+    'orderId': data['orderId'],
+    'sellerOrderId': data['sellerOrderId'],
+  });
+
+  break;
 
       case 'playdate_reminder':
         widget.onNotificationSelected({
@@ -245,7 +296,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                                 const SizedBox(height: 6),
 
                                 Text(
-                                  notification.timestamp?.toString() ?? '',
+                                 notification.timestamp.toString() ?? '',
                                   style: GoogleFonts.poppins(
                                     color: Colors.white38,
                                     fontSize: 11,
@@ -261,11 +312,16 @@ class _NotificationsPageState extends State<NotificationsPage>
                               color: Colors.amber,
                             ),
                             onPressed: () async {
-                              await FirebaseFirestore.instance
-                                  .collection('notifications')
-                                  .doc(notification.id)
-                                  .delete();
-                            },
+  if (widget.currentUserId == null || widget.currentUserId == 'guest') {
+    debugPrint('🚫 Guest → delete blocked');
+    return;
+  }
+
+  await FirebaseFirestore.instance
+      .collection('notifications')
+      .doc(notification.id)
+      .delete();
+}
                           ),
                         ],
                       ),
@@ -279,6 +335,35 @@ class _NotificationsPageState extends State<NotificationsPage>
       ),
     );
   }
+
+  Widget _buildGuestNotification() {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.notifications_off, size: 80, color: Colors.grey),
+
+          const SizedBox(height: 20),
+
+          const Text(
+            "No notifications for Guest",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+
+          const SizedBox(height: 10),
+
+          const Text(
+            "Login to receive updates and alerts",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

@@ -1,8 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class IapService {
@@ -22,162 +22,184 @@ class IapService {
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
 
   List<ProductDetails> products = [];
-  bool isStoreAvailable = false;
-  bool isLoading = false;
 
+  bool _isPurchasing = false;
+  String? _activeProductId;
+
+  // ─────────────────────────────
+  // INIT
+  // ─────────────────────────────
   Future<void> init() async {
-  debugPrint('🛒 IAP init started');
-  isLoading = true;
+    debugPrint('🛒 IAP init started');
 
-  isStoreAvailable = await _iap.isAvailable();
-  debugPrint('🛒 Store available = $isStoreAvailable');
-
-  if (!isStoreAvailable) {
-    debugPrint('❌ Store not available');
-    isLoading = false;
-    return;
-  }
-
-  debugPrint('🛒 Querying products...');
-  debugPrint('🛒 Product IDs: $_productIds');
-
-  final ProductDetailsResponse response =
-      await _iap.queryProductDetails(_productIds);
-
-  // 🔥 NEW DEBUG (خیلی مهم)
-  debugPrint('🛒 RAW response: $response');
-
-  if (response.error != null) {
-    debugPrint('❌ queryProductDetails error: ${response.error}');
-  }
-
-  debugPrint('❌ notFoundIDs: ${response.notFoundIDs}');
-  debugPrint('✅ productDetails: ${response.productDetails.map((e) => e.id).toList()}');
-
-  if (response.productDetails.isEmpty) {
-    debugPrint('🚨 NO PRODUCTS RETURNED FROM APP STORE');
-  }
-
-  products = response.productDetails;
-
-  isLoading = false;
-
-  _purchaseSub?.cancel();
-  _purchaseSub = _iap.purchaseStream.listen(
-    _onPurchaseUpdate,
-    onDone: () => _purchaseSub?.cancel(),
-    onError: (e) {
-      debugPrint('❌ purchaseStream error: $e');
-    },
-  );
-}
-  ProductDetails? get premiumProduct {
-    try {
-      return products.firstWhere((p) => p.id == premiumMonthlyId);
-    } catch (_) {
-      return null;
+    final isAvailable = await _iap.isAvailable();
+    if (!isAvailable) {
+      debugPrint('❌ Store not available');
+      return;
     }
+
+    final response = await _iap.queryProductDetails(_productIds);
+
+    debugPrint('✅ products: ${response.productDetails.map((e) => e.id).toList()}');
+
+    products = response.productDetails;
+
+    _purchaseSub?.cancel();
+    _purchaseSub = _iap.purchaseStream.listen(_onPurchaseUpdate);
   }
 
-  ProductDetails? get goldProduct {
-    try {
-      return products.firstWhere((p) => p.id == goldMonthlyId);
-    } catch (_) {
-      return null;
-    }
-  }
+  ProductDetails? get premiumProduct =>
+      products.where((p) => p.id == premiumMonthlyId).firstOrNull;
 
+  ProductDetails? get goldProduct =>
+      products.where((p) => p.id == goldMonthlyId).firstOrNull;
+
+  // ─────────────────────────────
+  // BUY
+  // ─────────────────────────────
   Future<void> buySubscription(ProductDetails product) async {
-    debugPrint('🛒 buySubscription → ${product.id}');
+    if (_isPurchasing) {
+      debugPrint('🛑 already purchasing');
+      return;
+    }
 
-    final PurchaseParam purchaseParam = PurchaseParam(
-      productDetails: product,
-    );
+    await forceCompleteAllTransactions();
 
-    await _iap.buyNonConsumable(
+    _isPurchasing = true;
+    _activeProductId = product.id;
+
+    debugPrint('🛒 BUY → ${product.id}');
+
+    final purchaseParam = PurchaseParam(productDetails: product);
+
+    await _iap.buyConsumable(
       purchaseParam: purchaseParam,
+      autoConsume: true,
     );
   }
 
+  // ─────────────────────────────
+  // RESTORE
+  // ─────────────────────────────
   Future<void> restorePurchases() async {
-    debugPrint('♻️ restorePurchases called');
+    debugPrint('♻️ restorePurchases');
     await _iap.restorePurchases();
   }
 
+  // ─────────────────────────────
+  // PURCHASE LISTENER
+  // ─────────────────────────────
   Future<void> _onPurchaseUpdate(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
-      debugPrint('🧾 purchase status: ${purchase.status} / ${purchase.productID}');
+      debugPrint('🧾 status: ${purchase.status}');
+      debugPrint('🧾 product: ${purchase.productID}');
+      debugPrint('🧾 date: ${purchase.transactionDate}');
+
+      if (_activeProductId != null &&
+          purchase.productID != _activeProductId) {
+        debugPrint('🛑 ignored other product');
+        continue;
+      }
 
       switch (purchase.status) {
         case PurchaseStatus.pending:
-          debugPrint('⏳ Purchase pending');
+          debugPrint('⏳ pending');
           break;
 
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          final bool valid = await _verifyPurchaseOnServer(purchase);
-
-          if (valid) {
-            await _unlockSubscriptionFromPurchase(purchase);
-          } else {
-            debugPrint('❌ Purchase verification failed');
+          if (_activeProductId == null) {
+            debugPrint('🛑 old purchase ignored');
+            if (purchase.pendingCompletePurchase) {
+              await _iap.completePurchase(purchase);
+            }
+            break;
           }
+
+          await _unlockSubscription(purchase);
 
           if (purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
           }
+
+          _resetState();
           break;
 
         case PurchaseStatus.error:
-          debugPrint('❌ Purchase error: ${purchase.error}');
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
+          debugPrint('❌ error: ${purchase.error}');
+          _resetState();
           break;
 
         case PurchaseStatus.canceled:
-          debugPrint('🛑 Purchase canceled');
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
+          debugPrint('🛑 canceled');
+          _resetState();
           break;
       }
     }
   }
 
-  Future<bool> _verifyPurchaseOnServer(PurchaseDetails purchase) async {
-    debugPrint('🔐 TEMP verify purchase: ${purchase.productID}');
-    return true;
+  // ─────────────────────────────
+  // CLEAR OLD TRANSACTIONS
+  // ─────────────────────────────
+  Future<void> forceCompleteAllTransactions() async {
+    final sub = _iap.purchaseStream.listen((purchases) async {
+      for (final purchase in purchases) {
+        debugPrint("🧹 cleaning: ${purchase.productID}");
+        try {
+          await _iap.completePurchase(purchase);
+        } catch (_) {}
+      }
+    });
+
+    await Future.delayed(const Duration(seconds: 2));
+    await sub.cancel();
   }
 
-  Future<void> _unlockSubscriptionFromPurchase(PurchaseDetails purchase) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+  // ─────────────────────────────
+  // UNLOCK
+  // ─────────────────────────────
+  Future<void> _unlockSubscription(PurchaseDetails purchase) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    if (uid == null) {
-      debugPrint('❌ No logged in user for subscription unlock');
-      return;
+    String plan = purchase.productID == goldMonthlyId
+        ? "gold"
+        : "premium";
+
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+  region: 'europe-west3',
+).httpsCallable('activateSubscription');
+     for (int i = 0; i < 3; i++) {
+  try {
+    await callable.call({
+      "plan": plan,
+      "productId": purchase.productID,
+    });
+    break;
+  } catch (e) {
+    debugPrint("⚠️ retry $i → $e");
+    await Future.delayed(const Duration(seconds: 2));
+  }
+}
+
+      debugPrint("✅ subscription activated");
+      await FirebaseFirestore.instance
+    .collection('users')
+    .doc(user.uid)
+    .set({
+  'isPremium': true,
+  'subscriptionPlan': plan,
+  'subscriptionStatus': 'active',
+}, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint("❌ cloud error: $e");
     }
+  }
 
-    String plan = 'normal';
-
-    if (purchase.productID == premiumMonthlyId) {
-      plan = 'premium';
-    } else if (purchase.productID == goldMonthlyId) {
-      plan = 'gold';
-    } else {
-      debugPrint('⚠️ Unknown productID: ${purchase.productID}');
-      return;
-    }
-
-    await FirebaseFirestore.instance.collection('users').doc(uid).set({
-      'subscription': {
-        'plan': plan,
-        'status': 'active',
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-    }, SetOptions(merge: true));
-
-    debugPrint('✅ Firestore subscription updated → $plan');
+  void _resetState() {
+    _isPurchasing = false;
+    _activeProductId = null;
   }
 
   void dispose() {

@@ -5,7 +5,6 @@ import 'home_page.dart';
 import 'vet_page.dart';
 import 'adoption_page.dart';
 import 'dog_park_page.dart';
-//import 'app_state.dart' as MyAppState;
 import 'auth_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'offers_manager.dart';
@@ -17,9 +16,13 @@ import 'theme/app_theme.dart';
 import 'package:barky_matches_fixed/app_state.dart' as app;
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
-//import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/home_gate.dart';
 import 'package:flutter/foundation.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -58,15 +61,45 @@ void initState() {
       curve: Curves.easeInOut,
     ),
   );
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+  _measureOffer();
+});
 }
+/*
+Future<void> debugFirestoreRestOffers() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    final projectId = Firebase.app().options.projectId;
 
+    final idToken = await user?.getIdToken(true);
+
+    final uri = Uri.parse(
+      'https://firestore.googleapis.com/v1/projects/$projectId/databases/(default)/documents/offers',
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
+    );
+
+    debugPrint('🌐 FIRESTORE REST STATUS: ${response.statusCode}');
+    debugPrint('🌐 FIRESTORE REST BODY: ${response.body}');
+  } catch (e, st) {
+    debugPrint('🌐 FIRESTORE REST ERROR: $e');
+    debugPrint('$st');
+  }
+}
+*/
 Future<void> _initPage() async {
-  await OffersManager.loadOffersOnce(); // ⬅️ منتظر بمون
+  
+  await OffersManager.loadOffersOnce();
 
   if (!mounted) return;
 
   setState(() {
-    _isInitialized = true; // ⬅️ همزمان UI رو آپدیت کن
+    _isInitialized = true;
   });
 }
 
@@ -75,28 +108,65 @@ Widget _buildQuickAction({
   required String title,
   required VoidCallback onTap,
 }) {
-  return InkWell(
-    borderRadius: BorderRadius.circular(16),
-    onTap: onTap,
-    child: Ink(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.cardShadow(),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: AppTheme.primary),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: AppTheme.body(),
-            textAlign: TextAlign.center,
+  return StatefulBuilder(
+    builder: (context, setState) {
+      bool isPressed = false;
+
+      return GestureDetector(
+        onTapDown: (_) {
+          setState(() => isPressed = true);
+        },
+        onTapUp: (_) {
+          setState(() => isPressed = false);
+        },
+        onTapCancel: () {
+          setState(() => isPressed = false);
+        },
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: AnimatedScale(
+          scale: isPressed ? 0.96 : 1,
+          duration: const Duration(milliseconds: 120),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: isPressed
+                  ? [] // وقتی pressed شد shadow حذف میشه → حس فشار
+                  : AppTheme.cardShadow(),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: AppTheme.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  title,
+                  style: AppTheme.h3(
+                    color: AppTheme.textDark,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
-    ),
+        ),
+      );
+    },
   );
 }
   @override
@@ -119,16 +189,177 @@ void _measureOffer() {
     });
   }
 }
+
+Future<void> testHttp() async {
+  try {
+    final response = await http.get(Uri.parse("https://google.com"));
+    print("🌐 HTTP STATUS: ${response.statusCode}");
+  } catch (e) {
+    print("❌ HTTP ERROR: $e");
+  }
+}
+
+void _showAuthRequiredSheet(BuildContext context) {
+  final localizations = AppLocalizations.of(context)!;
+
+  Future.delayed(Duration.zero, () {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+
+              Icon(
+                LucideIcons.lock,
+                size: 32,
+                color: AppTheme.primary,
+              ),
+
+              const SizedBox(height: 12),
+
+              Text(
+                "Sign in required",
+                style: AppTheme.h2(),
+              ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                localizations.signInToAccessPlaymate,
+                style: AppTheme.body(),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+
+                  // 🔓 SIGN IN
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AuthPage(
+                              isLogin: true,
+
+                              onDogAdded: (_) {
+                                final appState = context.read<app.AppState>();
+
+                                appState.setCurrentTab(NavTab.home);
+
+                                Navigator.of(context)
+                                    .popUntil((route) => route.isFirst);
+                              },
+
+                              favoriteDogs: context
+                                  .read<app.AppState>()
+                                  .favoriteDogsNotifier.value,
+
+                              onToggleFavorite: context
+                                  .read<app.AppState>()
+                                  .onToggleFavorite,
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text("Sign In"),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // ✨ SIGN UP
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE91E63),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AuthPage(
+                              isLogin: false,
+
+                              onDogAdded: (_) {
+                                final appState = context.read<app.AppState>();
+
+                                appState.setCurrentTab(NavTab.home);
+
+                                Navigator.of(context)
+                                    .popUntil((route) => route.isFirst);
+                              },
+
+                              favoriteDogs: context
+                                  .read<app.AppState>()
+                                  .favoriteDogsNotifier.value,
+
+                              onToggleFavorite: context
+                                  .read<app.AppState>()
+                                  .onToggleFavorite,
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text("Sign Up"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  });
+}
+
+Widget _buildLogo() {
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.9), // 🔥 حل مشکل
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.15),
+          blurRadius: 10,
+        ),
+      ],
+    ),
+    child: Image.asset(
+      "assets/image/logo.png",
+      height: 60,
+    ),
+  );
+}
+
  @override
 Widget build(BuildContext context) {
   final localizations = AppLocalizations.of(context)!;
-  final appState = context.watch<app.AppState>();
+  
+final appState = context.read<app.AppState>();
 
-  final previewDogs = appState.allDogs.take(3).toList();
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-  _measureOffer();
-});
+final favoriteDogs = appState.favoriteDogsNotifier.value;
+final onToggleFavorite = appState.onToggleFavorite;
 
+final previewDogs = appState.allDogs.take(3).toList();
   
   return Scaffold(
     backgroundColor: AppTheme.bg,
@@ -150,9 +381,11 @@ Widget build(BuildContext context) {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          "Welcome back 👋",
-                          style: AppTheme.h1(),
-                        ),
+  "Welcome to PetSupo 👋",
+  style: AppTheme.h1().copyWith(
+    color: const Color(0xFF9E1B4F),
+  ),
+),
                       ),
 
                       const SizedBox(height: 9),
@@ -165,34 +398,13 @@ Widget build(BuildContext context) {
 
       // 🎁 OFFER
       Expanded(
-  child: AspectRatio(
-    aspectRatio: 1.6,
+  child: SizedBox(
+    height: 168,
     child: Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-
-        // 🔥 GOLD GRADIENT
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFD54F), // light gold
-            Color(0xFFFFC107), // main gold
-            Color(0xFFFFA000), // deep gold
-          ],
-        ),
-
-        // 🔥 SUBTLE GLOW + DEPTH
+        color: Colors.transparent,
         boxShadow: [
-          // glow
-          BoxShadow(
-            color: Color(0xFFFFC107).withOpacity(0.35),
-            blurRadius: 18,
-            spreadRadius: 1,
-            offset: Offset(0, 6),
-          ),
-
-          // depth shadow
           BoxShadow(
             color: Colors.black.withOpacity(0.12),
             blurRadius: 12,
@@ -200,66 +412,45 @@ Widget build(BuildContext context) {
           ),
         ],
       ),
-
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Stack(
+          fit: StackFit.expand,
           children: [
 
-            // ✨ LIGHT REFLECTION (خیلی subtle)
-            Positioned(
-              top: -20,
-              left: -20,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.12),
-                ),
-              ),
+            Positioned.fill(
+              child: OffersManager.buildOffersSection(context, null),
             ),
 
-            // 🎁 CONTENT
-            OffersManager.buildOffersSection(context, null),
           ],
         ),
       ),
     ),
   ),
 ),
-
       const SizedBox(width: 12),
 
       // 🐾 LOGO
-      Expanded(
-  child: AspectRatio(
-    aspectRatio: 1.6,
+     Expanded(
+  child: SizedBox(
+    height: 168,
     child: Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F),
+        color: const Color(0xFF9E1B4F), // رنگ برند
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Center( // 🔥 مهم
+      child: Center(
         child: _pulseAnimation == null
-            ? Image.asset(
-                "assets/image/logo.png",
-                height: 90,
-              )
+            ? _buildLogo()
             : AnimatedBuilder(
                 animation: _pulseAnimation!,
                 builder: (context, child) {
-                 
-
                   return Transform.scale(
                     scale: _pulseAnimation!.value,
                     child: child,
                   );
                 },
-                child: Image.asset(
-                  "assets/image/logo.png",
-                  height: 90, // 🔥 خیلی مهم → بدون این دیده نمیشه
-                ),
+                child: _buildLogo(),
               ),
       ),
     ),
@@ -280,11 +471,11 @@ Widget build(BuildContext context) {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          localizations.appFeatures,
-                          style: AppTheme.h1().copyWith(
-                            color: const Color(0xFF9E1B4F),
-                          ),
-                        ),
+  localizations.appFeatures,
+  style: AppTheme.h2().copyWith(
+    color: const Color(0xFF9E1B4F),
+  ),
+),
                       ),
 
                       const SizedBox(height: 8),
@@ -301,28 +492,24 @@ Widget build(BuildContext context) {
                           children: [
 
                             _buildQuickAction(
-                              icon: Icons.pets,
+                              icon: LucideIcons.dog,
                               title: localizations.playmateService,
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(localizations.signInToAccessPlaymate)),
-                                );
+                                _showAuthRequiredSheet(context);
                               },
                             ),
 
                             _buildQuickAction(
-                              icon: Icons.local_hospital,
+                             icon: LucideIcons.stethoscope,
                               title: localizations.vetServices,
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(localizations.signInToAccessPlaymate)),
-                                );
+                                _showAuthRequiredSheet(context);
                               },
                             ),
 
                             // 🔥 ADOPTION
                             _buildQuickAction(
-                              icon: Icons.favorite,
+                              icon: LucideIcons.heart,
                               title: localizations.adoptionCenter,
                               onTap: () async {
                                 debugPrint("🟡 Welcome → set tab = NavTab.adoption");
@@ -348,12 +535,10 @@ Widget build(BuildContext context) {
                             ),
 
                             _buildQuickAction(
-                              icon: Icons.school,
+                              icon: LucideIcons.graduationCap, 
                               title: localizations.dogTraining,
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(localizations.dogTrainingComingSoon)),
-                                );
+                                _showAuthRequiredSheet(context);
                               },
                             ),
                           ],
@@ -373,25 +558,38 @@ Widget build(BuildContext context) {
 
                             return DropdownButton<String>(
                               value: selectedLanguage,
-                              items: ['en', 'fa', 'tr'].map((value) {
+                              items: ['en', 'fa', 'tr', 'ru'].map((value) {
                                 return DropdownMenuItem(
                                   value: value,
                                   child: Text(
                                     value == 'en'
-                                        ? 'English'
-                                        : value == 'fa'
-                                            ? 'فارسی'
-                                            : 'Türkçe',
+    ? 'English'
+    : value == 'fa'
+        ? 'فارسی'
+        : value == 'tr'
+            ? 'Türkçe'
+            : 'Русский (Coming Soon)',
                                     style: AppTheme.body(),
                                   ),
                                 );
                               }).toList(),
                               onChanged: (value) {
-                                if (value != null) {
-                                  _saveLanguage(value);
-                                  context.read<app.AppState>().setLocale(value);
-                                }
-                              },
+  if (value == null) return;
+
+  // 🚫 Russian → Coming Soon
+  if (value == 'ru') {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Russian language coming soon 🇷🇺"),
+      ),
+    );
+    return;
+  }
+
+  // ✅ بقیه زبان‌ها
+  _saveLanguage(value);
+  context.read<app.AppState>().setLocale(value);
+},
                               dropdownColor: Colors.white,
                             );
                           },
@@ -406,23 +604,29 @@ Widget build(BuildContext context) {
                         child: Row(
                           children: [
                             Expanded(
-                              child: _SignInButton(
-                                onDogAdded: (_) {
-                                  Navigator.pushReplacementNamed(context, '/home');
-                                },
-                                favoriteDogs: appState.favoriteDogsNotifier.value,
-                                onToggleFavorite: appState.onToggleFavorite,
-                              ),
+                              child: _SignUpButton(
+  onAuthSuccess: () {
+  final appState = context.read<app.AppState>();
+  appState.setCurrentTab(NavTab.home);
+
+  Navigator.of(context).popUntil((route) => route.isFirst);
+},
+  favoriteDogs: favoriteDogs,
+  onToggleFavorite: onToggleFavorite,
+),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _SignUpButton(
-                                onDogAdded: (_) {
-                                  Navigator.pushReplacementNamed(context, '/home');
-                                },
-                                favoriteDogs: appState.favoriteDogsNotifier.value,
-                                onToggleFavorite: appState.onToggleFavorite,
-                              ),
+                              child: _SignInButton(
+  onAuthSuccess: () {
+  final appState = context.read<app.AppState>();
+  appState.setCurrentTab(NavTab.home);
+
+  Navigator.of(context).popUntil((route) => route.isFirst);
+},
+  favoriteDogs: favoriteDogs,
+  onToggleFavorite: onToggleFavorite,
+),
                             ),
                           ],
                         ),
@@ -456,17 +660,17 @@ Widget build(BuildContext context) {
   Future<void> _saveLanguage(String language) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', language);
-    context.watch<app.AppState>().setLocale(language);
+    context.read<app.AppState>().setLocale(language);
   }
 }
 
 class _SignInButton extends StatelessWidget {
-  final Function(Dog) onDogAdded;
+  final VoidCallback onAuthSuccess;
   final List<Dog> favoriteDogs;
   final Function(Dog) onToggleFavorite;
 
   const _SignInButton({
-    required this.onDogAdded,
+    required this.onAuthSuccess,
     required this.favoriteDogs,
     required this.onToggleFavorite,
   });
@@ -474,45 +678,49 @@ class _SignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
+
     return ElevatedButton(
       onPressed: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => AuthPage(
-              isLogin: true,
-              onDogAdded: onDogAdded,
-              //dogs: AppState.of(context).allDogs,
-
-              favoriteDogs: context.watch<app.AppState>().favoriteDogsNotifier.value,
-              onToggleFavorite: context.watch<app.AppState>().onToggleFavorite,
+            builder: (_) => AuthPage(
+              isLogin: true, // ✅ مهم
+              onAuthSuccess: onAuthSuccess,
+              favoriteDogs: favoriteDogs, // ✅ بدون context.select
+              onToggleFavorite: onToggleFavorite,
             ),
           ),
         );
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.pink,
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
+  backgroundColor: Colors.white,
+  foregroundColor: Colors.pink,
+  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+
+  side: BorderSide( // 🔥 اینو اضافه کن
+    color: Colors.pink.withOpacity(0.3),
+  ),
+
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(12),
+  ),
+),
       child: Text(
         localizations.signInButton,
-        style: GoogleFonts.poppins(fontSize: 18),
+        style: AppTheme.button().copyWith(fontSize: 16),
       ),
     );
   }
 }
 
 class _SignUpButton extends StatelessWidget {
-  final Function(Dog) onDogAdded;
+  final VoidCallback onAuthSuccess;
   final List<Dog> favoriteDogs;
   final Function(Dog) onToggleFavorite;
 
   const _SignUpButton({
-    required this.onDogAdded,
+    required this.onAuthSuccess,
     required this.favoriteDogs,
     required this.onToggleFavorite,
   });
@@ -520,18 +728,17 @@ class _SignUpButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
+
     return ElevatedButton(
       onPressed: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => AuthPage(
+            builder: (_) => AuthPage(
               isLogin: false,
-              onDogAdded: onDogAdded,
-              //dogs: AppState.of(context).allDogs,
-
-              favoriteDogs: context.watch<app.AppState>().favoriteDogsNotifier.value,
-              onToggleFavorite: context.watch<app.AppState>().onToggleFavorite,
+              onAuthSuccess: onAuthSuccess,
+              favoriteDogs: favoriteDogs, // ✅ بدون context.select
+              onToggleFavorite: onToggleFavorite,
             ),
           ),
         );
@@ -546,48 +753,11 @@ class _SignUpButton extends StatelessWidget {
       ),
       child: Text(
         localizations.signUpButton,
-        style: GoogleFonts.poppins(fontSize: 18),
+        style: AppTheme.button().copyWith(
+          color: Colors.white,
+          fontSize: 16,
+        ),
       ),
     );
   }
-}
-
-Widget _buildServiceCard({
-  required IconData icon,
-  required String title,
-  required VoidCallback onTap,
-  Widget? customIcon,
-}) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          customIcon ??
-              Icon(
-                icon,
-                size: 30,
-                color: Colors.red,
-              ),
-          const SizedBox(height: 5),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.black,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    ),
-  );
-  
 }

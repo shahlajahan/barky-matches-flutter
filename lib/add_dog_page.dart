@@ -12,7 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/auth_page.dart';
-
+import 'package:barky_matches_fixed/home_gate.dart';
 
 class AddDogPage extends StatefulWidget {
   final Function(Dog)? onDogAdded;
@@ -34,6 +34,7 @@ class _AddDogPageState extends State<AddDogPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   String? _selectedBreed;
+  String _selectedPetType = 'dog';
   final _ageController = TextEditingController();
   String? _selectedGender;
   String? _selectedHealthStatus;
@@ -468,7 +469,7 @@ void didChangeDependencies() {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)!.dogNameExists(_nameController.text)),
+                content: Text(AppLocalizations.of(context)!.dogNameAlreadyExists(_nameController.text)),
               ),
             );
           }
@@ -499,6 +500,7 @@ void didChangeDependencies() {
           ownerId: userId,
           latitude: _latitude!,
           longitude: _longitude!,
+          petType: _selectedPetType,
         );
 
         print('AddDogPage - Saving dog to Hive: dogId=$dogId, ownerId=$userId');
@@ -522,6 +524,7 @@ void didChangeDependencies() {
           'ownerId': userId,
           'latitude': newDog.latitude,
           'longitude': newDog.longitude,
+          'petType': newDog.petType,
 
           // 🔐 Trust & Safety fields
   'reportCount': 0,
@@ -530,12 +533,19 @@ void didChangeDependencies() {
         });
         print('AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId');
 
-        widget.onDogAdded?.call(newDog);
+       
 
-        print('AddDogPage - Navigating back...');
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
+print('AddDogPage - Redirecting to Home...');
+
+widget.onDogAdded?.call(newDog);
+
+FocusScope.of(context).unfocus();
+
+await Future.delayed(const Duration(milliseconds: 100));
+
+if (!mounted) return;
+
+Navigator.pop(context);
         print('AddDogPage - Navigation completed');
       } catch (e) {
         print('AddDogPage - Error adding dog: $e');
@@ -562,26 +572,26 @@ void didChangeDependencies() {
   }
 
   Widget _buildRetryLocationButton() {
-    return ElevatedButton(
-      onPressed: _getCurrentLocation,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.pink,
-        minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+  return ElevatedButton(
+    onPressed: _getCurrentLocation,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+      minimumSize: const Size(double.infinity, 52),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Text(
-        AppLocalizations.of(context)!.retryLocation ?? 'Retry Location',
-        style: GoogleFonts.poppins(
-          color: Colors.pink,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+    ),
+    child: Text(
+      AppLocalizations.of(context)!.retryLocation ?? 'Retry Location',
+      style: GoogleFonts.poppins(
+        color: Colors.black, // 🔥 مهم (نه pink)
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   void dispose() {
@@ -598,24 +608,20 @@ void didChangeDependencies() {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)?.addYourDog ?? 'Add Your Dog',
+          AppLocalizations.of(context)?.addYourDog ?? 'Add Your Pet',
           style: GoogleFonts.dancingScript(
             fontSize: 28,
             fontWeight: FontWeight.w700,
             color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.pink[400],
-        elevation: 0,
+        backgroundColor: const Color(0xFF9E1B4F),
+elevation: 0,
+centerTitle: true,
+       
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.pink, Colors.pinkAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+  color: const Color(0xFF9E1B4F),
         child: Stack(
           children: [
             Padding(
@@ -637,11 +643,24 @@ void didChangeDependencies() {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+
+_buildDropdownField(
+  value: _selectedPetType,
+  hint: 'Select Pet Type',
+  items: const ['dog', 'cat', 'bird', 'horse'],
+  onChanged: (value) {
+    setState(() {
+      _selectedPetType = value ?? 'dog';
+      _selectedBreed = null; // reset
+    });
+  },
+),
+                      const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedBreed,
                         hint: AppLocalizations.of(context)?.selectBreedHint ?? 'Select Breed',
-                        items: getDogBreeds(context),
+                        items: getBreedsByPetType(context, _selectedPetType),
                         onChanged: (value) {
                           setState(() {
                             _selectedBreed = value;
@@ -655,11 +674,11 @@ void didChangeDependencies() {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       _buildTextField(
                         controller: _ageController,
                         label: AppLocalizations.of(context)?.ageLabel ?? 'Age *',
-                        icon: const Icon(Icons.cake, color: Colors.white),
+                        
                         keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -673,7 +692,7 @@ void didChangeDependencies() {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedGender,
                         hint: AppLocalizations.of(context)?.selectGenderHint ?? 'Select Gender',
@@ -691,7 +710,7 @@ void didChangeDependencies() {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                     const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedHealthStatus,
                         hint: AppLocalizations.of(context)?.selectHealthStatusHint ?? 'Select Health Status',
@@ -709,17 +728,17 @@ void didChangeDependencies() {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       _buildNeuteredField(),
-                      const SizedBox(height: 16),
+                     const SizedBox(height: 14),
                       _buildTextField(
                         controller: _descriptionController,
                         label: AppLocalizations.of(context)?.descriptionLabel ?? 'Description',
                         maxLines: 3,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       _buildTraitsField(),
-                      const SizedBox(height: 16),
+                     const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedOwnerGender,
                         hint: AppLocalizations.of(context)?.selectOwnerGenderHint ?? 'Owner Gender',
@@ -737,18 +756,52 @@ void didChangeDependencies() {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
-                      _buildImagePickerField(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+                      Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text(
+      "Photos",
+      style: GoogleFonts.poppins(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    const SizedBox(height: 8),
+
+    SizedBox(
+      height: 110,
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => _pickImage(ImageSource.gallery),
+            child: Container(
+              width: 100,
+              margin: const EdgeInsets.only(right: 10),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: Icon(Icons.add, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ],
+),
+                      const SizedBox(height: 14),
                       _buildAdoptionCheckbox(),
-                      const SizedBox(height: 16),
+                     const SizedBox(height: 14),
                       _buildRetryLocationButton(),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: _isLoading ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: Colors.pink,
+                          foregroundColor: Colors.black,
                           minimumSize: const Size(double.infinity, 50),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -759,7 +812,7 @@ void didChangeDependencies() {
                                 color: Colors.pink,
                               )
                             : Text(
-                                AppLocalizations.of(context)?.addDogButton ?? 'Add Dog',
+                                AppLocalizations.of(context)?.addDogButton ?? 'Add Pet',
                                 style: GoogleFonts.poppins(
                                   color: Colors.pink,
                                   fontSize: 16,
@@ -788,72 +841,83 @@ void didChangeDependencies() {
   }
 
   Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    Icon? icon,
-    TextInputType? keyboardType,
-    int maxLines = 1,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
-        prefixIcon: icon,
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.2),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+  required TextEditingController controller,
+  required String label,
+  TextInputType? keyboardType,
+  int maxLines = 1,
+  String? Function(String?)? validator,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: GoogleFonts.poppins(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
         ),
       ),
-      style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      validator: validator,
-    );
-  }
+      const SizedBox(height: 6),
+      TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        validator: validator,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildDropdownField({
-    required String? value,
-    required String hint,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-    String? Function(String?)? validator,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      hint: Text(
+  required String? value,
+  required String hint,
+  required List<String> items,
+  required ValueChanged<String?> onChanged,
+  String? Function(String?)? validator,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
         hint,
-        style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
-      ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.2),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+        style: GoogleFonts.poppins(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
         ),
       ),
-      dropdownColor: Colors.pinkAccent,
-      style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
-      iconEnabledColor: Colors.white,
-      menuMaxHeight: 300,
-      isExpanded: true,
-      items: items.map((item) {
-        return DropdownMenuItem<String>(
-          value: item,
-          child: Text(
-            item,
-            style: GoogleFonts.poppins(),
+      const SizedBox(height: 6),
+      DropdownButtonFormField<String>(
+        value: value,
+        dropdownColor: Colors.white,
+        style: const TextStyle(color: Colors.black),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
-        );
-      }).toList(),
-      onChanged: onChanged,
-      validator: validator,
-    );
-  }
+        ),
+        items: items.map((item) {
+          return DropdownMenuItem(
+            value: item,
+            child: Text(item),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        validator: validator,
+      ),
+    ],
+  );
+}
 
   Widget _buildNeuteredField() {
     return Row(
@@ -914,51 +978,55 @@ void didChangeDependencies() {
   }
 
   Widget _buildTraitsField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppLocalizations.of(context)?.traitsLabel ?? 'Traits *',
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Traits",
+        style: GoogleFonts.poppins(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 4.0,
-          children: _traitKeys.map((traitKey) {
-            final isSelected = _selectedTraits.contains(traitKey);
-            return FilterChip(
-              label: Text(
-                translateTrait(traitKey),
-                style: GoogleFonts.poppins(
-                  color: isSelected ? Colors.white : Colors.black,
-                  fontSize: 14,
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: _traitKeys.map((trait) {
+          final selected = _selectedTraits.contains(trait);
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                if (selected) {
+                  _selectedTraits.remove(trait);
+                } else {
+                  _selectedTraits.add(trait);
+                }
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? Colors.white : Colors.white24,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                translateTrait(trait),
+                style: TextStyle(
+                  color: selected ? Colors.black : Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (selected) {
-                    _selectedTraits.add(traitKey);
-                    print('AddDogPage - Trait added: $traitKey');
-                  } else {
-                    _selectedTraits.remove(traitKey);
-                    print('AddDogPage - Trait removed: $traitKey');
-                  }
-                });
-              },
-              selectedColor: Colors.pinkAccent,
-              backgroundColor: Colors.white.withOpacity(0.2),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
+            ),
+          );
+        }).toList(),
+      ),
+    ],
+  );
+}
 
   Widget _buildImagePickerField() {
     return Column(
@@ -1110,4 +1178,31 @@ List<String> getDogBreeds(BuildContext context) {
     l10n.breedWestHighlandWhiteTerrier,
     l10n.breedYorkshireTerrier,
   ];
+  }
+  List<String> getBreedsByPetType(BuildContext context, String petType) {
+  switch (petType) {
+    case 'cat':
+      return [
+        'Persian',
+        'Siamese',
+        'Maine Coon',
+        'British Shorthair',
+      ];
+    case 'bird':
+      return [
+        'Parrot',
+        'Canary',
+        'Budgerigar',
+      ];
+    case 'horse':
+      return [
+        'Arabian',
+        'Thoroughbred',
+        'Mustang',
+      ];
+    case 'dog':
+    default:
+      return getDogBreeds(context);
+  }
 }
+

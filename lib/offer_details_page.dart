@@ -140,8 +140,7 @@ class OfferDetailsPage extends StatelessWidget {
             if (imageUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  imageUrl!,
+                child: SmartMedia(url: url,
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,

@@ -96,6 +96,8 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
         child: Stack(
           children: [
             widget.body,
+
+            
 /*
             // ─────────────────────────────
             // 🩺 Vet Detail Overlay
@@ -172,6 +174,10 @@ Builder(
     );
 
     if (business == null) return const SizedBox.shrink();
+
+if (business.status != 'approved') {
+  return const SizedBox.shrink(); // یا Pending UI
+}
 
     final appState = context.read<AppState>();
 

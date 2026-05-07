@@ -18,6 +18,7 @@ import 'admin_revenue_page.dart';
 import 'package:barky_matches_fixed/ui/admin/subscriptions/admin_subscription_page.dart';
 import 'audit_logs_page.dart';
 import '../user_satisfaction/admin_user_satisfaction_page.dart';
+import 'package:barky_matches_fixed/ui/admin/payments/admin_payouts_page.dart';
 
 class AdminHubPage extends StatelessWidget {
   const AdminHubPage({super.key});
@@ -99,6 +100,14 @@ _AdminItem(
 
           const SizedBox(height: 18),
           const _SectionTitle("ANALYTICS"),
+
+_AdminItem(
+  icon: Icons.account_balance_wallet_outlined,
+  title: "Payout Management",
+  subtitle: "Seller payments & transfers",
+  pageBuilder: () => const AdminPayoutsPage(),
+),
+
                  _AdminItem(
   icon: Icons.dashboard_outlined,
   title: "Admin Dashboard",

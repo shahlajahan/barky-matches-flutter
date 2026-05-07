@@ -45,7 +45,7 @@ class _DogParkPageState extends State<DogParkPage>
   GoogleMapController? _mapController;
   Position? _currentPosition;
   final Set<Marker> _markers = {};
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _errorMessage;
   String? _mapStyle;
   BitmapDescriptor? _customMarker;
@@ -159,10 +159,19 @@ class _DogParkPageState extends State<DogParkPage>
     Future.microtask(() async {
       await _loadMapStyle();
       await _loadCustomMarker();
-      await _resolveLocation();
+     // await _resolveLocation();
     });
   }
+Future<void> requestLocationFromUser() async {
+  final appState = context.read<AppState>();
 
+  if (appState.isGuestUser) {
+    debugPrint('🚫 Guest → no location');
+    return;
+  }
+
+  await _resolveLocation();
+}
   // --------------------------------------------------
   // LOCATION
   // --------------------------------------------------
@@ -817,6 +826,39 @@ Widget build(BuildContext context) {
             ),
           ),
           const SizedBox(height: 6),
+
+    Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 12),
+  child: SizedBox(
+    width: double.infinity,
+    child: ElevatedButton.icon(
+      icon: Icon(Icons.my_location),
+      label: Text("Find nearby parks"),
+      onPressed: () {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text("Location needed"),
+            content: Text("We use your location to show nearby dog parks"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await requestLocationFromUser();
+                },
+                child: Text("Allow"),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  ),
+),
 
           // ───────── Map ─────────
           Expanded(

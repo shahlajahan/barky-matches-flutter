@@ -20,16 +20,11 @@ import 'package:collection/collection.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 
-
-
-
 class PlayDateRequestsPageNew extends StatefulWidget {
   final List<Dog> dogsList;
   final List<Dog> favoriteDogs;
   final Function(Dog) onToggleFavorite;
  
-
-
   /// اگر از notification باز شده باشد
   final String? initialRequestId;
 
@@ -92,162 +87,114 @@ void didChangeDependencies() {
   _appState = Provider.of<AppState>(context, listen: false);
 }
 
-  @override
+ @override
 void initState() {
   super.initState();
 
+  final appState = context.read<AppState>();
+
+  // 🚫 Guest → هیچ چیزی اجرا نشود
+  if (appState.isGuest) {
+    debugPrint('🚫 Guest → skip PlayDateRequestsPage init');
+    _requestsStream = const Stream.empty();
+    return;
+  }
+
+  // 🔐 Auth check
   final user = FirebaseAuth.instance.currentUser;
+
   if (user == null) {
-    debugPrint('❌ PlayDateRequestsPageNew: user not logged in');
+    debugPrint('🚫 No user → skip PlayDateRequestsPage');
+    _requestsStream = const Stream.empty();
     return;
   }
 
   currentUserId = user.uid;
-  _remindersSub = FirebaseFirestore.instance
-    .collection('playdate_reminders')
-    .where('userId', isEqualTo: currentUserId)
-    .snapshots()
-    .listen((snap) {
 
-  if (!mounted) return;
+  // ─────────────────────────────────────────
+  // 🔔 Reminders listener
+  // ─────────────────────────────────────────
+  if (currentUserId!.isNotEmpty) {
+    _remindersSub = FirebaseFirestore.instance
+        .collection('playdate_reminders')
+        .where('userId', isEqualTo: currentUserId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
 
-  setState(() {
-    _myReminders.clear();
-    for (final doc in snap.docs) {
-      _myReminders.add(
-        '${doc['requestId']}_${doc['minutesBefore']}',
-      );
-    }
-  });
+      setState(() {
+        _myReminders.clear();
+        for (final doc in snap.docs) {
+          _myReminders.add(
+            '${doc['requestId']}_${doc['minutesBefore']}',
+          );
+        }
+      });
+    });
+  }
 
-});
-  // 🔔 unread notifications counter
-  _notificationsSub = FirebaseFirestore.instance
-    .collection('notifications')
-    .where('recipientUserId', isEqualTo: currentUserId)
-    .where('isRead', isEqualTo: false)
-    .snapshots()
-    .listen((snap) {
+  // ─────────────────────────────────────────
+  // 🔔 Notifications counter
+  // ─────────────────────────────────────────
+  if (currentUserId!.isNotEmpty) {
+    _notificationsSub = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('recipientUserId', isEqualTo: currentUserId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      if (FirebaseAuth.instance.currentUser == null) return;
 
-  if (!mounted) return;
-  if (FirebaseAuth.instance.currentUser == null) return;
+      setState(() {
+        _unreadNotificationsCount = snap.docs.length;
+      });
+    });
+  }
 
-  setState(() {
-    _unreadNotificationsCount = snap.docs.length;
-  });
+  // ─────────────────────────────────────────
+  // 📩 Notification mode (ONE SHOT)
+  // ─────────────────────────────────────────
+  _notificationRequestId ??= widget.initialRequestId;
 
-});
+  final requestId = _notificationRequestId;
 
-  final appState = Provider.of<AppState>(context, listen: false);
+  if (requestId != null && requestId.isNotEmpty) {
+    debugPrint("🔥 initState: notification mode → requestId=$requestId");
 
-  //final requestId = widget.initialRequestId;
-
-//_notificationRequestId = widget.initialRequestId;
-if (_notificationRequestId == null) {
-  _notificationRequestId = widget.initialRequestId;
-}
-
-
-final requestId = _notificationRequestId;
-
-
-if (requestId != null && requestId.isNotEmpty) {
-  debugPrint("🔥 initState: notification mode → requestId=$requestId");
-
-  _requestsStream = FirebaseFirestore.instance
-      .collection('playDateRequests')
-      .doc(requestId)
-      .snapshots()
-      .map((doc) {
-    if (!doc.exists || doc.data() == null) {
-      debugPrint("❌ Notification request not found: $requestId");
-      return <PlayDateRequest>[];
-    }
-
-    final request = PlayDateRequest.fromFirestore(
-      doc.id,
-      doc.data() as Map<String, dynamic>,
-    );
-
-    debugPrint("✅ Notification request loaded → status=${request.status}");
-
-    
-   // WidgetsBinding.instance.addPostFrameCallback((_) {
-  //final appState = context.read<AppState>();
-  //appState.clearInitialPlaydateRequest();
-//});
-
-
-    return [request];
-  });
-
-  return; // ⛔ خیلی مهم — نره pending mode
-}
-
-//WidgetsBinding.instance.addPostFrameCallback((_) {
-  //context.read<AppState>().clearInitialPlaydateRequest();
-//});
-
-
-  /*
-final requestId = appState.initialPlaydateRequestId;
-
-  _isDirectFromNotification = requestId != null && requestId.isNotEmpty;
-
-  if (_isDirectFromNotification) {
-    debugPrint("→ initState: from notification → requestId=$requestId");
-
-    
-
-
-    // برای notification نتیجه (accepted/rejected)، دستی لود کن تا گیر نکنه
-    _loadRequestManually(requestId!);
-  //_consumeAfterFrame();  // ✅ اینجا
-
-    // ✅ consume ONE-SHOT در AppState
-//WidgetsBinding.instance.addPostFrameCallback((_) {
-  //widget.onConsumedInitialRequest?.call();
-//});
-
-    // stream رو هم نگه دار (برای آپدیت زنده اگر لازم شد)
     _requestsStream = FirebaseFirestore.instance
         .collection('playDateRequests')
         .doc(requestId)
         .snapshots()
         .map((doc) {
       if (!doc.exists || doc.data() == null) {
-        debugPrint("→ Request doc not found or empty: $requestId");
-        return [PlayDateRequest.deleted(requestId)];
+        debugPrint("❌ Notification request not found: $requestId");
+        return <PlayDateRequest>[];
       }
 
-      final data = doc.data() as Map<String, dynamic>;
-      debugPrint("→ Single request loaded (stream): status=${data['status']}");
+      final request = PlayDateRequest.fromFirestore(
+        doc.id,
+        doc.data() as Map<String, dynamic>,
+      );
 
-      // اگر stream data آورد، _localRequest رو آپدیت کن
-      if (!mounted) return [];
+      debugPrint(
+        "✅ Notification request loaded → status=${request.status}",
+      );
 
-setState(() {
-  _localRequest = PlayDateRequest.fromFirestore(doc.id, data);
-});
-
-
-      return [PlayDateRequest.fromFirestore(doc.id, data)];
+      return [request];
     });
 
-    return;
+    return; // ⛔ مهم
   }
-  */
 
-  // حالت عادی (pending list)
+  // ─────────────────────────────────────────
+  // 📋 Normal pending mode
+  // ─────────────────────────────────────────
   debugPrint("→ initState: normal pending mode");
-  
 
-if (user == null) {
-  _requestsStream = const Stream.empty();
-} else {
   _requestsStream = FirebaseFirestore.instance
       .collection('playDateRequests')
-      .where('requestedUserId', isEqualTo: user.uid)
+      .where('requestedUserId', isEqualTo: currentUserId)
       .where('status', isEqualTo: 'pending')
       .snapshots()
       .map((snap) {
@@ -262,7 +209,7 @@ if (user == null) {
     return list;
   });
 }
-}
+
   @override
 void dispose() {
   _notificationsSub?.cancel();
@@ -425,7 +372,11 @@ void _switchToPendingMode() {
     debugPrint('🔥 START $status');
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not logged in');
+
+if (user == null) {
+  debugPrint('🚫 Guest → cannot update request');
+  return;
+}
 
     await user.reload();
     final idToken = await user.getIdToken();
@@ -521,11 +472,31 @@ Future<void> _createReminder(
   String requestId,
   int minutesBefore,
 ) async {
+ final appState = context.read<AppState>();
+
+if (appState.isGuest || FirebaseAuth.instance.currentUser == null) {
+  debugPrint('🚫 Guest/no user → skip reminder creation');
+
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Please login to set reminders.'),
+    ),
+  );
+  return;
+}
+
   try {
     debugPrint('⏰ Calling createPlaydateReminder');
-debugPrint("🌐 Firestore network enabled test...");
-await FirebaseFirestore.instance.enableNetwork();
-debugPrint("🌐 Firestore network forced ON");
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      debugPrint('🚫 User became null before reminder call');
+      return;
+    }
+
+    await user.reload();
 
     final callable = FirebaseFunctions.instanceFor(
       region: 'europe-west3',
@@ -538,12 +509,12 @@ debugPrint("🌐 Firestore network forced ON");
 
     debugPrint('✅ Reminder created: ${result.data}');
 
-    setState(() {
-  _myReminders.add('${requestId}_$minutesBefore');
-});
-
-debugPrint("🔥 FUNCTION RESULT = ${result.data}");
     if (!mounted) return;
+
+    setState(() {
+      _myReminders.add('${requestId}_$minutesBefore');
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -555,6 +526,7 @@ debugPrint("🔥 FUNCTION RESULT = ${result.data}");
     debugPrint('❌ Failed to create reminder: $e');
 
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Failed to set reminder ❌'),
@@ -729,7 +701,7 @@ final bool isRequested = currentUserId == request.requestedUserId;
                     }
 
                     return Text(
-                      loc.playdateRequestMessage(
+                      loc.playdateRequestBody(
                         snap1.data!,
                         snap2.data!,
                       ),
@@ -966,15 +938,45 @@ final bool isRequested = currentUserId == request.requestedUserId;
 }
 
 
-  @override
+ @override
 Widget build(BuildContext context) {
-debugPrint("PlayDateRequestsPageNew build → notificationRequestId=$_notificationRequestId");
+  debugPrint("PlayDateRequestsPageNew build → notificationRequestId=$_notificationRequestId");
 
+  final appState = context.watch<AppState>();
 
-  if (_requestsStream == null || currentUserId == null) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  // 👇 Guest
+  if (appState.isGuest) {
+    return _buildGuestView();
   }
-  return _buildPlaydateBody(context);
+
+  // 👇 loading
+  if (_requestsStream == null || currentUserId == null) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  // 👇 MAIN (این همون چیزی بود که نداشتی ❗)
+  return Scaffold(
+    body: _buildPlaydateBody(context),
+  );
+}
+Widget _buildGuestView() {
+  return Scaffold(
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text(
+            "Login to view playdate requests",
+            style: TextStyle(fontSize: 16),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 

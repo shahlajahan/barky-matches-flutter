@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:lucide_icons/lucide_icons.dart';
 
 class BarkyAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -26,23 +27,25 @@ class BarkyAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
 
       leading: IconButton(
-        icon: const Icon(Icons.menu, color: Color(0xFFFFC107)),
+        icon: const Icon(
+          LucideIcons.menu,
+          color: Color(0xFFFFC107),
+        ),
         onPressed: onMenuTap,
       ),
 
       title: Text(
         title,
-        style: GoogleFonts.dancingScript(
-          color: const Color(0xFFFFC107),
-          fontSize: 26,
-          fontWeight: FontWeight.w600,
-        ),
+        style: GoogleFonts.pacifico(
+  color: const Color(0xFFFFC107),
+  fontSize: 24,
+),
       ),
 
       actions: [
         IconButton(
           icon: const Icon(
-            Icons.chat_bubble_outline,
+            LucideIcons.messageCircle,
             color: Color(0xFFFFC107),
           ),
           onPressed: onChatTap,
@@ -61,10 +64,10 @@ class BarkyAppBar extends StatelessWidget implements PreferredSizeWidget {
           position: badges.BadgePosition.topEnd(top: -4, end: -4),
           child: IconButton(
             icon: const Icon(
-              Icons.notifications_none,
+              LucideIcons.bell,
               color: Color(0xFFFFC107),
             ),
-            onPressed: onNotificationTap, // 🔔 کاملاً فعال
+            onPressed: onNotificationTap,
           ),
         ),
       ],

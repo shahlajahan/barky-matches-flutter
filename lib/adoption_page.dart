@@ -18,6 +18,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
 import 'package:barky_matches_fixed/core/firestore_paths.dart';
 
+import 'package:barky_matches_fixed/utils/dog_filter.dart';
+
 enum AdoptionViewType { centers, dogs }
 
 class AdoptionPage extends StatefulWidget {
@@ -266,10 +268,19 @@ status: status,
       final appState = context.read<AppState>();
       final currentUserId = appState.currentUserId ?? '';
 
-      final dogs = snapshot.data!.docs
-          .map((doc) => Dog.fromFirestore(doc))
-          .where((dog) => dog.ownerId != currentUserId)
-          .toList();
+      final dogs = snapshot.data!.docs.map((doc) {
+  final data = doc.data() as Map<String, dynamic>;
+
+  if (!shouldIncludeDog(data, DogFilterMode.adoption)) {
+    return null;
+  }
+
+  final dog = Dog.fromFirestore(doc);
+
+  if (dog.ownerId == currentUserId) return null;
+
+  return dog;
+}).whereType<Dog>().toList();
 
       _adoptionDogs = dogs;
 

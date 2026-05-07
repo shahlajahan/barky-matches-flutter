@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/complaint_model.dart';
 import '../admin_evidence_viewer.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 class AdminComplaintDetailPage extends StatelessWidget {
 
@@ -125,12 +126,12 @@ class _ComplaintInfo extends StatelessWidget {
 
   child: ClipRRect(
     borderRadius: BorderRadius.circular(12),
-    child: Image.network(
-      complaint.screenshotUrl!,
-      height: 250,
-      width: double.infinity,
-      fit: BoxFit.cover,
-    ),
+    child: SmartMedia(
+  url: complaint.screenshotUrl!,
+  height: 250,
+  width: double.infinity,
+  fit: BoxFit.cover,
+),
   ),
 )
         ),

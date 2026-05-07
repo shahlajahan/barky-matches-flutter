@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../dog.dart';
-import '../../user_profile_page.dart';
-import '../../adoption_page.dart';
-import '../../screens/lost_dogs_list_page.dart';
-import '../../screens/found_dogs_list_page.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/welcome_page.dart';
+import 'package:barky_matches_fixed/debug/auth_trap.dart';
+
+import 'package:barky_matches_fixed/ui/feedback/feedback_form_page.dart';
+import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
+import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
+
+import 'package:barky_matches_fixed/ui/support/faq_page.dart';
+import 'package:barky_matches_fixed/ui/support/about_us_page.dart';
+import 'package:barky_matches_fixed/ui/legal/privacy_policy_page.dart';
+import 'package:barky_matches_fixed/ui/legal/terms_page.dart';
 
 class BarkyDrawer extends StatelessWidget {
   final String currentUserId;
@@ -28,121 +36,196 @@ class BarkyDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width: 240,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Colors.pink),
-            child: Text(
-              'Menu',
-              style: GoogleFonts.poppins(
-                color: const Color(0xFFFFC107),
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
+      width: 260,
+      child: Container(
+        color: const Color(0xFFF5F5F5),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+
+            /// 🔴 HEADER
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF9E1B4F), Color(0xFFD81B60)],
+                ),
+              ),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  'PetSupo',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
-          ),
 
-          _pushNamed(context, Icons.home, 'Playmates', '/playmate'),
+            /// 🟣 MAIN
+            _sectionTitle("Main"),
 
-          ListTile(
-            leading: const Icon(Icons.pets),
-            title: const Text('My Dogs'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => UserProfilePage(
-                    userId: currentUserId,
-                    dogs: dogs,
-                    favoriteDogs: favoriteDogs,
-                    onToggleFavorite: onToggleFavorite,
-                  ),
-                ),
-              );
-            },
-          ),
+            _tile(
+              context,
+              LucideIcons.home,
+              "Playmate",
+              onTap: () {
+                context.read<AppState>().setCurrentTab(NavTab.playmates);
+              },
+            ),
 
-          ListTile(
-            leading: const Icon(Icons.pets),
-            title: const Text('Adoption Center'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AdoptionPage(
-                    dogs: dogs,
-                    favoriteDogs: favoriteDogs,
-                    onToggleFavorite: onToggleFavorite,
-                  ),
-                ),
-              );
-            },
-          ),
+            const Divider(height: 32),
 
-          ListTile(
-            leading: const Icon(Icons.park),
-            title: const Text('Dog Parks'),
-            onTap: () {
-              Navigator.pop(context);
-              context.read<AppState>().setCurrentTab(NavTab.dogParks);
-            },
-          ),
+            /// 🟣 SUPPORT
+            _sectionTitle("Support"),
 
-          const Divider(),
+_tile(
+  context,
+  LucideIcons.messageSquare,
+  "Send Feedback",
+  onTap: () {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const FeedbackFormPage()),
+    );
+  },
+),
 
-          _pushNamed(context, Icons.report, 'Report Lost Dog', '/lost_dog_report'),
+_tile(
+  context,
+  LucideIcons.bug,
+  "Report Problem",
+  onTap: () {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const ReportProblemPage()),
+    );
+  },
+),
 
-          ListTile(
-            leading: const Icon(Icons.list),
-            title: const Text('Lost Dogs'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LostDogsListPage(),
-                ),
-              );
-            },
-          ),
+_tile(
+  context,
+  LucideIcons.helpCircle,
+  "FAQ",
+  onTap: () {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const FAQPage()),
+    );
+  },
+),
 
-          _pushNamed(context, Icons.report, 'Report Found Dog', '/found_dog_report'),
+const Divider(height: 32),
 
-          ListTile(
-            leading: const Icon(Icons.list),
-            title: const Text('Found Dogs'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const FoundDogsListPage(),
-                ),
-              );
-            },
-          ),
-        ],
+_sectionTitle("Legal"),
+
+_tile(
+  context,
+  LucideIcons.shield,
+  "Privacy Policy",
+  onTap: () {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+    );
+  },
+),
+
+_tile(
+  context,
+  LucideIcons.fileText,
+  "Terms of Service",
+  onTap: () {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const TermsPage()),
+    );
+  },
+),
+
+_tile(
+  context,
+  LucideIcons.info,
+  "About Us",
+  onTap: () {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const AboutUsPage()),
+    );
+  },
+),
+
+            const Divider(height: 32),
+
+            /// 🔴 LOGOUT
+            _tile(
+              context,
+              LucideIcons.logOut,
+              "Logout",
+              isDestructive: true,
+              onTap: () async {
+                await AuthTrap.signOut(reason: 'drawer_logout');
+
+                if (!context.mounted) return;
+
+                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const WelcomePage()),
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _pushNamed(
+  /// 🧩 TILE
+  Widget _tile(
     BuildContext context,
     IconData icon,
-    String title,
-    String route,
-  ) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.pushNamed(context, route);
+    String title, {
+    VoidCallback? onTap,
+    bool isDestructive = false,
+  }) {
+    return Builder(
+      builder: (innerContext) {
+        return ListTile(
+          leading: Icon(
+            icon,
+            size: 20,
+            color: isDestructive ? Colors.red : const Color(0xFF9E1B4F),
+          ),
+          title: Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: isDestructive ? Colors.red : const Color(0xFF333333),
+            ),
+          ),
+          onTap: () async {
+            Navigator.pop(innerContext); // 👈 فقط بستن drawer
+
+            await Future.delayed(const Duration(milliseconds: 200));
+
+            if (!innerContext.mounted) return;
+
+            onTap?.call(); // 👈 فقط state تغییر می‌ده
+          },
+        );
       },
+    );
+  }
+
+  /// 🧩 SECTION TITLE
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      child: Text(
+        title.toUpperCase(),
+        style: GoogleFonts.poppins(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey,
+          letterSpacing: 1,
+        ),
+      ),
     );
   }
 }

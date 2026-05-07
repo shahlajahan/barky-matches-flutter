@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import 'business_card_data.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 class BusinessCard extends StatelessWidget {
   final BusinessCardData data;
@@ -18,6 +21,8 @@ class BusinessCard extends StatelessWidget {
     this.onWhatsAppTap,
     this.onDirectionsTap,
   });
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -39,61 +44,161 @@ class BusinessCard extends StatelessWidget {
   children: [
     Expanded(
       child: Text(
-        data.name,
-        style: AppTheme.h2().copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+  data.name,
+  style: AppTheme.h2().copyWith(
+    fontWeight: FontWeight.w700,
+    height: 1.1,
+    color: const Color(0xFF9E1B4F), // 🔥 برند
+  ),
+),
     ),
 
-    if (_buildStatusBadge() != null)
-      _buildStatusBadge()!,
+    if (_buildStatusBadge() != null) ...[
+  const SizedBox(width: 6),
+  _buildStatusBadge()!,
+],
 
     if (data.is24h)
       _Badge(text: '24/7', color: AppTheme.success),
+
+      
 
     if (data.isEmergency) ...[
       const SizedBox(width: 6),
       _Badge(text: 'Emergency', color: AppTheme.danger),
     ],
+    if (data.workingHours != null &&
+    data.workingHours!.isNotEmpty &&
+    data.workingHours!['hours'] != null) ...[
+  const SizedBox(width: 6),
+  _Badge(
+  text: data.workingHours!['hours']!,
+  color: Colors.black87,
+),
+],
   ],
 ),
             const SizedBox(height: 6),
             Text(
               _addressLine(),
-              style: AppTheme.caption(),
+              style: AppTheme.caption().copyWith(
+  color: Colors.grey.shade700,
+),
             ),
             const SizedBox(height: 8),
             if (data.specialties.isNotEmpty)
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: data.specialties
-    .map<Widget>((s) => _Chip(label: s))
-    .toList(),
-              ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _CtaButton(
-                  icon: Icons.call,
-                  enabled: data.phone != null,
-                  onTap: onCallTap,
-                ),
-                const SizedBox(width: 8),
-                _CtaButton(
-                  icon: Icons.chat_bubble_outline,
-                  enabled: data.whatsapp != null,
-                  onTap: onWhatsAppTap,
-                ),
-                const SizedBox(width: 8),
-                _CtaButton(
-                  icon: Icons.directions,
-                  enabled: true,
-                  onTap: onDirectionsTap,
-                ),
-              ],
+  spacing: 6,
+  runSpacing: 6,
+  children: data.specialties
+      .take(3)
+      .map<Widget>((s) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF9E1B4F).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Text(
+              s,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF9E1B4F),
+              ),
+            ),
+          ))
+      .toList(),
+),
+            const SizedBox(height: 10),
+            
+            Row(
+  crossAxisAlignment: CrossAxisAlignment.center,
+  children: [
+
+    /// LEFT → CTA BUTTONS
+    Expanded(
+      child: Row(
+        children: [
+          _CtaButton(
+            icon: LucideIcons.phone,
+            enabled: data.phone != null,
+            onTap: onCallTap,
+          ),
+          const SizedBox(width: 8),
+
+          _CtaButton(
+            icon: LucideIcons.messageCircle,
+            enabled: data.whatsapp != null,
+            onTap: onWhatsAppTap,
+          ),
+          const SizedBox(width: 8),
+
+          _CtaButton(
+            icon: LucideIcons.navigation,
+            enabled: true,
+            onTap: onDirectionsTap,
+          ),
+          const SizedBox(width: 8),
+
+          if (data.instagram != null)
+            _CtaButton(
+              icon: LucideIcons.instagram,
+              enabled: true,
+              onTap: () {
+                launchUrl(
+                  Uri.parse("https://instagram.com/${data.instagram}"),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
+
+          if (data.instagram != null)
+            const SizedBox(width: 8),
+
+          if (data.website != null)
+            _CtaButton(
+              icon: LucideIcons.globe,
+              enabled: true,
+              onTap: () {
+                final url = data.website!.startsWith('http')
+                    ? data.website!
+                    : 'https://${data.website!}';
+
+                launchUrl(
+                  Uri.parse(url),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
+        ],
+      ),
+    ),
+
+    /// RIGHT → LOGO (🔥 جای درست)
+    if (data.logoUrl != null && data.logoUrl!.isNotEmpty)
+  Container(
+    width: 64,
+    height: 64,
+    margin: const EdgeInsets.only(left: 12),
+    padding: const EdgeInsets.all(6),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 8,
+          offset: Offset(0, 3),
+        ),
+      ],
+    ),
+    child: SmartMedia(
+  url: data.logoUrl!,
+  fit: BoxFit.contain, // 🔥 مهم
+),
+  ),
+  ],
+)
           ],
         ),
       ),
@@ -101,11 +206,12 @@ class BusinessCard extends StatelessWidget {
   }
 
   String _addressLine() {
-    if (data.distanceKm == null) {
-      return data.address ?? '';
-    }
-    return '${data.address ?? ''} • ${data.distanceKm!.toStringAsFixed(1)} km';
+  if (data.distanceKm == null) {
+    return data.address;
   }
+
+  return '${data.address} • ${data.distanceKm!.toStringAsFixed(1)} km';
+}
   Widget? _buildStatusBadge() {
   // Suspended
   if (data.status == "suspended") {
@@ -166,13 +272,13 @@ class _CtaButton extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: enabled
-              ? Colors.amber
+    ? const Color(0xFFFFC107)
               : Colors.grey.withOpacity(0.2),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           icon,
-          size: 20,
+          size: 18,
           color: enabled ? Colors.black : Colors.grey,
         ),
       ),
@@ -204,10 +310,10 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Colors.white,
-        ),
+        style: AppTheme.caption().copyWith(
+  color: Colors.white,
+  fontWeight: FontWeight.w600,
+),
       ),
     );
   }
@@ -233,7 +339,7 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12),
+        style: AppTheme.caption(),
       ),
     );
   }

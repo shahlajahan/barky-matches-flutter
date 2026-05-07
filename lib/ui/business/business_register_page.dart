@@ -26,11 +26,18 @@ import '../widgets/location_picker_sheet.dart';
 
 import '../../data/validators/tr_tax_validator.dart';
 import '../../ui/formatters/vkn_input_formatter.dart';
+import '../../config/api_keys.dart';
 
-final String kGoogleApiKey = const String.fromEnvironment(
-  'GOOGLE_API_KEY',
-  defaultValue: '',
-);
+import 'sector_forms/vet_details_page.dart';
+import 'package:barky_matches_fixed/ui/business/petshop/pet_shop_details_page.dart';
+
+import 'package:barky_matches_fixed/ui/business/groomy/groomy_details_page.dart';
+
+import 'package:lucide_icons/lucide_icons.dart';
+
+
+
+
 
 enum BusinessKind {
   groomer,
@@ -43,17 +50,19 @@ enum BusinessKind {
   breeder,
 }
 
+enum DocStatus { idle, uploading, processing, success, error }
+
 const String legalTextTR = """
-BARKYMATCHES İŞLETME PLATFORM SÖZLEŞMESİ
+PetSopu İŞLETME PLATFORM SÖZLEŞMESİ
 
 1. KVKK
-6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında BarkyMatches veri sorumlusudur...
+6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında PetSopu veri sorumlusudur...
 
 2. TİCARİ SORUMLULUK
 Başvuru sahibi sunduğu tüm belgelerin doğru olduğunu beyan eder...
 
 3. PLATFORM SORUMLULUK REDDİ
-BarkyMatches yalnızca aracı dijital platformdur...
+PetSopu yalnızca aracı dijital platformdur...
 
 4. DOĞRULAMA HAKKI
 Platform ek belge talep edebilir...
@@ -63,16 +72,16 @@ Platform ek belge talep edebilir...
 """;
 
 const String legalTextEN = """
-BARKYMATCHES BUSINESS PLATFORM AGREEMENT
+PetSopu BUSINESS PLATFORM AGREEMENT
 
 1. DATA PROTECTION
-Under Turkish Law No. 6698 (KVKK), BarkyMatches acts as Data Controller...
+Under Turkish Law No. 6698 (KVKK), PetSopu acts as Data Controller...
 
 2. COMMERCIAL LIABILITY
 The applicant declares that all submitted documents are authentic...
 
 3. PLATFORM DISCLAIMER
-BarkyMatches operates solely as an intermediary...
+PetSopu operates solely as an intermediary...
 
 4. VERIFICATION RIGHTS
 The platform may request additional documents...
@@ -91,6 +100,7 @@ class BusinessRegisterPage extends StatefulWidget {
 class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   final _formKeys = List.generate(4, (_) => GlobalKey<FormState>());
 
+List<String> selectedSectors = [];
   int _step = 0;
   bool _loading = false;
 
@@ -107,6 +117,8 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 String? _mersisNumber;
 
 String _legalLang = "TR"; // TR | EN
+
+
 
 final TextEditingController _taxNumberController = TextEditingController();
 final TextEditingController _mersisNumberController = TextEditingController();
@@ -131,7 +143,7 @@ final TextEditingController _mersisNumberController = TextEditingController();
   // ─────────────────────────────
   // STEP 1 – BUSINESS IDENTITY
   // ─────────────────────────────
-  BusinessKind? _businessKind;
+  
   final _legalName = TextEditingController();
   final _displayName = TextEditingController();
 
@@ -169,13 +181,13 @@ List<String> _riskFlags = [];
   bool _taxLocked = false;
 bool _mersisLocked = false;
 
+bool _sectorCompleted = false;
+
   List<String> _collectStepErrors() {
   final errors = <String>[];
 
   if (_step == 0) {
-    if (_businessKind == null) {
-      errors.add("• Please select Business Type.");
-    }
+    
     if (_legalName.text.trim().isEmpty) {
       errors.add("• Legal Company Name is required.");
     }
@@ -185,6 +197,9 @@ bool _mersisLocked = false;
     if (_selectedCountryCode == null) {
       errors.add("• Please select a Country.");
     }
+    if (selectedSectors.isEmpty) {
+  errors.add("• Please select at least one business category.");
+}
   }
 
   if (_step == 1) {
@@ -213,6 +228,11 @@ bool _mersisLocked = false;
         errors.add("• All required legal documents must be uploaded.");
       }
     }
+    if (_country == "Turkey") {
+  if (!_taxLocked || !_mersisLocked) {
+    errors.add("• Documents must be verified before continuing.");
+  }
+}
   }
 
   if (_step == 3) {
@@ -226,6 +246,8 @@ bool _mersisLocked = false;
 
   return errors;
 }
+
+
 
 void _showValidationDialog(List<String> errors) {
   showDialog(
@@ -255,7 +277,7 @@ void _showValidationDialog(List<String> errors) {
   void initState() {
     super.initState();
     Future.microtask(() => _bootstrapLocations());
-    _listenForOcrResults();
+   // _listenForOcrResults();
   }
 
   Future<void> _bootstrapLocations() async {
@@ -266,40 +288,58 @@ void _showValidationDialog(List<String> errors) {
   });
 
   try {
+    // ✅ 1. INIT REPOSITORY (خیلی مهم)
     final cache = await LocationCache.open();
     if (!mounted) return;
 
     _locationRepo = LocationRepository(cache: cache);
 
-    final list = await _locationRepo!.getCountries(onlyEnabled: true);
-    if (!mounted) return;
+    // ✅ 2. FETCH COUNTRIES (direct Firestore)
+    final snapshot = await FirebaseFirestore.instance
+        .collection("countries")
+        .get();
 
-    _countries = list;
+    final List<Country> list = snapshot.docs.map((d) {
+      final data = d.data();
 
-    final tr = list.where((c) => c.code == "TR").toList();
+      return Country(
+        code: data["code"] ?? d.id,
+        name: data["name"] ?? "",
+        dialCode: data["dial_code"] ?? "",
+        enabled: data["enabled"] ?? true,
+        sort: data["sort"] ?? 0,
+      );
+    }).toList();
 
-    _selectedCountryCode =
-        tr.isNotEmpty ? "TR" : (list.isNotEmpty ? list.first.code : null);
+    debugPrint("🌍 COUNTRIES MAPPED: ${list.length}");
 
-    _country = _selectedCountryCode == "TR"
-        ? "Turkey"
-        : (_selectedCountryCode == "DE"
-            ? "Germany"
-            : (_selectedCountryCode == "US"
-                ? "USA"
-                : (_selectedCountryCode ?? "Turkey")));
+    // ✅ 3. SET STATE
+    setState(() {
+      _countries = list;
 
-    _loadingCountries = false;
+      final tr = list.where((c) => c.code == "TR").toList();
 
-    setState(() {});
+      _selectedCountryCode =
+          tr.isNotEmpty ? "TR" : (list.isNotEmpty ? list.first.code : null);
 
-    // ✅ این باید بیرون از catch باشد
+      _country = _selectedCountryCode == "TR"
+          ? "Turkey"
+          : (_selectedCountryCode == "DE"
+              ? "Germany"
+              : (_selectedCountryCode == "US"
+                  ? "USA"
+                  : (_selectedCountryCode ?? "Turkey")));
+
+      _loadingCountries = false;
+    });
+
+    // ✅ 4. LOAD ADMIN1 (cities)
     if (_selectedCountryCode != null) {
       await _loadAdmin1(_selectedCountryCode!);
     }
 
   } catch (e) {
-    debugPrint("LOCATION ERROR: $e");
+    debugPrint("❌ LOCATION ERROR: $e");
 
     if (!mounted) return;
 
@@ -384,94 +424,152 @@ _mersisNumberController.dispose();
   }
 
   void _openLegalSheet() {
-    _legalScrolledToEnd = false;
+  _legalScrolledToEnd = false;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            _legalScrollController.addListener(() {
-              if (_legalScrollController.position.pixels >=
-                  _legalScrollController.position.maxScrollExtent - 20) {
-                setModalState(() {
-                  _legalScrolledToEnd = true;
-                });
-              }
-            });
-
-            return SizedBox(
-              height: MediaQuery.of(context).size.height * 0.8,
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    const Text(
-      "Platform Legal Agreement",
-      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    ToggleButtons(
-      isSelected: [
-        _legalLang == "TR",
-        _legalLang == "EN",
-      ],
-      onPressed: (index) {
-        setModalState(() {
-          _legalLang = index == 0 ? "TR" : "EN";
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setModalState) {
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!_legalScrolledToEnd) {
+      setModalState(() => _legalScrolledToEnd = true);
+    }
+  });
+          return SizedBox(
+            height: MediaQuery.of(context).size.height * 0.85,
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+
+                /// HEADER
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Platform Legal Agreement",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+
+                      Row(
+                        children: [
+                          ToggleButtons(
+                            isSelected: [
+                              _legalLang == "TR",
+                              _legalLang == "EN",
+                            ],
+                            onPressed: (i) {
+                              setModalState(() {
+                                _legalLang = i == 0 ? "TR" : "EN";
+                              });
+                            },
+                            children: const [
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text("TR"),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text("EN"),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+  icon: const Icon(Icons.close),
+  onPressed: () => Navigator.of(context).pop(), // ✅ درست
+),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+
+                const Divider(),
+
+                /// 🔥 SCROLL FIX
+                Expanded(
+  child: LayoutBuilder(
+    builder: (context, constraints) {
+      return NotificationListener<ScrollNotification>(
+        onNotification: (scrollInfo) {
+          final max = scrollInfo.metrics.maxScrollExtent;
+
+          // ✅ اگر اسکرول نداره → فعال کن
+          if (max == 0) {
+            setModalState(() => _legalScrolledToEnd = true);
+            return true;
+          }
+
+          // ✅ اگر رسید ته → فعال کن
+          if (scrollInfo.metrics.pixels >= max - 10) {
+            setModalState(() => _legalScrolledToEnd = true);
+          }
+
+          return true;
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            _legalLang == "TR" ? legalTextTR : legalTextEN,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+      );
+    },
+  ),
+),
+
+
+
+                /// BUTTON
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton(
+                    onPressed: _legalScrolledToEnd
+    ? () {
+        setState(() {
+          _agreeTerms = true;
+          _legalScrolledToEnd = false;
         });
-      },
-      children: const [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text("TR"),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text("EN"),
-        ),
-      ],
-    )
-  ],
-),
-                  const Divider(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                      controller: _legalScrollController,
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-  _legalLang == "TR" ? legalTextTR : legalTextEN,
-  style: const TextStyle(fontSize: 14),
-),
+
+        Navigator.of(context).pop(); // ✅ FIX
+      }
+    : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF9E1B4F),
+                      minimumSize: const Size(double.infinity, 52),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      "I Have Read and Accept",
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: ElevatedButton(
-                      onPressed: _legalScrolledToEnd
-                          ? () {
-                              setState(() => _agreeTerms = true);
-                              Navigator.pop(context);
-                            }
-                          : null,
-                      child: const Text("I Have Read and Accept"),
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+
 
   Future<void> _detectCity() async {
   try {
@@ -586,16 +684,23 @@ _mersisNumberController.dispose();
   }
 
   Future<String> _uploadFile(File file, String kind) async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child("business_docs/$uid/${DateTime.now().millisecondsSinceEpoch}_$kind");
+  final user = FirebaseAuth.instance.currentUser;
 
-    await ref.putFile(file);
-    return await ref.getDownloadURL();
+  if (user == null) {
+    throw Exception("User not authenticated");
   }
 
-  Future<void> _pickDoc(String kind) async {
+  final uid = user.uid;
+
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child("business_docs/$uid/${DateTime.now().millisecondsSinceEpoch}_$kind");
+
+  await ref.putFile(file);
+  return await ref.getDownloadURL();
+}
+
+Future<void> _pickDoc(String kind) async {
   final xf = await _picker.pickImage(
     source: ImageSource.gallery,
     imageQuality: 85,
@@ -606,6 +711,10 @@ _mersisNumberController.dispose();
     _loading = true;
     _ocrStatus = "processing";
   });
+
+setState(() {
+  _ocrStatus = "processing";
+});
 
   try {
     final url = await _uploadFile(File(xf.path), kind);
@@ -623,6 +732,10 @@ _mersisNumberController.dispose();
         _signatureDocUrl = url;
       }
     });
+
+    // 🔥🔥🔥 این مهم‌ترین خطه — اضافه کن
+    _listenForOcrResults();
+
   } finally {
     if (mounted) {
       setState(() => _loading = false);
@@ -658,10 +771,16 @@ _mersisNumberController.dispose();
 
   Future<void> _submit() async {
   if (_loading) return;
-if (_lat == null || _lng == null) {
-    _snack("Please select address from suggestions");
-    return;
-  }
+
+if (selectedSectors.isEmpty) {
+  _snack("Please select at least one business category");
+  return;
+}
+
+ if (_addressLine.text.trim().isEmpty) {
+  _snack("Please enter business address");
+  return;
+}
 
   if (!_agreeTerms || !_agreeLegalResponsibility) {
     _snack("You must accept all agreements");
@@ -679,35 +798,47 @@ if (_lat == null || _lng == null) {
   setState(() => _loading = true);
 
   try {
+    // 🔥 STEP 1: CREATE BASE DRAFT
     final draft = BusinessDraft(
-      profile: BusinessProfileDraft(
-        displayName: _displayName.text.trim(),
-        description: "",
-      ),
-      contact: BusinessContactDraft(
-        phone: _phone.text.trim(),
-        whatsapp: _whatsapp.text.trim(),
-        email: _email.text.trim(),
-        instagram: "",
-        website: _website.text.trim(),
-        city: _city.text.trim(),
-        district: _district.text.trim(),
-        addressLine: _addressLine.text.trim(),
-      ),
-      legal: BusinessLegalDraft(
-        taxNumber: _taxNumberController.text.trim(),
-        mersisNumber: _mersisNumberController.text.trim(),
-        disclaimerAccepted: true,
-      ),
-    );
+  sectors: selectedSectors,
 
+  profile: BusinessProfileDraft(
+    displayName: _displayName.text.trim(),
+    description: "",
+  ),
+
+  contact: BusinessContactDraft(
+    phone: _phone.text.trim(),
+    whatsapp: _whatsapp.text.trim(),
+    email: _email.text.trim(),
+    instagram: "",
+    website: _website.text.trim(),
+    city: _city.text.trim(),
+    district: _district.text.trim(),
+    addressLine: _addressLine.text.trim(),
+  ),
+
+ legal: BusinessLegalDraft(
+  taxNumber: _taxNumberController.text.trim(),
+  mersisNumber: _mersisNumberController.text.trim(),
+  disclaimerAccepted: true,
+  disclaimerVersion: "v1.0",
+  disclaimerAcceptedAt: DateTime.now().toIso8601String(),
+),
+
+  sectorData: {}, // بعداً پر میشه
+);
+
+    // 🔥 STEP 2: CALL CLOUD FUNCTION
     final callable = FirebaseFunctions.instanceFor(
       region: "europe-west3",
     ).httpsCallable("registerBusiness");
-debugPrint("LAT => $_lat");
-debugPrint("LNG => $_lng");
+
+    debugPrint("LAT => $_lat");
+    debugPrint("LNG => $_lng");
+
     final result = await callable.call({
-      "type": _businessKind.toString().split('.').last,
+      "sectors": selectedSectors, // 🔥 مهم (نه _businessKind)
       "draft": draft.toJson(),
       "lat": _lat,
       "lng": _lng,
@@ -721,6 +852,7 @@ debugPrint("LNG => $_lng");
     _snack("Application submitted successfully");
 
     context.read<AppState>().closeProfileSubPage();
+
   } on FirebaseFunctionsException catch (e) {
     _snack(e.message ?? "Submission failed");
   } catch (e) {
@@ -731,66 +863,420 @@ debugPrint("LNG => $_lng");
     }
   }
 }
-  @override
-  Widget build(BuildContext context) {
-   // debugPrint("GOOGLE KEY => $kGoogleApiKey");
 
-    return SafeArea(
+Future<void> _goToSectorDetails() async {
+  BusinessDraft draft = BusinessDraft(
+    sectors: selectedSectors,
+
+    profile: BusinessProfileDraft(
+      displayName: _displayName.text.trim(),
+      description: "",
+    ),
+
+    contact: BusinessContactDraft(
+      phone: _phone.text.trim(),
+      whatsapp: _whatsapp.text.trim(),
+      email: _email.text.trim(),
+      instagram: "",
+      website: _website.text.trim(),
+      city: _city.text.trim(),
+      district: _district.text.trim(),
+      addressLine: _addressLine.text.trim(),
+    ),
+
+    legal: BusinessLegalDraft(
+      taxNumber: _taxNumberController.text.trim(),
+      mersisNumber: _mersisNumberController.text.trim(),
+      disclaimerAccepted: true,
+    ),
+
+    sectorData: {},
+  );
+
+  // 🔥 ترتیب مهم نیست، ولی بهتره ثابت باشه
+  final orderedSectors = List<String>.from(selectedSectors);
+
+  for (final sector in orderedSectors) {
+    BusinessDraft? result;
+
+    // 🟣 VET
+    if (sector == "veterinary") {
+      result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VetDetailsPage(
+            baseDraft: draft,
+            lat: _lat,
+            lng: _lng,
+            countryCode: _selectedCountryCode,
+            admin1Id: _selectedAdmin1?.id,
+            admin2Id: _selectedAdmin2?.id,
+          ),
+        ),
+      );
+    }
+
+    // 🟠 PET SHOP
+    else if (sector == "pet_shop") {
+      result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PetShopDetailsPage(
+            baseDraft: draft,
+          ),
+        ),
+      );
+    }
+
+    else if (sector == "groomer") {
+  result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => GroomyDetailsPage(
+        baseDraft: draft,
+      ),
+    ),
+  );
+}
+
+    // 🟢 آینده (groomer, hotel ...)
+    else {
+      continue;
+    }
+
+    // ❌ user cancel کرد
+    if (result == null) {
+      debugPrint("⚠️ user cancelled at $sector");
+      return;
+    }
+
+    // ✅ merge sector data
+    draft = result;
+  }
+
+  _sectorCompleted = true;
+
+  // 🔥 بعد از تکمیل همه sector ها
+ setState(() {
+  _step = 3; // برگرد به agreement
+});
+}
+
+Future<void> _submitWithSectorData(BusinessDraft draft) async {
+  final callable = FirebaseFunctions.instanceFor(
+    region: "europe-west3",
+  ).httpsCallable("registerBusiness");
+
+  await callable.call({
+    "sectors": draft.sectors,
+    "draft": draft.toJson(),
+    "lat": _lat,
+    "lng": _lng,
+    "countryCode": _selectedCountryCode,
+    "admin1Id": _selectedAdmin1?.id,
+    "admin2Id": _selectedAdmin2?.id,
+  });
+
+  if (!mounted) return;
+
+  _snack("Application submitted successfully");
+  context.read<AppState>().closeProfileSubPage();
+}
+  @override
+Widget build(BuildContext context) {
+  return Container(
+    color: AppTheme.bg,
+    child: SafeArea(
       child: Column(
         children: [
-          const SizedBox(height: 16),
-          Text("Business Registration", style: AppTheme.h2()),
-          const SizedBox(height: 12),
+          _buildRegisterHeader(),
+
           Expanded(
-            child: Form(
-              key: _formKeys[_step],
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+              child: Form(
+                key: _formKeys[_step],
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildProgressBar(),
-                    const SizedBox(height: 18),
-                    if (_step == 0) _stepIdentity(),
-                    if (_step == 1) _stepContact(),
-                    if (_step == 2) _stepLegal(),
-                    if (_step == 3) _stepAgreement(),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _loading ? null : _back,
-                            child: Text(_step == 0 ? "Cancel" : "Back"),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.accent,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            onPressed: _loading ? null : (_step < 3 ? _next : _submit),
-                            child: Text(
-                              _step < 3 ? "Continue" : "Submit for Review",
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
+                    _buildProgressCard(),
+                    const SizedBox(height: 14),
+                    _buildCurrentStep(),
                   ],
                 ),
               ),
             ),
           ),
+
+          _buildBottomActions(),
         ],
       ),
-    );
+    ),
+  );
+}
+
+Widget _buildCurrentStep() {
+  switch (_step) {
+    case 0:
+      return _stepIdentity();
+    case 1:
+      return _stepContact();
+    case 2:
+      return _stepLegal(); // فعلاً همونو نگه میداریم
+    case 3:
+      return _stepAgreement();
+    default:
+      return const SizedBox.shrink();
   }
+}
+
+Widget _buildRegisterHeader() {
+  const Color primary = Color(0xFF9E1B4F);
+  const Color accent = Color(0xFFFFC107);
+
+  return Container(
+    margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [primary, Color(0xFFC2185B)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: primary.withOpacity(0.25),
+          blurRadius: 18,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        InkWell(
+          onTap: _back,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.22)),
+            ),
+            child: const Icon(
+              LucideIcons.chevronLeft,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Register Business",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _stepTitle(),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.86),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            "${_step + 1}/4",
+            style: const TextStyle(
+              color: primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+String _stepTitle() {
+  switch (_step) {
+    case 0:
+      return "Business identity and categories";
+    case 1:
+      return "Contact and location";
+    case 2:
+      return "Legal documents";
+    case 3:
+      return "Agreement confirmation";
+    default:
+      return "";
+  }
+}
+
+Widget _buildProgressCard() {
+  const Color primary = Color(0xFF9E1B4F);
+  const Color accent = Color(0xFFFFC107);
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 16,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: (_step + 1) / 4,
+            minHeight: 8,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: const AlwaysStoppedAnimation(accent),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        Row(
+          children: List.generate(4, (index) {
+            final active = index <= _step;
+
+            return Expanded(
+              child: Container(
+                margin: EdgeInsets.only(right: index == 3 ? 0 : 8),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: active ? primary : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  "${index + 1}",
+                  style: TextStyle(
+                    color: active ? Colors.white : Colors.grey.shade500,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildBottomActions() {
+  const Color primary = Color(0xFF9E1B4F);
+
+  return Container(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.08),
+          blurRadius: 18,
+          offset: const Offset(0, -6),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _loading ? null : _back,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: primary,
+              side: const BorderSide(color: primary),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: const Text(
+              "Back",
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+
+        Expanded(
+          flex: 2,
+          child: ElevatedButton(
+            onPressed: _loading
+                ? null
+                : () {
+                    if (_step < 3) {
+  _next();
+} else {
+  if (_sectorCompleted) {
+    _submit();
+  } else {
+    _goToSectorDetails();
+  }
+}
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: _loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(
+                   _step < 3
+    ? "Continue"
+    : (_sectorCompleted ? "Submit Application" : "Complete Sector Details"),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _sectionTitle(String text) {
     return Padding(
@@ -809,326 +1295,314 @@ debugPrint("LNG => $_lng");
   Widget _fieldSpacing(Widget child) =>
       Padding(padding: const EdgeInsets.only(bottom: 16), child: child);
 
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.grey.shade100,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-    );
-  }
+InputDecoration _inputDecoration(
+  String label, {
+  IconData? icon,
+  Widget? suffixIcon,
+}) {
+  return InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: Colors.grey.shade100,
+
+    prefixIcon: icon != null
+        ? Icon(icon, color: const Color(0xFF9E1B4F))
+        : null,
+
+    suffixIcon: suffixIcon,
+
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+  );
+}
 
   // ─────────────────────────────
   // STEP 1
   // ─────────────────────────────
   Widget _stepIdentity() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle("Business Information"),
-        const SizedBox(height: 16),
-
-        _fieldSpacing(
-          DropdownButtonFormField<BusinessKind>(
-            value: _businessKind,
-            decoration: _inputDecoration("Business Type"),
-            items: BusinessKind.values.map((e) {
-              return DropdownMenuItem(
-                value: e,
-                child: Text(_businessLabel(e)),
-              );
-            }).toList(),
-            onChanged: (v) => setState(() => _businessKind = v),
-            validator: (v) => v == null ? "Required" : null,
-          ),
-        ),
-
-        _fieldSpacing(
-          TextFormField(
-            controller: _legalName,
-            decoration: _inputDecoration("Legal Company Name"),
-            validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
-          ),
-        ),
-
-        _fieldSpacing(
-          TextFormField(
-            controller: _displayName,
-            decoration: _inputDecoration("Public Display Name"),
-            validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
-          ),
-        ),
-
-        _fieldSpacing(
-          DropdownButtonFormField<String>(
-            value: _selectedCountryCode,
-            decoration: _inputDecoration("Country"),
-            items: _countries.map((c) {
-              return DropdownMenuItem(
-                value: c.code,
-                child: Text(c.name),
-              );
-            }).toList(),
-            onTap: () => FocusScope.of(context).unfocus(),
-            onChanged: _loadingCountries
-                ? null
-                : (code) async {
-                    if (code == null) return;
-
-                    setState(() {
-                      _selectedCountryCode = code;
-                      _country = code == "TR"
-                          ? "Turkey"
-                          : (code == "DE" ? "Germany" : (code == "US" ? "USA" : code));
-                    });
-
-                    await _loadAdmin1(code);
-                  },
-            validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─────────────────────────────
-  // STEP 2
-  // ─────────────────────────────
-  Widget _stepContact() {
   return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      _field(_email, "Email", _validateEmail),
-      _space(),
-      _phoneField(_phone, "Phone (+90...)"),
-      _space(),
-      TextFormField(
-  controller: _whatsapp,
-  keyboardType: TextInputType.phone,
-  inputFormatters: [
-    FilteringTextInputFormatter.digitsOnly,
-    LengthLimitingTextInputFormatter(15),
-  ],
-  validator: (v) {
-    if (v == null || v.trim().isEmpty) {
-      return "WhatsApp number is required";
-    }
-    return _validatePhone(v);
-  },
-  decoration: _inputDecoration("WhatsApp"),
-),
-      _space(),
-      _field(_website, "Website (optional)", _validateWebsite),
-      _space(),
+      _sectionCard(
+        title: "Business identity",
+        subtitle: "Tell us how your business should appear on PetSupo.",
+        icon: LucideIcons.store,
+        child: Column(
+          children: [
 
-      // ===============================
-      // CITY (Searchable + Lazy)
-      // ===============================
-      Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: _loadingAdmin1
-                  ? null
-                  : () async {
-                      if (_admin1List.isEmpty) return;
-
-                      FocusScope.of(context).unfocus();
-
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (_) => LocationPickerSheet<Admin1>(
-                          title: "Select City / Province",
-                          items: List<Admin1>.from(_admin1List),
-                          itemLabel: (p) => p.displayName,
-                          onSelected: (p) async {
-                            if (_selectedCountryCode == null) return;
-
-                            setState(() {
-                              _selectedAdmin1 = p;
-                              _city.text = p.name;
-                              _selectedAdmin2 = null;
-                              _district.clear();
-                            });
-
-                            await _loadAdmin2(
-                              _selectedCountryCode!,
-                              p.id,
-                            );
-                          },
-                        ),
-                      );
-                    },
-              child: AbsorbPointer(
-                child: TextFormField(
-                  controller: _city,
-                  decoration: _inputDecoration("City / Province").copyWith(
-                    suffixIcon: _loadingAdmin1
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2),
-                            ),
-                          )
-                        : const Icon(Icons.keyboard_arrow_down),
-                  ),
-                  validator: (_) =>
-                      _selectedAdmin1 == null ? "Required" : null,
-                ),
+            TextFormField(
+              controller: _legalName,
+              decoration: _inputDecoration(
+                "Legal Company Name",
+                icon: LucideIcons.badgeCheck,
               ),
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? "Required" : null,
             ),
-          ),
-          const SizedBox(width: 10),
-          IconButton(
-            onPressed: _detectCity,
-            icon: const Icon(Icons.my_location),
-            tooltip: "Detect city",
-          ),
-        ],
-      ),
 
-      _space(),
+            const SizedBox(height: 12),
 
-      // ===============================
-      // DISTRICT
-      // ===============================
-      GestureDetector(
-        onTap: (_selectedAdmin1 == null || _loadingAdmin2)
-            ? null
-            : () async {
-                if (_admin2List.isEmpty) return;
+            TextFormField(
+              controller: _displayName,
+              decoration: _inputDecoration(
+                "Public Display Name",
+                icon: LucideIcons.sparkles,
+              ),
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? "Required" : null,
+            ),
 
-                FocusScope.of(context).unfocus();
+            const SizedBox(height: 12),
 
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => LocationPickerSheet<Admin2>(
-                    title: "Select District",
-                    items: _admin2List,
-                    itemLabel: (d) => d.displayName,
-                    onSelected: (d) {
+            DropdownButtonFormField<String>(
+              value: _selectedCountryCode,
+              decoration: _inputDecoration(
+                "Country",
+                icon: LucideIcons.globe2,
+              ),
+              items: _countries
+                  .map(
+                    (c) => DropdownMenuItem(
+                      value: c.code,
+                      child: Text(c.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _loadingCountries
+                  ? null
+                  : (v) async {
+                      if (v == null) return;
+
                       setState(() {
-                        _selectedAdmin2 = d;
-                        _district.text = d.name;
+                        _selectedCountryCode = v;
+                        _country = v == "TR"
+                            ? "Turkey"
+                            : v == "DE"
+                                ? "Germany"
+                                : v == "US"
+                                    ? "USA"
+                                    : v;
                       });
-                      _formKeys[1].currentState?.validate();
+
+                      await _loadAdmin1(v);
                     },
-                  ),
-                );
-              },
-        child: AbsorbPointer(
-          child: TextFormField(
-            controller: _district,
-            decoration: _inputDecoration("District").copyWith(
-              suffixIcon: _loadingAdmin2
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child:
-                            CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : const Icon(Icons.keyboard_arrow_down),
+              validator: (v) => v == null ? "Required" : null,
             ),
-            validator: (_) {
-  if (_district.text.trim().isEmpty) {
-    return "Required";
-  }
-  return null;
-},
-          ),
+          ],
         ),
       ),
 
-      _space(),
+      const SizedBox(height: 14),
 
-      // ===============================
-      // ADDRESS (Stable Focus Version)
-      // ===============================
-      Focus(
-        onFocusChange: (hasFocus) {
-          if (hasFocus) {
-            _addressFocus.requestFocus();
-          }
-        },
-        child: FormField<String>(
-  validator: (_) {
-    if (_addressLine.text.trim().isEmpty) {
-      return "Business Address is required";
-    }
-    return null;
-  },
-  builder: (field) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GooglePlaceAutoCompleteTextField(
-          focusNode: _addressFocus,
-          textEditingController: _addressLine,
-          googleAPIKey: kGoogleApiKey,
-          inputDecoration: _inputDecoration("Business Address")
-              .copyWith(errorText: field.errorText),
-          keyboardType: TextInputType.streetAddress,
-          debounceTime: 800,
-          isLatLngRequired: true,
-          getPlaceDetailWithLatLng: (prediction) {
-  debugPrint("PLACE LAT => ${prediction.lat}");
-  debugPrint("PLACE LNG => ${prediction.lng}");
-
-  final lat = double.tryParse(prediction.lat ?? "");
-  final lng = double.tryParse(prediction.lng ?? "");
-
-  if (lat != null && lng != null) {
-    _lat = lat;
-    _lng = lng;
-  }
-
-  debugPrint("FINAL LAT => $_lat");
-  debugPrint("FINAL LNG => $_lng");
-},
-          itemClick: (prediction) {
-
-  _addressLine.text = prediction.description ?? "";
-
-  _addressLine.selection = TextSelection.fromPosition(
-    TextPosition(offset: _addressLine.text.length),
-  );
-
-  field.didChange(_addressLine.text);
-
-  // ⭐ IMPORTANT — save coordinates
-  final lat = double.tryParse(prediction.lat ?? "");
-  final lng = double.tryParse(prediction.lng ?? "");
-
-  if (lat != null && lng != null) {
-    setState(() {
-      _lat = lat;
-      _lng = lng;
-    });
-
-    debugPrint("SELECTED LAT => $_lat");
-    debugPrint("SELECTED LNG => $_lng");
-  }
-},
-        ),
-      ],
-    );
-  },
-),
+      _sectionCard(
+        title: "Business categories",
+        subtitle: "Select all sectors this business operates in.",
+        icon: LucideIcons.layoutGrid,
+        child: _sectorSelector(),
       ),
     ],
   );
 }
+  // ─────────────────────────────
+  // STEP 2
+  // ─────────────────────────────
+  Widget _stepContact() {
+  return _sectionCard(
+    title: "Contact & location",
+    subtitle: "These details help customers find and contact you.",
+    icon: LucideIcons.mapPin,
+    child: Column(
+      children: [
+        TextFormField(
+          controller: _email,
+          keyboardType: TextInputType.emailAddress,
+          decoration: _inputDecoration("Email", icon: LucideIcons.mail),
+          validator: _validateEmail,
+        ),
+        const SizedBox(height: 12),
+
+        TextFormField(
+          controller: _phone,
+          keyboardType: TextInputType.phone,
+          decoration: _inputDecoration("Phone", icon: LucideIcons.phone),
+          validator: _validatePhone,
+        ),
+        const SizedBox(height: 12),
+
+        TextFormField(
+          controller: _whatsapp,
+          keyboardType: TextInputType.phone,
+          decoration: _inputDecoration("WhatsApp", icon: LucideIcons.messageCircle),
+        ),
+        const SizedBox(height: 12),
+
+        TextFormField(
+          controller: _website,
+          keyboardType: TextInputType.url,
+          decoration: _inputDecoration("Website (optional)", icon: LucideIcons.link),
+          validator: _validateWebsite,
+        ),
+
+        const SizedBox(height: 12),
+
+        // 🟣 CITY
+        DropdownButtonFormField<Admin1>(
+          value: _selectedAdmin1,
+          decoration: _inputDecoration(
+            _loadingAdmin1 ? "Loading cities..." : "City / Province",
+            icon: LucideIcons.building2,
+          ),
+          items: _admin1List
+              .map((a) => DropdownMenuItem(
+                    value: a,
+                    child: Text(a.name),
+                  ))
+              .toList(),
+          onChanged: _loadingAdmin1
+              ? null
+              : (v) async {
+                  if (v == null || _selectedCountryCode == null) return;
+
+                  setState(() {
+                    _selectedAdmin1 = v;
+                    _city.text = v.name;
+                  });
+
+                  await _loadAdmin2(_selectedCountryCode!, v.id);
+                },
+          validator: (v) => v == null ? "Required" : null,
+        ),
+
+        const SizedBox(height: 12),
+
+        // 🟡 DISTRICT
+        DropdownButtonFormField<Admin2>(
+          value: _selectedAdmin2,
+          decoration: _inputDecoration(
+            _loadingAdmin2 ? "Loading districts..." : "District",
+            icon: LucideIcons.map,
+          ),
+          items: _admin2List
+              .map((a) => DropdownMenuItem(
+                    value: a,
+                    child: Text(a.name),
+                  ))
+              .toList(),
+          onChanged: _loadingAdmin2
+              ? null
+              : (v) {
+                  if (v == null) return;
+                  setState(() {
+                    _selectedAdmin2 = v;
+                    _district.text = v.name;
+                  });
+                },
+          validator: (v) => v == null ? "Required" : null,
+        ),
+
+        const SizedBox(height: 12),
+
+        // 🟢 ADDRESS (FIXED ✅)
+_AddressField(
+  controller: _addressLine,
+  apiKey: ApiKeys.google,
+  onLatLng: (lat, lng) {
+    setState(() {
+      _lat = double.tryParse(lat ?? "");
+      _lng = double.tryParse(lng ?? "");
+    });
+  },
+  decoration: _inputDecoration(
+    "Business Address",
+    icon: LucideIcons.navigation,
+  ),
+),
+
+        const SizedBox(height: 12),
+
+        // 🔵 ACTION BUTTONS
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _detectCity,
+                icon: const Icon(LucideIcons.locateFixed, size: 18),
+                label: const Text("Detect City"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF9E1B4F),
+                  side: const BorderSide(color: Color(0xFF9E1B4F)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+  child: OutlinedButton.icon(
+    onPressed: () {
+      _snack("Map picker will be added soon");
+    },
+    icon: const Icon(LucideIcons.mapPin, size: 18),
+    label: const Text("Pick Location"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF9E1B4F),
+                  side: const BorderSide(color: Color(0xFF9E1B4F)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        if (_lat != null && _lng != null) ...[
+          const SizedBox(height: 12),
+          _infoPill(
+            icon: LucideIcons.checkCircle2,
+            text: "Location selected",
+            color: Colors.green,
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+Widget _infoPill({
+  required IconData icon,
+  required String text,
+  required Color color,
+}) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _phoneField(TextEditingController controller, String label) {
     return TextFormField(
@@ -1311,6 +1785,14 @@ debugPrint("LNG => $_lng");
         ],
       ),
 
+      const SizedBox(height: 10),
+
+_infoPill(
+  icon: Icons.lock,
+  text: "Your documents are securely encrypted and verified automatically",
+  color: Colors.blue,
+),
+
       const SizedBox(height: 8),
 
       TextFormField(
@@ -1399,8 +1881,157 @@ debugPrint("LNG => $_lng");
           _tradeRegistryUrl,
           () => _pickDoc("ein"),
         ),
+        if (_ocrStatus == "processing")
+  _infoPill(
+    icon: Icons.hourglass_top,
+    text: "Processing document...",
+    color: Colors.orange,
+  ),
+
+if (_ocrStatus == "verified")
+  _infoPill(
+    icon: Icons.verified,
+    text: "Document verified successfully",
+    color: Colors.green,
+  ),
+
+if (_ocrStatus == "failed")
+  _infoPill(
+    icon: Icons.error_outline,
+    text: "Could not read document, please re-upload",
+    color: Colors.red,
+  ),
       ],
     ],
+  );
+}
+
+Widget _sectionCard({
+  required String title,
+  required Widget child,
+  IconData? icon,
+  String? subtitle,
+}) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: Colors.grey.shade100),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.045),
+          blurRadius: 16,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (icon != null) ...[
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF9E1B4F).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: const Color(0xFF9E1B4F)),
+              ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        child,
+      ],
+    ),
+  );
+}
+
+
+
+Widget _sectorSelector() {
+  final sectors = [
+    {"id": "veterinary", "title": "Veterinary", "icon": LucideIcons.stethoscope},
+    {"id": "pet_shop", "title": "Pet Shop", "icon": LucideIcons.shoppingBag},
+    {"id": "groomer", "title": "Groomy", "icon": LucideIcons.scissors},
+    {"id": "pet_hotel", "title": "Pet Hotel", "icon": LucideIcons.hotel},
+  ];
+
+  return Wrap(
+    spacing: 10,
+    runSpacing: 10,
+    children: sectors.map((s) {
+      final id = s["id"] as String;
+      final selected = selectedSectors.contains(id);
+
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            selected
+                ? selectedSectors.remove(id)
+                : selectedSectors.add(id);
+          });
+        },
+        child: Container(
+          width: 150,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF9E1B4F)
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                s["icon"] as IconData,
+                color: selected ? Colors.white : Colors.grey,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  s["title"] as String,
+                  style: TextStyle(
+                    color: selected ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            ],
+          ),
+        ),
+      );
+    }).toList(),
   );
 }
 
@@ -1428,46 +2059,61 @@ debugPrint("LNG => $_lng");
   // ─────────────────────────────
   // STEP 4
   // ─────────────────────────────
-  Widget _stepAgreement() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+ Widget _stepAgreement() {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 12,
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Legal Confirmation",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey.shade800,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Legal Confirmation",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade800,
-            ),
+        ),
+
+        const SizedBox(height: 14),
+
+        /// 🟣 TERMS CHECKBOX
+        CheckboxListTile(
+          value: _agreeTerms,
+          onChanged: (v) {
+            if (v == true) {
+              _openLegalSheet(); // 👈 مجبورش می‌کنیم بخونه
+            } else {
+              setState(() => _agreeTerms = false);
+            }
+          },
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          title: const Text(
+            "I accept the Platform Terms and KVKK Data Protection Policy.",
+            style: TextStyle(fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 14),
-          CheckboxListTile(
-            value: _agreeTerms,
-            onChanged: (v) => setState(() => _agreeTerms = v ?? false),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              "I accept the Platform Terms and KVKK Data Protection Policy.",
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            subtitle: GestureDetector(
-              onTap: _openLegalSheet,
-              child: const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text(
-                  "Read full legal document",
+
+          /// 🔥 SUBTITLE FIXED
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 6),
+
+              /// داخل اپ
+              GestureDetector(
+                onTap: _openLegalSheet,
+                child: const Text(
+                  "Read inside app",
                   style: TextStyle(
                     decoration: TextDecoration.underline,
                     color: Colors.blue,
@@ -1475,23 +2121,67 @@ debugPrint("LNG => $_lng");
                   ),
                 ),
               ),
-            ),
+
+              const SizedBox(height: 4),
+
+              /// لینک واقعی (FIXED ❗)
+              GestureDetector(
+                onTap: () async {
+                  final url = Uri.parse(
+                    "https://petsupo.com/kvkk-aydinlatma-metni",
+                  );
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                },
+                child: const Text(
+                  "Open official legal page",
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    color: Colors.blue,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              /// نسخه قانونی
+              const Text(
+                "Version v1.0 • Last updated May 2026",
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          CheckboxListTile(
-            value: _agreeLegalResponsibility,
-            onChanged: (v) => setState(() => _agreeLegalResponsibility = v ?? false),
-            controlAffinity: ListTileControlAffinity.leading,
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              "I declare that all submitted documents are accurate and I accept full legal responsibility under Turkish Commercial Law.",
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
+        ),
+
+        /// 🟢 TRUST UX
+        const SizedBox(height: 8),
+        _infoPill(
+          icon: Icons.security,
+          text: "Your agreement is securely stored and legally binding",
+          color: Colors.green,
+        ),
+
+        const SizedBox(height: 12),
+
+        /// 🔴 LEGAL RESPONSIBILITY
+        CheckboxListTile(
+          value: _agreeLegalResponsibility,
+          onChanged: (v) =>
+              setState(() => _agreeLegalResponsibility = v ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          title: const Text(
+            "I declare that all submitted documents are accurate and I accept full legal responsibility under Turkish Commercial Law.",
+            style: TextStyle(fontWeight: FontWeight.w500),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _docCard(String title, String? url, VoidCallback onTap) {
     return Container(
@@ -1529,24 +2219,68 @@ debugPrint("LNG => $_lng");
               ],
             ),
           ),
-          TextButton(
-            onPressed: onTap,
-            child: Text(url == null ? "Upload" : "Replace"),
-          )
+           TextButton(
+  onPressed: () async {
+    if (url != null) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Replace document"),
+          content: const Text("Are you sure you want to replace this file?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Replace"),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      setState(() {
+        _ocrStatus = "idle";
+        _taxLocked = false;
+        _mersisLocked = false;
+      });
+    }
+
+    onTap();
+  },
+  child: Text(url == null ? "Upload" : "Replace"),
+),
         ],
       ),
     );
   }
-  void _listenForOcrResults() {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return;
+ void _listenForOcrResults() {
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    debugPrint("❌ USER IS NULL");
+    return;
+  }
+
+  // ✅ اول تعریف
+  final uid = user.uid;
+
+  // ✅ بعد استفاده
+  debugPrint("🔥 AUTH UID => $uid");
 
   FirebaseFirestore.instance
       .collection("businessDrafts")
       .doc(uid)
       .snapshots()
       .listen((doc) {
-    if (!doc.exists) return;
+
+    if (!doc.exists) {
+      debugPrint("📭 NO DRAFT YET FOR UID: $uid");
+      return;
+    }
 
     final data = doc.data();
     if (data == null) return;
@@ -1554,52 +2288,27 @@ debugPrint("LNG => $_lng");
     final verification = data["verification"];
     final ocr = verification is Map ? verification["ocr"] : null;
 
-    final trust = data["trust"];
-    final flags = (trust is Map) ? trust["riskFlags"] : null;
-
     final tax = (ocr is Map) ? ocr["extractedTaxNumber"] : null;
     final mersis = (ocr is Map) ? ocr["extractedMersisNumber"] : null;
-
-    // 🔥 status منطقی
-    String nextStatus = _ocrStatus;
-    if (_taxPlateUrl == null && _tradeRegistryUrl == null && _signatureDocUrl == null) {
-      nextStatus = "idle";
-    } else if (tax != null || mersis != null) {
-      nextStatus = "verified";
-    } else {
-      nextStatus = "processing"; // ⬅️ نه failed
-    }
-
-    // ✅ فقط یک setState و فقط اگر چیزی واقعاً تغییر کرد
-    final nextRisk = (flags is List) ? List<String>.from(flags) : <String>[];
-
-    final nextTaxText = (tax != null && tax.toString().isNotEmpty) ? tax.toString() : null;
-    final nextMersisText = (mersis != null && mersis.toString().isNotEmpty) ? mersis.toString() : null;
-
-    final shouldLockTax = nextTaxText != null;
-    final shouldLockMersis = nextMersisText != null;
 
     if (!mounted) return;
 
     setState(() {
-  _riskFlags = nextRisk;
-  _ocrStatus = nextStatus;
+  bool success = false;
 
-  // TAX
-  if (nextTaxText != null && nextTaxText.isNotEmpty) {
-    if (_taxNumberController.text != nextTaxText) {
-      _taxNumberController.text = nextTaxText;
-    }
-    _taxLocked = true; // فقط وقتی مقدار واقعی داریم
+  if (tax != null && tax.toString().isNotEmpty) {
+    _taxNumberController.text = tax.toString();
+    _taxLocked = true;
+    success = true;
   }
 
-  // MERSIS
-  if (nextMersisText != null && nextMersisText.isNotEmpty) {
-    if (_mersisNumberController.text != nextMersisText) {
-      _mersisNumberController.text = nextMersisText;
-    }
-    _mersisLocked = true; // فقط وقتی مقدار واقعی داریم
+  if (mersis != null && mersis.toString().isNotEmpty) {
+    _mersisNumberController.text = mersis.toString();
+    _mersisLocked = true;
+    success = true;
   }
+
+  _ocrStatus = success ? "verified" : "failed";
 });
   });
 }
@@ -1622,7 +2331,9 @@ class _AddressField extends StatefulWidget {
 }
 
 class _AddressFieldState extends State<_AddressField> {
-  final FocusNode _focus = FocusNode();
+ final FocusNode _focus = FocusNode(
+  skipTraversal: true,
+);
 
   @override
   void dispose() {
@@ -1651,8 +2362,7 @@ class _AddressFieldState extends State<_AddressField> {
           TextPosition(offset: widget.controller.text.length),
         );
 
-        // فوکوس حفظ بشه
-        _focus.requestFocus();
+       
       },
     );
   }

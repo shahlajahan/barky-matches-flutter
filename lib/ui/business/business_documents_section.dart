@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../admin/admin_section.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+
 
 class BusinessDocumentsSection extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -68,21 +70,21 @@ class _DocumentCard extends StatelessWidget {
               }
             },
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: url != null
-                  ? Image.network(
-                      url,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.image_not_supported),
-                    ),
-            ),
+  borderRadius: BorderRadius.circular(10),
+  child: (url != null && url.isNotEmpty)
+      ? SmartMedia(
+          url: url,
+          width: 60,
+          height: 60,
+          fit: BoxFit.cover,
+        )
+      : Container(
+          width: 60,
+          height: 60,
+          color: Colors.grey.shade200,
+          child: const Icon(Icons.image_not_supported),
+        ),
+),
           ),
 
           const SizedBox(width: 14),
@@ -157,7 +159,9 @@ class _FullScreenImageViewer extends StatelessWidget {
         onTap: () => Navigator.pop(context),
         child: Center(
           child: InteractiveViewer(
-            child: Image.network(imageUrl),
+            child: SmartMedia(
+  url: imageUrl,
+),
           ),
         ),
       ),

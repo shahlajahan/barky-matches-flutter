@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "382L587KGP.com.shahlajahan.barkymatches.dev"
+        ],
+        "paths": [
+          "/payment-success*",
+          "/payment-cancel*",
+          "/payment-callback*"
+        ]
+      }
+    ]
+  }
+}

@@ -10,6 +10,11 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/utils/localization_utils.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+
+import 'package:video_player/video_player.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'dart:typed_data';
 
 class EditDogOverlay extends StatefulWidget {
   final Dog dog;
@@ -119,11 +124,7 @@ class _EditDogOverlayState extends State<EditDogOverlay>
 
     // مرحله ۱: آپدیت لیست عکس‌ها
 setState(() {
-  if (_imagePaths.isEmpty) {
-    _imagePaths.add(downloadUrl);
-  } else {
-    _imagePaths[0] = downloadUrl;
-  }
+  _imagePaths.add(downloadUrl); // ✅ فقط اضافه کن، نه replace
 });
 
 // مرحله ۲: مستقیم مدل سگ را آپدیت کن
@@ -142,8 +143,10 @@ Future<String> _uploadImageToStorage(File file) async {
     throw Exception("Owner ID is null");
   }
 
-  final fileName =
-      "${DateTime.now().millisecondsSinceEpoch}.jpg";
+  final ext = file.path.split('.').last; // 👈 گرفتن پسوند واقعی
+
+final fileName =
+  "${DateTime.now().millisecondsSinceEpoch}.$ext";
 
   final ref = FirebaseStorage.instance
       .ref()
@@ -203,6 +206,8 @@ Future<String> _uploadImageToStorage(File file) async {
       parent: AlwaysScrollableScrollPhysics(),
     );
 
+   
+
     return Stack(
       children: [
         Positioned.fill(
@@ -251,51 +256,113 @@ Future<String> _uploadImageToStorage(File file) async {
                       ),
                       const SizedBox(height: 8),
 
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: SizedBox(
-                          height: 110,
-                          child: _imagePaths.isEmpty
-                              ? Container(
-                                  width: 110,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white24,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(Icons.add_a_photo,
-                                          color: Colors.white),
-                                      SizedBox(height: 6),
-                                      Text("Add",
-                                          style: TextStyle(color: Colors.white)),
-                                    ],
-                                  ),
-                                )
-                              : Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(16),
-                                      child: _buildDogImage(_imagePaths.first),
-                                    ),
-                                    Positioned(
-                                      right: 8,
-                                      bottom: 8,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(7),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.black54,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.edit,
-                                            size: 16, color: Colors.white),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                      SizedBox(
+  height: 110,
+  child: Row(
+    children: [
+
+      /// ➕ ADD BUTTON
+      GestureDetector(
+        onTap: _pickImage,
+
+        child: Container(
+          width: 100,
+          margin: const EdgeInsets.only(right: 10),
+          decoration: BoxDecoration(
+            color: Colors.white24,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Center(
+            child: Icon(Icons.add, color: Colors.white, size: 28),
+          ),
+        ),
+      ),
+
+      /// 🎥 ADD VIDEO BUTTON
+GestureDetector(
+  onTap: _pickVideo,
+  child: Container(
+    width: 100,
+    margin: const EdgeInsets.only(right: 10),
+    decoration: BoxDecoration(
+      color: Colors.white24,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: const Center(
+      child: Icon(Icons.videocam, color: Colors.white, size: 26),
+    ),
+  ),
+),
+
+      /// 🎞 SLIDER
+      Expanded(
+        child: _imagePaths.isEmpty
+            ? Center(
+                child: Text(
+                  "No media",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              )
+            : PageView.builder(
+                itemCount: _imagePaths.length,
+                itemBuilder: (context, index) {
+                  final path = _imagePaths[index];
+final lower = path.toLowerCase(); // ✅ اینو اضافه کن
+final isVideo = lower.contains('.mp4');
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Stack(
+                      children: [
+
+                        /// 🖼 IMAGE
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: isVideo
+    ? Container(
+        color: Colors.black,
+        child: const Center(
+          child: Icon(Icons.play_circle_fill,
+              color: Colors.white, size: 30),
+        ),
+      )
+    : _buildDogImage(path),
                         ),
-                      ),
+
+                        /// 🗑 DELETE BUTTON
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _imagePaths.removeAt(index);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      ],
+                    ),
+                  );
+                },
+              ),
+      ),
+    ],
+  ),
+),
                       const SizedBox(height: 16),
 
                       // Name
@@ -558,30 +625,58 @@ Future<String> _uploadImageToStorage(File file) async {
     );
   }
 
+  Future<void> _pickVideo() async {
+  try {
+    final XFile? file = await _picker.pickVideo(
+      source: ImageSource.gallery,
+    );
+
+    if (file == null) return;
+
+    final localFile = File(file.path);
+
+    final downloadUrl = await _uploadImageToStorage(localFile); // همونو استفاده کن
+
+    if (!mounted) return;
+
+    setState(() {
+      _imagePaths.add(downloadUrl); // ✅ multi media
+    });
+
+    widget.dog.imagePaths = _imagePaths;
+    await context.read<AppState>().saveEditedDog(widget.dog);
+
+  } catch (e) {
+    debugPrint("Video upload error: $e");
+  }
+}
+
   Widget _buildDogImage(String pathOrUrl) {
-    final isUrl = pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
+  final isUrl =
+      pathOrUrl.startsWith('http://') ||
+      pathOrUrl.startsWith('https://');
 
-    if (isUrl) {
-      return Image.network(
-        pathOrUrl,
-        width: 110,
-        height: 110,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _fallbackImageBox(),
-      );
-    }
-
-    final file = File(pathOrUrl);
-    if (!file.existsSync()) return _fallbackImageBox();
-
-    return Image.file(
-      file,
+  if (isUrl) {
+    return SmartMedia(
+      url: pathOrUrl, // ✅ مهم
       width: 110,
       height: 110,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => _fallbackImageBox(),
     );
   }
+
+  final file = File(pathOrUrl);
+  if (!file.existsSync()) return _fallbackImageBox();
+
+  return Image.file(
+    file,
+    width: 110,
+    height: 110,
+    fit: BoxFit.cover,
+    errorBuilder: (_, __, ___) => _fallbackImageBox(),
+  );
+}
 
   Widget _fallbackImageBox() {
     return Container(
@@ -727,5 +822,146 @@ class _PremiumScrollBehavior extends ScrollBehavior {
     ScrollableDetails details,
   ) {
     return child; // remove glow
+  }
+}
+
+class VideoPreviewWidget extends StatefulWidget {
+  final String url;
+
+  const VideoPreviewWidget({super.key, required this.url});
+
+  @override
+  State<VideoPreviewWidget> createState() => _VideoPreviewWidgetState();
+}
+
+class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
+  Uint8List? _thumbnail;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _generateThumbnail();
+  }
+
+  Future<void> _generateThumbnail() async {
+    try {
+      final data = await VideoThumbnail.thumbnailData(
+        video: widget.url,
+        imageFormat: ImageFormat.JPEG,
+        quality: 70,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _thumbnail = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _openPlayer() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FullScreenVideoPlayer(url: widget.url),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return GestureDetector(
+      onTap: _openPlayer,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (_thumbnail != null)
+            Image.memory(_thumbnail!, fit: BoxFit.cover)
+          else
+            Container(color: Colors.black),
+
+          const Icon(
+            Icons.play_circle_fill,
+            size: 40,
+            color: Colors.white,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FullScreenVideoPlayer extends StatefulWidget {
+  final String url;
+
+  const FullScreenVideoPlayer({super.key, required this.url});
+
+  @override
+  State<FullScreenVideoPlayer> createState() => _FullScreenVideoPlayerState();
+}
+
+class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
+  VideoPlayerController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = widget.url.startsWith('http')
+        ? VideoPlayerController.network(widget.url)
+        : VideoPlayerController.file(File(widget.url));
+
+    _controller!
+      ..initialize().then((_) {
+        if (mounted) setState(() {});
+      })
+      ..play()
+      ..setLooping(true);
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+
+          Center(
+            child: _controller != null &&
+                    _controller!.value.isInitialized
+                ? AspectRatio(
+                    aspectRatio: _controller!.value.aspectRatio,
+                    child: VideoPlayer(_controller!),
+                  )
+                : const CircularProgressIndicator(),
+          ),
+
+          /// ❌ CLOSE BUTTON
+          Positioned(
+            top: 40,
+            right: 20,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Icon(Icons.close,
+                  color: Colors.white, size: 30),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

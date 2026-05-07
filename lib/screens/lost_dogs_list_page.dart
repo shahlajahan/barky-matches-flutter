@@ -16,6 +16,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 
 
@@ -395,12 +396,12 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
                                             null &&
                                         dog.imageUrl!
                                             .isNotEmpty
-                                    ? Image.network(
-                                        dog.imageUrl!,
-                                        height: 64,
-                                        width: 64,
-                                        fit: BoxFit.cover,
-                                      )
+                                    ? SmartMedia(
+  url: dog.imageUrl!,
+  width: 64,
+  height: 64,
+  fit: BoxFit.cover,
+)
                                     : Container(
                                         height: 64,
                                         width: 64,

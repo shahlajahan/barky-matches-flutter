@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+
 class AppTheme {
   // ─────────────────────────────
   // 🎨 Brand Colors
@@ -34,72 +35,118 @@ class AppTheme {
         ),
       ];
 
- // ─────────────────────────────
-// 🔤 Text Styles (UPGRADED)
-// ─────────────────────────────
-
-static TextStyle h1({
-  Color? color,
-  FontWeight? weight,
-  double? size,
-}) =>
-    GoogleFonts.poppins(
-      fontSize: size ?? 20,
-      fontWeight: weight ?? FontWeight.w700,
-      color: color ?? textDark,
-    );
-
-static TextStyle h2({
-  Color? color,
-  FontWeight? weight,
-  double? size,
-}) =>
-    GoogleFonts.poppins(
-      fontSize: size ?? 18,
-      fontWeight: weight ?? FontWeight.w600,
-      color: color ?? textDark,
-    );
-
-static TextStyle h3({
-  Color? color,
-  FontWeight? weight,
-  double? size,
-}) =>
-    GoogleFonts.poppins(
-      fontSize: size ?? 16,
-      fontWeight: weight ?? FontWeight.w600,
-      color: color ?? textDark,
-    );
-
-static TextStyle body({
-  Color? color,
-  FontWeight? weight,
-  double? size,
-}) =>
-    GoogleFonts.poppins(
-      fontSize: size ?? 14,
-      fontWeight: weight ?? FontWeight.w400,
-      color: color ?? textDark,
-    );
-
-static TextStyle caption({
-  Color? color,
-  FontWeight? weight,
-  double? size,
-}) =>
-    GoogleFonts.poppins(
-      fontSize: size ?? 12,
-      fontWeight: weight ?? FontWeight.w400,
-      color: color ?? muted,
-    );
   // ─────────────────────────────
-  // 🎯 ThemeData (Correct Way)
+  // 🔤 Typography System (UPGRADED SAFE)
+  // ─────────────────────────────
+
+  /// 🔥 H1 → main headers
+  static TextStyle h1({
+    Color? color,
+    FontWeight? weight,
+    double? size,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: size ?? 22,
+        fontWeight: weight ?? FontWeight.w700,
+        color: color ?? textDark,
+      );
+
+  /// 🔥 H2 → section titles
+  static TextStyle h2({
+    Color? color,
+    FontWeight? weight,
+    double? size,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: size ?? 18,
+        fontWeight: weight ?? FontWeight.w600,
+        color: color ?? textDark,
+      );
+
+  /// 🔥 H3 → small titles / cards
+  static TextStyle h3({
+    Color? color,
+    FontWeight? weight,
+    double? size,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: size ?? 16,
+        fontWeight: weight ?? FontWeight.w600,
+        color: color ?? textDark,
+      );
+
+  /// 🔥 BODY → normal text
+  static TextStyle body({
+    Color? color,
+    FontWeight? weight,
+    double? size,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: size ?? 14,
+        fontWeight: weight ?? FontWeight.w400,
+        color: color ?? textDark,
+      );
+
+  /// 🔥 CAPTION → small text
+  static TextStyle caption({
+    Color? color,
+    FontWeight? weight,
+    double? size,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: size ?? 12,
+        fontWeight: weight ?? FontWeight.w400,
+        color: color ?? muted,
+      );
+
+  /// 🆕 BADGE → discounts / labels
+  static TextStyle badge({
+    Color? color,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+        color: color ?? textDark,
+        letterSpacing: 0.3,
+      );
+
+  /// 🆕 BUTTON → CTA text
+  static TextStyle button({
+    Color? color,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: color ?? Colors.black,
+      );
+
+  /// 🆕 OVERLINE → tiny labels (optional)
+  static TextStyle overline({
+    Color? color,
+  }) =>
+      GoogleFonts.poppins(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: color ?? muted,
+        letterSpacing: 1.0,
+      );
+
+
+static TextStyle bodyMedium({Color? color}) {
+  return TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: color ?? Colors.black,
+    height: 1.4,
+  );
+}
+  // ─────────────────────────────
+  // 🎯 ThemeData
   // ─────────────────────────────
   static ThemeData theme({Locale? locale}) {
     final isFa = locale?.languageCode == 'fa';
 
     return ThemeData(
-      // ✅ fontFamily فقط اینجا
       fontFamily: isFa ? 'Vazirmatn' : 'Poppins',
 
       scaffoldBackgroundColor: bg,
@@ -130,23 +177,22 @@ static TextStyle caption({
       // 🧱 Cards
       // ─────────────────────────
       cardTheme: CardThemeData(
-  color: card,
-  elevation: 0,
-  margin: const EdgeInsets.symmetric(vertical: 8),
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(radiusCard),
-  ),
-),
-
+        color: card,
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusCard),
+        ),
+      ),
 
       // ─────────────────────────
-      // 🔘 Buttons
+      // 🔘 Buttons (UPGRADED SAFE)
       // ─────────────────────────
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
           foregroundColor: Colors.black,
-          textStyle: h2(color: Colors.black),
+          textStyle: button(), // 🔥 changed (safe)
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radius),
@@ -157,7 +203,7 @@ static TextStyle caption({
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primary,
-          textStyle: h2(),
+          textStyle: button(),
         ),
       ),
 

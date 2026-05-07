@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../admin/admin_section.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+
 
 class BusinessProfileSection extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -30,12 +32,12 @@ class BusinessProfileSection extends StatelessWidget {
           if (coverUrl != null && coverUrl.toString().isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                coverUrl,
-                height: 140,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: SmartMedia(
+  url: coverUrl,
+  height: 140,
+  width: double.infinity,
+  fit: BoxFit.cover,
+),
             ),
 
           if (coverUrl != null && coverUrl.toString().isNotEmpty)
@@ -48,12 +50,12 @@ class BusinessProfileSection extends StatelessWidget {
               if (logoUrl != null && logoUrl.toString().isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    logoUrl,
-                    height: 60,
-                    width: 60,
-                    fit: BoxFit.cover,
-                  ),
+                  child: SmartMedia(
+  url: logoUrl,
+  height: 60,
+  width: 60,
+  fit: BoxFit.cover,
+),
                 ),
 
               if (logoUrl != null && logoUrl.toString().isNotEmpty)

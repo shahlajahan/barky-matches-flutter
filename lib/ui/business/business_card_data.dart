@@ -34,7 +34,9 @@ class BusinessCardData {
 
   final BusinessType type;
 
-  
+  final String? instagram;
+final String? website;
+final String? logoUrl;
 
   const BusinessCardData({
     required this.id,
@@ -57,6 +59,9 @@ class BusinessCardData {
     this.is24h = false,
     this.isEmergency = false,
     required this.type,
+    this.instagram,
+this.website,
+this.logoUrl,
   });
 }
 

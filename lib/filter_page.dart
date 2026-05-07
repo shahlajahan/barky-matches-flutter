@@ -28,123 +28,146 @@ class FilterPage extends StatefulWidget {
 }
 
 class _FilterPageState extends State<FilterPage> with LocalizationUtils {
-  late String? _selectedBreed;
-  late String? _selectedGender;
-  late RangeValues _ageRange;
-  late double _maxDistance;
-  late bool? _selectedNeutered;
-  late String? _selectedHealthStatus;
-  bool _isLoading = true; // اضافه کردن وضعیت لودینگ
+  String? _selectedBreed;
+String? _selectedGender;
+late RangeValues _ageRange;
+late double _maxDistance;
+bool? _selectedNeutered;
+String? _selectedHealthStatus;
+String? _selectedPetType;
 
   final List<String> _genders = ['Male', 'Female'];
   final List<bool> _neuteredOptions = [true, false];
   final List<String> _healthStatusOptions = ['Healthy', 'Needs Care', 'Under Treatment'];
 
   @override
-  void initState() {
-    super.initState();
-    _selectedBreed = widget.selectedBreed;
-    _selectedGender = widget.selectedGender;
-    _ageRange = widget.ageRange;
-    _maxDistance = widget.maxDistance.clamp(1.0, widget.isPremium ? 1000.0 : 50.0); // تغییر حداکثر به 1000 برای پرمیوم
-    _selectedNeutered = null; // پیش‌فرض "Any"
-    _selectedHealthStatus = null; // پیش‌فرض "Any"
-    _loadInitialData(); // لود اولیه داده‌ها
-  }
+void initState() {
+  super.initState();
 
-  Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = false; // لودینگ به پایان رسید
-    });
-  }
+  _selectedBreed = widget.selectedBreed;
+  _selectedGender = widget.selectedGender;
+  _ageRange = widget.ageRange;
+  _maxDistance = widget.maxDistance;
 
-  @override
-  Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!; // اضافه کردن localizations
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
+  _selectedNeutered = null;
+  _selectedHealthStatus = null;
+
+  _selectedPetType = null;
+}
+
+@override
+Widget build(BuildContext context) {
+  final localizations = AppLocalizations.of(context)!;
+
+  
+
+  final availableBreeds = [
+    ...getDogBreeds(context),
+    ...widget.dogsList.map((dog) => dog.breed).toSet()
+  ];
+  final uniqueBreeds = availableBreeds.toSet().toList();
+
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(
+        localizations.moreFiltersButton,
+        style: GoogleFonts.dancingScript(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
         ),
-      );
-    }
-
-    final availableBreeds = [...getDogBreeds(context), ...widget.dogsList.map((dog) => dog.breed).toSet()];
-    final uniqueBreeds = availableBreeds.toSet().toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          localizations.moreFiltersButton, // استفاده از localizations
-          style: GoogleFonts.dancingScript(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.pink[400],
-        elevation: 0,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.pink, Colors.pinkAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+      backgroundColor: Colors.pink[400],
+      elevation: 0,
+    ),
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.pink, Colors.pinkAccent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height - kToolbarHeight - 16,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    localizations.filterByBreed, // استفاده از localizations
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight:
+                  MediaQuery.of(context).size.height - kToolbarHeight - 16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                // 🔥 PET TYPE
+                const Text("Pet Type"),
+                const SizedBox(height: 8),
+
+                DropdownButtonFormField<String>(
+                  value: _selectedPetType,
+                  hint: const Text("Any"),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text("Any")),
+                    DropdownMenuItem(value: 'dog', child: Text("Dog")),
+                    DropdownMenuItem(value: 'cat', child: Text("Cat")),
+                    DropdownMenuItem(value: 'bird', child: Text("Bird")),
+                    DropdownMenuItem(value: 'horse', child: Text("Horse")),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedPetType = value;
+                      _selectedBreed = null;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // 🐶 BREED
+                Text(
+                  localizations.filterByBreed,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedBreed,
-                    hint: Text(
-                      localizations.selectBreedHint,
-                      style: GoogleFonts.poppins(color: Colors.white),
-                    ),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.2),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    dropdownColor: Colors.pinkAccent,
+                ),
+                const SizedBox(height: 8),
+
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedBreed,
+                  hint: Text(
+                    localizations.selectBreedHint,
                     style: GoogleFonts.poppins(color: Colors.white),
-                    iconEnabledColor: Colors.white,
-                    items: uniqueBreeds.map((breed) {
-                      return DropdownMenuItem<String>(
-                        value: breed,
-                        child: Text(
-                          breed,
-                          style: GoogleFonts.poppins(),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedBreed = value;
-                      });
-                    },
                   ),
-                  const SizedBox(height: 16),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.2),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  dropdownColor: Colors.pinkAccent,
+                  style: GoogleFonts.poppins(color: Colors.white),
+                  iconEnabledColor: Colors.white,
+                  items: uniqueBreeds.map((breed) {
+                    return DropdownMenuItem<String>(
+                      value: breed,
+                      child: Text(breed),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedBreed = value;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+             
                   Text(
                     localizations.filterByGender, // استفاده از localizations
                     style: GoogleFonts.poppins(
@@ -378,6 +401,7 @@ class _FilterPageState extends State<FilterPage> with LocalizationUtils {
                             'gender': _selectedGender,
                             'ageRange': _ageRange,
                             'maxDistance': _maxDistance,
+                            'petType': _selectedPetType,
                             'neutered': _selectedNeutered, // همیشه برگردونده می‌شه
                             'healthStatus': _selectedHealthStatus, // همیشه برگردونده می‌شه
                           });

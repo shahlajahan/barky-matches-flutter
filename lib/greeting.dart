@@ -87,7 +87,7 @@ class _GreetingState extends State<Greeting> {
               children: [
                 const SizedBox(height: 20),
                 Text(
-                  widget.username.isEmpty ? l10n.welcomeToBarkyMatches : l10n.welcomeBack(widget.username), // به جای 'Welcome to Playful Dogs!' و 'Welcome, ${widget.username}!'
+                  widget.username.isEmpty ? 'Welcome to PetSupo' : l10n.welcomeBack(widget.username), // به جای 'Welcome to Playful Dogs!' و 'Welcome, ${widget.username}!'
                   style: GoogleFonts.dancingScript(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
@@ -134,7 +134,7 @@ class _GreetingState extends State<Greeting> {
   onTap: () {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(l10n.vetServicesAvailableAfterLogin),
+        content: Text('Vet services available after login'),
       ),
     );
   },
@@ -193,7 +193,7 @@ class _GreetingState extends State<Greeting> {
                         builder: (context) => AuthPage(
                           isLogin: true,
                           onDogAdded: widget.onDogAdded,
-                          dogsList: widget.dogsList,
+                         // dogsList: widget.dogsList,
                           favoriteDogs: widget.favoriteDogs,
                           onToggleFavorite: widget.onToggleFavorite,
                         ),
@@ -222,7 +222,7 @@ class _GreetingState extends State<Greeting> {
                         builder: (context) => AuthPage(
                           isLogin: false,
                           onDogAdded: widget.onDogAdded,
-                          dogsList: widget.dogsList,
+                          //dogsList: widget.dogsList,
                           favoriteDogs: widget.favoriteDogs,
                           onToggleFavorite: widget.onToggleFavorite,
                         ),

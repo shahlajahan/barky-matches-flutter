@@ -3,6 +3,7 @@ import '../../theme/app_theme.dart';
 import 'vet_card_data.dart';
 import 'suggest_clinic_sheet.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 
 class VetDetailOverlay extends StatefulWidget {
@@ -78,7 +79,9 @@ Widget build(BuildContext context) {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _header(),
-
+const SizedBox(height: 12),
+_ctaRow(),
+/*
                 if (widget.data.rating != null) ...[
                   const SizedBox(height: 6),
                   Row(
@@ -99,7 +102,7 @@ Widget build(BuildContext context) {
                     ],
                   ),
                 ],
-
+*/
                 const SizedBox(height: 16),
                 _buildTabs(),
                 const SizedBox(height: 16),
@@ -116,44 +119,60 @@ Widget build(BuildContext context) {
   // ─────────────────────────────
 
   Widget _header() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          widget.data.name,
-          style: AppTheme.h2(color: Colors.white),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        widget.data.name,
+        style: AppTheme.h2(color: Colors.white).copyWith(
+          fontWeight: FontWeight.w800,
+          height: 1.15,
+          letterSpacing: 0.2,
         ),
-        const SizedBox(height: 4),
-        Text(
-          '${widget.data.district}, ${widget.data.city}'
-          '${widget.data.distanceKm != null ? ' • ${widget.data.distanceKm!.toStringAsFixed(1)} km' : ''}',
-          style: AppTheme.caption(color: Colors.white70),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        [
+          if (widget.data.district.isNotEmpty) widget.data.district,
+          if (widget.data.city.isNotEmpty) widget.data.city,
+        ].join(', ') +
+            (widget.data.distanceKm != null
+                ? ' • ${widget.data.distanceKm!.toStringAsFixed(1)} km'
+                : ''),
+        style: AppTheme.bodyMedium(color: Colors.white70).copyWith(
+          height: 1.4,
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            if (widget.data.is24h) _badge('24/7'),
-            if (widget.data.isEmergency) _badge('Emergency'),
+      ),
+      const SizedBox(height: 10),
+      Row(
+        children: [
+          if (widget.data.is24h) ...[
+            _badge('24/7'),
+            const SizedBox(width: 6),
           ],
-        ),
-      ],
-    );
-  }
+          if (widget.data.isEmergency) _badge('Emergency'),
+        ],
+      ),
+    ],
+  );
+}
 
   Widget _ctaRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _cta(Icons.call, widget.onCall),
-        _cta(Icons.chat_bubble_outline, widget.onWhatsApp),
-        _cta(Icons.directions,widget. onDirections),
+        _cta(LucideIcons.phone, widget.onCall),
+        _cta(LucideIcons.messageCircle, widget.onWhatsApp),
+        _cta(LucideIcons.navigation,widget. onDirections),
         TextButton(
-          onPressed: widget.onClose,
-          child: const Text(
-            'Close',
-            style: TextStyle(color: Colors.amber),
-          ),
-        ),
+  onPressed: widget.onClose,
+  child: Text(
+    'Close',
+    style: AppTheme.caption(color: Colors.amber).copyWith(
+      fontWeight: FontWeight.w700,
+    ),
+  ),
+),
       ],
     );
   }
@@ -171,6 +190,7 @@ Widget _buildTabs() {
 
 Widget _tabButton(String label, _VetDetailTab tab) {
   final active = _activeTab == tab;
+
   return Expanded(
     child: GestureDetector(
       onTap: () => setState(() => _activeTab = tab),
@@ -187,12 +207,14 @@ Widget _tabButton(String label, _VetDetailTab tab) {
         child: Text(
           label,
           textAlign: TextAlign.center,
-  maxLines: 1,
-  overflow: TextOverflow.ellipsis,
-  softWrap: false,
-          style: TextStyle(
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          style: AppTheme.caption(
             color: active ? Colors.white : Colors.white70,
-            fontWeight: FontWeight.w600,
+          ).copyWith(
+            fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+            letterSpacing: 0.2,
           ),
         ),
       ),
@@ -200,16 +222,15 @@ Widget _tabButton(String label, _VetDetailTab tab) {
   );
 }
 
-
   // ─────────────────────────────
 
   Widget _sectionTitle(String text) {
   return Text(
     text,
-    style: AppTheme.h2().copyWith(
-      color: Colors.white,
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
+    style: AppTheme.bodyMedium(color: Colors.white).copyWith(
+      fontSize: 15,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.2,
     ),
   );
 }
@@ -250,7 +271,7 @@ Widget _tabButton(String label, _VetDetailTab tab) {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: enabled
               ? Colors.amber
@@ -258,7 +279,8 @@ Widget _tabButton(String label, _VetDetailTab tab) {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
-          icon,
+  icon,
+  size: 18,
           color: enabled ? Colors.black : Colors.white38,
         ),
       ),
@@ -270,69 +292,75 @@ Widget _buildTabContent() {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      // ⭐ Rating
-      if (widget.data.rating != null) Row(
-        children: [
-          const Icon(Icons.star, color: Colors.amber, size: 18),
-          const SizedBox(width: 4),
-          Text(
-            '${widget.data.rating}',
-            style: AppTheme.h2(color: Colors.white),
-          ),
-          if (widget.data.reviewsCount != null)
-            Text(
-              ' (${widget.data.reviewsCount} reviews)',
-              style: AppTheme.caption(color: Colors.white70),
+      if (widget.data.rating != null) ...[
+        Row(
+          children: [
+            const Icon(
+              LucideIcons.star,
+              color: Colors.amber,
+              size: 18,
             ),
-        ],
-      ),
-
-      const SizedBox(height: 12),
-
-      // 🕒 Working hours
-      if (widget.data.workingHours != null) ...[
-        _sectionTitle('Working Hours'),
-        const SizedBox(height: 6),
-        ...widget.data.workingHours!.entries.map(
-          (e) => Text(
-            '${e.key}: ${e.value}',
-            style: AppTheme.caption(color: Colors.white70),
-          ),
+            const SizedBox(width: 6),
+            Text(
+              '${widget.data.rating}',
+              style: AppTheme.bodyMedium(color: Colors.white).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (widget.data.reviewsCount != null)
+              Text(
+                ' (${widget.data.reviewsCount} reviews)',
+                style: AppTheme.caption(color: Colors.white70),
+              ),
+          ],
         ),
+        const SizedBox(height: 14),
       ],
 
-      const SizedBox(height: 12),
-
-      // 📝 Description
-      if (widget.data.description != null) ...[
+      if ((widget.data.description ?? '').trim().isNotEmpty) ...[
         _sectionTitle('About'),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
-          widget.data.description!,
-          style: AppTheme.caption(color: Colors.white70),
+          widget.data.description!.trim(),
+          style: AppTheme.bodyMedium(color: Colors.white70).copyWith(
+            height: 1.5,
+          ),
+        ),
+      ] else ...[
+        _sectionTitle('About'),
+        const SizedBox(height: 8),
+        Text(
+          'No clinic description available.',
+          style: AppTheme.bodyMedium(color: Colors.white54).copyWith(
+            height: 1.5,
+          ),
         ),
       ],
     ],
   );
-
 
      case _VetDetailTab.appointment:
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        widget.data.isPartner
-            ? 'Book an Appointment'
-            : 'This clinic is not yet a BarkyMatches partner.',
-        style: AppTheme.h2(color: Colors.white),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        widget.data.isPartner
-            ? 'This clinic accepts appointments via BarkyMatches.'
-            : 'You can request this clinic to join BarkyMatches.',
-        style: AppTheme.caption(color: Colors.white70),
-      ),
+  widget.data.isPartner
+      ? 'Book an Appointment'
+      : 'This clinic is not yet a PetSopu partner.',
+  style: AppTheme.h2(color: Colors.white).copyWith(
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+  ),
+),
+const SizedBox(height: 8),
+Text(
+  widget.data.isPartner
+      ? 'This clinic accepts appointments via PetSopu.'
+      : 'You can request this clinic to join PetSopu.',
+  style: AppTheme.bodyMedium(color: Colors.white70).copyWith(
+    height: 1.5,
+  ),
+),
       const SizedBox(height: 16),
 
       // ✅ فقط همین دکمه
@@ -341,7 +369,7 @@ Widget _buildTabContent() {
   if (widget.data.isPartner) {
     // ✅ partner → برو full page appointment
     widget.onClose(); // overlay بسته شود
-    widget.onOpenAppointment?.call();
+    widget.onOpenFullProfile?.call();
   } else {
     // ❌ partner نیست → Suggest Clinic Sheet
     widget.onClose(); // اول overlay بسته شود
@@ -364,15 +392,14 @@ Widget _buildTabContent() {
             color: Colors.amber,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Text(
-            'Request Appointment',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
+          child: Text(
+  'Request Appointment',
+  textAlign: TextAlign.center,
+  style: AppTheme.bodyMedium(color: Colors.black).copyWith(
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+  ),
+),
         ),
       ),
     ],
@@ -396,12 +423,14 @@ Widget _buildTabContent() {
             padding: const EdgeInsets.only(bottom: 6),
             child: Row(
               children: [
-                const Icon(Icons.check, color: Colors.amber, size: 16),
+                const Icon(LucideIcons.check, color: Colors.amber, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     s,
-                    style: AppTheme.caption(color: Colors.white),
+                    style: AppTheme.bodyMedium(color: Colors.white).copyWith(
+  height: 1.4,
+),
                   ),
                 ),
               ],

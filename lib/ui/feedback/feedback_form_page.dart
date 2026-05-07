@@ -102,7 +102,7 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
           children: [
 
             const Text(
-              "Rate BarkyMatches",
+              "Rate PetSopu",
               style: TextStyle(fontSize: 18),
             ),
 

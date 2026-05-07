@@ -36,9 +36,19 @@ class AuthTrap {
   }
 
   static Future<void> signOut({required String reason}) async {
-    debugPrint(
-        '🧨 AuthTrap SIGNOUT CALLED -> reason=$reason | uid=${FirebaseAuth.instance.currentUser?.uid}');
-    debugPrintStack(label: '🧨 AuthTrap signOut stack');
-    await FirebaseAuth.instance.signOut();
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    debugPrint('⚠️ user already null → skip signOut');
+    return;
   }
+
+  debugPrint('SIGNOUT → $reason | uid=${user.uid}');
+
+  try {
+    //await FirebaseAuth.instance.signOut();
+  } catch (e) {
+    debugPrint('signOut error: $e');
+  }
+}
 }

@@ -36,7 +36,7 @@ class AllNotificationsPage extends StatefulWidget {
 }
 
 class _AllNotificationsPageState extends State<AllNotificationsPage> {
- // late Future<List<AppNotification>> _notificationsFuture;
+  late Future<List<AppNotification>> _notificationsFuture;
 
   @override
   void initState() {
@@ -45,8 +45,13 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
   }
 
   Future<List<AppNotification>> _loadNotifications() async {
-    try {
-      final userId = widget.currentUserId;
+  try {
+    final userId = widget.currentUserId.trim();
+
+if (userId.isEmpty || userId == 'guest') {
+      debugPrint('🚫 Guest → skip notifications load');
+      return [];
+    }
 
       final personalSnapshot = await FirebaseFirestore.instance
           .collection('notifications')

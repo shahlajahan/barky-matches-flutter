@@ -69,13 +69,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get editProfile => 'ویرایش پروفایل';
 
   @override
-  String get username => 'نام کاربری';
+  String get usernameLabel => 'نام کاربری';
 
   @override
-  String get email => 'ایمیل';
+  String get emailLabel => 'ایمیل';
 
   @override
-  String get phoneNumber => 'شماره تلفن';
+  String get phoneLabel => 'شماره تلفن';
 
   @override
   String get enterPhoneNumberOptional => 'شماره تلفن را وارد کنید (اختیاری)';
@@ -117,13 +117,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get loadingUserData => 'در حال بارگذاری اطلاعات کاربر...';
 
   @override
-  String get welcomeToBarkyMatches => 'به بارکی مچز خوش آمدید!';
+  String get welcomeToPetSopu => 'به بارکی مچز خوش آمدید!';
 
   @override
   String get welcomeTo => 'خوش آمدید به';
 
   @override
-  String get barkyMatches => 'بارکی مچز!';
+  String get petSopu => 'بارکی مچز';
 
   @override
   String welcomeBack(Object username) {
@@ -149,15 +149,6 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get continueAsGuest => 'ادامه به‌عنوان مهمان';
-
-  @override
-  String get emailLabel => 'ایمیل';
-
-  @override
-  String get usernameLabel => 'نام کاربری';
-
-  @override
-  String get phoneLabel => 'شماره تلفن';
 
   @override
   String get passwordLabel => 'رمز عبور';
@@ -259,7 +250,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get signInToAccessPlaymate => 'لطفاً برای دسترسی به پلی‌میت وارد شوید';
 
   @override
-  String get signInToFindFriends => 'لطفاً برای یافتن دوستان وارد شوید';
+  String get findPlaymates => 'دوست پیدا کن';
+
+  @override
+  String get signInToFindFriends => 'برای پتت دوست پیدا کن';
 
   @override
   String get addYourDog => 'سگ خود را اضافه کنید';
@@ -367,7 +361,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get save => 'ذخیره';
 
   @override
-  String dogNameExists(Object name) {
+  String dogNameAlreadyExists(Object name) {
     return 'سگی با نام $name قبلاً وجود دارد!';
   }
 
@@ -449,11 +443,6 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get dogDetailsAdoptionLabel => 'قابل پذیرش:';
-
-  @override
-  String dogDetailsNameExistsError(Object name) {
-    return 'سگی با نام $name قبلاً وجود دارد!';
-  }
 
   @override
   String get editDogPermissionDenied => 'شما اجازه ویرایش این سگ را ندارید.';
@@ -590,7 +579,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get pleaseLoginToCreateRequest => 'لطفاً برای ایجاد درخواست وارد شوید';
 
   @override
-  String playdateRequestMessage(Object requesterDog, Object requestedDog) {
+  String get playdateRequestTitle => 'درخواست قرار بازی';
+
+  @override
+  String playdateRequestBody(Object requesterDog, Object requestedDog) {
+    return '$requesterDog می‌خواهد با $requestedDog بازی کند!';
+  }
+
+  @override
+  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog) {
     return '$requesterDog می‌خواهد با $requestedDog بازی کند!';
   }
 
@@ -608,10 +605,10 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get newPlaydateRequest => 'درخواست قرار بازی جدید!';
+  String get newPlaydateRequestTitle => 'درخواست قرار بازی جدید!';
 
   @override
-  String playdateRequestBody(Object requesterDog, Object requestedDog) {
+  String newPlaydateRequestBody(Object requesterDog, Object requestedDog) {
     return '$requesterDog می‌خواهد با $requestedDog بازی کند!';
   }
 
@@ -784,14 +781,6 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String newLikeBody(Object username, Object dogName) {
     return '$username سگ شما $dogName را لایک کرد!';
-  }
-
-  @override
-  String get newPlayDateRequestTitle => 'درخواست قرار بازی جدید!';
-
-  @override
-  String newPlayDateRequestBody(Object dogName) {
-    return 'شما یک درخواست قرار بازی جدید از $dogName دارید.';
   }
 
   @override
@@ -1760,4 +1749,180 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get errorNoOwnerFound => 'مالک معتبر برای این سگ یافت نشد';
+
+  @override
+  String get offerHotDeal => '🔥 پیشنهاد ویژه';
+
+  @override
+  String get offerPremiumBadge => 'پریمیوم';
+
+  @override
+  String get offerFallbackTitle => 'پیشنهاد ویژه برای کاربران Barky';
+
+  @override
+  String get offerFallbackProvider => 'برند همکار';
+
+  @override
+  String get offerUnlock => 'باز کردن';
+
+  @override
+  String get offerView => 'مشاهده';
+
+  @override
+  String offerDiscountPercent(Object discount) {
+    return '$discount٪ تخفیف';
+  }
+
+  @override
+  String get offerPremiumRequiredTitle => 'نیاز به پریمیوم';
+
+  @override
+  String get offerPremiumRequiredMessage => 'این پیشنهاد فقط برای اعضای پریمیوم است.';
+
+  @override
+  String get offerCancel => 'لغو';
+
+  @override
+  String get offerUpgrade => 'ارتقا';
+
+  @override
+  String get offerUnlockingMessage => 'در حال باز کردن پیشنهاد شما...';
+
+  @override
+  String get offerChooseContinueTitle => 'انتخاب کنید از کجا ادامه دهید';
+
+  @override
+  String get offerChooseContinueSubtitle => 'روش ارتباطی دلخواه خود را برای این پیشنهاد انتخاب کنید.';
+
+  @override
+  String get offerOpenWebsite => 'باز کردن وب‌سایت';
+
+  @override
+  String get offerInstagram => 'اینستاگرام';
+
+  @override
+  String get playdatesTitle => 'قرار بازی';
+
+  @override
+  String get manageRequests => 'مدیریت درخواست‌ها';
+
+  @override
+  String get adoptionTitle => 'سرپرستی';
+
+  @override
+  String get giveLove => 'محبت کن';
+
+  @override
+  String get alertsTitle => 'هشدارها';
+
+  @override
+  String get lostAndFound => 'گمشده و پیدا شده';
+
+  @override
+  String get vetTitle => 'دامپزشک';
+
+  @override
+  String get nearbyClinics => 'کلینیک‌های نزدیک';
+
+  @override
+  String get groomyTitle => 'آرایش حیوانات';
+
+  @override
+  String get bookGrooming => 'رزرو آرایش';
+
+  @override
+  String get petShopTitle => 'پت شاپ';
+
+  @override
+  String get shopNearYou => 'خرید نزدیک شما';
+
+  @override
+  String get featuredDeal => 'پیشنهاد ویژه';
+
+  @override
+  String get premiumLabel => 'پریمیوم';
+
+  @override
+  String get goldLabel => 'گلد';
+
+  @override
+  String discountOff(Object percent) {
+    return '%$percent تخفیف';
+  }
+
+  @override
+  String get socialAndPlay => 'اجتماعی و بازی';
+
+  @override
+  String get careAndServices => 'مراقبت و خدمات';
+
+  @override
+  String get outdoorAndLifestyle => 'فضای باز و سبک زندگی';
+
+  @override
+  String get exploreNearbyParks => 'پارک‌های نزدیک را ببین';
+
+  @override
+  String get trainingTitle => 'آموزش';
+
+  @override
+  String get comingSoon => 'به زودی';
+
+  @override
+  String get trainingComingSoonMessage => 'بخش آموزش به زودی اضافه می‌شود 🐾';
+
+  @override
+  String get communityHub => 'جامعه کاربران';
+
+  @override
+  String activeCount(Object count) {
+    return '$count فعال';
+  }
+
+  @override
+  String get reportTitle => 'گزارش';
+
+  @override
+  String get lostDogTitle => 'سگ گمشده';
+
+  @override
+  String get foundDogTitle => 'سگ پیدا شده';
+
+  @override
+  String get lostTitle => 'گمشده';
+
+  @override
+  String get dogsTitle => 'سگ‌ها';
+
+  @override
+  String get foundTitle => 'پیدا شده';
+
+  @override
+  String get petShopDealName => 'پت شاپ A';
+
+  @override
+  String get petShopDealDesc => '۱۵٪ تخفیف روی تمام غذاها';
+
+  @override
+  String get groomyDealName => 'Groomy Studio';
+
+  @override
+  String get groomyDealDesc => '۲۰٪ تخفیف آرایش این هفته';
+
+  @override
+  String get vetDealName => 'VetPlus';
+
+  @override
+  String get vetDealDesc => 'برای اعضای گلد، چکاپ رایگان';
+
+  @override
+  String get offerWhatsApp => 'واتساپ';
+
+  @override
+  String offerCodeCopied(Object code) {
+    return 'کد کپی شد: $code';
+  }
+
+  @override
+  String get offerOpenError => 'خطا در باز کردن پیشنهاد';
 }

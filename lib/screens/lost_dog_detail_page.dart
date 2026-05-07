@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app_state.dart';
 import '../../theme/app_theme.dart';
 import '../models/lost_dog.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+
 
 class LostDogDetailPage extends StatelessWidget {
   final LostDog lostDog;
@@ -87,10 +89,10 @@ class LostDogDetailPage extends StatelessWidget {
                         child: ClipOval(
                           child: lostDog.imageUrl != null &&
                                   lostDog.imageUrl!.isNotEmpty
-                              ? Image.network(
-                                  lostDog.imageUrl!,
-                                  fit: BoxFit.cover,
-                                )
+                              ? SmartMedia(
+  url: lostDog.imageUrl!,
+  fit: BoxFit.cover,
+)
                               : const Icon(
                                   Icons.pets,
                                   color: Colors.white,
@@ -206,7 +208,10 @@ class LostDogDetailPage extends StatelessWidget {
         child: GestureDetector(
           onTap: () => Navigator.pop(context),
           child: InteractiveViewer(
-            child: Image.network(imageUrl, fit: BoxFit.contain),
+           child: SmartMedia(
+  url: imageUrl,
+  fit: BoxFit.contain,
+),
           ),
         ),
       ),

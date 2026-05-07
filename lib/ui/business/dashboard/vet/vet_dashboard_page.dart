@@ -1,0 +1,246 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/theme/app_theme.dart';
+
+import 'sections/vet_dashboard_overview_tab.dart';
+
+import 'sections/vet_dashboard_appointments_tab.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_services_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_service_detail_page.dart';
+
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_service_detail_page.dart';
+import '../../../../app_state.dart';
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_detail_page.dart';
+
+enum VetDashboardSection {
+  overview,
+  appointments,
+}
+
+class VetDashboardPage extends StatefulWidget {
+  final String businessId;
+  final Map<String, dynamic> businessData;
+
+  const VetDashboardPage({
+    super.key,
+    required this.businessId,
+    required this.businessData,
+  });
+
+  @override
+  State<VetDashboardPage> createState() => _VetDashboardPageState();
+}
+
+class _VetDashboardPageState extends State<VetDashboardPage> {
+  VetDashboardSection _selected = VetDashboardSection.overview;
+
+  @override
+Widget build(BuildContext context) {
+  final appState = context.watch<AppState>();
+
+  /// 🔥🔥🔥 AUTO OPEN APPOINTMENT (اینجا اضافه کن)
+  if (appState.selectedAppointmentId != null) {
+    return AppointmentDetailPage(
+      appointmentId: appState.selectedAppointmentId!,
+    );
+  }
+
+  /// 🔴 HANDLE SUB PAGE
+  if (appState.businessSubPage == BusinessSubPage.addService) {
+    return const AddServicesPage();
+  }
+  if (appState.businessSubPage == BusinessSubPage.addServiceDetail) {
+  return AddServiceDetailPage(
+    businessId: widget.businessId,
+    serviceTitle: appState.selectedServiceTitle ?? '',
+  );
+}
+    return SafeArea(
+      top: false,
+      child: Container(
+        color: AppTheme.bg,
+        child: Column(
+          children: [
+            
+            /// 🟣 TABS
+            _TopTabs(
+              selected: _selected,
+              onChange: (s) => setState(() => _selected = s),
+            ),
+
+            /// 📦 CONTENT
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _buildContent(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    switch (_selected) {
+      case VetDashboardSection.overview:
+        return VetDashboardOverviewTab(
+          key: const ValueKey('overview'),
+          businessId: widget.businessId,
+          businessData: widget.businessData,
+        );
+
+    
+      case VetDashboardSection.appointments:
+        return VetDashboardAppointmentsTab(
+          key: const ValueKey('appointments'),
+          businessId: widget.businessId,
+        );
+    }
+  }
+}
+
+/// ================= HEADER =================
+class _Header extends StatelessWidget {
+  final String name;
+
+
+
+  const _Header({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+      
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+      decoration: const BoxDecoration(
+        color: Color(0xFF9E1B4F),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(28),
+        ),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () {
+              context.read<AppState>().closeProfileSubPage();
+            },
+            child: const Icon(
+              LucideIcons.arrowLeft,
+              color: Colors.white,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Veterinary Dashboard',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ================= TABS =================
+class _TopTabs extends StatelessWidget {
+  final VetDashboardSection selected;
+  final Function(VetDashboardSection) onChange;
+
+  const _TopTabs({
+    required this.selected,
+    required this.onChange,
+  });
+
+  @override
+Widget build(BuildContext context) {
+  final items = [
+    (VetDashboardSection.overview, 'Overview', LucideIcons.layoutDashboard),
+    (VetDashboardSection.appointments, 'Appointments', LucideIcons.calendar),
+  ];
+
+  return Container(
+    margin: const EdgeInsets.only(top: 10),
+    height: 64,
+    child: ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      scrollDirection: Axis.horizontal,
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 10),
+      itemBuilder: (context, i) {
+        final (section, title, icon) = items[i];
+        final isSelected = selected == section;
+
+        return GestureDetector(
+          onTap: () => onChange(section),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? const Color(0xFF9E1B4F)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isSelected
+                      ? Colors.white
+                      : const Color(0xFF9E1B4F),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xFF9E1B4F),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+}

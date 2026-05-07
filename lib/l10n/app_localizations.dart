@@ -197,19 +197,19 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Username'**
-  String get username;
+  String get usernameLabel;
 
   /// Label for email field
   ///
   /// In en, this message translates to:
   /// **'Email'**
-  String get email;
+  String get emailLabel;
 
   /// Label for phone number field
   ///
   /// In en, this message translates to:
   /// **'Phone Number'**
-  String get phoneNumber;
+  String get phoneLabel;
 
   /// Placeholder for optional phone number field
   ///
@@ -280,7 +280,7 @@ abstract class AppLocalizations {
   /// Application title
   ///
   /// In en, this message translates to:
-  /// **'Barky Matches'**
+  /// **'PetSupo'**
   String get appTitle;
 
   /// Message shown while user data is loading
@@ -292,8 +292,8 @@ abstract class AppLocalizations {
   /// Welcome message for the app
   ///
   /// In en, this message translates to:
-  /// **'Welcome to Barky Matches!'**
-  String get welcomeToBarkyMatches;
+  /// **'Welcome to PetSopu!'**
+  String get welcomeToPetSopu;
 
   /// Part of welcome message
   ///
@@ -301,11 +301,11 @@ abstract class AppLocalizations {
   /// **'Welcome to'**
   String get welcomeTo;
 
-  /// Part of welcome message, app name
+  /// App name
   ///
   /// In en, this message translates to:
-  /// **'Barky Matches!'**
-  String get barkyMatches;
+  /// **'PetSopu'**
+  String get petSopu;
 
   /// Welcome message for returning user
   ///
@@ -348,24 +348,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue as Guest'**
   String get continueAsGuest;
-
-  /// Label for email input field
-  ///
-  /// In en, this message translates to:
-  /// **'Email'**
-  String get emailLabel;
-
-  /// Label for username input field
-  ///
-  /// In en, this message translates to:
-  /// **'Username'**
-  String get usernameLabel;
-
-  /// Label for phone number input field
-  ///
-  /// In en, this message translates to:
-  /// **'Phone Number'**
-  String get phoneLabel;
 
   /// Label for password input field
   ///
@@ -553,10 +535,16 @@ abstract class AppLocalizations {
   /// **'Please Sign In to access Playmate'**
   String get signInToAccessPlaymate;
 
+  /// No description provided for @findPlaymates.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Playmates'**
+  String get findPlaymates;
+
   /// Message prompting sign-in for Find Friends feature
   ///
   /// In en, this message translates to:
-  /// **'Please Sign In to find friends'**
+  /// **'Find friends for your pet'**
   String get signInToFindFriends;
 
   /// Button label for adding a dog
@@ -773,7 +761,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'A dog with the name {name} already exists!'**
-  String dogNameExists(Object name);
+  String dogNameAlreadyExists(Object name);
 
   /// Validation message for missing location
   ///
@@ -924,12 +912,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Available for Adoption:'**
   String get dogDetailsAdoptionLabel;
-
-  /// Error message for duplicate dog name in details view
-  ///
-  /// In en, this message translates to:
-  /// **'A dog with the name {name} already exists!'**
-  String dogDetailsNameExistsError(Object name);
 
   /// Error message for unauthorized dog edit
   ///
@@ -1195,11 +1177,23 @@ abstract class AppLocalizations {
   /// **'Please log in to create a request'**
   String get pleaseLoginToCreateRequest;
 
-  /// Message for playdate request
+  /// Title for playdate request
+  ///
+  /// In en, this message translates to:
+  /// **'Playdate Request'**
+  String get playdateRequestTitle;
+
+  /// Body/message for playdate request
   ///
   /// In en, this message translates to:
   /// **'{requesterDog} wants to play with {requestedDog}!'**
-  String playdateRequestMessage(Object requesterDog, Object requestedDog);
+  String playdateRequestBody(Object requesterDog, Object requestedDog);
+
+  /// Notification body for playdate request
+  ///
+  /// In en, this message translates to:
+  /// **'{requesterDog} wants to play with {requestedDog}!'**
+  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog);
 
   /// Success message for creating request
   ///
@@ -1223,13 +1217,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'New Playdate Request!'**
-  String get newPlaydateRequest;
+  String get newPlaydateRequestTitle;
 
-  /// Body for playdate request notification
+  /// Body for new playdate request notification
   ///
   /// In en, this message translates to:
   /// **'{requesterDog} wants to play with {requestedDog}!'**
-  String playdateRequestBody(Object requesterDog, Object requestedDog);
+  String newPlaydateRequestBody(Object requesterDog, Object requestedDog);
 
   /// Message when dog is removed from favorites
   ///
@@ -1476,18 +1470,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{username} liked your dog {dogName}!'**
   String newLikeBody(Object username, Object dogName);
-
-  /// Title for new playdate request notification
-  ///
-  /// In en, this message translates to:
-  /// **'New Playdate Request!'**
-  String get newPlayDateRequestTitle;
-
-  /// Body for new playdate request notification
-  ///
-  /// In en, this message translates to:
-  /// **'You have a new playdate request from {dogName}.'**
-  String newPlayDateRequestBody(Object dogName);
 
   /// Title for canceled playdate notification
   ///
@@ -1966,7 +1948,7 @@ abstract class AppLocalizations {
   /// Title for dog parks page
   ///
   /// In en, this message translates to:
-  /// **'Dog Parks'**
+  /// **'Dog Park'**
   String get dogParkTitle;
 
   /// Label for date in dog park
@@ -3234,6 +3216,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No valid owner found for this dog'**
   String get errorNoOwnerFound;
+
+  /// Badge text for sponsored offers
+  ///
+  /// In en, this message translates to:
+  /// **'🔥 Hot Deal'**
+  String get offerHotDeal;
+
+  /// Badge text for premium-only offers
+  ///
+  /// In en, this message translates to:
+  /// **'Premium'**
+  String get offerPremiumBadge;
+
+  /// Fallback title when offer title is missing
+  ///
+  /// In en, this message translates to:
+  /// **'Special offer for Barky users'**
+  String get offerFallbackTitle;
+
+  /// Fallback provider name when provider is missing
+  ///
+  /// In en, this message translates to:
+  /// **'Partner brand'**
+  String get offerFallbackProvider;
+
+  /// CTA label shown on offer card when an offer code or action is available
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get offerUnlock;
+
+  /// CTA label shown on offer card when no code exists
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get offerView;
+
+  /// Discount label on offer card
+  ///
+  /// In en, this message translates to:
+  /// **'{discount}% OFF'**
+  String offerDiscountPercent(Object discount);
+
+  /// Dialog title shown when a premium-only offer is tapped by a non-premium user
+  ///
+  /// In en, this message translates to:
+  /// **'Premium Required'**
+  String get offerPremiumRequiredTitle;
+
+  /// Dialog message shown when a premium-only offer is tapped by a non-premium user
+  ///
+  /// In en, this message translates to:
+  /// **'This offer is only for premium members.'**
+  String get offerPremiumRequiredMessage;
+
+  /// Cancel button in offer premium dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get offerCancel;
+
+  /// Upgrade button in offer premium dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade'**
+  String get offerUpgrade;
+
+  /// SnackBar shown when an offer is being opened
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocking your deal...'**
+  String get offerUnlockingMessage;
+
+  /// Bottom sheet title for choosing an offer contact method
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where to continue'**
+  String get offerChooseContinueTitle;
+
+  /// Bottom sheet subtitle for choosing an offer contact method
+  ///
+  /// In en, this message translates to:
+  /// **'Pick your preferred contact option for this offer.'**
+  String get offerChooseContinueSubtitle;
+
+  /// CTA label for opening an offer website
+  ///
+  /// In en, this message translates to:
+  /// **'Open Website'**
+  String get offerOpenWebsite;
+
+  /// CTA label for opening Instagram for an offer
+  ///
+  /// In en, this message translates to:
+  /// **'Instagram'**
+  String get offerInstagram;
+
+  /// No description provided for @playdatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playdates'**
+  String get playdatesTitle;
+
+  /// No description provided for @manageRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage requests'**
+  String get manageRequests;
+
+  /// No description provided for @adoptionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adoption'**
+  String get adoptionTitle;
+
+  /// No description provided for @giveLove.
+  ///
+  /// In en, this message translates to:
+  /// **'Give love'**
+  String get giveLove;
+
+  /// No description provided for @alertsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts'**
+  String get alertsTitle;
+
+  /// No description provided for @lostAndFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost & Found'**
+  String get lostAndFound;
+
+  /// No description provided for @vetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vet'**
+  String get vetTitle;
+
+  /// No description provided for @nearbyClinics.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby clinics'**
+  String get nearbyClinics;
+
+  /// No description provided for @groomyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Groomy'**
+  String get groomyTitle;
+
+  /// No description provided for @bookGrooming.
+  ///
+  /// In en, this message translates to:
+  /// **'Book grooming'**
+  String get bookGrooming;
+
+  /// No description provided for @petShopTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Shop'**
+  String get petShopTitle;
+
+  /// No description provided for @shopNearYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop near you'**
+  String get shopNearYou;
+
+  /// No description provided for @featuredDeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured Deal'**
+  String get featuredDeal;
+
+  /// No description provided for @premiumLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium'**
+  String get premiumLabel;
+
+  /// No description provided for @goldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold'**
+  String get goldLabel;
+
+  /// No description provided for @discountOff.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% OFF'**
+  String discountOff(Object percent);
+
+  /// No description provided for @socialAndPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Social & Play'**
+  String get socialAndPlay;
+
+  /// No description provided for @careAndServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Care & Services'**
+  String get careAndServices;
+
+  /// No description provided for @outdoorAndLifestyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Outdoor & Lifestyle'**
+  String get outdoorAndLifestyle;
+
+  /// No description provided for @exploreNearbyParks.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore nearby parks'**
+  String get exploreNearbyParks;
+
+  /// No description provided for @trainingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Training'**
+  String get trainingTitle;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get comingSoon;
+
+  /// No description provided for @trainingComingSoonMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Training feature coming soon 🐾'**
+  String get trainingComingSoonMessage;
+
+  /// No description provided for @communityHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Community Hub'**
+  String get communityHub;
+
+  /// No description provided for @activeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} active'**
+  String activeCount(Object count);
+
+  /// No description provided for @reportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get reportTitle;
+
+  /// No description provided for @lostDogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost Dog'**
+  String get lostDogTitle;
+
+  /// No description provided for @foundDogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Found Dog'**
+  String get foundDogTitle;
+
+  /// No description provided for @lostTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost'**
+  String get lostTitle;
+
+  /// No description provided for @dogsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dogs'**
+  String get dogsTitle;
+
+  /// No description provided for @foundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Found'**
+  String get foundTitle;
+
+  /// No description provided for @petShopDealName.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Shop A'**
+  String get petShopDealName;
+
+  /// No description provided for @petShopDealDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'15% OFF on all food'**
+  String get petShopDealDesc;
+
+  /// No description provided for @groomyDealName.
+  ///
+  /// In en, this message translates to:
+  /// **'Groomy Studio'**
+  String get groomyDealName;
+
+  /// No description provided for @groomyDealDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'20% OFF grooming this week'**
+  String get groomyDealDesc;
+
+  /// No description provided for @vetDealName.
+  ///
+  /// In en, this message translates to:
+  /// **'VetPlus'**
+  String get vetDealName;
+
+  /// No description provided for @vetDealDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold members: free checkup'**
+  String get vetDealDesc;
+
+  /// CTA label for opening WhatsApp for an offer
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp'**
+  String get offerWhatsApp;
+
+  /// SnackBar shown when an offer code is copied
+  ///
+  /// In en, this message translates to:
+  /// **'Code copied: {code}'**
+  String offerCodeCopied(Object code);
+
+  /// SnackBar shown when opening an offer fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error opening offer'**
+  String get offerOpenError;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

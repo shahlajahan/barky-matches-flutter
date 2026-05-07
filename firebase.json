@@ -1,1 +1,54 @@
-{"functions":{"source":"functions"},"flutter":{"platforms":{"android":{"default":{"projectId":"barkymatches-new","appId":"1:188282684447:android:3c21182a80460adc53412a","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"barkymatches-new","appId":"1:188282684447:ios:9be764f38d8f1a9c53412a","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"barkymatches-new","appId":"1:188282684447:ios:c930439c183265a753412a","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"barkymatches-new","configurations":{"android":"1:188282684447:android:3c21182a80460adc53412a","ios":"1:188282684447:ios:9be764f38d8f1a9c53412a","macos":"1:188282684447:ios:c930439c183265a753412a","web":"1:188282684447:web:2e04b07cfdc75dcc53412a","windows":"1:188282684447:web:35a399986880721553412a"}}}}}}
+{
+    "functions": {
+        "source": "functions"
+    },
+    "hosting": {
+        "public": "public",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "cleanUrls": true,
+        "trailingSlash": false
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "barkymatches-new",
+                    "appId": "1:188282684447:android:3c21182a80460adc53412a",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "ios": {
+                "default": {
+                    "projectId": "barkymatches-new",
+                    "appId": "1:188282684447:ios:9be764f38d8f1a9c53412a",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
+                }
+            },
+            "macos": {
+                "default": {
+                    "projectId": "barkymatches-new",
+                    "appId": "1:188282684447:ios:c930439c183265a753412a",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "macos/Runner/GoogleService-Info.plist"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "barkymatches-new",
+                    "configurations": {
+                        "android": "1:188282684447:android:3c21182a80460adc53412a",
+                        "ios": "1:188282684447:ios:9be764f38d8f1a9c53412a",
+                        "macos": "1:188282684447:ios:c930439c183265a753412a",
+                        "web": "1:188282684447:web:2e04b07cfdc75dcc53412a",
+                        "windows": "1:188282684447:web:35a399986880721553412a"
+                    }
+                }
+            }
+        }
+    }
+}

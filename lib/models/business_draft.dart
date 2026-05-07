@@ -1,18 +1,43 @@
 class BusinessDraft {
+  final List<String> sectors; // 🔥 NEW
+
   final BusinessProfileDraft profile;
   final BusinessContactDraft contact;
   final BusinessLegalDraft legal;
+  
+
+  final Map<String, dynamic> sectorData; // 🔥 NEW
 
   const BusinessDraft({
-    required this.profile,
-    required this.contact,
-    required this.legal,
-  });
+  required this.sectors,
+  required this.profile,
+  required this.contact,
+  required this.legal,
+  required this.sectorData,
+});
+
+BusinessDraft copyWith({
+  List<String>? sectors,
+  BusinessProfileDraft? profile,
+  BusinessContactDraft? contact,
+  BusinessLegalDraft? legal,
+  Map<String, dynamic>? sectorData,
+}) {
+  return BusinessDraft(
+    sectors: sectors ?? this.sectors,
+    profile: profile ?? this.profile,
+    contact: contact ?? this.contact,
+    legal: legal ?? this.legal,
+    sectorData: sectorData ?? this.sectorData,
+  );
+}
 
   Map<String, dynamic> toJson() => {
+  "sectors": sectors,
         "profile": profile.toJson(),
         "contact": contact.toJson(),
         "legal": legal.toJson(),
+        "sectorData": sectorData,
       };
 }
 
@@ -34,10 +59,10 @@ class BusinessProfileDraft {
         "description": description.trim(),
         "logoUrl": logoUrl,
         "coverUrl": coverUrl,
-        "categories": [],
-        "tags": [],
       };
 }
+
+
 
 class BusinessContactDraft {
   final String phone;
@@ -69,7 +94,7 @@ class BusinessContactDraft {
         "city": city.trim(),
         "district": district.trim(),
         "addressLine": addressLine.trim(),
-        "location": null,
+        "location": null, // بعداً GeoPoint
       };
 }
 
@@ -77,17 +102,23 @@ class BusinessLegalDraft {
   final String taxNumber;
   final String mersisNumber;
   final bool disclaimerAccepted;
+  final String? disclaimerVersion;
+  final String? disclaimerAcceptedAt;
 
   const BusinessLegalDraft({
     required this.taxNumber,
     required this.mersisNumber,
     required this.disclaimerAccepted,
+    this.disclaimerVersion,
+    this.disclaimerAcceptedAt,
   });
 
   Map<String, dynamic> toJson() => {
         "taxNumber": taxNumber.trim(),
         "mersisNumber": mersisNumber.trim(),
         "documents": [],
-        "disclaimerAcceptedAt": disclaimerAccepted ? DateTime.now().toIso8601String() : null,
+        "disclaimerAccepted": disclaimerAccepted,
+        "disclaimerVersion": disclaimerVersion,
+        "disclaimerAcceptedAt": disclaimerAcceptedAt,
       };
 }

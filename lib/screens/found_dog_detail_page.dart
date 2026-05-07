@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../models/found_dog.dart';
 import '../../app_state.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 class FoundDogDetailPage extends StatelessWidget {
   final FoundDog foundDog;
@@ -84,18 +86,18 @@ class FoundDogDetailPage extends StatelessWidget {
                               : null,
                         ),
                         child: ClipOval(
-                          child: foundDog.imageUrl != null &&
-                                  foundDog.imageUrl!.isNotEmpty
-                              ? Image.network(
-                                  foundDog.imageUrl!,
-                                  fit: BoxFit.cover,
-                                )
-                              : const Icon(
-                                  Icons.pets,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                        ),
+  child: foundDog.imageUrl != null &&
+          foundDog.imageUrl!.isNotEmpty
+      ? SmartMedia(
+          url: foundDog.imageUrl!,
+          fit: BoxFit.cover,
+        )
+      : const Icon(
+          Icons.pets,
+          color: Colors.white,
+          size: 28,
+        ),
+),
                       ),
                     ),
 
@@ -251,7 +253,10 @@ class FoundDogDetailPage extends StatelessWidget {
         child: GestureDetector(
           onTap: () => Navigator.pop(context),
           child: InteractiveViewer(
-            child: Image.network(imageUrl, fit: BoxFit.contain),
+            child: SmartMedia(
+  url: imageUrl,
+  fit: BoxFit.contain,
+),
           ),
         ),
       ),

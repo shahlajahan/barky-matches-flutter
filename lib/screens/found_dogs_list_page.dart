@@ -13,6 +13,8 @@ import '../../app_state.dart';
 import '../ui/shell/nav_tab.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+
 
 
 class FoundDogsListPage extends StatefulWidget {
@@ -288,12 +290,12 @@ Widget build(BuildContext context) {
                                             null &&
                                         dog.imageUrl!
                                             .isNotEmpty
-                                    ? Image.network(
-                                        dog.imageUrl!,
-                                        height: 64,
-                                        width: 64,
-                                        fit: BoxFit.cover,
-                                      )
+                                    ? SmartMedia(
+  url: dog.imageUrl!,
+  width: 64,
+  height: 64,
+  fit: BoxFit.cover,
+)
                                     : Container(
                                         height: 64,
                                         width: 64,

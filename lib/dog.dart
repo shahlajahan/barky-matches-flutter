@@ -6,10 +6,6 @@ part 'dog.g.dart';
 
 @HiveType(typeId: 0)
 class Dog extends HiveObject {
-  // =====================================================
-  // 🧠 Safe Converters (Firestore / Map)
-  // =====================================================
-
   static bool _asBool(dynamic v) {
     if (v is bool) return v;
     if (v is num) return v != 0;
@@ -27,27 +23,23 @@ class Dog extends HiveObject {
     return null;
   }
 
-  // =====================================================
-  // 🐶 Hive Fields
-  // =====================================================
-
   @HiveField(0)
   String id;
 
-  @HiveField(1)
-  String name;
+ @HiveField(1)
+String name = '';
 
   @HiveField(2)
-  String breed;
+ String breed = '';
 
   @HiveField(3)
   int age;
 
   @HiveField(4)
-  String gender;
+ String gender = '';
 
   @HiveField(5)
-  String healthStatus;
+  String healthStatus = '';
 
   @HiveField(6)
   bool isNeutered;
@@ -78,63 +70,74 @@ class Dog extends HiveObject {
 
   @HiveField(15)
   double? longitude;
-// ❗ runtime only (NOT stored in Hive)
-double? distanceKm;
-  // =====================================================
-// 🛡 Trust & Safety
-// =====================================================
 
-@HiveField(16)
-int reportCount;
+  double? distanceKm;
 
-@HiveField(17)
-bool isHidden;
+  @HiveField(16)
+  int reportCount;
 
-@HiveField(18)
-String moderationStatus;
+  @HiveField(17)
+  bool isHidden;
 
-@HiveField(19)
-bool ownerProfileVisible;
+  @HiveField(18)
+  String moderationStatus;
 
-@HiveField(20)
-bool dogProfileVisible;
+  @HiveField(19)
+  bool ownerProfileVisible;
 
-  // =====================================================
-  // 🏗 Constructor
-  // =====================================================
+  @HiveField(20)
+  bool dogProfileVisible;
+
+  @HiveField(21)
+  bool isPremium;
+
+  @HiveField(22)
+  bool isSponsored;
+
+  @HiveField(23)
+  int boostScore;
+
+  @HiveField(24)
+  Timestamp? boostExpiresAt;
+
+  @HiveField(25)
+  String sponsorshipType;
+
+  @HiveField(26)
+String petType;
+
+  Timestamp? updatedAt;
 
   Dog({
-  required this.id,
-  required this.name,
-  required this.breed,
-  required this.age,
-  required this.gender,
-  required this.healthStatus,
-  required this.isNeutered,
-  this.description,
-  required this.traits,
-  this.ownerGender,
-  required this.imagePaths,
-  required this.isAvailableForAdoption,
-  required this.isOwner,
-  this.ownerId,
-  this.latitude,
-  this.longitude,
-  
-
-  // Trust & Safety
-  this.reportCount = 0,
-  this.isHidden = false,
-  this.moderationStatus = "active",
-
-  // 🔐 Privacy
-  this.ownerProfileVisible = true,
-  this.dogProfileVisible = true,
-});
-
-  // =====================================================
-  // 🔥 Firestore → Dog
-  // =====================================================
+    required this.id,
+    required this.name,
+    required this.breed,
+    required this.age,
+    required this.gender,
+    required this.healthStatus,
+    required this.isNeutered,
+    this.description,
+    required this.traits,
+    this.ownerGender,
+    required this.imagePaths,
+    required this.isAvailableForAdoption,
+    required this.isOwner,
+    this.ownerId,
+    this.latitude,
+    this.longitude,
+    this.reportCount = 0,
+    this.isHidden = false,
+    this.moderationStatus = "active",
+    this.ownerProfileVisible = true,
+    this.dogProfileVisible = true,
+    this.updatedAt,
+    this.isPremium = false,
+    this.isSponsored = false,
+    this.boostScore = 0,
+    this.boostExpiresAt,
+    this.sponsorshipType = '',
+    this.petType = 'dog',
+  });
 
   factory Dog.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>?;
@@ -164,23 +167,26 @@ bool dogProfileVisible;
       latitude: Dog._asDouble(data['latitude']),
       longitude: Dog._asDouble(data['longitude']),
       reportCount: (data['reportCount'] as num?)?.toInt() ?? 0,
-isHidden: Dog._asBool(data['isHidden']),
-moderationStatus: data['moderationStatus'] ?? "active",
-ownerProfileVisible: Dog._asBool(data['ownerProfileVisible']),
-dogProfileVisible: Dog._asBool(data['dogProfileVisible']),
+      isHidden: Dog._asBool(data['isHidden']),
+      moderationStatus: data['moderationStatus'] ?? "active",
+      ownerProfileVisible: Dog._asBool(data['ownerProfileVisible']),
+      dogProfileVisible: Dog._asBool(data['dogProfileVisible']),
+      isPremium: data['isPremium'] ?? false,
+      isSponsored: data['isSponsored'] ?? false,
+      boostScore: (data['boostScore'] as num?)?.toInt() ?? 0,
+      boostExpiresAt: data['boostExpiresAt'],
+      sponsorshipType: data['sponsorshipType'] ?? '',
+      updatedAt: data['updatedAt'],
+      petType: data['petType'] ?? 'dog',
     );
   }
-
-  // =====================================================
-  // 🧠 Map + id → Dog
-  // =====================================================
 
   factory Dog.fromMap(Map<String, dynamic> map, String id) {
     return Dog(
       id: id,
       name: map['name'] is String && (map['name'] as String).isNotEmpty
-    ? map['name']
-    : '',
+          ? map['name']
+          : '',
       breed: map['breed'] ?? '',
       age: (map['age'] as num?)?.toInt() ?? 0,
       gender: map['gender'] ?? '',
@@ -197,16 +203,19 @@ dogProfileVisible: Dog._asBool(data['dogProfileVisible']),
       latitude: Dog._asDouble(map['latitude']),
       longitude: Dog._asDouble(map['longitude']),
       reportCount: (map['reportCount'] as num?)?.toInt() ?? 0,
-isHidden: Dog._asBool(map['isHidden']),
-moderationStatus: map['moderationStatus'] ?? "active",
-ownerProfileVisible: Dog._asBool(map['ownerProfileVisible']),
-dogProfileVisible: Dog._asBool(map['dogProfileVisible']),
+      isHidden: Dog._asBool(map['isHidden']),
+      moderationStatus: map['moderationStatus'] ?? "active",
+      ownerProfileVisible: Dog._asBool(map['ownerProfileVisible']),
+      dogProfileVisible: Dog._asBool(map['dogProfileVisible']),
+      isPremium: map['isPremium'] ?? false,
+      isSponsored: map['isSponsored'] ?? false,
+      boostScore: (map['boostScore'] as num?)?.toInt() ?? 0,
+      boostExpiresAt: map['boostExpiresAt'],
+      sponsorshipType: map['sponsorshipType'] ?? '',
+      updatedAt: map['updatedAt'],
+      petType: map['petType'] ?? 'dog',
     );
   }
-
-  // =====================================================
-  // 🔄 Dog → Map (Firestore / Hive)
-  // =====================================================
 
   Map<String, dynamic> toMap() {
     return {
@@ -226,16 +235,18 @@ dogProfileVisible: Dog._asBool(map['dogProfileVisible']),
       'latitude': latitude,
       'longitude': longitude,
       'reportCount': reportCount,
-'isHidden': isHidden,
-'moderationStatus': moderationStatus,
-'ownerProfileVisible': ownerProfileVisible,
-'dogProfileVisible': dogProfileVisible,
+      'isHidden': isHidden,
+      'moderationStatus': moderationStatus,
+      'ownerProfileVisible': ownerProfileVisible,
+      'dogProfileVisible': dogProfileVisible,
+      'isPremium': isPremium,
+      'isSponsored': isSponsored,
+      'boostScore': boostScore,
+      'boostExpiresAt': boostExpiresAt,
+      'sponsorshipType': sponsorshipType,
+      'petType': petType,
     };
   }
-
-  // =====================================================
-  // ✏️ Immutable Copy
-  // =====================================================
 
   Dog copy({
     String? id,
@@ -255,10 +266,16 @@ dogProfileVisible: Dog._asBool(map['dogProfileVisible']),
     double? latitude,
     double? longitude,
     int? reportCount,
-bool? isHidden,
-String? moderationStatus,
-bool? ownerProfileVisible,
-bool? dogProfileVisible,
+    bool? isHidden,
+    String? moderationStatus,
+    bool? ownerProfileVisible,
+    bool? dogProfileVisible,
+    bool? isPremium,
+    bool? isSponsored,
+    int? boostScore,
+    Timestamp? boostExpiresAt,
+    String? sponsorshipType,
+    String? petType,
   }) {
     return Dog(
       id: id ?? this.id,
@@ -280,13 +297,19 @@ bool? dogProfileVisible,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       reportCount: reportCount ?? this.reportCount,
-isHidden: isHidden ?? this.isHidden,
-moderationStatus: moderationStatus ?? this.moderationStatus,
-ownerProfileVisible:
-    ownerProfileVisible ?? this.ownerProfileVisible,
-
-dogProfileVisible:
-    dogProfileVisible ?? this.dogProfileVisible,
+      isHidden: isHidden ?? this.isHidden,
+      moderationStatus: moderationStatus ?? this.moderationStatus,
+      ownerProfileVisible:
+          ownerProfileVisible ?? this.ownerProfileVisible,
+      dogProfileVisible:
+          dogProfileVisible ?? this.dogProfileVisible,
+      isPremium: isPremium ?? this.isPremium,
+      isSponsored: isSponsored ?? this.isSponsored,
+      boostScore: boostScore ?? this.boostScore,
+      boostExpiresAt: boostExpiresAt ?? this.boostExpiresAt,
+      sponsorshipType: sponsorshipType ?? this.sponsorshipType,
+      updatedAt: updatedAt,
+      petType: petType ?? this.petType,
     );
   }
 }

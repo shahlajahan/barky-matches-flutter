@@ -23,7 +23,6 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'ui/admin/pages/admin_hub_page.dart';
 import 'package:barky_matches_fixed/ui/feedback/feedback_form_page.dart';
 import 'package:barky_matches_fixed/welcome_page.dart';
-import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:barky_matches_fixed/play_date_requests_page_new.dart';
@@ -32,6 +31,17 @@ import 'play_date_requests_page_new.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
 import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
+import 'package:barky_matches_fixed/upgrade_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/business_dashboard_page.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
+import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
+
+import 'package:barky_matches_fixed/ui/setting/delete_account_page.dart';
+import 'package:barky_matches_fixed/ui/business/groomy/groomy_dashboard_page.dart';
+
+import 'package:barky_matches_fixed/home_gate.dart';
+import 'package:barky_matches_fixed/ui/profile/change_password_page.dart';
 
 // ────────────────────────────────────────────────
 //  جدید — کامپوننت‌های استاندارد TYPE A
@@ -279,6 +289,7 @@ final ImagePicker _picker = ImagePicker();
   bool _isLoading = true;
   List<Dog> _cachedUserDogs = [];
   List<Dog> _cachedAdoptionDogs = [];
+  String _city = '';
 
   @override
 void initState() {
@@ -351,50 +362,172 @@ void initState() {
 
   }
 
+  Widget _buildRegisterBusinessButton() {
+  return GestureDetector(
+    onTap: () {
+      final appState = context.read<AppState>();
+
+      if (!appState.canRegisterBusiness) {
+        _showUpgradeRequiredSheet(context);
+        return;
+      }
+
+      appState.openProfileSubPage(ProfileSubPage.businessRegister);
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF9E1B4F),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.store, color: Colors.white),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Register Business',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Colors.white),
+        ],
+      ),
+    ),
+  );
+}
   Future<void> _loadBusinessStatus() async {
   try {
+    final uid = _currentUserId;
 
-    final q = await FirebaseFirestore.instance
-        .collection("businesses")
-        .where("ownerUid", isEqualTo: _currentUserId)
-        .limit(1)
-        .get();
-
-    final appState = context.read<AppState>();
-
-    if (q.docs.isNotEmpty) {
-
-      final doc = q.docs.first;
-
-      appState.setApprovedBusiness(
-        businessId: doc.id,
-      );
-
-      debugPrint("✅ business approved: ${doc.id}");
-
+    if (uid == null || uid.isEmpty) {
+      debugPrint("❌ UID is null");
       return;
     }
 
+    debugPrint("🔍 checking businesses for uid=$uid");
+
+    final appState = context.read<AppState>();
+
+    // =========================
+    // 1️⃣ CHECK APPROVED BUSINESS (CORRECT WAY)
+    // =========================
+    final q = await FirebaseFirestore.instance
+        .collection("businesses")
+        .where("ownerUid", isEqualTo: uid)
+        .where("status", isEqualTo: "approved")
+        .limit(1)
+        .get();
+
+    if (q.docs.isNotEmpty) {
+      final doc = q.docs.first;
+      final data = doc.data();
+
+      final sectors = List<String>.from(data['sectors'] ?? []);
+
+      appState.setApprovedBusiness(
+        businessId: doc.id,
+        sectors: sectors,
+      );
+
+      debugPrint("✅ business approved: ${doc.id}");
+      return;
+    }
+
+    // =========================
+    // 2️⃣ CHECK PENDING BUSINESS (OPTIONAL BUT GOOD)
+    // =========================
+    final pendingBusiness = await FirebaseFirestore.instance
+        .collection("businesses")
+        .where("ownerUid", isEqualTo: uid)
+        .where("status", isEqualTo: "pending")
+        .limit(1)
+        .get();
+
+    if (pendingBusiness.docs.isNotEmpty) {
+      appState.setBusinessStatus('pending');
+
+      debugPrint("⌛ business pending (from businesses)");
+      return;
+    }
+
+    // =========================
+    // 3️⃣ FALLBACK → BUSINESS REQUESTS
+    // =========================
+    debugPrint("🔍 checking business_requests...");
+
     final pending = await FirebaseFirestore.instance
         .collection("business_requests")
-        .where("uid", isEqualTo: _currentUserId)
+        .where("uid", isEqualTo: uid)
+        .orderBy("createdAt", descending: true)
         .limit(1)
         .get();
 
     if (pending.docs.isNotEmpty) {
+      final doc = pending.docs.first;
+      final data = doc.data();
+      final status = data['status'];
 
-      final status = pending.docs.first.data()['status'];
+      debugPrint("📦 REQUEST FOUND: ${doc.id}");
+      debugPrint("📦 REQUEST STATUS: $status");
 
       appState.setBusinessStatus(status);
 
-      debugPrint("⌛ business request status: $status");
+      // =========================
+      // 4️⃣ APPROVED VIA REQUEST → FETCH BUSINESS
+      // =========================
+      if (status == 'approved') {
+        final businessId = data['businessId'];
+
+        if (businessId != null) {
+          final bizDoc = await FirebaseFirestore.instance
+              .collection("businesses")
+              .doc(businessId)
+              .get();
+
+          if (bizDoc.exists) {
+            final sectors = List<String>.from(
+              bizDoc.data()?['sectors'] ?? [],
+            );
+
+            appState.setApprovedBusiness(
+              businessId: businessId,
+              sectors: sectors,
+            );
+
+            debugPrint("✅ approved via request → businessId=$businessId");
+            return;
+          } else {
+            debugPrint("⚠️ business doc missing for approved request");
+          }
+        }
+      }
+
+      return;
     }
 
+    // =========================
+    // 5️⃣ NOTHING FOUND
+    // =========================
+    appState.clearBusinessState();
+    debugPrint("❌ no business, no request");
+
   } catch (e) {
-    debugPrint("Business load error: $e");
+    debugPrint("❌ Business load error: $e");
   }
 }
-
   Future<void> _pickProfileImage() async {
   try {
     final XFile? file = await _picker.pickImage(
@@ -505,7 +638,7 @@ if (userDoc.exists) {
   final cleaned = cleanDeep(
     Map<String, dynamic>.from(rawData),
   );
-
+_city = cleaned['city'] ?? '';
   await userDataBox.put(widget.userId, cleaned);
 
   if (!mounted || _disposed) return;
@@ -667,7 +800,7 @@ ImageProvider? _getProfileHeaderImage() {
 
   void _logout() async {
     try {
-      await AuthTrap.signOut(reason: 'PUT_REASON_HERE');
+      AuthTrap.signOut(reason: 'session_expired');
       Hive.box<Dog>('dogsBox').clear();
       Hive.box<Map<dynamic, dynamic>>('userDataBox').clear();
       
@@ -697,16 +830,13 @@ void dispose() {
 
   @override
   Widget build(BuildContext context) {
-    if (_currentUserId == 'guest') {
-    return const Center(
-      child: Text(
-        "Guest cannot access profile",
-        style: TextStyle(color: Colors.black),
-      ),
-    );
-  }
     final appState = context.watch<AppState>();
-    final userDogs = widget.dogs;
+
+if (appState.isGuestUser) {
+  return _buildGuestProfile(); // 👈 اینو می‌سازیم پایین
+}
+    
+    final userDogs = context.watch<AppState>().myDogs;
     final loc = AppLocalizations.of(context)!;
     final isOwnProfile = _currentUserId == widget.userId;
 
@@ -720,15 +850,82 @@ void dispose() {
     if (appState.profileSubPage == ProfileSubPage.businessRegister) {
       return const BusinessRegisterPage();
     }
-    if (appState.profileSubPage == ProfileSubPage.businessDashboard) {
-      return WillPopScope(
-        onWillPop: () async {
-          context.read<AppState>().closeProfileSubPage();
-          return false;
-        },
-        child: _CenterDashboard(appState.businessId!),
-      );
-    }
+   if (appState.profileSubPage == ProfileSubPage.businessDashboard) {
+  if (appState.businessId == null) {
+  return const Center(child: CircularProgressIndicator());
+}
+
+if (!appState.hasApprovedBusiness) {
+    debugPrint("🚫 جلوگیری از ورود به dashboard (not approved)");
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppState>().closeProfileSubPage();
+    });
+
+    return const SizedBox();
+  }
+
+  final sectors = appState.businessSectors;
+
+  Widget dashboardBody;
+
+  if (sectors.contains("pet_shop")) {
+    dashboardBody = const PetShopDashboardPage();
+  } else if (sectors.contains("veterinary")) {
+    dashboardBody = BusinessDashboardPage(
+      businessId: appState.businessId!,
+    );
+  } else if (sectors.contains("groomer")) {
+    dashboardBody = GroomyDashboardPage(
+      businessId: appState.businessId!,
+    );
+  } else {
+    dashboardBody = const Center(
+      child: Text("Unknown business type"),
+    );
+  }
+
+  return WillPopScope(
+    onWillPop: () async {
+      context.read<AppState>().closeProfileSubPage();
+      return false;
+    },
+    child: SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(8, 14, 16, 10),
+            color: AppTheme.bg,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    context.read<AppState>().closeProfileSubPage();
+                  },
+                ),
+                const SizedBox(width: 4),
+                const Expanded(
+                  child: Text(
+                    'Business Dashboard',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: dashboardBody,
+          ),
+        ],
+      ),
+    ),
+  );
+}
     if (appState.profileSubPage == ProfileSubPage.businessStatus) {
       return WillPopScope(
         onWillPop: () async {
@@ -758,7 +955,7 @@ void dispose() {
   username: _usernameController.text,
   email: _emailController.text,
   phone: _phoneController.text,
-  city: "Istanbul",
+  city: _city,
   onEdit: isOwnProfile ? _editProfile : null,
   onAvatarTap: isOwnProfile ? _editProfile : null,
 ),
@@ -781,6 +978,18 @@ void dispose() {
     context.read<AppState>().setCurrentTab(NavTab.playdate);
   },
 ),
+ProfileTile(
+  icon: Icons.shopping_bag,
+  title: "My Orders",
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MyOrdersPage(),
+      ),
+    );
+  },
+),
                   ProfileTile(
                     icon: Icons.pets,
                     title: "Adoption Requests",
@@ -801,7 +1010,7 @@ void dispose() {
                   else if (appState.businessStatus == 'rejected')
                     _RejectedBusinessCard()
                   else
-                    _RegisterBusinessButton(),
+                    _buildRegisterBusinessButton(),
                 ],
               ),
 if (appState.isAdmin)
@@ -884,10 +1093,34 @@ if (appState.isAdmin)
                       },
                     ),
                     ProfileTile(
+  icon: Icons.lock,
+  title: "Change Password",
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ChangePasswordPage(),
+      ),
+    );
+  },
+),
+                    ProfileTile(
                       icon: Icons.logout,
                       title: "Logout",
                       onTap: _logout,
                     ),
+                    ProfileTile(
+  icon: Icons.delete_forever,
+  title: "Delete Account",
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DeleteAccountPage(),
+      ),
+    );
+  },
+),
                   ],
                 ),
 
@@ -900,20 +1133,21 @@ if (appState.isAdmin)
     icon: Icons.add,
     title: "Add Dog",
     onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AddDogPage(
-            onDogAdded: (newDog) {
-              final appState = context.read<AppState>();
-              appState.setMyDogs([...appState.myDogs, newDog]);
-            },
-            favoriteDogs: widget.favoriteDogs,
-            onToggleFavorite: widget.onToggleFavorite,
-          ),
-        ),
-      );
-    },
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => AddDogPage(
+       onDogAdded: (newDog) {
+  final appState = context.read<AppState>();
+
+  appState.setMyDogs([newDog]); // فقط اضافه کن
+},
+        favoriteDogs: widget.favoriteDogs,
+        onToggleFavorite: widget.onToggleFavorite,
+      ),
+    ),
+  );
+},
   ),
                   ListView.builder(
                     shrinkWrap: true,
@@ -925,6 +1159,7 @@ if (appState.isAdmin)
                         dog: dog,
                         allDogs: appState.allDogs,
                         currentUserId: _currentUserId,
+                        mode: DogCardMode.profile,
                         favoriteDogs: widget.favoriteDogs,
                         onToggleFavorite: widget.onToggleFavorite,
                         enablePlaydate: false,
@@ -964,6 +1199,49 @@ if (appState.isAdmin)
       ),
     );
   }
+
+  Widget _buildGuestProfile() {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.person_outline, size: 80, color: Colors.grey),
+
+          const SizedBox(height: 20),
+
+          const Text(
+            "You're browsing as Guest",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+
+          const SizedBox(height: 10),
+
+          const Text(
+            "Login to unlock full features",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+
+          const SizedBox(height: 30),
+
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const WelcomePage(),
+                ),
+              );
+            },
+            child: const Text("Login / Sign Up"),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   void _showLanguageSelector(BuildContext context) {
   showModalBottomSheet(
@@ -1020,6 +1298,60 @@ if (appState.isAdmin)
   if (await file.exists()) return FileImage(file);
 
   return null;
+}
+void _showUpgradeRequiredSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+
+            Icon(Icons.lock, size: 32, color: Colors.amber),
+
+            const SizedBox(height: 12),
+
+            Text(
+              "Unlock Business Features 🚀",
+              style: AppTheme.h2(),
+            ),
+
+            const SizedBox(height: 8),
+
+            Text(
+              "Upgrade to Gold to register your business and start receiving customers.",
+              textAlign: TextAlign.center,
+              style: AppTheme.body(),
+            ),
+
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              onPressed: () {
+  Navigator.pop(context);
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const UpgradePage(),
+    ),
+  );
+},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFC107),
+              ),
+              child: const Text("Upgrade to Gold"),
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 }
@@ -1126,19 +1458,72 @@ class _WaitingForApprovalCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFC107),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFFFC107),
+            Color(0xFFFF9800),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Column(
+
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Application Under Review",
-              style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text("Your adoption center request is pending approval.",
-              style: GoogleFonts.poppins(color: Colors.white)),
+
+          /// ICON
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.22),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.hourglass_top_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+
+          const SizedBox(width: 14),
+
+          /// TEXTS
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                Text(
+                  "Application Under Review",
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  "Your business request has been submitted successfully and is currently under review.",
+                  style: GoogleFonts.poppins(
+                    color: Colors.white.withOpacity(0.95),
+                    fontSize: 13.5,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1173,7 +1558,7 @@ class _RegisterBusinessButton extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Register Adoption Center',
+                'Register Business',
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontSize: 16,
@@ -1265,6 +1650,7 @@ class _ApprovedBusinessCard extends StatelessWidget {
       ),
     );
   }
+  
 }
 
 class _RejectedBusinessCard extends StatelessWidget {
@@ -1298,8 +1684,19 @@ class _RejectedBusinessCard extends StatelessWidget {
           const SizedBox(height: 12),
           GestureDetector(
             onTap: () {
-              appState.openBusinessRegister();
-            },
+  final appState = context.read<AppState>();
+
+  if (!appState.canRegisterBusiness) {
+    ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(
+    content: Text("Upgrade to Gold to continue"),
+  ),
+);
+    return;
+  }
+
+  appState.openProfileSubPage(ProfileSubPage.businessRegister);
+},
             child: Text(
               "Re-Apply",
               style: GoogleFonts.poppins(
@@ -1470,12 +1867,19 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
     if (!mounted || source == null) return;
 
     if (source == 'remove') {
-      setState(() {
-        _selectedImageFile = null;
-        _photoUrl = '';
-      });
-      return;
+  if (_photoUrl != null && _photoUrl!.isNotEmpty) {
+    try {
+      await FirebaseStorage.instance.refFromURL(_photoUrl!).delete();
+    } catch (e) {
+      debugPrint("delete image error: $e");
     }
+  }
+
+  setState(() {
+    _selectedImageFile = null;
+    _photoUrl = '';
+  });
+}
 
     final imageSource =
         source == 'camera' ? ImageSource.camera : ImageSource.gallery;
@@ -1555,89 +1959,139 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
   }
 
   Future<void> _saveProfile() async {
-    if (_isSaving || _isUploadingImage) return;
+  final user = FirebaseAuth.instance.currentUser;
 
-    FocusScope.of(context).unfocus();
+  if (_isSaving || _isUploadingImage) return;
 
-    final isValid = _validate();
-    if (!isValid) return;
+  FocusScope.of(context).unfocus();
 
-    setState(() {
-      _isSaving = true;
-    });
+  final isValid = _validate();
+  if (!isValid) return;
 
-    try {
-      String finalPhotoUrl = _photoUrl?.trim() ?? '';
+  final bio = _bioController.text.trim();
 
-      if (_selectedImageFile != null) {
-        setState(() {
-          _isUploadingImage = true;
-        });
-
-        finalPhotoUrl = await _uploadProfileImage(_selectedImageFile!);
-
-        if (!mounted) return;
-
-        setState(() {
-          _isUploadingImage = false;
-          _photoUrl = finalPhotoUrl;
-        });
-      }
-
-      final username = widget.usernameController.text.trim();
-      final email = widget.emailController.text.trim();
-      final phone = widget.phoneController.text.trim();
-      final bio = _bioController.text.trim();
-
-      final userData = <String, dynamic>{
-        'username': username,
-        'email': email,
-        'phone': phone,
-        'bio': bio,
-        'photoUrl': finalPhotoUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .set(userData, SetOptions(merge: true));
-
-      final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
-      final oldData = Map<String, dynamic>.from(
-        userDataBox.get(widget.userId)?.cast<String, dynamic>() ?? {},
-      );
-
-      final merged = {
-        ...oldData,
-        'username': username,
-        'email': email,
-        'phone': phone,
-        'bio': bio,
-        'photoUrl': finalPhotoUrl,
-      };
-
-      await userDataBox.put(widget.userId, merged);
-
-      if (!mounted) return;
-
-      _showSnack('Profile updated successfully.');
-
-      widget.onSaved?.call();
-      widget.onClose();
-    } catch (e) {
-      debugPrint('EditProfileOverlay - save profile error: $e');
-      if (!mounted) return;
-      _showSnack('Failed to update profile.');
-    } finally {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        _isUploadingImage = false;
-      });
-    }
+  // ✅ FIX 1: bio bug (return false ❌)
+  if (bio.length > 150) {
+    _showSnack('Bio must be under 150 characters');
+    return;
   }
 
+  setState(() {
+    _isSaving = true;
+  });
+
+  try {
+    String finalPhotoUrl = _photoUrl?.trim() ?? '';
+
+    // ✅ upload image
+    if (_selectedImageFile != null) {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      finalPhotoUrl = await _uploadProfileImage(_selectedImageFile!);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingImage = false;
+        _photoUrl = finalPhotoUrl;
+      });
+    }
+
+    final username = widget.usernameController.text.trim();
+    final email = widget.emailController.text.trim();
+    final phone = widget.phoneController.text.trim();
+
+    // ✅ FIX 2: username uniqueness BEFORE save
+    final usernameCheck = await FirebaseFirestore.instance
+        .collection('users')
+        .where('username', isEqualTo: username)
+        .get();
+
+    if (usernameCheck.docs.isNotEmpty &&
+        usernameCheck.docs.first.id != widget.userId) {
+      _showSnack('Username already taken');
+      setState(() => _isSaving = false);
+      return;
+    }
+
+    // ✅ FIX 3: Email change + reauth + error handling
+    if (user != null && user.email != email) {
+      try {
+        // ⚠️ TODO: بعداً password واقعی بگیر
+        final credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: "USER_PASSWORD",
+        );
+
+       // await user.reauthenticateWithCredential(credential);
+        await user.verifyBeforeUpdateEmail(email);
+
+        // ✅ verify email
+        if (!user.emailVerified) {
+          await user.sendEmailVerification();
+        }
+      } on FirebaseAuthException catch (e) {
+        _showSnack(e.message ?? 'Email update failed');
+        setState(() => _isSaving = false);
+        return;
+      }
+    }
+
+    final userData = <String, dynamic>{
+      'username': username,
+      'email': email,
+      'phone': phone,
+      'bio': bio,
+      'photoUrl': finalPhotoUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    // ✅ save firestore
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .set(userData, SetOptions(merge: true));
+
+    // ✅ save local cache
+    final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
+    final oldData = Map<String, dynamic>.from(
+      userDataBox.get(widget.userId)?.cast<String, dynamic>() ?? {},
+    );
+
+    final merged = {
+      ...oldData,
+      'username': username,
+      'email': email,
+      'phone': phone,
+      'bio': bio,
+      'photoUrl': finalPhotoUrl,
+    };
+
+    await userDataBox.put(widget.userId, merged);
+
+    if (!mounted) return;
+
+    _showSnack('Profile updated successfully.');
+
+    widget.onSaved?.call();
+    widget.onClose();
+  } catch (e) {
+    debugPrint('EditProfileOverlay - save profile error: $e');
+
+    if (!mounted) return;
+
+    _showSnack('Failed to update profile.');
+  } finally {
+    if (!mounted) return;
+
+    setState(() {
+      _isSaving = false;
+      _isUploadingImage = false;
+    });
+  }
+}
   void _showSnack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1723,14 +2177,14 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
       );
     } else if ((_photoUrl ?? '').isNotEmpty) {
       avatarChild = ClipOval(
-        child: Image.network(
-          _photoUrl!,
-          width: 110,
-          height: 110,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallbackAvatar(),
-        ),
-      );
+  child: SmartMedia(
+    url: _photoUrl!,
+    width: 110,
+    height: 110,
+    fit: BoxFit.cover,
+    errorBuilder: (_, __, ___) => _fallbackAvatar(),
+  ),
+);
     } else {
       avatarChild = _fallbackAvatar();
     }
@@ -1802,22 +2256,25 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+Widget build(BuildContext context) {
+  final l10n = AppLocalizations.of(context);
 
-    return GestureDetector(
-  behavior: HitTestBehavior.translucent,
-  onTap: () {
-    FocusScope.of(context).unfocus();
-  },
-  child: Stack(
-    children: [
-      Positioned.fill(
-        child: GestureDetector(
-          onTap: widget.onClose,
-          child: Container(color: Colors.black54),
+  return GestureDetector(
+    behavior: HitTestBehavior.translucent,
+    onTap: () {
+      FocusScope.of(context).unfocus();
+    },
+    child: Stack(
+      children: [
+        // 🔴 background
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: widget.onClose,
+            child: Container(color: Colors.black54),
+          ),
         ),
-      ),
+
+        // 🟢 فرم اصلی
         Center(
           child: Material(
             color: Colors.transparent,
@@ -1831,7 +2288,8 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
               child: ScrollConfiguration(
                 behavior: _ProfileOverlayScrollBehavior(),
                 child: SingleChildScrollView(
-  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   physics: const BouncingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics(),
                   ),
@@ -1848,6 +2306,7 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                             color: Colors.white,
                           ),
                         ),
+
                         const SizedBox(height: 18),
 
                         _buildAvatar(),
@@ -1871,14 +2330,16 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            l10n?.username ?? 'Username',
+                            l10n!.usernameLabel,
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 6),
+
                         _whiteField(
                           widget.usernameController,
                           hintText: 'Enter username',
@@ -1890,14 +2351,16 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            l10n?.email ?? 'Email',
+                            l10n!.emailLabel,
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 6),
+
                         _whiteField(
                           widget.emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -1910,14 +2373,16 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            l10n?.phoneNumber ?? 'Phone',
+                            l10n!.phoneLabel,
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 6),
+
                         _whiteField(
                           widget.phoneController,
                           keyboardType: TextInputType.phone,
@@ -1937,7 +2402,9 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 6),
+
                         _whiteField(
                           _bioController,
                           maxLines: 4,
@@ -1968,7 +2435,9 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                                 ),
                               ),
                             ),
+
                             const SizedBox(width: 12),
+
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: _isSaving ? null : _saveProfile,
@@ -2004,15 +2473,25 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                     ),
                   ),
                 ),
-                
               ),
             ),
           ),
         ),
+
+        // 🔥 این باید OUTSIDE Center باشه
+        if (_isSaving)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black45,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ),
       ],
-  ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _ProfileOverlayScrollBehavior extends ScrollBehavior {

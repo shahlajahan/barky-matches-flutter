@@ -38,13 +38,19 @@ class DogAdapter extends TypeAdapter<Dog> {
       moderationStatus: fields[18] as String,
       ownerProfileVisible: fields[19] as bool,
       dogProfileVisible: fields[20] as bool,
+      isPremium: fields[21] as bool,
+      isSponsored: fields[22] as bool,
+      boostScore: fields[23] as int,
+      boostExpiresAt: fields[24] as Timestamp?,
+      sponsorshipType: fields[25] as String,
+      petType: fields[26] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, Dog obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(27)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -86,7 +92,19 @@ class DogAdapter extends TypeAdapter<Dog> {
       ..writeByte(19)
       ..write(obj.ownerProfileVisible)
       ..writeByte(20)
-      ..write(obj.dogProfileVisible);
+      ..write(obj.dogProfileVisible)
+      ..writeByte(21)
+      ..write(obj.isPremium)
+      ..writeByte(22)
+      ..write(obj.isSponsored)
+      ..writeByte(23)
+      ..write(obj.boostScore)
+      ..writeByte(24)
+      ..write(obj.boostExpiresAt)
+      ..writeByte(25)
+      ..write(obj.sponsorshipType)
+      ..writeByte(26)
+      ..write(obj.petType);
   }
 
   @override

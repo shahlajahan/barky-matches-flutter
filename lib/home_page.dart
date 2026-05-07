@@ -25,8 +25,15 @@ import 'package:barky_matches_fixed/screens/lost_dog_report_page.dart';
 import 'package:barky_matches_fixed/screens/lost_dogs_list_page.dart';
 import 'package:barky_matches_fixed/screens/found_dogs_list_page.dart';
 import 'package:barky_matches_fixed/screens/found_dog_report_page.dart';
-
+import 'package:barky_matches_fixed/ui/petshop/petshop_products_page.dart';
 import 'dart:async';
+
+import 'package:barky_matches_fixed/ui/common/pages/petshop_list_page.dart';
+import 'package:barky_matches_fixed/ui/petshop/all_products_page.dart';
+
+import 'package:lucide_icons/lucide_icons.dart';
+
+import 'dart:ui';
 
 class FeaturedDeal {
   final String shopName;
@@ -62,7 +69,12 @@ class _HomePageState extends State<HomePage>
   String? _currentUserId;
 late Box<List<String>> savedParksBox;
 
+List<Map<String, dynamic>> _filteredBusinesses = [];
 
+double _basketTop = 25;
+double _basketLeft = 320; // 👈 سمت راست
+late AnimationController _basketAnimController;
+Animation<double>? _scaleAnim;
   //String _username = 'User';
   late Box<Dog> dogsBox;
 
@@ -78,6 +90,9 @@ late Box<List<String>> savedParksBox;
   RangeValues? ageRange;
   bool? selectedNeutered;
   String? selectedHealthStatus;
+  String _searchQuery = "";
+
+ 
 
   bool _toBool(dynamic v) {
   if (v is bool) return v;
@@ -110,8 +125,7 @@ Timer? _dealTimer;
   BannerAd? _bannerAd;
   bool _isAdLoaded = false;
 
-  //final appState = context.watch<AppState>();
-//final username = appState.username ?? 'User';
+ 
 
 
   static const Color _cardColor = Color(0xFF9E1B4F);
@@ -151,6 +165,9 @@ bool get wantKeepAlive => true;
 @override
 void initState() {
   super.initState();
+  _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+  print("🔥 INIT UID: $_currentUserId");
 _dealPageController = PageController(viewportFraction: 0.92);
 _startAutoSlide();
   debugPrint('🧱 HomePage initState hash=${identityHashCode(this)} key=${widget.key}');
@@ -159,13 +176,33 @@ _startAutoSlide();
   userBox = Hive.box<String>('userBox');
   dogsBox = Hive.box<Dog>('dogsBox');
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!_bootstrapped) {
-      _bootstrapped = true;
-      //_bootstrapHome();
-    }
-  });
+
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+  if (!_bootstrapped) {
+    _bootstrapped = true;
+await _syncDogsWithFirestore();
+
+await _applyFiltersAsync();     // ✅ مهم
+
+    print("🔥 DATA LOADED INTO HIVE");
+  }
+});
+  _basketAnimController = AnimationController(
+  vsync: this,
+  duration: const Duration(seconds: 2),
+);
+
+_scaleAnim = Tween<double>(begin: 0.95, end: 1.05).animate(
+  CurvedAnimation(
+    parent: _basketAnimController,
+    curve: Curves.easeInOut,
+  ),
+);
+
+_basketAnimController.repeat(reverse: true);
 }
+
+
 
 Future<void> _restoreSavedParksIfMissing() async {
   final uid = _currentUserId;
@@ -200,27 +237,6 @@ void didUpdateWidget(covariant HomePage oldWidget) {
   super.didUpdateWidget(oldWidget);
   debugPrint('🔁 HomePage didUpdateWidget hash=${identityHashCode(this)}');
 }
-
-/*
-Future<void> _bootstrapHome() async {
-  debugPrint('🚀 HomePage bootstrap start');
-
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
-
-  _currentUserId = user.uid;
-
-  // 🔥 این خط حیاتی است
-  if (!Hive.isBoxOpen('savedParksBox')) {
-    await Hive.openBox<List<String>>('savedParksBox');
-  }
-
-  savedParksBox = Hive.box<List<String>>('savedParksBox');
-
-  await _restoreSavedParksIfMissing();
-  await _loadDataOnce();
-}
-*/
 
 
   Future<void> _initMapIfNeeded() async {
@@ -301,119 +317,9 @@ Future<void> _loadDataOnce() async {
 
   debugPrint('🚀 HomePage loadDataOnce start');
 
-  //await _loadUsernameFromFirebase();
-  //await _loadUserPremiumStatus();
-  //await _loadLocationAndFilters();
-
   _dataLoaded = true; // ✅ فقط بعد از اتمام
 }
 
-
-/*
-  Future<void> _loadUserPremiumStatus() async {
-    if (_isPremiumLoaded) return;
-
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUserId)
-          .get();
-
-      if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>;
-        if (!mounted) return;
-        setState(() {
-          _isPremium = userData['isPremium'] ?? false;
-          _maxDistance = _isPremium ? 100.0 : 50.0;
-          _isPremiumLoaded = true;
-          print('HomePage - Loaded _isPremium: $_isPremium, _maxDistance: $_maxDistance');
-        });
-      } else {
-       
-
-        if (!mounted) return;
-        setState(() {
-          _isPremium = false;
-          _maxDistance = 50.0;
-          _isPremiumLoaded = true;
-          print('HomePage - Created default user document for userId: $_currentUserId');
-        });
-      }
-    } catch (e) {
-      print('HomePage - Error loading premium status: $e');
-      if (!mounted) return;
-      setState(() {
-        _isPremium = false;
-        _maxDistance = 50.0;
-        _isPremiumLoaded = true;
-        print('HomePage - Error occurred, defaulting _isPremium: false, _maxDistance: 50.0');
-      });
-    }
-  }
-
-
-  Future<void> _loadUsernameFromFirebase() async {
-  try {
-    final uid = _currentUserId;
-    if (uid == null || uid.isEmpty) {
-      debugPrint('⛔️ _loadUsernameFromFirebase skipped (no uid)');
-      return;
-    }
-
-    final userRef =
-        FirebaseFirestore.instance.collection('users').doc(uid);
-
-    final userDoc = await userRef.get();
-
-    if (userDoc.exists) {
-      final userData = userDoc.data() as Map<String, dynamic>;
-
-      if (!mounted) return;
-      setState(() {
-        _username = userData['username'] ?? 'User';
-        _isLoading = false;
-      });
-
-      debugPrint('HomePage - User data found from Firestore: $userData');
-      debugPrint('HomePage - Username set to: $_username');
-    } else {
-      final defaultUsername =
-          FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? 'User';
-
-      // 🔐 بسیار مهم: merge:true تا هیچ دیتایی (مثل savedParks) پاک نشه
-      await userRef.set(
-        {
-          'username': defaultUsername,
-          'email': FirebaseAuth.instance.currentUser?.email ?? '',
-          'isPremium': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _username = defaultUsername;
-        _isLoading = false;
-      });
-
-      debugPrint(
-        'HomePage - Default user document ensured (merge) for userId: $uid',
-      );
-    }
-  } catch (e, s) {
-    debugPrint('❌ HomePage - Error loading username from Firestore: $e');
-    debugPrint('$s');
-
-    if (!mounted) return;
-    setState(() {
-      _username = 'User';
-      _isLoading = false;
-    });
-  }
-}
-
-*/
 
   Future<void> _syncDogsWithFirestore() async {
     try {
@@ -469,21 +375,23 @@ Future<void> _loadDataOnce() async {
       return;
     }
 
-    await _getCurrentLocation();
+   // await _getCurrentLocation();
 
     if (!mounted) return;
     setState(() => _isLocationLoading = false);
     //await _applyFiltersAsync();
   }
 
-  Future<void> _loadUserDogs() async {
+ Future<void> _loadUserDogs() async {
   if (!mounted) {
     debugPrint('⛔️ _loadUserDogs aborted (unmounted)');
     return;
   }
 
-  if (_currentUserId == null) {
-    debugPrint('⛔️ _loadUserDogs skipped (uid is null)');
+  final appState = context.read<app.AppState>();
+
+  if (appState.isGuest || _currentUserId == null) {
+    debugPrint('🚫 _loadUserDogs skipped (guest or no user)');
     return;
   }
 
@@ -494,7 +402,6 @@ Future<void> _loadDataOnce() async {
 
   _userDogsLoaded = true;
 
-  final appState = context.read<app.AppState>();
   final allDogs = appState.allDogs;
 
   debugPrint(
@@ -516,6 +423,21 @@ Future<void> _loadDataOnce() async {
       '${_userDogs.map((d) => d.name).toList()}',
     );
   });
+}
+
+Future<void> requestLocationFromUser() async {
+  final appState = context.read<app.AppState>();
+
+  if (appState.isGuestUser) {
+    debugPrint('🚫 Guest → no location request');
+    return;
+  }
+
+  await _getCurrentLocation();
+
+  if (!mounted) return;
+
+  await _applyFiltersAsync();
 }
 
   Future<void> _fetchLikesForDog(String dogId) async {
@@ -610,91 +532,151 @@ void _useFallbackLocation() {
 
 
   Future<void> _applyFiltersAsync({Map<String, dynamic>? filters}) async {
-    if (filters != null) {
-      selectedBreed = filters['breed'] as String?;
-      selectedGender = filters['gender'] as String?;
-      ageRange = filters['ageRange'] as RangeValues?;
-      _maxDistance = (filters['maxDistance'] as double?)
-              ?.clamp(1.0, _isPremium ? 100.0 : 50.0) ??
-          _maxDistance;
 
-      _userLatitude = (filters['userLatitude'] as double?) ?? _userLatitude;
-      _userLongitude = (filters['userLongitude'] as double?) ?? _userLongitude;
+    final appState = context.read<app.AppState>();
 
-      selectedNeutered = filters['neutered'] as bool?;
-      selectedHealthStatus = filters['healthStatus'] as String?;
-    } else {
-      _maxDistance = _isPremium ? 100.0 : 50.0;
-    }
+if (appState.isGuestUser) {
+  debugPrint('🚫 Guest → skip Firestore filters');
 
-    final sourceDogs = dogsBox.values.toList(); // ✅ منبع واقعی داده
-final dogsData = sourceDogs.map((dog) => {
-  'id': dog.id,
-  'name': dog.name,
-  'breed': dog.breed,
-  'age': dog.age,
-  'gender': dog.gender,
-  'healthStatus': dog.healthStatus,
-  'isNeutered': dog.isNeutered,
-  'description': dog.description,
-  'traits': dog.traits,
-  'ownerGender': dog.ownerGender,
-  'imagePaths': dog.imagePaths,
-  'isAvailableForAdoption': dog.isAvailableForAdoption,
-  'isOwner': dog.isOwner,
-  'ownerId': dog.ownerId,
-  'latitude': dog.latitude,
-  'longitude': dog.longitude,
+  // 👇 فقط local data استفاده کن
+  final allDogs = appState.allDogs;
+
+  setState(() {
+    _filteredDogs = allDogs; // یا هر logic ساده‌ای داری
+  });
+
+  return;
+}
+
+  if (filters != null) {
+    selectedBreed = filters['breed'] as String?;
+    selectedGender = filters['gender'] as String?;
+    ageRange = filters['ageRange'] as RangeValues?;
+
+    _maxDistance = (filters['maxDistance'] as double?)
+            ?.clamp(1.0, _isPremium ? 100.0 : 50.0) ??
+        _maxDistance;
+
+    _userLatitude = filters['userLatitude'] as double? ?? _userLatitude;
+    _userLongitude = filters['userLongitude'] as double? ?? _userLongitude;
+
+    selectedNeutered = filters['neutered'] as bool?;
+    selectedHealthStatus = filters['healthStatus'] as String?;
+  } else {
+    _maxDistance = _isPremium ? 100.0 : 50.0;
+  }
+
+  /// 🐶 DOG DATA
+  final sourceDogs = dogsBox.values.toList();
+
+  final dogsData = sourceDogs.map((dog) => {
+    'id': dog.id,
+    'name': dog.name,
+    'breed': dog.breed,
+    'age': dog.age,
+    'gender': dog.gender,
+    'healthStatus': dog.healthStatus,
+    'isNeutered': dog.isNeutered,
+    'description': dog.description,
+    'traits': dog.traits,
+    'ownerGender': dog.ownerGender,
+    'imagePaths': dog.imagePaths,
+    'isAvailableForAdoption': dog.isAvailableForAdoption,
+    'isOwner': dog.isOwner,
+    'ownerId': dog.ownerId,
+    'latitude': dog.latitude,
+    'longitude': dog.longitude,
+  }).toList();
+
+  final uid = _currentUserId ?? '';
+
+  print("🔥 UID: $uid");
+  print("🔥 SEARCH: $_searchQuery");
+  print("🔥 DOG COUNT: ${dogsData.length}");
+
+  /// 🐶 FILTER DOGS (ISOLATE)
+  final filteredDogsData = await compute(_applyFiltersIsolate, {
+    'dogs': dogsData,
+    'currentUserId': uid,
+    'selectedBreed': selectedBreed,
+    'selectedGender': selectedGender,
+    'ageRange': ageRange != null
+        ? {'start': ageRange!.start, 'end': ageRange!.end}
+        : null,
+    'maxDistance': _maxDistance,
+    'userLatitude': _userLatitude,
+    'userLongitude': _userLongitude,
+    'selectedNeutered': selectedNeutered,
+    'selectedHealthStatus': selectedHealthStatus,
+    'searchQuery': _searchQuery,
+  });
+
+  /// 🏪 BUSINESS DATA
+  final snapshot =
+    await FirebaseFirestore.instance.collection('businesses').get();
+
+final sourceBusinesses = snapshot.docs.map((doc) {
+  final data = doc.data();
+
+  return {
+    'id': doc.id,
+    'name': (data['provider'] ?? data['name'] ?? '').toString(),
+    'description': (data['description'] ?? '').toString(),
+  };
+}).toList();
+print("🏪 FIRESTORE BUSINESSES: ${sourceBusinesses.length}");
+  final filteredBusinesses = sourceBusinesses.where((b) {
+  final name = (b['name'] ?? '').toLowerCase();
+  final provider = (b['provider'] ?? '').toLowerCase();
+  final desc = (b['description'] ?? '').toLowerCase();
+
+  return _searchQuery.isEmpty ||
+      name.contains(_searchQuery) ||
+      provider.contains(_searchQuery) ||
+      desc.contains(_searchQuery);
 }).toList();
 
+  /// ✅ UPDATE UI
+  if (!mounted) return;
 
-    final filteredDogsData = await compute(_applyFiltersIsolate, {
-      'dogs': dogsData,
-      'currentUserId': _currentUserId,
-      'selectedBreed': selectedBreed,
-      'selectedGender': selectedGender,
-      'ageRange': ageRange != null
-          ? {'start': ageRange!.start, 'end': ageRange!.end}
-          : null,
-      'maxDistance': _maxDistance,
-      'userLatitude': _userLatitude,
-      'userLongitude': _userLongitude,
-      'selectedNeutered': selectedNeutered,
-      'selectedHealthStatus': selectedHealthStatus,
-    });
+  setState(() {
 
-    if (!mounted) return;
-    setState(() {
-      _filteredDogs = filteredDogsData
-          .map((data) => Dog(
-                id: data['id'],
-                name: data['name'],
-                breed: data['breed'],
-                age: data['age'],
-                gender: data['gender'],
-                healthStatus: data['healthStatus'],
-                isNeutered: data['isNeutered'],
-                description: data['description'],
-                traits: List<String>.from(data['traits']),
-                ownerGender: data['ownerGender'],
-                imagePaths: List<String>.from(data['imagePaths']),
-                isAvailableForAdoption: data['isAvailableForAdoption'],
-                isOwner: data['isOwner'],
-                ownerId: data['ownerId'],
-                latitude: data['latitude'],
-                longitude: data['longitude'],
-              ))
-          .toList()
-          .take(10)
-          .toList();
+    /// 🐶 DOGS
+    _filteredDogs = filteredDogsData
+        .map((data) => Dog(
+              id: data['id'],
+              name: data['name'],
+              breed: data['breed'],
+              age: data['age'],
+              gender: data['gender'],
+              healthStatus: data['healthStatus'],
+              isNeutered: data['isNeutered'],
+              description: data['description'],
+              traits: List<String>.from(data['traits']),
+              ownerGender: data['ownerGender'],
+              imagePaths: List<String>.from(data['imagePaths']),
+              isAvailableForAdoption: data['isAvailableForAdoption'],
+              isOwner: data['isOwner'],
+              ownerId: data['ownerId'],
+              latitude: data['latitude'],
+              longitude: data['longitude'],
+            ))
+        .take(10)
+        .toList();
 
-      print('HomePage - Filtered dogs count: ${_filteredDogs.length}');
-    });
-  }
+    /// 🏪 BUSINESSES
+    _filteredBusinesses = filteredBusinesses;
+
+  });
+
+  print('🐶 Dogs: ${_filteredDogs.length}');
+  print('🏪 Businesses: ${_filteredBusinesses.length}');
+}
 
   static List<Map<String, dynamic>> _applyFiltersIsolate(Map<String, dynamic> params) {
     final List<Map<String, dynamic>> dogs = params['dogs'];
-    final String currentUserId = params['currentUserId'];
+    final String currentUserId =
+    (params['currentUserId'] ?? '').toString();
 
     final String? selectedBreed = params['selectedBreed'];
     final String? selectedGender = params['selectedGender'];
@@ -711,49 +693,62 @@ final dogsData = sourceDogs.map((dog) => {
     for (var dog in dogs) {
       uniqueDogs.putIfAbsent(dog['id'], () => dog);
     }
-
+final String searchQuery =
+    (params['searchQuery'] ?? '').toString().toLowerCase();
     return uniqueDogs.values.where((dog) {
-      // 1) not own dog
-     final bool isMyDog = dog['ownerId'] == currentUserId;
-final bool isAdoption = dog['isAvailableForAdoption'] == true;
 
-// 🔑 فقط سگ‌های خودم که adoption نیستن حذف بشن
-if (isMyDog && !isAdoption) {
-  return false;
-}
+  /// 🔥 SAFE EXTRACTION (خیلی مهم)
+  final name = (dog['name'] ?? '').toString().toLowerCase();
+  final breed = (dog['breed'] ?? '').toString().toLowerCase();
+  final gender = (dog['gender'] ?? '').toString();
+  final health = (dog['healthStatus'] ?? '').toString();
+  final ownerId = (dog['ownerId'] ?? '').toString();
 
-      // 2) filters
-      final matchesBreed = selectedBreed == null || dog['breed'] == selectedBreed;
-      final matchesGender = selectedGender == null || dog['gender'] == selectedGender;
-      final matchesAge = ageRange == null ||
-          (dog['age'] >= ageRange['start']! && dog['age'] <= ageRange['end']!);
+  final bool isMyDog = ownerId == currentUserId;
+  final bool isAdoption = dog['isAvailableForAdoption'] == true;
 
-      bool matchesDistance = true;
-      if (userLatitude != null &&
-          userLongitude != null &&
-          dog['latitude'] != null &&
-          dog['longitude'] != null &&
-          userLatitude != 0.0 &&
-          userLongitude != 0.0) {
-        final distanceInMeters = Geolocator.distanceBetween(
-          userLatitude,
-          userLongitude,
-          dog['latitude'],
-          dog['longitude'],
-        );
-        matchesDistance = (distanceInMeters / 1000) <= maxDistance;
-      }
+  if (isMyDog && !isAdoption) {
+    return false;
+  }
 
-      final matchesNeutered = selectedNeutered == null || dog['isNeutered'] == selectedNeutered;
-      final matchesHealth = selectedHealthStatus == null || dog['healthStatus'] == selectedHealthStatus;
+  /// 🔹 FILTERS
+  final matchesBreed = selectedBreed == null || breed == selectedBreed;
+  final matchesGender = selectedGender == null || gender == selectedGender;
 
-      return matchesBreed &&
-          matchesGender &&
-          matchesAge &&
-          matchesDistance &&
-          matchesNeutered &&
-          matchesHealth;
-    }).toList();
+  final matchesSearch = searchQuery.isEmpty ||
+      name.contains(searchQuery) ||
+      breed.contains(searchQuery);
+
+  final matchesHealth =
+      selectedHealthStatus == null || health == selectedHealthStatus;
+
+  /// 🔹 DISTANCE (safe)
+  bool matchesDistance = true;
+  if (userLatitude != null &&
+      userLongitude != null &&
+      dog['latitude'] != null &&
+      dog['longitude'] != null) {
+
+    final lat = (dog['latitude'] as num).toDouble();
+    final lng = (dog['longitude'] as num).toDouble();
+
+    final distanceInMeters = Geolocator.distanceBetween(
+      userLatitude,
+      userLongitude,
+      lat,
+      lng,
+    );
+
+    matchesDistance = (distanceInMeters / 1000) <= maxDistance;
+  }
+
+  return matchesBreed &&
+      matchesGender &&
+      matchesSearch &&
+      matchesHealth &&
+      matchesDistance;
+
+}).toList();
   }
 
   Future<void> _openFilterPage() async {
@@ -783,93 +778,141 @@ void dispose() {
 
   _dealPageController?.dispose();
   _dealTimer?.cancel();
-
+_basketAnimController.dispose();
   super.dispose();
 }
 
 
   Widget _buildHeaderGreeting(app.AppState appState) {
+    final l = AppLocalizations.of(context)!;
   final username = appState.username ?? 'User';
 
   return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Hello,',
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: Colors.grey.shade600,
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+
+      /// 🔸 LOGO
+      Image.asset(
+        "assets/image/logo.png",
+        height: 50,
+      ),
+
+      const SizedBox(width: 12),
+
+      /// 🔸 TEXTS
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.welcomeTo,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
           ),
-        ),
-        Text(
-          username,
-          style: GoogleFonts.dancingScript(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFFFFC107),
+
+          Text(
+            username,
+            style: GoogleFonts.dancingScript(
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFFFC107),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    ],
+  ),
+);
 }
 
 
 
   Widget _buildMainFeaturesGrid() {
+    final l = AppLocalizations.of(context)!;
   return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
+    padding: const EdgeInsets.symmetric(horizontal: 22),
     child: GridView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: 0.75,
+        crossAxisCount: 3,
+crossAxisSpacing: 14,
+mainAxisSpacing: 14,
+childAspectRatio: 0.78,
       ),
       children: [
 
-        _featureCard(
-          title: "Playmates",
-          subtitle: "Find new friends",
-          imagePath: "assets/home/playmates.png",
-          onTap: () {
-            context.read<app.AppState>()
-                .setCurrentTab(NavTab.playmates);
-          },
-        ),
+  /// ROW 1
+  _featureCard(
+    title: l.playmateService,
+    subtitle: l.findPlaymates,
+    imagePath: "assets/home/playmates.png",
+    icon: LucideIcons.users,
+    imageScale: 0.70,
+    onTap: () {
+      context.read<app.AppState>().setCurrentTab(NavTab.playmates);
+    },
+  ),
 
-        _featureCard(
-          title: "Playdates",
-          subtitle: "Manage requests",
-          imagePath: "assets/home/playdate.png",
-          onTap: () {
-            context.read<app.AppState>()
-                .setCurrentTab(NavTab.playdate);
-          },
-        ),
+  _featureCard(
+    title: l.playdatesTitle,
+    subtitle: l.manageRequests,
+    imagePath: "assets/home/playdate.png",
+    icon: LucideIcons.calendar,
+    imageScale: 0.62,
+    onTap: () {
+      context.read<app.AppState>().setCurrentTab(NavTab.playdate);
+    },
+  ),
 
-        _featureCard(
-          title: "Adoption",
-          subtitle: "Give love",
-          imagePath: "assets/home/adoption.png",
-          onTap: () {
-            context.read<app.AppState>()
-                .setCurrentTab(NavTab.adoption);
-          },
-        ),
+  _featureCard(
+    title: l.adoptionTitle,
+    subtitle: l.giveLove,
+    imagePath: "assets/home/adoption.png",
+    icon: LucideIcons.heart,
+    imageScale: 0.58,
+    onTap: () {
+      context.read<app.AppState>().setCurrentTab(NavTab.adoption);
+    },
+  ),
 
-        _featureCard(
-  title: "Alerts",
-  subtitle: "Lost & Found",
-  imagePath: "assets/home/Warning-pana.png",
-  onTap: _scrollToSafety,
-),
+  /// ROW 2
+  _featureCard(
+    title: l.alertsTitle,
+    subtitle: l.lostAndFound,
+    imagePath: "assets/home/Warning-pana.png",
+    icon: LucideIcons.alertTriangle,
+    imageScale: 0.52,
+    onTap: _scrollToSafety,
+  ),
 
-      ],
+  /// 🆕 PET HOTEL
+  _featureCard(
+    title: "Pet Hotel", // بعداً لوکالایز می‌کنیم
+    subtitle: "Safe stay",
+    imagePath: "assets/home/hotel.png",
+    icon: LucideIcons.home,
+    imageScale: 0.55,
+    onTap: () {
+      // TODO: route
+    },
+  ),
+
+  /// 🆕 PET TAXI
+  _featureCard(
+    title: "Pet Taxi",
+    subtitle: "Ride safely",
+    imagePath: "assets/home/taxi.png",
+    icon: LucideIcons.car,
+    imageScale: 0.55,
+    onTap: () {
+      // TODO: route
+    },
+  ),
+],
     ),
   );
 }
@@ -887,25 +930,113 @@ void _scrollToSafety() {
   });
 }
 
+Widget _greenMemorialCard() {
+  return SizedBox(
+    height: 120,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: Stack(
+        children: [
 
+          /// 🔹 BACKGROUND IMAGE
+          Positioned.fill(
+            child: Image.asset(
+              "assets/home/memorial.png",
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          /// 🔹 DARK OVERLAY (برای readability)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.25),
+              ),
+            ),
+          ),
+
+          /// 🔥 TITLE → پایین کارت
+          Positioned(
+            bottom: 10,
+            left: 10,
+            right: 10,
+            child: Text(
+              "Green Memorial",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 Widget _buildServicesSection() {
+  final l = AppLocalizations.of(context)!;
   final appState = context.read<app.AppState>();
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
 
-      /// 🔹 Vet (Wide Premium Card)
-      _wideImagePlaceCard(
-        title: "Vet",
-        subtitle: "Nearby clinics",
-        imagePath: "assets/home/vet.png",
-        onTap: () {
-          appState.setCurrentTab(NavTab.vet);
-        },
+      /// 🔹 ROW → VET + GREEN MEMORIAL
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+
+            /// 🐾 VETERINARY (۶۰٪ عرض)
+            Expanded(
+              flex: 6,
+              child: _wideImagePlaceCard(
+                title: "Veterinary",
+                subtitle: l.nearbyClinics,
+                imagePath: "assets/home/vet.png",
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text("Location needed"),
+                      content: const Text(
+                          "We use your location to show nearby vets"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            await requestLocationFromUser();
+                            context
+                                .read<app.AppState>()
+                                .setCurrentTab(NavTab.vet);
+                          },
+                          child: const Text("Allow"),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            /// 🌿 GREEN MEMORIAL (۴۰٪ عرض)
+            Expanded(
+              flex: 4,
+              child: _greenMemorialCard(),
+            ),
+          ],
+        ),
       ),
 
-      const SizedBox(height: 16),
+      const SizedBox(height: 14), // 👈 فاصله اصلاح شد
 
       /// 🔹 Groomy & Pet Shop
       Padding(
@@ -915,12 +1046,10 @@ Widget _buildServicesSection() {
 
             Expanded(
               child: _miniServiceCard(
-                title: "Groomy",
-                subtitle: "Book grooming",
+                title: l.groomyTitle,
+                subtitle: l.bookGrooming,
                 imagePath: "assets/home/groomy.png",
-                onTap: () {
-                  // navigate to grooming list
-                },
+                onTap: () {},
               ),
             ),
 
@@ -928,11 +1057,16 @@ Widget _buildServicesSection() {
 
             Expanded(
               child: _miniServiceCard(
-                title: "Pet Shop",
-                subtitle: "Shop near you",
+                title: l.petShopTitle,
+                subtitle: l.shopNearYou,
                 imagePath: "assets/home/petshop.png",
                 onTap: () {
-                  // navigate to pet shop list
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AllProductsPage(),
+                    ),
+                  );
                 },
               ),
             ),
@@ -940,18 +1074,12 @@ Widget _buildServicesSection() {
         ),
       ),
 
-      /// 👇 اینجا باید بیاد 👇
       const SizedBox(height: 20),
 
       _featuredDealsCarousel(
         deals: _featuredDeals,
-        onTapDeal: (deal) {
-          // اینجا تصمیم می‌گیری به کجا بره
-          // مثلا:
-          // Navigator.push(...)
-        },
+        onTapDeal: (deal) {},
       ),
-
     ],
   );
 }
@@ -1018,7 +1146,8 @@ Widget _featuredDealCard({
   required FeaturedDeal deal,
   required VoidCallback onTap,
 }) {
-  // همون vibe تصویرت: گرادیان نارنجی/طلایی
+  final l = AppLocalizations.of(context)!;
+
   const grad = LinearGradient(
     colors: [
       Color(0xFFFFC107),
@@ -1046,7 +1175,7 @@ Widget _featuredDealCard({
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 10),
           child: Row(
             children: [
               // LEFT: texts
@@ -1057,25 +1186,25 @@ Widget _featuredDealCard({
                   children: [
                     Row(
                       children: [
-                        const Text(
-                          "🔥 Featured Deal",
-                          style: TextStyle(
+                        Text(
+                          "🔥 ${l.featuredDeal}",
+                          style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(width: 10),
                         if (deal.premiumOnly)
-                          _accessPill("Premium"),
+                          _accessPill(l.premiumLabel),
                         if (deal.goldOnly) ...[
                           const SizedBox(width: 6),
-                          _accessPill("Gold"),
+                          _accessPill(l.goldLabel),
                         ],
                       ],
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
 
                     Text(
                       deal.shopName,
@@ -1088,7 +1217,7 @@ Widget _featuredDealCard({
                       ),
                     ),
 
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 10),
 
                     Text(
                       deal.description,
@@ -1107,13 +1236,15 @@ Widget _featuredDealCard({
                     if (deal.discountPercent > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.18),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          "${deal.discountPercent}% OFF",
+                          l.discountOff(deal.discountPercent),
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontSize: 12,
@@ -1127,7 +1258,7 @@ Widget _featuredDealCard({
 
               const SizedBox(width: 14),
 
-              // RIGHT: logo (نه تصویر تبلیغاتی)
+              // RIGHT: logo
               Container(
                 width: 62,
                 height: 62,
@@ -1202,6 +1333,7 @@ Widget _accessPill(String text) {
 
   @override
 Widget build(BuildContext context) {
+  final l = AppLocalizations.of(context)!;
   super.build(context);
 
   final currentTab = context.watch<app.AppState>().currentTab;
@@ -1216,148 +1348,284 @@ final foundCount =
   final appState = context.watch<app.AppState>();
   final userId = appState.currentUserId;
  
-
+_currentUserId = userId;
 final allDogs = appState.allDogs;
 
 
   //if (userId == null) {
     //return const Center(child: CircularProgressIndicator());
   //}
-return SingleChildScrollView(
-  controller: _scrollController,
+return Scaffold(
+  backgroundColor: Colors.white,
 
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
+ 
 
-      const SizedBox(height: 16),
+  body: Stack(
+  children: [
 
-      _buildHeaderGreeting(appState),
+    /// 🔻 MAIN CONTENT
+    SingleChildScrollView(
+      controller: _scrollController,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
 
-    
-      // 🔹 SECTION 1 — Social
-      _buildSectionHeader("Social & Play"),
-      const SizedBox(height: 16),
-      _buildMainFeaturesGrid(),
+          const SizedBox(height: 4),
 
-      const SizedBox(height: 32),
+         _buildHeaderGreeting(appState),
 
-      // 🔹 SECTION 2 — Revenue
-      _buildSectionHeader("Care & Services"),
-      const SizedBox(height: 16),
-      _buildServicesSection(),
+const SizedBox(height: 10),
 
-      const SizedBox(height: 32),
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  child: _fixedSearchBar(),
 
-      // 🔹 SECTION 3 — Outdoor
-      _buildSectionHeader("Outdoor & Lifestyle"),
-      const SizedBox(height: 16),
-      _buildPlacesSection(),
-
-      const SizedBox(height: 32),
-
-      // 🔹 SECTION 4 — Safety
-      Container(
-  key: _safetyKey,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _buildSafetyHeader(lostCount + foundCount),
-      const SizedBox(height: 16),
-      _buildSafetySection(),
-    ],
-  ),
 ),
+if (_searchQuery.isNotEmpty && _filteredBusinesses.isNotEmpty) ...[
+  const SizedBox(height: 20),
 
-
-      const SizedBox(height: 32),
-
-    ],
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Text(
+      "Businesses",
+      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    ),
   ),
+
+  const SizedBox(height: 10),
+
+  ..._filteredBusinesses.map((b) {
+    return ListTile(
+      title: Text(b['name']),
+      subtitle: Text(b['description']),
+    );
+  }).toList(),
+],
+
+const SizedBox(height: 10),
+
+          _buildSectionHeader(l.socialAndPlay),
+          const SizedBox(height: 12),
+          _buildMainFeaturesGrid(),
+
+          const SizedBox(height: 22),
+
+          _buildSectionHeader(l.careAndServices),
+          const SizedBox(height: 10),
+          _buildServicesSection(),
+
+          const SizedBox(height: 24),
+
+          _buildSectionHeader(l.outdoorAndLifestyle),
+          const SizedBox(height: 16),
+          _buildPlacesSection(),
+
+          const SizedBox(height: 32),
+
+          Container(
+            key: _safetyKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSafetyHeader(lostCount + foundCount),
+                const SizedBox(height: 10),
+                _buildSafetySection(),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 80),
+        ],
+      ),
+    ),
+
+    /// 🔻 FLOATING BASKET
+    _buildDraggableBasket(),
+
+  ],
+),
 );
 
+}
+
+
+Widget _fixedSearchBar() {
+  return Container(
+    height: 44,
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: TextField(
+  onChanged: (value) {
+    setState(() {
+      _searchQuery = value.toLowerCase();
+    });
+
+    _applyFiltersAsync(); // 🔥 مهم
+  },
+  textAlignVertical: TextAlignVertical.center,
+  decoration: InputDecoration(
+    isDense: true,
+    hintText: "Hizmet, mağaza, topluluk ara...",
+    border: InputBorder.none,
+    prefixIcon: Icon(Icons.search),
+    contentPadding: EdgeInsets.zero,
+  ),
+),
+  );
 }
 Widget _featureCard({
   required String title,
   required String subtitle,
   required String imagePath,
+  required IconData icon,
   required VoidCallback onTap,
+  double imageScale = 0.62,
 }) {
-  return Material(
-    color: Colors.transparent,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Ink(
-        decoration: BoxDecoration(
-          color: const Color(0xFF9E1B4F),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              blurRadius: 8,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-  child: Column(
-    mainAxisAlignment: MainAxisAlignment.start,
-    children: [
+  final screenHeight = MediaQuery.of(context).size.height;
 
-      const SizedBox(height: 6),
+  double adaptiveScale = imageScale;
 
-      /// TITLE (کمی بالاتر)
-      Text(
-        title,
-        style: GoogleFonts.poppins(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ),
+  if (screenHeight < 700) {
+    adaptiveScale -= 0.1;
+  } else if (screenHeight > 850) {
+    adaptiveScale += 0.05;
+  }
 
-      const SizedBox(height: 16),
+  adaptiveScale = adaptiveScale.clamp(0.4, 0.75);
 
-      /// IMAGE (بزرگ‌تر)
-      SizedBox(
-        height: 110,
-        child: Image.asset(
-          imagePath,
-          fit: BoxFit.contain,
-        ),
-      ),
+  /// ✅ فقط Alerts رو تشخیص بده
+  final bool isAlert = title.toLowerCase() == "alerts";
 
-      const Spacer(),
-
-      /// SUBTITLE (باکس جدا)
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF7C123A).withOpacity(0.6),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          subtitle,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            color: Colors.white.withOpacity(0.95),
+  return _PressableCard(
+    onTap: onTap,
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-          textAlign: TextAlign.center,
-        ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          children: [
 
-      const SizedBox(height: 8),
-    ],
+            /// 🔻 TOP
+            Flexible(
+              fit: FlexFit.loose,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF9E1B4F),
+                      Color(0xFFD94A7A),
+                      Colors.white,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 2),
+                  child: Column(
+                    children: [
+
+                      /// 🔴 TITLE → فقط اگر Alert نباشه
+                      if (!isAlert) ...[
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+
+                     Expanded(
+  child: ClipRRect(
+    borderRadius: const BorderRadius.vertical(
+      top: Radius.circular(18),
+    ),
+    child: Center( // 👈 کلید حل مشکل
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Center(
+  child: Transform.scale(
+    scale: 1.2,
+    child: Image.asset(
+      imagePath,
+      fit: BoxFit.contain,
+    ),
   ),
 ),
+      ),
+    ),
+  ),
+),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
+            /// 🔻 BOTTOM → فقط اگر Alert نباشه
+            if (!isAlert)
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(18),
+                ),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFFE91E63),
+                        Color(0xFFC2185B),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(18),
+                    ),
+                  ),
+                  child: Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     ),
   );
 }
-
 Widget _buildSectionHeader(String title) {
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1387,29 +1655,32 @@ Widget _buildSectionHeader(String title) {
 
 
 Widget _buildPlacesSection() {
+  final l = AppLocalizations.of(context)!;
   final appState = context.read<app.AppState>();
 
   return Column(
     children: [
       _wideImagePlaceCard(
-        title: "Dog Park",
-        subtitle: "Explore nearby parks",
+        title: "Pet Friendly Place",
+subtitle: l.exploreNearbyParks,
         imagePath: "assets/home/dog_park.png",
         onTap: () {
           appState.setCurrentTab(NavTab.dogParks);
         },
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 10),
       _wideImagePlaceCard(
-        title: "Training",
-        subtitle: "Coming soon",
+        title: l.trainingTitle,
+subtitle: l.comingSoon,
         imagePath: "assets/home/Good doggy-cuate.png",
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Training feature coming soon 🐾"),
-              behavior: SnackBarBehavior.floating,
-            ),
+            SnackBar(
+  content: Text(l.trainingComingSoonMessage),
+  behavior: SnackBarBehavior.floating,
+)
+             
+            
           );
         },
       ),
@@ -1424,17 +1695,25 @@ Widget _wideImagePlaceCard({
   required String imagePath,
   required VoidCallback onTap,
 }) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20), // ✅ فاصله از کناره‌ها
+  return SizedBox(
+    height: 120,
+
     child: Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
         child: Ink(
-          height: 150,
           decoration: BoxDecoration(
-            color: const Color(0xFF9E1B4F),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF9E1B4F),
+                Color(0xFFD94A7A),
+                Colors.white,
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
@@ -1444,55 +1723,57 @@ Widget _wideImagePlaceCard({
               ),
             ],
           ),
+
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
 
-                /// 🔹 LEFT SIDE (Texts)
+                /// 🔹 TEXT
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+
+                      /// TITLE (اصلاح شد)
                       Text(
                         title,
                         style: GoogleFonts.poppins(
-                          fontSize: 18,
+                          fontSize: 16, // 👈 کوچیک‌تر
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 6),
 
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C123A),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          subtitle,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: Colors.white.withOpacity(0.95),
-                          ),
+                      /// SUBTITLE (هماهنگ با بقیه)
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withOpacity(0.9),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                /// 🔹 RIGHT SIDE (Image)
-                SizedBox(
-                  height: 95,
-                  child: Image.asset(
-                    imagePath,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+                const SizedBox(width: 8),
+
+                /// 🔹 IMAGE (اصلاح سایز)
+                Expanded(
+  child: Align(
+    alignment: Alignment.centerRight,
+    child: Image.asset(
+      imagePath,
+      fit: BoxFit.contain,
+      height: double.infinity,
+    ),
+  ),
+),
               ],
             ),
           ),
@@ -1515,10 +1796,19 @@ Widget _miniServiceCard({
       borderRadius: BorderRadius.circular(18),
       onTap: onTap,
       child: Ink(
-        height: 130,
+        height: 120,
         decoration: BoxDecoration(
-          color: const Color(0xFF9E1B4F),
-          borderRadius: BorderRadius.circular(18),
+  gradient: const LinearGradient(
+    colors: [
+      Color(0xFF9E1B4F),
+      Color(0xFFD94A7A),
+      Colors.white,
+    ],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  ),
+  borderRadius: BorderRadius.circular(18),
+          
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.15),
@@ -1574,11 +1864,11 @@ Widget _miniServiceCard({
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text(
                           subtitle,
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 11,
                             color:
                                 Colors.white.withOpacity(0.85),
                           ),
@@ -1589,7 +1879,7 @@ Widget _miniServiceCard({
 
                   /// Image
                   SizedBox(
-                    height: 70,
+                    height: 40,
                     child: Image.asset(
                       imagePath,
                       fit: BoxFit.contain,
@@ -1606,6 +1896,7 @@ Widget _miniServiceCard({
 }
 
 Widget _buildSafetyHeader(int lostCount) {
+  final l = AppLocalizations.of(context)!;
   return Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: Row(
@@ -1620,14 +1911,14 @@ Widget _buildSafetyHeader(int lostCount) {
         ),
         const SizedBox(width: 10),
         Text(
-          "Community Hub",
+  l.communityHub,
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: const Color(0xFF9E1B4F),
           ),
         ),
-        const Spacer(),
+        const SizedBox(height: 10),
 
         if (lostCount > 0)
           Container(
@@ -1638,10 +1929,10 @@ Widget _buildSafetyHeader(int lostCount) {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              "$lostCount active",
+              l.activeCount(lostCount),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
           ),
@@ -1652,6 +1943,7 @@ Widget _buildSafetyHeader(int lostCount) {
 
 
 Widget _buildSafetySection() {
+  final l = AppLocalizations.of(context)!;
   final appState = context.read<app.AppState>();
 final lostCount =
     context.select<app.AppState, int>((s) => s.lostDogsCount);
@@ -1668,13 +1960,13 @@ final foundCount =
         crossAxisCount: 2,
         crossAxisSpacing: 14,
         mainAxisSpacing: 14,
-        childAspectRatio: 0.75,
+        childAspectRatio: 0.78,
       ),
       children: [
 
         _safetyCard(
-          title: "Report",
-          subtitle: "Lost Dog",
+          title: l.reportTitle,
+subtitle: l.lostDogTitle,
           imagePath: "assets/home/Warning-pana.png",
           onTap: () {
             appState.setCurrentTab(NavTab.reportLost);
@@ -1682,8 +1974,8 @@ final foundCount =
         ),
 
         _safetyCard(
-          title: "Report",
-          subtitle: "Found Dog",
+          title: l.reportTitle,
+subtitle: l.foundDogTitle,
           imagePath: "assets/home/lost_dog.png",
           onTap: () {
             appState.setCurrentTab(NavTab.reportFound);
@@ -1691,8 +1983,8 @@ final foundCount =
         ),
 
         _safetyCard(
-  title: "Lost",
-  subtitle: "Dogs",
+ title: l.lostTitle,
+subtitle: l.dogsTitle,
   imagePath: "assets/home/found_dog.png",
   hasAlert: lostCount > 0,
   count: lostCount,
@@ -1703,8 +1995,8 @@ final foundCount =
 
 
         _safetyCard(
-  title: "Found",
-  subtitle: "Dogs",
+  title: l.foundTitle,
+subtitle: l.dogsTitle,
   imagePath: "assets/home/Good doggy-amico.png",
   hasAlert: foundCount > 0,
   count: foundCount,
@@ -1737,7 +2029,83 @@ Widget _safetyCard({
   count: count,
 );
 }
+Widget _buildDraggableBasket() {
+  return Positioned(
+    top: _basketTop,
+    left: _basketLeft,
+    child: GestureDetector(
+      onPanUpdate: (details) {
+        setState(() {
+          _basketTop += details.delta.dy;
+          _basketLeft += details.delta.dx;
+        });
+      },
 
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AllProductsPage(),
+          ),
+        );
+      },
+
+      child: AnimatedBuilder(
+        animation: _scaleAnim ?? const AlwaysStoppedAnimation(1.0),
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnim?.value ?? 1.0,
+            child: child,
+          );
+        },
+
+        child: Container(
+          width: 62,
+          height: 62,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFFC107),
+                Color(0xFFFF9800),
+              ],
+            ),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.orange.withOpacity(0.4),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+
+              Icon(
+  LucideIcons.shoppingCart, // 👈 تغییر بده
+  color: Colors.white,
+  size: 26,
+),
+
+              const SizedBox(height: 2),
+
+              const Text(
+                "Shop",
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
 }
 
 class _AnimatedSafetyCard extends StatefulWidget {
@@ -1793,6 +2161,7 @@ void initState() {
   @override
   void dispose() {
     _controller.dispose();
+    
     super.dispose();
   }
 
@@ -1841,8 +2210,7 @@ Widget build(BuildContext context) {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Column(
                 children: [
 
@@ -1856,23 +2224,22 @@ Widget build(BuildContext context) {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
 
                   /// IMAGE (same as main cards)
                   SizedBox(
-                    height: 110,
+                    height: 70,
                     child: Image.asset(
                       widget.imagePath,
                       fit: BoxFit.contain,
                     ),
                   ),
 
-                  const Spacer(),
+                 const SizedBox(height: 1),
 
                   /// SUBTITLE
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 8, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF7C123A)
                           .withOpacity(0.6),
@@ -1881,14 +2248,14 @@ Widget build(BuildContext context) {
                     child: Text(
                       widget.subtitle,
                       style: GoogleFonts.poppins(
-                        fontSize: 13,
+                        fontSize: 11,
                         color: Colors.white.withOpacity(0.95),
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -1898,4 +2265,49 @@ Widget build(BuildContext context) {
     },
   );
 }
+
+}
+class _PressableCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _PressableCard({
+    required this.child,
+    required this.onTap,
+  });
+
+  @override
+  State<_PressableCard> createState() => _PressableCardState();
+}
+
+class _PressableCardState extends State<_PressableCard> {
+  double _scale = 1.0;
+
+  void _onTapDown(_) {
+    setState(() => _scale = 0.96);
+  }
+
+  void _onTapUp(_) {
+    setState(() => _scale = 1.0);
+  }
+
+  void _onTapCancel() {
+    setState(() => _scale = 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
 }
