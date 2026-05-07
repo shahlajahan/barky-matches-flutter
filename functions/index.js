@@ -7068,232 +7068,238 @@ exports.updateOrderStatus = onCall(
 );
 
 
-exports.deleteUserAccount = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError(
-      "unauthenticated",
-      "User must be logged in"
-    );
-  }
+exports.deleteUserAccount = onCall(
+  {
+    region: "europe-west3",
+  },
+  async (request) => {
 
-  const uid = request.auth.uid;
-  const db = admin.firestore();
-  const bucket = admin.storage().bucket();
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "User must be logged in"
+      );
+    }
 
-  try {
-    // --------------------------------------------------
-    // 1) delete dogs owned by user
-    // --------------------------------------------------
-    const dogsSnap = await db
-      .collection("dogs")
-      .where("ownerId", "==", uid)
-      .get();
 
-    for (const doc of dogsSnap.docs) {
-      const dogId = doc.id;
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
 
-      // delete dog image files if they are inside your bucket
-      const data = doc.data() || {};
-      const imagePaths = Array.isArray(data.imagePaths) ? data.imagePaths : [];
+    try {
+      // --------------------------------------------------
+      // 1) delete dogs owned by user
+      // --------------------------------------------------
+      const dogsSnap = await db
+        .collection("dogs")
+        .where("ownerId", "==", uid)
+        .get();
 
-      for (const url of imagePaths) {
-        try {
-          const filePath = extractStoragePathFromUrl(url);
-          if (filePath) {
-            await bucket.file(filePath).delete({ ignoreNotFound: true });
+      for (const doc of dogsSnap.docs) {
+        const dogId = doc.id;
+
+        // delete dog image files if they are inside your bucket
+        const data = doc.data() || {};
+        const imagePaths = Array.isArray(data.imagePaths) ? data.imagePaths : [];
+
+        for (const url of imagePaths) {
+          try {
+            const filePath = extractStoragePathFromUrl(url);
+            if (filePath) {
+              await bucket.file(filePath).delete({ ignoreNotFound: true });
+            }
+          } catch (e) {
+            logger.warn("Failed deleting dog image", { uid, dogId, url, error: String(e) });
           }
-        } catch (e) {
-          logger.warn("Failed deleting dog image", { uid, dogId, url, error: String(e) });
         }
+
+        await db.collection("dogs").doc(dogId).delete();
       }
 
-      await db.collection("dogs").doc(dogId).delete();
-    }
+      // --------------------------------------------------
+      // 2) delete user document
+      // --------------------------------------------------
+      await db.collection("users").doc(uid).delete().catch(() => null);
 
-    // --------------------------------------------------
-    // 2) delete user document
-    // --------------------------------------------------
-    await db.collection("users").doc(uid).delete().catch(() => null);
-
-    // --------------------------------------------------
-    // 3) delete notifications related to user
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("notifications").where("userId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("notifications").where("targetUserId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("notifications").where("fromUserId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("scheduled_notifications").where("userId", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // found/lost Dog
-    // --------------------------------------------------
-
-    await deleteByQuery(
-      db.collection("found_dogs").where("ownerId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("lost_dogs").where("ownerId", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // vet apoinment
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("vet_appointments").where("userId", "==", uid)
-    );
-    // --------------------------------------------------
-    // subscribtion
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("subscriptions").where("userId", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // complains
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("complaints").where("userId", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // 4) delete play date requests related to user
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("playDateRequests").where("requesterUserId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("playDateRequests").where("targetUserId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("playDateRequests").where("ownerId", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // 5) delete adoption requests related to user
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("adoptionRequests").where("requesterUserId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("adoptionRequests").where("ownerId", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // 6) delete favorites / likes / offer clicks / misc
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("offer_clicks").where("userId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("reports").where("reportedBy", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // 7) delete business requests by uid
-    // --------------------------------------------------
-    await deleteByQuery(
-      db.collection("business_requests").where("uid", "==", uid)
-    );
-
-    // --------------------------------------------------
-    // orders
-    // --------------------------------------------------
-
-    await deleteByQuery(
-      db.collection("orders").where("userId", "==", uid)
-    );
-
-    await deleteByQuery(
-      db.collection("orders").where("businessId", "==", uid)
-    );
-
-    // --------------------------------------------------
-    //      chats
-    // --------------------------------------------------
-
-    await deleteByQuery(
-      db.collection("chats").where("participants", "array-contains", uid)
-    );
-
-    // --------------------------------------------------
-    // likes
-    // --------------------------------------------------
-
-    await deleteByQuery(
-      db.collection("likes").where("userId", "==", uid)
-    );
-
-
-    // --------------------------------------------------
-    // 8) delete owned businesses and related storage/docs
-    // --------------------------------------------------
-    const businessSnap = await db
-      .collection("businesses")
-      .where("ownerUid", "==", uid)
-      .get();
-
-    for (const bizDoc of businessSnap.docs) {
-      const businessId = bizDoc.id;
-
-      // delete appointments linked to business if you use this collection
+      // --------------------------------------------------
+      // 3) delete notifications related to user
+      // --------------------------------------------------
       await deleteByQuery(
-        db.collection("appointments").where("businessId", "==", businessId)
+        db.collection("notifications").where("userId", "==", uid)
       );
 
-      // delete reviews linked to business if needed
       await deleteByQuery(
-        db.collection("reviews").where("businessId", "==", businessId)
+        db.collection("notifications").where("targetUserId", "==", uid)
       );
 
-      await db.collection("businesses").doc(businessId).delete();
+      await deleteByQuery(
+        db.collection("notifications").where("fromUserId", "==", uid)
+      );
 
-      // try deleting business folder patterns in storage
-      await deleteFilesByPrefix(bucket, `business_sector_docs/${uid}/`);
-      await deleteFilesByPrefix(bucket, `businesses/${businessId}/`);
+      await deleteByQuery(
+        db.collection("scheduled_notifications").where("userId", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // found/lost Dog
+      // --------------------------------------------------
+
+      await deleteByQuery(
+        db.collection("found_dogs").where("ownerId", "==", uid)
+      );
+
+      await deleteByQuery(
+        db.collection("lost_dogs").where("ownerId", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // vet apoinment
+      // --------------------------------------------------
+      await deleteByQuery(
+        db.collection("vet_appointments").where("userId", "==", uid)
+      );
+      // --------------------------------------------------
+      // subscribtion
+      // --------------------------------------------------
+      await deleteByQuery(
+        db.collection("subscriptions").where("userId", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // complains
+      // --------------------------------------------------
+      await deleteByQuery(
+        db.collection("complaints").where("userId", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // 4) delete play date requests related to user
+      // --------------------------------------------------
+      await deleteByQuery(
+        db.collection("playDateRequests").where("requesterUserId", "==", uid)
+      );
+
+      await deleteByQuery(
+        db.collection("playDateRequests").where("targetUserId", "==", uid)
+      );
+
+      await deleteByQuery(
+        db.collection("playDateRequests").where("ownerId", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // 5) delete adoption requests related to user
+      // --------------------------------------------------
+      await deleteByQuery(
+        db.collection("adoptionRequests").where("requesterUserId", "==", uid)
+      );
+
+      await deleteByQuery(
+        db.collection("adoptionRequests").where("ownerId", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // 6) delete favorites / likes / offer clicks / misc
+      // --------------------------------------------------
+      await deleteByQuery(
+        db.collection("offer_clicks").where("userId", "==", uid)
+      );
+
+      await deleteByQuery(
+        db.collection("reports").where("reportedBy", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // 7) delete business requests by uid
+      // --------------------------------------------------
+      await deleteByQuery(
+        db.collection("business_requests").where("uid", "==", uid)
+      );
+
+      // --------------------------------------------------
+      // orders
+      // --------------------------------------------------
+
+      await deleteByQuery(
+        db.collection("orders").where("userId", "==", uid)
+      );
+
+      await deleteByQuery(
+        db.collection("orders").where("businessId", "==", uid)
+      );
+
+      // --------------------------------------------------
+      //      chats
+      // --------------------------------------------------
+
+      await deleteByQuery(
+        db.collection("chats").where("participants", "array-contains", uid)
+      );
+
+      // --------------------------------------------------
+      // likes
+      // --------------------------------------------------
+
+      await deleteByQuery(
+        db.collection("likes").where("userId", "==", uid)
+      );
+
+
+      // --------------------------------------------------
+      // 8) delete owned businesses and related storage/docs
+      // --------------------------------------------------
+      const businessSnap = await db
+        .collection("businesses")
+        .where("ownerUid", "==", uid)
+        .get();
+
+      for (const bizDoc of businessSnap.docs) {
+        const businessId = bizDoc.id;
+
+        // delete appointments linked to business if you use this collection
+        await deleteByQuery(
+          db.collection("appointments").where("businessId", "==", businessId)
+        );
+
+        // delete reviews linked to business if needed
+        await deleteByQuery(
+          db.collection("reviews").where("businessId", "==", businessId)
+        );
+
+        await db.collection("businesses").doc(businessId).delete();
+
+        // try deleting business folder patterns in storage
+        await deleteFilesByPrefix(bucket, `business_sector_docs/${uid}/`);
+        await deleteFilesByPrefix(bucket, `businesses/${businessId}/`);
+      }
+
+      // --------------------------------------------------
+      // 9) delete user profile media in storage
+      // --------------------------------------------------
+      await deleteFilesByPrefix(bucket, `users/${uid}/`);
+      await deleteFilesByPrefix(bucket, `dogs/${uid}/`);
+
+      // --------------------------------------------------
+      // 10) finally delete auth user
+      // --------------------------------------------------
+      await admin.auth().deleteUser(uid);
+
+      return {
+        success: true,
+        message: "User account and related data deleted successfully.",
+      };
+    } catch (error) {
+      logger.error("deleteUserAccount failed", {
+        uid,
+        error: String(error),
+      });
+
+      throw new HttpsError(
+        "internal",
+        "Failed to delete user account."
+      );
     }
-
-    // --------------------------------------------------
-    // 9) delete user profile media in storage
-    // --------------------------------------------------
-    await deleteFilesByPrefix(bucket, `users/${uid}/`);
-    await deleteFilesByPrefix(bucket, `dogs/${uid}/`);
-
-    // --------------------------------------------------
-    // 10) finally delete auth user
-    // --------------------------------------------------
-    await admin.auth().deleteUser(uid);
-
-    return {
-      success: true,
-      message: "User account and related data deleted successfully.",
-    };
-  } catch (error) {
-    logger.error("deleteUserAccount failed", {
-      uid,
-      error: String(error),
-    });
-
-    throw new HttpsError(
-      "internal",
-      "Failed to delete user account."
-    );
-  }
-});
+  });
 
 async function deleteByQuery(query, batchSize = 200) {
   let snapshot = await query.limit(batchSize).get();

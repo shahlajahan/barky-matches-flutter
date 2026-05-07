@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.barky_matches_fixed"
+    namespace = "com.petsupo.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.barky_matches_fixed"
+        applicationId = "com.petsupo.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

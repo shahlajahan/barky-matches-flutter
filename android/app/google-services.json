@@ -106,6 +106,45 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188282684447:android:66214fd7956b2e3553412a",
+        "android_client_info": {
+          "package_name": "com.petsupo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRuO42-h4sAkkNGYh3zcDLuAl_mtfRgtI"
+        },
+        {
+          "current_key": "AIzaSyB_NO1hEaDryeu8Rh6tmXHn-4DdCQvWVj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "188282684447-2db08bneotbs1bvv0al6vos3hg76p5r5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.pharos.barkymatches.app"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

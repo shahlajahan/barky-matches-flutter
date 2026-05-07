@@ -1,4 +1,4 @@
-package com.example.barky_matches_fixed
+package com.petsupo.app
 
 import io.flutter.embedding.android.FlutterActivity
 

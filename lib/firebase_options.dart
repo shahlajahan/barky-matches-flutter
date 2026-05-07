@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBRuO42-h4sAkkNGYh3zcDLuAl_mtfRgtI',
-    appId: '1:188282684447:android:3c21182a80460adc53412a',
+    appId: '1:188282684447:android:66214fd7956b2e3553412a',
     messagingSenderId: '188282684447',
     projectId: 'barkymatches-new',
     storageBucket: 'barkymatches-new.firebasestorage.app',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -1179,14 +1180,11 @@ if (requestId == null || requestId.isEmpty) {
 
   void _submit() async {
   final l10n = AppLocalizations.of(context)!;
-  print('AuthPage - Submit button pressed');
-  print('AuthPage - Form validation started');
-  print('AuthPage - Email: ${_emailController.text}');
-  print('AuthPage - Password: ${_passwordController.text}');
-  print('AuthPage - Confirm Password: ${_confirmPasswordController.text}');
-  print('AuthPage - Username: ${_usernameController.text}');
-  print('AuthPage - Phone: ${_phoneController.text}');
-  print('AuthPage - Terms Accepted: $_agreeToTerms');
+  if (kDebugMode) {
+    debugPrint('AuthPage - Submit button pressed');
+    debugPrint('AuthPage - Form validation started');
+    debugPrint('AuthPage - Terms Accepted: $_agreeToTerms');
+  }
 
   if (!_formKey.currentState!.validate()) {
     print('AuthPage - Validation failed: All fields must be filled');
@@ -1260,9 +1258,9 @@ if (requestId == null || requestId.isEmpty) {
       final username = _usernameController.text.trim();
 final email = _emailController.text.trim();
 final password = _passwordController.text.trim(); // ✅ باید اینجا باشه
-debugPrint("📧 EMAIL = $email");
-debugPrint("🔑 PASSWORD = $password");
-debugPrint("👤 USERNAME = $username");
+if (kDebugMode) {
+  debugPrint("👤 USERNAME PROVIDED = ${username.isNotEmpty}");
+}
 final phone = _phoneController.text.trim().isEmpty
     ? null
     : '$_selectedCountryCode${_phoneController.text.trim()}';
@@ -1985,5 +1983,4 @@ InputDecoration _authInputDecoration({
   );
 }
 }
-
 

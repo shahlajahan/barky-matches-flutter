@@ -138,13 +138,18 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
             /// 🔐 Confirmation input
             TextField(
-              controller: _confirmController,
-              decoration: const InputDecoration(
-                labelText: 'Type "DELETE" to confirm',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
+  controller: _confirmController,
+  textCapitalization: TextCapitalization.characters,
+  decoration: InputDecoration(
+    hintText: 'DELETE',
+    labelText: 'Type DELETE to confirm',
+    border: const OutlineInputBorder(),
+    errorText: _confirmController.text.isNotEmpty && !_canDelete
+        ? 'Please type DELETE exactly'
+        : null,
+  ),
+  onChanged: (_) => setState(() {}),
+),
 
             const SizedBox(height: 20),
 

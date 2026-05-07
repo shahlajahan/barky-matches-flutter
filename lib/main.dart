@@ -431,11 +431,15 @@ Future<void> setupFCM() async {
     // 🔥 FCM TOKEN
     token = await messaging.getToken();
 
-    debugPrint("🔥 FCM Token = $token");
+    if (kDebugMode) {
+      debugPrint("🔥 FCM token fetched: ${token != null}");
+    }
 
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
       token = newToken;
-      debugPrint('♻️ Token refreshed = $newToken');
+      if (kDebugMode) {
+        debugPrint('♻️ FCM token refreshed');
+      }
     });
 
     if (token != null) {
@@ -742,7 +746,9 @@ void main() async {
   try {
     await NotificationService().init();
 
-    print("🔥 FCM TOKEN REALTIME = $token");
+    if (kDebugMode) {
+      print("🔥 FCM token initialized: ${token != null}");
+    }
 
     if (kDebugMode) {
       print('Main - NotificationService initialized (MAIN)');
@@ -851,6 +857,10 @@ void main() async {
 
         // ❗️ خیلی مهم: فقط این
         appState.startAuthListener();
+        IapService.instance.setSubscriptionActivatedCallback(() async {
+          await appState.loadSubscriptionFromFirestore();
+          debugPrint('🔄 UI refreshed');
+        });
 
         return appState;
       },
@@ -956,14 +966,18 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void handleDeepLink(Uri uri) async {
-    debugPrint("🔗 DEEP LINK RECEIVED: $uri");
+    if (kDebugMode) {
+      debugPrint("🔗 DEEP LINK RECEIVED: ${uri.scheme}://${uri.host}");
+    }
 
     /// فقط payment success
     if (uri.host != "payment-success") return;
 
     final orderId = uri.queryParameters["orderId"];
 
-    debugPrint("🔥 VERIFY ORDER ID FROM DEEPLINK: $orderId");
+    if (kDebugMode) {
+      debugPrint("🔥 VERIFY ORDER ID FROM DEEPLINK: ${orderId != null && orderId.isNotEmpty}");
+    }
 
     if (orderId == null || orderId.isEmpty) {
       debugPrint("❌ ORDER ID NULL OR EMPTY");
@@ -983,11 +997,15 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
         await Future.delayed(const Duration(seconds: 2));
 
-        debugPrint("🚀 SENDING TO VERIFY: orderId=$orderId");
+        if (kDebugMode) {
+          debugPrint("🚀 SENDING PAYMENT VERIFY REQUEST");
+        }
 
         final res = await callable.call({"orderId": orderId});
 
-        debugPrint("✅ VERIFY RESULT: ${res.data}");
+        if (kDebugMode) {
+          debugPrint("✅ VERIFY RESULT RECEIVED");
+        }
 
         data = Map<String, dynamic>.from(res.data);
 
@@ -1020,7 +1038,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       /// 🔥 فعلاً اولین seller (later: multi-seller UI)
       final sellerOrderId = sellerOrderIds.first.toString();
 
-      debugPrint("📦 OPEN SELLER ORDER: $sellerOrderId");
+      if (kDebugMode) {
+        debugPrint("📦 OPEN SELLER ORDER");
+      }
 
       final context = navigatorKey.currentContext;
       if (context == null) {

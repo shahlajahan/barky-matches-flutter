@@ -20,6 +20,7 @@ class IapService {
   };
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
+  Future<void> Function()? _onSubscriptionActivated;
 
   List<ProductDetails> products = [];
 
@@ -29,7 +30,11 @@ class IapService {
   // ─────────────────────────────
   // INIT
   // ─────────────────────────────
-  Future<void> init() async {
+  Future<void> init({Future<void> Function()? onSubscriptionActivated}) async {
+    if (onSubscriptionActivated != null) {
+      _onSubscriptionActivated = onSubscriptionActivated;
+    }
+
     debugPrint('🛒 IAP init started');
 
     final isAvailable = await _iap.isAvailable();
@@ -46,6 +51,10 @@ class IapService {
 
     _purchaseSub?.cancel();
     _purchaseSub = _iap.purchaseStream.listen(_onPurchaseUpdate);
+  }
+
+  void setSubscriptionActivatedCallback(Future<void> Function() callback) {
+    _onSubscriptionActivated = callback;
   }
 
   ProductDetails? get premiumProduct =>
@@ -117,6 +126,7 @@ class IapService {
           }
 
           await _unlockSubscription(purchase);
+          await _refreshSubscriptionState();
 
           if (purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
@@ -195,6 +205,16 @@ class IapService {
     } catch (e) {
       debugPrint("❌ cloud error: $e");
     }
+  }
+
+  Future<void> _refreshSubscriptionState() async {
+    final callback = _onSubscriptionActivated;
+    if (callback == null) {
+      debugPrint("⚠️ subscription reload skipped: no AppState callback");
+      return;
+    }
+
+    await callback();
   }
 
   void _resetState() {
