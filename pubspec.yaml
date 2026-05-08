@@ -49,14 +49,14 @@ dependencies:
   photo_view: ^0.15.0
   in_app_purchase: ^3.2.3
   lucide_icons: ^0.257.0
-  speech_to_text: ^6.6.0
+  speech_to_text: ^7.3.0
   video_player: ^2.8.2
   video_thumbnail: ^0.5.3
   flutter_cache_manager: ^3.3.1
   visibility_detector: ^0.4.0+2
-  flutter_barcode_scanner: ^2.0.0
   webview_flutter: ^4.0.0
   file_picker: ^8.0.0
+  mobile_scanner: ^7.2.0
   
   
   # Firebase dependencies (اصلاح شده به نسخه‌های پایدار)
@@ -68,7 +68,7 @@ dependencies:
   firebase_analytics: ^12.0.2
   firebase_storage: ^13.0.2
   connectivity_plus: ^6.0.3
-  uni_links: ^0.5.1
+  app_links: ^6.4.1
   
 
 dev_dependencies:

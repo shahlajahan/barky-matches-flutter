@@ -15,7 +15,6 @@ import '../../../models/product_media.dart';
 import 'package:uuid/uuid.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../theme/app_theme.dart';
-import 'package:flutter_barcode_scanner/flutter_barcode_scanner.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -27,6 +26,7 @@ import '../../../services/shipping_estimator.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../app_state.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 
 
@@ -1442,14 +1442,14 @@ final uploadTask = ref.putData(
 
 Future<void> _scanBarcode() async {
   try {
-    final result = await FlutterBarcodeScanner.scanBarcode(
-      "#ff6666",
-      "Cancel",
-      true,
-      ScanMode.BARCODE,
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const _BarcodeScannerPage(),
+      ),
     );
 
-    if (result == "-1") return;
+    if (result == null || result.isEmpty) return;
 
     setState(() {
       _barcode.text = result;
@@ -3164,4 +3164,35 @@ static Map<String, dynamic> calculateFinalShipping({
     "sellerPays": sellerPays,
   };
 }
+}
+
+class _BarcodeScannerPage extends StatefulWidget {
+  const _BarcodeScannerPage();
+
+  @override
+  State<_BarcodeScannerPage> createState() => _BarcodeScannerPageState();
+}
+
+class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
+  bool _handled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: MobileScanner(
+        onDetect: (capture) {
+          if (_handled) return;
+
+          final barcode = capture.barcodes.first.rawValue;
+
+          if (barcode == null || barcode.isEmpty) return;
+
+          _handled = true;
+
+          Navigator.pop(context, barcode);
+        },
+      ),
+    );
+  }
 }

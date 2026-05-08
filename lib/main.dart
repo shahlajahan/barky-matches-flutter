@@ -50,7 +50,7 @@ import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart';
 import 'ui/orders/order_detail_page.dart';
 
 late Box<Dog> dogsBox;
@@ -895,7 +895,9 @@ class MyApp extends StatefulWidget {
 }
 
 class MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  StreamSubscription? _sub;
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _sub;
+  Uri? _lastHandledLink;
 
   //Locale _locale = const Locale('en');
 
@@ -903,23 +905,24 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
 
-    // 🔥 when app is opened from terminated
-    getInitialUri().then((uri) {
+    _appLinks.getInitialLink().then((uri) {
       if (uri != null) {
-        debugPrint("🔥 INITIAL LINK: $uri");
-        handleDeepLink(uri);
+        _handleDeepLinkOnce(uri, "INITIAL LINK");
       }
     });
 
-    // 🔥 when app is in background
-    _sub = uriLinkStream.listen((Uri? uri) {
-      if (uri != null) {
-        debugPrint("🔥 DEEP LINK RECEIVED: $uri");
-        handleDeepLink(uri);
-      }
+    _sub = _appLinks.uriLinkStream.listen((Uri uri) {
+      _handleDeepLinkOnce(uri, "DEEP LINK RECEIVED");
     });
 
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  void _handleDeepLinkOnce(Uri uri, String label) {
+    if (_lastHandledLink == uri) return;
+    _lastHandledLink = uri;
+    debugPrint("$label: $uri");
+    handleDeepLink(uri);
   }
 
   @override
