@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class UpgradePage extends StatefulWidget {
   const UpgradePage({super.key});
@@ -34,6 +35,7 @@ class _UpgradePageState extends State<UpgradePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final premium = IapService.instance.premiumProduct;
     final gold = IapService.instance.goldProduct;
 
@@ -44,12 +46,9 @@ class _UpgradePageState extends State<UpgradePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const SizedBox(),
         title: Text(
-          "Upgrade",
+          l10n.upgradePageTitle,
           style: GoogleFonts.poppins(color: Colors.white),
         ),
         centerTitle: true,
@@ -65,7 +64,7 @@ class _UpgradePageState extends State<UpgradePage> {
                   const SizedBox(height: 12),
 
                   Text(
-                    "Find better matches faster 🐾",
+                    l10n.upgradeHeroTitle,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 24,
@@ -77,7 +76,7 @@ class _UpgradePageState extends State<UpgradePage> {
                   const SizedBox(height: 8),
 
                   Text(
-                    "Unlock premium features, better visibility, exclusive offers and business tools.",
+                    l10n.upgradeHeroSubtitle,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 13,
@@ -89,16 +88,16 @@ class _UpgradePageState extends State<UpgradePage> {
                   const SizedBox(height: 22),
 
                   _buildPlanCard(
-                    title: "Premium",
-                    subtitle: "For dog owners who want more matches",
-                    price: premium?.price ?? "Loading...",
+                    title: l10n.premiumLabel,
+                    subtitle: l10n.premiumPlanSubtitle,
+                    price: premium?.price ?? l10n.loadingLabel,
                     isSelected: selectedPlan == "premium",
                     isGold: false,
-                    features: const [
-                      "Unlimited chat",
-                      "Advanced matching filters",
-                      "Exclusive pet offers",
-                      "Better profile experience",
+                    features: [
+                      l10n.premiumPlanFeatureUnlimitedChat,
+                      l10n.premiumPlanFeatureAdvancedMatchingFilters,
+                      l10n.premiumPlanFeatureExclusivePetOffers,
+                      l10n.premiumPlanFeatureBetterProfileExperience,
                     ],
                     onTap: () => setState(() => selectedPlan = "premium"),
                   ),
@@ -106,18 +105,18 @@ class _UpgradePageState extends State<UpgradePage> {
                   const SizedBox(height: 14),
 
                   _buildPlanCard(
-                    title: "Gold",
-                    subtitle: "Best for business access and maximum visibility",
-                    price: gold?.price ?? "Loading...",
+                    title: l10n.goldLabel,
+                    subtitle: l10n.goldPlanSubtitle,
+                    price: gold?.price ?? l10n.loadingLabel,
                     isSelected: selectedPlan == "gold",
                     isGold: true,
-                    badge: "MOST POPULAR",
-                    features: const [
-                      "Everything in Premium",
-                      "Business registration access",
-                      "Boosted visibility",
-                      "Business dashboard access",
-                      "Premium chat and offers",
+                    badge: l10n.mostPopularLabel,
+                    features: [
+                      l10n.goldPlanFeatureEverythingInPremium,
+                      l10n.goldPlanFeatureBusinessRegistrationAccess,
+                      l10n.goldPlanFeatureBoostedVisibility,
+                      l10n.goldPlanFeatureBusinessDashboardAccess,
+                      l10n.goldPlanFeaturePremiumChatAndOffers,
                     ],
                     onTap: () => setState(() => selectedPlan = "gold"),
                   ),
@@ -149,8 +148,8 @@ class _UpgradePageState extends State<UpgradePage> {
                           : () async {
                               if (selectedProduct == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Store not ready. Try again."),
+                                  SnackBar(
+                                    content: Text(l10n.storeNotReadyTryAgain),
                                   ),
                                 );
                                 return;
@@ -167,7 +166,9 @@ class _UpgradePageState extends State<UpgradePage> {
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text("Purchase failed: $e"),
+                                    content: Text(
+                                      l10n.errorOccurred(e.toString()),
+                                    ),
                                   ),
                                 );
                               } finally {
@@ -176,8 +177,12 @@ class _UpgradePageState extends State<UpgradePage> {
                             },
                       child: Text(
                         isBusy
-                            ? "Processing..."
-                            : "Continue with ${selectedPlan.toUpperCase()}",
+                            ? l10n.processingLabel
+                            : l10n.continueWithPlan(
+                                selectedPlan == "premium"
+                                    ? l10n.premiumLabel
+                                    : l10n.goldLabel,
+                              ),
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
@@ -193,16 +198,16 @@ class _UpgradePageState extends State<UpgradePage> {
                       await IapService.instance.restorePurchases();
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Restore request sent.")),
+                        SnackBar(content: Text(l10n.restoreRequestSent)),
                       );
                     },
-                    child: const Text("Restore Purchases"),
+                    child: Text(l10n.restorePurchases),
                   ),
 
                   const SizedBox(height: 4),
 
                   Text(
-                    "Payment will be charged to your Apple ID account at confirmation. Subscription renews automatically unless canceled at least 24 hours before the end of the current period. You can manage or cancel subscriptions in your App Store account settings.",
+                    l10n.upgradePaymentTerms,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 10.5,
@@ -218,8 +223,8 @@ class _UpgradePageState extends State<UpgradePage> {
                     children: [
                       GestureDetector(
                         onTap: () => _openUrl("https://petsupo.com/gizlilik-politikasi"),
-                        child: const Text(
-                          "Privacy Policy",
+                        child: Text(
+                          l10n.privacyPolicyLabel,
                           style: TextStyle(
                             color: Colors.blueAccent,
                             decoration: TextDecoration.underline,
@@ -230,8 +235,8 @@ class _UpgradePageState extends State<UpgradePage> {
                       const SizedBox(width: 18),
                       GestureDetector(
                         onTap: () => _openUrl("https://petsupo.com/kullanim-kosullari"),
-                        child: const Text(
-                          "Terms of Use",
+                        child: Text(
+                          l10n.termsOfUseLabel,
                           style: TextStyle(
                             color: Colors.blueAccent,
                             decoration: TextDecoration.underline,
@@ -260,6 +265,7 @@ class _UpgradePageState extends State<UpgradePage> {
     required VoidCallback onTap,
     String? badge,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     final bgColor = isGold ? const Color(0xFFFFC107) : const Color(0xFF211426);
     final textColor = isGold ? Colors.black : Colors.white;
     final subColor = isGold ? Colors.black87 : Colors.white70;
@@ -350,7 +356,7 @@ class _UpgradePageState extends State<UpgradePage> {
             ),
 
             Text(
-              "per month",
+              l10n.autoRenewableMonthlySubscription,
               style: GoogleFonts.poppins(
                 fontSize: 11,
                 color: subColor,
@@ -391,6 +397,7 @@ class _UpgradePageState extends State<UpgradePage> {
   }
 
   Widget _buildTrustBox() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -404,7 +411,7 @@ class _UpgradePageState extends State<UpgradePage> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              "Secure payment • Cancel anytime • Plans are managed by the App Store",
+              l10n.securePaymentNotice,
               style: GoogleFonts.poppins(
                 color: Colors.white70,
                 fontSize: 12,

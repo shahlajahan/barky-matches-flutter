@@ -27,6 +27,9 @@ import 'package:barky_matches_fixed/utils/dog_filter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import 'package:barky_matches_fixed/social/services/follow_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 enum PlaymatePageMode {
   browse,
@@ -114,6 +117,9 @@ void initState() {
   dogsBox = Hive.box<Dog>('dogsBox');
 
   final appState = context.read<AppState>();
+  final followService = FollowService();
+
+
 
   // 🚫 GUEST MODE HARD BLOCK
   if (appState.isGuest) {
@@ -179,10 +185,10 @@ List<Dog> _applyFiltersMainThread({
   required String? selectedPetType, // 🔥 ADD
 }) {
 
- print("🧪 FILTER START → total dogs = ${sourceDogs.length}");
+ debugPrint("🧪 FILTER START → total dogs = ${sourceDogs.length}");
   return sourceDogs.where((dog) {
 
-  print("🐶 CHECK DOG → ${dog.name}");
+  debugPrint("🐶 CHECK DOG → ${dog.name}");
 
   final data = {
     'isHidden': dog.isHidden,
@@ -194,14 +200,14 @@ List<Dog> _applyFiltersMainThread({
   final include = shouldIncludeDog(data, DogFilterMode.discover);
 
   if (!include) {
-    print("❌ FILTERED (visibility) → ${dog.name}");
+    debugPrint("❌ FILTERED (visibility) → ${dog.name}");
     return false;
   }
 
   if (currentUserId != null &&
     currentUserId.isNotEmpty &&
     dog.ownerId == currentUserId) {
-  print("🚫 OWN DOG REMOVED → ${dog.name}");
+  debugPrint("🚫 OWN DOG REMOVED → ${dog.name}");
   return false;
 }
 
@@ -209,7 +215,7 @@ List<Dog> _applyFiltersMainThread({
       selectedBreed == null || dog.breed == selectedBreed;
 
   if (!matchesBreed) {
-    print("❌ FILTERED (breed) → ${dog.name}");
+    debugPrint("❌ FILTERED (breed) → ${dog.name}");
     return false;
   }
 
@@ -217,7 +223,7 @@ List<Dog> _applyFiltersMainThread({
       selectedGender == null || dog.gender == selectedGender;
 
   if (!matchesGender) {
-    print("❌ FILTERED (gender) → ${dog.name}");
+    debugPrint("❌ FILTERED (gender) → ${dog.name}");
     return false;
   }
 
@@ -233,7 +239,7 @@ if (!matchesOwnerGender) return false;
           dog.age <= ageRange.end);
 
   if (!matchesAge) {
-    print("❌ FILTERED (age) → ${dog.name}");
+    debugPrint("❌ FILTERED (age) → ${dog.name}");
     return false;
   }
 
@@ -253,11 +259,11 @@ if (userLatitude != null &&
 
   final km = meters / 1000;
 
-  print("📍 DISTANCE ${dog.name} = $km km");
+  debugPrint("📍 DISTANCE ${dog.name} = $km km");
 
   // 🚨 اگر فاصله غیرواقعی بود → ignore کن
   if (km > 1000) {
-    print("⚠️ INVALID DISTANCE → skipping filter");
+    debugPrint("⚠️ INVALID DISTANCE → skipping filter");
     matchesDistance = true;
   } else {
     matchesDistance = km <= maxDistance;
@@ -269,7 +275,7 @@ if (userLatitude != null &&
       dog.healthStatus == selectedHealthStatus;
 
   if (!matchesHealth) {
-    print("❌ FILTERED (health) → ${dog.name}");
+    debugPrint("❌ FILTERED (health) → ${dog.name}");
     return false;
   }
 
@@ -277,11 +283,11 @@ if (userLatitude != null &&
       selectedPetType == null || dog.petType == selectedPetType;
 
   if (!matchesPetType) {
-    print("❌ FILTERED (petType) → ${dog.name} | dog=${dog.petType} filter=$selectedPetType");
+    debugPrint("❌ FILTERED (petType) → ${dog.name} | dog=${dog.petType} filter=$selectedPetType");
     return false;
   }
 
-  print("✅ PASSED → ${dog.name}");
+  debugPrint("✅ PASSED → ${dog.name}");
 
   return true;
 
@@ -308,7 +314,7 @@ Future<void> _loadUserPremiums(List<Dog> dogs) async {
       data?['isPremium'] == true,
     );
   } catch (e) {
-    print("❌ premium read denied for $id → $e");
+    debugPrint("❌ premium read denied for $id → $e");
 
     return MapEntry(id!, false);
   }
@@ -320,7 +326,7 @@ Future<void> _loadUserPremiums(List<Dog> dogs) async {
     for (var e in results) e.key: e.value,
   };
 
-  print("🔥 USER PREMIUM MAP LOADED: $_userPremiumMap");
+  debugPrint("🔥 USER PREMIUM MAP LOADED: $_userPremiumMap");
 }
 
 Future<void> _loadUserLocation() async {
@@ -332,7 +338,7 @@ Future<void> _loadUserLocation() async {
         desiredAccuracy: LocationAccuracy.high,
       );
     } catch (e) {
-      print("⚠️ GPS FAILED → using fallback");
+      debugPrint("⚠️ GPS FAILED → using fallback");
     }
 
     final lat = position?.latitude;
@@ -349,13 +355,13 @@ Future<void> _loadUserLocation() async {
       _userLongitude = isInvalid ? null : lng;
     });
 
-    print("📍 FINAL USER LOCATION → $_userLatitude , $_userLongitude");
+    debugPrint("📍 FINAL USER LOCATION → $_userLatitude , $_userLongitude");
 
     // 🔥 مهم
     _applyFiltersAsync();
 
   } catch (e) {
-    print("❌ LOCATION ERROR: $e");
+    debugPrint("❌ LOCATION ERROR: $e");
 
     setState(() {
       _userLatitude = null;
@@ -600,9 +606,9 @@ boostScore: (data['boostScore'] as num?)?.toInt() ?? 0,
         petType: data['petType'] ?? 'dog',
       );
     }).toList();
- print("🔥 RAW DOGS FROM FIRESTORE:");
+ debugPrint("🔥 RAW DOGS FROM FIRESTORE:");
 for (var d in sourceDogs) {
-  print("🐶 ${d.name} | owner=${d.ownerId} | hidden=${d.isHidden} | visible=${d.dogProfileVisible}/${d.ownerProfileVisible} | petType=${d.petType}");
+  debugPrint("🐶 ${d.name} | owner=${d.ownerId} | hidden=${d.isHidden} | visible=${d.dogProfileVisible}/${d.ownerProfileVisible} | petType=${d.petType}");
 }
     // 🔥 جلوگیری از update بی‌خودی AppState
     final currentDogs = appState.allDogs;
@@ -666,9 +672,9 @@ finalList.sort((a, b) {
   return scoreB.compareTo(scoreA);
 });
 for (var dog in finalList) {
-  print("🏆 ORDER → ${dog.name}");
-  print("📍 USER: $_userLatitude , $_userLongitude");
-print("📍 DOG: ${dog.latitude} , ${dog.longitude}");
+  debugPrint("🏆 ORDER → ${dog.name}");
+  debugPrint("📍 USER: $_userLatitude , $_userLongitude");
+debugPrint("📍 DOG: ${dog.latitude} , ${dog.longitude}");
 }
     // 🧹 REMOVE DUPLICATES
     final Map<String, Dog> uniqueDogs = {};
@@ -715,24 +721,54 @@ int _calculateDogScore(Dog dog) {
 
 
 
-Future<void> _precacheDogImages(List<Dog> dogs) async {
+
+
+Future<void> safePrecacheImage(
+  BuildContext context,
+  String imageUrl,
+) async {
+
+  try {
+
+    final imageProvider = NetworkImage(imageUrl);
+
+    await precacheImage(
+      imageProvider,
+      context,
+    );
+
+    debugPrint('🧠 precached: $imageUrl');
+
+  } catch (e) {
+
+    debugPrint(
+      '⚠️ precache failed: $e',
+    );
+  }
+}
+
+Future<void> _precacheDogImages(
+  List<Dog> dogs,
+) async {
+
   for (final dog in dogs.take(6)) {
+
     for (final path in dog.imagePaths.take(1)) {
+
       if (!mounted) return;
 
-      if (path.contains("firebasestorage")) {
-  try {
-  final imageProvider = NetworkImage(path);
+      if (!path.contains('firebasestorage')) {
+        continue;
+      }
 
-  await precacheImage(imageProvider, context);
+      await safePrecacheImage(
+        context,
+        path,
+      );
 
-  if (!mounted) return;
-
-  debugPrint("🧠 precached: $path");
-} catch (e) {
-  debugPrint("❌ precache skipped: $path");
-}
-}
+      await Future.delayed(
+        const Duration(milliseconds: 80),
+      );
     }
   }
 }
@@ -812,14 +848,14 @@ Future<void> _precacheDogImages(List<Dog> dogs) async {
 setState(() {
           _unreadNotificationsCount = notificationsSnapshot.docs.length;
           if (kDebugMode) {
-            print('PlaymatePage - Loaded unread notifications count: $_unreadNotificationsCount');
+            debugPrint('PlaymatePage - Loaded unread notifications count: $_unreadNotificationsCount');
           }
         });
       }
      catch (e, stackTrace) {
       if (kDebugMode) {
-        print('PlaymatePage - Error loading unread notifications count: $e');
-        print('StackTrace: $stackTrace');
+        debugPrint('PlaymatePage - Error loading unread notifications count: $e');
+        debugPrint('StackTrace: $stackTrace');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -858,7 +894,7 @@ setState(() {
   Future<void> _loadData() async {
   if (isSelectMode) {
     if (kDebugMode) {
-      print('⛔ _loadData blocked (selectDogForPlaydate)');
+      debugPrint('⛔ _loadData blocked (selectDogForPlaydate)');
     }
     return;
   }
@@ -893,7 +929,7 @@ setState(() {
         maxDistance = isPremium ? 100.0 : 50.0;
 
         if (kDebugMode) {
-          print('PlaymatePage - Premium: $isPremium | maxDistance: $maxDistance');
+          debugPrint('PlaymatePage - Premium: $isPremium | maxDistance: $maxDistance');
         }
       }
     } catch (e) {
@@ -914,7 +950,7 @@ setState(() {
         userLongitude = lastPosition.longitude;
 
         if (kDebugMode) {
-          print('📍 Using last known location');
+          debugPrint('📍 Using last known location');
         }
       } else {
         // ❗ NO requestPermission here
@@ -922,7 +958,7 @@ setState(() {
         userLongitude = null;
 
         if (kDebugMode) {
-          print('⚠️ No cached location → waiting for user action');
+          debugPrint('⚠️ No cached location → waiting for user action');
         }
       }
     } catch (e) {
@@ -949,7 +985,7 @@ setState(() {
       }
 
       if (kDebugMode) {
-        print('🧠 Hive sync done → ${dogsBox.length}');
+        debugPrint('🧠 Hive sync done → ${dogsBox.length}');
       }
     }
 
@@ -1040,7 +1076,7 @@ if (dogMap['dogProfileVisible'] == false) return false;
 
 if (ownerId == currentUserId) {
   if (kDebugMode) {
-    print(
+    debugPrint(
       'PlaymatePage - Excluding dog ${dogMap['name']} because ownerId ($ownerId) matches currentUserId ($currentUserId)',
     );
   }
@@ -1061,7 +1097,7 @@ if (ownerId == currentUserId) {
         double distanceInKm = distanceInMeters / 1000;
         matchesDistance = distanceInKm <= maxDistance;
         if (kDebugMode) {
-          print('PlaymatePage - Distance to ${dogMap['name']}: $distanceInKm km');
+          debugPrint('PlaymatePage - Distance to ${dogMap['name']}: $distanceInKm km');
         }
       }
       bool matchesNeutered = selectedNeutered == null || dogMap['isNeutered'] == selectedNeutered;
@@ -1086,7 +1122,7 @@ bool matchesPetType =
     matchesPetType &&
     matchesOwnerGender;
       if (kDebugMode) {
-        print('PlaymatePage - Dog ${dogMap['name']}: matchesBreed=$matchesBreed, matchesGender=$matchesGender, matchesAge=$matchesAge, matchesDistance=$matchesDistance, matchesNeutered=$matchesNeutered, matchesHealth=$matchesHealth, overall=$matches');
+        debugPrint('PlaymatePage - Dog ${dogMap['name']}: matchesBreed=$matchesBreed, matchesGender=$matchesGender, matchesAge=$matchesAge, matchesDistance=$matchesDistance, matchesNeutered=$matchesNeutered, matchesHealth=$matchesHealth, overall=$matches');
       }
       return matches;
     }).map((dogMap) => Dog(
@@ -1122,7 +1158,7 @@ petType: dogMap['petType'] ?? 'dog',
     final appState = context.read<AppState>();
     
     if (kDebugMode) {
-      print('PlaymatePage - Starting _applyFiltersAsync with filters: $filters');
+      debugPrint('PlaymatePage - Starting _applyFiltersAsync with filters: $filters');
     }
     if (filters != null) {
       selectedPetType = filters['petType'] as String?;
@@ -1136,18 +1172,18 @@ petType: dogMap['petType'] ?? 'dog',
       selectedHealthStatus = filters['healthStatus'] as String?;
       selectedOwnerGender = filters['ownerGender'] as String?;
 
-      print("🔥 selectedPetType = $selectedPetType");
+      debugPrint("🔥 selectedPetType = $selectedPetType");
       if (kDebugMode) {
-        print('PlaymatePage - Applied filters: breed=$selectedBreed, gender=$selectedGender, ageRange=$ageRange, maxDistance=$_maxDistance, neutered=$selectedNeutered, healthStatus=$selectedHealthStatus');
+        debugPrint('PlaymatePage - Applied filters: breed=$selectedBreed, gender=$selectedGender, ageRange=$ageRange, maxDistance=$_maxDistance, neutered=$selectedNeutered, healthStatus=$selectedHealthStatus');
       }
     }
 
 
 
     if (selectedPetType != null) {
-  print("🐾 ACTIVE petType filter = $selectedPetType");
+  debugPrint("🐾 ACTIVE petType filter = $selectedPetType");
 } else {
-  print("🐾 NO petType filter");
+  debugPrint("🐾 NO petType filter");
 }
 
     try {
@@ -1192,20 +1228,20 @@ petType: dogMap['petType'] ?? 'dog',
          selectedOwnerGender,
       ]);
       for (var dog in filteredDogs) {
-  print("🐾 result petType = ${dog.petType}");
+  debugPrint("🐾 result petType = ${dog.petType}");
 }
 
-print("🧠 AFTER FILTER ASYNC: ${filteredDogs.length}");
+debugPrint("🧠 AFTER FILTER ASYNC: ${filteredDogs.length}");
       final uniqueDogs = <String, Dog>{};
       for (var dog in filteredDogs) {
         if (!uniqueDogs.containsKey(dog.id)) {
           uniqueDogs[dog.id] = dog;
           if (kDebugMode) {
-            print('PlaymatePage - Using dog: ${dog.name}, id: ${dog.id}');
+            debugPrint('PlaymatePage - Using dog: ${dog.name}, id: ${dog.id}');
           }
         } else {
           if (kDebugMode) {
-            print('PlaymatePage - Skipping duplicate dog: ${dog.name}, id: ${dog.id}');
+            debugPrint('PlaymatePage - Skipping duplicate dog: ${dog.name}, id: ${dog.id}');
           }
         }
       }
@@ -1219,9 +1255,9 @@ print("🧠 AFTER FILTER ASYNC: ${filteredDogs.length}");
   return scoreB.compareTo(scoreA);
 });
           if (kDebugMode) {
-            print('PlaymatePage - Filtered dogs count: ${_filteredDogs.length}');
+            debugPrint('PlaymatePage - Filtered dogs count: ${_filteredDogs.length}');
             for (var dog in _filteredDogs) {
-              print('PlaymatePage - Filtered dog: ${dog.name}, id: ${dog.id}, isNeutered: ${dog.isNeutered}, healthStatus: ${dog.healthStatus}');
+              debugPrint('PlaymatePage - Filtered dog: ${dog.name}, id: ${dog.id}, isNeutered: ${dog.isNeutered}, healthStatus: ${dog.healthStatus}');
             }
           }
         });
@@ -1229,8 +1265,8 @@ print("🧠 AFTER FILTER ASYNC: ${filteredDogs.length}");
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('PlaymatePage - Error in _applyFiltersAsync: $e');
-        print('StackTrace: $stackTrace');
+        debugPrint('PlaymatePage - Error in _applyFiltersAsync: $e');
+        debugPrint('StackTrace: $stackTrace');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1266,18 +1302,20 @@ void dispose() {
 }
 
 void showLoginDialog(BuildContext context) {
+  final localizations = AppLocalizations.of(context)!;
+
   showDialog(
     context: context,
     builder: (_) => AlertDialog(
-      title: const Text("Login required"),
-      content: const Text("Please sign in to use this feature"),
+      title: Text(localizations.signInTitle),
+      content: Text(localizations.signInToAccessPlaymate),
       actions: [
         TextButton(
           onPressed: () {
             Navigator.pop(context);
             Navigator.pushNamed(context, '/auth');
           },
-          child: const Text("Sign in"),
+          child: Text(localizations.signInButton),
         ),
       ],
     ),
@@ -1289,6 +1327,7 @@ void showLoginDialog(BuildContext context) {
   List<Dog> favs,
   AppState appState,
 ) {
+  final localizations = AppLocalizations.of(context)!;
   final dogs = _filteredDogs;
 
   return Container(
@@ -1304,11 +1343,11 @@ Padding(
   padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
   child: Row(
     children: [
-      Column(
+          Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Playmates 🐾",
+            localizations.playmateService,
             style: AppTheme.h1().copyWith(
               fontWeight: FontWeight.w800,
               letterSpacing: -0.5,
@@ -1317,7 +1356,7 @@ Padding(
           ),
           const SizedBox(height: 2),
           Text(
-            "Find friends for your dog",
+            localizations.signInToFindFriends,
             style: AppTheme.caption().copyWith(
               color: Colors.black54,
             ),
@@ -1384,8 +1423,8 @@ Padding(
         Expanded(
           child: TextField(
             style: AppTheme.body(),
-            decoration: const InputDecoration(
-              hintText: "Search dogs...",
+            decoration: InputDecoration(
+              hintText: localizations.playmateSearchHint,
               border: InputBorder.none,
             ),
             onChanged: (value) {
@@ -1467,19 +1506,19 @@ Padding(
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text("Location needed"),
-        content: Text("We use your location to show nearby dogs"),
+        title: Text(localizations.playmateLocationNeededTitle),
+        content: Text(localizations.playmateLocationNeededMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Cancel"),
+            child: Text(localizations.cancel),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await requestLocationFromUser();
             },
-            child: Text("Allow"),
+            child: Text(localizations.homeAllowButton),
           ),
         ],
       ),
@@ -1601,6 +1640,8 @@ Padding(
   );
 }
 Widget _buildEmptyState() {
+  final localizations = AppLocalizations.of(context)!;
+
   return Center(
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -1612,7 +1653,7 @@ Widget _buildEmptyState() {
 ),
         const SizedBox(height: 10),
         Text(
-  "No playmates found",
+  localizations.noDogsMatchFilters,
   style: AppTheme.h2().copyWith(
     color: const Color(0xFF9E1B4F),
     fontWeight: FontWeight.w600,
@@ -1620,7 +1661,7 @@ Widget _buildEmptyState() {
 ),
         const SizedBox(height: 6),
         Text(
-  "Try adjusting your filters",
+  localizations.adjustFiltersSuggestion,
   style: AppTheme.caption().copyWith(
     color: AppTheme.muted,
   ),
@@ -1682,7 +1723,16 @@ class PlaymateProfileOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
 
     
-    final appState = context.read<AppState>();
+    final localizations = AppLocalizations.of(context)!;
+   final appState = context.read<AppState>();
+
+final followService = FollowService();
+
+final currentUserId =
+    FirebaseAuth.instance.currentUser?.uid;
+
+final isOwnProfile =
+    currentUserId == targetUserId;
 
     final userDogs =
         dogsList.where((d) => d.ownerId == targetUserId).toList();
@@ -1719,33 +1769,138 @@ class PlaymateProfileOverlay extends StatelessWidget {
               child: Column(
                 children: [
 
-                  // 🔝 HEADER
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () {
-                          context.read<AppState>().closePlaymateProfile();
-                        },
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "Dogs of this User",
-                          style: AppTheme.h2(color: Colors.white),
-                        ),
-                      ),
-                    ],
+                 // 🔝 HEADER
+Row(
+  crossAxisAlignment: CrossAxisAlignment.center,
+  children: [
+
+    // ❌ CLOSE
+    IconButton(
+      icon: const Icon(
+        Icons.close,
+        color: Colors.white,
+      ),
+      onPressed: () {
+        context
+            .read<AppState>()
+            .closePlaymateProfile();
+      },
+    ),
+
+    const SizedBox(width: 8),
+
+    // 🐶 TITLE
+    Expanded(
+      child: Text(
+        localizations.dogsOfThisUser,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTheme.h2(
+          color: Colors.white,
+        ),
+      ),
+    ),
+
+    // 🔥 FOLLOW BUTTON
+   // if (!isOwnProfile)
+      StreamBuilder<bool>(
+        stream: followService.isFollowing(
+          targetUserId,
+        ),
+
+        builder: (context, snapshot) {
+
+          final isFollowing =
+              snapshot.data ?? false;
+
+          return Padding(
+            padding: const EdgeInsets.only(left: 10),
+
+            child: Material(
+              color: Colors.transparent,
+
+              child: InkWell(
+
+                borderRadius:
+                    BorderRadius.circular(14),
+
+                onTap: () async {
+
+                  if (isFollowing) {
+
+                    await followService.unfollowUser(
+                      targetUserId: targetUserId,
+                    );
+
+                  } else {
+
+                    await followService.followUser(
+                      targetUserId: targetUserId,
+                    );
+                  }
+                },
+
+                child: Container(
+
+                  height: 42,
+
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 16,
                   ),
 
+                  alignment: Alignment.center,
+
+                  decoration: BoxDecoration(
+
+                    color: isFollowing
+                        ? Colors.white.withOpacity(0.14)
+                        : Colors.white,
+
+                    borderRadius:
+                        BorderRadius.circular(14),
+
+                    border: Border.all(
+                      color: isFollowing
+                          ? Colors.white24
+                          : Colors.transparent,
+                    ),
+                  ),
+
+                  child: Text(
+
+                    isFollowing
+                        ? 'Following'
+                        : 'Follow',
+
+                    style: TextStyle(
+
+                      color: isFollowing
+                          ? Colors.white
+                          : const Color(0xFF9E1B4F),
+
+                      fontWeight:
+                          FontWeight.w700,
+
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+  ],
+),
                   const SizedBox(height: 10),
 
                   // 🔥 SCROLLABLE CONTENT
                   Expanded(
                     child: userDogs.isEmpty
-                        ? const Center(
+                        ? Center(
                             child: Text(
-                              "No dogs found",
+                              localizations.noDogsFound,
                               style: TextStyle(color: Colors.white),
                             ),
                           )
@@ -1809,12 +1964,13 @@ class _PlaymateFilterOverlayState
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
     final appState = context.watch<AppState>();
 
     final isGold = appState.isGold;
     final isPremium = appState.isPremium;
-print("🟡 isGold = $isGold");
-print("🟣 isPremium = $isPremium");
+debugPrint("🟡 isGold = $isGold");
+debugPrint("🟣 isPremium = $isPremium");
     return Stack(
       children: [
         Positioned.fill(
@@ -1839,9 +1995,9 @@ print("🟣 isPremium = $isPremium");
                 /// HEADER
                 Row(
                   children: [
-                    const Text(
-                      "Filters",
-                      style: TextStyle(color: Colors.white),
+                    Text(
+                      localizations.playmateFiltersTitle,
+                      style: const TextStyle(color: Colors.white),
                     ),
                     const Spacer(),
 
@@ -1859,9 +2015,9 @@ print("🟣 isPremium = $isPremium");
 
                         appState.clearPlaymateFilters();
                       },
-                      child: const Text(
-                        "Reset",
-                        style: TextStyle(color: Colors.white),
+                      child: Text(
+                        localizations.resetFiltersButton,
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
                   ],
@@ -1872,12 +2028,24 @@ print("🟣 isPremium = $isPremium");
                 /// 🐾 PET TYPE
                 DropdownButtonFormField<String>(
                   value: petType,
-                  hint: const Text("Pet Type"),
-                  items: const [
-                    DropdownMenuItem(value: 'dog', child: Text("Dog")),
-                    DropdownMenuItem(value: 'cat', child: Text("Cat")),
-                    DropdownMenuItem(value: 'bird', child: Text("Bird")),
-                    DropdownMenuItem(value: 'horse', child: Text("Horse")),
+                  hint: Text(localizations.petTypeLabel),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'dog',
+                      child: Text(localizations.petTypeDog),
+                    ),
+                    DropdownMenuItem(
+                      value: 'cat',
+                      child: Text(localizations.petTypeCat),
+                    ),
+                    DropdownMenuItem(
+                      value: 'bird',
+                      child: Text(localizations.petTypeBird),
+                    ),
+                    DropdownMenuItem(
+                      value: 'horse',
+                      child: Text(localizations.petTypeHorse),
+                    ),
                   ],
                   onChanged: (v) => setState(() => petType = v),
                 ),
@@ -1887,7 +2055,11 @@ print("🟣 isPremium = $isPremium");
                 /// 🐶 BREED (Gold only)
                 DropdownButtonFormField<String>(
                   value: breed,
-                  hint: Text(isGold ? "Breed" : "Breed (Gold)"),
+                  hint: Text(
+                    isGold
+                        ? localizations.breed
+                        : localizations.playmateBreedPremiumHint,
+                  ),
                   items: isGold
                       ? widget.dogsList
                           .map((d) => d.breed)
@@ -1908,10 +2080,16 @@ print("🟣 isPremium = $isPremium");
                 /// ⚥ DOG GENDER
                 DropdownButtonFormField<String>(
                   value: gender,
-                  hint: const Text("Dog Gender"),
-                  items: const [
-                    DropdownMenuItem(value: 'male', child: Text("Male")),
-                    DropdownMenuItem(value: 'female', child: Text("Female")),
+                  hint: Text(localizations.gender),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'male',
+                      child: Text(localizations.genderMale),
+                    ),
+                    DropdownMenuItem(
+                      value: 'female',
+                      child: Text(localizations.genderFemale),
+                    ),
                   ],
                   onChanged: (v) => setState(() => gender = v),
                 ),
@@ -1921,13 +2099,17 @@ print("🟣 isPremium = $isPremium");
                 /// 👤 OWNER GENDER (Premium)
                 DropdownButtonFormField<String>(
                   value: ownerGender,
-                  hint: Text(isPremium ? "Owner Gender" : "Owner Gender (Premium)"),
+                  hint: Text(
+                    isPremium
+                        ? localizations.selectOwnerGenderHint
+                        : localizations.playmateOwnerGenderPremiumHint,
+                  ),
                   items: isPremium
-                      ? const [
+                      ? [
                           DropdownMenuItem(
-                              value: 'male', child: Text("Male")),
+                              value: 'male', child: Text(localizations.genderMale)),
                           DropdownMenuItem(
-                              value: 'female', child: Text("Female")),
+                              value: 'female', child: Text(localizations.genderFemale)),
                         ]
                       : [],
                   onChanged: isPremium
@@ -1969,7 +2151,7 @@ print("🟣 isPremium = $isPremium");
                       'maxDistance': maxDistance,
                     });
                   },
-                  child: const Text("Apply"),
+                  child: Text(localizations.apply),
                 ),
               ],
             ),

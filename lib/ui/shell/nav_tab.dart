@@ -2,16 +2,22 @@ enum NavTab {
   home,
   favorites,
   vet,
+  groomy,
+  petHotel,
+  petTaxi,
+
   playdate,
-  playmates, // ✅ NEW (TYPE A tab)
+  playmates,
+  petplore,
+
   profile,
   dogParks,
   adoption,
-reportLost,
-reportFound,
-lostDogs,
-foundDogs,
-playdateScheduling,
-
-  none, // برای Notifications, Modals, ...
+  reportLost,
+  reportFound,
+  lostDogs,
+  foundDogs,
+  playdateScheduling,
+  greenMemorial,
+  none,
 }

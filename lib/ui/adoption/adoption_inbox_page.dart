@@ -26,23 +26,14 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) {
-      return const Scaffold(
-        body: Center(child: Text("Not authenticated")),
-      );
-    }
-print("🔥 ADOPTION INBOX BUILD for user=$userId");
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Adoption Requests"),
-        backgroundColor: Colors.pink[400],
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            context.read<AppState>().closeProfileSubPage();
-          },
-        ),
-      ),
-      body: Column(
+  return const Center(
+    child: Text("Not authenticated"),
+  );
+}
+
+return Container(
+  color: const Color(0xFFFDF2F5),
+  child: Column(
         children: [
           const SizedBox(height: 10),
           _buildTabs(),
@@ -121,18 +112,18 @@ print("🔥 ADOPTION INBOX BUILD for user=$userId");
         .where('targetOwnerId', isEqualTo: ownerId)
         .where('status', isEqualTo: status)
         .orderBy('createdAt', descending: true);
-print("📡 ADOPTION QUERY owner=$ownerId status=$status");
+debugPrint("📡 ADOPTION QUERY owner=$ownerId status=$status");
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
       builder: (context, snapshot) {
 
-        print("🧪 SNAPSHOT state="
+        debugPrint("🧪 SNAPSHOT state="
       "${snapshot.connectionState} "
       "hasData=${snapshot.hasData} "
       "docs=${snapshot.data?.docs.length}");
 
       if (snapshot.hasError) {
-  print("❌ ADOPTION ERROR: ${snapshot.error}");
+  debugPrint("❌ ADOPTION ERROR: ${snapshot.error}");
   return Center(child: Text("Error: ${snapshot.error}"));
 }
         if (!snapshot.hasData) {

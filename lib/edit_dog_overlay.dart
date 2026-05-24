@@ -76,6 +76,7 @@ class _EditDogOverlayState extends State<EditDogOverlay>
   // ✅ REAL PICK IMAGE (Gallery/Camera)
   // ─────────────────────────────
   Future<void> _pickImage() async {
+  final l10n = AppLocalizations.of(context)!;
   final source = await showModalBottomSheet<ImageSource>(
     context: context,
     backgroundColor: Colors.white,
@@ -89,12 +90,12 @@ class _EditDogOverlayState extends State<EditDogOverlay>
           const SizedBox(height: 8),
           ListTile(
             leading: const Icon(Icons.photo_library),
-            title: const Text('Choose from gallery'),
+            title: Text(l10n.chooseFromGallery),
             onTap: () => Navigator.pop(ctx, ImageSource.gallery),
           ),
           ListTile(
             leading: const Icon(Icons.photo_camera),
-            title: const Text('Take a photo'),
+            title: Text(l10n.takeAPhoto),
             onTap: () => Navigator.pop(ctx, ImageSource.camera),
           ),
           const SizedBox(height: 8),
@@ -118,7 +119,7 @@ class _EditDogOverlayState extends State<EditDogOverlay>
 
     final downloadUrl = await _uploadImageToStorage(localFile);
 
-    print("🔥 DOWNLOAD URL: $downloadUrl");
+    debugPrint("🔥 DOWNLOAD URL: $downloadUrl");
 
     if (!mounted) return;
 
@@ -247,7 +248,7 @@ final fileName =
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          "Photos",
+                          l10n.photosLabel,
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -299,7 +300,7 @@ GestureDetector(
         child: _imagePaths.isEmpty
             ? Center(
                 child: Text(
-                  "No media",
+                  l10n.noMedia,
                   style: TextStyle(color: Colors.white70),
                 ),
               )
@@ -413,14 +414,16 @@ final isVideo = lower.contains('.mp4');
                       DropdownButtonFormField<String>(
                         value: _selectedHealthStatus,
                         dropdownColor: Colors.white,
-                        items: const [
+                        items: [
                           DropdownMenuItem(
-                              value: "healthy", child: Text("Healthy")),
+                              value: "healthy",
+                              child: Text(l10n.editDogHealthHealthy)),
                           DropdownMenuItem(
-                              value: "needsCare", child: Text("Needs Care")),
+                              value: "needsCare",
+                              child: Text(l10n.editDogHealthNeedsCare)),
                           DropdownMenuItem(
                               value: "underTreatment",
-                              child: Text("Under Treatment")),
+                              child: Text(l10n.editDogHealthUnderTreatment)),
                         ],
                         onChanged: (v) =>
                             setState(() => _selectedHealthStatus = v!),
@@ -449,7 +452,7 @@ final isVideo = lower.contains('.mp4');
                                 setState(() => _isNeutered = v!),
                             activeColor: Colors.white,
                           ),
-                          Text("Yes",
+                          Text(l10n.yes,
                               style: GoogleFonts.poppins(color: Colors.white)),
                           const SizedBox(width: 12),
                           Radio<bool>(
@@ -459,7 +462,7 @@ final isVideo = lower.contains('.mp4');
                                 setState(() => _isNeutered = v!),
                             activeColor: Colors.white,
                           ),
-                          Text("No",
+                          Text(l10n.no,
                               style: GoogleFonts.poppins(color: Colors.white)),
                         ],
                       ),
@@ -547,11 +550,16 @@ final isVideo = lower.contains('.mp4');
                       DropdownButtonFormField<String>(
                         value: _selectedOwnerGender,
                         dropdownColor: Colors.white,
-                        items: const [
-                          DropdownMenuItem(value: "male", child: Text("Male")),
+                        items: [
                           DropdownMenuItem(
-                              value: "female", child: Text("Female")),
-                          DropdownMenuItem(value: "other", child: Text("Other")),
+                              value: "male",
+                              child: Text(l10n.editDogOwnerGenderMale)),
+                          DropdownMenuItem(
+                              value: "female",
+                              child: Text(l10n.editDogOwnerGenderFemale)),
+                          DropdownMenuItem(
+                              value: "other",
+                              child: Text(l10n.editDogOwnerGenderOther)),
                         ],
                         onChanged: (v) =>
                             setState(() => _selectedOwnerGender = v!),
@@ -912,21 +920,32 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
   VideoPlayerController? _controller;
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    _controller = widget.url.startsWith('http')
-        ? VideoPlayerController.network(widget.url)
-        : VideoPlayerController.file(File(widget.url));
+  _controller = widget.url.startsWith('http')
 
-    _controller!
-      ..initialize().then((_) {
-        if (mounted) setState(() {});
-      })
-      ..play()
-      ..setLooping(true);
-  }
+      ? VideoPlayerController.networkUrl(
+          Uri.parse(widget.url),
+        )
 
+      : VideoPlayerController.file(
+          File(widget.url),
+        );
+
+  _controller!
+    ..initialize().then((_) {
+
+      if (mounted) {
+        setState(() {});
+      }
+
+    })
+
+    ..play()
+
+    ..setLooping(true);
+}
   @override
   void dispose() {
     _controller?.dispose();

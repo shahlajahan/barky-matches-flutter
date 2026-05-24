@@ -14,6 +14,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'app_entry.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+//import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -40,6 +41,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'playmate_page.dart';
 import 'offers_manager.dart';
+import 'package:barky_matches_fixed/firestore_recovery.dart';
 import 'dart:async';
 import 'ui/shell/barky_scaffold.dart';
 import 'ui/shell/nav_tab.dart';
@@ -48,11 +50,22 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'nav_logger.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
+import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
+import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+<<<<<<< HEAD
 import 'package:app_links/app_links.dart';
+=======
+import 'package:uni_links/uni_links.dart';
+import 'ui/appointments/my_appointments_page.dart';
+import 'ui/business/dashboard/vet/appointment_payment_page.dart';
+>>>>>>> 823c872 (ci: add flutter github actions workflow)
 import 'ui/orders/order_detail_page.dart';
-
+import 'ui/chat/chat_detail_page.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart'
+    hide AppState;
+    
 late Box<Dog> dogsBox;
 late Box<Dog> favoritesBox;
 late Box<String> currentUserBox;
@@ -77,12 +90,12 @@ Future<void> clearHive() async {
     if (await hiveDir.exists()) {
       await hiveDir.delete(recursive: true);
       if (kDebugMode) {
-        print('Main - Cleared Hive directory: ${hiveDir.path}');
+        debugPrint('Main - Cleared Hive directory: ${hiveDir.path}');
       }
     }
   } catch (e) {
     if (kDebugMode) {
-      print('Main - Error clearing Hive directory: $e');
+      debugPrint('Main - Error clearing Hive directory: $e');
     }
   }
 }
@@ -116,12 +129,11 @@ Future<void> waitForInternet() async {
   for (int i = 0; i < 10; i++) {
     final result = await connectivity.checkConnectivity();
 
-    if (result != ConnectivityResult.none) {
-      debugPrint('🌐 Internet is AVAILABLE');
-      return;
-    }
+    final hasConnection = result is List<ConnectivityResult>
+        ? result.any((e) => e != ConnectivityResult.none)
+        : result != ConnectivityResult.none;
 
-    debugPrint('⏳ Waiting for internet... (${i + 1})');
+    if (hasConnection) debugPrint('⏳ Waiting for internet... (${i + 1})');
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
@@ -129,43 +141,78 @@ Future<void> waitForInternet() async {
 }
 
 Future<void> ensureFirebaseInitialized() async {
+  debugPrint('🌐 FIREBASE INIT START');
+  debugPrint('🌐 FIREBASE APP COUNT → before=${Firebase.apps.length}');
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    debugPrint('🌐 Firebase.initializeApp executed from Dart');
+  } else {
+    debugPrint('🌐 Firebase.initializeApp skipped; existing app detected');
   }
+
+  debugPrint('🌐 FIREBASE APP COUNT → after=${Firebase.apps.length}');
+  await _activateAppCheck();
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
 
-  print("🔥 Firebase initialized");
+  unawaited(
+    FirebaseFirestore.instance
+        .enableNetwork()
+        .timeout(const Duration(seconds: 3))
+        .then((_) {
+          debugPrint('🌐 FIRESTORE NETWORK ENABLED → startup background');
+        })
+        .catchError((Object e) {
+          debugPrint('🌐 FIRESTORE NETWORK ENABLE FAILED → $e');
+        }),
+  );
+  debugPrint('🌐 FIRESTORE INSTANCE CREATED → settings configured');
+  FirestoreReadinessGate.instance.markFirebaseInitialized();
 
-  await Future.delayed(const Duration(seconds: 1));
+  debugPrint("🔥 Firebase initialized");
 
+  debugPrint('🌐 FIREBASE INIT COMPLETE');
   debugPrint('🔥 Firebase ready');
 }
 
-Future<void> ensureFirestoreReady() async {
-  int retries = 0;
+Future<void> _activateAppCheck() async {
+  debugPrint('🌐 APP CHECK TEMP DISABLED');
+}
 
-  while (retries < 5) {
-    try {
-      await FirebaseFirestore.instance.enableNetwork();
+void logStartupEnvironmentDiagnostics() {
+  if (kDebugMode) {
+    debugPrint('🌐 DEBUG MODE DETECTED');
+  } else if (kProfileMode) {
+    debugPrint('🌐 PROFILE MODE DETECTED');
+  } else if (kReleaseMode) {
+    debugPrint('🌐 RELEASE MODE DETECTED');
+  }
 
-      debugPrint("🔥 Firestore NETWORK ENABLED");
-
-      return;
-    } catch (e) {
-      debugPrint("⏳ Firestore retry ${retries + 1} → $e");
-
-      await Future.delayed(Duration(seconds: retries + 1));
-
-      retries++;
+  if (Platform.isIOS) {
+    debugPrint('🌐 IOS RUNTIME DETECTED');
+    if (kDebugMode) {
+      debugPrint('🌐 WIRELESS DEBUG DETECTED → iOS debug runtime');
     }
   }
 
-  debugPrint("❌ Firestore FAILED");
+  debugPrint(
+    '🌐 PROFILE/RELEASE FIRESTORE STATUS → '
+    '${kReleaseMode
+        ? "release"
+        : kProfileMode
+        ? "profile"
+        : "debug"}',
+  );
+}
+
+Future<void> ensureFirestoreReady() async {
+  await FirestoreReadinessGate.instance.waitUntilReady(
+    reason: 'main.ensureFirestoreReady',
+  );
 }
 
 /*
@@ -215,6 +262,10 @@ Future<T> retry<T>(Future<T> Function() run) async {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await ensureFirebaseInitialized();
+  await MobileAds.instance.initialize();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    FirestoreReadinessGate.instance.markFirstFrameReady();
+  });
 
   final data = message.data;
   final user = FirebaseAuth.instance.currentUser;
@@ -276,6 +327,18 @@ Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
   // سیستم خودش alert را نشان می‌دهد → local نساز
   if (Platform.isIOS && notification != null) {
     debugPrint(
+      '🔔 Foreground handling path: iOS system presentation notification=${notification.title}',
+    );
+    debugPrint('🔔 Foreground sound enabled via presentation options');
+    if ((data['type'] ?? '').toString().startsWith('pet_taxi_')) {
+      debugPrint(
+        '🚕 Playdate reference path detected: iOS notification payload uses system foreground presentation',
+      );
+      debugPrint(
+        '🚕 Pet Taxi using same sound path: foreground presentation sound=true',
+      );
+    }
+    debugPrint(
       "🍏 iOS system notification will handle display (no local show)",
     );
     return;
@@ -292,18 +355,27 @@ Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
           presentAlert: true,
           presentSound: true,
           presentBadge: true,
+          sound: 'default',
         ),
         android: AndroidNotificationDetails(
           'high_importance_channel',
           'High Importance Notifications',
           importance: Importance.max,
           priority: Priority.high,
+          playSound: true,
         ),
       ),
       payload: jsonEncode(data),
     );
 
     debugPrint("🔔 Local notification displayed");
+    debugPrint("🔔 Foreground local notification shown");
+    debugPrint("🔔 Sound enabled");
+    if ((data['type'] ?? '').toString().startsWith('pet_taxi_')) {
+      debugPrint("🚕 Pet Taxi foreground local notification shown");
+      debugPrint("🚕 Pet Taxi sound enabled");
+    }
+    debugPrint("🔔 Foreground local notification sound enabled");
   } catch (e) {
     debugPrint("❌ Error showing local notification: $e");
   }
@@ -316,13 +388,13 @@ Future<bool> checkInternetConnection() async {
     ).timeout(const Duration(seconds: 3));
     if (result.isNotEmpty && result.first.rawAddress.isNotEmpty) {
       if (kDebugMode) {
-        print('Main - Internet connection detected via dns.google');
+        debugPrint('Main - Internet connection detected via dns.google');
       }
       return true;
     }
   } catch (e) {
     if (kDebugMode) {
-      print('Main - Error checking internet connection: $e');
+      debugPrint('Main - Error checking internet connection: $e');
     }
   }
 
@@ -332,7 +404,7 @@ Future<bool> checkInternetConnection() async {
     ).timeout(const Duration(seconds: 3));
     if (result.isNotEmpty && result.first.rawAddress.isNotEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           'Main - Internet connection detected via firebaseappcheck.googleapis.com',
         );
       }
@@ -340,12 +412,12 @@ Future<bool> checkInternetConnection() async {
     }
   } catch (e) {
     if (kDebugMode) {
-      print('Main - Error checking firebaseappcheck.googleapis.com: $e');
+      debugPrint('Main - Error checking firebaseappcheck.googleapis.com: $e');
     }
   }
 
   if (kDebugMode) {
-    print('Main - No internet connection detected');
+    debugPrint('Main - No internet connection detected');
   }
   return false;
 }
@@ -368,45 +440,42 @@ Future<void> testHttps() async {
 }
 
 Future<void> setupFCM() async {
+  debugPrint('🌐 FCM INIT START');
   final context = navigatorKey.currentContext;
   final appState = context?.read<AppState>();
 
-  if (appState == null ||
-      appState.isGuestUser ||
-      !appState.isUserProfileReady ||
-      appState.currentUserId == null) {
-    debugPrint('🚫 Auth not ready/guest → skip FCM setup');
-    return;
-  }
-
   try {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
+    FcmTokenService.attachRefreshListener();
+    _fcmForegroundSub ??= FirebaseMessaging.onMessage.listen(
+      _firebaseMessagingForegroundHandler,
+    );
+
+    if (appState == null ||
+        appState.isGuestUser ||
+        appState.currentUserId == null) {
+      debugPrint('🚫 Auth not ready/guest → skip FCM token save');
+    } else {
+      token = await FcmTokenService.generateAndSaveForCurrentUser(
+        source: 'setupFCM',
+      );
+    }
 
     final settings = await messaging.getNotificationSettings();
-
     if (kDebugMode) {
-      print(
+      debugPrint(
         'Main - Notification permission status: ${settings.authorizationStatus}',
       );
     }
 
-    if (settings.authorizationStatus == AuthorizationStatus.denied ||
-        settings.authorizationStatus == AuthorizationStatus.notDetermined) {
-      debugPrint(
-        '🚫 setupFCM skipped: notification permission not granted yet',
-      );
-      return;
-    }
-
     // iOS Foreground
-    if (Platform.isIOS) {
-      await FirebaseMessaging.instance
-          .setForegroundNotificationPresentationOptions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
-    }
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+    debugPrint("🔔 Foreground FCM presentation sound enabled");
 
     String? apnsToken;
 
@@ -419,6 +488,9 @@ Future<void> setupFCM() async {
 
       for (int i = 0; i < 10; i++) {
         apnsToken = await messaging.getAPNSToken();
+        debugPrint(
+          '🌐 APNS TOKEN STATE → attempt=${i + 1} ready=${apnsToken != null && apnsToken.isNotEmpty}',
+        );
         if (apnsToken != null && apnsToken.isNotEmpty) break;
         await Future.delayed(const Duration(milliseconds: 500));
       }
@@ -428,66 +500,7 @@ Future<void> setupFCM() async {
       }
     }
 
-    // 🔥 FCM TOKEN
-    token = await messaging.getToken();
-
-    if (kDebugMode) {
-      debugPrint("🔥 FCM token fetched: ${token != null}");
-    }
-
-    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
-      token = newToken;
-      if (kDebugMode) {
-        debugPrint('♻️ FCM token refreshed');
-      }
-    });
-
-    if (token != null) {
-      final user = FirebaseAuth.instance.currentUser;
-
-      if (user != null) {
-        final userDocRef = FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid);
-
-        final userDoc = await retry(() => userDocRef.get());
-
-        // ==========================
-        // 👤 USER TOKEN
-        // ==========================
-        if (userDoc.exists) {
-          await retry(() => userDocRef.update({'fcmToken': token}));
-
-          // ==========================
-          // ☁️ SYNC BUSINESS TOKEN (Cloud Function)
-          // ==========================
-          try {
-            await FirebaseFunctions.instance
-                .httpsCallable('syncBusinessToken')
-                .call({'token': token});
-
-            debugPrint("☁️ Business token synced via Cloud Function");
-          } catch (e) {
-            debugPrint("❌ syncBusinessToken failed: $e");
-          }
-
-          debugPrint("✅ User token updated: ${user.uid}");
-        } else {
-          await retry(
-            () => userDocRef.set({
-              'fcmToken': token,
-              'createdAt': FieldValue.serverTimestamp(),
-            }),
-          );
-
-          debugPrint("✅ User created with token");
-        }
-      } else {
-        debugPrint('❌ No user logged in');
-      }
-    } else {
-      debugPrint('❌ Failed to get FCM token');
-    }
+    debugPrint('🌐 FCM TOKEN FETCH RESULT → ${token != null}');
     /*
     try {
       await retry(() => messaging.subscribeToTopic('all_users'));
@@ -501,7 +514,9 @@ Future<void> setupFCM() async {
     }
 */
 
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    _fcmMessageOpenedSub ??= FirebaseMessaging.onMessageOpenedApp.listen((
+      message,
+    ) {
       final context = navigatorKey.currentContext;
 
       if (context == null) return;
@@ -556,7 +571,7 @@ Future<void> setupFCM() async {
         }
 
         if (kDebugMode) {
-          print('Main - Notification clicked: $response');
+          debugPrint('Main - Notification clicked: $response');
         }
 
         if (response.payload == null) return;
@@ -565,6 +580,11 @@ Future<void> setupFCM() async {
           final payload = jsonDecode(response.payload!);
 
           final type = (payload['type'] ?? '').toString();
+
+          if (type == 'chat_message') {
+            await _openChatFromPayload(Map<String, dynamic>.from(payload));
+            return;
+          }
 
           // ───────────────── APPOINTMENT PAID TAP 🔥 ─────────────────
           if (type == 'appointment_paid' && payload['appointmentId'] != null) {
@@ -579,6 +599,29 @@ Future<void> setupFCM() async {
             appState.setCurrentTab(NavTab.profile);
             appState.openProfileSubPage(ProfileSubPage.businessDashboard);
 
+            return;
+          }
+
+          const petTaxiTypes = [
+            'pet_taxi_booking_request',
+            'pet_taxi_price_proposed',
+            'pet_taxi_price_accepted',
+            'pet_taxi_price_rejected',
+            'pet_taxi_payment_success',
+            'pet_taxi_payment_completed',
+            'pet_taxi_driver_on_the_way',
+            'pet_taxi_driver_arrived',
+            'pet_taxi_pet_picked_up',
+            'pet_taxi_trip_started',
+            'pet_taxi_trip_completed',
+            'pet_taxi_booking_cancelled',
+            'pet_taxi_booking_cancelled_by_user',
+            'pet_taxi_booking_response',
+            'pet_taxi_status_update',
+          ];
+
+          if (petTaxiTypes.contains(type)) {
+            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
             return;
           }
           /*
@@ -630,14 +673,16 @@ if ((type == 'playdateRequest' ||
           //navigatorKey.currentState?.pushNamedAndRemoveUntil('/home', (route) => false);
         } catch (e) {
           if (kDebugMode) {
-            print('Main - Error handling notification click: $e');
+            debugPrint('Main - Error handling notification click: $e');
           }
         }
       },
     );
 
     if (kDebugMode) {
-      print('Main - flutter_local_notifications initialized: $initialized');
+      debugPrint(
+        'Main - flutter_local_notifications initialized: $initialized',
+      );
     }
 
     if (Platform.isAndroid) {
@@ -647,7 +692,9 @@ if ((type == 'playdateRequest' ||
           >()
           ?.createNotificationChannel(channel);
       if (kDebugMode) {
-        print('Main - Notification channel created: high_importance_channel');
+        debugPrint(
+          'Main - Notification channel created: high_importance_channel',
+        );
       }
     }
 
@@ -658,26 +705,83 @@ if ((type == 'playdateRequest' ||
         ?.canScheduleExactNotifications();
 
     if (kDebugMode) {
-      print(
+      debugPrint(
         'Main - Exact alarms permission granted: $exactAlarmPermissionGranted',
       );
     }
 
     if (exactAlarmPermissionGranted != true) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           'Main - Warning: Exact alarms permission not granted. Notifications may not work as expected.',
         );
       }
     }
   } catch (e) {
     if (kDebugMode) {
-      print('Main - Error in setupFCM: $e');
+      debugPrint('Main - Error in setupFCM: $e');
     }
   }
 }
 
 String? token; // متغیر اصلی که باید آپدیت بشه
+StreamSubscription<RemoteMessage>? _fcmMessageOpenedSub;
+StreamSubscription<RemoteMessage>? _fcmForegroundSub;
+StreamSubscription<User?>? _authFcmSub;
+
+Future<void> _openChatFromPayload(Map<String, dynamic> payload) async {
+  final chatId = (payload['chatId'] ?? payload['conversationId'] ?? '')
+      .toString()
+      .trim();
+  final senderId = (payload['senderId'] ?? '').toString().trim();
+  var senderName = (payload['senderName'] ?? 'Chat').toString().trim();
+
+  if (chatId.isEmpty || senderId.isEmpty) {
+    debugPrint('💬 Chat notification tap ignored: missing chatId/senderId');
+    return;
+  }
+
+  if (senderName.isEmpty) {
+    senderName = 'Chat';
+  }
+
+  final nav = navigatorKey.currentState;
+  if (nav == null) {
+    debugPrint('💬 Chat notification tap ignored: navigator unavailable');
+    return;
+  }
+
+  nav.push(
+    MaterialPageRoute(
+      builder: (_) => ChatDetailPage(
+        chatId: chatId,
+        otherUserId: senderId,
+        otherUserName: senderName,
+      ),
+    ),
+  );
+}
+
+Future<void> _initializeNotificationsAfterStartup(AppState appState) async {
+  if (appState.isGuestUser || !appState.authUserDetected) {
+    debugPrint('🌐 NOTIFICATION INIT DELAYED → waiting for auth user');
+    return;
+  }
+
+  debugPrint('🌐 NOTIFICATION INIT DELAYED → first frame/auth detected');
+  await Future.delayed(const Duration(milliseconds: 750));
+
+  try {
+    await NotificationService().init();
+    token = await FcmTokenService.generateAndSaveForCurrentUser(
+      source: 'notification_init',
+    );
+    debugPrint('🌐 NOTIFICATION INIT COMPLETE');
+    debugPrint("🔥 FCM token initialized: ${token != null}");
+  } catch (e) {
+    debugPrint('🌐 NOTIFICATION INIT FAILED → $e');
+  }
+}
 
 Future<void> _handleRemoteMessage(RemoteMessage message) async {
   final data = message.data;
@@ -699,6 +803,11 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
     appState.setInitialPlaydateRequest(data['requestId'].toString());
     appState.setCurrentTab(NavTab.playdate);
   }
+
+  if (type == 'chat_message') {
+    await _openChatFromPayload(Map<String, dynamic>.from(data));
+    return;
+  }
   // ───────────────── APPOINTMENT PAID 🔥 ─────────────────
   if (type == 'appointment_paid' && data['appointmentId'] != null) {
     final appointmentId = data['appointmentId'].toString();
@@ -714,18 +823,58 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
 
     return;
   }
+
+  const petTaxiTypes = [
+    'pet_taxi_booking_request',
+    'pet_taxi_payment_completed',
+    'pet_taxi_booking_cancelled_by_user',
+    'pet_taxi_price_proposed',
+    'pet_taxi_payment_success',
+    'pet_taxi_driver_on_the_way',
+    'pet_taxi_driver_arrived',
+    'pet_taxi_pet_picked_up',
+    'pet_taxi_trip_started',
+    'pet_taxi_trip_completed',
+    'pet_taxi_booking_cancelled',
+    'pet_taxi_status_update',
+  ];
+
+  if (petTaxiTypes.contains(type)) {
+    appState.handleNotificationTap(data);
+    return;
+  }
 }
 
 void main() async {
   if (kDebugMode) {
-    print('Main - Starting main function...');
+    debugPrint('Main - Starting main function...');
   }
 
   WidgetsFlutterBinding.ensureInitialized();
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   GoogleFonts.config.allowRuntimeFetching = true;
-  await waitForInternet();
+  //await waitForInternet();
   await ensureFirebaseInitialized();
+  FcmTokenService.attachRefreshListener();
+  _authFcmSub ??= FirebaseAuth.instance.authStateChanges().listen((user) {
+    if (user == null) {
+      debugPrint('🔥 FCM AUTH LISTENER: signed out');
+      return;
+    }
+
+    debugPrint('🔥 FCM AUTH LISTENER: authenticated ${user.uid}');
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 500)).then((_) async {
+        token = await FcmTokenService.generateAndSaveForCurrentUser(
+          source: 'auth_state',
+        );
+      }),
+    );
+  });
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  _fcmForegroundSub ??= FirebaseMessaging.onMessage.listen(
+    _firebaseMessagingForegroundHandler,
+  );
+  logStartupEnvironmentDiagnostics();
   //await FirebaseAuth.instance.signOut();
   //await AuthTrap.signOut(reason: 'manual_logout');
 
@@ -734,45 +883,34 @@ void main() async {
 
   // 🔥 wait until Firestore actually ready (real gate)
 
-  await testHttps();
+  //await testHttps();
 
   // 🔥 INTERNET TEST
-  final hasInternet = await checkInternetConnection();
-  print("🌐 INTERNET STATUS = $hasInternet");
-  if (kDebugMode) {
-    await clearHive();
-  }
+  //final hasInternet = await checkInternetConnection();
+  //print("🌐 INTERNET STATUS = $hasInternet");
+  // if (kDebugMode) {
+  // await clearHive();
+  //}
 
-  try {
-    await NotificationService().init();
-
-    if (kDebugMode) {
-      print("🔥 FCM token initialized: ${token != null}");
-    }
-
-    if (kDebugMode) {
-      print('Main - NotificationService initialized (MAIN)');
-    }
-  } catch (e) {
-    if (kDebugMode) {
-      print('Main - NotificationService init failed in main: $e');
-    }
-  }
+  debugPrint('🌐 NOTIFICATION INIT DELAYED → startup auth gate not ready');
   await Hive.initFlutter();
 
   Hive.registerAdapter(DogAdapter());
 
-  // 🔥 TEMP FIX (Hive migration issue)
-  await Hive.deleteBoxFromDisk('dogsBox');
+  final dogsBoxFuture = Hive.openBox<Dog>('dogsBox');
+  final favoritesBoxFuture = Hive.openBox<Dog>('favoritesBox');
+  final currentUserBoxFuture = Hive.openBox<String>('currentUserBox');
+  final userBoxFuture = Hive.openBox<String>('userBox');
+  final userDataBoxFuture = Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
 
-  dogsBox = await Hive.openBox<Dog>('dogsBox');
-  favoritesBox = await Hive.openBox<Dog>('favoritesBox');
-  currentUserBox = await Hive.openBox<String>('currentUserBox');
-  userBox = await Hive.openBox<String>('userBox');
-  userDataBox = await Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
+  dogsBox = await dogsBoxFuture;
+  favoritesBox = await favoritesBoxFuture;
+  currentUserBox = await currentUserBoxFuture;
+  userBox = await userBoxFuture;
+  userDataBox = await userDataBoxFuture;
 
   if (kDebugMode) {
-    print('Main - Hive initialized, dogsBox size: ${dogsBox.length}');
+    debugPrint('Main - Hive initialized, dogsBox size: ${dogsBox.length}');
   }
 
   List<Dog> firestoreDogs = [];
@@ -781,22 +919,26 @@ void main() async {
       : <Dog>[];
 
   if (kDebugMode) {
-    print('Main - Initial favorite dogs count: ${favoriteDogs.length}');
-    print('Main - firestoreDogs count: ${firestoreDogs.length}');
+    debugPrint('Main - Initial favorite dogs count: ${favoriteDogs.length}');
+    debugPrint('Main - firestoreDogs count: ${firestoreDogs.length}');
   }
 
   Future<void> initializeAsync() async {
     final context = navigatorKey.currentContext;
     var authGateOpen = context == null;
+    int? startupGeneration;
 
     if (context != null) {
       for (int i = 0; i < 80; i++) {
+        if (!context.mounted) return;
         final appState = context.read<AppState>();
-        final uid = appState.currentUserId;
+        final uid =
+            appState.currentUserId ?? FirebaseAuth.instance.currentUser?.uid;
 
         if (appState.isUserProfileReady &&
             (appState.isGuestUser || (uid != null && uid.isNotEmpty))) {
           debugPrint('✅ Startup auth gate open → uid=$uid');
+          startupGeneration = appState.startupSessionGeneration;
           authGateOpen = true;
           break;
         }
@@ -812,7 +954,54 @@ void main() async {
       return;
     }
 
-    await OffersManager.loadOffersOnce();
+    final appState = navigatorKey.currentContext?.read<AppState>();
+    if (appState != null) {
+      startupGeneration ??= appState.startupSessionGeneration;
+      await _initializeNotificationsAfterStartup(appState);
+    }
+
+    final noncriticalReady =
+        await appState?.waitForNoncriticalReadsAllowed(
+          timeout: const Duration(seconds: 25),
+          generation: startupGeneration,
+        ) ??
+        false;
+
+    if (appState != null &&
+        startupGeneration != null &&
+        startupGeneration != appState.startupSessionGeneration) {
+      debugPrint('🌐 STARTUP WATCHDOG CANCELLED → stale async callback');
+      return;
+    }
+
+    if (!noncriticalReady) {
+      if (appState?.startupSuccessFinalized == true) {
+        debugPrint('🌐 STARTUP SUCCESS PATH FINALIZED');
+        return;
+      }
+      debugPrint('🌐 STARTUP DEGRADED MODE → main noncritical reads deferred');
+      return;
+    }
+
+    final firestoreReady = await FirestoreReadinessGate.instance.waitUntilReady(
+      reason: 'main startup critical reads',
+      uid: FirebaseAuth.instance.currentUser?.uid,
+    );
+    if (!firestoreReady) {
+      debugPrint('🌐 STARTUP DEGRADED MODE → Firestore gate unavailable');
+      return;
+    }
+
+    final offersStartupReady =
+        appState != null &&
+        (appState.authUserDetected || appState.isGuest) &&
+        appState.noncriticalReadsAllowed &&
+        appState.startupSuccessFinalized;
+
+    await OffersManager.loadOffersOnce(
+      startupReady: offersStartupReady,
+      recoveryScope: FirestoreRecoveryScope.startup,
+    );
     await setupFCM();
 
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
@@ -828,16 +1017,14 @@ void main() async {
   //await _handleRemoteMessage(initialMessage);
   //}
 
-  //unawaited(initializeAsync());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(initializeAsync());
+  });
 
   if (false) {
     AuthTrap.signOut(reason: 'session_expired');
   } // 👈 فقط برای تست
 
-  await IapService.instance.init();
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    initializeAsync();
-  });
   runApp(
     ChangeNotifierProvider(
       create: (context) {
@@ -845,18 +1032,35 @@ void main() async {
           favoriteDogs: favoriteDogs,
 
           favoriteDogsNotifier: ValueNotifier<List<Dog>>(favoriteDogs),
+
           likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
+
           onToggleFavorite: (Dog dog) async {
             await Provider.of<AppState>(
               context,
               listen: false,
             ).toggleFavorite(dog);
           },
+
           notificationService: NotificationService(),
         );
 
+        IapService.instance.setSubscriptionActivatedCallback(() async {
+          await appState.loadSubscriptionFromFirestore();
+
+          debugPrint('🔄 UI refreshed');
+
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          appState.openProfileSubPage(ProfileSubPage.businessRegister);
+        });
+
+        appState.markFirebaseInitialized();
+
         // ❗️ خیلی مهم: فقط این
         appState.startAuthListener();
+        //AuthTrap.start();
+        // AuthTrap.scheduleTokenDiagnostics();
         IapService.instance.setSubscriptionActivatedCallback(() async {
           await appState.loadSubscriptionFromFirestore();
           debugPrint('🔄 UI refreshed');
@@ -947,24 +1151,39 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final locale = context.watch<AppState>().locale;
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey,
-      theme: AppTheme.theme(locale: locale),
-      locale: locale,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('en'), Locale('fa'), Locale('tr')],
-      routes: {
-        '/orderDetail': (context) => OrderDetailPage(
-          sellerOrderId: ModalRoute.of(context)!.settings.arguments as String,
-        ),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+
+      onTap: () {
+        final currentFocus = FocusManager.instance.primaryFocus;
+
+        if (currentFocus != null && !currentFocus.hasPrimaryFocus) {
+          currentFocus.unfocus();
+        }
       },
-      home: const AppEntry(),
+
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
+        theme: AppTheme.theme(locale: locale),
+        locale: locale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        routes: {
+          '/orderDetail': (context) => OrderDetailPage(
+            sellerOrderId: ModalRoute.of(context)!.settings.arguments as String,
+          ),
+          '/appointmentPayment': (context) => AppointmentPaymentPage(
+            appointmentId: ModalRoute.of(context)!.settings.arguments as String,
+          ),
+        },
+        home: const AppEntry(),
+      ),
     );
   }
 
@@ -979,7 +1198,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final orderId = uri.queryParameters["orderId"];
 
     if (kDebugMode) {
-      debugPrint("🔥 VERIFY ORDER ID FROM DEEPLINK: ${orderId != null && orderId.isNotEmpty}");
+      debugPrint(
+        "🔥 VERIFY ORDER ID FROM DEEPLINK: ${orderId != null && orderId.isNotEmpty}",
+      );
     }
 
     if (orderId == null || orderId.isEmpty) {
@@ -1030,6 +1251,79 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         return;
       }
 
+      final paymentType = (data["type"] ?? data["orderType"] ?? "").toString();
+      final appointmentId = (data["appointmentId"] ?? "").toString();
+      final appointmentCollection =
+          (data["appointmentCollection"] ?? "vet_appointments").toString();
+      final isHotelBooking =
+          appointmentCollection == "hotel_bookings" ||
+          (data["appointmentType"] ?? "").toString() == "pet_hotel";
+      final isGroomyAppointment =
+          appointmentCollection == "groomy_appointments" ||
+          (data["appointmentType"] ?? "").toString() == "grooming";
+      final isAppointmentPayment =
+          paymentType == "appointment" || appointmentId.isNotEmpty;
+
+      final context = navigatorKey.currentContext;
+      if (context == null) {
+        debugPrint("❌ CONTEXT NULL");
+        return;
+      }
+
+      if (isAppointmentPayment) {
+        debugPrint("🩺 OPEN APPOINTMENT AFTER PAYMENT → $appointmentId");
+
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeGate()),
+          (route) => false,
+        );
+
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => appointmentId.isNotEmpty
+                ? AppointmentPaymentPage(
+                    appointmentId: appointmentId,
+                    appointmentCollection: appointmentCollection,
+                    appointmentType: isHotelBooking
+                        ? "pet_hotel"
+                        : isGroomyAppointment
+                        ? "grooming"
+                        : "veterinary",
+                    updateStatusFunctionName: isHotelBooking
+                        ? "updateHotelBookingStatus"
+                        : isGroomyAppointment
+                        ? "updateGroomyAppointmentStatus"
+                        : "updateVetAppointmentStatus",
+                    createOrderFunctionName: isHotelBooking
+                        ? "createHotelBookingOrder"
+                        : "createAppointmentOrder",
+                    verifyPaymentFunctionName: isHotelBooking
+                        ? "verifyHotelBookingPayment"
+                        : "verifyPayment",
+                    serviceFallbackName: isHotelBooking
+                        ? "Hotel stay"
+                        : isGroomyAppointment
+                        ? "Grooming service"
+                        : "Veterinary service",
+                    businessFallbackName: isHotelBooking
+                        ? "Pet hotel"
+                        : isGroomyAppointment
+                        ? "Grooming studio"
+                        : "Vet clinic",
+                    businessInfoLabel: isHotelBooking
+                        ? "Hotel"
+                        : isGroomyAppointment
+                        ? "Groomy"
+                        : "Clinic",
+                  )
+                : const MyAppointmentsPage(),
+          ),
+        );
+        return;
+      }
+
       /// 📦 seller orders
       final List sellerOrderIds = (data["sellerOrderIds"] ?? []) as List;
 
@@ -1045,11 +1339,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         debugPrint("📦 OPEN SELLER ORDER");
       }
 
-      final context = navigatorKey.currentContext;
-      if (context == null) {
-        debugPrint("❌ CONTEXT NULL");
-        return;
-      }
+      if (!context.mounted) return;
 
       final appState = context.read<AppState>();
 

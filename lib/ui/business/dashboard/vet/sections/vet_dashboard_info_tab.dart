@@ -34,16 +34,26 @@ class _VetDashboardInfoTabState extends State<VetDashboardInfoTab> {
     final profile = Map<String, dynamic>.from(widget.businessData['profile'] ?? {});
     final contact = Map<String, dynamic>.from(widget.businessData['contact'] ?? {});
     final vetSettings = Map<String, dynamic>.from(widget.businessData['vetSettings'] ?? {});
+    final sectorData = Map<String, dynamic>.from(widget.businessData['sectorData'] ?? {});
+    final veterinary = Map<String, dynamic>.from(sectorData['veterinary'] ?? {});
+    final profileContent = Map<String, dynamic>.from(veterinary['profileContent'] ?? {});
+    final socialMedia = Map<String, dynamic>.from(profileContent['socialMedia'] ?? {});
 
     _nameController = TextEditingController(text: profile['displayName'] ?? '');
     _descriptionController = TextEditingController(text: profile['description'] ?? '');
     _phoneController = TextEditingController(text: contact['phone'] ?? '');
-    _whatsappController = TextEditingController(text: contact['whatsapp'] ?? '');
+    _whatsappController = TextEditingController(
+      text: contact['whatsapp'] ?? socialMedia['whatsapp'] ?? '',
+    );
     _cityController = TextEditingController(text: contact['city'] ?? '');
     _districtController = TextEditingController(text: contact['district'] ?? '');
     _addressController = TextEditingController(text: contact['addressLine'] ?? '');
-    _websiteController = TextEditingController(text: contact['website'] ?? '');
-    _instagramController = TextEditingController(text: contact['instagram'] ?? '');
+    _websiteController = TextEditingController(
+      text: contact['website'] ?? socialMedia['website'] ?? '',
+    );
+    _instagramController = TextEditingController(
+      text: contact['instagram'] ?? socialMedia['instagram'] ?? '',
+    );
     _emergencyEnabled = vetSettings['emergencyEnabled'] == true;
   }
 

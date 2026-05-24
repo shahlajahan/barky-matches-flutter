@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,10 +10,12 @@ class PrivacySettingsPage extends StatefulWidget {
   const PrivacySettingsPage({super.key});
 
   @override
-  State<PrivacySettingsPage> createState() => _PrivacySettingsPageState();
+  State<PrivacySettingsPage> createState() =>
+      _PrivacySettingsPageState();
 }
 
-class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
+class _PrivacySettingsPageState
+    extends State<PrivacySettingsPage> {
 
   bool profileVisible = true;
   bool locationSharing = true;
@@ -28,9 +31,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 
   /// LOAD SETTINGS FROM FIRESTORE
   Future<void> _loadPrivacySettings() async {
-
     try {
-
       final uid = FirebaseAuth.instance.currentUser?.uid;
 
       if (uid == null) return;
@@ -43,13 +44,15 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
       final data = doc.data();
 
       if (data != null) {
+        profileVisible =
+            data["profileVisible"] ?? true;
 
-        profileVisible = data["profileVisible"] ?? true;
-        locationSharing = data["locationSharing"] ?? true;
-        dogProfileVisible = data["dogProfileVisible"] ?? true;
+        locationSharing =
+            data["locationSharing"] ?? true;
 
+        dogProfileVisible =
+            data["dogProfileVisible"] ?? true;
       }
-
     } catch (e) {
       debugPrint("Privacy load error: $e");
     }
@@ -64,137 +67,259 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
   /// SAVE SETTINGS
   Future<void> _savePrivacySettings() async {
 
-  final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid =
+        FirebaseAuth.instance.currentUser?.uid;
 
-  if (uid == null) return;
+    if (uid == null) return;
 
-  final db = FirebaseFirestore.instance;
+    final db = FirebaseFirestore.instance;
 
-  /// update user
-  await db.collection("users").doc(uid).set({
-    "profileVisible": profileVisible,
-    "locationSharing": locationSharing,
-    "dogProfileVisible": dogProfileVisible,
-  }, SetOptions(merge: true));
-
-  /// update all dogs of user
-  final dogs = await db
-      .collection("dogs")
-      .where("ownerId", isEqualTo: uid)
-      .get();
-
-  for (final doc in dogs.docs) {
-
-    await doc.reference.update({
-      "ownerProfileVisible": profileVisible,
+    /// update user
+    await db.collection("users").doc(uid).set({
+      "profileVisible": profileVisible,
+      "locationSharing": locationSharing,
       "dogProfileVisible": dogProfileVisible,
-    });
+    }, SetOptions(merge: true));
 
+    /// update all dogs of user
+    final dogs = await db
+        .collection("dogs")
+        .where("ownerId", isEqualTo: uid)
+        .get();
+
+    for (final doc in dogs.docs) {
+      await doc.reference.update({
+        "ownerProfileVisible": profileVisible,
+        "dogProfileVisible": dogProfileVisible,
+      });
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Privacy settings updated"),
+      ),
+    );
   }
-}
+
   @override
   Widget build(BuildContext context) {
 
-    return Scaffold(
+    return Container(
+      color: const Color(0xFFFDF2F5),
 
-      backgroundColor: AppTheme.bg,
-
-      appBar: AppBar(
-        title: const Text("Privacy Settings"),
-        backgroundColor: AppTheme.primary,
-        elevation: 0,
-      ),
-
-      body: Stack(
-
+      child: Stack(
         children: [
 
           ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(
+              18,
+              18,
+              18,
+              120,
+            ),
+
             children: [
 
-              _SectionTitle("Profile"),
+              // 🟣 HEADER
+              Container(
+                padding: const EdgeInsets.all(22),
+
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF9E1B4F),
+                      Color(0xFFE91E63),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+
+                  borderRadius:
+                      BorderRadius.circular(28),
+
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.pink.withOpacity(.22),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+
+                    const Icon(
+                      LucideIcons.shield,
+                      color: Color(0xFFFFC107),
+                      size: 34,
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    Text(
+                      "Privacy & Security",
+                      style: GoogleFonts.poppins(
+                        color:
+                            const Color(0xFFFFC107),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Text(
+                      "Control your visibility, data sharing, and account privacy settings.",
+                      style: GoogleFonts.poppins(
+                        color:
+                            Colors.white.withOpacity(.9),
+                        fontSize: 14,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              _SectionTitle(
+                title: "Profile",
+                icon: LucideIcons.user,
+              ),
+
+              const SizedBox(height: 12),
 
               _ToggleTile(
                 title: "Profile visibility",
+
                 subtitle: profileVisible
                     ? "Other users can see your profile"
                     : "Your profile is hidden",
+
+                icon: LucideIcons.eye,
+
                 value: profileVisible,
-                onChanged: (v){
+
+                onChanged: (v) {
                   setState(() {
                     profileVisible = v;
                   });
+
                   _savePrivacySettings();
                 },
               ),
+
+              const SizedBox(height: 14),
 
               _ToggleTile(
                 title: "Location sharing",
+
                 subtitle: locationSharing
                     ? "Your approximate location is visible"
                     : "Your location is hidden",
+
+                icon: LucideIcons.mapPin,
+
                 value: locationSharing,
-                onChanged: (v){
+
+                onChanged: (v) {
                   setState(() {
                     locationSharing = v;
                   });
+
                   _savePrivacySettings();
                 },
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 28),
 
-              _SectionTitle("Dogs"),
+              _SectionTitle(
+                title: "Dogs",
+                icon: LucideIcons.dog,
+              ),
+
+              const SizedBox(height: 12),
 
               _ToggleTile(
                 title: "Dog profile visibility",
+
                 subtitle: dogProfileVisible
                     ? "Other users can see your dogs"
                     : "Your dogs are hidden",
+
+                icon: LucideIcons.dog,
+
                 value: dogProfileVisible,
-                onChanged: (v){
+
+                onChanged: (v) {
                   setState(() {
                     dogProfileVisible = v;
                   });
+
                   _savePrivacySettings();
                 },
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 28),
 
-              _SectionTitle("Account"),
+              _SectionTitle(
+                title: "Account",
+                icon: LucideIcons.settings,
+              ),
+
+              const SizedBox(height: 12),
 
               _ActionTile(
-  title: "Blocked users",
-  icon: Icons.block,
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const BlockedUsersPage(),
-      ),
-    );
-  },
-),
+                title: "Blocked users",
+
+                icon: LucideIcons.userX,
+
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const BlockedUsersPage(),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 14),
 
               _ActionTile(
                 title: "Download my data",
-                icon: Icons.download,
-                onTap: (){
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text("Data export request submitted"),
-    ),
-  );
-}
+
+                icon: LucideIcons.download,
+
+                onTap: () {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "Data export request submitted",
+                      ),
+                    ),
+                  );
+                },
               ),
+
+              const SizedBox(height: 14),
 
               _ActionTile(
                 title: "Delete account",
-                icon: Icons.delete,
+
+                icon: LucideIcons.trash2,
+
                 danger: true,
-                onTap: (){
+
+                onTap: () {
                   _showDeleteDialog();
                 },
               ),
@@ -203,49 +328,169 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 
           if (loading)
             Container(
-              color: Colors.black38,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
+              color: Colors.black26,
 
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF9E1B4F),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  void _showDeleteDialog(){
+  void _showDeleteDialog() {
 
     showDialog(
       context: context,
-      builder: (_){
 
-        return AlertDialog(
+      builder: (_) {
 
-          title: const Text("Delete account"),
+        return Dialog(
+          backgroundColor: Colors.white,
 
-          content: const Text(
-              "This action cannot be undone."
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(24),
           ),
 
-          actions: [
+          child: Padding(
+            padding: const EdgeInsets.all(24),
 
-            TextButton(
-              onPressed: ()=>Navigator.pop(context),
-              child: const Text("Cancel"),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+
+              children: [
+
+                Container(
+                  width: 72,
+                  height: 72,
+
+                  decoration: BoxDecoration(
+                    color:
+                        Colors.red.withOpacity(.12),
+
+                    shape: BoxShape.circle,
+                  ),
+
+                  child: const Icon(
+                    LucideIcons.trash2,
+                    color: Colors.red,
+                    size: 34,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                Text(
+                  "Delete account",
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.red,
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                Text(
+                  "This action cannot be undone and all your data will be permanently deleted.",
+                  textAlign: TextAlign.center,
+
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.black87,
+                    height: 1.5,
+                  ),
+                ),
+
+                const SizedBox(height: 26),
+
+                Row(
+                  children: [
+
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor:
+                              Colors.black87,
+
+                          side: BorderSide(
+                            color: Colors.grey.shade300,
+                          ),
+
+                          minimumSize:
+                              const Size(0, 52),
+
+                          shape:
+                              RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(
+                                    16),
+                          ),
+                        ),
+
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+
+                        child: Text(
+                          "Cancel",
+                          style:
+                              GoogleFonts.poppins(
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 14),
+
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton
+                            .styleFrom(
+                          backgroundColor:
+                              Colors.red,
+
+                          foregroundColor:
+                              Colors.white,
+
+                          elevation: 0,
+
+                          minimumSize:
+                              const Size(0, 52),
+
+                          shape:
+                              RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(
+                                    16),
+                          ),
+                        ),
+
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+
+                        child: Text(
+                          "Delete",
+                          style:
+                              GoogleFonts.poppins(
+                            fontWeight:
+                                FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              onPressed: (){
-                Navigator.pop(context);
-              },
-              child: const Text("Delete"),
-            )
-
-          ],
+          ),
         );
       },
     );
@@ -255,22 +500,36 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 class _SectionTitle extends StatelessWidget {
 
   final String title;
+  final IconData icon;
 
-  const _SectionTitle(this.title);
+  const _SectionTitle({
+    required this.title,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(
-        title,
-        style: GoogleFonts.poppins(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primary,
+    return Row(
+      children: [
+
+        Icon(
+          icon,
+          size: 20,
+          color: const Color(0xFF9E1B4F),
         ),
-      ),
+
+        const SizedBox(width: 10),
+
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF9E1B4F),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -281,34 +540,100 @@ class _ToggleTile extends StatelessWidget {
   final String subtitle;
   final bool value;
   final Function(bool) onChanged;
+  final IconData icon;
 
   const _ToggleTile({
     required this.title,
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
 
-    return Card(
+    return Container(
+      padding: const EdgeInsets.all(18),
 
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+
+        borderRadius: BorderRadius.circular(24),
+
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
 
-      child: SwitchListTile(
+      child: Row(
+        children: [
 
-        title: Text(title),
+          Container(
+            width: 52,
+            height: 52,
 
-        subtitle: Text(subtitle),
+            decoration: BoxDecoration(
+              color: const Color(0xFF9E1B4F)
+                  .withOpacity(.1),
 
-        value: value,
+              borderRadius:
+                  BorderRadius.circular(16),
+            ),
 
-        activeColor: AppTheme.primary,
+            child: Icon(
+              icon,
+              color: const Color(0xFF9E1B4F),
+            ),
+          ),
 
-        onChanged: onChanged,
+          const SizedBox(width: 16),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+
+              children: [
+
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  subtitle,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Switch(
+            value: value,
+
+            activeColor:
+                const Color(0xFFFFC107),
+
+            activeTrackColor:
+                const Color(0xFF9E1B4F),
+
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }
@@ -331,29 +656,74 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    return Card(
+    return GestureDetector(
+      onTap: onTap,
 
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      child: Container(
+        padding: const EdgeInsets.all(18),
 
-      child: ListTile(
+        decoration: BoxDecoration(
+          color: Colors.white,
 
-        leading: Icon(
-          icon,
-          color: danger ? Colors.red : AppTheme.primary,
+          borderRadius:
+              BorderRadius.circular(24),
+
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
 
-        title: Text(
-          title,
-          style: TextStyle(
-            color: danger ? Colors.red : Colors.black,
-          ),
+        child: Row(
+          children: [
+
+            Container(
+              width: 52,
+              height: 52,
+
+              decoration: BoxDecoration(
+                color: danger
+                    ? Colors.red.withOpacity(.1)
+                    : const Color(0xFF9E1B4F)
+                        .withOpacity(.1),
+
+                borderRadius:
+                    BorderRadius.circular(16),
+              ),
+
+              child: Icon(
+                icon,
+                color: danger
+                    ? Colors.red
+                    : const Color(0xFF9E1B4F),
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: danger
+                      ? Colors.red
+                      : Colors.black87,
+                ),
+              ),
+            ),
+
+            Icon(
+              LucideIcons.chevronRight,
+              size: 20,
+              color: Colors.grey.shade500,
+            ),
+          ],
         ),
-
-        trailing: const Icon(Icons.chevron_right),
-
-        onTap: onTap,
       ),
     );
   }

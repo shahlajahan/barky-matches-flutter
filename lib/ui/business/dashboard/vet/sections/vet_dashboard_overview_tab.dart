@@ -5,9 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
-import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_services_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_service_detail_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -21,694 +19,876 @@ class VetDashboardOverviewTab extends StatelessWidget {
     required this.businessData,
   });
 
-
-
   @override
-Widget build(BuildContext context) {
-  final stats = Map<String, dynamic>.from(businessData['stats'] ?? {});
-  final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
-  final contact = Map<String, dynamic>.from(businessData['contact'] ?? {});
+  Widget build(BuildContext context) {
+    final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
+    final contact = Map<String, dynamic>.from(businessData['contact'] ?? {});
 
-  return ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      /// ================= PROFILE (ONLY ONCE) =================
-      _SectionTitle("Clinic Profile"),
-      const SizedBox(height: 10),
-      _profileCard(context, profile, contact),
-
-      const SizedBox(height: 20),
-
-      /// ================= KPI =================
-      
-
-      /// ================= APPOINTMENTS =================
-     _SectionTitle("Recent Appointments"),
-const SizedBox(height: 10),
-
-StreamBuilder<QuerySnapshot>(
-  stream: FirebaseFirestore.instance
-  .collection('vet_appointments')
-  .where('businessId', isEqualTo: businessId)
-  .orderBy('scheduledAt', descending: true)
-      .snapshots(),
-  builder: (context, snapshot) {
-    debugPrint("🟡 APPOINTMENT STREAM BUILD");
-    debugPrint("🟡 businessId = $businessId");
-    debugPrint("🟡 state = ${snapshot.connectionState}");
-    debugPrint("🟡 hasData = ${snapshot.hasData}");
-    debugPrint("🟡 hasError = ${snapshot.hasError}");
-    debugPrint("🟡 error = ${snapshot.error}");
-    debugPrint("🟡 docs = ${snapshot.data?.docs.length}");
-
-    if (snapshot.hasError) {
-      return _emptyBox("Appointment error: ${snapshot.error}");
-    }
-
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return _emptyBox("Loading appointments...");
-    }
-
-    if (!snapshot.hasData) {
-      return _emptyBox("No appointment data");
-    }
-
-   final docs = snapshot.data!.docs.toList(); // 🔥 مهم (mutable)
-int total = docs.length;
-
-int pendingCount = docs.where((d) {
-  final data = d.data() as Map<String, dynamic>;
-  return data['status'] == 'pending';
-}).length;
-
-int confirmedCount = docs.where((d) {
-  final data = d.data() as Map<String, dynamic>;
-  return data['status'] == 'confirmed';
-}).length;
-
-int completedCount = docs.where((d) {
-  final data = d.data() as Map<String, dynamic>;
-  return data['status'] == 'completed';
-}).length;
-final limitedDocs = docs.take(3).toList();
-// 🔥 SORT حرفه‌ای (pending اول + جدیدترین بالا)
-docs.sort((a, b) {
-  final aData = a.data() as Map<String, dynamic>;
-  final bData = b.data() as Map<String, dynamic>;
-
-  final aStatus = aData['status'] ?? '';
-  final bStatus = bData['status'] ?? '';
-
-  // ✅ pending بیاد بالا
-  if (aStatus == 'pending' && bStatus != 'pending') return -1;
-  if (aStatus != 'pending' && bStatus == 'pending') return 1;
-
-  // ✅ بعدش بر اساس زمان
-  final aTs = aData['scheduledAt'] ?? aData['scheduledDateTime'];
-final bTs = bData['scheduledAt'] ?? bData['scheduledDateTime'];
-
-final aTime = aTs is Timestamp ? aTs.toDate() : null;
-final bTime = bTs is Timestamp ? bTs.toDate() : null;
-
-  if (aTime == null || bTime == null) return 0;
-
-  return bTime.compareTo(aTime); // newest first
-});
-
-    if (docs.isEmpty) {
-      return _emptyBox("No appointments yet");
-    }
-
-    // 🔥 1. جدا کردن pending
-
-final pending = docs.where((d) {
-  final data = d.data() as Map<String, dynamic>;
-  return data['status'] == 'pending';
-}).take(3).toList();
-
-
-
-return Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-
-    /// ================= KPI (NEW) =================
-    Row(
+    return ListView(
+      padding: const EdgeInsets.all(16),
       children: [
-        _KpiCard(
-          title: "Total",
-          value: "$total",
-          icon: LucideIcons.calendar,
-        ),
-        const SizedBox(width: 10),
-        _KpiCard(
-          title: "Pending",
-          value: "$pendingCount",
-          icon: LucideIcons.clock,
-        ),
-      ],
-    ),
+        /// ================= PROFILE (ONLY ONCE) =================
+        _SectionTitle("Clinic Profile"),
+        const SizedBox(height: 10),
+        _profileCard(context, profile, contact),
 
-    const SizedBox(height: 10),
+        const SizedBox(height: 20),
 
-    Row(
-      children: [
-        _KpiCard(
-          title: "Confirmed",
-          value: "$confirmedCount",
-          icon: LucideIcons.checkCircle,
-        ),
-        const SizedBox(width: 10),
-        _KpiCard(
-          title: "Completed",
-          value: "$completedCount",
-          icon: LucideIcons.check,
-        ),
-      ],
-    ),
+        /// ================= REVENUE =================
+        _buildRevenueCard(context),
 
-    const SizedBox(height: 20),
+        const SizedBox(height: 20),
 
-    /// ================= PENDING =================
-    _SectionTitle("Pending Requests"),
-    const SizedBox(height: 8),
+        /// ================= KPI =================
 
-    if (pending.isEmpty)
-      _emptyBox("No pending requests")
-    else
-      ...pending.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return _appointmentItem(context, doc.id, data);
-      }),
+        /// ================= APPOINTMENTS =================
+        _SectionTitle("Recent Appointments"),
+        const SizedBox(height: 10),
 
-    Align(
-      alignment: Alignment.centerRight,
-      child: TextButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Open Appointments tab from top"),
-            ),
-          );
-        },
-        child: const Text("View all appointments"),
-      ),
-    ),
-  ],
-);
-  },
-),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('vet_appointments')
+              .where('businessId', isEqualTo: businessId)
+              .orderBy('scheduledAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            debugPrint("🟡 APPOINTMENT STREAM BUILD");
+            debugPrint("🟡 businessId = $businessId");
+            debugPrint("🟡 state = ${snapshot.connectionState}");
+            debugPrint("🟡 hasData = ${snapshot.hasData}");
+            debugPrint("🟡 hasError = ${snapshot.hasError}");
+            debugPrint("🟡 error = ${snapshot.error}");
+            debugPrint("🟡 docs = ${snapshot.data?.docs.length}");
 
+            if (snapshot.hasError) {
+              return _emptyBox("Appointment error: ${snapshot.error}");
+            }
 
-      /// ================= SERVICES =================
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _SectionTitle("Services"),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFC107),
-              foregroundColor: Colors.black,
-            ),
-            onPressed: () {
-  context.read<AppState>().openAddService();
-},
-            icon: const Icon(LucideIcons.plus, size: 18),
-            label: const Text("Add"),
-          ),
-        ],
-      ),
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _emptyBox("Loading appointments...");
+            }
 
-      const SizedBox(height: 10),
-      _emptyBox("No services added"),
+            if (!snapshot.hasData) {
+              return _emptyBox("No appointment data");
+            }
 
-      const SizedBox(height: 24),
+            final docs = snapshot.data!.docs.toList(); // 🔥 مهم (mutable)
+            int total = docs.length;
 
-      /// ================= QUICK ACTIONS =================
-      _SectionTitle("Quick Actions"),
-      const SizedBox(height: 10),
+            int pendingCount = docs.where((d) {
+              final data = d.data() as Map<String, dynamic>;
+              return data['status'] == 'pending';
+            }).length;
 
-      Row(
-        children: [
-          _actionBtn(
-  "Schedule",
-  LucideIcons.calendar,
-  onTap: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Schedule page coming next")),
-    );
-  },
-),
-          const SizedBox(width: 10),
-          _actionBtn(
-  "Patients",
-  LucideIcons.users,
-  onTap: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Patients page coming next")),
-    );
-  },
-),
-const SizedBox(width: 10),
-_actionBtn(
-  "Settings",
-  LucideIcons.settings,
-  onTap: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Settings page coming next")),
-    );
-  },
-),
-        ],
-      ),
+            int confirmedCount = docs.where((d) {
+              final data = d.data() as Map<String, dynamic>;
+              return data['status'] == 'confirmed';
+            }).length;
 
-      /// ================= SERVICES LIST =================
-_SectionTitle("Your Services"),
-const SizedBox(height: 10),
+            int completedCount = docs.where((d) {
+              final data = d.data() as Map<String, dynamic>;
+              return data['status'] == 'completed';
+            }).length;
+            // 🔥 SORT حرفه‌ای (pending اول + جدیدترین بالا)
+            docs.sort((a, b) {
+              final aData = a.data() as Map<String, dynamic>;
+              final bData = b.data() as Map<String, dynamic>;
 
-StreamBuilder<QuerySnapshot>(
-  stream: FirebaseFirestore.instance
-      .collection('businesses')
-      .doc(businessId)
-      .collection('services')
-      .orderBy('createdAt', descending: true)
-      .snapshots(),
-  builder: (context, snapshot) {
-    if (!snapshot.hasData) {
-      return const Center(child: CircularProgressIndicator());
-    }
+              final aStatus = aData['status'] ?? '';
+              final bStatus = bData['status'] ?? '';
 
-    final docs = snapshot.data!.docs;
+              // ✅ pending بیاد بالا
+              if (aStatus == 'pending' && bStatus != 'pending') return -1;
+              if (aStatus != 'pending' && bStatus == 'pending') return 1;
 
-    if (docs.isEmpty) {
-      return _emptyBox("No services yet");
-    }
+              // ✅ بعدش بر اساس زمان
+              final aTs = aData['scheduledAt'] ?? aData['scheduledDateTime'];
+              final bTs = bData['scheduledAt'] ?? bData['scheduledDateTime'];
 
+              final aTime = aTs is Timestamp ? aTs.toDate() : null;
+              final bTime = bTs is Timestamp ? bTs.toDate() : null;
 
+              if (aTime == null || bTime == null) return 0;
 
- final newServices = docs
-    .map((e) => (e.data() as Map)['title'] as String)
-    .toList();
+              return bTime.compareTo(aTime); // newest first
+            });
 
-final appState = context.read<AppState>();
+            if (docs.isEmpty) {
+              return _emptyBox("No appointments yet");
+            }
 
-// 🔥 فقط اگر تغییر کرده update کن
-if (!listEquals(appState.existingServices, newServices)) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (context.mounted) {
-      appState.setExistingServices(newServices);
-    }
-  });
-}
-    return Column(
-      children: docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return _serviceItem(context, doc.id, data);
-      }).toList(),
-    );
-  },
-),
-    ],
-  );
-}
+            // 🔥 1. جدا کردن pending
 
-Widget _serviceItem(
-  BuildContext context,
-  String id,
-  Map<String, dynamic> data,
-) {
-  // 🔥 اینجا درستشه
-  final price = data['price']?.toString();
-final duration = data['duration']?.toString();
+            final pending = docs
+                .where((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  return data['status'] == 'pending';
+                })
+                .take(3)
+                .toList();
 
-  String priceText;
-  if (price == null) {
-    priceText = "Price on request";
-  } else {
-    priceText = "₺$price";
-  }
-
-  String durationText;
-  if (duration == null || duration.toString().isEmpty) {
-    durationText = "Flexible duration";
-  } else {
-    durationText = duration.toString();
-  }
-
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.black12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-  data['title']?.toString() ?? '',
-)
-            ),
-            GestureDetector(
-              onTap: () {
-  context.read<AppState>().openAddServiceDetail(
-    data['title']?.toString() ?? '',
-    serviceId: id,
-    existingData: data,
-  );
-},
-              child: const Icon(LucideIcons.edit2, size: 18),
-            ),
-            const SizedBox(width: 12),
-            GestureDetector(
-             onTap: () => _deleteService(context, businessId, id),
-              child: const Icon(LucideIcons.trash2, size: 18),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        // ✅ اینجا فقط Text
-        Text(
-          "$priceText • $durationText",
-          style: AppTheme.body(color: AppTheme.muted),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _appointmentItem(
-  BuildContext context,
-  String id,
-  Map<String, dynamic> data,
-) {
-
-  debugPrint("🧩 RENDER: ${data['dogName']} - ${data['status']}");
-  final status = data['status'] ?? 'pending';
-
-  final petName = data['petName'] ?? data['dogName'] ?? '';
-final petType = data['petType'] ?? 'dog';
-final petBreed = data['petBreed'] ?? '-';
-final petAge = data['petAge'] ?? '-';
-  final username = data['username'] ?? '';
-
-  // 🔥 SERVICE (پشتیبانی از هر دو ساختار)
-String serviceTitle = '';
-String price = '';
-
-if (data['service'] != null) {
-  final service = data['service'] as Map<String, dynamic>;
-  serviceTitle = service['title'] ?? '';
-  price = service['price']?.toString() ?? '';
-} else {
-  serviceTitle = data['serviceTitle'] ?? '';
-  price = data['price']?.toString() ?? '';
-}
-
-// 🔥 TIME (پشتیبانی از هر دو)
-final ts =
-    data['scheduledDateTime'] ??
-    data['scheduledAt'];
-
-final dt = ts is Timestamp ? ts.toDate() : null;
-
- 
-
-  String dateText = '';
-  if (dt != null) {
-    dateText =
-        "${dt.year}-${dt.month}-${dt.day} • ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
-  }
-
-  Color statusColor;
-  switch (status) {
-    case 'confirmed':
-      statusColor = Colors.green;
-      break;
-    case 'rejected':
-      statusColor = Colors.red;
-      break;
-    case 'completed':
-      statusColor = Colors.blue;
-      break;
-    default:
-      statusColor = Colors.orange;
-  }
-
-  return Container(
-  margin: const EdgeInsets.only(bottom: 12),
-  padding: const EdgeInsets.all(14),
-  decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: Colors.black12),
-  ),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-
-      /// HEADER
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "$petName • $petType",
-                  style: AppTheme.bodyMedium()
-                      .copyWith(fontWeight: FontWeight.w600),
+                /// ================= KPI (NEW) =================
+                Row(
+                  children: [
+                    _KpiCard(
+                      title: "Total",
+                      value: "$total",
+                      icon: LucideIcons.calendar,
+                    ),
+                    const SizedBox(width: 10),
+                    _KpiCard(
+                      title: "Pending",
+                      value: "$pendingCount",
+                      icon: LucideIcons.clock,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Breed: $petBreed",
-                  style: AppTheme.caption(),
+
+                const SizedBox(height: 10),
+
+                Row(
+                  children: [
+                    _KpiCard(
+                      title: "Confirmed",
+                      value: "$confirmedCount",
+                      icon: LucideIcons.checkCircle,
+                    ),
+                    const SizedBox(width: 10),
+                    _KpiCard(
+                      title: "Completed",
+                      value: "$completedCount",
+                      icon: LucideIcons.check,
+                    ),
+                  ],
                 ),
-                Text(
-                  "Age: $petAge",
-                  style: AppTheme.caption(),
+
+                const SizedBox(height: 20),
+
+                /// ================= PENDING =================
+                _SectionTitle("Pending Requests"),
+                const SizedBox(height: 8),
+
+                if (pending.isEmpty)
+                  _emptyBox("No pending requests")
+                else
+                  ...pending.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return _appointmentItem(context, doc.id, data);
+                  }),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Open Appointments tab from top"),
+                        ),
+                      );
+                    },
+                    child: const Text("View all appointments"),
+                  ),
                 ),
               ],
-            ),
-          ),
+            );
+          },
+        ),
 
-          const SizedBox(width: 8),
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              status.toUpperCase(),
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      const SizedBox(height: 8),
-
-      /// SERVICE
-      Text(
-        "$serviceTitle • ₺$price",
-        style: AppTheme.body(color: AppTheme.muted),
-      ),
-
-      const SizedBox(height: 4),
-
-      /// DATE
-      Text(
-        dateText,
-        style: AppTheme.caption(),
-      ),
-
-      const SizedBox(height: 10),
-
-      /// ACTIONS
-      if (status == 'pending')
+        /// ================= SERVICES =================
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => _updateAppointmentStatus(
-  context,
-  id,
-  'confirmed',
-),
-                child: const Text("Accept"),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => _updateAppointmentStatus(
-  context,
-  id,
-  'rejected',
-),
-                child: const Text("Reject"),
-              ),
-            ),
-          ],
-        )
-      else
-        Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Text(
-            "Already ${status.toUpperCase()}",
-            style: const TextStyle(
-              color: Colors.grey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-    ],
-  ),
-);
-}
-
-Future<void> _updateAppointmentStatus(
-  BuildContext context,
-  String id,
-  String newStatus,
-) async {
-  try {
-    final callable = FirebaseFunctions.instanceFor(
-      region: 'europe-west3',
-    ).httpsCallable('updateVetAppointmentStatus');
-
-    await callable.call({
-      'appointmentId': id,
-      'newStatus': newStatus,
-    });
-
-    debugPrint("✅ FUNCTION CALLED → $newStatus");
-
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          newStatus == 'confirmed'
-              ? "Appointment accepted"
-              : "Appointment rejected",
-        ),
-      ),
-    );
-  } catch (e) {
-    debugPrint("❌ FUNCTION ERROR: $e");
-
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Update failed: $e")),
-    );
-  }
-}
-Future<void> _deleteService(
-  BuildContext context,
-  String businessId,
-  String id,
-) async {
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text("Delete Service"),
-      content: const Text("Are you sure you want to delete this service?"),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text("Cancel"),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text("Delete"),
-        ),
-      ],
-    ),
-  );
-
-  if (confirm != true) return;
-
-  try {
-    await FirebaseFirestore.instance
-        .collection('businesses')
-        .doc(businessId)
-        .collection('services')
-        .doc(id)
-        .delete();
-
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Service deleted")),
-    );
-  } catch (e) {
-    debugPrint('❌ deleteService error: $e');
-
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Delete failed")),
-    );
-  }
-}
-
-Widget _profileCard(
-  BuildContext context,
-  Map<String, dynamic> profile,
-  Map<String, dynamic> contact,
-) {
-  final name = profile['displayName'] ?? 'Clinic';
-
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: _cardDecoration(),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                name,
-                style: AppTheme.h3(weight: FontWeight.w800),
-              ),
-            ),
+            _SectionTitle("Services"),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFC107),
                 foregroundColor: Colors.black,
               ),
               onPressed: () {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text("Edit profile coming soon"),
-    ),
-  );
-},
-              icon: const Icon(LucideIcons.edit2, size: 18),
-              label: const Text("Edit"),
-            )
+                context.read<AppState>().openAddService();
+              },
+              icon: const Icon(LucideIcons.plus, size: 18),
+              label: const Text("Add"),
+            ),
           ],
         ),
 
         const SizedBox(height: 10),
+        _emptyBox("No services added"),
 
-        Text(
-          profile['bio'] ?? "No description yet",
-          style: AppTheme.body(color: AppTheme.muted),
-        ),
+        const SizedBox(height: 24),
 
-        const SizedBox(height: 12),
+        /// ================= QUICK ACTIONS =================
+        _SectionTitle("Quick Actions"),
+        const SizedBox(height: 10),
 
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: [
-            _chip("📞 ${contact['phone'] ?? '-'}"),
-            _chip("📍 ${contact['city'] ?? '-'}"),
-            _chip("📍 ${contact['district'] ?? '-'}"),
+            _ActionBtn(
+              "Schedule",
+              LucideIcons.calendar,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Schedule page coming next")),
+                );
+              },
+            ),
+            const SizedBox(width: 10),
+            _ActionBtn(
+              "Patients",
+              LucideIcons.users,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Patients page coming next")),
+                );
+              },
+            ),
+            const SizedBox(width: 10),
+            _ActionBtn(
+              "Settings",
+              LucideIcons.settings,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Settings page coming next")),
+                );
+              },
+            ),
           ],
         ),
+
+        /// ================= SERVICES LIST =================
+        _SectionTitle("Your Services"),
+        const SizedBox(height: 10),
+
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('businesses')
+              .doc(businessId)
+              .collection('services')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final docs = snapshot.data!.docs;
+
+            if (docs.isEmpty) {
+              return _emptyBox("No services yet");
+            }
+
+            final newServices = docs
+                .map((e) => (e.data() as Map)['title'] as String)
+                .toList();
+
+            final appState = context.read<AppState>();
+
+            // 🔥 فقط اگر تغییر کرده update کن
+            if (!listEquals(appState.existingServices, newServices)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) {
+                  appState.setExistingServices(newServices);
+                }
+              });
+            }
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return _serviceItem(context, doc.id, data);
+              }).toList(),
+            );
+          },
+        ),
       ],
-    ),
-  );
-}
+    );
+  }
+
+  Widget _buildRevenueCard(BuildContext context) {
+    if (kDebugMode) {
+      debugPrint(
+        '💰 VET REVENUE QUERY → businessId=$businessId path=vet_appointments where businessId==$businessId',
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('vet_appointments')
+          .where('businessId', isEqualTo: businessId)
+          .snapshots(includeMetadataChanges: false),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _emptyBox('Revenue error: ${snapshot.error}');
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final paidDocs = docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final status = (data['status'] ?? '').toString().toLowerCase();
+          return status == 'confirmed_paid' || status == 'completed';
+        }).toList();
+
+        if (paidDocs.isEmpty) {
+          return _emptyBox('No revenue yet');
+        }
+
+        double netRevenue = 0;
+        double grossSales = 0;
+        double commissionTotal = 0;
+        double adjustmentsTotal = 0;
+
+        for (final doc in paidDocs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final financial = Map<String, dynamic>.from(data['financial'] ?? {});
+          final pricing = Map<String, dynamic>.from(data['pricing'] ?? {});
+
+          final gross = _moneyValue(
+            pricing['total'] ??
+                pricing['grandTotal'] ??
+                data['paymentAmount'] ??
+                data['servicePrice'] ??
+                data['price'] ??
+                data['totalPrice'],
+          );
+          final commission = _moneyValue(
+            financial['platformCommissionAmount'] ??
+                financial['commissionAmount'],
+          );
+          final explicitNet = financial['vetNetAmount'];
+          final net = explicitNet == null
+              ? gross - commission
+              : _moneyValue(explicitNet);
+
+          grossSales += gross;
+          commissionTotal += commission;
+          netRevenue += net;
+
+          if (kDebugMode) {
+            debugPrint(
+              '💸 VET APPOINTMENT REVENUE → appointmentId=${doc.id} '
+              'gross=$gross commission=$commission net=$net',
+            );
+          }
+        }
+
+        final appointmentCount = paidDocs.length;
+        final averageTicket = appointmentCount == 0
+            ? 0.0
+            : grossSales / appointmentCount;
+
+        if (kDebugMode) {
+          debugPrint(
+            '💰 VET FINAL REVENUE → businessId=$businessId '
+            'net=$netRevenue gross=$grossSales commission=$commissionTotal '
+            'appointments=$appointmentCount averageTicket=$averageTicket',
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF9E1B4F),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Net Revenue',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '₺${netRevenue.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'After platform commission',
+                style: TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              _revenueRow('Gross Sales', grossSales),
+              _revenueRow('Platform Fee', -commissionTotal),
+              _revenueRow('Adjustments', -adjustmentsTotal),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  _revenueKpi(
+                    label: 'Paid Appointments',
+                    value: appointmentCount.toString(),
+                  ),
+                  const SizedBox(width: 10),
+                  _revenueKpi(
+                    label: 'Average Ticket',
+                    value: '₺${averageTicket.toStringAsFixed(0)}',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _revenueRow(String title, double value) {
+    final isNegative = value < 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: const TextStyle(color: Colors.white70)),
+          Text(
+            '${isNegative ? "-" : ""}₺${value.abs().toStringAsFixed(0)}',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _revenueKpi({required String label, required String value}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white60,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _moneyValue(dynamic raw) {
+    if (raw == null) return 0;
+    if (raw is num) return raw.toDouble();
+    return double.tryParse(raw.toString()) ?? 0;
+  }
+
+  Widget _serviceItem(
+    BuildContext context,
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    // 🔥 اینجا درستشه
+    final price = data['price']?.toString();
+    final duration = data['duration']?.toString();
+
+    String priceText;
+    if (price == null) {
+      priceText = "Price on request";
+    } else {
+      priceText = "₺$price";
+    }
+
+    String durationText;
+    if (duration == null || duration.toString().isEmpty) {
+      durationText = "Flexible duration";
+    } else {
+      durationText = duration.toString();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(data['title']?.toString() ?? '')),
+              GestureDetector(
+                onTap: () {
+                  context.read<AppState>().openAddServiceDetail(
+                    data['title']?.toString() ?? '',
+                    serviceId: id,
+                    existingData: data,
+                  );
+                },
+                child: const Icon(LucideIcons.edit2, size: 18),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () => _deleteService(context, businessId, id),
+                child: const Icon(LucideIcons.trash2, size: 18),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // ✅ اینجا فقط Text
+          Text(
+            "$priceText • $durationText",
+            style: AppTheme.body(color: AppTheme.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _appointmentItem(
+    BuildContext context,
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    debugPrint("🧩 RENDER: ${data['dogName']} - ${data['status']}");
+    final status = data['status'] ?? 'pending';
+
+    final petName = data['petName'] ?? data['dogName'] ?? '';
+    final petType = data['petType'] ?? 'dog';
+    final petBreed = data['petBreed'] ?? '-';
+    final petAge = data['petAge'] ?? '-';
+    // 🔥 SERVICE (پشتیبانی از هر دو ساختار)
+    String serviceTitle = '';
+    String price = '';
+
+    if (data['service'] != null) {
+      final service = data['service'] as Map<String, dynamic>;
+      serviceTitle = service['title'] ?? '';
+      price = service['price']?.toString() ?? '';
+    } else {
+      serviceTitle = data['serviceTitle'] ?? '';
+      price = data['price']?.toString() ?? '';
+    }
+
+    // 🔥 TIME (پشتیبانی از هر دو)
+    final ts = data['scheduledDateTime'] ?? data['scheduledAt'];
+
+    final dt = ts is Timestamp ? ts.toDate() : null;
+
+    String dateText = '';
+    if (dt != null) {
+      dateText =
+          "${dt.year}-${dt.month}-${dt.day} • ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+    }
+
+    Color statusColor;
+    switch (status) {
+      case 'confirmed':
+        statusColor = Colors.green;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        break;
+      case 'completed':
+        statusColor = Colors.blue;
+        break;
+      default:
+        statusColor = Colors.orange;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// HEADER
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "$petName • $petType",
+                      style: AppTheme.bodyMedium().copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text("Breed: $petBreed", style: AppTheme.caption()),
+                    Text("Age: $petAge", style: AppTheme.caption()),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          /// SERVICE
+          Text(
+            "$serviceTitle • ₺$price",
+            style: AppTheme.body(color: AppTheme.muted),
+          ),
+
+          const SizedBox(height: 4),
+
+          /// DATE
+          Text(dateText, style: AppTheme.caption()),
+
+          const SizedBox(height: 10),
+
+          /// ACTIONS
+          if (status == 'pending')
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _updateAppointmentStatus(
+                      context,
+                      id,
+                      _approvalTargetStatus(data),
+                      data,
+                    ),
+                    child: const Text("Accept"),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        _updateAppointmentStatus(context, id, 'rejected', data),
+                    child: const Text("Reject"),
+                  ),
+                ),
+              ],
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                "Already ${status.toUpperCase()}",
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateAppointmentStatus(
+    BuildContext context,
+    String id,
+    String newStatus,
+    Map<String, dynamic> data,
+  ) async {
+    debugPrint(
+      '🩺 PAYMENT CTA DECISION → '
+      'appointmentId=$id targetStatus=$newStatus '
+      'serviceRequiresPayment=${data['serviceRequiresPayment']} '
+      'price=${data['price'] ?? data['servicePrice'] ?? 'n/a'}',
+    );
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('updateVetAppointmentStatus');
+
+      await callable.call({'appointmentId': id, 'newStatus': newStatus});
+
+      debugPrint("✅ FUNCTION CALLED → $newStatus");
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newStatus == 'confirmed'
+                ? "Appointment accepted"
+                : "Appointment rejected",
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint("❌ FUNCTION ERROR: $e");
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Update failed: $e")));
+    }
+  }
+
+  String _approvalTargetStatus(Map<String, dynamic> data) {
+    final rawPrice = data['servicePrice'] ?? data['price'];
+    final double price = rawPrice is num
+        ? rawPrice.toDouble()
+        : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
+    final requiresPayment = data['serviceRequiresPayment'] == true || price > 0;
+    return requiresPayment ? 'awaiting_payment' : 'confirmed';
+  }
+
+  Future<void> _deleteService(
+    BuildContext context,
+    String businessId,
+    String id,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Service"),
+        content: const Text("Are you sure you want to delete this service?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(businessId)
+          .collection('services')
+          .doc(id)
+          .delete();
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Service deleted")));
+    } catch (e) {
+      debugPrint('❌ deleteService error: $e');
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Delete failed")));
+    }
+  }
+
+  Widget _profileCard(
+    BuildContext context,
+    Map<String, dynamic> profile,
+    Map<String, dynamic> contact,
+  ) {
+    final name = profile['displayName'] ?? 'Clinic';
+    final description =
+        profile['description'] ?? profile['bio'] ?? "No description yet";
+    debugPrint(
+      '🩺 VET BUSINESS MAP → source=VetDashboardOverview '
+      'businessId=$businessId displayName=$name '
+      'descriptionLength=${description.toString().length}',
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(name, style: AppTheme.h3(weight: FontWeight.w800)),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC107),
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Edit profile coming soon")),
+                  );
+                },
+                icon: const Icon(LucideIcons.edit2, size: 18),
+                label: const Text("Edit"),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          Text(description, style: AppTheme.body(color: AppTheme.muted)),
+
+          const SizedBox(height: 12),
+
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip("📞 ${contact['phone'] ?? '-'}"),
+              _chip("📍 ${contact['city'] ?? '-'}"),
+              _chip("📍 ${contact['district'] ?? '-'}"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   /// ================= UI HELPERS =================
 
@@ -725,10 +905,7 @@ Widget _profileCard(
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
-      child: Text(
-        text,
-        style: AppTheme.body(color: AppTheme.muted),
-      ),
+      child: Text(text, style: AppTheme.body(color: AppTheme.muted)),
     );
   }
 
@@ -736,14 +913,12 @@ Widget _profileCard(
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F).withOpacity(0.08),
+        color: const Color(0xFF9E1B4F).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         text,
-        style: AppTheme.caption(
-          color: const Color(0xFF9E1B4F),
-        ),
+        style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
       ),
     );
   }
@@ -758,12 +933,8 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: AppTheme.h2(),
-    );
+    return Text(title, style: AppTheme.h2());
   }
-  
 }
 
 class _KpiCard extends StatelessWidget {
@@ -786,7 +957,7 @@ class _KpiCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: const Color(0xFF9E1B4F).withOpacity(0.15),
+            color: const Color(0xFF9E1B4F).withValues(alpha: 0.15),
           ),
         ),
         child: Column(
@@ -803,12 +974,12 @@ class _KpiCard extends StatelessWidget {
   }
 }
 
-class _actionBtn extends StatelessWidget {
+class _ActionBtn extends StatelessWidget {
   final String text;
   final IconData icon;
   final VoidCallback? onTap;
 
-  const _actionBtn(this.text, this.icon, {this.onTap});
+  const _ActionBtn(this.text, this.icon, {this.onTap});
 
   @override
   Widget build(BuildContext context) {

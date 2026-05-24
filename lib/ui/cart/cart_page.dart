@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import '../../app_state.dart';
 import '../../subscription/models/cart_item.dart';
 //import 'package:barky_matches_fixed/ui/petshop/widgets/checkout_button.dart';
@@ -12,13 +13,14 @@ class CartPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final items = appState.cartItems;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("My Cart"),
+        title: Text(l10n.cartTitle),
       ),
       body: items.isEmpty
-          ? const Center(child: Text("Cart is empty"))
+          ? Center(child: Text(l10n.cartIsEmpty))
           : Column(
               children: [
                 Expanded(
@@ -114,6 +116,7 @@ class _CartSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -125,7 +128,7 @@ class _CartSummary extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Total"),
+              Text(l10n.totalLabel),
               Text("${appState.cartTotal.toStringAsFixed(2)} ₺"),
             ],
           ),
@@ -147,7 +150,7 @@ class _CartSummary extends StatelessWidget {
   ),
 );
 },
-              child: const Text("Checkout"),
+              child: Text(l10n.checkoutButton),
             ),
           )
         ],

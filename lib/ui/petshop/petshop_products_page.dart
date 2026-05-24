@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 //import 'package:barky_matches_fixed/ui/petshop/widgets/checkout_button.dart';
@@ -61,7 +62,7 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
     debugPrint("🛒 CART COUNT: ${_cart.length}");
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("${product.name} added to cart")),
+      SnackBar(content: Text(AppLocalizations.of(context)!.addedToCart)),
     );
   }
 
@@ -75,11 +76,12 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
 
   @override
 Widget build(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   debugPrint("🔥 OPEN SHOP ID: ${widget.shopId}");
 
   return Scaffold(
       appBar: AppBar(
-        title: const Text("Pet Shop"),
+        title: Text(l10n.petShopTitle),
       ),
       body: Column(
         children: [
@@ -94,8 +96,8 @@ Widget build(BuildContext context) {
     .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Center(
-                      child: Text("Error loading products"));
+                  return Center(
+                      child: Text(l10n.somethingWentWrong));
                 }
 
                 if (!snapshot.hasData) {
@@ -106,8 +108,8 @@ Widget build(BuildContext context) {
                 final docs = snapshot.data!.docs;
 
                 if (docs.isEmpty) {
-                  return const Center(
-                      child: Text("No products found"));
+                  return Center(
+                      child: Text(l10n.noProductsFound));
                 }
 
                 return ListView.builder(
@@ -172,7 +174,7 @@ Widget build(BuildContext context) {
                             ElevatedButton(
                               onPressed: () =>
                                   _addToCart(product),
-                              child: const Text("Add"),
+                              child: Text(l10n.addToCartButton),
                             ),
                           ],
                         ),
@@ -204,8 +206,8 @@ Widget build(BuildContext context) {
                     mainAxisAlignment:
                         MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Total",
+                      Text(
+                        l10n.totalLabel,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -224,7 +226,7 @@ Widget build(BuildContext context) {
                   /// CHECKOUT
                   SizedBox(
   width: double.infinity,
-  child: ElevatedButton(
+    child: ElevatedButton(
     onPressed: _cart.isEmpty
     ? null
     : () {
@@ -237,7 +239,7 @@ Widget build(BuildContext context) {
     style: ElevatedButton.styleFrom(
       padding: const EdgeInsets.symmetric(vertical: 14),
     ),
-    child: const Text("Continue to Checkout"),
+    child: Text(l10n.checkoutButton),
   ),
 ),
                 ],

@@ -14,95 +14,106 @@ class BarkyBottomNav extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final appState = context.read<AppState>();
+Widget build(BuildContext context) {
+  final appState = context.watch<AppState>();
 
-    return SizedBox(
-      height: 65,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
+  return AnimatedSlide(
+    duration: const Duration(milliseconds: 250),
+    offset: appState.showBottomNav
+        ? Offset.zero
+        : const Offset(0, 1.5),
+    curve: Curves.easeInOut,
+    child: AnimatedOpacity(
+      duration: const Duration(milliseconds: 250),
+      opacity: appState.showBottomNav ? 1 : 0,
+      child: SizedBox(
+        height: 65,
+        child: Stack(
+          alignment: Alignment.topCenter,
+          children: [
 
-          // 🔲 Main Bar Background
-          Container(
-            height: 65,
-            color: Colors.pink,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
+            // 🔲 Main Bar Background
+            Container(
+              height: 65,
+              color: Colors.pink,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
 
-                _buildItem(
-                  context,
-                  icon: LucideIcons.home,
-                  label: 'Home',
-                  tab: NavTab.home,
-                ),
+                  _buildItem(
+                    context,
+                    icon: LucideIcons.home,
+                    label: 'Home',
+                    tab: NavTab.home,
+                  ),
 
-                _buildItem(
-                  context,
-                  icon: LucideIcons.heart,
-                  label: 'Favorites',
-                  tab: NavTab.favorites,
-                ),
+                  _buildItem(
+                    context,
+                    icon: LucideIcons.heart,
+                    label: 'Favorites',
+                    tab: NavTab.favorites,
+                  ),
 
-                const SizedBox(width: 60),
+                  const SizedBox(width: 60),
 
-                _buildItem(
-                  context,
-                  icon: LucideIcons.calendar,
-                  label: 'Schedule',
-                  tab: NavTab.playdateScheduling,
-                ),
+                  _buildItem(
+                    context,
+                    icon: LucideIcons.calendar,
+                    label: 'Schedule',
+                    tab: NavTab.playdateScheduling,
+                  ),
 
-                _buildItem(
-                  context,
-                  icon: LucideIcons.user,
-                  label: 'Profile',
-                  tab: NavTab.profile,
-                ),
-              ],
+                  _buildItem(
+                    context,
+                    icon: LucideIcons.user,
+                    label: 'Profile',
+                    tab: NavTab.profile,
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // ⭐ CENTER VET BUTTON (DISTINCT)
-          Positioned(
-            top: -10,
-            child: GestureDetector(
-              onTap: () {
-                if (currentTab == NavTab.vet) return;
-                appState.closeNotifications();
-                appState.setCurrentTab(NavTab.vet);
-              },
-              child: Container(
-                height: 64,
-                width: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: currentTab == NavTab.vet
-                      ? const Color(0xFFFFC107)
-                      : Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  LucideIcons.stethoscope, // 👈 مهم: متفاوت و مرتبط با Vet
-                  color: currentTab == NavTab.vet
-                      ? Colors.black
-                      : Colors.pink,
-                  size: 30, // 👈 کمی بزرگ‌تر برای تاکید
+            // ⭐ CENTER VET BUTTON
+            Positioned(
+              top: -10,
+              child: GestureDetector(
+                onTap: () {
+                  if (currentTab == NavTab.vet) return;
+                  appState.closeNotifications();
+                  appState.setCurrentTab(NavTab.vet);
+                },
+                child: Container(
+                  height: 64,
+                  width: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: currentTab == NavTab.vet
+                        ? const Color(0xFFFFC107)
+                        : Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    LucideIcons.stethoscope,
+                    color: currentTab == NavTab.vet
+                        ? Colors.black
+                        : Colors.pink,
+                    size: 30,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildItem(
     BuildContext context, {
@@ -115,10 +126,16 @@ class BarkyBottomNav extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        if (isActive) return;
-        appState.closeNotifications();
-        appState.setCurrentTab(tab);
-      },
+
+  // 🔥 اجازه بده PROFILE دوباره tap شود
+  if (isActive && tab != NavTab.profile) {
+    return;
+  }
+
+  appState.closeNotifications();
+
+  appState.setCurrentTab(tab);
+},
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

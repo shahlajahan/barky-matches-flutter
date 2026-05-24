@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    match /business_sector_docs/{ownerUid}/pet_taxi/{allPaths=**} {
+      allow read, write: if isSignedIn()
+        && (request.auth.uid == ownerUid || isAdmin());
+    }
+
+    match /business_sector_docs/{ownerUid}/{sector}/{allPaths=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == ownerUid;
+    }
+
+    match /stories/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == userId;
+    }
+
+    match /social_posts/{userId}/{postId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == userId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

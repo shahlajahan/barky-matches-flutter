@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import 'business_card_data.dart';
-import '../vet/suggest_clinic_sheet.dart';
 import 'package:provider/provider.dart';
 import '../../app_state.dart';
 
@@ -9,7 +8,9 @@ import '../../app_state.dart';
 import 'sector_overlays/vet_overlay_content.dart';
 import 'sector_overlays/adoption_overlay_content.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../vet/vet_details_page.dart';
+import 'pet_hotel/pet_hotel_details_page.dart';
+
+
 
 enum _BusinessTab { info, services, action, contact }
 
@@ -56,13 +57,11 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
   }
 
   void _buildTabs() {
-    _tabs = [
-      _BusinessTab.info,
-      _BusinessTab.services,
-    ];
+    _tabs = [_BusinessTab.info, _BusinessTab.services];
 
     if (widget.data.type == BusinessType.vet ||
-        widget.data.type == BusinessType.adoptionCenter) {
+    widget.data.type == BusinessType.adoptionCenter ||
+    widget.data.type == BusinessType.petHotel) {
       _tabs.add(_BusinessTab.action);
     }
 
@@ -90,17 +89,14 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 _header(),
                 const SizedBox(height: 16),
                 _buildTabsUI(),
                 const SizedBox(height: 16),
-                SizedBox(
-  height: 120,
-  child: _buildTabContent(),
-),
+                SizedBox(height: 120, child: _buildTabContent()),
               ],
             ),
           ),
@@ -116,9 +112,12 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.data.name,
-            style: AppTheme.h2(color: Colors.white)
-                .copyWith(fontWeight: FontWeight.w800)),
+        Text(
+          widget.data.name,
+          style: AppTheme.h2(
+            color: Colors.white,
+          ).copyWith(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 6),
         Text(
           '${widget.data.district}, ${widget.data.city}'
@@ -211,21 +210,15 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
   // 🔥 INFO (shared)
   // ─────────────────────────────
   Widget _buildInfoContent() {
-    return _resolveSectorWidget(
-      info: true,
-    );
+    return _resolveSectorWidget(info: true);
   }
 
   Widget _buildServicesContent() {
-    return _resolveSectorWidget(
-      services: true,
-    );
+    return _resolveSectorWidget(services: true);
   }
 
   Widget _buildActionContent() {
-    return _resolveSectorWidget(
-      action: true,
-    );
+    return _resolveSectorWidget(action: true);
   }
 
   // ─────────────────────────────
@@ -239,27 +232,23 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
     switch (widget.data.type) {
       case BusinessType.vet:
         return VetOverlayContent(
-  data: widget.data,
-  showInfo: info,
-  showServices: services,
-  showAction: action,
+          data: widget.data,
+          showInfo: info,
+          showServices: services,
+          showAction: action,
 
-  onOpenAppointment: widget.onOpenAppointment,
+          onOpenAppointment: widget.onOpenAppointment,
 
-  // 🔥🔥🔥 THIS IS THE KEY
-  onOpenFullProfile: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => VetDetailsPage(vet: widget.data),
-      ),
-    );
-  },
+          onOpenFullProfile: () {
+            final appState = context.read<AppState>();
+            appState.closeBusinessDetails();
+            appState.openVetDetails(widget.data);
+          },
 
-  onCall: widget.onCall,
-  onWhatsApp: widget.onWhatsApp,
-  onClose: widget.onClose,
-);
+          onCall: widget.onCall,
+          onWhatsApp: widget.onWhatsApp,
+          onClose: widget.onClose,
+        );
 
       case BusinessType.adoptionCenter:
         return AdoptionOverlayContent(
@@ -271,6 +260,39 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
           onWhatsApp: widget.onWhatsApp,
           onClose: widget.onClose,
         );
+        case BusinessType.petHotel:
+  return VetOverlayContent(
+  data: widget.data,
+
+  showInfo: info,
+  showServices: services,
+  showAction: action,
+
+  onOpenAppointment: widget.onOpenAppointment,
+
+  onOpenFullProfile: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PetHotelDetailsPage(
+        data: widget.data,
+
+        onCall: widget.onCall,
+        onWhatsApp: widget.onWhatsApp,
+        onDirections: widget.onDirections,
+
+        onOpenBooking: (service) {
+          widget.onOpenAppointment?.call();
+        },
+      ),
+    ),
+  );
+},
+
+  onCall: widget.onCall,
+  onWhatsApp: widget.onWhatsApp,
+  onClose: widget.onClose,
+);
 
       default:
         return const SizedBox();
@@ -285,12 +307,11 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _cta(LucideIcons.phone, widget.onCall),
-_cta(LucideIcons.messageCircle, widget.onWhatsApp),
-_cta(LucideIcons.navigation, widget.onDirections),
+        _cta(LucideIcons.messageCircle, widget.onWhatsApp),
+        _cta(LucideIcons.navigation, widget.onDirections),
         TextButton(
           onPressed: widget.onClose,
-          child: Text('Close',
-              style: AppTheme.caption(color: Colors.amber)),
+          child: Text('Close', style: AppTheme.caption(color: Colors.amber)),
         ),
       ],
     );
@@ -319,8 +340,7 @@ _cta(LucideIcons.navigation, widget.onDirections),
           color: enabled ? Colors.amber : Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon,
-            color: enabled ? Colors.black : Colors.white38),
+        child: Icon(icon, color: enabled ? Colors.black : Colors.white38),
       ),
     );
   }

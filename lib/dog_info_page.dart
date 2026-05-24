@@ -23,7 +23,7 @@ class DogInfoPage extends StatelessWidget {
   Future<ImageProvider?> _loadDogImage() async {
     if (dog.imagePaths.isEmpty) {
       if (kDebugMode) {
-        print('DogInfoPage - No image paths for ${dog.name}');
+        debugPrint('DogInfoPage - No image paths for ${dog.name}');
       }
       return null;
     }
@@ -33,12 +33,12 @@ class DogInfoPage extends StatelessWidget {
         return FileImage(file);
       }
       if (kDebugMode) {
-        print('DogInfoPage - Image file does not exist: ${dog.imagePaths[0]}');
+        debugPrint('DogInfoPage - Image file does not exist: ${dog.imagePaths[0]}');
       }
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('DogInfoPage - Error loading image from path ${dog.imagePaths[0]}: $e');
+        debugPrint('DogInfoPage - Error loading image from path ${dog.imagePaths[0]}: $e');
       }
       return null;
     }
@@ -49,7 +49,7 @@ class DogInfoPage extends StatelessWidget {
     if (gender.isEmpty) return l10n?.unknownGender ?? 'Unknown Gender';
     final lowerGender = gender.toLowerCase().trim();
     if (kDebugMode) {
-      print('Gender exact: "$gender" -> lower: "$lowerGender"');
+      debugPrint('Gender exact: "$gender" -> lower: "$lowerGender"');
     }
     final maleFa = (l10n?.genderMale ?? 'male').toLowerCase();
     final femaleFa = (l10n?.genderFemale ?? 'female').toLowerCase();
@@ -220,7 +220,7 @@ class DogInfoPage extends StatelessWidget {
     };
     final lowerTrait = traitKey.toLowerCase().trim();
     if (kDebugMode) {
-      print('Trait exact: "$traitKey" -> lower: "$lowerTrait"');
+      debugPrint('Trait exact: "$traitKey" -> lower: "$lowerTrait"');
     }
     return rawToLocalized[lowerTrait] ?? (traitKey.startsWith('trait') ? traitKey.substring(5) : traitKey);
   }
@@ -230,7 +230,7 @@ class DogInfoPage extends StatelessWidget {
     if (status.isEmpty) return l10n?.unknownStatus ?? 'Unknown Status';
     final lowerStatus = status.toLowerCase().trim();
     if (kDebugMode) {
-      print('Health Status exact: "$status" -> lower: "$lowerStatus"');
+      debugPrint('Health Status exact: "$status" -> lower: "$lowerStatus"');
     }
     final healthyFa = (l10n?.healthHealthy ?? 'healthy').toLowerCase();
     final needsFa = (l10n?.healthNeedsCare ?? 'needs care').toLowerCase();
@@ -245,7 +245,7 @@ class DogInfoPage extends StatelessWidget {
       return l10n?.healthUnderTreatment ?? 'Under Treatment';
     }
     if (kDebugMode) {
-      print('No match for health status: "$lowerStatus"');
+      debugPrint('No match for health status: "$lowerStatus"');
     }
     return status;
   }
@@ -256,7 +256,7 @@ class DogInfoPage extends StatelessWidget {
       SnackBar(content: Text('${l10n?.dogInfoPlaydateScheduled ?? 'Playdate scheduled with'} ${dog.name}')),
     );
     if (kDebugMode) {
-      print('DogInfoPage - Playdate scheduled for ${dog.name}');
+      debugPrint('DogInfoPage - Playdate scheduled for ${dog.name}');
     }
   }
 
@@ -267,7 +267,7 @@ class DogInfoPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
 
     if (kDebugMode) {
-      print('DogInfoPage - Building UI for dog: ${dog.name}, ID: ${dog.id}');
+      debugPrint('DogInfoPage - Building UI for dog: ${dog.name}, ID: ${dog.id}');
     }
 
     return Scaffold(
@@ -308,7 +308,7 @@ class DogInfoPage extends StatelessWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             if (kDebugMode) {
-                              print('DogInfoPage - Error loading image for ${dog.name}: $error');
+                              debugPrint('DogInfoPage - Error loading image for ${dog.name}: $error');
                             }
                             return const Icon(Icons.pets, size: 200, color: Colors.white);
                           },
@@ -397,7 +397,7 @@ class DogInfoPage extends StatelessWidget {
                           SnackBar(content: Text('${l10n?.dogInfoLiked ?? 'You liked'} ${dog.name}')),
                         );
                         if (kDebugMode) {
-                          print('DogInfoPage - Liked dog: ${dog.name}');
+                          debugPrint('DogInfoPage - Liked dog: ${dog.name}');
                         }
                       },
                       tooltip: l10n?.dogInfoLikeTooltip ?? 'Like this dog',
@@ -409,7 +409,7 @@ class DogInfoPage extends StatelessWidget {
                           SnackBar(content: Text('${l10n?.dogInfoDisliked ?? 'You disliked'} ${dog.name}')),
                         );
                         if (kDebugMode) {
-                          print('DogInfoPage - Disliked dog: ${dog.name}');
+                          debugPrint('DogInfoPage - Disliked dog: ${dog.name}');
                         }
                       },
                       tooltip: l10n?.dogInfoDislikeTooltip ?? 'Dislike this dog',
@@ -421,7 +421,7 @@ class DogInfoPage extends StatelessWidget {
                           SnackBar(content: Text('${l10n?.dogInfoChatWithOwner ?? 'Chat with'} ${dog.name}\'s owner')),
                         );
                         if (kDebugMode) {
-                          print('DogInfoPage - Initiated chat for ${dog.name}');
+                          debugPrint('DogInfoPage - Initiated chat for ${dog.name}');
                         }
                       },
                       tooltip: l10n?.dogInfoChatTooltip ?? 'Chat with owner',
@@ -443,7 +443,7 @@ class DogInfoPage extends StatelessWidget {
                           ),
                         );
                         if (kDebugMode) {
-                          print('DogInfoPage - Toggled favorite for ${dog.name}, isFavorite: $isFavorite');
+                          debugPrint('DogInfoPage - Toggled favorite for ${dog.name}, isFavorite: $isFavorite');
                         }
                       },
                       tooltip: l10n?.dogInfoAddFavoriteTooltip ?? 'Add to favorites',

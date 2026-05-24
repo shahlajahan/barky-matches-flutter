@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../../theme/app_theme.dart';
 import '../../app_state.dart';
 import '../../dog.dart';
-import 'vet_card_data.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class VetAppointmentPage extends StatefulWidget {
@@ -15,10 +15,10 @@ class VetAppointmentPage extends StatefulWidget {
   final Map<String, dynamic>? selectedService;
 
   const VetAppointmentPage({
-  super.key,
-  required this.vet,
-  this.selectedService, // 🔥 NEW
-});
+    super.key,
+    required this.vet,
+    this.selectedService, // 🔥 NEW
+  });
 
   @override
   State<VetAppointmentPage> createState() => _VetAppointmentPageState();
@@ -28,7 +28,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
   // ─────────────────────────────
   // STATE
   // ─────────────────────────────
- 
+
   Dog? _selectedDog;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -37,15 +37,15 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
   bool _submitting = false;
 
   Map<String, dynamic>? _selectedServiceLocal;
+  String? _dogsRefreshRequestedForUid;
 
   bool get _isValid =>
-    _selectedDog != null &&
-    _selectedDate != null &&
-    _selectedTime != null &&
-    _selectedServiceLocal != null; // 🔥 این خط جدید
+      _selectedDog != null &&
+      _selectedDate != null &&
+      _selectedTime != null &&
+      _selectedServiceLocal != null; // 🔥 این خط جدید
 
-    late final Stream<QuerySnapshot> _servicesStream;
-
+  late final Stream<QuerySnapshot> _servicesStream;
 
   @override
   void dispose() {
@@ -53,90 +53,222 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
     super.dispose();
   }
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  _selectedServiceLocal = widget.selectedService;
+    _selectedServiceLocal = widget.selectedService;
 
-  _servicesStream = FirebaseFirestore.instance
-      .collection('businesses')
-      .doc(widget.vet.id)
-      .collection('services')
-      .orderBy('sortOrder')
-      .snapshots();
-}
+    _servicesStream = FirebaseFirestore.instance
+    .collection('businesses')
+    .doc(widget.vet.id)
+    .collection('services')
+    .snapshots();
 
-Widget _serviceSelector() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refreshDogsOnce('initState');
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _refreshDogsOnce('didChangeDependencies');
+    });
+  }
+
+  Future<void> _refreshDogsOnce(String source) async {
+    final appState = context.read<AppState>();
+    final authUid =
+        FirebaseAuth.instance.currentUser?.uid ?? appState.currentUserId ?? '';
+
+    debugPrint(
+      '🩺 VetAppointmentPage lifecycle → $source authUid=$authUid appStateUid=${appState.currentUserId ?? "NULL"} '
+      'ready=${appState.isUserProfileReady} myDogs=${appState.myDogs.length}',
+    );
+
+    if (authUid.isEmpty) {
+      debugPrint(
+        '🩺 VetAppointmentPage dog refresh skipped → missing auth uid',
+      );
+      return;
+    }
+
+    if (_dogsRefreshRequestedForUid == authUid) {
+      return;
+    }
+
+    _dogsRefreshRequestedForUid = authUid;
+    debugPrint(
+      '🩺 VetAppointmentPage dog refresh requested → source=AppState.loadMyDogs uid=$authUid',
+    );
+
+    try {
+      await appState.loadMyDogs();
+    } catch (e) {
+      debugPrint('🩺 VetAppointmentPage dog refresh failed → $e');
+    }
+  }
+
+  Widget _serviceSelector() {
+  final l10n = AppLocalizations.of(context)!;
+
   return StreamBuilder<QuerySnapshot>(
-    stream: _servicesStream, // ✅ مهم: از initState میاد
+    stream: _servicesStream,
     builder: (context, snapshot) {
+      /// ─────────────────────────────
+      /// LOADING
+      /// ─────────────────────────────
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const SizedBox(
           height: 80,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+debugPrint(
+  "🧪 SUBCOLLECTION DOCS = ${snapshot.data?.docs.length}",
+);
+      final List<Map<String, dynamic>> services = [];
+
+      /// ─────────────────────────────
+      /// NEW STRUCTURE
+      /// businesses/{id}/services/*
+      /// ─────────────────────────────
+      if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+        final docs = snapshot.data!.docs;
+
+        services.addAll(
+          docs.map((doc) {
+            final data =
+                doc.data() as Map<String, dynamic>;
+
+            return {
+              ...data,
+              'id': doc.id,
+            };
+          }),
         );
       }
 
-      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+      /// ─────────────────────────────
+      /// FALLBACK OLD STRUCTURE
+      /// sectorData.veterinary.services.offeredServices
+      /// ─────────────────────────────
+      else {
+        final businessData =
+            widget.vet.rawData ?? {};
+
+        final vetData =
+            (businessData['sectorData']
+                    ?['veterinary']
+                as Map<String, dynamic>?) ??
+            {};
+
+        final servicesData =
+            (vetData['services']
+                as Map<String, dynamic>?) ??
+            {};
+
+        debugPrint(
+          "🧪 APPOINTMENT FALLBACK SERVICES = $servicesData",
+        );
+
+        if (servicesData['offeredServices'] is List) {
+          final offered =
+              List<String>.from(
+                servicesData['offeredServices'],
+              );
+
+          services.addAll(
+            offered.map(
+              (e) => {
+                'id': e.toLowerCase(),
+                'title': e,
+
+                /// fallback values
+                'price': null,
+                'durationMin': 30,
+              },
+            ),
+          );
+        }
+      }
+
+      debugPrint(
+        "📦 APPOINTMENT SERVICES COUNT: ${services.length}",
+      );
+
+      /// ─────────────────────────────
+      /// EMPTY
+      /// ─────────────────────────────
+      if (services.isEmpty) {
         return SizedBox(
           height: 60,
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              "No services available",
+              l10n.noServicesAvailable,
               style: AppTheme.caption(),
             ),
           ),
         );
       }
 
-      final docs = snapshot.data!.docs;
+      /// ─────────────────────────────
+      /// AUTO SELECT FIRST
+      /// ─────────────────────────────
+      if (_selectedServiceLocal == null) {
+        _selectedServiceLocal = services.first;
+      }
 
-      /// 🔥 AUTO SELECT FIRST SERVICE (SAFE - بدون loop)
-      if (_selectedServiceLocal == null && docs.isNotEmpty) {
-  _selectedServiceLocal = {
-    ...docs.first.data() as Map<String, dynamic>,
-    'id': docs.first.id,
-  };
-}
-
+      /// ─────────────────────────────
+      /// UI
+      /// ─────────────────────────────
       return SizedBox(
-        height: 70, // ✅ کمتر → overflow رفع
+        height: 70,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+          ),
+          itemCount: services.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(width: 8),
           itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data() as Map<String, dynamic>;
-
-            final service = {
-              ...data,
-              'id': doc.id,
-            };
+            final service = services[index];
 
             final isSelected =
-                _selectedServiceLocal?['id'] == service['id'];
+                _selectedServiceLocal?['id'] ==
+                service['id'];
 
             return GestureDetector(
               onTap: () {
-                if (isSelected) return; // ✅ جلوگیری از rebuild اضافی
+                if (isSelected) return;
 
                 setState(() {
                   _selectedServiceLocal = service;
                 });
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
+                duration: const Duration(
+                  milliseconds: 180,
                 ),
+                padding:
+                    const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.amber : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  color: isSelected
+                      ? Colors.amber
+                      : Colors.white,
+                  borderRadius:
+                      BorderRadius.circular(24),
                   border: Border.all(
                     color: isSelected
                         ? Colors.amber
@@ -145,24 +277,23 @@ Widget _serviceSelector() {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: Colors.amber.withOpacity(0.25),
+                            color: Colors.amber
+                                .withOpacity(0.25),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
-                          )
+                          ),
                         ]
                       : [],
                 ),
-
-                /// ❌ Column overflow داشت
-                /// ✅ Row + Flexible = حل کامل
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      data['title'] ?? '',
-                      style: TextStyle(
+                      service['title'] ?? '',
+                      style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight.w600,
                         color: Colors.black,
                       ),
                     ),
@@ -170,7 +301,10 @@ Widget _serviceSelector() {
                     const SizedBox(width: 6),
 
                     Text(
-                      "${data['durationMin'] ?? 30}m",
+                      l10n.durationMinutesShort(
+                        service['durationMin'] ??
+                            30,
+                      ),
                       style: TextStyle(
                         fontSize: 11,
                         color: isSelected
@@ -179,14 +313,17 @@ Widget _serviceSelector() {
                       ),
                     ),
 
-                    /// 💰 price
-                    if (data['price'] != null && data['price'] > 0) ...[
+                    if (service['price'] !=
+                            null &&
+                        service['price'] > 0) ...[
                       const SizedBox(width: 6),
+
                       Text(
-                        "${data['price']}₺",
+                        "${service['price']}₺",
                         style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
                     ],
@@ -205,104 +342,121 @@ Widget _serviceSelector() {
   // UI
   // ─────────────────────────────
   @override
-Widget build(BuildContext context) {
-  final appState = context.read<AppState>();
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final appState = context.watch<AppState>();
+    final authUid =
+        FirebaseAuth.instance.currentUser?.uid ?? appState.currentUserId ?? '';
 
+    debugPrint(
+      '🩺 VetAppointmentPage build → authUid=$authUid appStateUid=${appState.currentUserId ?? "NULL"} '
+      'ready=${appState.isUserProfileReady} myDogs=${appState.myDogs.length}',
+    );
 
-  
+    if (!appState.isUserProfileReady) {
+      debugPrint('🩺 VetAppointmentPage waiting for appState readiness');
+      return const SizedBox.shrink();
+    }
 
-  if (!appState.isUserProfileReady) {
-    return const SizedBox.shrink();
-  }
-
-  return Material( // 👈 خیلی مهم
-    color: AppTheme.bg,
-    child: SafeArea(
-      child: Column(
-        children: [
-
-          /// 🔙 HEADER (به جای AppBar)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    context.read<AppState>().closeBusinessAppointment();
-                  },
-                ),
-                Expanded(
-                  child: Text(
-                    'Appointment • ${widget.vet.name}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+    return Material(
+      // 👈 خیلی مهم
+      color: AppTheme.bg,
+      child: SafeArea(
+        child: Column(
+          children: [
+            /// 🔙 HEADER (به جای AppBar)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      context.read<AppState>().closeBusinessAppointment();
+                    },
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${l10n.appointmentTitle} • ${widget.vet.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          /// 👇 BODY
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
-                _sectionTitle('Select Service'),
-const SizedBox(height: 8),
-_serviceSelector(),
+            /// 👇 BODY
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  _sectionTitle(l10n.selectService),
+                  const SizedBox(height: 8),
+                  _serviceSelector(),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                _sectionTitle('Select Pet'),
-                _dogSelector(),
+                  _sectionTitle(l10n.selectPet),
+                  _dogSelector(),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                _sectionTitle('Date & Time'),
-                _dateTimePicker(),
+                  _sectionTitle(l10n.dateAndTime),
+                  _dateTimePicker(),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                _sectionTitle('Notes (optional)'),
-                _notesField(),
+                  _sectionTitle(l10n.notesOptional),
+                  _notesField(),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                _submitButton(),
-              ],
+                  _submitButton(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
   // ─────────────────────────────
   // WIDGETS
   // ─────────────────────────────
 
   Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: AppTheme.h2().copyWith(fontSize: 16),
-    );
+    return Text(text, style: AppTheme.h2().copyWith(fontSize: 16));
   }
 
-  
-
   Widget _dogSelector() {
-    final dogs = context.read<AppState>().myDogs;
+    final l10n = AppLocalizations.of(context)!;
+    final appState = context.watch<AppState>();
+    final authUid =
+        FirebaseAuth.instance.currentUser?.uid ?? appState.currentUserId ?? '';
+    final dogs = appState.myDogs
+        .where((dog) => dog.ownerId == authUid)
+        .toList();
+
+    debugPrint(
+      '🩺 VetAppointmentPage dog selector → authUid=$authUid source=AppState.myDogs filteredCount=${dogs.length}',
+    );
+    for (final dog in dogs.take(3)) {
+      debugPrint(
+        '🩺 VetAppointmentPage dog ownerId → dogId=${dog.id} ownerId=${dog.ownerId} name=${dog.name}',
+      );
+    }
 
     if (dogs.isEmpty) {
-      return Text(
-        'You have no dogs added yet.',
-        style: AppTheme.caption(),
+      debugPrint(
+        '🩺 VetAppointmentPage empty dogs state → authUid=$authUid appStateUid=${appState.currentUserId ?? "NULL"} '
+        'ready=${appState.isUserProfileReady} myDogs=${appState.myDogs.length}',
       );
+      return Text(l10n.noDogsAddedYet, style: AppTheme.caption());
     }
 
     return Column(
@@ -317,42 +471,34 @@ _serviceSelector(),
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: selected
-                  ? Colors.amber.withOpacity(0.15)
-                  : Colors.white,
+              color: selected ? Colors.amber.withOpacity(0.15) : Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected
-                    ? Colors.amber
-                    : Colors.grey.shade300,
+                color: selected ? Colors.amber : Colors.grey.shade300,
               ),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.pets,
-                  color: selected ? Colors.amber : Colors.grey,
-                ),
+                Icon(Icons.pets, color: selected ? Colors.amber : Colors.grey),
                 const SizedBox(width: 10),
                 Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Text(
-      "${dog.name} • ${dog.petType ?? 'dog'}",
-      style: TextStyle(
-        fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-      ),
-    ),
-    const SizedBox(height: 2),
-    Text(
-      "${dog.breed} • ${dog.age}y",
-      style: const TextStyle(
-        fontSize: 12,
-        color: Colors.grey,
-      ),
-    ),
-  ],
-)
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "${dog.name} • ${dog.petType}",
+                      style: TextStyle(
+                        fontWeight: selected
+                            ? FontWeight.bold
+                            : FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "${dog.breed} • ${dog.age}${l10n.ageYearsSuffix}",
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -362,6 +508,7 @@ _serviceSelector(),
   }
 
   Widget _dateTimePicker() {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
         Expanded(
@@ -369,7 +516,7 @@ _serviceSelector(),
             onPressed: _pickDate,
             child: Text(
               _selectedDate == null
-                  ? 'Select Date'
+                  ? l10n.selectDate
                   : '${_selectedDate!.year}-${_selectedDate!.month}-${_selectedDate!.day}',
             ),
           ),
@@ -380,7 +527,7 @@ _serviceSelector(),
             onPressed: _pickTime,
             child: Text(
               _selectedTime == null
-                  ? 'Select Time'
+                  ? l10n.selectTime
                   : _selectedTime!.format(context),
             ),
           ),
@@ -390,19 +537,19 @@ _serviceSelector(),
   }
 
   Widget _notesField() {
+    final l10n = AppLocalizations.of(context)!;
     return TextField(
       controller: _noteController,
       maxLines: 3,
-      decoration: const InputDecoration(
-        hintText: 'Add a note for the clinic...',
-        border: OutlineInputBorder(),
+      decoration: InputDecoration(
+        hintText: l10n.appointmentNoteHint,
+        border: const OutlineInputBorder(),
       ),
     );
   }
 
   Widget _submitButton() {
-
-   
+    final l10n = AppLocalizations.of(context)!;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -421,12 +568,9 @@ _serviceSelector(),
                 width: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Text(
-                'Request Appointment',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+            : Text(
+                l10n.requestAppointment,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
       ),
     );
@@ -459,144 +603,120 @@ _serviceSelector(),
     }
   }
 
- 
+  Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context)!;
+    debugPrint("🚀 SUBMIT CLICKED");
 
-Future<void> _submit() async {
-  debugPrint("🚀 SUBMIT CLICKED");
+    if (!_isValid || _submitting) return;
 
-  if (!_isValid || _submitting) return;
+    final appState = context.read<AppState>();
+    final userId = appState.currentUserId;
+    final selectedService = _selectedServiceLocal;
 
-  final appState = context.read<AppState>();
-  final userId = appState.currentUserId;
-  final selectedService = _selectedServiceLocal;
+    if (userId == null || _selectedDog == null) {
+      debugPrint("❌ Missing user or dog");
+      return;
+    }
 
-  if (userId == null || _selectedDog == null) {
-    debugPrint("❌ Missing user or dog");
-    return;
-  }
+    setState(() => _submitting = true);
 
-  setState(() => _submitting = true);
+    try {
+      final scheduledDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
 
-  try {
-    final scheduledDateTime = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
-    );
+      final businessSnap = await FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(widget.vet.id)
+          .get();
+      final businessData = businessSnap.data() ?? {};
+      final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
+      final liveBusinessName =
+          profile['displayName']?.toString().trim().isNotEmpty == true
+          ? profile['displayName'].toString()
+          : widget.vet.name;
 
-    /// 🔥 CALL CLOUD FUNCTION (به‌جای Firestore مستقیم)
-    await FirebaseFunctions.instanceFor(region: 'europe-west3')
-        .httpsCallable('createVetAppointment')
-        .call({
-      'petId': _selectedDog!.id,
-'petName': _selectedDog!.name,
-'petType': _selectedDog!.petType,
+      debugPrint(
+        '🩺 VET BUSINESS MAP → source=VetAppointmentPage businessId=${widget.vet.id} '
+        'displayName=$liveBusinessName serviceId=${selectedService?['id']} '
+        'selectedPricingSource=businesses/${widget.vet.id}/services/${selectedService?['id']}',
+      );
 
-'petBreed': _selectedDog!.breed,
-'petAge': _selectedDog!.age,
+      /// 🔥 CALL CLOUD FUNCTION (به‌جای Firestore مستقیم)
+      await FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('createVetAppointment').call({
+        'petId': _selectedDog!.id,
+        'petName': _selectedDog!.name,
+        'petType': _selectedDog!.petType,
 
-      'businessId': widget.vet.id,
-      'businessName': widget.vet.name,
+        'petBreed': _selectedDog!.breed,
+        'petAge': _selectedDog!.age,
 
-      
+        'businessId': widget.vet.id,
+        'businessName': liveBusinessName,
 
-'serviceId': selectedService?['id'],
-'serviceTitle': selectedService?['title'],
-'price': selectedService?['price'],
-'durationMin': selectedService?['durationMin'],
+        'serviceId': selectedService?['id'],
+        'serviceTitle': selectedService?['title'],
+        'price': selectedService?['price'],
+        'durationMin': selectedService?['durationMin'],
 
-      'scheduledAt': scheduledDateTime.toIso8601String(),
-      'note': _noteController.text.trim(),
-    });
+        'scheduledAt': scheduledDateTime.toIso8601String(),
+        'note': _noteController.text.trim(),
+      });
 
-    debugPrint("✅ FUNCTION SUCCESS");
+      debugPrint("✅ FUNCTION SUCCESS");
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Request Sent 🐾'),
-        content: const Text(
-          'Your appointment request has been sent to the clinic.',
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(l10n.requestSentTitle),
+          content: Text(l10n.requestSentMessage),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // فقط dialog بسته میشه
+
+                context
+                    .read<AppState>()
+                    .closeBusinessAppointment(); // صفحه appointment بسته میشه
+              },
+              child: Text(l10n.okButton),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-  Navigator.of(context).pop(); // فقط dialog بسته میشه
+      );
+    } catch (e) {
+      debugPrint('❌ Appointment submit error: $e');
 
-  context.read<AppState>().closeBusinessAppointment(); // صفحه appointment بسته میشه
-},
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  } catch (e) {
-  debugPrint('❌ Appointment submit error: $e');
+      String message = l10n.somethingWentWrong;
 
-  String message = "Something went wrong";
+      if (e is FirebaseFunctionsException) {
+        switch (e.code) {
+          case 'already-exists':
+            message = l10n.alreadyBookedAtThisTime;
+            break;
 
-  if (e is FirebaseFunctionsException) {
-    switch (e.code) {
+          case 'invalid-argument':
+            message = l10n.invalidBookingData;
+            break;
 
-      case 'already-exists':
-        message = "You already have a booking at this time. Please choose another time.";
-        break;
+          default:
+            message = e.message ?? message;
+        }
+      }
 
-      case 'invalid-argument':
-        message = "Invalid booking data. Please try again.";
-        break;
+      if (!mounted) return;
 
-      default:
-        message = e.message ?? message;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
-
-  if (!mounted) return;
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
-}
-}
-Widget _buildServiceBox(Map<String, dynamic> service) {
-  return Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.grey.shade300),
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.medical_services, color: Colors.amber),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                service['title'] ?? 'Service',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "${service['durationMin'] ?? 30} min",
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-        if (service['price'] != null)
-          Text(
-            "${service['price']} ₺",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-      ],
-    ),
-  );
-}
 }

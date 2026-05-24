@@ -74,13 +74,13 @@ Future<void> _getCurrentLocation() async {
 
     try {
       await _firestore.collection('found_dogs').doc(docId).update({'isClaimed': isClaimed});
-      if (kDebugMode) print('FoundDogsListPage - Updated status for docId: $docId to isClaimed: $isClaimed');
+      if (kDebugMode) debugPrint('FoundDogsListPage - Updated status for docId: $docId to isClaimed: $isClaimed');
 
       if (isClaimed) {
         await _sendClaimedNotification(docId);
       }
     } catch (e) {
-      if (kDebugMode) print('FoundDogsListPage - Error updating status: $e');
+      if (kDebugMode) debugPrint('FoundDogsListPage - Error updating status: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating status: $e', style: GoogleFonts.poppins(color: const Color(0xFFFFC107)))),
       );
@@ -88,7 +88,7 @@ Future<void> _getCurrentLocation() async {
   }
 
   Future<void> _sendClaimedNotification(String foundDogId) async {
-  print("🚀 _sendClaimedNotification HTTP START");
+  debugPrint("🚀 _sendClaimedNotification HTTP START");
 
   try {
     final user = FirebaseAuth.instance.currentUser;
@@ -127,14 +127,14 @@ Future<void> _getCurrentLocation() async {
       body: jsonEncode(bodyData),
     );
 
-    print("📥 HTTP Status: ${response.statusCode}");
-    print("📥 HTTP Body: ${response.body}");
+    debugPrint("📥 HTTP Status: ${response.statusCode}");
+    debugPrint("📥 HTTP Body: ${response.body}");
   } catch (e) {
-    print("💥 _sendClaimedNotification ERROR");
-    print(e);
+    debugPrint("💥 _sendClaimedNotification ERROR");
+    debugPrint('$e');
   }
 
-  print("🏁 _sendClaimedNotification HTTP END");
+  debugPrint("🏁 _sendClaimedNotification HTTP END");
 }
   @override
 Widget build(BuildContext context) {
@@ -160,7 +160,11 @@ Widget build(BuildContext context) {
           .get(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data?.data() == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(
+              color: AppTheme.accent,
+            ),
+          );
         }
 
         final dog = FoundDog.fromMap(
@@ -182,30 +186,89 @@ Widget build(BuildContext context) {
 
           const SizedBox(height: 12),
 
+          // 🔹 HEADER
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Row(
               children: [
-                Text("Found Dogs", style: AppTheme.h1()),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    Text(
+                      "Found Dogs",
+                      style: AppTheme.h1().copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: const Color(0xFF9E1B4F),
+                      ),
+                    ),
+
+                    const SizedBox(height: 2),
+
+                    Text(
+                      "Help found pets return home safely",
+                      style: AppTheme.caption().copyWith(
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
 
           const SizedBox(height: 12),
 
+          // 🔎 SEARCH BAR
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: "Search by name...",
-                prefixIcon: Icon(Icons.search),
+            child: Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
+              child: Row(
+                children: [
+
+                  Icon(
+                    Icons.search,
+                    size: 20,
+                    color: Colors.grey.shade600,
+                  ),
+
+                  const SizedBox(width: 10),
+
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      style: AppTheme.body(),
+                      decoration: InputDecoration(
+                        hintText: "Search by name...",
+                        hintStyle: AppTheme.body(
+                          color: Colors.grey.shade500,
+                        ),
+                        border: InputBorder.none,
+                        isCollapsed: true,
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value.toLowerCase();
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -221,44 +284,84 @@ Widget build(BuildContext context) {
 
                 if (!snapshot.hasData) {
                   return const Center(
-                      child: CircularProgressIndicator());
+                    child: CircularProgressIndicator(
+                      color: AppTheme.accent,
+                    ),
+                  );
                 }
 
                 final foundDogs = snapshot.data!.docs
-                    .map((doc) => FoundDog.fromMap(
-                          doc.data() as Map<String, dynamic>,
-                        ).copyWith(id: doc.id))
-                    .where((dog) =>
-                        dog.name.toLowerCase().contains(_searchQuery))
+                    .map(
+                      (doc) => FoundDog.fromMap(
+                        doc.data() as Map<String, dynamic>,
+                      ).copyWith(id: doc.id),
+                    )
+                    .where(
+                      (dog) => dog.name
+                          .toLowerCase()
+                          .contains(_searchQuery),
+                    )
                     .toList();
 
                 if (foundDogs.isEmpty) {
                   return Center(
-                    child: Text(
-                      "No found dogs reported yet",
-                      style:
-                          AppTheme.body(color: AppTheme.muted),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+
+                        Icon(
+                          Icons.pets,
+                          size: 56,
+                          color: const Color(0xFF9E1B4F)
+                              .withOpacity(0.4),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        Text(
+                          "No found dogs reported yet",
+                          style: AppTheme.h2().copyWith(
+                            color: const Color(0xFF9E1B4F),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          "Reported found pets will appear here",
+                          style: AppTheme.caption().copyWith(
+                            color: AppTheme.muted,
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   itemCount: foundDogs.length,
                   itemBuilder: (context, index) {
 
                     final dog = foundDogs[index];
+
                     final user =
                         FirebaseAuth.instance.currentUser;
+
                     final isOwner =
                         user?.uid == dog.reportedBy;
 
                     final distance = _calculateDistance(
-                        dog.latitude, dog.longitude);
+                      dog.latitude,
+                      dog.longitude,
+                    );
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 14),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
                       child: InkWell(
                         borderRadius:
                             BorderRadius.circular(20),
@@ -268,15 +371,15 @@ Widget build(BuildContext context) {
                               .openFoundDogDetail(dog.id);
                         },
                         child: Container(
-                          padding:
-                              const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: AppTheme.card,
+                            color: Colors.white,
                             borderRadius:
-                                BorderRadius.circular(
-                                    20),
+                                BorderRadius.circular(20),
                             boxShadow:
-                                AppTheme.cardShadow(),
+                                AppTheme.cardShadow(
+                              opacity: 0.05,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -284,83 +387,88 @@ Widget build(BuildContext context) {
                               // 🐶 IMAGE
                               ClipRRect(
                                 borderRadius:
-                                    BorderRadius
-                                        .circular(14),
-                                child: dog.imageUrl !=
-                                            null &&
-                                        dog.imageUrl!
-                                            .isNotEmpty
+                                    BorderRadius.circular(14),
+                                child: dog.imageUrl != null &&
+                                        dog.imageUrl!.isNotEmpty
                                     ? SmartMedia(
-  url: dog.imageUrl!,
-  width: 64,
-  height: 64,
-  fit: BoxFit.cover,
-)
+                                        url: dog.imageUrl!,
+                                        width: 64,
+                                        height: 64,
+                                        fit: BoxFit.cover,
+                                      )
                                     : Container(
                                         height: 64,
                                         width: 64,
-                                        decoration:
-                                            BoxDecoration(
-                                          color: AppTheme
-                                              .muted
-                                              .withOpacity(
-                                                  0.1),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
                                           borderRadius:
-                                              BorderRadius
-                                                  .circular(
-                                                      14),
+                                              BorderRadius.circular(14),
+                                          border: Border.all(
+                                            color: const Color(
+                                              0xFF9E1B4F,
+                                            ).withOpacity(0.08),
+                                          ),
                                         ),
                                         child: const Icon(
                                           Icons.pets,
-                                          color: Colors.grey,
+                                          color: Color(0xFF9E1B4F),
                                         ),
                                       ),
                               ),
 
                               const SizedBox(width: 14),
 
-                              // INFO
+                              // 🧠 INFO
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
+                                      CrossAxisAlignment.start,
                                   children: [
 
-                                    Text(dog.name,
-                                        style:
-                                            AppTheme.h3()),
-
-                                    const SizedBox(
-                                        height: 4),
-
                                     Text(
-                                      dog.breed,
-                                      style:
-                                          AppTheme.body(
-                                        color: AppTheme
-                                            .muted,
+                                      dog.name,
+                                      maxLines: 1,
+                                      overflow:
+                                          TextOverflow.ellipsis,
+                                      style: AppTheme.h3().copyWith(
+                                        fontWeight:
+                                            FontWeight.w700,
+                                        color:
+                                            const Color(0xFF9E1B4F),
                                       ),
                                     ),
 
-                                    const SizedBox(
-                                        height: 8),
+                                    const SizedBox(height: 4),
+
+                                    Text(
+                                      dog.breed,
+                                      style: AppTheme.body(
+                                        color: AppTheme.muted,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 8),
 
                                     Wrap(
                                       spacing: 6,
                                       runSpacing: 6,
                                       children: [
+
                                         _pinkChip(
-                                            "Color",
-                                            dog.color),
-                                        if (dog.weight !=
-                                            null)
+                                          "Color",
+                                          dog.color,
+                                        ),
+
+                                        if (dog.weight != null)
                                           _pinkChip(
-                                              "Weight",
-                                              "${dog.weight} kg"),
+                                            "Weight",
+                                            "${dog.weight} kg",
+                                          ),
+
                                         _pinkChip(
-                                            "Collar",
-                                            dog.collarType),
+                                          "Collar",
+                                          dog.collarType,
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -369,58 +477,48 @@ Widget build(BuildContext context) {
 
                               const SizedBox(width: 10),
 
+                              // 🟡 STATUS
                               Column(
                                 crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .end,
+                                    CrossAxisAlignment.end,
                                 children: [
 
                                   Container(
                                     padding:
-                                        const EdgeInsets
-                                            .symmetric(
+                                        const EdgeInsets.symmetric(
                                       horizontal: 10,
                                       vertical: 4,
                                     ),
-                                    decoration:
-                                        BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color: dog.isClaimed
                                           ? Colors.green
-                                              .withOpacity(
-                                                  0.15)
+                                              .withOpacity(0.15)
                                           : Colors.orange
-                                              .withOpacity(
-                                                  0.15),
+                                              .withOpacity(0.15),
                                       borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                                  50),
+                                          BorderRadius.circular(50),
                                     ),
                                     child: Text(
                                       dog.isClaimed
                                           ? "Claimed"
                                           : "Open",
-                                      style: AppTheme
-                                          .caption(
-                                        color:
-                                            dog.isClaimed
-                                                ? Colors
-                                                    .green
-                                                : Colors
-                                                    .orange,
+                                      style: AppTheme.caption(
+                                        color: dog.isClaimed
+                                            ? Colors.green
+                                            : Colors.orange,
+                                      ).copyWith(
+                                        fontWeight:
+                                            FontWeight.w600,
                                       ),
                                     ),
                                   ),
 
                                   if (isOwner)
                                     Switch(
-                                      value:
-                                          dog.isClaimed,
+                                      value: dog.isClaimed,
                                       activeColor:
-                                          AppTheme
-                                              .accent,
-                                      onChanged:
-                                          (value) {
+                                          AppTheme.accent,
+                                      onChanged: (value) {
                                         _updateClaimedStatus(
                                           dog.id,
                                           dog.reportedBy,
@@ -456,8 +554,18 @@ Widget _pinkChip(String label, String? value) {
       vertical: 4,
     ),
     decoration: BoxDecoration(
-      color: const Color(0xFFFFE4EC),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: const Color(0xFF9E1B4F).withOpacity(0.12),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ],
     ),
     child: Text(
       "$label: $value",

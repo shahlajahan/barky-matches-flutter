@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
@@ -20,9 +19,9 @@ class AddServiceDetailPage extends StatefulWidget {
   });
 
   @override
-  State<AddServiceDetailPage> createState() =>
-      _AddServiceDetailPageState();
+  State<AddServiceDetailPage> createState() => _AddServiceDetailPageState();
 }
+
 class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
   final _priceController = TextEditingController();
 
@@ -43,66 +42,81 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
   ];
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  if (widget.existingData != null) {
-  final data = widget.existingData!;
+    if (widget.existingData != null) {
+      final data = widget.existingData!;
 
-  _priceController.text =
-      data['price'] != null ? data['price'].toString() : '';
+      _priceController.text = data['price'] != null
+          ? data['price'].toString()
+          : '';
 
-  final rawDuration = data['duration'];
+      final rawDuration = data['duration'];
 
-  if (rawDuration == null) {
-    _selectedDuration = null;
-  } else if (rawDuration is int) {
-    // 🔥 تبدیل دیتای قدیمی
-    _selectedDuration = "$rawDuration min";
-  } else {
-    _selectedDuration = rawDuration.toString();
-  }
-}
-}
-
-
-
-Future<void> _save() async {
-  final price = double.tryParse(_priceController.text);
-
-  setState(() => _loading = true);
-
-  try {
-    final callable = FirebaseFunctions.instance
-        .httpsCallable('upsertService');
-
-    final res = await callable.call({
-      "businessId": widget.businessId,
-      "title": widget.serviceTitle,
-      "price": price,
-      "duration": _selectedDuration,
-    });
-
-    debugPrint("🔥 RESULT: ${res.data}");
-
-    if (mounted) {
-      context.read<AppState>().closeBusinessSubPage();
+      if (rawDuration == null) {
+        _selectedDuration = null;
+      } else if (rawDuration is int) {
+        // 🔥 تبدیل دیتای قدیمی
+        _selectedDuration = "$rawDuration min";
+      } else {
+        _selectedDuration = rawDuration.toString();
+      }
     }
-
-  } catch (e) {
-    debugPrint("❌ ERROR: $e");
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: $e")),
-    );
   }
 
-  setState(() => _loading = false);
-}
+  @override
+  void dispose() {
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    final price = double.tryParse(
+      _priceController.text.trim().replaceAll(',', '.'),
+    );
+
+    setState(() => _loading = true);
+    var shouldResetLoading = true;
+
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'upsertService',
+      );
+
+      final res = await callable.call({
+        "businessId": widget.businessId,
+        "title": widget.serviceTitle,
+        "price": price,
+        "duration": _selectedDuration,
+      });
+
+      debugPrint("🔥 RESULT: ${res.data}");
+
+      if (!mounted) return;
+
+      shouldResetLoading = false;
+      FocusManager.instance.primaryFocus?.unfocus();
+      context.read<AppState>().closeBusinessSubPage();
+    } catch (e) {
+      debugPrint("❌ ERROR: $e");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      if (shouldResetLoading && mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
     final isEdit = widget.serviceId != null;
 
     return Material(
@@ -110,22 +124,20 @@ Future<void> _save() async {
       child: SafeArea(
         child: Column(
           children: [
-
             /// HEADER
             Container(
               height: 56,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Colors.black12),
-                ),
+                border: Border(bottom: BorderSide(color: Colors.black12)),
               ),
               child: Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () {
+                      FocusManager.instance.primaryFocus?.unfocus();
                       context.read<AppState>().closeBusinessSubPage();
                     },
                   ),
@@ -142,12 +154,13 @@ Future<void> _save() async {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-
                   /// PRICE (OPTIONAL)
                   _field(
                     "Price (₺) - optional",
                     _priceController,
-                    keyboard: TextInputType.number,
+                    keyboard: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
 
                   const SizedBox(height: 16),
@@ -159,10 +172,7 @@ Future<void> _save() async {
                   DropdownButtonFormField<String>(
                     value: _selectedDuration,
                     items: _durations.map((e) {
-                      return DropdownMenuItem(
-                        value: e,
-                        child: Text(e),
-                      );
+                      return DropdownMenuItem(value: e, child: Text(e));
                     }).toList(),
                     onChanged: (val) {
                       setState(() {
@@ -196,9 +206,7 @@ Future<void> _save() async {
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(isEdit ? "Update Service" : "Save Service"),
                   ),
@@ -228,9 +236,7 @@ Future<void> _save() async {
             hintText: "Optional",
             filled: true,
             fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],

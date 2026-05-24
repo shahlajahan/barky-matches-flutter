@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
@@ -41,11 +42,18 @@ class _CheckoutButtonState extends State<CheckoutButton> {
     debugPrint("🏪 ORDER BUSINESS: ${widget.items.first.shopId}");
 
     debugPrint("🟡 BEFORE createOrder");
+    final user = FirebaseAuth.instance.currentUser;
 
 final orderId = await _orderService
     .createOrder(
       items: widget.items.map((e) => e.toJson()).toList(),
-      totalPrice: widget.items.fold<double>(
+      subtotal: widget.items.fold<double>(
+        0,
+        (sum, item) => sum + (item.price * item.quantity),
+      ),
+      kdv: 0,
+      shippingTotal: 0,
+      grandTotal: widget.items.fold<double>(
         0,
         (sum, item) => sum + (item.price * item.quantity),
       ),
@@ -54,6 +62,9 @@ final orderId = await _orderService
       address: widget.address ?? {},
       billing: widget.billing ?? {},
       legal: widget.legal ?? {},
+      buyerName: user?.displayName ?? '',
+      buyerPhone: user?.phoneNumber ?? '',
+      buyerEmail: user?.email ?? '',
     )
     .timeout(
       const Duration(seconds: 15),
@@ -68,11 +79,10 @@ debugPrint("🟢 AFTER createOrder → orderId: $orderId");
       debugPrint("🔥 ITEM JSON → ${item.toJson()}");
     }
 
-    final user = FirebaseAuth.instance.currentUser;
-debugPrint("🚀 CALLING CHECKOUT SESSION...");
-debugPrint("🔥 FINAL BUYER: $buyer");
+    debugPrint("🚀 CALLING CHECKOUT SESSION...");
 
 final session = await _service.createCheckoutSession(
+      orderId: orderId,
       items: widget.items.map((e) => e.toJson()).toList(),
       currency: 'TRY',
       successUrl: 'https://barkymatches.app/payment-success',
@@ -80,6 +90,8 @@ final session = await _service.createCheckoutSession(
       note: 'Order: $orderId',
       billingAddress: widget.billing ?? widget.address ?? {},
       shippingAddress: widget.address ?? widget.billing ?? {},
+      carrier: (widget.address?['carrier'] ?? widget.billing?['carrier'] ?? '')
+          .toString(),
       buyer: {
         "uid": user?.uid,
         "email": user?.email,
@@ -110,17 +122,29 @@ debugPrint("✅ SESSION RECEIVED: ${session.checkoutUrl}");
 
     if (result == true) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment completed successfully')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.checkoutPaymentCompletedSuccessfully,
+          ),
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment was cancelled or not completed')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
+          ),
+        ),
       );
     }
   } catch (e) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Checkout failed: $e')),
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context)!.checkoutFailed(e.toString()),
+        ),
+      ),
     );
   } finally {
     if (mounted) setState(() => _loading = false);
@@ -136,7 +160,7 @@ debugPrint("✅ SESSION RECEIVED: ${session.checkoutUrl}");
               width: 18,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : const Text('Proceed to Payment'),
+          : Text(AppLocalizations.of(context)!.checkoutProceedToPayment),
     );
   }
 }

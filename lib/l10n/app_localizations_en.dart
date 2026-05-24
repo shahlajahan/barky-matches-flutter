@@ -46,8 +46,414 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get cartTitle => 'My Cart';
+
+  @override
+  String get cartIsEmpty => 'Cart is empty';
+
+  @override
+  String get totalLabel => 'Total';
+
+  @override
+  String get checkoutButton => 'Checkout';
+
+  @override
+  String get checkoutStepAddressTitle => 'Address';
+
+  @override
+  String get checkoutStepPaymentTitle => 'Payment';
+
+  @override
+  String get checkoutStepConfirmTitle => 'Confirm';
+
+  @override
+  String get checkoutDeliveryAddressTitle => 'Delivery Address';
+
+  @override
+  String get checkoutFullNameLabel => 'Full Name';
+
+  @override
+  String get checkoutFullNameHint => 'Name Surname';
+
+  @override
+  String get checkoutPhoneHint => '5XXXXXXXXX';
+
+  @override
+  String get checkoutCityLabel => 'City';
+
+  @override
+  String get checkoutCityHint => 'Istanbul';
+
+  @override
+  String get checkoutDistrictLabel => 'District';
+
+  @override
+  String get checkoutDistrictHint => 'Kadikoy';
+
+  @override
+  String get checkoutAddressLabel => 'Open Address';
+
+  @override
+  String get checkoutAddressHint => 'Full address details';
+
+  @override
+  String get checkoutInvoiceDetailsTitle => 'Invoice Details';
+
+  @override
+  String get checkoutIndividualOption => 'Individual';
+
+  @override
+  String get checkoutCompanyOption => 'Company';
+
+  @override
+  String get checkoutIdentityNumberLabel => 'Identity Number';
+
+  @override
+  String get checkoutIdentityNumberHint => '11 digits';
+
+  @override
+  String get checkoutCompanyNameLabel => 'Company Name';
+
+  @override
+  String get checkoutTaxNumberLabel => 'Tax Number';
+
+  @override
+  String get checkoutTaxNumberHint => '10 digits';
+
+  @override
+  String get checkoutTaxOfficeLabel => 'Tax Office';
+
+  @override
+  String get checkoutCargoUpdatesTitle => 'Invoice & Cargo Updates';
+
+  @override
+  String get checkoutCargoUpdatesQuestion => 'How should we send invoice and cargo tracking updates?';
+
+  @override
+  String get checkoutSmsOption => 'SMS';
+
+  @override
+  String get checkoutEmailOption => 'Email';
+
+  @override
+  String get checkoutSmsEmailOption => 'SMS + Email';
+
+  @override
+  String get checkoutAgreementsTitle => 'Agreements';
+
+  @override
+  String get checkoutKvkkDisclosure => 'I have read KVKK disclosure';
+
+  @override
+  String get checkoutViewButton => 'View';
+
+  @override
+  String get checkoutPreInfoForm => 'I accept the pre-information form';
+
+  @override
+  String get checkoutDistanceSalesAgreement => 'I accept the distance sales agreement';
+
+  @override
+  String get checkoutMarketingOptional => 'Receive marketing messages (optional)';
+
+  @override
+  String get checkoutDeliveryTitle => 'Delivery';
+
+  @override
+  String get checkoutPaymentSummaryTitle => 'Payment Summary';
+
+  @override
+  String get checkoutSubtotalLabel => 'Subtotal';
+
+  @override
+  String get checkoutVatLabel => 'VAT';
+
+  @override
+  String get checkoutShippingLabel => 'Shipping';
+
+  @override
+  String get checkoutPleaseSelectCargoCompany => 'Please select a cargo company';
+
+  @override
+  String get checkoutEnterNameSurname => 'Enter name & surname';
+
+  @override
+  String get checkoutEnterValidEmail => 'Enter valid email';
+
+  @override
+  String get checkoutEnterValidPhone => 'Enter valid phone';
+
+  @override
+  String get checkoutEnterCity => 'Enter city';
+
+  @override
+  String get checkoutEnterDistrict => 'Enter district';
+
+  @override
+  String get checkoutEnterFullAddress => 'Enter full address';
+
+  @override
+  String get checkoutEnterValidIdentityNumber => 'Enter valid identity number';
+
+  @override
+  String get checkoutEnterCompanyName => 'Enter company name';
+
+  @override
+  String get checkoutEnterValidTaxNumber => 'Enter valid tax number';
+
+  @override
+  String get checkoutEnterTaxOffice => 'Enter tax office';
+
+  @override
+  String get checkoutAcceptRequiredAgreements => 'Accept required agreements';
+
+  @override
+  String get checkoutPaymentPageOpenedMessage => 'Payment page opened. Complete the payment, then return to the app.';
+
+  @override
+  String get checkoutBackButton => 'Back';
+
+  @override
+  String get checkoutProceedToPayment => 'Proceed to Payment';
+
+  @override
+  String get checkoutContinueButton => 'Continue';
+
+  @override
+  String get checkoutPaymentCompletedSuccessfully => 'Payment completed successfully';
+
+  @override
+  String get checkoutPaymentCancelledOrIncomplete => 'Payment was cancelled or not completed';
+
+  @override
+  String checkoutFailed(Object error) {
+    return 'Checkout failed: $error';
+  }
+
+  @override
   String adoptionRequestSent(Object dogName) {
     return 'Adoption request sent for $dogName!';
+  }
+
+  @override
+  String get adoptionCentersTitle => 'Adoption Centers';
+
+  @override
+  String get availableDogsTitle => 'Available Dogs';
+
+  @override
+  String get noAdoptionCentersAvailable => 'No adoption centers available';
+
+  @override
+  String get noDogsAvailableInThisCenter => 'No dogs available in this center';
+
+  @override
+  String get adoptionRequestTitle => 'Adoption Request';
+
+  @override
+  String get yourPhone => 'Your Phone';
+
+  @override
+  String get whyDoYouWantToAdopt => 'Why do you want to adopt?';
+
+  @override
+  String get appointmentTitle => 'Appointment';
+
+  @override
+  String get cancelAppointmentButton => 'Cancel Appointment';
+
+  @override
+  String get cancelAppointmentTitle => 'Cancel Appointment?';
+
+  @override
+  String get cancelAppointmentConfirmation => 'Are you sure you want to cancel this appointment?';
+
+  @override
+  String get keepAppointmentButton => 'Keep Appointment';
+
+  @override
+  String get appointmentCancelled => 'Appointment cancelled';
+
+  @override
+  String get cancellationNotAllowed => 'Cancellation is not allowed for this appointment.';
+
+  @override
+  String get cancelAppointmentFailed => 'Could not cancel appointment. Please try again.';
+
+  @override
+  String get selectService => 'Select Service';
+
+  @override
+  String get selectPet => 'Select Pet';
+
+  @override
+  String get dateAndTime => 'Date & Time';
+
+  @override
+  String get notesOptional => 'Notes (optional)';
+
+  @override
+  String get selectDate => 'Select Date';
+
+  @override
+  String get selectTime => 'Select Time';
+
+  @override
+  String get appointmentNoteHint => 'Add a note for the clinic...';
+
+  @override
+  String get requestAppointment => 'Request Appointment';
+
+  @override
+  String get requestSentTitle => 'Request Sent 🐾';
+
+  @override
+  String get requestSentMessage => 'Your appointment request has been sent to the clinic.';
+
+  @override
+  String get okButton => 'OK';
+
+  @override
+  String get somethingWentWrong => 'Something went wrong';
+
+  @override
+  String get alreadyBookedAtThisTime => 'You already have a booking at this time. Please choose another time.';
+
+  @override
+  String get invalidBookingData => 'Invalid booking data. Please try again.';
+
+  @override
+  String get serviceDefaultLabel => 'Service';
+
+  @override
+  String get ageYearsSuffix => ' years';
+
+  @override
+  String get overviewTitle => 'Overview';
+
+  @override
+  String get servicesTitle => 'Services';
+
+  @override
+  String get reviewsTitle => 'Reviews';
+
+  @override
+  String get galleryTitle => 'Gallery';
+
+  @override
+  String get shopTitle => 'Shop';
+
+  @override
+  String get aboutTitle => 'About';
+
+  @override
+  String get workingHoursTitle => 'Working Hours';
+
+  @override
+  String get locationTitle => 'Location';
+
+  @override
+  String get instagramTitle => 'Instagram';
+
+  @override
+  String get noClinicDescriptionAvailable => 'No clinic description available.';
+
+  @override
+  String get instagramNotAvailable => 'Instagram not available.';
+
+  @override
+  String get workingHoursNotAvailable => 'Working hours not available';
+
+  @override
+  String get openStatusOpen => 'Open';
+
+  @override
+  String get openStatusClosingSoon => 'Closing soon';
+
+  @override
+  String get openStatusClosed => 'Closed';
+
+  @override
+  String get mostRelevant => 'Most relevant';
+
+  @override
+  String get newest => 'Newest';
+
+  @override
+  String get bookAppointment => 'Book Appointment';
+
+  @override
+  String get noServicesAvailable => 'No services available';
+
+  @override
+  String errorLoadingServices(Object error) {
+    return 'Error loading services: $error';
+  }
+
+  @override
+  String get noServicesProvided => 'No services provided.';
+
+  @override
+  String reviewsCountLabel(Object count) {
+    return '$count reviews';
+  }
+
+  @override
+  String get topLabel => 'Top';
+
+  @override
+  String get mostHelpful => 'Most helpful';
+
+  @override
+  String get couldNotUpdateLike => 'Could not update like';
+
+  @override
+  String get justNow => 'Just now';
+
+  @override
+  String get noReviewsYet => 'No reviews yet';
+
+  @override
+  String get beFirstToReview => 'Be the first to review';
+
+  @override
+  String get submit => 'Submit';
+
+  @override
+  String get writeAReview => 'Write a review';
+
+  @override
+  String get shareYourExperienceHint => 'Share your experience...';
+
+  @override
+  String get pleaseWriteSomething => 'Please write something';
+
+  @override
+  String get pleaseLoginFirst => 'Please login first';
+
+  @override
+  String get alreadyReviewedThisVet => 'You already reviewed this vet';
+
+  @override
+  String get errorSubmittingReview => 'Error submitting review';
+
+  @override
+  String errorLoadingReviews(Object error) {
+    return 'Error loading reviews: $error';
+  }
+
+  @override
+  String get galleryNotAvailable => 'Gallery not available.';
+
+  @override
+  String get noGalleryMediaYet => 'No gallery media yet.';
+
+  @override
+  String get shopSectionComingSoon => 'Shop section will be connected here.';
+
+  @override
+  String durationMinutesShort(Object minutes) {
+    return '$minutes min';
   }
 
   @override
@@ -166,6 +572,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get termsAndConditionsLabel => 'I accept the Terms and Conditions';
 
   @override
+  String get termsAndConditionsPrefix => 'I accept the ';
+
+  @override
+  String get termsAndConditionsText => 'Terms and Conditions';
+
+  @override
   String get receiveNewsLabel => 'Receive news and updates';
 
   @override
@@ -179,6 +591,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phoneRequired => 'Please enter your phone number';
+
+  @override
+  String get phoneNumberTooShort => 'Phone number is too short';
 
   @override
   String get phoneMinDigits => 'Phone number must be at least 10 digits';
@@ -213,6 +628,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get emailAddressHint => 'Email address';
+
+  @override
+  String get passwordResetEmailSent => 'Password reset email sent 📩';
+
+  @override
   String get noAccountSignUp => 'Don’t have an account? Sign Up';
 
   @override
@@ -220,6 +641,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get userNotFound => 'No user found with this email. Please register.';
+
+  @override
+  String get authUserNotFound => 'User not found';
+
+  @override
+  String get pleaseVerifyEmailBeforeSigningIn => 'Please verify your email before signing in.';
+
+  @override
+  String get userCreationFailed => 'User creation failed';
+
+  @override
+  String get verificationEmailCouldNotBeSent => 'Verification email could not be sent';
+
+  @override
+  String get verificationSessionCouldNotBeCreated => 'Verification session could not be created';
+
+  @override
+  String get emailAlreadyRegisteredTryLoggingIn => 'This email is already registered. Try logging in.';
 
   @override
   String get incorrectPassword => 'Incorrect password. Please try again.';
@@ -236,6 +675,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verifyEmailTitle => 'Verify Your Email';
 
   @override
+  String get enterVerificationCodeSentToEmail => 'Enter the verification code sent to your email';
+
+  @override
+  String get pleaseEnterSixDigitCode => 'Please enter the 6-digit code';
+
+  @override
+  String get emailVerifiedSuccessfully => 'Email verified successfully';
+
+  @override
+  String get invalidVerificationCode => 'Invalid verification code';
+
+  @override
   String verificationCodeSent(Object email) {
     return 'A verification code has been sent to $email';
   }
@@ -245,6 +696,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verifyButton => 'Verify';
+
+  @override
+  String get authWelcomeBackSubtitle => 'Welcome back to BarkyMatches';
+
+  @override
+  String get authCreateAccountSubtitle => 'Create your BarkyMatches account';
+
+  @override
+  String get sessionExpiredPleaseSignInAgain => 'Your session expired. Please sign in again.';
 
   @override
   String get signInToAccessPlaymate => 'Please Sign In to access Playmate';
@@ -356,6 +816,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editDog => 'Edit Dog';
+
+  @override
+  String get photosLabel => 'Photos';
+
+  @override
+  String get chooseFromGallery => 'Choose from gallery';
+
+  @override
+  String get takeAPhoto => 'Take a photo';
+
+  @override
+  String get noMedia => 'No media';
 
   @override
   String get save => 'Save';
@@ -483,7 +955,176 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetFiltersButton => 'Reset Filters';
 
   @override
+  String get basketTitle => 'Basket';
+
+  @override
+  String basketItemsCount(Object count) {
+    return '$count items';
+  }
+
+  @override
+  String get yourBasketIsEmpty => 'Your basket is empty';
+
+  @override
+  String get sellerLabel => 'Seller';
+
+  @override
+  String get allProductsTitle => 'All Products';
+
+  @override
+  String get sellerProductsTitle => 'Seller Products';
+
+  @override
+  String get searchProductsHint => 'Search product, brand, seller...';
+
+  @override
+  String get allCategoriesLabel => 'All Categories';
+
+  @override
+  String get categoryLabel => 'Category';
+
+  @override
+  String get shippingLabel => 'Shipping';
+
+  @override
+  String get freeShippingLabel => 'Free shipping';
+
+  @override
+  String get sellerPaysCargoLabel => 'Seller pays cargo';
+
+  @override
+  String get fixedCargoLabel => 'Fixed cargo';
+
+  @override
+  String get calculatedCargoLabel => 'Calculated cargo';
+
+  @override
+  String get sortLabel => 'Sort';
+
+  @override
+  String get recommendedLabel => 'Recommended';
+
+  @override
+  String get priceLowLabel => 'Price low';
+
+  @override
+  String get priceHighLabel => 'Price high';
+
+  @override
+  String get bestDiscountLabel => 'Best discount';
+
+  @override
+  String productsCount(Object count) {
+    return '$count products';
+  }
+
+  @override
+  String get noProductsMatchFilters => 'No products match your filters';
+
+  @override
+  String errorLoadingProducts(Object error) {
+    return 'Error loading products: $error';
+  }
+
+  @override
+  String get noActiveProductsFound => 'No active products found';
+
+  @override
+  String addedToBasket(Object productName) {
+    return '$productName added to basket';
+  }
+
+  @override
+  String get addButton => 'Add';
+
+  @override
+  String get freeCargoLabel => 'Free cargo';
+
+  @override
+  String cargoPriceLabel(Object price) {
+    return 'Cargo $price';
+  }
+
+  @override
+  String get cargoCalculatedLabel => 'Cargo calculated';
+
+  @override
+  String freeOverLabel(Object price) {
+    return 'Free over $price';
+  }
+
+  @override
+  String vatRateLabel(Object percent) {
+    return 'VAT $percent%';
+  }
+
+  @override
+  String get vatIncludedLabel => 'VAT included';
+
+  @override
+  String daysLabel(Object days) {
+    return '$days days';
+  }
+
+  @override
+  String get inStockLabel => 'In stock';
+
+  @override
+  String get outOfStockLabel => 'Out';
+
+  @override
+  String get subtotalLabel => 'Subtotal';
+
+  @override
   String get moreFiltersButton => 'More Filters';
+
+  @override
+  String get petTypeLabel => 'Pet Type';
+
+  @override
+  String get petTypeDog => 'Dog';
+
+  @override
+  String get petTypeCat => 'Cat';
+
+  @override
+  String get petTypeBird => 'Bird';
+
+  @override
+  String get petTypeHorse => 'Horse';
+
+  @override
+  String get genderOther => 'Other';
+
+  @override
+  String get breedPersian => 'Persian';
+
+  @override
+  String get breedSiamese => 'Siamese';
+
+  @override
+  String get breedMaineCoon => 'Maine Coon';
+
+  @override
+  String get breedBritishShorthair => 'British Shorthair';
+
+  @override
+  String get breedParrot => 'Parrot';
+
+  @override
+  String get breedCanary => 'Canary';
+
+  @override
+  String get breedBudgerigar => 'Budgerigar';
+
+  @override
+  String get breedArabian => 'Arabian';
+
+  @override
+  String get breedThoroughbred => 'Thoroughbred';
+
+  @override
+  String get breedMustang => 'Mustang';
 
   @override
   String get filterByBreed => 'Filter by Breed';
@@ -505,6 +1146,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get upgradeToPremiumForMoreFilters => 'Upgrade to Premium for more filters!';
+
+  @override
+  String get upgradeToPremiumTitle => 'Upgrade to Premium';
+
+  @override
+  String get upgradeToPremiumSubtitle => 'Unlock advanced features and business tools';
 
   @override
   String get apply => 'Apply';
@@ -914,6 +1561,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scheduledLabel => 'Scheduled:';
 
   @override
+  String get pleaseLoginToViewPlaydateRequests => 'Login to view playdate requests';
+
+  @override
+  String get pleaseLoginToSetReminders => 'Please login to set reminders.';
+
+  @override
+  String reminderSetForMinutesBefore(Object minutesBefore) {
+    return 'Reminder set for $minutesBefore minutes before 🐾';
+  }
+
+  @override
+  String get failedToSetReminder => 'Failed to set reminder ❌';
+
+  @override
+  String get playdateAcceptedCardTitle => 'Playdate Accepted 🐾';
+
+  @override
+  String playdateAcceptedCardBody(Object dogName) {
+    return '$dogName accepted your playdate request.\nBe happy — a tail-wagging meeting awaits! 🐶💖';
+  }
+
+  @override
+  String get playdateRejectedCardTitle => 'Playdate Not This Time';
+
+  @override
+  String playdateRejectedCardBody(Object dogName) {
+    return '$dogName couldn’t accept this time.\nNo worries — try again and keep the paws moving 🐾';
+  }
+
+  @override
+  String get dogTab => 'Dog';
+
+  @override
+  String get reminderTab => 'Reminder';
+
+  @override
+  String get playdateTimeNotScheduledYet => '⏳ Playdate time not scheduled yet';
+
+  @override
+  String get thirtyMinutesBefore => '30 minutes before';
+
+  @override
+  String get oneHourBefore => '1 hour before';
+
+  @override
+  String get reminderSet => 'Reminder set ✅';
+
+  @override
+  String get viewLocation => 'View location';
+
+  @override
   String get locationLabel => 'Location:';
 
   @override
@@ -961,6 +1659,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playmateService => 'Playmate';
+
+  @override
+  String get playmateSearchHint => 'Search dogs...';
+
+  @override
+  String get playmateLocationNeededTitle => 'Location needed';
+
+  @override
+  String get playmateLocationNeededMessage => 'We use your location to show nearby dogs';
+
+  @override
+  String get playmateFiltersTitle => 'Filters';
+
+  @override
+  String get playmateBreedPremiumHint => 'Breed (Gold)';
+
+  @override
+  String get playmateOwnerGenderPremiumHint => 'Owner Gender (Premium)';
 
   @override
   String get vetServices => 'Vet Services';
@@ -1111,6 +1827,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dogParkPermissionRequired => 'Location permission is required to show nearby dog parks.';
 
   @override
+  String get dogParkRecommendedBadge => '⭐ Recommended';
+
+  @override
+  String get dogParkPremiumBadge => '🔒 Premium';
+
+  @override
+  String get dogParkSavedBadge => '❤️ Saved';
+
+  @override
+  String get dogParkRecommendedForPlaydates => 'Recommended for Playdates';
+
+  @override
+  String get dogParkSavedToFavorites => 'Saved to Favorites';
+
+  @override
+  String get dogParkSaveThisPark => 'Save this Park';
+
+  @override
+  String get dogParkGetDirections => 'Get Directions';
+
+  @override
+  String get dogParkUserNotReadyYet => 'User not ready yet. Please try again.';
+
+  @override
+  String get dogParkNeedToAddDogFirst => 'You need to add a dog first';
+
+  @override
+  String get dogParkSchedulePlaydateHere => 'Schedule Playdate here';
+
+  @override
+  String get dogParkSavedParksTitle => 'Saved Parks';
+
+  @override
+  String get dogParkNoSavedParksYet => 'No saved parks yet';
+
+  @override
+  String get dogParkFindNearbyParks => 'Find nearby parks';
+
+  @override
+  String get dogParkLocationNeededTitle => 'Location needed';
+
+  @override
+  String get dogParkUseYourLocationToShowNearbyDogParks => 'We use your location to show nearby dog parks';
+
+  @override
+  String get allowButton => 'Allow';
+
+  @override
   String get dogParkBackgroundRecommended => 'Background location permission is recommended. Please enable it in settings.';
 
   @override
@@ -1188,6 +1952,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dogViewAdoptionRequest => 'Adoption request sent!';
+
+  @override
+  String get distanceUnknown => 'Distance unknown';
+
+  @override
+  String boostDogTitle(Object dogName) {
+    return 'Boost $dogName';
+  }
+
+  @override
+  String get boostVisibilityDescription => 'Get more visibility in Playmates discovery.';
+
+  @override
+  String get boost24HoursTitle => '24 Hours Boost';
+
+  @override
+  String get boostQuickVisibilitySubtitle => 'Good for quick visibility';
+
+  @override
+  String get boostPrice29 => '₺29';
+
+  @override
+  String get boost3DaysTitle => '3 Days Boost';
+
+  @override
+  String get boostBetterExposureSubtitle => 'Better exposure for active discovery';
+
+  @override
+  String get boostPrice69 => '₺69';
+
+  @override
+  String get boost7DaysTitle => '7 Days Boost';
+
+  @override
+  String get boostBestValueSubtitle => 'Best value for maximum reach';
+
+  @override
+  String get boostPrice129 => '₺129';
+
+  @override
+  String get boostActivated => 'Boost activated 🚀';
+
+  @override
+  String boostFailed(Object error) {
+    return 'Boost failed: $error';
+  }
+
+  @override
+  String get errorOpeningEdit => 'Error opening edit';
+
+  @override
+  String get boostBadge => 'BOOSTED';
+
+  @override
+  String get boostButton => 'Boost';
+
+  @override
+  String get blockComingSoon => 'Block coming soon';
+
+  @override
+  String get blockMenuItem => 'Block User';
+
+  @override
+  String get sendAdoptionRequest => 'Send Adoption Request';
+
+  @override
+  String ownerPrefix(Object owner) {
+    return 'Owner: $owner';
+  }
+
+  @override
+  String get submitComplaintMenuItem => 'Submit Complaint';
 
   @override
   String get dogInfoTitle => 'Dog Information';
@@ -1663,6 +2499,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get schedulePlayDate => 'Schedule Play Date';
 
   @override
+  String get playdateSchedulingSubtitle => 'Pick date, time, location and dogs for the playdate.';
+
+  @override
+  String get errorSelectDateAndTime => 'Please select date and time.';
+
+  @override
+  String get errorMissingLocationCoordinates => 'Park location coordinates missing.';
+
+  @override
+  String get errorPlaydateLeadTime => 'Playdate must be scheduled at least 15 minutes in advance.';
+
+  @override
+  String get playdateTimeConflict => 'This dog already has a playdate around this time 🐾';
+
+  @override
+  String coordinatesLatLng(Object lat, Object lng) {
+    return 'Lat: $lat, Lng: $lng';
+  }
+
+  @override
   String get chat => 'Chat';
 
   @override
@@ -1898,6 +2754,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get foundTitle => 'Found';
 
   @override
+  String get homeDefaultUsername => 'User';
+
+  @override
+  String get homePetHotelTitle => 'Pet Hotel';
+
+  @override
+  String get homeSafeStaySubtitle => 'Safe stay';
+
+  @override
+  String get homePetTaxiTitle => 'Pet Taxi';
+
+  @override
+  String get homeRideSafelySubtitle => 'Ride safely';
+
+  @override
+  String get homeGreenMemorialTitle => 'Green Memorial';
+
+  @override
+  String get homeVeterinaryTitle => 'Veterinary';
+
+  @override
+  String get homeLocationNeededTitle => 'Location needed';
+
+  @override
+  String get homeLocationNeededMessage => 'We use your location to show nearby vets';
+
+  @override
+  String get homeAllowButton => 'Allow';
+
+  @override
+  String get homeBusinessesTitle => 'Businesses';
+
+  @override
+  String get homeSearchHint => 'Search services, shops, community...';
+
+  @override
+  String get homePetFriendlyPlaceTitle => 'Pet Friendly Place';
+
+  @override
+  String get homeSponsoredLabel => 'Sponsored';
+
+  @override
+  String get homeShopButton => 'Shop';
+
+  @override
   String get petShopDealName => 'Pet Shop A';
 
   @override
@@ -1925,4 +2826,2197 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offerOpenError => 'Error opening offer';
+
+  @override
+  String get businessRegisterLegalCompanyNameRequired => '• Legal Company Name is required.';
+
+  @override
+  String get businessRegisterPublicDisplayNameRequired => '• Public Display Name is required.';
+
+  @override
+  String get businessRegisterSelectCountry => '• Please select a Country.';
+
+  @override
+  String get businessRegisterSelectBusinessCategory => '• Please select at least one business category.';
+
+  @override
+  String get businessRegisterEnterValidEmail => '• Enter a valid email address (example: name@example.com).';
+
+  @override
+  String get businessRegisterPhoneIncomplete => '• Phone number is incomplete.';
+
+  @override
+  String get businessRegisterSelectCityProvince => '• Please select City / Province.';
+
+  @override
+  String get businessRegisterSelectDistrict => '• Please select District.';
+
+  @override
+  String get businessRegisterBusinessAddressRequired => '• Business Address is required.';
+
+  @override
+  String get businessRegisterAllLegalDocumentsRequired => '• All required legal documents must be uploaded.';
+
+  @override
+  String get businessRegisterDocumentsVerifiedBeforeContinuing => '• Documents must be verified before continuing.';
+
+  @override
+  String get businessRegisterAcceptPlatformTerms => '• You must accept the Platform Terms.';
+
+  @override
+  String get businessRegisterAcceptLegalResponsibility => '• You must accept legal responsibility declaration.';
+
+  @override
+  String get businessRegisterFixHighlightedFields => 'Please fix the highlighted fields';
+
+  @override
+  String get businessRegisterOk => 'OK';
+
+  @override
+  String get businessRegisterFailedToLoadCountries => 'Failed to load countries';
+
+  @override
+  String get businessRegisterFailedToLoadCities => 'Failed to load cities';
+
+  @override
+  String get businessRegisterFailedToLoadDistricts => 'Failed to load districts';
+
+  @override
+  String get businessRegisterPlatformLegalAgreement => 'Platform Legal Agreement';
+
+  @override
+  String get businessRegisterReadAndAccept => 'I Have Read and Accept';
+
+  @override
+  String get businessRegisterLocationPermissionDenied => 'Location permission denied';
+
+  @override
+  String get businessRegisterCouldNotDetectCity => 'Could not detect city';
+
+  @override
+  String get businessRegisterGroomer => 'Groomer';
+
+  @override
+  String get businessRegisterVeterinaryClinic => 'Veterinary Clinic';
+
+  @override
+  String get businessRegisterDogTrainer => 'Dog Trainer';
+
+  @override
+  String get businessRegisterPetHotel => 'Pet Hotel';
+
+  @override
+  String get businessRegisterDogWalker => 'Dog Walker';
+
+  @override
+  String get businessRegisterBreeder => 'Breeder';
+
+  @override
+  String get businessRegisterInvalidEmail => 'Invalid email';
+
+  @override
+  String get businessRegisterInvalidPhone => 'Invalid phone';
+
+  @override
+  String get businessRegisterInvalidWebsite => 'Invalid website';
+
+  @override
+  String get businessRegisterCouldNotOpenLegalText => 'Could not open legal text';
+
+  @override
+  String get businessRegisterSelectAtLeastOneBusinessCategory => 'Please select at least one business category';
+
+  @override
+  String get businessRegisterPleaseEnterBusinessAddress => 'Please enter business address';
+
+  @override
+  String get businessRegisterMustAcceptAllAgreements => 'You must accept all agreements';
+
+  @override
+  String get businessRegisterDocumentsVerifiedBeforeSubmission => 'Documents must be verified before submission';
+
+  @override
+  String get businessRegisterApplicationSubmittedSuccessfully => 'Application submitted successfully';
+
+  @override
+  String get businessRegisterSubmissionFailed => 'Submission failed';
+
+  @override
+  String get businessRegisterUnexpectedErrorOccurred => 'Unexpected error occurred';
+
+  @override
+  String get businessRegisterTitle => 'Register Business';
+
+  @override
+  String get businessRegisterStepIdentityCategories => 'Business identity and categories';
+
+  @override
+  String get businessRegisterStepContactLocation => 'Contact and location';
+
+  @override
+  String get businessRegisterStepLegalDocuments => 'Legal documents';
+
+  @override
+  String get businessRegisterStepAgreementConfirmation => 'Agreement confirmation';
+
+  @override
+  String get businessRegisterBack => 'Back';
+
+  @override
+  String get businessRegisterContinue => 'Continue';
+
+  @override
+  String get businessRegisterSubmitApplication => 'Submit Application';
+
+  @override
+  String get businessRegisterCompleteSectorDetails => 'Complete Sector Details';
+
+  @override
+  String get businessRegisterBusinessIdentity => 'Business identity';
+
+  @override
+  String get businessRegisterBusinessIdentitySubtitle => 'Tell us how your business should appear on PetSupo.';
+
+  @override
+  String get businessRegisterLegalCompanyName => 'Legal Company Name';
+
+  @override
+  String get businessRegisterRequired => 'Required';
+
+  @override
+  String get businessRegisterPublicDisplayName => 'Public Display Name';
+
+  @override
+  String get businessRegisterCountry => 'Country';
+
+  @override
+  String get businessRegisterBusinessCategories => 'Business categories';
+
+  @override
+  String get businessRegisterBusinessCategoriesSubtitle => 'Select all sectors this business operates in.';
+
+  @override
+  String get businessRegisterContactLocation => 'Contact & location';
+
+  @override
+  String get businessRegisterContactLocationSubtitle => 'These details help customers find and contact you.';
+
+  @override
+  String get businessRegisterPhone => 'Phone';
+
+  @override
+  String get businessRegisterWebsiteOptional => 'Website (optional)';
+
+  @override
+  String get businessRegisterLoadingCities => 'Loading cities...';
+
+  @override
+  String get businessRegisterCityProvince => 'City / Province';
+
+  @override
+  String get businessRegisterLoadingDistricts => 'Loading districts...';
+
+  @override
+  String get businessRegisterDistrict => 'District';
+
+  @override
+  String get businessRegisterBusinessAddress => 'Business Address';
+
+  @override
+  String get businessRegisterDetectCity => 'Detect City';
+
+  @override
+  String get businessRegisterMapPickerComingSoon => 'Map picker will be added soon';
+
+  @override
+  String get businessRegisterPickLocation => 'Pick Location';
+
+  @override
+  String get businessRegisterLocationSelected => 'Location selected';
+
+  @override
+  String get businessRegisterTaxPlate => 'Vergi Levhası (Tax Plate)';
+
+  @override
+  String get businessRegisterTradeRegistryGazette => 'Ticaret Sicil Gazetesi';
+
+  @override
+  String get businessRegisterAuthorizedSignatureDocument => 'Yetkili İmza Belgesi';
+
+  @override
+  String get businessRegisterTaxNumberVkn => 'Tax Number (VKN)';
+
+  @override
+  String get businessRegisterAutoFilledFromDocument => 'Auto-filled from document';
+
+  @override
+  String get businessRegisterDocumentVerificationInconsistencies => 'Document verification has inconsistencies. Admin review required.';
+
+  @override
+  String get businessRegisterMersisNumber => 'MERSIS Number';
+
+  @override
+  String get businessRegisterDocumentsSecurelyEncrypted => 'Your documents are securely encrypted and verified automatically';
+
+  @override
+  String get businessRegisterVerifiedFromDocument => 'Verified from document';
+
+  @override
+  String get businessRegisterAutoFilledAfterVerification => 'Auto-filled after document verification';
+
+  @override
+  String get businessRegisterUploadTradeRegistryFirst => 'Upload Trade Registry first';
+
+  @override
+  String get businessRegisterWaitingForDocumentVerification => 'Waiting for document verification...';
+
+  @override
+  String get businessRegisterSteuernummer => 'Steuernummer';
+
+  @override
+  String get businessRegisterTaxNumberRequired => 'Tax Number is required';
+
+  @override
+  String get businessRegisterGewerbeschein => 'Gewerbeschein';
+
+  @override
+  String get businessRegisterHandelsregisterauszug => 'Handelsregisterauszug';
+
+  @override
+  String get businessRegisterEinNumber => 'EIN Number';
+
+  @override
+  String get businessRegisterEinNumberRequired => 'EIN Number is required';
+
+  @override
+  String get businessRegisterBusinessLicense => 'Business License';
+
+  @override
+  String get businessRegisterIrsEinDocument => 'IRS EIN Document';
+
+  @override
+  String get businessRegisterProcessingDocument => 'Processing document...';
+
+  @override
+  String get businessRegisterDocumentVerifiedSuccessfully => 'Document verified successfully';
+
+  @override
+  String get businessRegisterCouldNotReadDocument => 'Could not read document, please re-upload';
+
+  @override
+  String get businessRegisterVeterinary => 'Veterinary';
+
+  @override
+  String get businessRegisterGroomy => 'Groomy';
+
+  @override
+  String businessRegisterStepOfFour(Object step) {
+    return 'Step $step of 4';
+  }
+
+  @override
+  String get businessRegisterLegalConfirmation => 'Legal Confirmation';
+
+  @override
+  String get businessRegisterAcceptTermsKvkk => 'I accept the Platform Terms and KVKK Data Protection Policy.';
+
+  @override
+  String get businessRegisterReadInsideApp => 'Read inside app';
+
+  @override
+  String get businessRegisterOpenOfficialLegalPage => 'Open official legal page';
+
+  @override
+  String get businessRegisterLegalVersion => 'Version v1.0 • Last updated May 2026';
+
+  @override
+  String get businessRegisterAgreementSecurelyStored => 'Your agreement is securely stored and legally binding';
+
+  @override
+  String get businessRegisterLegalResponsibilityDeclaration => 'I declare that all submitted documents are accurate and I accept full legal responsibility under Turkish Commercial Law.';
+
+  @override
+  String get businessRegisterUploaded => 'Uploaded';
+
+  @override
+  String get businessRegisterReplaceDocument => 'Replace document';
+
+  @override
+  String get businessRegisterReplaceDocumentConfirmation => 'Are you sure you want to replace this file?';
+
+  @override
+  String get businessRegisterReplace => 'Replace';
+
+  @override
+  String get businessRegisterUpload => 'Upload';
+
+  @override
+  String userProfileInitError(Object error) {
+    return 'Profile init error: $error';
+  }
+
+  @override
+  String userProfileImagePickError(Object error) {
+    return 'Error selecting photo: $error';
+  }
+
+  @override
+  String get userProfileUnknownBusinessType => 'Unknown business type';
+
+  @override
+  String get userProfileBusinessDashboard => 'Business Dashboard';
+
+  @override
+  String get userProfileActivity => 'Activity';
+
+  @override
+  String get userProfileSavedParks => 'Saved Parks';
+
+  @override
+  String get userProfileMatches => 'Matches';
+
+  @override
+  String get userProfileMyOrders => 'My Orders';
+
+  @override
+  String get myAppointments => 'My Appointments';
+
+  @override
+  String get myAppointmentsLoginRequired => 'Please log in to view your appointments';
+
+  @override
+  String get appointmentHistory => 'Appointment History';
+
+  @override
+  String get noAppointmentsYet => 'No appointments yet';
+
+  @override
+  String get viewAppointment => 'View Appointment';
+
+  @override
+  String get appointmentStatusPending => 'Pending';
+
+  @override
+  String get appointmentStatusAwaitingPayment => 'Awaiting Payment';
+
+  @override
+  String get appointmentStatusConfirmed => 'Confirmed';
+
+  @override
+  String get appointmentStatusConfirmedPaid => 'Confirmed & Paid';
+
+  @override
+  String get appointmentStatusPaymentExpired => 'Payment Expired';
+
+  @override
+  String get appointmentStatusRejected => 'Rejected';
+
+  @override
+  String get appointmentStatusCompleted => 'Completed';
+
+  @override
+  String get appointmentStatusCancelledByUser => 'Cancelled by you';
+
+  @override
+  String get appointmentStatusCancelledByVet => 'Cancelled by vet';
+
+  @override
+  String get appointmentStatusExpired => 'Expired';
+
+  @override
+  String get unpaidStatusLabel => 'Unpaid';
+
+  @override
+  String get paymentNotRequiredStatusLabel => 'No payment required';
+
+  @override
+  String get refundUnderReviewStatusLabel => 'Refund under review';
+
+  @override
+  String get refundRequestedStatusLabel => 'Refund requested';
+
+  @override
+  String get refundCompletedStatusLabel => 'Refund completed';
+
+  @override
+  String get refundFailedStatusLabel => 'Refund failed';
+
+  @override
+  String get noRefundRequiredStatusLabel => 'No refund required';
+
+  @override
+  String get refundNotProcessedStatusLabel => 'Refund not processed yet';
+
+  @override
+  String get veterinaryClinicFallback => 'Vet clinic';
+
+  @override
+  String get veterinaryServiceFallback => 'Veterinary service';
+
+  @override
+  String get petFallback => 'Pet';
+
+  @override
+  String get dogTypeLabel => 'dog';
+
+  @override
+  String get userProfileAdoptionRequests => 'Adoption Requests';
+
+  @override
+  String get userProfileBusiness => 'Business';
+
+  @override
+  String get userProfileAdmin => 'Admin';
+
+  @override
+  String get userProfileSupport => 'Support';
+
+  @override
+  String get userProfileSendFeedback => 'Send Feedback';
+
+  @override
+  String get userProfileHelpCenter => 'Help Center';
+
+  @override
+  String get userProfilePrivacy => 'Privacy';
+
+  @override
+  String get userProfileReportProblem => 'Report Problem';
+
+  @override
+  String get userProfileSubscriptionPlans => 'Subscription & Plans';
+
+  @override
+  String get userProfileLanguage => 'Language';
+
+  @override
+  String get userProfileTheme => 'Theme';
+
+  @override
+  String get userProfileChangePassword => 'Change Password';
+
+  @override
+  String get userProfileGuestTitle => 'You\'re browsing as Guest';
+
+  @override
+  String get userProfileGuestSubtitle => 'Login to unlock full features';
+
+  @override
+  String get userProfileLoginSignUp => 'Login / Sign Up';
+
+  @override
+  String get userProfileLanguageEnglish => 'English';
+
+  @override
+  String get userProfileLanguagePersian => 'Persian';
+
+  @override
+  String get userProfileLanguageTurkish => 'Turkish';
+
+  @override
+  String get userProfileUnlockBusinessFeatures => 'Unlock Business Features 🚀';
+
+  @override
+  String get userProfileUpgradeBusinessDescription => 'Upgrade to Gold to register your business and start receiving customers.';
+
+  @override
+  String get userProfileUpgradeToGold => 'Upgrade to Gold';
+
+  @override
+  String get userProfileManageAdoptionCenter => 'Manage Adoption Center';
+
+  @override
+  String get userProfileOverview => 'Overview';
+
+  @override
+  String get userProfileDogs => 'Dogs';
+
+  @override
+  String get userProfileRequests => 'Requests';
+
+  @override
+  String get userProfileOverviewSection => 'Overview Section';
+
+  @override
+  String get userProfileDogsSection => 'Dogs Section';
+
+  @override
+  String get userProfileRequestsSection => 'Requests Section';
+
+  @override
+  String get userProfileSettingsSection => 'Settings Section';
+
+  @override
+  String get userProfileApplicationUnderReview => 'Application Under Review';
+
+  @override
+  String get userProfileApplicationUnderReviewDescription => 'Your business request has been submitted successfully and is currently under review.';
+
+  @override
+  String get userProfileAdminPanel => 'Admin Panel';
+
+  @override
+  String get userProfileManageBusinessCenter => 'Manage Business Center';
+
+  @override
+  String get userProfileApplicationRejected => 'Application Rejected';
+
+  @override
+  String userProfileRejectionReason(Object reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String get userProfileUpgradeToGoldToContinue => 'Upgrade to Gold to continue';
+
+  @override
+  String get userProfileReApply => 'Re-Apply';
+
+  @override
+  String get userProfileBusinessStatus => 'Business Status';
+
+  @override
+  String get userProfileUnknownStatus => 'Unknown';
+
+  @override
+  String get userProfileChooseFromGallery => 'Choose from Gallery';
+
+  @override
+  String get userProfileRemovePhoto => 'Remove Photo';
+
+  @override
+  String get userProfileImageSelectionFailed => 'Image selection failed.';
+
+  @override
+  String get userProfileUsernameMinLength => 'Username must be at least 3 characters';
+
+  @override
+  String get userProfileUsernameMaxLength => 'Username must be at most 20 characters';
+
+  @override
+  String get userProfileUsernameNoSpaces => 'Username cannot contain spaces';
+
+  @override
+  String get userProfilePhoneInvalidCharacters => 'Phone contains invalid characters';
+
+  @override
+  String get userProfileBioMaxLength => 'Bio must be under 150 characters';
+
+  @override
+  String get userProfileUsernameAlreadyTaken => 'Username already taken';
+
+  @override
+  String get userProfileEmailUpdateFailed => 'Email update failed';
+
+  @override
+  String get userProfileUpdateFailed => 'Failed to update profile.';
+
+  @override
+  String get userProfileChangePhoto => 'Change Photo';
+
+  @override
+  String get userProfileEnterUsername => 'Enter username';
+
+  @override
+  String get userProfileEnterEmail => 'Enter email';
+
+  @override
+  String get userProfileOptionalPhoneNumber => 'Optional phone number';
+
+  @override
+  String get userProfileBio => 'Bio';
+
+  @override
+  String get userProfileBioHint => 'Tell people a little about yourself';
+
+  @override
+  String get unnamedProduct => 'Unnamed Product';
+
+  @override
+  String barcodeLabel(Object barcode) {
+    return 'Barcode: $barcode';
+  }
+
+  @override
+  String skuLabel(Object sku) {
+    return 'SKU: $sku';
+  }
+
+  @override
+  String get dealBadge => '💸 Deal';
+
+  @override
+  String get lowStockBadge => '⚡ Low';
+
+  @override
+  String saveAmountLabel(Object amount) {
+    return 'Save $amount';
+  }
+
+  @override
+  String salePriceLabel(Object price) {
+    return 'Sale: $price';
+  }
+
+  @override
+  String stockLabel(Object stock) {
+    return 'Stock: $stock';
+  }
+
+  @override
+  String get addToCartButton => 'Add to Cart';
+
+  @override
+  String get buyNowButton => 'Buy Now';
+
+  @override
+  String get addedToCart => 'Added to cart';
+
+  @override
+  String get mediaNotReadyYet => 'Media not ready yet';
+
+  @override
+  String cargoLabel(Object price) {
+    return 'Cargo: $price';
+  }
+
+  @override
+  String carrierLabel(Object carrier) {
+    return 'Carrier: $carrier';
+  }
+
+  @override
+  String deliveryDaysRangeLabel(Object max, Object min) {
+    return '$min-$max days';
+  }
+
+  @override
+  String get businessNotFound => 'Business not found';
+
+  @override
+  String get sectorDashboardNotImplementedYet => 'This sector dashboard is not implemented yet';
+
+  @override
+  String get goBackButton => 'Go Back';
+
+  @override
+  String get backButton => 'Back';
+
+  @override
+  String get veterinaryDashboardTitle => 'Veterinary Dashboard';
+
+  @override
+  String get overviewTab => 'Overview';
+
+  @override
+  String get appointmentsTab => 'Appointments';
+
+  @override
+  String get shopProfileTitle => 'Shop Profile';
+
+  @override
+  String get noDescriptionYet => 'No description added yet.';
+
+  @override
+  String get noRevenueYet => 'No revenue yet';
+
+  @override
+  String get netRevenueLabel => 'Net Revenue';
+
+  @override
+  String get afterPlatformCommissionLabel => 'After platform commission';
+
+  @override
+  String get grossSalesLabel => 'Gross Sales';
+
+  @override
+  String get platformFeeLabel => 'Platform Fee';
+
+  @override
+  String get adjustmentsLabel => 'Adjustments';
+
+  @override
+  String get recentOrdersTitle => 'Recent Orders';
+
+  @override
+  String get latestOrdersSubtitle => 'Latest 5 orders';
+
+  @override
+  String get viewAllButton => 'View all';
+
+  @override
+  String get noDataLabel => 'No data';
+
+  @override
+  String get noOrdersYet => 'No orders yet';
+
+  @override
+  String orderNumberLabel(Object number) {
+    return 'Order #$number';
+  }
+
+  @override
+  String itemsCountLabel(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '# items',
+      one: '# item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String trackingLabel(Object tracking) {
+    return 'Tracking: $tracking';
+  }
+
+  @override
+  String get trackShipmentButton => 'Track Shipment';
+
+  @override
+  String get catalogStrengthUnavailable => 'Catalog strength unavailable';
+
+  @override
+  String get catalogStrengthTitle => 'Catalog Strength';
+
+  @override
+  String get productsTitle => 'Products';
+
+  @override
+  String get noProductsFound => 'No products found';
+
+  @override
+  String get lowStockLabel => 'Low Stock';
+
+  @override
+  String get strengthLabel => 'Strength';
+
+  @override
+  String get shippableLabel => 'Shippable';
+
+  @override
+  String get withKdvLabel => 'With KDV';
+
+  @override
+  String get noProductsYet => 'No products yet';
+
+  @override
+  String get kdvIncludedLabel => 'KDV included';
+
+  @override
+  String fromLabel(Object city) {
+    return 'From $city';
+  }
+
+  @override
+  String returnsLabel(Object days) {
+    return 'Returns ${days}d';
+  }
+
+  @override
+  String get pickupLabel => 'Pickup';
+
+  @override
+  String get sameDayLabel => 'Same day';
+
+  @override
+  String get offersTitle => 'Offers';
+
+  @override
+  String get createOfferButton => 'Create Offer';
+
+  @override
+  String get videoLabel => 'VIDEO';
+
+  @override
+  String get catalogStrengthWeakLabel => 'Weak';
+
+  @override
+  String get catalogStrengthAddItemsMessage => 'Add products, description, media, and stock to strengthen your catalog.';
+
+  @override
+  String get catalogStrengthWeakDetailsMessage => 'Your product details are still weak. Add more media, descriptions, and stock info.';
+
+  @override
+  String get catalogStrengthMediumLabel => 'Medium';
+
+  @override
+  String get catalogStrengthMediumMessage => 'Good start. Add richer descriptions and more product media to improve visibility.';
+
+  @override
+  String get catalogStrengthStrongLabel => 'Strong';
+
+  @override
+  String get catalogStrengthStrongMessage => 'Great catalog quality. Your listings look strong and complete.';
+
+  @override
+  String get shippingCalculatedLabel => 'Shipping calculated';
+
+  @override
+  String get fragileLabel => 'Fragile';
+
+  @override
+  String get oversizeLabel => 'Oversize';
+
+  @override
+  String originLabel(Object city) {
+    return 'Origin: $city';
+  }
+
+  @override
+  String carriersCountLabel(Object count) {
+    return '$count carriers';
+  }
+
+  @override
+  String kdvRateLabel(Object percent) {
+    return 'KDV $percent%';
+  }
+
+  @override
+  String get myOrdersLoginRequired => 'Please log in to view your orders';
+
+  @override
+  String get myOrdersTitle => 'My Orders';
+
+  @override
+  String get ordersTitle => 'Orders';
+
+  @override
+  String get searchByOrderIdOrProductNameHint => 'Search by order id or product name';
+
+  @override
+  String get allFilterLabel => 'All';
+
+  @override
+  String get noMatchingOrders => 'No matching orders';
+
+  @override
+  String get orderLabel => 'Order';
+
+  @override
+  String get itemsTitle => 'Items';
+
+  @override
+  String qtyLabel(Object qty) {
+    return 'Qty: $qty';
+  }
+
+  @override
+  String get pendingStatusLabel => 'Pending';
+
+  @override
+  String get paidStatusLabel => 'Paid';
+
+  @override
+  String get confirmedStatusLabel => 'Confirmed';
+
+  @override
+  String get preparingStatusLabel => 'Preparing';
+
+  @override
+  String get shippedStatusLabel => 'Shipped';
+
+  @override
+  String get deliveredStatusLabel => 'Delivered';
+
+  @override
+  String get completedStatusLabel => 'Completed';
+
+  @override
+  String get failedStatusLabel => 'Failed';
+
+  @override
+  String get cancelledStatusLabel => 'Cancelled';
+
+  @override
+  String get paymentFailedStatusLabel => 'Payment Failed';
+
+  @override
+  String get paidPayoutStatusLabel => 'Paid';
+
+  @override
+  String get readyForPayoutLabel => 'Ready for payout';
+
+  @override
+  String get payoutPendingLabel => 'Payout pending';
+
+  @override
+  String get waitingForPaymentLabel => 'Waiting for payment';
+
+  @override
+  String get payoutNotSetLabel => 'Payout not set';
+
+  @override
+  String get confirmOrderButton => 'Confirm Order';
+
+  @override
+  String get startPreparingButton => 'Start Preparing';
+
+  @override
+  String get openOrderButton => 'Open Order';
+
+  @override
+  String get simulateUploadInvoiceButton => 'Simulate Upload Invoice';
+
+  @override
+  String get invoiceSimulatedAsUploaded => 'Invoice simulated as uploaded';
+
+  @override
+  String invoiceError(Object error) {
+    return 'Invoice error: $error';
+  }
+
+  @override
+  String orderStatusUpdated(Object status) {
+    return 'Updated to $status';
+  }
+
+  @override
+  String invoiceSummaryLabel(Object deadline, Object status) {
+    return 'Invoice: $status • Deadline: $deadline';
+  }
+
+  @override
+  String sellerNetLabel(Object amount) {
+    return 'Seller net: $amount';
+  }
+
+  @override
+  String referenceLabel(Object reference) {
+    return 'Ref: $reference';
+  }
+
+  @override
+  String buyerNameLabel(Object name) {
+    return 'Name: $name';
+  }
+
+  @override
+  String buyerSurnameLabel(Object surname) {
+    return 'Surname: $surname';
+  }
+
+  @override
+  String buyerIdentityNumberLabel(Object identityNumber) {
+    return 'ID: $identityNumber';
+  }
+
+  @override
+  String buyerCityLabel(Object city) {
+    return 'City: $city';
+  }
+
+  @override
+  String buyerAddressLabel(Object address) {
+    return 'Address: $address';
+  }
+
+  @override
+  String get buyerInfoTitle => 'Buyer Info';
+
+  @override
+  String invoiceTypeLabel(Object type) {
+    return 'Invoice Type: $type';
+  }
+
+  @override
+  String get invoiceTitle => 'Invoice';
+
+  @override
+  String get uploadDeadlineLabel => 'Upload Deadline';
+
+  @override
+  String get warningsLabel => 'Warnings';
+
+  @override
+  String get penaltyLabel => 'Penalty';
+
+  @override
+  String get invoiceSystemLabel => 'Invoice System';
+
+  @override
+  String get invoiceNoLabel => 'Invoice No';
+
+  @override
+  String get dateLabel => 'Date';
+
+  @override
+  String get cannotOpenInvoiceFile => 'Cannot open invoice file';
+
+  @override
+  String get viewInvoiceButton => 'View Invoice';
+
+  @override
+  String get noInvoiceLabel => 'No Invoice';
+
+  @override
+  String get uploadingLabel => 'Uploading...';
+
+  @override
+  String get invoiceUploadedLabel => 'Invoice Uploaded';
+
+  @override
+  String get uploadInvoiceButton => 'Upload Invoice';
+
+  @override
+  String get invoiceUploadDeadlinePassed => 'Invoice upload deadline passed!';
+
+  @override
+  String get timelineTitle => 'Timeline';
+
+  @override
+  String get payoutTitle => 'Payout';
+
+  @override
+  String amountLabel(Object amount) {
+    return 'Amount: $amount';
+  }
+
+  @override
+  String get paymentWillBeTransferredByPetsupo => 'Payment will be transferred by Petsupo';
+
+  @override
+  String get pendingPayoutLabel => 'Pending payout';
+
+  @override
+  String get waitingForCustomerPayment => 'Waiting for customer payment';
+
+  @override
+  String get actionsTitle => 'Actions';
+
+  @override
+  String get payoutMarkedAsPaid => 'Payout marked as paid';
+
+  @override
+  String get trackingNumberLabel => 'Tracking Number';
+
+  @override
+  String get trackingNumberRequired => 'Tracking number is required';
+
+  @override
+  String get returnCarrierRequired => 'Carrier is required';
+
+  @override
+  String get returnShippedBackFailed => 'Could not mark the return as shipped back';
+
+  @override
+  String get returnTrackingNumberLabel => 'Return Tracking Number';
+
+  @override
+  String get returnTrackingNumberHelperText => 'Enter the tracking number provided for the return shipment.';
+
+  @override
+  String get returnCarrierHelperText => 'Use the same carrier used for the original delivery.';
+
+  @override
+  String get originalShipmentTrackingLabel => 'Original Shipment Tracking';
+
+  @override
+  String get returnShipmentTrackingLabel => 'Return Shipment Tracking';
+
+  @override
+  String get returnShippedBackTimelineLabel => 'Return shipped back';
+
+  @override
+  String get carrierMissingFromOrder => 'Carrier missing from order';
+
+  @override
+  String get enterTrackingNumber => 'Enter tracking number';
+
+  @override
+  String get shipOrderButton => 'Ship Order';
+
+  @override
+  String get markAsDeliveredButton => 'Mark as Delivered';
+
+  @override
+  String get goToCarrierWebsiteButton => 'Go to Carrier Website';
+
+  @override
+  String get noTimelineYet => 'No timeline yet';
+
+  @override
+  String get orderNotFound => 'Order not found';
+
+  @override
+  String get invoiceUploadedSuccessfully => 'Invoice uploaded successfully';
+
+  @override
+  String uploadFailed(Object error) {
+    return 'Upload failed: $error';
+  }
+
+  @override
+  String get orderShipped => 'Order shipped';
+
+  @override
+  String get sellerTaxNumberMissing => 'Seller tax number missing';
+
+  @override
+  String get buyerIdentityNumberMissing => 'Buyer identity number missing';
+
+  @override
+  String get buyerTaxNumberMissing => 'Buyer tax number missing';
+
+  @override
+  String get invoiceSystemMismatch => 'Invoice type mismatch';
+
+  @override
+  String get invoiceStatusPendingUploadLabel => 'Invoice waiting';
+
+  @override
+  String get invoiceStatusUploadedValidLabel => 'Invoice uploaded';
+
+  @override
+  String get invoiceStatusUploadedWithIssuesLabel => 'Review required';
+
+  @override
+  String get invoiceStatusLateLabel => 'Late';
+
+  @override
+  String get invoiceStatusApprovedLabel => 'Invoice approved';
+
+  @override
+  String get invoiceStatusRejectedLabel => 'Invoice rejected';
+
+  @override
+  String get eArsivLabel => 'e-Archive';
+
+  @override
+  String get eFaturaLabel => 'e-Invoice';
+
+  @override
+  String get fileIsEmpty => 'File is empty';
+
+  @override
+  String get fileTooLarge => 'File too large';
+
+  @override
+  String get upgradePageTitle => 'Upgrade';
+
+  @override
+  String get upgradeHeroTitle => 'Find better matches faster 🐾';
+
+  @override
+  String get upgradeHeroSubtitle => 'Unlock premium features, better visibility, exclusive offers and business tools.';
+
+  @override
+  String get premiumPlanSubtitle => 'For active pet owners';
+
+  @override
+  String get premiumPlanFeatureUnlimitedChat => 'Unlimited chat';
+
+  @override
+  String get premiumPlanFeatureAdvancedMatchingFilters => 'Advanced matching filters';
+
+  @override
+  String get premiumPlanFeatureExclusivePetOffers => 'Exclusive pet offers';
+
+  @override
+  String get premiumPlanFeatureBetterProfileExperience => 'Better profile experience';
+
+  @override
+  String get goldPlanSubtitle => 'For pet businesses and power users';
+
+  @override
+  String get mostPopularLabel => 'MOST POPULAR';
+
+  @override
+  String get goldPlanFeatureEverythingInPremium => 'Everything in Premium';
+
+  @override
+  String get goldPlanFeatureBusinessRegistrationAccess => 'Business registration access';
+
+  @override
+  String get goldPlanFeatureBoostedVisibility => 'Boosted visibility';
+
+  @override
+  String get goldPlanFeatureBusinessDashboardAccess => 'Business dashboard access';
+
+  @override
+  String get goldPlanFeaturePremiumChatAndOffers => 'Premium chat and offers';
+
+  @override
+  String get storeNotReadyTryAgain => 'Store not ready. Try again.';
+
+  @override
+  String get processingLabel => 'Processing...';
+
+  @override
+  String get restoreRequestSent => 'Restore request sent.';
+
+  @override
+  String get restorePurchases => 'Restore Purchases';
+
+  @override
+  String get upgradePaymentTerms => 'Your payment will be charged to your App Store account at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period.';
+
+  @override
+  String get autoRenewableMonthlySubscription => 'Auto-renewable monthly subscription';
+
+  @override
+  String get securePaymentNotice => 'Secure payment • Cancel anytime • Plans are managed by the App Store';
+
+  @override
+  String continueWithPlan(Object plan) {
+    return 'Continue with $plan';
+  }
+
+  @override
+  String get loadingLabel => 'Loading...';
+
+  @override
+  String get privacyPolicyLabel => 'Privacy Policy';
+
+  @override
+  String get termsOfUseLabel => 'Terms of Use';
+
+  @override
+  String adoptionRequestSubtitle(Object dogName) {
+    return '• $dogName';
+  }
+
+  @override
+  String get adoptionStepPersonalInfoTitle => '1️⃣ Personal Info';
+
+  @override
+  String get adoptionFullNameLabel => 'Full Name';
+
+  @override
+  String get adoptionFullNameHint => 'Your full name';
+
+  @override
+  String get adoptionEnterFullName => 'Enter your full name';
+
+  @override
+  String get genderLabel => 'Gender';
+
+  @override
+  String get adoptionSelectGender => 'Select gender';
+
+  @override
+  String get adoptionPhoneHint => 'e.g. +90 5xx xxx xxxx';
+
+  @override
+  String get adoptionEnterValidPhone => 'Enter a valid phone number';
+
+  @override
+  String get adoptionIncomeRangeLabel => 'Monthly Income Range';
+
+  @override
+  String get adoptionSelectIncomeRange => 'Select income range';
+
+  @override
+  String get adoptionIncomeRange0_2000 => '0 - 2,000';
+
+  @override
+  String get adoptionIncomeRange2000_5000 => '2,000 - 5,000';
+
+  @override
+  String get adoptionIncomeRange5000_10000 => '5,000 - 10,000';
+
+  @override
+  String get adoptionIncomeRange10000Plus => '10,000+';
+
+  @override
+  String get adoptionStepHousingTitle => '2️⃣ Housing';
+
+  @override
+  String get adoptionHousingTypeLabel => 'Housing type';
+
+  @override
+  String get adoptionHousingApartment => 'Apartment';
+
+  @override
+  String get adoptionHousingHouse => 'House';
+
+  @override
+  String get adoptionHousingVilla => 'Villa';
+
+  @override
+  String get adoptionOwnershipLabel => 'Owned / Rented';
+
+  @override
+  String get adoptionOwnershipOwned => 'Owned';
+
+  @override
+  String get adoptionOwnershipRented => 'Rented';
+
+  @override
+  String get adoptionLandlordPermissionRequired => 'Landlord permission (required)';
+
+  @override
+  String get adoptionHasGarden => 'Has garden';
+
+  @override
+  String get adoptionFenceHeightLabel => 'Fence height (cm)';
+
+  @override
+  String get adoptionFenceHeightHint => 'e.g. 120';
+
+  @override
+  String get adoptionEnterValidFenceHeight => 'Enter 1..400';
+
+  @override
+  String get adoptionStepExperienceTitle => '3️⃣ Experience';
+
+  @override
+  String get adoptionYearsOfExperienceLabel => 'Years of experience';
+
+  @override
+  String get adoptionYearsOfExperienceHint => '0..60';
+
+  @override
+  String get adoptionEnterYearsOfExperience => 'Enter 0..60';
+
+  @override
+  String get adoptionPreviousDogQuestion => 'Previous dog? (Yes/No)';
+
+  @override
+  String get adoptionPreviousDogReasonLabel => 'Reason previous dog no longer with you';
+
+  @override
+  String get adoptionPreviousDogReasonHint => 'Explain briefly';
+
+  @override
+  String get adoptionExplainPreviousDog => 'At least 10 characters';
+
+  @override
+  String get adoptionOtherPetsAtHome => 'Other pets at home';
+
+  @override
+  String get adoptionDescribeOtherPetsLabel => 'Describe your other pets';
+
+  @override
+  String get adoptionDescribeOtherPetsHint => 'e.g. 2 cats, vaccinated';
+
+  @override
+  String get adoptionRequiredShort => 'Required';
+
+  @override
+  String get adoptionDescribeOtherPetsRequired => 'Please describe your other pets';
+
+  @override
+  String get adoptionMotivationMessageLabel => 'Motivation message';
+
+  @override
+  String get adoptionMotivationMinLength => 'Motivation should be at least 20 characters';
+
+  @override
+  String get adoptionStepFinancialCommitmentTitle => '4️⃣ Financial & Commitment';
+
+  @override
+  String get adoptionCanAffordVetExpenses => 'Can afford vet expenses?';
+
+  @override
+  String get adoptionEmergencySavingsAvailable => 'Emergency savings available?';
+
+  @override
+  String get adoptionUploadsSectionTitle => '📷 Uploads';
+
+  @override
+  String get adoptionHousePhotosRequiredTitle => 'House photos (required)';
+
+  @override
+  String get adoptionUploadAtLeastOnePhoto => 'Upload at least 1 photo';
+
+  @override
+  String adoptionUploadedCount(Object count) {
+    return '$count uploaded';
+  }
+
+  @override
+  String get adoptionUploadButton => 'Upload';
+
+  @override
+  String get adoptionClearButton => 'Clear';
+
+  @override
+  String get adoptionIdPhotoRequiredTitle => 'ID photo (required)';
+
+  @override
+  String get adoptionNotUploaded => 'Not uploaded';
+
+  @override
+  String get adoptionUploaded => 'Uploaded';
+
+  @override
+  String get adoptionReplaceButton => 'Replace';
+
+  @override
+  String get adoptionRemoveButton => 'Remove';
+
+  @override
+  String get adoptionProofOfIncomeOptionalTitle => 'Proof of income (optional)';
+
+  @override
+  String get adoptionOptionalLabel => 'Optional';
+
+  @override
+  String get adoptionAgreeContractRequiredLabel => 'I agree to sign the adoption contract (required)';
+
+  @override
+  String get adoptionAgreeContractRequired => 'You must agree to the adoption contract';
+
+  @override
+  String get adoptionUploadIdPhoto => 'Please upload an ID photo';
+
+  @override
+  String get adoptionNextButton => 'Next';
+
+  @override
+  String smartPriceSuggestedRangeLabel(Object currency, Object max, Object min) {
+    return 'Suggested range: $min - $max $currency';
+  }
+
+  @override
+  String smartPriceSuggestedPriceLabel(Object currency, Object price) {
+    return 'Suggested price: $price $currency';
+  }
+
+  @override
+  String get bestPriceStrategyLabel => 'Best Price';
+
+  @override
+  String get aggressiveLowStrategyLabel => 'Aggressive Low';
+
+  @override
+  String get competitiveStrategyLabel => 'Competitive';
+
+  @override
+  String get slightlyHighStrategyLabel => 'Slightly High';
+
+  @override
+  String get tooExpensiveStrategyLabel => 'Too Expensive';
+
+  @override
+  String get manualPricingLabel => 'Manual pricing';
+
+  @override
+  String get bestPricePositionLabel => 'Best Price 🏆';
+
+  @override
+  String get aggressiveLowPositionLabel => 'Aggressive Low ⚡';
+
+  @override
+  String get competitivePositionLabel => 'Competitive ✅';
+
+  @override
+  String get slightlyHighPositionLabel => 'Slightly High 📈';
+
+  @override
+  String get tooExpensivePositionLabel => 'Too Expensive ⚠️';
+
+  @override
+  String get marketSourceAggregateLabel => 'Aggregate data';
+
+  @override
+  String get marketSourceFallbackProductsLabel => 'Fallback products';
+
+  @override
+  String get marketSourceNoneLabel => 'No market data';
+
+  @override
+  String get marketSourceInvalidPricesLabel => 'Invalid prices';
+
+  @override
+  String get marketSourceErrorLabel => 'Error';
+
+  @override
+  String get discountRate1Label => '1%';
+
+  @override
+  String get discountRate10Label => '10%';
+
+  @override
+  String get discountRate20Label => '20%';
+
+  @override
+  String get carrierYurticiKargo => 'Yurtiçi Kargo';
+
+  @override
+  String get carrierArasKargo => 'Aras Kargo';
+
+  @override
+  String get carrierMngKargo => 'MNG Kargo';
+
+  @override
+  String get carrierSuratKargo => 'Sürat Kargo';
+
+  @override
+  String get carrierPttKargo => 'PTT Kargo';
+
+  @override
+  String get carrierHepsiJet => 'HepsiJET';
+
+  @override
+  String get carrierKolayGelsin => 'Kolay Gelsin';
+
+  @override
+  String get carrierUpsTurkiye => 'UPS Türkiye';
+
+  @override
+  String get carrierDhlExpress => 'DHL Express';
+
+  @override
+  String get categoryFood => 'Food';
+
+  @override
+  String get categoryAccessories => 'Accessories';
+
+  @override
+  String get categoryHealth => 'Health';
+
+  @override
+  String get categoryToys => 'Toys';
+
+  @override
+  String get subCategoryDryFood => 'Dry Food';
+
+  @override
+  String get subCategoryWetFood => 'Wet Food';
+
+  @override
+  String get subCategoryTreats => 'Treats';
+
+  @override
+  String get subCategoryCollar => 'Collar';
+
+  @override
+  String get subCategoryLeash => 'Leash';
+
+  @override
+  String get subCategoryClothing => 'Clothing';
+
+  @override
+  String get subCategoryVitamins => 'Vitamins';
+
+  @override
+  String get subCategoryMedicine => 'Medicine';
+
+  @override
+  String get subCategoryChewToy => 'Chew Toy';
+
+  @override
+  String get subCategoryInteractive => 'Interactive';
+
+  @override
+  String get productAlreadyExistsTitle => 'Product already exists';
+
+  @override
+  String get productAlreadyExistsDescription => 'This product already exists. Opening the product editor.';
+
+  @override
+  String get continueButton => 'Continue';
+
+  @override
+  String get productNameMustBeAtLeast4Chars => 'Product name must be at least 4 characters';
+
+  @override
+  String get invalidBarcode => 'Invalid barcode';
+
+  @override
+  String get invalidSku => 'Invalid SKU';
+
+  @override
+  String get invalidWholesalePrice => 'Invalid wholesale price';
+
+  @override
+  String get wholesaleMinQuantityMustBeAtLeast2 => 'Wholesale minimum quantity must be at least 2';
+
+  @override
+  String get kdvRateIsRequired => 'Select a VAT rate';
+
+  @override
+  String get invalidPrice => 'Invalid price';
+
+  @override
+  String get invalidDiscountPrice => 'Invalid discount price';
+
+  @override
+  String get discountMustBeLowerThanOriginalPrice => 'Discount price must be lower than original price';
+
+  @override
+  String get wholesalePriceMustBeLowerThanRetailPrice => 'Wholesale price must be lower than retail price';
+
+  @override
+  String get invalidStock => 'Invalid stock';
+
+  @override
+  String get stockMustBeAtLeastWholesaleMinQuantity => 'Stock must be at least the wholesale minimum quantity';
+
+  @override
+  String get inventoryStockFieldLabel => 'Stock';
+
+  @override
+  String get invalidLowStockAlert => 'Invalid low-stock alert';
+
+  @override
+  String get addAtLeast1Media => 'Add at least 1 media item';
+
+  @override
+  String get descriptionMustBeAtLeast10Characters => 'Description must be at least 10 characters';
+
+  @override
+  String get selectCategory => 'Select a category';
+
+  @override
+  String get weightOrDesiIsRequired => 'Weight or desi is required';
+
+  @override
+  String get lengthIsRequired => 'Length is required';
+
+  @override
+  String get widthIsRequired => 'Width is required';
+
+  @override
+  String get heightIsRequired => 'Height is required';
+
+  @override
+  String get invalidDesiValue => 'Invalid desi value';
+
+  @override
+  String get fixedShippingFeeIsRequired => 'Fixed shipping fee is required';
+
+  @override
+  String get invalidShippingFee => 'Invalid shipping fee';
+
+  @override
+  String get freeShippingThresholdIsRequired => 'Free shipping threshold is required';
+
+  @override
+  String get invalidPreparationTime => 'Invalid preparation time';
+
+  @override
+  String get invalidMaxDeliveryDays => 'Invalid maximum delivery days';
+
+  @override
+  String get selectAtLeast1CargoCarrier => 'Select at least 1 cargo carrier';
+
+  @override
+  String get returnWindowCannotBeLessThan14Days => 'Return window cannot be less than 14 days';
+
+  @override
+  String get returnCarrierIsRequired => 'Return carrier is required';
+
+  @override
+  String get shippingPayerMismatch => 'Shipping payer mismatch';
+
+  @override
+  String get productSavedStatus => 'Product saved ✅';
+
+  @override
+  String get scanFailed => 'Scan failed';
+
+  @override
+  String estimatedPriceLabel(Object currency, Object price) {
+    return 'Estimated price: $price $currency';
+  }
+
+  @override
+  String get loadedFromGlobalApi => 'Loaded from global API';
+
+  @override
+  String productFallbackName(Object short) {
+    return 'Product $short';
+  }
+
+  @override
+  String fallbackEstimateLabel(Object currency, Object price) {
+    return 'Fallback estimate: $price $currency';
+  }
+
+  @override
+  String offlineEstimateLabel(Object currency, Object price) {
+    return 'Offline estimate: $price $currency';
+  }
+
+  @override
+  String errorEstimateLabel(Object currency, Object price) {
+    return 'Error estimate: $price $currency';
+  }
+
+  @override
+  String smartDescriptionDefault(Object brand, Object name) {
+    return '$name by $brand is a reliable option for pet owners.';
+  }
+
+  @override
+  String get trustedBrand => 'Trusted brand';
+
+  @override
+  String get productDetectedStatus => 'Product detected';
+
+  @override
+  String get noProductFoundAnywhere => 'No product found anywhere';
+
+  @override
+  String get enterProductNameFirst => 'Enter product name first';
+
+  @override
+  String smartDescriptionFood(Object brand, Object name, Object subCategory) {
+    return '$name by $brand is a practical choice for pets. It fits the $subCategory category and is suitable for daily use.';
+  }
+
+  @override
+  String smartDescriptionAccessories(Object brand, Object name, Object subCategory) {
+    return '$name by $brand is a useful accessory in the $subCategory category.';
+  }
+
+  @override
+  String smartDescriptionHealth(Object brand, Object name, Object subCategory) {
+    return '$name by $brand is designed for pet health and wellness in the $subCategory category.';
+  }
+
+  @override
+  String smartDescriptionToys(Object brand, Object name, Object subCategory) {
+    return '$name by $brand is an engaging toy from the $subCategory category.';
+  }
+
+  @override
+  String get descriptionSuggestionAdded => 'Description suggestion added';
+
+  @override
+  String get noPricingDataYet => 'No pricing data yet';
+
+  @override
+  String get smartPriceSuggestionTitle => 'Smart Price Suggestion';
+
+  @override
+  String get waitingForPricingData => 'Waiting for pricing data...';
+
+  @override
+  String get tapToApplySuggestedPrice => 'Tap to apply suggested price';
+
+  @override
+  String get smartPricingEngineTitle => 'Smart Pricing Engine';
+
+  @override
+  String get modeLabel => 'Mode';
+
+  @override
+  String get noMarketDataLabel => 'No market data';
+
+  @override
+  String get usingSmartEstimationLabel => 'Using smart estimation 🧠';
+
+  @override
+  String get marketIntelligenceTitle => 'Market Intelligence';
+
+  @override
+  String get avgPriceLabel => 'Avg price';
+
+  @override
+  String get medianPriceLabel => 'Median price';
+
+  @override
+  String get sellerCountLabel => 'Seller count';
+
+  @override
+  String get bestPriceLabel => 'Best price';
+
+  @override
+  String get highestPriceLabel => 'Highest price';
+
+  @override
+  String get yourGapVsMarketLabel => 'Your gap vs market';
+
+  @override
+  String get positionLabel => 'Position';
+
+  @override
+  String get profitMarginLabel => 'Profit margin';
+
+  @override
+  String get sourceLabel => 'Source';
+
+  @override
+  String get searchingProductStatus => 'Searching product...';
+
+  @override
+  String get productAlreadyExistsOpeningEditStatus => 'Product exists, opening editor...';
+
+  @override
+  String get fetchingProductDataStatus => 'Fetching product data...';
+
+  @override
+  String get analyzingMarketStatus => 'Analyzing market...';
+
+  @override
+  String get marketAvgLabel => 'Average price';
+
+  @override
+  String get marketMedianLabel => 'Median price';
+
+  @override
+  String get marketSellersLabel => 'Seller count';
+
+  @override
+  String emergencyFallbackLabel(Object currency, Object price) {
+    return 'Emergency fallback: $price $currency';
+  }
+
+  @override
+  String get productReadyStatus => 'Product ready ✅';
+
+  @override
+  String get failedToLoadProductStatus => 'Failed to load product';
+
+  @override
+  String get barcodeLookupFailed => 'Barcode lookup failed';
+
+  @override
+  String get editProductTitle => 'Edit Product';
+
+  @override
+  String get addProductTitle => 'Add Product';
+
+  @override
+  String get tapToReplaceOrAddMedia => 'Tap to replace or add media';
+
+  @override
+  String get tapToAddMedia => 'Tap to add media';
+
+  @override
+  String get basicInfoSectionTitle => 'Basic info';
+
+  @override
+  String get productNameMinCharsLabel => 'Product name *';
+
+  @override
+  String get brandLabel => 'Brand';
+
+  @override
+  String get barcodeFieldLabel => 'Barcode';
+
+  @override
+  String get enterBarcodeHint => 'Enter or scan the barcode';
+
+  @override
+  String get noBarcodeSkuHint => 'Barcode is optional. SKU will be auto-generated if empty.';
+
+  @override
+  String get scanButtonLabel => 'Scan';
+
+  @override
+  String get skuCodeLabel => 'SKU Code';
+
+  @override
+  String get autoGeneratedSkuHint => 'Auto-generated if empty';
+
+  @override
+  String get shippingAndDeliverySectionTitle => 'Shipping and delivery';
+
+  @override
+  String get thisProductHasADiscount => 'This product has a discount';
+
+  @override
+  String get originalPriceLabel => 'Original price';
+
+  @override
+  String get priceLabel => 'Price';
+
+  @override
+  String get appointmentDetailTitle => 'Appointment Detail';
+
+  @override
+  String get appointmentNotFound => 'Appointment not found';
+
+  @override
+  String get petLabel => 'Pet';
+
+  @override
+  String get statusLabel => 'Status';
+
+  @override
+  String get paymentLabel => 'Payment';
+
+  @override
+  String get goToPaymentButton => 'Go to Payment';
+
+  @override
+  String get markedAsCompletedSnack => 'Marked as completed';
+
+  @override
+  String get markAsCompletedButton => 'Mark as Completed';
+
+  @override
+  String get wholesalePriceLabel => 'Wholesale price';
+
+  @override
+  String get minimumQuantityForWholesaleLabel => 'Minimum quantity for wholesale';
+
+  @override
+  String get wholesaleAppliesHint => 'Wholesale discount applies from this quantity';
+
+  @override
+  String get visibleOnlyToBusinessAccountsHint => 'Visible only to business accounts';
+
+  @override
+  String get usersWillSeeDiscountHint => 'Users will see the discount badge';
+
+  @override
+  String get discountPriceLabel => 'Discount price';
+
+  @override
+  String get kdvLabel => 'VAT';
+
+  @override
+  String get lengthLabel => 'Length';
+
+  @override
+  String get widthLabel => 'Width';
+
+  @override
+  String get heightLabel => 'Height';
+
+  @override
+  String calculatedDesiLabel(Object value) {
+    return 'Calculated desi: $value';
+  }
+
+  @override
+  String get manualDesiOverrideOptionalLabel => 'Manual desi override (optional)';
+
+  @override
+  String get shippingModeLabel => 'Shipping mode';
+
+  @override
+  String get carrierCalculatedLabel => 'Carrier calculated';
+
+  @override
+  String get fixedShippingFeeLabel => 'Fixed shipping fee';
+
+  @override
+  String get sellerPaysShippingLabel => 'Seller pays shipping';
+
+  @override
+  String get enableFreeShippingCampaignLabel => 'Enable free shipping campaign';
+
+  @override
+  String get freeShippingThresholdLabel => 'Free shipping threshold';
+
+  @override
+  String get preparationTimeDaysLabel => 'Preparation time (days)';
+
+  @override
+  String get maxDeliveryTimeDaysLabel => 'Max delivery time (days)';
+
+  @override
+  String get cargoCompaniesTitle => 'Cargo companies';
+
+  @override
+  String get allowReturnsLabel => 'Allow returns';
+
+  @override
+  String get returnWindowDaysLabel => 'Return window (days)';
+
+  @override
+  String get returnShippingPayerLabel => 'Return shipping payer';
+
+  @override
+  String get sellerOptionLabel => 'Seller';
+
+  @override
+  String get buyerOptionLabel => 'Buyer';
+
+  @override
+  String get sellerContractedCarrierOnlyLabel => 'Seller if contracted carrier only';
+
+  @override
+  String get inventoryTitle => 'Inventory';
+
+  @override
+  String get lowStockAlertLabel => 'Low stock alert';
+
+  @override
+  String get mainCategoryLabel => 'Main category';
+
+  @override
+  String get subCategoryLabel => 'Subcategory';
+
+  @override
+  String get generatingLabel => 'Generating...';
+
+  @override
+  String get suggestLabel => 'Suggest';
+
+  @override
+  String get updateProductTitle => 'Update Product';
+
+  @override
+  String get sellInstantlyButtonLabel => 'Sell instantly';
+
+  @override
+  String get shippingEstimateTitle => 'Shipping estimate';
+
+  @override
+  String desiLabel(Object value) {
+    return 'Desi: $value';
+  }
+
+  @override
+  String billableLabel(Object value) {
+    return 'Billable: $value';
+  }
+
+  @override
+  String basePriceLabel(Object currency, Object value) {
+    return 'Base: $value $currency';
+  }
+
+  @override
+  String extraLabel(Object currency, Object value) {
+    return 'Extra: $value $currency';
+  }
+
+  @override
+  String totalPriceLabel(Object currency, Object value) {
+    return 'Total: $value $currency';
+  }
+
+  @override
+  String get returnRequestsTitle => 'Return Requests';
+
+  @override
+  String get returnAvailableAfterDeliveryMessage => 'Returns become available after delivery.';
+
+  @override
+  String get noReturnsYet => 'No return requests yet';
+
+  @override
+  String get requestReturnButton => 'Request Return';
+
+  @override
+  String get returnRequestSubmitted => 'Return request submitted';
+
+  @override
+  String get selectReturnReasonLabel => 'Select reason';
+
+  @override
+  String get returnDescriptionHint => 'Describe the issue...';
+
+  @override
+  String get selectReturnItemsLabel => 'Select items to return';
+
+  @override
+  String returnRequestLabel(Object id) {
+    return 'Return #$id';
+  }
+
+  @override
+  String get reasonLabel => 'Reason';
+
+  @override
+  String get refundAmountLabel => 'Refund amount';
+
+  @override
+  String get returnAmountLabel => 'Estimated refund';
+
+  @override
+  String get shippingResponsibilityLabel => 'Return shipping';
+
+  @override
+  String get refundTypeLabel => 'Refund type';
+
+  @override
+  String get returnTimelineTitle => 'Return timeline';
+
+  @override
+  String get refundResultLabel => 'Refund result';
+
+  @override
+  String get returnActionCompleted => 'Return updated';
+
+  @override
+  String get approveReturnButton => 'Approve';
+
+  @override
+  String get rejectReturnButton => 'Reject';
+
+  @override
+  String get cancelReturnButton => 'Cancel return';
+
+  @override
+  String get markShippedBackButton => 'Mark shipped back';
+
+  @override
+  String get markReceivedButton => 'Mark received';
+
+  @override
+  String get triggerRefundButton => 'Trigger refund';
+
+  @override
+  String get returnStatusPending => 'Pending';
+
+  @override
+  String get returnStatusApproved => 'Approved';
+
+  @override
+  String get returnStatusRejected => 'Rejected';
+
+  @override
+  String get returnStatusShippedBack => 'Shipped back';
+
+  @override
+  String get returnStatusReceivedBySeller => 'Received by seller';
+
+  @override
+  String get returnStatusRefundPending => 'Refund pending';
+
+  @override
+  String get returnStatusRefundFailed => 'Refund failed';
+
+  @override
+  String get returnStatusRefunded => 'Refunded';
+
+  @override
+  String get returnStatusCancelled => 'Cancelled';
+
+  @override
+  String get returnReasonDamaged => 'Damaged';
+
+  @override
+  String get returnReasonWrongProduct => 'Wrong product';
+
+  @override
+  String get returnReasonMissingParts => 'Missing parts';
+
+  @override
+  String get returnReasonNotAsDescribed => 'Not as described';
+
+  @override
+  String get returnReasonChangedMind => 'Changed mind';
+
+  @override
+  String get returnReasonOther => 'Other';
+
+  @override
+  String get refundTypeFullLabel => 'Full refund';
+
+  @override
+  String get refundTypePartialLabel => 'Partial refund';
+
+  @override
+  String get refundTypeShippingLabel => 'Shipping refund';
+
+  @override
+  String get shippingResponsibilitySellerLabel => 'Seller';
+
+  @override
+  String get shippingResponsibilityBuyerLabel => 'Buyer';
+
+  @override
+  String get shippingResponsibilityContractCarrierLabel => 'Seller if contracted carrier';
+
+  @override
+  String get returnCarrierLabel => 'Return Carrier';
+
+  @override
+  String get returnImagesAdded => 'Images added';
+
+  @override
+  String get refundRejectedStatusLabel => 'Refund rejected';
 }

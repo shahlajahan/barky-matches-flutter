@@ -101,18 +101,28 @@ Widget build(BuildContext context) {
               children: [
 
                 // 🔥 PET TYPE
-                const Text("Pet Type"),
+                Text(
+                  localizations.petTypeLabel,
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 8),
 
                 DropdownButtonFormField<String>(
                   value: _selectedPetType,
-                  hint: const Text("Any"),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text("Any")),
-                    DropdownMenuItem(value: 'dog', child: Text("Dog")),
-                    DropdownMenuItem(value: 'cat', child: Text("Cat")),
-                    DropdownMenuItem(value: 'bird', child: Text("Bird")),
-                    DropdownMenuItem(value: 'horse', child: Text("Horse")),
+                  hint: Text(localizations.anyGender),
+                  items: [
+                    DropdownMenuItem<String>(
+                      value: null,
+                      child: Text(localizations.anyGender),
+                    ),
+                    DropdownMenuItem(value: 'dog', child: Text(localizations.petTypeDog)),
+                    DropdownMenuItem(value: 'cat', child: Text(localizations.petTypeCat)),
+                    DropdownMenuItem(value: 'bird', child: Text(localizations.petTypeBird)),
+                    DropdownMenuItem(value: 'horse', child: Text(localizations.petTypeHorse)),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -195,15 +205,17 @@ Widget build(BuildContext context) {
                     style: GoogleFonts.poppins(color: Colors.white),
                     iconEnabledColor: Colors.white,
                     items: [
-                      const DropdownMenuItem<String>(
+                      DropdownMenuItem<String>(
                         value: null,
-                        child: Text('Any'),
+                        child: Text(localizations.anyGender),
                       ),
                       ..._genders.map((gender) {
                         return DropdownMenuItem<String>(
                           value: gender,
                           child: Text(
-                            gender,
+                            gender == 'Male'
+                                ? localizations.genderMale
+                                : localizations.genderFemale,
                             style: GoogleFonts.poppins(),
                           ),
                         );
@@ -318,15 +330,19 @@ Widget build(BuildContext context) {
                       style: GoogleFonts.poppins(color: Colors.white),
                       iconEnabledColor: Colors.white,
                       items: [
-                        const DropdownMenuItem<String>(
+                        DropdownMenuItem<String>(
                           value: null,
-                          child: Text('Any'),
+                          child: Text(localizations.anyGender),
                         ),
                         ..._healthStatusOptions.map((status) {
                           return DropdownMenuItem<String>(
                             value: status,
                             child: Text(
-                              status,
+                              status == 'Healthy'
+                                  ? localizations.healthHealthy
+                                  : status == 'Needs Care'
+                                      ? localizations.healthNeedsCare
+                                      : localizations.healthUnderTreatment,
                               style: GoogleFonts.poppins(),
                             ),
                           );
@@ -389,13 +405,13 @@ Widget build(BuildContext context) {
                           ),
                         ),
                         child: Text(
-                          localizations.cancelButton,
+                          localizations.cancel,
                           style: GoogleFonts.poppins(),
                         ),
                       ),
                       ElevatedButton(
                         onPressed: () {
-                          print('FilterPage - Applying filters: breed=$_selectedBreed, gender=$_selectedGender, ageRange=$_ageRange, maxDistance=$_maxDistance, neutered=$_selectedNeutered, healthStatus=$_selectedHealthStatus');
+                          debugPrint('FilterPage - Applying filters: breed=$_selectedBreed, gender=$_selectedGender, ageRange=$_ageRange, maxDistance=$_maxDistance, neutered=$_selectedNeutered, healthStatus=$_selectedHealthStatus');
                           Navigator.pop(context, {
                             'breed': _selectedBreed,
                             'gender': _selectedGender,

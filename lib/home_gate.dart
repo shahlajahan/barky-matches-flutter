@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/home_page.dart';
 import 'package:barky_matches_fixed/favorites_page.dart';
 import 'package:barky_matches_fixed/vet_page.dart';
+import 'package:barky_matches_fixed/groomy_page.dart';
+import 'package:barky_matches_fixed/pet_hotel_page.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_page.dart';
+import 'package:barky_matches_fixed/ui/green_memorial/green_memorial_page.dart';
 import 'package:barky_matches_fixed/play_date_requests_page_new.dart';
 import 'package:barky_matches_fixed/user_profile_page.dart';
 import 'package:barky_matches_fixed/dog_park_page.dart';
@@ -29,6 +32,22 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
 
+import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
+import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
+import 'package:barky_matches_fixed/ui/feedback/feedback_form_page.dart';
+import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
+import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
+import 'package:barky_matches_fixed/upgrade_page.dart';
+import 'package:barky_matches_fixed/ui/profile/change_password_page.dart';
+import 'package:barky_matches_fixed/ui/setting/delete_account_page.dart';
+import 'package:barky_matches_fixed/ui/business/business_register_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/business_dashboard_page.dart';
+import 'package:barky_matches_fixed/ui/help/help_center_page.dart';
+
+import 'package:barky_matches_fixed/ui/support/faq_page.dart';
+
+import 'package:barky_matches_fixed/social/pages/petplore_page.dart';
+
 // ─────────────────────────────────────────────
 // HomeGate
 // ─────────────────────────────────────────────
@@ -48,62 +67,66 @@ class _HomeGateState extends State<HomeGate> {
     debugPrint('🧩 HomeGate initState hash=${identityHashCode(this)}');
   }
 
- Future<void> _handleInitialNotification() async {
-  final appState = context.read<AppState>();
+  Future<void> _handleInitialNotification() async {
+    final appState = context.read<AppState>();
 
-  if (appState.isGuestUser) {
-    debugPrint('🚫 Guest → skip initial notification handling');
-    return;
-  }
+    if (appState.isGuestUser) {
+      debugPrint('🚫 Guest → skip initial notification handling');
+      return;
+    }
 
-  final message =
-      await FirebaseMessaging.instance.getInitialMessage();
+    final message = await FirebaseMessaging.instance.getInitialMessage();
 
     if (message == null) return;
 
+    final start = DateTime.now();
+
     await Future.doWhile(() async {
-      final uid = context.read<AppState>().currentUserId;
+      if (!mounted) return false;
+
       final appState = context.read<AppState>();
+      final uid = appState.currentUserId;
 
-if (appState.isGuestUser) return false;
+      if (appState.isGuestUser) return false;
 
-if (uid != null && uid.isNotEmpty) return false;
+      if (uid != null && uid.isNotEmpty) return false;
+
+      if (DateTime.now().difference(start).inSeconds >= 8) {
+        debugPrint('⛔ Initial notification wait timeout');
+        return false;
+      }
+
       await Future.delayed(const Duration(milliseconds: 100));
+
       return true;
     });
-
-    
-
     if (!mounted) return;
 
     final data = message.data;
     final type = (data['type'] ?? '').toString();
-if (context.read<AppState>().isGuestUser) {
-  debugPrint('🚫 Guest → skip notification navigation');
-  return;
-}
+    if (context.read<AppState>().isGuestUser) {
+      debugPrint('🚫 Guest → skip notification navigation');
+      return;
+    }
 
-// 🔥 FIXED POSITION
-if (type == 'vet_appointment_request' && data['appointmentId'] != null) {
-  final appState = context.read<AppState>();
-
-  if (!appState.consumeNotificationNavigation()) return;
-
-  appState.setCurrentTab(NavTab.vet);
-
-  debugPrint("🐾 Navigate to vet from notification");
-}
-
-    if ((type == 'playdateRequest' ||
-            type == 'playdateResponse') &&
-        data['requestId'] != null) {
-
+    // 🔥 FIXED POSITION
+    if (type == 'vet_appointment_request' && data['appointmentId'] != null) {
       final appState = context.read<AppState>();
 
       if (!appState.consumeNotificationNavigation()) return;
 
-      appState.setInitialPlaydateRequest(
-          data['requestId'].toString());
+      appState.setCurrentTab(NavTab.vet);
+
+      debugPrint("🐾 Navigate to vet from notification");
+    }
+
+    if ((type == 'playdateRequest' || type == 'playdateResponse') &&
+        data['requestId'] != null) {
+      final appState = context.read<AppState>();
+
+      if (!appState.consumeNotificationNavigation()) return;
+
+      appState.setInitialPlaydateRequest(data['requestId'].toString());
 
       appState.setCurrentTab(NavTab.playdate);
     }
@@ -115,7 +138,6 @@ if (type == 'vet_appointment_request' && data['appointmentId'] != null) {
     return const _HomeBody();
   }
 }
-
 
 // ─────────────────────────────────────────────
 // HomeBody
@@ -130,133 +152,200 @@ class _HomeBody extends StatefulWidget {
 
 class _HomeBodyState extends State<_HomeBody> {
   //late final List<Widget> _pages;
-bool _isTransitioning = false;
-bool _firstLoad = true;
-NavTab? _lastTab;
+  bool _isTransitioning = false;
+  bool _firstLoad = true;
+  NavTab? _lastTab;
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  // 🔥 FIRST LOAD SPINNER
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    _startTransition();
-  });
-}
-Widget _buildCurrentTab(
-  NavTab tab,
-  String currentUserId,
-  List<Dog> allDogs,
-  List<Dog> favoriteDogs,
-  Function(Dog) onToggleFavorite,
-) {
-  switch (tab) {
-
-    case NavTab.home:
-      return const HomePage(key: PageStorageKey('home'));
-
-    case NavTab.favorites:
-      return const FavoritesPage(key: PageStorageKey('favorites'));
-
-    case NavTab.vet:
-      return const VetPage(key: PageStorageKey('vet'));
-
-    case NavTab.playdate:
-      return const _PlaydateTab(key: PageStorageKey('playdate'));
-
-    case NavTab.playmates:
-      return PlaymatePage(
-        key: const PageStorageKey('playmates'),
-        dogs: allDogs,
-        currentUserId: currentUserId,
-        favoriteDogs: favoriteDogs,
-        onToggleFavorite: onToggleFavorite,
-      );
-
-    case NavTab.profile:
-      return const _ProfileTab(key: PageStorageKey('profile'));
-
-    case NavTab.dogParks:
-      return const DogParkPage(key: PageStorageKey('dogParks'));
-
-    case NavTab.adoption:
-      return AdoptionPage(
-        dogs: allDogs,
-        favoriteDogs: favoriteDogs,
-        onToggleFavorite: onToggleFavorite,
-      );
-
-    case NavTab.reportLost:
-      return const LostDogReportPage();
-
-    case NavTab.reportFound:
-      return const FoundDogReportPage();
-
-    case NavTab.lostDogs:
-      return const LostDogsListPage();
-
-    case NavTab.foundDogs:
-      return const FoundDogsListPage();
-
-    case NavTab.playdateScheduling:
-      return const PlayDateSchedulingPage(
-        key: PageStorageKey('schedule'),
-      );
-
-    case NavTab.none:
-      return const SizedBox();
+    // 🔥 FIRST LOAD SPINNER
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startTransition();
+    });
   }
-}
 
-void _startTransition() {
-  if (!mounted) return;
+  Widget _buildCurrentTab(
+    NavTab tab,
+    String currentUserId,
+    List<Dog> allDogs,
+    List<Dog> favoriteDogs,
+    Function(Dog) onToggleFavorite,
+  ) {
+    switch (tab) {
+      case NavTab.home:
+        return const HomePage(key: PageStorageKey('home'));
 
-  setState(() {
-    _isTransitioning = true;
-  });
+      case NavTab.favorites:
+        return const FavoritesPage(key: PageStorageKey('favorites'));
 
-  Future.delayed(const Duration(milliseconds: 800), () {
+      case NavTab.vet:
+        return const VetPage(key: PageStorageKey('vet'));
+
+      case NavTab.groomy:
+        return const GroomyPage(key: PageStorageKey('groomy'));
+
+      case NavTab.petHotel:
+        return const PetHotelPage(key: PageStorageKey('petHotel'));
+
+      case NavTab.petTaxi:
+        return const PetTaxiPage(key: PageStorageKey('petTaxi'));
+
+      case NavTab.playdate:
+        return const _PlaydateTab(key: PageStorageKey('playdate'));
+
+        case NavTab.petplore:
+  return const PetplorePage(
+    key: PageStorageKey('petplore'),
+  );
+
+      case NavTab.playmates:
+        return PlaymatePage(
+          key: const PageStorageKey('playmates'),
+          dogs: allDogs,
+          currentUserId: currentUserId,
+          favoriteDogs: favoriteDogs,
+          onToggleFavorite: onToggleFavorite,
+        );
+
+      case NavTab.profile:
+        return const _ProfileTab(key: PageStorageKey('profile'));
+
+      case NavTab.dogParks:
+        return const DogParkPage(key: PageStorageKey('dogParks'));
+
+      case NavTab.greenMemorial:
+        return const GreenMemorialPage(key: PageStorageKey('greenMemorial'));
+
+      case NavTab.adoption:
+        return AdoptionPage(
+          dogs: allDogs,
+          favoriteDogs: favoriteDogs,
+          onToggleFavorite: onToggleFavorite,
+        );
+
+      case NavTab.reportLost:
+        return const LostDogReportPage();
+
+      case NavTab.reportFound:
+        return const FoundDogReportPage();
+
+      case NavTab.lostDogs:
+        return const LostDogsListPage();
+
+      case NavTab.foundDogs:
+        return const FoundDogsListPage();
+
+      case NavTab.playdateScheduling:
+        return const PlayDateSchedulingPage(key: PageStorageKey('schedule'));
+
+      case NavTab.none:
+        return const SizedBox();
+    }
+  }
+
+  void _startTransition() {
     if (!mounted) return;
 
+    if (_isTransitioning) return;
+
     setState(() {
-      _isTransitioning = false;
+      _isTransitioning = true;
     });
-  });
-}
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+
+      if (_isTransitioning) {
+        setState(() {
+          _isTransitioning = false;
+        });
+      }
+    });
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+
+      if (_isTransitioning) {
+        debugPrint('⛔ Transition timeout recovery');
+
+        setState(() {
+          _isTransitioning = false;
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
     // ==========================
-// 🔥 APPOINTMENT PAYMENT NAVIGATION
-// ==========================
-if (appState.selectedAppointmentId != null) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
+    // 🔥 APPOINTMENT PAYMENT NAVIGATION
+    // ==========================
+    if (appState.selectedAppointmentId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final appointmentId = appState.selectedAppointmentId!;
+        final collection =
+            appState.selectedAppointmentCollection ?? 'vet_appointments';
+        final isGroomy = collection == 'groomy_appointments';
+        final isHotel = collection == 'hotel_bookings';
+        debugPrint("💳 NAVIGATE TO PAYMENT PAGE → $appointmentId");
 
-    final appointmentId = appState.selectedAppointmentId!;
-    debugPrint("💳 NAVIGATE TO PAYMENT PAGE → $appointmentId");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AppointmentPaymentPage(
+              appointmentId: appointmentId,
+              appointmentCollection: collection,
+              appointmentType: isHotel
+                  ? 'pet_hotel'
+                  : isGroomy
+                  ? 'grooming'
+                  : 'veterinary',
+              updateStatusFunctionName: isHotel
+                  ? 'updateHotelBookingStatus'
+                  : isGroomy
+                  ? 'updateGroomyAppointmentStatus'
+                  : 'updateVetAppointmentStatus',
+              createOrderFunctionName: isHotel
+                  ? 'createHotelBookingOrder'
+                  : 'createAppointmentOrder',
+              verifyPaymentFunctionName: isHotel
+                  ? 'verifyHotelBookingPayment'
+                  : 'verifyPayment',
+              serviceFallbackName: isHotel
+                  ? 'Hotel stay'
+                  : isGroomy
+                  ? 'Grooming service'
+                  : 'Veterinary service',
+              businessFallbackName: isHotel
+                  ? 'Pet hotel'
+                  : isGroomy
+                  ? 'Grooming studio'
+                  : 'Vet clinic',
+              businessInfoLabel: isHotel
+                  ? 'Hotel'
+                  : isGroomy
+                  ? 'Groomy'
+                  : 'Clinic',
+            ),
+          ),
+        );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AppointmentPaymentPage(
-          appointmentId: appointmentId,
-        ),
-      ),
-    );
+        appState.consumeSelectedAppointment();
+      });
+    }
+    var currentTab = appState.currentTab;
 
-    appState.consumeSelectedAppointment();
-  });
-}
-var currentTab = appState.currentTab;
+    if (_lastTab != null && _lastTab != currentTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _startTransition();
+      });
+    }
 
-if (_lastTab != null && _lastTab != currentTab) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    _startTransition();
-  });
-}
-
-_lastTab = currentTab;
-/*
+    _lastTab = currentTab;
+    /*
 if (appState.isGuest) {
   if (currentTab != NavTab.adoption) {
     debugPrint("⛔ Guest blocked → forcing adoption tab");
@@ -264,68 +353,86 @@ if (appState.isGuest) {
   }
 }
 */
-    final currentUserId =
-        context.select<AppState, String?>((s) => s.currentUserId);
+    final currentUserId = context.select<AppState, String?>(
+      (s) => s.currentUserId,
+    );
 
-    final unreadNotifications =
-        context.select<AppState, int>((s) => s.unreadNotificationsCount);
+    final unreadNotifications = context.select<AppState, int>(
+      (s) => s.unreadNotificationsCount,
+    );
 
-    final allDogs =
-        context.select<AppState, List<Dog>>((s) => s.allDogs);
+    final allDogs = context.select<AppState, List<Dog>>((s) => s.allDogs);
 
-    final favoriteDogs =
-        context.select<AppState, List<Dog>>((s) => s.favoriteDogs);
+    final favoriteDogs = context.select<AppState, List<Dog>>(
+      (s) => s.favoriteDogs,
+    );
 
-    final onToggleFavorite =
-        context.read<AppState>().onToggleFavorite;
+    final onToggleFavorite = context.read<AppState>().onToggleFavorite;
 
-    final openNotifications =
-        context.read<AppState>().openNotifications;
+    final openNotifications = context.read<AppState>().openNotifications;
 
-   // if (currentUserId == null || currentUserId.isEmpty) {
-  //return const Center(
+    // if (currentUserId == null || currentUserId.isEmpty) {
+    //return const Center(
     //child: CircularProgressIndicator(),
-  //);
-//}
+    //);
+    //}
 
     return BarkyScaffold(
-  currentTab: currentTab,
-  currentUserId: currentUserId ?? "",
-  unreadNotifications: unreadNotifications,
-  dogs: allDogs,
-  favoriteDogs: favoriteDogs,
-  onToggleFavorite: onToggleFavorite,
-  onNotificationTap: openNotifications,
-  body: Stack(
-    children: [
+      currentTab: currentTab,
+      currentUserId: currentUserId ?? "",
+      unreadNotifications: unreadNotifications,
+      dogs: allDogs,
+      favoriteDogs: favoriteDogs,
+      onToggleFavorite: onToggleFavorite,
+      onNotificationTap: openNotifications,
+      body: Stack(
+        children: [
+          // 🟢 MAIN
+          if (currentUserId != null && currentUserId.isNotEmpty)
+            _buildCurrentTab(
+              currentTab,
+              currentUserId,
+              allDogs,
+              favoriteDogs,
+              onToggleFavorite,
+            )
+          else
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
 
-      // 🟢 MAIN
-      if (currentUserId != null && currentUserId.isNotEmpty)
-        _buildCurrentTab(
-          currentTab,
-          currentUserId,
-          allDogs,
-          favoriteDogs,
-          onToggleFavorite,
-        )
-      else
-        const SizedBox(), // یا placeholder ساده
+                  const SizedBox(height: 16),
 
-      // 🔥 OVERLAY همیشه قابل نمایش
-      if (_isTransitioning)
-        Container(
-          color: Colors.white.withOpacity(0.4),
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
-    ],
-  ),
-);
+                  const Text('Loading account...'),
+
+                  const SizedBox(height: 20),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      // optional retry
+                      setState(() {});
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+
+          // 🔥 OVERLAY
+          if (_isTransitioning)
+            Container(
+              color: Colors.white.withOpacity(0.4),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
+      ),
+    );
   }
 }
 
-  int _tabToIndex(NavTab tab) {
+int _tabToIndex(NavTab tab) {
   switch (tab) {
     case NavTab.home:
       return 0;
@@ -336,40 +443,52 @@ if (appState.isGuest) {
     case NavTab.vet:
       return 2;
 
-    case NavTab.playdate:
+    case NavTab.groomy:
       return 3;
 
-    case NavTab.playmates:
+    case NavTab.petHotel:
       return 4;
 
-    case NavTab.profile:
+    case NavTab.petTaxi:
+      return 4;
+
+    case NavTab.playdate:
       return 5;
+
+    case NavTab.playmates:
+      return 6;
+
+    case NavTab.profile:
+      return 7;
 
     case NavTab.dogParks:
     case NavTab.none:
-      return 6;
-
-    case NavTab.adoption:
-      return 7;
-
-    case NavTab.reportLost:
       return 8;
 
-    case NavTab.reportFound:
+    case NavTab.adoption:
       return 9;
 
-    case NavTab.lostDogs:
+    case NavTab.reportLost:
       return 10;
 
-    case NavTab.foundDogs:
+    case NavTab.reportFound:
       return 11;
 
+    case NavTab.lostDogs:
+      return 12;
+
+    case NavTab.foundDogs:
+      return 13;
+
     case NavTab.playdateScheduling:
-      return 12; // 👈 فقط این اضافه شد
+      return 14; // 👈 فقط این اضافه شد
+
+    case NavTab.greenMemorial:
+      return 15;
+      case NavTab.petplore:
+  return _tabToIndex(NavTab.home);
   }
 }
-
-
 
 // ─────────────────────────────────────────────
 // Playdate Tab Wrapper
@@ -380,16 +499,15 @@ class _PlaydateTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final appState = context.read<AppState>();
 
-    final activePark =
-        context.select<AppState, Map<String, dynamic>?>(
-            (s) => s.activePlaydatePark);
+    final activePark = context.select<AppState, Map<String, dynamic>?>(
+      (s) => s.activePlaydatePark,
+    );
 
-    final requestId =
-        context.select<AppState, String?>(
-            (s) => s.initialPlaydateRequestId);
+    final requestId = context.select<AppState, String?>(
+      (s) => s.initialPlaydateRequestId,
+    );
 
     if (activePark != null) {
       return ParkPlaydateEntryView(
@@ -416,7 +534,6 @@ class _PlaydateTab extends StatelessWidget {
   }
 }
 
-
 // ─────────────────────────────────────────────
 // Profile Tab Wrapper
 // ─────────────────────────────────────────────
@@ -440,13 +557,66 @@ class _ProfileTab extends StatelessWidget {
 
     // 🟢 Adoption Inbox
     if (subPage == ProfileSubPage.adoptionInbox) {
-      return  AdoptionInboxPage();
+      return AdoptionInboxPage();
     }
 
-    // 🟢 Saved Parks (اگر بعداً بخوای)
-    //if (subPage == ProfileSubPage.savedParks) {
-      //return  SavedParksPage(); // اگر داری
-    //}
+    // 🟢 My Orders
+    if (subPage == ProfileSubPage.myOrders) {
+      return const MyOrdersPage();
+    }
+
+    // 🟢 Appointments
+    if (subPage == ProfileSubPage.appointments) {
+      return const MyAppointmentsPage();
+    }
+
+    // 🟢 Feedback
+    if (subPage == ProfileSubPage.feedback) {
+      return const FeedbackFormPage();
+    }
+
+    // 🟢 Privacy
+    if (subPage == ProfileSubPage.privacy) {
+      return const PrivacySettingsPage();
+    }
+
+    // 🟢 Report Problem
+    if (subPage == ProfileSubPage.reportProblem) {
+      return const ReportProblemPage();
+    }
+
+    // 🟢 Upgrade
+    if (subPage == ProfileSubPage.upgrade) {
+      return const UpgradePage();
+    }
+
+    // 🟢 Change Password
+    if (subPage == ProfileSubPage.changePassword) {
+      return const ChangePasswordPage();
+    }
+
+    // 🟢 Delete Account
+    if (subPage == ProfileSubPage.deleteAccount) {
+      return const DeleteAccountPage();
+    }
+
+    // 🟢 Business Register
+    if (subPage == ProfileSubPage.businessRegister) {
+      return const BusinessRegisterPage();
+    }
+
+    // 🟢 Business Dashboard
+    if (subPage == ProfileSubPage.businessDashboard) {
+      return BusinessDashboardPage(businessId: uid);
+    }
+
+    if (subPage == ProfileSubPage.helpCenter) {
+      return const HelpCenterPage();
+    }
+
+    if (subPage == ProfileSubPage.faq) {
+      return const FAQPage();
+    }
 
     // 🟢 Default Profile
     return UserProfilePage(

@@ -82,6 +82,7 @@ void initState() {
           allDogs.firstWhere((d) => d.id == requestedDogId);
 
       _selectedRequestedDog = selectedDog;
+      
 
      // _loadFriendDogs(selectedDog.ownerId!); // ✅ اینم میمونه
 
@@ -312,7 +313,10 @@ void initState() {
                 _PickedLocation(
                   text: typedText?.trim().isNotEmpty == true
                       ? typedText!.trim()
-                      : 'Lat: ${picked.latitude}, Lng: ${picked.longitude}',
+                      : l10n.coordinatesLatLng(
+                          picked.latitude.toString(),
+                          picked.longitude.toString(),
+                        ),
                   lat: picked.latitude,
                   lng: picked.longitude,
                 ),
@@ -417,14 +421,14 @@ void initState() {
   final scheduled = _buildScheduledDateTime();
   if (scheduled == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select date and time.')),
+      SnackBar(content: Text(l10n.errorSelectDateAndTime)),
     );
     return;
   }
 
   if (_selectedLat == null || _selectedLng == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Park location coordinates missing.')),
+      SnackBar(content: Text(l10n.errorMissingLocationCoordinates)),
     );
     return;
   }
@@ -432,11 +436,7 @@ void initState() {
   final nowUtc = DateTime.now().toUtc();
   if (scheduled.isBefore(nowUtc.add(const Duration(minutes: 15)))) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Playdate must be scheduled at least 15 minutes in advance.',
-        ),
-      ),
+      SnackBar(content: Text(l10n.errorPlaydateLeadTime)),
     );
     return;
   }
@@ -520,11 +520,7 @@ void initState() {
     if (data is Map && data['success'] == false) {
       if (data['reason'] == 'time_conflict') {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "This dog already has a playdate around this time 🐾",
-            ),
-          ),
+          SnackBar(content: Text(l10n.playdateTimeConflict)),
         );
 
         setState(() => _sending = false);
@@ -752,7 +748,7 @@ Widget build(BuildContext context) {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Schedule a Playdate 🐾",
+              '${l10n.schedulePlayDate} 🐾',
               style: AppTheme.h1(
                 color: const Color(0xFF9E1B4F),
                 size: 24,
@@ -762,7 +758,7 @@ Widget build(BuildContext context) {
             const SizedBox(height: 6),
 
             Text(
-              "Pick date, time, location and dogs for the playdate.",
+              l10n.playdateSchedulingSubtitle,
               style: AppTheme.body(
                 color: Colors.black54,
                 size: 13,
@@ -968,7 +964,7 @@ Widget build(BuildContext context) {
 
                   if (friendDogs.isEmpty)
                     Text(
-                      "No available dogs",
+                      l10n.noDogsFound,
                       style: AppTheme.caption(),
                     )
                   else

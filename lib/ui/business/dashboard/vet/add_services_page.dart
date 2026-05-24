@@ -5,7 +5,18 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
 class AddServicesPage extends StatelessWidget {
-  const AddServicesPage({super.key});
+  final List<String>? services;
+  final String title;
+  final String sectionTitle;
+  final IconData fallbackIcon;
+
+  const AddServicesPage({
+    super.key,
+    this.services,
+    this.title = "Add Service",
+    this.sectionTitle = "Select Service Type",
+    this.fallbackIcon = LucideIcons.stethoscope,
+  });
 
   // ✅ لیست کامل
   static const List<String> _allServices = [
@@ -43,23 +54,20 @@ class AddServicesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
+    final allServices = services ?? _allServices;
 
     return Material(
       color: AppTheme.bg,
       child: SafeArea(
         child: Column(
           children: [
-
             /// HEADER
             Container(
               height: 56,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Colors.black12),
-                ),
+                border: Border(bottom: BorderSide(color: Colors.black12)),
               ),
               child: Row(
                 children: [
@@ -70,7 +78,7 @@ class AddServicesPage extends StatelessWidget {
                     },
                   ),
                   const SizedBox(width: 4),
-                  Text("Add Service", style: AppTheme.h2()),
+                  Text(title, style: AppTheme.h2()),
                 ],
               ),
             ),
@@ -80,18 +88,17 @@ class AddServicesPage extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-
-                  _sectionHeader("Select Service Type", LucideIcons.stethoscope),
+                  _sectionHeader(sectionTitle, fallbackIcon),
                   const SizedBox(height: 12),
 
                   /// ✅ LOOP
-                 ..._allServices.map((service) {
-  return _serviceCard(
-    context,
-    service,
-    _icons[service] ?? LucideIcons.stethoscope,
-  );
-}),
+                  ...allServices.map((service) {
+                    return _serviceCard(
+                      context,
+                      service,
+                      _icons[service] ?? fallbackIcon,
+                    );
+                  }),
 
                   const SizedBox(height: 20),
 
@@ -117,49 +124,45 @@ class AddServicesPage extends StatelessWidget {
   }
 
   /// SERVICE CARD
-  Widget _serviceCard(
-  BuildContext context,
-  String title,
-  IconData icon,
-) {
-  final appState = context.watch<AppState>();
+  Widget _serviceCard(BuildContext context, String title, IconData icon) {
+    final appState = context.watch<AppState>();
 
-  final exists = appState.existingServices
-      .map((e) => e.toLowerCase())
-      .contains(title.toLowerCase());
+    final exists = appState.existingServices
+        .map((e) => e.toLowerCase())
+        .contains(title.toLowerCase());
 
-  return GestureDetector(
-    onTap: exists
-        ? null // ❌ disable
-        : () {
-            context.read<AppState>().openAddServiceDetail(title);
-          },
-    child: Opacity(
-      opacity: exists ? 0.4 : 1,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 12),
-            Expanded(child: Text(title)),
+    return GestureDetector(
+      onTap: exists
+          ? null // ❌ disable
+          : () {
+              context.read<AppState>().openAddServiceDetail(title);
+            },
+      child: Opacity(
+        opacity: exists ? 0.4 : 1,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 20),
+              const SizedBox(width: 12),
+              Expanded(child: Text(title)),
 
-            if (exists)
-              const Icon(Icons.check, color: Colors.green)
-            else
-              const Icon(Icons.add),
-          ],
+              if (exists)
+                const Icon(Icons.check, color: Colors.green)
+              else
+                const Icon(Icons.add),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   /// CUSTOM
   Widget _addCustomServiceCard(BuildContext context) {

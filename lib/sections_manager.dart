@@ -35,7 +35,7 @@ class SectionsManager {
             itemBuilder: (context, index) {
               final dog = filteredDogs[index];
               if (kDebugMode) {
-                print(
+                debugPrint(
                     'SectionsManager - Displaying dog at index $index: Name=${dog.name}, Breed=${dog.breed}, Age=${dog.age}, Gender=${dog.gender}');
               }
               return RepaintBoundary(
@@ -104,9 +104,9 @@ class SectionsManager {
     final localizations = AppLocalizations.of(context)!;
     final favoriteDogs = favoritesBox.values.toList();
     if (kDebugMode) {
-      print('SectionsManager - Favorite dogs count: ${favoriteDogs.length}');
+      debugPrint('SectionsManager - Favorite dogs count: ${favoriteDogs.length}');
       for (var dog in favoriteDogs) {
-        print('SectionsManager - Favorite dog: ${dog.name}, ownerId: ${dog.ownerId}');
+        debugPrint('SectionsManager - Favorite dog: ${dog.name}, ownerId: ${dog.ownerId}');
       }
     }
     return favoriteDogs.isEmpty

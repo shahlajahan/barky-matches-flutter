@@ -8,7 +8,7 @@ class AdminActivityFeed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    print("📜 AdminActivityFeed BUILD");
+    debugPrint("📜 AdminActivityFeed BUILD");
 
     final stream = FirebaseFirestore.instance
         .collection("admin_logs")
@@ -20,15 +20,15 @@ class AdminActivityFeed extends StatelessWidget {
       stream: stream,
       builder: (context, snapshot) {
 
-        print("📡 AdminActivity snapshot:");
-        print("hasData: ${snapshot.hasData}");
-        print("hasError: ${snapshot.hasError}");
-        print("connectionState: ${snapshot.connectionState}");
+        debugPrint("📡 AdminActivity snapshot:");
+        debugPrint("hasData: ${snapshot.hasData}");
+        debugPrint("hasError: ${snapshot.hasError}");
+        debugPrint("connectionState: ${snapshot.connectionState}");
 
         /// ERROR
         if (snapshot.hasError) {
 
-          print("❌ AdminActivity ERROR → ${snapshot.error}");
+          debugPrint("❌ AdminActivity ERROR → ${snapshot.error}");
 
           return Center(
             child: Text(
@@ -41,7 +41,7 @@ class AdminActivityFeed extends StatelessWidget {
         /// LOADING
         if (!snapshot.hasData) {
 
-          print("⏳ waiting for admin logs...");
+          debugPrint("⏳ waiting for admin logs...");
 
           return const Center(
             child: CircularProgressIndicator(),
@@ -50,7 +50,7 @@ class AdminActivityFeed extends StatelessWidget {
 
         final docs = snapshot.data!.docs;
 
-        print("✅ Admin logs loaded: ${docs.length}");
+        debugPrint("✅ Admin logs loaded: ${docs.length}");
 
         /// EMPTY
         if (docs.isEmpty) {
@@ -88,7 +88,7 @@ class AdminActivityFeed extends StatelessWidget {
             final Timestamp? ts = data["createdAt"];
             final DateTime? time = ts?.toDate();
 
-            print("📌 activity → $action / $entity");
+            debugPrint("📌 activity → $action / $entity");
 
             /// ---- FORMAT ACTION TEXT ----
             final title = _formatAction(action, entity);

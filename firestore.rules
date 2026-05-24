@@ -1,0 +1,808 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isBusinessOwner(businessId) {
+      return isSignedIn()
+        && businessId is string
+        && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isSellerOrderBusinessOwner(data) {
+      return isSignedIn() && (
+        (data.businessId is string && isBusinessOwner(data.businessId)) ||
+        (data.shopId is string && isBusinessOwner(data.shopId)) ||
+        data.sellerUid == request.auth.uid ||
+        data.ownerUid == request.auth.uid
+      );
+    }
+
+    function isOwnUserDoc(userId) {
+      return isSignedIn() && userId is string && request.auth.uid == userId;
+    }
+
+    function isAppointmentOwner(data) {
+      return isSignedIn() && (
+        data.userId == request.auth.uid ||
+        data.buyerUid == request.auth.uid
+      );
+    }
+
+    function canOwnerCancel(oldData, newData) {
+      return oldData.status in ['pending', 'awaiting_payment', 'confirmed', 'confirmed_paid']
+        && newData.status == 'cancelled_by_user';
+    }
+
+    function canStaffUpdate(oldData, newData) {
+      return (
+        (oldData.status == 'pending' && newData.status in ['awaiting_payment', 'confirmed', 'rejected']) ||
+        (oldData.status == 'awaiting_payment' && newData.status in ['confirmed_paid', 'payment_expired']) ||
+        (oldData.status == 'confirmed' && newData.status in ['completed', 'cancelled_by_vet', 'rejected']) ||
+        (oldData.status == 'confirmed_paid' && newData.status == 'completed')
+      );
+    }
+
+    function canGroomyStaffUpdate(oldData, newData) {
+      return (
+        (oldData.status == 'pending' && newData.status in ['awaiting_payment', 'confirmed', 'rejected']) ||
+        (oldData.status == 'awaiting_payment' && newData.status in ['confirmed_paid', 'payment_expired', 'cancelled_by_groomy']) ||
+        (oldData.status == 'confirmed' && newData.status in ['completed', 'cancelled_by_groomy', 'rejected']) ||
+        (oldData.status == 'confirmed_paid' && newData.status in ['completed', 'cancelled_by_groomy'])
+      );
+    }
+
+    function canHotelStaffUpdate(oldData, newData) {
+      return (
+        (oldData.status == 'pending' && newData.status in ['awaiting_payment', 'confirmed', 'rejected', 'cancelled_by_hotel']) ||
+        (oldData.status == 'awaiting_payment' && newData.status in ['confirmed_paid', 'payment_expired', 'cancelled_by_hotel']) ||
+        (oldData.status == 'confirmed' && newData.status in ['checked_in', 'completed', 'cancelled_by_hotel', 'rejected']) ||
+        (oldData.status == 'confirmed_paid' && newData.status in ['checked_in', 'completed', 'cancelled_by_hotel']) ||
+        (oldData.status == 'checked_in' && newData.status in ['completed', 'cancelled_by_hotel'])
+      );
+    }
+
+    function canPetTaxiStaffUpdate(oldData, newData) {
+      return (
+        (oldData.status == 'pending' && newData.status == 'cancelled_by_business') ||
+        (oldData.status == 'awaiting_user_payment' && newData.status == 'cancelled_by_business') ||
+        (oldData.status == 'payment_failed' && newData.status == 'cancelled_by_business') ||
+        (oldData.status == 'confirmed_paid' && newData.status in ['driver_on_the_way', 'cancelled_by_business']) ||
+        (oldData.status == 'driver_on_the_way' && newData.status in ['arrived', 'cancelled_by_business']) ||
+        (oldData.status == 'arrived' && newData.status in ['pet_picked_up', 'cancelled_by_business']) ||
+        (oldData.status == 'pet_picked_up' && newData.status in ['on_trip', 'cancelled_by_business']) ||
+        (oldData.status == 'on_trip' && newData.status in ['completed', 'cancelled_by_business'])
+      );
+    }
+
+    function canPetTaxiStaffProposePrice(oldData, newData) {
+      return oldData.status in ['pending', 'awaiting_user_payment', 'payment_failed']
+        && newData.status == 'awaiting_user_payment'
+        && newData.finalPrice is number
+        && newData.finalPrice > 0
+        && newData.finalPriceCurrency is string
+        && newData.priceConfirmedBy == request.auth.uid;
+    }
+
+    function canPetTaxiUserCancel(oldData, newData) {
+      return oldData.status in ['pending', 'awaiting_user_payment', 'payment_failed', 'driver_on_the_way']
+        && newData.status == 'cancelled_by_user';
+    }
+
+    function isStatusOnlyUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(['status']);
+    }
+
+    function isPetTaxiStatusOnlyUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        'status',
+        'updatedAt',
+        'lastStatusChange',
+        'finalPrice',
+        'finalPriceCurrency',
+        'priceConfirmedBy',
+        'priceConfirmedAt',
+        'userAcceptedPrice',
+        'userAcceptedAt',
+        'userRejectedPrice',
+        'userRejectedAt',
+        'paymentStatus',
+        'paymentAmount',
+        'paymentCurrency',
+        'providerPayoutStatus',
+        'providerPayoutAt'
+      ]);
+    }
+
+    function isNotificationOwner(data) {
+      return isSignedIn() && (
+        data.userId == request.auth.uid ||
+        data.recipientUserId == request.auth.uid ||
+        data.targetUserId == request.auth.uid ||
+        data.fromUserId == request.auth.uid
+      );
+    }
+
+    function isSubscriptionOwner(data) {
+      return isSignedIn() && (
+        data.userId == request.auth.uid ||
+        data.buyerUid == request.auth.uid
+      );
+    }
+
+    function isOrderOwner(data) {
+      return isSignedIn() && (
+        data.userId == request.auth.uid ||
+        data.buyerUid == request.auth.uid
+      );
+    }
+
+    function isPlayDateRequestParticipant(data) {
+      return isSignedIn() && (
+        data.requesterUserId == request.auth.uid ||
+        data.requesterId == request.auth.uid ||
+        data.requestedUserId == request.auth.uid ||
+        data.targetUserId == request.auth.uid ||
+        data.ownerId == request.auth.uid ||
+        data.targetOwnerId == request.auth.uid
+      );
+    }
+
+    function isAdoptionRequestParticipant(data) {
+  return isSignedIn() && (
+    data.requesterUserId == request.auth.uid ||
+    data.requesterId == request.auth.uid ||
+    data.ownerId == request.auth.uid ||
+    data.targetOwnerId == request.auth.uid ||
+    data.targetUserId == request.auth.uid ||
+
+    // ✅ Adoption Center Business Owner
+    (
+      data.businessId is string &&
+      isBusinessOwner(data.businessId)
+    )
+  );
+}
+
+match /adoption_center_requests/{requestId} {
+
+  allow read: if isAdmin() || (
+    isSignedIn() &&
+    (
+      resource.data.requesterUserId == request.auth.uid ||
+
+      (
+        resource.data.businessId is string &&
+        isBusinessOwner(resource.data.businessId)
+      )
+    )
+  );
+
+  allow create: if isSignedIn();
+
+  allow update, delete:
+    if isAdmin() ||
+    (
+      resource.data.businessId is string &&
+      isBusinessOwner(resource.data.businessId)
+    );
+}
+
+    function isBusinessRequestOwner(data) {
+      return isSignedIn() && (
+        data.uid == request.auth.uid ||
+        data.ownerUid == request.auth.uid ||
+        data.requesterId == request.auth.uid
+      );
+    }
+
+    function isFeedbackOwner(data) {
+      return isSignedIn() && data.userId == request.auth.uid;
+    }
+
+    function isComplaintOwner(data) {
+      return isSignedIn() && data.userId == request.auth.uid;
+    }
+
+    function isReportOwner(data) {
+      return isSignedIn() && (
+        data.reportedBy == request.auth.uid ||
+        data.reporterId == request.auth.uid ||
+        data.userId == request.auth.uid
+      );
+    }
+
+    function isLikeOwner(data) {
+      return isSignedIn() && data.userId == request.auth.uid;
+    }
+
+    function isReviewOwner(data) {
+      return isSignedIn() && data.userId == request.auth.uid;
+    }
+
+    function isReviewLikeOnlyUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(['likes', 'likedBy']);
+    }
+
+    function isOfferClickCountOnlyUpdate() {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(['clickCount']);
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwnUserDoc(userId) || isAdmin();
+
+      match /{document=**} {
+        allow read, create, update, delete: if isOwnUserDoc(userId) || isAdmin();
+      }
+    }
+
+    match /dogs/{dogId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    match /lost_dogs/{dogId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    match /found_dogs/{dogId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+    }
+    
+   
+
+   match /businesses/{businessId} {
+  allow read: if isSignedIn();
+  allow create: if isAdmin() || (
+    isSignedIn() &&
+    request.resource.data.ownerUid == request.auth.uid
+  );
+
+  allow update, delete: if isAdmin() || (
+    isSignedIn() &&
+    resource.data.ownerUid == request.auth.uid
+  );
+
+  
+  match /{document=**} {
+    allow read: if isSignedIn();
+    allow create, update, delete:
+      if isAdmin() ||
+      isBusinessOwner(businessId);
+  }
+}
+
+    match /offers/{offerId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isSignedIn() && isOfferClickCountOnlyUpdate());
+    }
+
+    match /{path=**}/products/{productId} {
+
+  allow read: if isSignedIn();
+
+  allow create:
+    if isAdmin() ||
+    (
+      request.resource.data.businessId is string &&
+      isBusinessOwner(request.resource.data.businessId)
+    );
+
+  allow update, delete:
+    if isAdmin() ||
+    (
+      resource.data.businessId is string &&
+      isBusinessOwner(resource.data.businessId)
+    );
+}
+
+    match /global_products/{productId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /global_product_aggregates/{aggregateId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /countries/{countryId} {
+
+  allow read: if isSignedIn();
+  allow write: if isAdmin();
+
+  match /admin1/{admin1Id} {
+
+    allow read: if isSignedIn();
+
+    match /admin2/{admin2Id} {
+
+      allow read: if isSignedIn();
+    }
+  }
+}
+
+    match /shipping_configs/{businessId} {
+      allow read, create, update, delete: if isAdmin() || isBusinessOwner(businessId);
+    }
+
+    match /vet_tips/{tipId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAdmin() || isSubscriptionOwner(resource.data);
+      allow create: if isAdmin() || isSubscriptionOwner(request.resource.data);
+      allow update, delete: if isAdmin() || isSubscriptionOwner(resource.data);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || isNotificationOwner(resource.data);
+      allow create: if isAdmin() || isNotificationOwner(request.resource.data);
+      allow update, delete: if isAdmin() || isNotificationOwner(resource.data);
+    }
+
+    match /stories/{storyId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+
+      allow update: if request.auth != null;
+
+      allow delete: if request.auth != null
+        && (
+          resource.data.userId == request.auth.uid
+          || isAdmin()
+        );
+
+      match /views/{viewerId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && viewerId == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    match /story_likes/{likeId} {
+
+  allow read: if request.auth != null;
+
+  allow create: if request.auth != null
+    && request.resource.data.userId == request.auth.uid;
+
+  allow delete: if request.auth != null;
+
+  allow update: if false;
+}
+
+match /story_replies/{replyId} {
+
+  allow read: if request.auth != null;
+
+  allow create: if request.auth != null
+    && request.resource.data.senderId == request.auth.uid;
+
+  allow update: if false;
+
+  allow delete: if false;
+}
+
+    match /followers/{userId}/userFollowers/{followerUserId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && followerUserId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+        && followerUserId == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /following/{userId}/userFollowing/{followingUserId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && userId == request.auth.uid
+        && request.resource.data.userId == followingUserId;
+      allow delete: if request.auth != null
+        && userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /likes/{likeId} {
+      allow read: if isAdmin() || isLikeOwner(resource.data);
+      allow create: if isAdmin() || isLikeOwner(request.resource.data);
+      allow update, delete: if isAdmin() || isLikeOwner(resource.data);
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || (
+        isReviewOwner(request.resource.data) &&
+        request.resource.data.vetId is string
+      );
+      allow update: if isAdmin() ||
+        isReviewOwner(resource.data) ||
+        (isSignedIn() && isReviewLikeOnlyUpdate());
+      allow delete: if isAdmin() || isReviewOwner(resource.data);
+    }
+
+    match /playDateRequests/{requestId} {
+      allow read: if isAdmin() || isPlayDateRequestParticipant(resource.data);
+      allow create: if isAdmin() || isPlayDateRequestParticipant(request.resource.data);
+      allow update, delete: if isAdmin() || isPlayDateRequestParticipant(resource.data);
+    }
+
+    match /playdate_reminders/{reminderId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /adoption_requests/{requestId} {
+      allow read: if isAdmin() || isAdoptionRequestParticipant(resource.data);
+      allow create: if isAdmin() || isAdoptionRequestParticipant(request.resource.data);
+      allow update, delete: if isAdmin() || isAdoptionRequestParticipant(resource.data);
+    }
+
+    match /business_requests/{requestId} {
+      allow read: if isAdmin() || isBusinessRequestOwner(resource.data);
+      allow create: if isAdmin() || isBusinessRequestOwner(request.resource.data);
+      allow update, delete: if isAdmin() || isBusinessRequestOwner(resource.data);
+    }
+
+    match /businessDrafts/{draftId} {
+  allow read, write: if request.auth != null
+    && (
+      isAdmin()
+      || request.auth.uid == draftId
+    );
+}
+
+    match /user_feedback/{feedbackId} {
+      allow read: if isAdmin() || isFeedbackOwner(resource.data);
+      allow create: if isAdmin() || isFeedbackOwner(request.resource.data);
+      allow update, delete: if isAdmin() || isFeedbackOwner(resource.data);
+    }
+
+    match /complaints/{complaintId} {
+      allow read: if isAdmin() || isComplaintOwner(resource.data);
+      allow create: if isAdmin() || isComplaintOwner(request.resource.data);
+      allow update, delete: if isAdmin() || isComplaintOwner(resource.data);
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAdmin() || isReportOwner(resource.data);
+      allow create: if isAdmin() || isReportOwner(request.resource.data);
+      allow update, delete: if isAdmin() || isReportOwner(resource.data);
+    }
+
+    match /scheduled_notifications/{notificationId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /email_otps/{emailId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /debug_tokens/{tokenId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /admin_logs/{logId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /admin_stats/{statId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /admin_search_index/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /moderation_targets/{targetId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /moderation_cases/{caseId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /admin_flags/{flagId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /business_suspensions/{suspensionId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || isOrderOwner(resource.data) || isBusinessOwner(resource.data.businessId);
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.buyerUid == request.auth.uid ||
+        request.resource.data.buyerEmail == request.auth.token.email
+      );
+      allow update, delete: if false;
+    }
+
+    match /sellerOrders/{sellerOrderId} {
+      allow read: if isAdmin() || isOrderOwner(resource.data) || isSellerOrderBusinessOwner(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /order_returns/{returnId} {
+      allow read: if request.auth != null && (
+        resource.data.buyerUid == request.auth.uid ||
+        resource.data.sellerUid == request.auth.uid ||
+        (
+          resource.data.businessId is string &&
+          get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerUid == request.auth.uid
+        ) ||
+        isAdmin()
+      );
+
+      allow create, update, delete: if false;
+    }
+
+    match /vet_appointments/{appointmentId} {
+      allow read: if request.auth != null && (
+        isAppointmentOwner(resource.data) ||
+        isBusinessOwner(resource.data.businessId) ||
+        isAdmin()
+      );
+
+      allow update: if request.auth != null && (
+        (
+          isAppointmentOwner(resource.data) &&
+          isStatusOnlyUpdate() &&
+          canOwnerCancel(resource.data, request.resource.data)
+        ) ||
+        (
+          (isBusinessOwner(resource.data.businessId) || isAdmin()) &&
+          isStatusOnlyUpdate() &&
+          canStaffUpdate(resource.data, request.resource.data)
+        )
+      );
+
+      allow create, delete: if false;
+    }
+// ===============================
+// 💬 CHATS
+// ===============================
+match /chats/{chatId} {
+
+  allow get: if request.auth != null;
+
+  allow list: if request.auth != null
+    && request.auth.uid in resource.data.participants;
+
+  allow create: if request.auth != null;
+
+  allow update: if request.auth != null
+    && request.auth.uid in resource.data.participants;
+
+  allow delete: if false;
+
+  // ===============================
+  // 💬 MESSAGES
+  // ===============================
+  match /messages/{messageId} {
+
+    allow read: if request.auth != null
+      && request.auth.uid in get(
+        /databases/$(database)/documents/chats/$(chatId)
+      ).data.participants;
+
+    allow create: if request.auth != null
+      && request.auth.uid in get(
+        /databases/$(database)/documents/chats/$(chatId)
+      ).data.participants
+      && request.resource.data.senderId == request.auth.uid;
+
+    allow update: if request.auth != null
+      && request.auth.uid in get(
+        /databases/$(database)/documents/chats/$(chatId)
+      ).data.participants;
+
+    allow delete: if false;
+  }
+}
+    match /groomy_appointments/{appointmentId} {
+      allow read: if request.auth != null && (
+        isAppointmentOwner(resource.data) ||
+        isBusinessOwner(resource.data.businessId) ||
+        isAdmin()
+      );
+
+      allow update: if request.auth != null && (
+        (
+          isAppointmentOwner(resource.data) &&
+          isStatusOnlyUpdate() &&
+          canOwnerCancel(resource.data, request.resource.data)
+        ) ||
+        (
+          (isBusinessOwner(resource.data.businessId) || isAdmin()) &&
+          isStatusOnlyUpdate() &&
+          canGroomyStaffUpdate(resource.data, request.resource.data)
+        )
+      );
+
+      allow create, delete: if false;
+    }
+    match /hotel_bookings/{bookingId} {
+      allow read: if request.auth != null && (
+        isAppointmentOwner(resource.data) ||
+        isBusinessOwner(resource.data.businessId) ||
+        isAdmin()
+      );
+
+      allow update: if request.auth != null && (
+        (
+          isAppointmentOwner(resource.data) &&
+          isStatusOnlyUpdate() &&
+          canOwnerCancel(resource.data, request.resource.data)
+        ) ||
+        (
+          (isBusinessOwner(resource.data.businessId) || isAdmin()) &&
+          isStatusOnlyUpdate() &&
+          canHotelStaffUpdate(resource.data, request.resource.data)
+        )
+      );
+
+      allow create, delete: if false;
+    }
+
+    match /pet_taxi_bookings/{bookingId} {
+      allow read: if request.auth != null && (
+        isAppointmentOwner(resource.data) ||
+        isBusinessOwner(resource.data.businessId) ||
+        isAdmin()
+      );
+
+      allow create: if isAdmin() || (
+  request.auth != null
+  && request.resource.data.userId == request.auth.uid
+  && request.resource.data.status == 'pending'
+  && request.resource.data.paymentMethod == 'in_app'
+);
+
+      allow update: if request.auth != null
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.businessId == resource.data.businessId
+        && isPetTaxiStatusOnlyUpdate()
+        && (
+          (
+            isAppointmentOwner(resource.data) &&
+            canPetTaxiUserCancel(resource.data, request.resource.data)
+          ) ||
+          (
+            (isBusinessOwner(resource.data.businessId) || isAdmin()) &&
+            canPetTaxiStaffUpdate(resource.data, request.resource.data)
+          ) ||
+          (
+            (isBusinessOwner(resource.data.businessId) || isAdmin()) &&
+            canPetTaxiStaffProposePrice(resource.data, request.resource.data)
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // ===============================
+// 📸 SOCIAL POSTS
+// ===============================
+
+match /social_posts/{postId} {
+
+  // READ
+  allow read: if isSignedIn();
+
+  // CREATE
+  allow create: if request.auth != null
+    && request.resource.data.userId == request.auth.uid;
+
+  // UPDATE
+  allow update: if true;
+
+  // DELETE
+  allow delete: if request.auth != null
+    && (
+      resource.data.userId == request.auth.uid
+      || isAdmin()
+    );
+}
+    match /green_memorials/{memorialId} {
+
+  allow read: if true;
+
+  allow create: if request.auth != null
+    && request.resource.data.ownerId == request.auth.uid;
+
+  allow update, delete: if request.auth != null
+    && resource.data.ownerId == request.auth.uid;
+}
+match /post_likes/{likeId} {
+
+  allow read: if isSignedIn();
+
+  allow create: if request.auth != null
+    && request.resource.data.userId == request.auth.uid;
+
+  allow delete: if request.auth != null;
+
+  allow update: if false;
+}
+match /post_comments/{commentId} {
+
+  allow read: if isSignedIn();
+
+  allow create: if request.auth != null
+    && request.resource.data.userId == request.auth.uid;
+
+  allow delete: if request.auth != null;
+
+  allow update: if false;
+}
+match /saved_posts/{saveId} {
+
+  allow read: if request.auth != null;
+
+  allow create: if request.auth != null
+    && request.resource.data.userId == request.auth.uid;
+
+  allow delete: if request.auth != null;
+
+  allow update: if false;
+}
+
+match /stories/{storyId} {
+
+  // READ
+  allow read: if request.auth != null;
+
+  // CREATE
+  allow create: if request.auth != null
+    && request.resource.data.userId
+        == request.auth.uid;
+
+  // UPDATE
+  allow update: if request.auth != null;
+
+  // DELETE
+  allow delete: if request.auth != null
+    && (
+      resource.data.userId
+          == request.auth.uid
+      || isAdmin()
+    );
+
+  // STORY VIEWS
+  match /views/{viewerId} {
+
+    allow read: if request.auth != null;
+
+    allow create: if request.auth != null
+      && viewerId == request.auth.uid;
+
+    allow update, delete: if false;
+  }
+}
+  }
+}

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
 import 'package:barky_matches_fixed/services/order_service.dart';
@@ -146,7 +147,7 @@ if (widget.items.isEmpty) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Cart is empty")),
+      SnackBar(content: Text(AppLocalizations.of(context)!.cartIsEmpty)),
     );
 
     Navigator.of(context).pushNamedAndRemoveUntil(
@@ -281,14 +282,15 @@ final pricing = result["pricing"];
   }
 
 Widget _buildStepHeader() {
+  final l10n = AppLocalizations.of(context)!;
   return Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _stepItem("Address", 0),
-        _stepItem("Payment", 1),
-        _stepItem("Confirm", 2),
+        _stepItem(l10n.checkoutStepAddressTitle, 0),
+        _stepItem(l10n.checkoutStepPaymentTitle, 1),
+        _stepItem(l10n.checkoutStepConfirmTitle, 2),
       ],
     ),
   );
@@ -338,66 +340,67 @@ Widget _stepItem(String title, int index) {
   
 
   bool _validate() {
+    final l10n = AppLocalizations.of(context)!;
     debugPrint("🚚 SELECTED CARRIER: $_selectedCarrier");
     if (!isValidName(_fullNameController.text)) {
-      _showError("Please enter full name and surname");
+      _showError(l10n.checkoutEnterNameSurname);
       return false;
     }
 
     if (_selectedCarrier == null) {
-  _showError("Please select a cargo company");
+  _showError(l10n.checkoutPleaseSelectCargoCompany);
   return false;
 }
 
     if (!isValidEmail(_emailController.text)) {
-      _showError("Please enter a valid email");
+      _showError(l10n.checkoutEnterValidEmail);
       return false;
     }
 
     if (!isValidPhone(_phoneController.text)) {
-      _showError("Please enter a valid Turkish mobile number");
+      _showError(l10n.checkoutEnterValidPhone);
       return false;
     }
 
     if (!isValidText(_cityController.text)) {
-      _showError("Please enter city");
+      _showError(l10n.checkoutEnterCity);
       return false;
     }
 
     if (!isValidText(_districtController.text)) {
-      _showError("Please enter district");
+      _showError(l10n.checkoutEnterDistrict);
       return false;
     }
 
     if (!isValidAddress(_addressController.text)) {
-      _showError("Please enter a complete address");
+      _showError(l10n.checkoutEnterFullAddress);
       return false;
     }
 
     if (invoiceType == "individual") {
       if (!isValidTcIdentity(_identityNumberController.text)) {
-        _showError("Please enter a valid 11-digit identity number");
+        _showError(l10n.checkoutEnterValidIdentityNumber);
         return false;
       }
     }
 
     if (invoiceType == "company") {
       if (!isValidText(_companyNameController.text)) {
-        _showError("Please enter company name");
+        _showError(l10n.checkoutEnterCompanyName);
         return false;
       }
       if (!isValidTaxNumber(_taxNumberController.text)) {
-        _showError("Please enter a valid 10-digit tax number");
+        _showError(l10n.checkoutEnterValidTaxNumber);
         return false;
       }
       if (!isValidText(_taxOfficeController.text)) {
-        _showError("Please enter tax office");
+        _showError(l10n.checkoutEnterTaxOffice);
         return false;
       }
     }
 
     if (!kvkkAccepted || !preInfoAccepted || !distanceSalesAccepted) {
-      _showError("Please accept the required agreements");
+      _showError(l10n.checkoutAcceptRequiredAgreements);
       return false;
     }
 
@@ -405,7 +408,7 @@ Widget _stepItem(String title, int index) {
   }
 
   /// 🔥 MAIN CHECKOUT LOGIC
-  Future<void> _startCheckout() async {
+Future<void> _startCheckout() async {
   if (_loading) return;
 
   if (!_validate()) return;
@@ -631,10 +634,10 @@ if (pricing != null) {
     backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
   });
 }
-print("🔥 BACKEND RESPONSE: ${session.checkoutUrl}");
+debugPrint("🔥 BACKEND RESPONSE: ${session.checkoutUrl}");
     debugPrint("🌐 CHECKOUT URL: ${session.checkoutUrl}");
    
-print("💰 REAL TOTAL FROM BACKEND: ${pricing?['grandTotal']}");
+debugPrint("💰 REAL TOTAL FROM BACKEND: ${pricing?['grandTotal']}");
 
     if (!mounted) return;
 
@@ -651,9 +654,9 @@ final launched = await launchUrl(
   mode: LaunchMode.externalApplication, // 🔥 مهم
 );
 
-if (!launched) {
-  throw Exception("Could not launch checkout URL");
-}
+	if (!launched) {
+	  throw Exception("Could not launch checkout URL");
+	}
 
     if (!mounted) return;
 
@@ -665,13 +668,13 @@ if (!launched) {
     if (!mounted) return;
 
 _showError(
-  "Payment page opened. Complete the payment, then return to the app.",
+  AppLocalizations.of(context)!.checkoutPaymentPageOpenedMessage,
 );
 
   } catch (e) {
     debugPrint("❌ CHECKOUT ERROR: $e");
     if (!mounted) return;
-    _showError("Checkout failed: $e");
+    _showError(AppLocalizations.of(context)!.errorOccurred(e.toString()));
   } finally {
     if (mounted) setState(() => _loading = false);
   }
@@ -810,7 +813,8 @@ _showError(
   );
 }
 
-  Widget _buildAddressSection() {
+Widget _buildAddressSection() {
+  final l10n = AppLocalizations.of(context)!;
   final hasData = _fullNameController.text.isNotEmpty;
 
   return GestureDetector(
@@ -829,10 +833,10 @@ _showError(
           /// 🔹 HEADER (compact)
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  "Delivery Address",
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  l10n.checkoutDeliveryAddressTitle,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               if (hasData)
@@ -859,19 +863,28 @@ _showError(
 
             TextField(
               controller: _fullNameController,
-              decoration: _inputDecoration("Full Name", "Name Surname"),
+              decoration: _inputDecoration(
+                l10n.checkoutFullNameLabel,
+                l10n.checkoutFullNameHint,
+              ),
             ),
             const SizedBox(height: 10),
 
             TextField(
               controller: _emailController,
-              decoration: _inputDecoration("Email", "name@example.com"),
+              decoration: _inputDecoration(
+                l10n.emailLabel,
+                l10n.emailAddressHint,
+              ),
             ),
             const SizedBox(height: 10),
 
             TextField(
               controller: _phoneController,
-              decoration: _inputDecoration("Mobile Phone", "5XXXXXXXXX"),
+              decoration: _inputDecoration(
+                l10n.phoneLabel,
+                l10n.checkoutPhoneHint,
+              ),
             ),
             const SizedBox(height: 10),
 
@@ -880,14 +893,20 @@ _showError(
                 Expanded(
                   child: TextField(
                     controller: _cityController,
-                    decoration: _inputDecoration("City", "Istanbul"),
+                    decoration: _inputDecoration(
+                      l10n.checkoutCityLabel,
+                      l10n.checkoutCityHint,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
                     controller: _districtController,
-                    decoration: _inputDecoration("District", "Kadıköy"),
+                    decoration: _inputDecoration(
+                      l10n.checkoutDistrictLabel,
+                      l10n.checkoutDistrictHint,
+                    ),
                   ),
                 ),
               ],
@@ -897,8 +916,10 @@ _showError(
             TextField(
               controller: _addressController,
               maxLines: 3,
-              decoration:
-                  _inputDecoration("Open Address", "Full address details"),
+              decoration: _inputDecoration(
+                l10n.checkoutAddressLabel,
+                l10n.checkoutAddressHint,
+              ),
             ),
           ]
         ],
@@ -908,8 +929,9 @@ _showError(
 }
 
   Widget _buildBillingSection() {
+    final l10n = AppLocalizations.of(context)!;
     return _buildSectionCard(
-      title: "Invoice Details",
+      title: l10n.checkoutInvoiceDetailsTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -920,7 +942,7 @@ _showError(
                   value: "individual",
                   groupValue: invoiceType,
                   contentPadding: EdgeInsets.zero,
-                  title: const Text("Individual"),
+                  title: Text(l10n.checkoutIndividualOption),
                   onChanged: (v) => setState(() => invoiceType = v!),
                 ),
               ),
@@ -929,7 +951,7 @@ _showError(
                   value: "company",
                   groupValue: invoiceType,
                   contentPadding: EdgeInsets.zero,
-                  title: const Text("Company"),
+                  title: Text(l10n.checkoutCompanyOption),
                   onChanged: (v) => setState(() => invoiceType = v!),
                 ),
               ),
@@ -943,9 +965,9 @@ _showError(
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(11),
               ],
-              decoration: const InputDecoration(
-                labelText: "Identity Number",
-                hintText: "11 digits",
+              decoration: InputDecoration(
+                labelText: l10n.checkoutIdentityNumberLabel,
+                hintText: l10n.checkoutIdentityNumberHint,
               ),
             ),
           ],
@@ -953,8 +975,8 @@ _showError(
             TextField(
               controller: _companyNameController,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: "Company Name",
+              decoration: InputDecoration(
+                labelText: l10n.checkoutCompanyNameLabel,
               ),
             ),
             const SizedBox(height: 12),
@@ -965,17 +987,17 @@ _showError(
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(10),
               ],
-              decoration: const InputDecoration(
-                labelText: "Tax Number",
-                hintText: "10 digits",
+              decoration: InputDecoration(
+                labelText: l10n.checkoutTaxNumberLabel,
+                hintText: l10n.checkoutTaxNumberHint,
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _taxOfficeController,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: "Tax Office",
+              decoration: InputDecoration(
+                labelText: l10n.checkoutTaxOfficeLabel,
               ),
             ),
           ],
@@ -985,34 +1007,33 @@ _showError(
   }
 
   Widget _buildNotificationSection() {
+    final l10n = AppLocalizations.of(context)!;
     return _buildSectionCard(
-      title: "Invoice & Cargo Updates",
+      title: l10n.checkoutCargoUpdatesTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "How should we send invoice and cargo tracking updates?",
-          ),
+          Text(l10n.checkoutCargoUpdatesQuestion),
           const SizedBox(height: 10),
           RadioListTile<String>(
             value: "sms",
             groupValue: notificationPreference,
             contentPadding: EdgeInsets.zero,
-            title: const Text("SMS"),
+            title: Text(l10n.checkoutSmsOption),
             onChanged: (v) => setState(() => notificationPreference = v!),
           ),
           RadioListTile<String>(
             value: "email",
             groupValue: notificationPreference,
             contentPadding: EdgeInsets.zero,
-            title: const Text("Email"),
+            title: Text(l10n.checkoutEmailOption),
             onChanged: (v) => setState(() => notificationPreference = v!),
           ),
           RadioListTile<String>(
             value: "both",
             groupValue: notificationPreference,
             contentPadding: EdgeInsets.zero,
-            title: const Text("SMS + Email"),
+            title: Text(l10n.checkoutSmsEmailOption),
             onChanged: (v) => setState(() => notificationPreference = v!),
           ),
         ],
@@ -1021,8 +1042,9 @@ _showError(
   }
 
   Widget _buildLegalSection() {
+  final l10n = AppLocalizations.of(context)!;
   return _buildSectionCard(
-    title: "Agreements",
+    title: l10n.checkoutAgreementsTitle,
     child: Column(
       children: [
 
@@ -1033,8 +1055,8 @@ _showError(
               value: kvkkAccepted,
               onChanged: (v) => setState(() => kvkkAccepted = v!),
             ),
-            const Expanded(
-              child: Text("I have read KVKK disclosure"),
+            Expanded(
+              child: Text(l10n.checkoutKvkkDisclosure),
             ),
             TextButton(
               onPressed: () async {
@@ -1043,7 +1065,7 @@ _showError(
                 );
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               },
-              child: const Text("View"),
+              child: Text(l10n.checkoutViewButton),
             ),
           ],
         ),
@@ -1055,8 +1077,8 @@ _showError(
               value: preInfoAccepted,
               onChanged: (v) => setState(() => preInfoAccepted = v!),
             ),
-            const Expanded(
-              child: Text("I accept pre-information form"),
+            Expanded(
+              child: Text(l10n.checkoutPreInfoForm),
             ),
             TextButton(
               onPressed: () async {
@@ -1065,7 +1087,7 @@ _showError(
                 );
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               },
-              child: const Text("View"),
+              child: Text(l10n.checkoutViewButton),
             ),
           ],
         ),
@@ -1078,8 +1100,8 @@ _showError(
               onChanged: (v) =>
                   setState(() => distanceSalesAccepted = v!),
             ),
-            const Expanded(
-              child: Text("I accept distance sales agreement"),
+            Expanded(
+              child: Text(l10n.checkoutDistanceSalesAgreement),
             ),
             TextButton(
               onPressed: () async {
@@ -1088,7 +1110,7 @@ _showError(
                 );
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               },
-              child: const Text("View"),
+              child: Text(l10n.checkoutViewButton),
             ),
           ],
         ),
@@ -1100,8 +1122,8 @@ _showError(
               value: marketingConsent,
               onChanged: (v) => setState(() => marketingConsent = v!),
             ),
-            const Expanded(
-              child: Text("Receive marketing messages (optional)"),
+            Expanded(
+              child: Text(l10n.checkoutMarketingOptional),
             ),
           ],
         ),
@@ -1111,6 +1133,7 @@ _showError(
 }
 
   Widget _buildCarrierSelection() {
+  final l10n = AppLocalizations.of(context)!;
   final carriers = availableCarriers;
 
   if (carriers.isEmpty) {
@@ -1132,10 +1155,10 @@ _showError(
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  "Delivery",
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  l10n.checkoutDeliveryTitle,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               Text(
@@ -1175,9 +1198,10 @@ _showError(
 }
 
   Widget _buildTotalsSection() {
+  final l10n = AppLocalizations.of(context)!;
   if (_pricingLoading) {
     return _buildSectionCard(
-      title: "Payment Summary",
+      title: l10n.checkoutPaymentSummaryTitle,
       child: const Padding(
         padding: EdgeInsets.all(16),
         child: Center(
@@ -1197,23 +1221,23 @@ _showError(
   child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
-        "Payment Summary",
-        style: TextStyle(
+      Text(
+        l10n.checkoutPaymentSummaryTitle,
+        style: const TextStyle(
           fontWeight: FontWeight.w800,
           fontSize: 16,
         ),
       ),
       const SizedBox(height: 12),
 
-      _row("Subtotal", backendSubtotal),
-      _row("KDV", backendTax),
-      _row("Shipping", backendShipping),
+      _row(l10n.checkoutSubtotalLabel, backendSubtotal),
+      _row(l10n.checkoutVatLabel, backendTax),
+      _row(l10n.checkoutShippingLabel, backendShipping),
 
       const Divider(height: 20),
 
       _row(
-        "Total",
+        l10n.totalLabel,
         backendTotal,
         isTotal: true,
       ),
@@ -1247,40 +1271,41 @@ _showError(
 }
 
 bool _validateStep() {
+  final l10n = AppLocalizations.of(context)!;
   /// STEP 0 → Address + Carrier
   if (_step == 0) {
     if (_selectedCarrier == null) {
-      _showError("Please select a cargo company");
+      _showError(l10n.checkoutPleaseSelectCargoCompany);
       return false;
     }
 
     if (!isValidName(_fullNameController.text)) {
-      _showError("Enter name & surname");
+      _showError(l10n.checkoutEnterNameSurname);
       return false;
     }
 
     if (!isValidEmail(_emailController.text)) {
-      _showError("Enter valid email");
+      _showError(l10n.checkoutEnterValidEmail);
       return false;
     }
 
     if (!isValidPhone(_phoneController.text)) {
-      _showError("Enter valid phone");
+      _showError(l10n.checkoutEnterValidPhone);
       return false;
     }
 
     if (!isValidText(_cityController.text)) {
-      _showError("Enter city");
+      _showError(l10n.checkoutEnterCity);
       return false;
     }
 
     if (!isValidText(_districtController.text)) {
-      _showError("Enter district");
+      _showError(l10n.checkoutEnterDistrict);
       return false;
     }
 
     if (!isValidAddress(_addressController.text)) {
-      _showError("Enter full address");
+      _showError(l10n.checkoutEnterFullAddress);
       return false;
     }
   }
@@ -1289,30 +1314,30 @@ bool _validateStep() {
   if (_step == 1) {
     if (invoiceType == "individual") {
       if (!isValidTcIdentity(_identityNumberController.text)) {
-        _showError("Enter valid identity number");
+        _showError(l10n.checkoutEnterValidIdentityNumber);
         return false;
       }
     }
 
     if (invoiceType == "company") {
       if (!isValidText(_companyNameController.text)) {
-        _showError("Enter company name");
+        _showError(l10n.checkoutEnterCompanyName);
         return false;
       }
 
       if (!isValidTaxNumber(_taxNumberController.text)) {
-        _showError("Enter valid tax number");
+        _showError(l10n.checkoutEnterValidTaxNumber);
         return false;
       }
 
       if (!isValidText(_taxOfficeController.text)) {
-        _showError("Enter tax office");
+        _showError(l10n.checkoutEnterTaxOffice);
         return false;
       }
     }
 
     if (!kvkkAccepted || !preInfoAccepted || !distanceSalesAccepted) {
-      _showError("Accept required agreements");
+      _showError(l10n.checkoutAcceptRequiredAgreements);
       return false;
     }
   }
@@ -1322,17 +1347,18 @@ bool _validateStep() {
 
   @override
 Widget build(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   if (widget.items.isEmpty) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Checkout")),
-      body: const Center(
-        child: Text("Cart is empty"),
+      appBar: AppBar(title: Text(l10n.checkoutButton)),
+      body: Center(
+        child: Text(l10n.cartIsEmpty),
       ),
     );
   }
 
   return Scaffold(
-    appBar: AppBar(title: const Text("Checkout")),
+    appBar: AppBar(title: Text(l10n.checkoutButton)),
     body: SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       child: Column(
@@ -1377,7 +1403,7 @@ Widget build(BuildContext context) {
                   onPressed: () {
                     setState(() => _step--);
                   },
-                  child: const Text("Back"),
+                  child: Text(l10n.checkoutBackButton),
                 ),
               ),
             ),
@@ -1416,8 +1442,8 @@ Widget build(BuildContext context) {
                     )
                   : Text(
                       _step == 2
-                          ? "Proceed to Payment"
-                          : "Continue",
+                          ? l10n.checkoutProceedToPayment
+                          : l10n.checkoutContinueButton,
                     ),
             ),
           ),

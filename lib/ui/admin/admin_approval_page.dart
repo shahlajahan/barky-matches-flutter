@@ -24,7 +24,7 @@ class AdminApprovalPage extends StatelessWidget {
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('business_requests')
-              .where('status', isEqualTo: 'pending')
+              .where('status', whereIn: ['pending', 'pending_review'])
               .orderBy('createdAt', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
@@ -48,16 +48,12 @@ class AdminApprovalPage extends StatelessWidget {
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final requestDoc = docs[index];
-                final requestData =
-                    requestDoc.data() as Map<String, dynamic>;
+                final requestData = requestDoc.data() as Map<String, dynamic>;
 
-                final businessId =
-                    requestData['businessId'] as String?;
+                final businessId = requestData['businessId'] as String?;
 
                 if (businessId == null) {
-                  return const ListTile(
-                    title: Text("Invalid request"),
-                  );
+                  return const ListTile(title: Text("Invalid request"));
                 }
 
                 return _BusinessListTile(businessId: businessId);
@@ -95,9 +91,7 @@ class AdminApprovalPage extends StatelessWidget {
 class _BusinessListTile extends StatelessWidget {
   final String businessId;
 
-  const _BusinessListTile({
-    required this.businessId,
-  });
+  const _BusinessListTile({required this.businessId});
 
   @override
   Widget build(BuildContext context) {
@@ -108,19 +102,14 @@ class _BusinessListTile extends StatelessWidget {
           .get(),
       builder: (context, businessSnap) {
         if (!businessSnap.hasData) {
-          return const ListTile(
-            title: Text("Loading..."),
-          );
+          return const ListTile(title: Text("Loading..."));
         }
 
         if (!businessSnap.data!.exists) {
-          return const ListTile(
-            title: Text("Business not found"),
-          );
+          return const ListTile(title: Text("Business not found"));
         }
 
-        final businessData =
-            businessSnap.data!.data() as Map<String, dynamic>;
+        final businessData = businessSnap.data!.data() as Map<String, dynamic>;
 
         final profile =
             (businessData['profile'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -132,49 +121,43 @@ class _BusinessListTile extends StatelessWidget {
             (businessData['trust'] as Map?)?.cast<String, dynamic>() ?? {};
 
         final verification =
-            (businessData['verification'] as Map?)?.cast<String, dynamic>() ?? {};
+            (businessData['verification'] as Map?)?.cast<String, dynamic>() ??
+            {};
 
-        final displayName =
-            profile['displayName'] ?? 'No Name';
+        final displayName = profile['displayName'] ?? 'No Name';
 
         final city = contact['city'] ?? '';
         final district = contact['district'] ?? '';
 
-        final riskFlags =
-            (trust['riskFlags'] as List?)?.cast<String>() ?? [];
+        final riskFlags = (trust['riskFlags'] as List?)?.cast<String>() ?? [];
 
-        final isVerified =
-            verification['isVerified'] == true;
+        final isVerified = verification['isVerified'] == true;
 
         return ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
 
           title: Row(
             children: [
               Expanded(
                 child: Text(
                   displayName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
 
-              if (riskFlags.isNotEmpty)
-                _RiskBadge(count: riskFlags.length),
+              if (riskFlags.isNotEmpty) _RiskBadge(count: riskFlags.length),
 
               const SizedBox(width: 8),
 
-              if (isVerified)
-                _VerifiedBadge(),
+              if (isVerified) _VerifiedBadge(),
             ],
           ),
 
           subtitle: Text(
-            [district, city]
-                .where((e) => e.toString().isNotEmpty)
-                .join(", "),
+            [district, city].where((e) => e.toString().isNotEmpty).join(", "),
           ),
 
           trailing: const Icon(
@@ -187,9 +170,7 @@ class _BusinessListTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => BusinessAdminDetailPage(
-                  businessId: businessId,
-                ),
+                builder: (_) => BusinessAdminDetailPage(businessId: businessId),
               ),
             );
           },
@@ -207,8 +188,7 @@ class _RiskBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.orange.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
@@ -229,8 +209,7 @@ class _VerifiedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.blue.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),

@@ -23,6 +23,13 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/ui/common/gallery_viewer_page.dart';
 import 'package:barky_matches_fixed/models/media_item.dart';
 
+import 'package:barky_matches_fixed/services/chat_service.dart';
+import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:barky_matches_fixed/services/chat_service.dart';
+
 enum DogCardMode {
   normal,
   playdate,
@@ -165,21 +172,66 @@ Widget _buildActionButtons({
         ),
 
       // 💬 Chat
-      if (!isOwner && widget.enableChat)
-        IconButton(
-          icon: const Icon(Icons.chat_bubble_outline),
-          color: color,
-          onPressed: () {
-            _scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Text(
-                  localizations.chatWithOwner(widget.dog.name),
-                  style: AppTheme.body(),
-                ),
-              ),
-            );
-          },
-        ),
+if (!isOwner && widget.enableChat)
+  IconButton(
+    icon: const Icon(Icons.chat_bubble_outline),
+    color: color,
+    onPressed: () async {
+
+      try {
+
+        final currentUserId = widget.currentUserId;
+        debugPrint("💬 widget.currentUserId = ${widget.currentUserId}");
+debugPrint("💬 FirebaseAuth uid = ${FirebaseAuth.instance.currentUser?.uid}");
+        final otherUserId = widget.dog.ownerId;
+
+        if (otherUserId == null || otherUserId.isEmpty) {
+          return;
+        }
+
+        debugPrint("💬 BEFORE GET OR CREATE CHAT");
+
+final chatId =
+    await ChatService.instance.getOrCreateChat(
+  currentUserId: currentUserId,
+  otherUserId: otherUserId,
+
+  currentUserName: 'You',
+  otherUserName: widget.dog.name,
+
+  currentUserPhoto: null,
+  otherUserPhoto: widget.dog.imagePaths.isNotEmpty
+      ? widget.dog.imagePaths.first
+      : null,
+);
+
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatDetailPage(
+              chatId: chatId,
+              otherUserId: otherUserId,
+              otherUserName: widget.dog.name,
+            ),
+          ),
+        );
+
+      } catch (e) {
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Chat error: $e',
+            ),
+          ),
+        );
+      }
+    },
+  ),
 
     ],
   );
@@ -272,7 +324,7 @@ border: widget.dog.isSponsored
 const SizedBox(height: 4),
 
 Text(
-  "distance unknown",
+  localizations.distanceUnknown,
   style: AppTheme.caption(),
 ),
               const SizedBox(height: 6),
@@ -331,9 +383,54 @@ Text(
                     ),
                   )
                 : Image.network(
-                    path,
-                    fit: BoxFit.cover, // 👈 crop تمیز
-                  ),
+  path,
+
+  fit: BoxFit.cover,
+
+  gaplessPlayback: true,
+
+  filterQuality: FilterQuality.medium,
+
+  errorBuilder: (
+    context,
+    error,
+    stackTrace,
+  ) {
+
+    return Container(
+      color: Colors.grey.shade200,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.pets,
+        color: Colors.grey,
+        size: 28,
+      ),
+    );
+  },
+
+  loadingBuilder: (
+    context,
+    child,
+    progress,
+  ) {
+
+    if (progress == null) {
+      return child;
+    }
+
+    return Container(
+      color: Colors.grey.shade100,
+      alignment: Alignment.center,
+      child: const SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+        ),
+      ),
+    );
+  },
+),
           ),
 
           // 🔢 MULTI MEDIA COUNT
@@ -395,22 +492,22 @@ void _showBoostSheet(BuildContext context, Dog dog) {
                   const Icon(LucideIcons.zap, color: Color(0xFF9E1B4F)),
                   const SizedBox(width: 8),
                   Text(
-                    "Boost ${dog.name}",
+                    localizations.boostDogTitle(dog.name),
                     style: AppTheme.h2(),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                "Get more visibility in Playmates discovery.",
+                localizations.boostVisibilityDescription,
                 style: AppTheme.body(color: AppTheme.muted),
               ),
               const SizedBox(height: 16),
 
               _boostOption(
-                title: "24 Hours Boost",
-                subtitle: "Good for quick visibility",
-                price: "₺29",
+                title: localizations.boost24HoursTitle,
+                subtitle: localizations.boostQuickVisibilitySubtitle,
+                price: localizations.boostPrice29,
                 onTap: () => _boostDog(
                   dog,
                   hours: 24,
@@ -420,9 +517,9 @@ void _showBoostSheet(BuildContext context, Dog dog) {
               ),
 
               _boostOption(
-                title: "3 Days Boost",
-                subtitle: "Better exposure for active discovery",
-                price: "₺69",
+                title: localizations.boost3DaysTitle,
+                subtitle: localizations.boostBetterExposureSubtitle,
+                price: localizations.boostPrice69,
                 onTap: () => _boostDog(
                   dog,
                   hours: 72,
@@ -432,9 +529,9 @@ void _showBoostSheet(BuildContext context, Dog dog) {
               ),
 
               _boostOption(
-                title: "7 Days Boost",
-                subtitle: "Best value for maximum reach",
-                price: "₺129",
+                title: localizations.boost7DaysTitle,
+                subtitle: localizations.boostBestValueSubtitle,
+                price: localizations.boostPrice129,
                 onTap: () => _boostDog(
                   dog,
                   hours: 168,
@@ -531,7 +628,7 @@ Future<void> _boostDog(
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Boost activated 🚀")),
+      SnackBar(content: Text(localizations.boostActivated)),
     );
   } catch (e) {
     if (!mounted) return;
@@ -539,7 +636,7 @@ Future<void> _boostDog(
     Navigator.pop(context);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Boost failed: $e")),
+      SnackBar(content: Text(localizations.boostFailed(e.toString()))),
     );
   }
 }
@@ -731,7 +828,10 @@ void didChangeDependencies() {
 // ===============================
 // ✏️ EDIT DOG
 // ===============================
-Future<void> _openEditDialog(BuildContext context) async {
+Future<void> _openEditDialog(
+  BuildContext context,
+) async {
+
   if (widget.onDogUpdated == null) return;
 
   // 🚫 جلوگیری از double open
@@ -743,41 +843,57 @@ Future<void> _openEditDialog(BuildContext context) async {
   });
 
   try {
+
     if (kDebugMode && false) {
-      debugPrint("✏️ Opening edit dialog for ${widget.dog.name}");
+      debugPrint(
+        "✏️ Opening edit dialog for ${widget.dog.name}",
+      );
     }
 
-    context.read<AppState>().openEditDog(widget.dog);
+    context
+        .read<AppState>()
+        .openEditDog(widget.dog);
 
   } catch (e, stack) {
+
     if (kDebugMode && false) {
-      debugPrint("❌ Edit dialog error: $e");
+
+      debugPrint(
+        "❌ Edit dialog error: $e",
+      );
+
       debugPrint("$stack");
     }
 
     if (mounted) {
+
       _scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(
-            "Error opening edit",
+            localizations.errorOpeningEdit,
             style: AppTheme.body(),
           ),
         ),
       );
     }
-  } finally {
-    if (!mounted) {
-      _isDialogOpen = false;
-      return;
-    }
 
-    setState(() {
+  } finally {
+
+    if (mounted) {
+
+      setState(() {
+
+        _isEditing = false;
+        _isDialogOpen = false;
+      });
+
+    } else {
+
       _isEditing = false;
       _isDialogOpen = false;
-    });
+    }
   }
 }
-
 // ===============================
 // 🐶 ADOPTION CARD (CLEAN + FAST)
 // ===============================
@@ -785,8 +901,8 @@ Widget _buildAdoptionDogCard(BuildContext context) {
   final imagePath = widget.dog.imagePaths.isNotEmpty
       ? widget.dog.imagePaths.first
       : null;
-print("🐶 dog owner: ${widget.dog.ownerId}");
-print("👤 current user: ${widget.currentUserId}");
+debugPrint("🐶 dog owner: ${widget.dog.ownerId}");
+debugPrint("👤 current user: ${widget.currentUserId}");
   return RepaintBoundary(
     child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -850,12 +966,12 @@ print("👤 current user: ${widget.currentUserId}");
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(LucideIcons.zap, size: 14, color: Colors.black),
-              SizedBox(width: 4),
+            children: [
+              const Icon(LucideIcons.zap, size: 14, color: Colors.black),
+              const SizedBox(width: 4),
               Text(
-                "BOOSTED",
-                style: TextStyle(
+                localizations.boostBadge,
+                style: const TextStyle(
                   color: Colors.black,
                   fontWeight: FontWeight.w700,
                   fontSize: 11,
@@ -889,14 +1005,14 @@ print("👤 current user: ${widget.currentUserId}");
                   ),
                 ],
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(LucideIcons.zap, color: Colors.white, size: 16),
-                  SizedBox(width: 6),
+                  const Icon(LucideIcons.zap, color: Colors.white, size: 16),
+                  const SizedBox(width: 6),
                   Text(
-                    "Boost",
-                    style: TextStyle(
+                    localizations.boostButton,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
@@ -977,7 +1093,7 @@ print("👤 current user: ${widget.currentUserId}");
                           widget.onAdopt?.call();
                         },
                         child: Text(
-                          "Send Adoption Request",
+                          localizations.sendAdoptionRequest,
                           style: AppTheme.body(color: Colors.white),
                         ),
                       ),
@@ -1083,7 +1199,7 @@ if (widget.mode == DogCardMode.profile) {
     // ⋮ MENU
     if (!isOwner)
       PopupMenuButton<String>(
-        icon: const Icon(Icons.more_vert),
+        icon: const Icon(Icons.more_horiz),
         onSelected: (value) {
           if (value == "report") {
             showModalBottomSheet(
@@ -1110,22 +1226,22 @@ if (widget.mode == DogCardMode.profile) {
 
           if (value == "block") {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Block feature coming soon")),
+              SnackBar(content: Text(localizations.blockComingSoon)),
             );
           }
         },
-        itemBuilder: (context) => const [
+        itemBuilder: (context) => [
           PopupMenuItem(
             value: "report",
-            child: Text("Report"),
+            child: Text(localizations.reportTitle),
           ),
           PopupMenuItem(
             value: "complaint",
-            child: Text("Submit Complaint"),
+            child: Text(localizations.submitComplaintMenuItem),
           ),
           PopupMenuItem(
             value: "block",
-            child: Text("Block User"),
+            child: Text(localizations.blockMenuItem),
           ),
         ],
       ),
@@ -1165,8 +1281,9 @@ if (widget.mode == DogCardMode.profile) {
                             widget.dog.ownerGender!.isNotEmpty)
                           _buildMiniInfoTag(
                             icon: Icons.person_outline,
-                            text:
-                                "Owner: ${translateGender(widget.dog.ownerGender!)}",
+                            text: localizations.ownerPrefix(
+                              translateGender(widget.dog.ownerGender!),
+                            ),
                           ),
                       ],
                     ),
@@ -1388,13 +1505,13 @@ if (widget.dog.imagePaths.length > 1)
                         color: const Color(0xFF9E1B4F),
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(LucideIcons.zap, color: Colors.white, size: 16),
-                          SizedBox(width: 6),
+                          const Icon(LucideIcons.zap, color: Colors.white, size: 16),
+                          const SizedBox(width: 6),
                           Text(
-                            "Boost",
-                            style: TextStyle(
+                            localizations.boostButton,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
@@ -1609,14 +1726,14 @@ Widget _buildTag(
               color: Colors.amber,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.zap, size: 12, color: Colors.black),
-                SizedBox(width: 4),
+                const Icon(LucideIcons.zap, size: 12, color: Colors.black),
+                const SizedBox(width: 4),
                 Text(
-                  "BOOSTED",
-                  style: TextStyle(
+                  localizations.boostBadge,
+                  style: const TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
                     fontSize: 10,
@@ -1652,7 +1769,7 @@ Widget _buildTag(
                       ),
 
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: Colors.white),
+                        icon: const Icon(Icons.more_horiz, color: Colors.white),
                         onSelected: (value) {
                           if (value == "report") {
                             showModalBottomSheet(
@@ -1679,14 +1796,14 @@ Widget _buildTag(
 
                           if (value == "block") {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Block coming soon")),
+                              SnackBar(content: Text(localizations.blockComingSoon)),
                             );
                           }
                         },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(value: "report", child: Text("Report")),
-                          PopupMenuItem(value: "complaint", child: Text("Complaint")),
-                          PopupMenuItem(value: "block", child: Text("Block")),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(value: "report", child: Text(localizations.reportTitle)),
+                          PopupMenuItem(value: "complaint", child: Text(localizations.submitComplaintMenuItem)),
+                          PopupMenuItem(value: "block", child: Text(localizations.blockMenuItem)),
                         ],
                       ),
                     ],
@@ -1715,7 +1832,9 @@ Widget _buildTag(
                           widget.dog.ownerGender!.trim().isNotEmpty)
                         _pillDark(
                           icon: Icons.person_outline,
-                          text: 'Owner: ${translateGender(widget.dog.ownerGender!)}',
+                          text: localizations.ownerPrefix(
+                            translateGender(widget.dog.ownerGender!),
+                          ),
                         ),
                       _pillDark(text: translateHealthStatus(widget.dog.healthStatus)),
                       _pillDark(text: widget.dog.isNeutered ? localizations.neutered : localizations.notNeutered),

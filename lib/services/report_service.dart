@@ -5,6 +5,7 @@ class ReportService {
     required String type,
     required String targetId,
     required String reason,
+    String? targetOwnerId,
     String? message,
   }) async {
 
@@ -14,10 +15,10 @@ class ReportService {
 await callable.call({
   "type": type,
   "targetId": targetId,
-  "targetOwnerId": targetOwnerId,
+  if (targetOwnerId != null) "targetOwnerId": targetOwnerId,
 
-  "reasonCode": reasonCode,
-  "reasonText": reasonText ?? "",
+  "reasonCode": reason,
+  "reasonText": reason,
   "message": message ?? "",
 });
 

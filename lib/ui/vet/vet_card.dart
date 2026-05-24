@@ -30,6 +30,7 @@ class VetCard extends StatelessWidget {
     city: data.city,
     district: data.district,
     address: data.address,
+   data: data.toMap(),
 
     // 🔥 FIXED IMAGE LOGIC
     logoUrl: (data.coverImageUrl != null && data.coverImageUrl!.isNotEmpty)

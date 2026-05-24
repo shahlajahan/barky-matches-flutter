@@ -126,7 +126,16 @@ class IapService {
           }
 
           await _unlockSubscription(purchase);
+          debugPrint("🔥 FORCING APPSTATE SUBSCRIPTION RELOAD");
           await _refreshSubscriptionState();
+          if (_onSubscriptionActivated != null) {
+  await _onSubscriptionActivated!();
+}
+          await Future.delayed(
+  const Duration(seconds: 1),
+);
+
+debugPrint('🔥 POST PURCHASE DELAY FINISHED');
 
           if (purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
@@ -194,6 +203,11 @@ class IapService {
 }
 
       debugPrint("✅ subscription activated");
+      await FirebaseAuth.instance.currentUser?.reload();
+
+await Future.delayed(
+  const Duration(milliseconds: 800),
+);
       await FirebaseFirestore.instance
     .collection('users')
     .doc(user.uid)

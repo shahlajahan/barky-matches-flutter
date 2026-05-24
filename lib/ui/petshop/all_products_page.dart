@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/models/product_media.dart';
@@ -74,6 +75,7 @@ void initState() {
   }
 
   void _addToBasket(Product product) {
+    final l10n = AppLocalizations.of(context)!;
     final index = _cart.indexWhere((e) => e.productId == product.id);
 
     setState(() {
@@ -103,7 +105,7 @@ void initState() {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("${product.name} added to basket"),
+        content: Text(l10n.addedToBasket(product.name)),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -186,6 +188,7 @@ Future<void> _loadCartFromFirestore() async {
   });
 }
   void _openBasket() {
+  final l10n = AppLocalizations.of(context)!;
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -222,10 +225,10 @@ Future<void> _loadCartFromFirestore() async {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        Text("Basket", style: AppTheme.h2()),
+                        Text(l10n.basketTitle, style: AppTheme.h2()),
                         const Spacer(),
                         Text(
-                          "${_cartCount} items",
+                          l10n.basketItemsCount(_cartCount),
                           style:
                               AppTheme.caption(color: AppTheme.muted),
                         ),
@@ -240,7 +243,7 @@ Future<void> _loadCartFromFirestore() async {
                     child: _cart.isEmpty
                         ? Center(
                             child: Text(
-                              "Your basket is empty",
+                              l10n.yourBasketIsEmpty,
                               style: AppTheme.body(
                                   color: AppTheme.muted),
                             ),
@@ -296,7 +299,7 @@ Future<void> _loadCartFromFirestore() async {
                                           const SizedBox(height: 4),
                                           Text(
                                             p.businessName ??
-                                                "Seller",
+                                                l10n.sellerLabel,
                                             style: AppTheme.caption(
                                               color:
                                                   AppTheme.muted,
@@ -383,7 +386,7 @@ _syncCartToFirestore();
                           Row(
                             children: [
                               Text(
-                                "Subtotal",
+                                l10n.subtotalLabel,
                                 style: AppTheme.body(
                                   color: AppTheme.textDark,
                                   weight: FontWeight.w700,
@@ -424,8 +427,7 @@ _syncCartToFirestore();
                                     BorderRadius.circular(12),
                               ),
                             ),
-                            child:
-                                const Text("Proceed to Checkout"),
+                            child: Text(l10n.checkoutButton),
                           ),
                         ],
                       ),
@@ -545,11 +547,12 @@ Future<void> _syncCartToFirestore() async {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final title = _sellerIdFilter != null
         ? (widget.initialSellerName?.trim().isNotEmpty == true
             ? widget.initialSellerName!
-            : "Seller Products")
-        : "All Products";
+            : l10n.sellerProductsTitle)
+        : l10n.allProductsTitle;
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
@@ -600,7 +603,9 @@ Future<void> _syncCartToFirestore() async {
           if (snapshot.hasError) {
             debugPrint("🔥 REAL ERROR: ${snapshot.error}");
             return Center(
-              child: Text("Error loading products: ${snapshot.error}"),
+              child: Text(
+                l10n.errorLoadingProducts(snapshot.error.toString()),
+              ),
             );
           }
 
@@ -611,7 +616,7 @@ Future<void> _syncCartToFirestore() async {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(child: Text("No active products found"));
+            return Center(child: Text(l10n.noActiveProductsFound));
           }
 
           final products = docs.map((doc) {
@@ -638,7 +643,7 @@ Future<void> _syncCartToFirestore() async {
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: "Search product, brand, seller...",
+                        hintText: l10n.searchProductsHint,
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _query.isEmpty
                             ? null
@@ -677,11 +682,11 @@ focusedBorder: OutlineInputBorder(
       _TopDropDown<String?>(
         width: 110,
         value: _selectedCategory,
-        hint: "Category",
+        hint: l10n.categoryLabel,
         items: [
-          const DropdownMenuItem<String?>(
+          DropdownMenuItem<String?>(
             value: null,
-            child: Text("Category"),
+            child: Text(l10n.allCategoriesLabel),
           ),
           ...categories.map(
             (e) => DropdownMenuItem<String?>(
@@ -703,27 +708,27 @@ focusedBorder: OutlineInputBorder(
       _TopDropDown<String?>(
         width: 150,
         value: _selectedShippingMode,
-        hint: "Shipping",
-        items: const [
+        hint: l10n.shippingLabel,
+        items: [
           DropdownMenuItem<String?>(
             value: null,
-            child: Text("Shipping"),
+            child: Text(l10n.shippingLabel),
           ),
           DropdownMenuItem<String?>(
             value: "free_shipping",
-            child: Text("Free shipping"),
+            child: Text(l10n.freeShippingLabel),
           ),
           DropdownMenuItem<String?>(
             value: "seller_absorbs",
-            child: Text("Seller pays cargo"),
+            child: Text(l10n.sellerPaysCargoLabel),
           ),
           DropdownMenuItem<String?>(
             value: "fixed_price",
-            child: Text("Fixed cargo"),
+            child: Text(l10n.fixedCargoLabel),
           ),
           DropdownMenuItem<String?>(
             value: "carrier_calculated",
-            child: Text("Calculated cargo"),
+            child: Text(l10n.calculatedCargoLabel),
           ),
         ],
         onChanged: (v) {
@@ -739,27 +744,27 @@ focusedBorder: OutlineInputBorder(
       _TopDropDown<String>(
         width: 150,
         value: _sort,
-        hint: "Sort",
-        items: const [
+        hint: l10n.sortLabel,
+        items: [
           DropdownMenuItem(
             value: "recommended",
-            child: Text("Recommended"),
+            child: Text(l10n.recommendedLabel),
           ),
           DropdownMenuItem(
             value: "newest",
-            child: Text("Newest"),
+            child: Text(l10n.newest),
           ),
           DropdownMenuItem(
             value: "price_low",
-            child: Text("Price low"),
+            child: Text(l10n.priceLowLabel),
           ),
           DropdownMenuItem(
             value: "price_high",
-            child: Text("Price high"),
+            child: Text(l10n.priceHighLabel),
           ),
           DropdownMenuItem(
             value: "discount",
-            child: Text("Best discount"),
+            child: Text(l10n.bestDiscountLabel),
           ),
         ],
         onChanged: (v) {
@@ -782,7 +787,7 @@ focusedBorder: OutlineInputBorder(
             });
           },
           avatar: const Icon(Icons.store_mall_directory_outlined, size: 18),
-          label: const Text("Seller"),
+          label: Text(l10n.sellerLabel),
         ),
 
       const SizedBox(width: 8),
@@ -793,7 +798,7 @@ focusedBorder: OutlineInputBorder(
       ActionChip(
         onPressed: _resetFilters,
         avatar: const Icon(Icons.refresh_rounded, size: 18),
-        label: const Text("Reset"),
+        label: Text(l10n.resetFiltersButton),
       ),
     ],
   ),
@@ -802,7 +807,7 @@ focusedBorder: OutlineInputBorder(
                     Row(
                       children: [
                         Text(
-                          "${filtered.length} products",
+                          l10n.productsCount(filtered.length),
                           style: AppTheme.caption(color: AppTheme.muted),
                         ),
                         const Spacer(),
@@ -816,7 +821,7 @@ focusedBorder: OutlineInputBorder(
                 child: filtered.isEmpty
                     ? Center(
                         child: Text(
-                          "No products match your filters",
+                          l10n.noProductsMatchFilters,
                           style: AppTheme.body(color: AppTheme.muted),
                         ),
                       )
@@ -973,27 +978,28 @@ class _CompactProductCard extends StatelessWidget {
     );
   }
 
-  List<String> _shippingChips(Product p) {
+  List<String> _shippingChips(BuildContext context, Product p) {
+    final l10n = AppLocalizations.of(context)!;
     final List<String> out = [];
 
-    if (p.shippingMode == "free_shipping" || p.shippingMode == "seller_absorbs") {
-      out.add("Free cargo");
-    } else if (p.shippingMode == "fixed_price" && p.shippingFee != null) {
-      out.add("Cargo ₺${p.shippingFee!.toStringAsFixed(0)}");
+  if (p.shippingMode == "free_shipping" || p.shippingMode == "seller_absorbs") {
+    out.add(l10n.freeCargoLabel);
+  } else if (p.shippingMode == "fixed_price" && p.shippingFee != null) {
+      out.add(l10n.cargoPriceLabel("₺${p.shippingFee!.toStringAsFixed(0)}"));
     } else if (p.shippingMode == "carrier_calculated") {
-      out.add("Cargo calculated");
-    }
+    out.add(l10n.cargoCalculatedLabel);
+  }
 
-    if (p.freeShippingThreshold != null && p.freeShippingThreshold! > 0) {
-      out.add("Free over ₺${p.freeShippingThreshold!.toStringAsFixed(0)}");
-    }
+  if (p.freeShippingThreshold != null && p.freeShippingThreshold! > 0) {
+      out.add(l10n.freeOverLabel("₺${p.freeShippingThreshold!.toStringAsFixed(0)}"));
+  }
 
     if (p.kdvRate != null) {
-      out.add("KDV ${p.kdvRate!.toStringAsFixed(0)}%");
+      out.add(l10n.vatRateLabel(p.kdvRate!.toStringAsFixed(0)));
     }
 
     if (p.taxIncluded == true) {
-      out.add("KDV included");
+      out.add(l10n.vatIncludedLabel);
     }
 
     if (p.originCity != null && p.originCity!.trim().isNotEmpty) {
@@ -1015,8 +1021,9 @@ String _smartTitle(String title) {
   return "$short...";
 }
 
-   @override
-Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   final hasDiscount = product.salePrice != null &&
       product.salePrice! > 0 &&
       product.salePrice! < product.price;
@@ -1096,8 +1103,8 @@ Widget build(BuildContext context) {
                       color: Colors.black87,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
-                      "Out",
+                    child: Text(
+                      l10n.outOfStockLabel,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 9,
@@ -1125,7 +1132,7 @@ Widget build(BuildContext context) {
                 child: Text(
                   product.businessName?.trim().isNotEmpty == true
                       ? product.businessName!
-                      : "Seller",
+                      : l10n.sellerLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTheme.caption(
@@ -1238,7 +1245,7 @@ Widget build(BuildContext context) {
               Column(
   mainAxisSize: MainAxisSize.min,
   crossAxisAlignment: CrossAxisAlignment.start,
-  children: _buildBadges(product),
+  children: _buildBadges(l10n, product),
 ),
 
               const SizedBox(height: 8),
@@ -1273,9 +1280,9 @@ Widget build(BuildContext context) {
                         onPressed:
                             product.stock > 0 ? onAddToBasket : null,
                         icon: const Icon(Icons.add_shopping_cart, size: 13),
-                        label: const Text(
-                          "Add",
-                          style: TextStyle(fontSize: 10),
+                        label: Text(
+                          l10n.addButton,
+                          style: const TextStyle(fontSize: 10),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFC107),
@@ -1298,26 +1305,26 @@ Widget build(BuildContext context) {
   );
 }
 
-List<Widget> _buildBadges(Product product) {
+List<Widget> _buildBadges(AppLocalizations l10n, Product product) {
   final badges = <Widget>[];
 
   // 🚚 shipping
   if (product.shippingFee == 0) {
-    badges.add(_badge("Free cargo", Colors.blue, const Color(0xFFE3F2FD)));
+    badges.add(_badge(l10n.freeCargoLabel, Colors.blue, const Color(0xFFE3F2FD)));
   } else if (product.shippingFee != null) {
-    badges.add(_badge("Cargo ₺${product.shippingFee!.toInt()}", Colors.blue, const Color(0xFFE3F2FD)));
+    badges.add(_badge(l10n.cargoPriceLabel(product.shippingFee!.toInt().toString()), Colors.blue, const Color(0xFFE3F2FD)));
   } else {
-    badges.add(_badge("Cargo calculated", Colors.blue, const Color(0xFFE3F2FD)));
+    badges.add(_badge(l10n.cargoCalculatedLabel, Colors.blue, const Color(0xFFE3F2FD)));
   }
 
   // ⏱ delivery
   if (product.maxDeliveryDays != null) {
-    badges.add(_badge("${product.maxDeliveryDays} days", const Color(0xFF558B2F), const Color(0xFFF1F8E9)));
+    badges.add(_badge(l10n.daysLabel(product.maxDeliveryDays.toString()), const Color(0xFF558B2F), const Color(0xFFF1F8E9)));
   }
 
   // 📦 stock
   if (product.stock > 0) {
-    badges.add(_badge("In stock", const Color(0xFF2E7D32), const Color(0xFFE8F5E9)));
+    badges.add(_badge(l10n.inStockLabel, const Color(0xFF2E7D32), const Color(0xFFE8F5E9)));
   }
 
   // ⚠️ اگر کمتر از 3 تا بود → spacer

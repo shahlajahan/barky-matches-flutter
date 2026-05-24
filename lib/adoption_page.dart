@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'dog.dart';
 import 'dog_card.dart';
@@ -72,6 +73,7 @@ void initState() {
   // ================================
 
   Widget _buildToggle() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       padding: const EdgeInsets.all(4),
@@ -82,7 +84,7 @@ void initState() {
       child: Row(
         children: [
           _buildToggleItem(
-            label: "Adoption Centers",
+            label: l10n.adoptionCentersTitle,
             isSelected: _selectedView == AdoptionViewType.centers,
             onTap: () {
               setState(() {
@@ -91,7 +93,7 @@ void initState() {
             },
           ),
           _buildToggleItem(
-            label: "Dogs",
+            label: l10n.dogsTitle,
             isSelected: _selectedView == AdoptionViewType.dogs,
             onTap: () {
               setState(() {
@@ -138,21 +140,37 @@ void initState() {
   // ================================
 
   Widget _buildCentersSection() {
+  final l10n = AppLocalizations.of(context)!;
   return StreamBuilder<QuerySnapshot>(
     stream: FirebaseFirestore.instance
         .collection('businesses')
-        .where('type', isEqualTo: 'adoption_center')
+        .where('sectors', arrayContains: 'adoption_center')
         .where('status', isEqualTo: 'approved')
         .orderBy('updatedAt', descending: true)
         .snapshots(),
     builder: (context, snapshot) {
+
+  debugPrint("🐶 ADOPTION SNAPSHOT ERROR = ${snapshot.error}");
+  debugPrint("🐶 DOC COUNT = ${snapshot.data?.docs.length}");
+
+  if (snapshot.connectionState == ConnectionState.waiting) {
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
+  }
+
+  if (snapshot.hasError) {
+    return Center(
+      child: Text("ERROR: ${snapshot.error}"),
+    );
+  }
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
 
       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-        return const Center(
-          child: Text("No adoption centers available"),
+        return Center(
+          child: Text(l10n.noAdoptionCentersAvailable),
         );
       }
 
@@ -248,20 +266,23 @@ status: status,
   // ================================
 
   Widget _buildDogsSection() {
+  final l10n = AppLocalizations.of(context)!;
   return StreamBuilder<QuerySnapshot>(
     stream: FirebaseFirestore.instance
         .collection('dogs')
         .where('isAvailableForAdoption', isEqualTo: true)
         .where('isHidden', isEqualTo: false)
+        .limit(50)
         .snapshots(),
+        
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
 
       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-        return const Center(
-          child: Text("No dogs available for adoption"),
+        return Center(
+          child: Text(l10n.noDogsAvailableForAdoption),
         );
       }
 
@@ -428,7 +449,7 @@ void _openDogPreview(BuildContext context, Dog dog) {
   // ================================
 
   @override
-Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
   final appState = context.watch<AppState>();
   if (_loading || _isFirstLoad) {
   return _buildSkeleton();
@@ -436,13 +457,21 @@ Widget build(BuildContext context) {
 
   // 🐶 DOG OVERLAY (جدید)
   if (appState.adoptionDogOverlayId != null) {
-    final dog = _adoptionDogs.firstWhere(
-      (d) => d.id == appState.adoptionDogOverlayId,
-    );
+    final dog = _adoptionDogs
+    .where(
+      (d) =>
+          d.id ==
+          appState.adoptionDogOverlayId,
+    )
+    .firstOrNull;
 
-    return _AdoptionDogOverlay(
-      dog: dog,
-    );
+    if (dog == null) {
+  return const SizedBox.shrink();
+}
+
+return _AdoptionDogOverlay(
+  dog: dog,
+);
   }
 
   // 👤 OWNER OVERLAY (فعلی تو)
@@ -554,6 +583,7 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final appState = context.watch<AppState>();
 
     return StreamBuilder<QuerySnapshot>(
@@ -599,7 +629,7 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            "Available for Adoption",
+                            l10n.availableForAdoption,
                             style: AppTheme.h2(
                                 color: Colors.white),
                           ),
@@ -629,7 +659,7 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
         /// ✅ CTA رسمی
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton(
+            child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.accent,
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -650,7 +680,7 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
                 ),
               );
             },
-            child: const Text("Send Adoption Request"),
+            child: Text(l10n.sendAdoptionRequest),
           ),
         ),
       ],
@@ -669,6 +699,7 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
   }
 
   void _openAdoptionRequestSheet(BuildContext context, Dog dog) {
+  final l10n = AppLocalizations.of(context)!;
   final messageController = TextEditingController();
   final phoneController = TextEditingController();
 
@@ -692,15 +723,15 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Adoption Request",
+              l10n.adoptionRequestTitle,
               style: AppTheme.h2(),
             ),
             const SizedBox(height: 16),
 
             TextField(
               controller: phoneController,
-              decoration: const InputDecoration(
-                labelText: "Your Phone",
+              decoration: InputDecoration(
+                labelText: l10n.yourPhone,
               ),
             ),
 
@@ -709,8 +740,8 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
             TextField(
               controller: messageController,
               maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: "Why do you want to adopt?",
+              decoration: InputDecoration(
+                labelText: l10n.whyDoYouWantToAdopt,
               ),
             ),
 
@@ -749,13 +780,13 @@ class _AdoptionOwnerOverlay extends StatelessWidget {
 
                   ScaffoldMessenger.of(context)
                       .showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content:
-                          Text("Request sent successfully"),
+                          Text(l10n.adoptionRequestSent(dog.name)),
                     ),
                   );
                 },
-                child: const Text("Send Request"),
+                child: Text(l10n.sendButton),
               ),
             ),
           ],
@@ -775,6 +806,7 @@ class _AdoptionDogOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final appState = context.watch<AppState>();
 
     return Stack(
@@ -817,7 +849,7 @@ class _AdoptionDogOverlay extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        "Available for Adoption",
+                        l10n.availableForAdoption,
                         style: AppTheme.h2(color: Colors.white),
                       ),
                     ],
@@ -843,7 +875,7 @@ class _AdoptionDogOverlay extends StatelessWidget {
                   // 🟡 CTA
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                      child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accent,
                         foregroundColor: Colors.white,
@@ -876,9 +908,9 @@ class _AdoptionDogOverlay extends StatelessWidget {
                           ),
                         );
                       },
-                      child: const Text(
-                        "Send Adoption Request",
-                        style: TextStyle(
+                      child: Text(
+                        l10n.sendAdoptionRequest,
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -903,6 +935,7 @@ class _CenterDogsSubPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final appState = context.watch<AppState>();
 
     return SafeArea(
@@ -920,8 +953,8 @@ class _CenterDogsSubPage extends StatelessWidget {
                   context.read<AppState>().closeCenterDogs();
                 },
               ),
-              const Text(
-                'Available Dogs',
+              Text(
+                l10n.availableDogsTitle,
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
@@ -944,8 +977,8 @@ class _CenterDogsSubPage extends StatelessWidget {
                     .toList();
 
                 if (dogs.isEmpty) {
-                  return const Center(
-                    child: Text('No dogs available in this center'),
+                  return Center(
+                    child: Text(l10n.noDogsAvailableInThisCenter),
                   );
                 }
 

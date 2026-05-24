@@ -74,7 +74,7 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
       if (await file.exists()) {
         validPaths.add(path);
       } else {
-        print('DogDetailsPage - Image path invalid or file does not exist: $path');
+        debugPrint('DogDetailsPage - Image path invalid or file does not exist: $path');
       }
     }
     setState(() {
@@ -176,7 +176,7 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
     }
     final lowerStatus = status.toLowerCase().trim();
     if (kDebugMode) {
-      print('Health Status exact: "$status" -> lower: "$lowerStatus"');
+      debugPrint('Health Status exact: "$status" -> lower: "$lowerStatus"');
     }
     // match انگلیسی یا فارسی
     final healthyFa = (l10n.healthHealthy ?? 'healthy').toLowerCase();
@@ -193,7 +193,7 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
       return l10n.healthUnderTreatment ?? 'Under Treatment';
     }
     if (kDebugMode) {
-      print('No match for health status: "$lowerStatus"');
+      debugPrint('No match for health status: "$lowerStatus"');
     }
     return status;  // fallback به raw (فارسی)
   }
@@ -418,7 +418,7 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                       setState(() {
                         imagePaths.add(pickedFile.path);
                       });
-                      print('DogDetailsPage - Image picked: ${pickedFile.path}');
+                      debugPrint('DogDetailsPage - Image picked: ${pickedFile.path}');
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -456,7 +456,7 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                                     height: 100,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
-                                      print('DogDetailsPage - Error loading image: $error');
+                                      debugPrint('DogDetailsPage - Error loading image: $error');
                                       return const Icon(Icons.error, color: Colors.white);
                                     },
                                   ),
@@ -541,8 +541,8 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
 );
                     dogsBox.add(newDog);
                     widget.onDogAdded(newDog);
-                    print('DogDetailsPage - New dog added: Name=${newDog.name}, OwnerId=${newDog.ownerId}');
-                    print('DogDetailsPage - Total dogs in Hive: ${dogsBox.values.length}');
+                    debugPrint('DogDetailsPage - New dog added: Name=${newDog.name}, OwnerId=${newDog.ownerId}');
+                    debugPrint('DogDetailsPage - Total dogs in Hive: ${dogsBox.values.length}');
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(

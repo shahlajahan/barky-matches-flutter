@@ -112,30 +112,30 @@ Future<void> _openLostDogFromNotification(String dogId) async {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('LostDogsListPage error: $e');
+        debugPrint('LostDogsListPage error: $e');
       }
     }
   }
 
  Future<void> _sendFoundNotification(String lostDogId) async {
-  print("🚀 _sendFoundNotification HTTP START");
+  debugPrint("🚀 _sendFoundNotification HTTP START");
 
   try {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      print("❌ USER NULL — aborting");
+      debugPrint("❌ USER NULL — aborting");
       return;
     }
 
     final idToken = await user.getIdToken(false);
 
     if (idToken == null) {
-      print("❌ ID TOKEN NULL");
+      debugPrint("❌ ID TOKEN NULL");
       return;
     }
 
-    print("🔐 ID TOKEN OK");
+    debugPrint("🔐 ID TOKEN OK");
 
     // 🔥 HTTP endpoint (region-safe)
     final uri = Uri.parse(
@@ -149,7 +149,7 @@ Future<void> _openLostDogFromNotification(String dogId) async {
         .get();
 
     if (!snapshot.exists) {
-      print("❌ lost_dogs doc not found");
+      debugPrint("❌ lost_dogs doc not found");
       return;
     }
 
@@ -164,7 +164,7 @@ Future<void> _openLostDogFromNotification(String dogId) async {
       "lostDogId": lostDogId,
     };
 
-    print("📡 Sending HTTP request...");
+    debugPrint("📡 Sending HTTP request...");
 
     final response = await http
         .post(
@@ -177,29 +177,29 @@ Future<void> _openLostDogFromNotification(String dogId) async {
         )
         .timeout(const Duration(seconds: 20));
 
-    print("📥 HTTP Status: ${response.statusCode}");
-    print("📥 HTTP Body: ${response.body}");
+    debugPrint("📥 HTTP Status: ${response.statusCode}");
+    debugPrint("📥 HTTP Body: ${response.body}");
 
     if (response.statusCode != 200) {
-      print("❌ HTTP ERROR");
+      debugPrint("❌ HTTP ERROR");
       return;
     }
 
     final decoded = jsonDecode(response.body);
 
     if (decoded["success"] == true) {
-      print("✅ Lost/Found notification sent successfully");
+      debugPrint("✅ Lost/Found notification sent successfully");
     } else {
-      print("⚠️ Server responded but success=false");
+      debugPrint("⚠️ Server responded but success=false");
     }
 
   } catch (e, stack) {
-    print("💥 _sendFoundNotification ERROR");
-    print(e);
-    print(stack);
+    debugPrint("💥 _sendFoundNotification ERROR");
+   debugPrint('$e');
+    debugPrint('$stack');
   }
 
-  print("🏁 _sendFoundNotification HTTP END");
+  debugPrint("🏁 _sendFoundNotification HTTP END");
 }
 
 Widget _pinkChip(String label, String? value) {
@@ -213,8 +213,18 @@ Widget _pinkChip(String label, String? value) {
       vertical: 4,
     ),
     decoration: BoxDecoration(
-      color: const Color(0xFFFFE4EC), // همون صورتی Playmate
+      color: Colors.white, // ✅ سفید مثل Playmate
       borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: const Color(0xFF9E1B4F).withOpacity(0.12),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ],
     ),
     child: Text(
       "$label: $value",
@@ -233,18 +243,18 @@ Widget build(BuildContext context) {
   final activeLostDogId = appState.activeLostDogId;
   final currentTab = appState.currentTab;
 
-if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (mounted) {
-      setState(() {
-        _searchQuery = '';
-      });
-      _searchController.clear(); // ← این هم اضافه شد
-    }
-  });
-}
+  if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _searchQuery = '';
+        });
+        _searchController.clear();
+      }
+    });
+  }
 
-  // 🔥 DETAIL MODE
+  // 🔥 DETAIL MODE — منطق دست نخورده
   if (activeLostDogId != null) {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
@@ -254,15 +264,17 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data?.data() == null) {
           return const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(
+              color: AppTheme.accent,
+            ),
           );
         }
 
-        final data =
-            snapshot.data!.data() as Map<String, dynamic>;
+        final data = snapshot.data!.data() as Map<String, dynamic>;
 
-        final dog = LostDog.fromMap(data)
-            .copyWith(id: snapshot.data!.id);
+        final dog = LostDog.fromMap(data).copyWith(
+          id: snapshot.data!.id,
+        );
 
         return LostDogDetailPage(lostDog: dog);
       },
@@ -271,22 +283,37 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
 
   // 🔥 LIST MODE
   return Container(
-    color: AppTheme.bg, // ✅ مثل Playmate
+    color: AppTheme.bg,
     child: SafeArea(
       top: false,
       child: Column(
         children: [
-
           const SizedBox(height: 12),
 
-          // 🔹 Header
+          // 🔹 HEADER — Playmate style
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Row(
               children: [
-                Text(
-                  "Lost Dogs",
-                  style: AppTheme.h1(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Lost Dogs",
+                      style: AppTheme.h1().copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: const Color(0xFF9E1B4F),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Help lost pets find their way home",
+                      style: AppTheme.caption().copyWith(
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -294,26 +321,58 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
 
           const SizedBox(height: 12),
 
-          // 🔎 Search
+          // 🔎 SEARCH BAR — Playmate style
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: "Search by name...",
-                prefixIcon: Icon(Icons.search),
+            child: Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search,
+                    size: 20,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      style: AppTheme.body(),
+                      decoration: InputDecoration(
+                        hintText: "Search by name...",
+                        hintStyle: AppTheme.body(
+                          color: Colors.grey.shade500,
+                        ),
+                        border: InputBorder.none,
+                        isCollapsed: true,
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value.toLowerCase();
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
           const SizedBox(height: 12),
 
-          // 📋 LIST
+          // 📋 LIST — منطق Stream دست نخورده
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
@@ -323,7 +382,9 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(
-                    child: CircularProgressIndicator(),
+                    child: CircularProgressIndicator(
+                      color: AppTheme.accent,
+                    ),
                   );
                 }
 
@@ -333,18 +394,39 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
                         doc.data() as Map<String, dynamic>,
                       ).copyWith(id: doc.id);
                     })
-                    .where((dog) =>
-                        dog.name
-                            .toLowerCase()
-                            .contains(_searchQuery))
+                    .where(
+                      (dog) => dog.name
+                          .toLowerCase()
+                          .contains(_searchQuery),
+                    )
                     .toList();
 
                 if (lostDogs.isEmpty) {
                   return Center(
-                    child: Text(
-                      "No lost dogs reported yet",
-                      style: AppTheme.body(
-                          color: AppTheme.muted),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.pets,
+                          size: 56,
+                          color: const Color(0xFF9E1B4F).withOpacity(0.4),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "No lost dogs reported yet",
+                          style: AppTheme.h2().copyWith(
+                            color: const Color(0xFF9E1B4F),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Reported lost pets will appear here",
+                          style: AppTheme.caption().copyWith(
+                            color: AppTheme.muted,
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }
@@ -352,74 +434,56 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 8,
+                    vertical: 12,
                   ),
                   itemCount: lostDogs.length,
                   itemBuilder: (context, index) {
                     final dog = lostDogs[index];
-                    final user =
-                        FirebaseAuth.instance.currentUser;
-                    final isOwner =
-                        user?.uid == dog.reportedBy;
+                    final user = FirebaseAuth.instance.currentUser;
+                    final isOwner = user?.uid == dog.reportedBy;
 
-                    return Container(
-                      margin:
-                          const EdgeInsets.only(bottom: 14),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
                       child: InkWell(
-                        borderRadius:
-                            BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(20),
                         onTap: () {
                           context
                               .read<AppState>()
                               .openLostDogDetail(dog.id);
                         },
                         child: Container(
-                          padding:
-                              const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: AppTheme.card,
-                            borderRadius:
-                                BorderRadius.circular(
-                                    20),
-                            boxShadow:
-                                AppTheme.cardShadow(),
-                          ),
+  color: Colors.white, // ✅ دقیق مثل Playmate
+  borderRadius: BorderRadius.circular(20),
+  boxShadow: AppTheme.cardShadow(opacity: 0.05),
+),
                           child: Row(
                             children: [
-
                               // 🐶 IMAGE
                               ClipRRect(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(14),
-                                child: dog.imageUrl !=
-                                            null &&
-                                        dog.imageUrl!
-                                            .isNotEmpty
+                                borderRadius: BorderRadius.circular(14),
+                                child: dog.imageUrl != null &&
+                                        dog.imageUrl!.isNotEmpty
                                     ? SmartMedia(
-  url: dog.imageUrl!,
-  width: 64,
-  height: 64,
-  fit: BoxFit.cover,
-)
+                                        url: dog.imageUrl!,
+                                        width: 64,
+                                        height: 64,
+                                        fit: BoxFit.cover,
+                                      )
                                     : Container(
                                         height: 64,
                                         width: 64,
-                                        decoration:
-                                            BoxDecoration(
-                                          color: AppTheme
-                                              .muted
-                                              .withOpacity(
-                                                  0.1),
-                                          borderRadius:
-                                              BorderRadius
-                                                  .circular(
-                                                      14),
-                                        ),
+                                        decoration: BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(14),
+  border: Border.all(
+    color: const Color(0xFF9E1B4F).withOpacity(0.08),
+  ),
+),
                                         child: const Icon(
                                           Icons.pets,
-                                          color: Colors
-                                              .grey,
+                                          color: Color(0xFF9E1B4F),
                                         ),
                                       ),
                               ),
@@ -429,54 +493,43 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
                               // 🧠 INFO
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-
-                                    Row(
-                                      children: [
-                                        Text(
-                                          dog.name,
-                                          style: AppTheme
-                                              .h3(),
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(
-                                        height: 4),
-
                                     Text(
-                                      dog.breed,
-                                      style:
-                                          AppTheme.body(
-                                        color: AppTheme
-                                            .muted,
+                                      dog.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTheme.h3().copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF9E1B4F),
                                       ),
                                     ),
 
-                                    const SizedBox(
-                                        height: 8),
+                                    const SizedBox(height: 4),
+
+                                    Text(
+                                      dog.breed,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTheme.body(
+                                        color: AppTheme.muted,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 8),
 
                                     Wrap(
                                       spacing: 6,
                                       runSpacing: 6,
                                       children: [
-                                        _pinkChip(
-                                            "Gender",
-                                            dog.gender),
-                                        _pinkChip(
-                                            "Health",
-                                            dog.healthStatus),
-                                        _pinkChip(
-                                            "Color",
-                                            dog.color),
-                                        if (dog.weight !=
-                                            null)
+                                        _pinkChip("Gender", dog.gender),
+                                        _pinkChip("Health", dog.healthStatus),
+                                        _pinkChip("Color", dog.color),
+                                        if (dog.weight != null)
                                           _pinkChip(
-                                              "Weight",
-                                              "${dog.weight} kg"),
+                                            "Weight",
+                                            "${dog.weight} kg",
+                                          ),
                                       ],
                                     ),
                                   ],
@@ -485,59 +538,38 @@ if (currentTab != NavTab.lostDogs && _searchQuery.isNotEmpty) {
 
                               const SizedBox(width: 10),
 
-                              // 🟡 STATUS
+                              // 🟡 STATUS + OWNER SWITCH
                               Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .end,
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-
                                   Container(
-                                    padding:
-                                        const EdgeInsets
-                                            .symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: 10,
                                       vertical: 4,
                                     ),
-                                    decoration:
-                                        BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color: dog.isFound
-                                          ? Colors.green
-                                              .withOpacity(
-                                                  0.15)
-                                          : Colors.orange
-                                              .withOpacity(
-                                                  0.15),
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                                  50),
+                                          ? Colors.green.withOpacity(0.15)
+                                          : Colors.orange.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(50),
                                     ),
                                     child: Text(
-                                      dog.isFound
-                                          ? "Found"
-                                          : "Missing",
-                                      style: AppTheme
-                                          .caption(
-                                        color:
-                                            dog.isFound
-                                                ? Colors
-                                                    .green
-                                                : Colors
-                                                    .orange,
+                                      dog.isFound ? "Found" : "Missing",
+                                      style: AppTheme.caption(
+                                        color: dog.isFound
+                                            ? Colors.green
+                                            : Colors.orange,
+                                      ).copyWith(
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
 
                                   if (isOwner)
                                     Switch(
-                                      value:
-                                          dog.isFound,
-                                      activeColor:
-                                          AppTheme
-                                              .accent,
-                                      onChanged:
-                                          (value) {
+                                      value: dog.isFound,
+                                      activeColor: AppTheme.accent,
+                                      onChanged: (value) {
                                         _updateFoundStatus(
                                           dog.id,
                                           dog.reportedBy,

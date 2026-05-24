@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
@@ -63,6 +64,7 @@ String? _resolveVideoUrl(ProductMedia media) {
 
   @override
 Widget build(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   if (mode == ProductCardMode.customerList) {
   return _buildCompactCard(context);
 }
@@ -110,7 +112,7 @@ Widget build(BuildContext context) {
                   Text(
                     product.name.isNotEmpty
                         ? product.name
-                        : "Unnamed Product",
+                        : l10n.unnamedProduct,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: AppTheme.h3(
@@ -123,7 +125,7 @@ Widget build(BuildContext context) {
                   if (product.barcode != null &&
                       product.barcode!.isNotEmpty)
                     Text(
-                      "Barcode: ${product.barcode}",
+                      l10n.barcodeLabel(product.barcode!),
                       style: AppTheme.caption(
                         color: AppTheme.muted,
                       ),
@@ -132,7 +134,7 @@ Widget build(BuildContext context) {
                   if (product.sku != null &&
                       product.sku!.isNotEmpty)
                     Text(
-                      "SKU: ${product.sku}",
+                      l10n.skuLabel(product.sku!),
                       style: AppTheme.caption(
                         color: AppTheme.muted,
                       ),
@@ -211,10 +213,10 @@ Widget build(BuildContext context) {
   runSpacing: 4,
   children: [
     if (hasDiscount)
-      _badge("💸 Deal", Colors.orange),
+      _badge(l10n.dealBadge, Colors.orange),
 
     if (product.stock <= 3)
-      _badge("⚡ Low", Colors.red),
+      _badge(l10n.lowStockBadge, Colors.red),
   ],
 ),
 
@@ -237,7 +239,7 @@ Widget build(BuildContext context) {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  "Save ₺${discountAmount.toStringAsFixed(0)}",
+                  l10n.saveAmountLabel("₺${discountAmount.toStringAsFixed(0)}"),
                   style: const TextStyle(
                     color: Colors.green,
                     fontSize: 11,
@@ -256,7 +258,9 @@ Widget build(BuildContext context) {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    "Sale: ${product.salePrice!.toStringAsFixed(0)} ${product.currency}",
+                    l10n.salePriceLabel(
+                      "${product.salePrice!.toStringAsFixed(0)} ${product.currency}",
+                    ),
                     style: const TextStyle(
                       color: Colors.orange,
                       fontSize: 11,
@@ -288,7 +292,7 @@ Widget build(BuildContext context) {
             ),
             const SizedBox(width: 6),
             Text(
-              "Stock: ${product.stock}",
+              l10n.stockLabel(product.stock.toString()),
               style: AppTheme.caption(
                 color: AppTheme.textDark.withOpacity(0.8),
               ),
@@ -308,6 +312,7 @@ const Spacer(),
 }
 
 Widget _buildCustomerActions(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   return Row(
     children: [
       Expanded(
@@ -323,14 +328,14 @@ Widget _buildCustomerActions(BuildContext context) {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const FittedBox(
+            child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add_shopping_cart, size: 18),
                   SizedBox(width: 6),
-                  Text("Add to Cart"),
+                  Text(l10n.addToCartButton),
                 ],
               ),
             ),
@@ -353,14 +358,14 @@ Widget _buildCustomerActions(BuildContext context) {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const FittedBox(
+            child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.flash_on, size: 18),
                   SizedBox(width: 6),
-                  Text("Buy Now"),
+                  Text(l10n.buyNowButton),
                 ],
               ),
             ),
@@ -372,6 +377,7 @@ Widget _buildCustomerActions(BuildContext context) {
 }
 void _addToCart(BuildContext context) {
   final appState = context.read<AppState>();
+  final l10n = AppLocalizations.of(context)!;
 
   final cartItem = CartItem(
     productId: product.id,
@@ -390,7 +396,7 @@ debugPrint("🟢 CART carriers: ${cartItem.allowedCarrierCodes}");
   appState.addToCart(cartItem);
 
   ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Added to cart")),
+    SnackBar(content: Text(l10n.addedToCart)),
   );
 }
 
@@ -424,7 +430,8 @@ void _buyNow(BuildContext context) {
   );
 }
 
-  Widget _buildShippingInfo(Product p) {
+  Widget _buildShippingInfo(BuildContext context, Product p) {
+  final l10n = AppLocalizations.of(context)!;
   final List<String> parts = [];
 
   // 🚚 DEBUG درست
@@ -432,29 +439,36 @@ void _buyNow(BuildContext context) {
 
   // 🚚 shipping mode / fee
   if (p.shippingMode == "free_shipping" || p.shippingMode == "seller_absorbs") {
-    parts.add("Free shipping");
+    parts.add(l10n.freeShippingLabel);
   } else if (p.shippingMode == "fixed_price" && p.shippingFee != null) {
-    parts.add("Cargo: ₺${p.shippingFee!.toStringAsFixed(0)}");
+    parts.add(l10n.cargoLabel("₺${p.shippingFee!.toStringAsFixed(0)}"));
   } else if (p.shippingMode == "carrier_calculated") {
-    parts.add("Cargo calculated");
+    parts.add(l10n.cargoCalculatedLabel);
   }
 
   // 🚛 carrier names
   if (p.allowedCarrierCodes != null && p.allowedCarrierCodes!.isNotEmpty) {
     final carriers = p.allowedCarrierCodes!.join(", ");
-    parts.add("Carrier: $carriers");
+    parts.add(l10n.carrierLabel(carriers));
   }
 
   // ⏱ delivery window
   if (p.preparationDays != null && p.maxDeliveryDays != null) {
-    parts.add("${p.preparationDays}-${p.maxDeliveryDays} days");
+    parts.add(
+      l10n.deliveryDaysRangeLabel(
+        p.preparationDays.toString(),
+        p.maxDeliveryDays.toString(),
+      ),
+    );
   } else if (p.maxDeliveryDays != null) {
-    parts.add("${p.maxDeliveryDays} days");
+    parts.add(l10n.daysLabel(p.maxDeliveryDays.toString()));
   }
 
   // 🎁 free shipping threshold
   if (p.freeShippingThreshold != null && p.freeShippingThreshold! > 0) {
-    parts.add("Free over ₺${p.freeShippingThreshold!.toStringAsFixed(0)}");
+    parts.add(
+      l10n.freeOverLabel("₺${p.freeShippingThreshold!.toStringAsFixed(0)}"),
+    );
   }
 
   if (parts.isEmpty) return const SizedBox.shrink();
@@ -485,7 +499,8 @@ void _buyNow(BuildContext context) {
   );
 }
 
-Widget _buildDiscountInfo(Product p) {
+Widget _buildDiscountInfo(BuildContext context, Product p) {
+  final l10n = AppLocalizations.of(context)!;
   final hasDiscount =
       p.salePrice != null && p.salePrice! > 0 && p.salePrice! < p.price;
 
@@ -505,7 +520,7 @@ Widget _buildDiscountInfo(Product p) {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
-          "Save ₺${discountAmount.toStringAsFixed(0)}",
+          l10n.saveAmountLabel("₺${discountAmount.toStringAsFixed(0)}"),
           style: const TextStyle(
             color: Colors.green,
             fontSize: 11,
@@ -609,7 +624,7 @@ Widget _buildDiscountInfo(Product p) {
 
             if (safeMedia.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Media not ready yet")),
+                SnackBar(content: Text(AppLocalizations.of(context)!.mediaNotReadyYet)),
               );
               return;
             }
@@ -745,6 +760,7 @@ Widget _buildDiscountInfo(Product p) {
     );
   }
   Widget _buildCompactCard(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   final hasDiscount =
       product.salePrice != null &&
       product.salePrice! > 0 &&
@@ -812,7 +828,7 @@ Widget _buildDiscountInfo(Product p) {
                     foregroundColor: Colors.black,
                     padding: EdgeInsets.zero,
                   ),
-                  child: const Text("Add", style: TextStyle(fontSize: 11)),
+                  child: Text(l10n.addButton, style: const TextStyle(fontSize: 11)),
                 ),
               ),
             ],

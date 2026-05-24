@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AppointmentDetailPage extends StatelessWidget {
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
+
+class AppointmentDetailPage extends StatefulWidget {
   final String appointmentId;
 
   const AppointmentDetailPage({
@@ -11,16 +14,23 @@ class AppointmentDetailPage extends StatelessWidget {
   });
 
   @override
+  State<AppointmentDetailPage> createState() => _AppointmentDetailPageState();
+}
+
+class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
+  @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Appointment Detail"),
+        title: Text(l10n.appointmentDetailTitle),
         backgroundColor: const Color(0xFF9E1B4F),
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('vet_appointments')
-            .doc(appointmentId)
+            .doc(widget.appointmentId)
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -28,15 +38,22 @@ class AppointmentDetailPage extends StatelessWidget {
           }
 
           if (!snapshot.data!.exists) {
-            return const Center(child: Text("Appointment not found"));
+            return Center(child: Text(l10n.appointmentNotFound));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
 
           final petName = data['petName'] ?? data['dogName'] ?? '-';
           final service = data['serviceTitle'] ?? '-';
-          final status = data['status'] ?? '-';
-          final paymentStatus = data['paymentStatus'] ?? 'unpaid';
+          final status = (data['status'] ?? '-').toString();
+          final paymentStatus = (data['paymentStatus'] ?? 'unpaid').toString();
+          final refundStatus = (data['refundStatus'] ?? '').toString();
+          final refundRequired = data['refundRequired'] == true;
+          final refundLabel = AppointmentStatusUtils.refundStatusLabel(
+            refundRequired: refundRequired,
+            refundStatus: refundStatus,
+            l10n: l10n,
+          );
           final price = data['price'] ?? 0;
 
           return Padding(
@@ -44,8 +61,6 @@ class AppointmentDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                /// 🐾 TITLE
                 Text(
                   service,
                   style: GoogleFonts.poppins(
@@ -56,14 +71,19 @@ class AppointmentDetailPage extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                Text("Pet: $petName"),
-                Text("Status: $status"),
-                Text("Payment: $paymentStatus"),
-                Text("Price: ₺$price"),
+                Text("${l10n.petLabel}: $petName"),
+                Text(
+                  "${l10n.statusLabel}: ${AppointmentStatusUtils.statusLabel(status, l10n)}",
+                ),
+                Text(
+                  "${l10n.paymentLabel}: ${AppointmentStatusUtils.paymentStatusLabel(paymentStatus, l10n)}",
+                ),
+                if (refundLabel.isNotEmpty)
+                  Text("${l10n.refundResultLabel}: $refundLabel"),
+                Text("${l10n.priceLabel}: ₺$price"),
 
                 const SizedBox(height: 24),
 
-                /// 💳 PAYMENT BUTTON
                 if (paymentStatus != "paid")
                   SizedBox(
                     width: double.infinity,
@@ -72,39 +92,41 @@ class AppointmentDetailPage extends StatelessWidget {
                         Navigator.pushNamed(
                           context,
                           '/appointmentPayment',
-                          arguments: appointmentId,
+                          arguments: widget.appointmentId,
                         );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF9E1B4F),
                       ),
-                      child: const Text("Go to Payment"),
+                      child: Text(l10n.goToPaymentButton),
                     ),
                   ),
 
-                /// ✅ COMPLETE BUTTON (vet side)
-                if (status == "confirmed_paid")
+                if (status == "confirmed_paid") ...[
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         await FirebaseFirestore.instance
                             .collection('vet_appointments')
-                            .doc(appointmentId)
+                            .doc(widget.appointmentId)
                             .update({
                           "status": "completed",
                         });
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Marked as completed")),
+                        messenger.showSnackBar(
+                          SnackBar(content: Text(l10n.markedAsCompletedSnack)),
                         );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                       ),
-                      child: const Text("Mark as Completed"),
+                      child: Text(l10n.markAsCompletedButton),
                     ),
                   ),
+                ],
               ],
             ),
           );

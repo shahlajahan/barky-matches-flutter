@@ -84,66 +84,66 @@ void didChangeDependencies() {
   String translateTrait(String traitKey) {
     final l10n = AppLocalizations.of(context)!;
     if (traitKey.isEmpty) {
-      return l10n.unknownTrait ?? 'Unknown Trait';
+      return l10n.unknownTrait;
     }
     final rawToLocalized = {
-      'energetic': l10n.traitEnergetic ?? 'Energetic',
-      'playful': l10n.traitPlayful ?? 'Playful',
-      'calm': l10n.traitCalm ?? 'Calm',
-      'loyal': l10n.traitLoyal ?? 'Loyal',
-      'friendly': l10n.traitFriendly ?? 'Friendly',
-      'protective': l10n.traitProtective ?? 'Protective',
-      'intelligent': l10n.traitIntelligent ?? 'Intelligent',
-      'affectionate': l10n.traitAffectionate ?? 'Affectionate',
-      'curious': l10n.traitCurious ?? 'Curious',
-      'independent': l10n.traitIndependent ?? 'Independent',
-      'shy': l10n.traitShy ?? 'Shy',
-      'trained': l10n.traitTrained ?? 'Trained',
-      'social': l10n.traitSocial ?? 'Social',
-      'good with kids': l10n.traitGoodWithKids ?? 'Good with kids',
-      'پر انرژی': l10n.traitEnergetic ?? 'Energetic',
-      'دوستانه': l10n.traitFriendly ?? 'Friendly',
-      'خوب با بچه‌ها': l10n.traitGoodWithKids ?? 'Good with kids',
+      'energetic': l10n.traitEnergetic,
+      'playful': l10n.traitPlayful,
+      'calm': l10n.traitCalm,
+      'loyal': l10n.traitLoyal,
+      'friendly': l10n.traitFriendly,
+      'protective': l10n.traitProtective,
+      'intelligent': l10n.traitIntelligent,
+      'affectionate': l10n.traitAffectionate,
+      'curious': l10n.traitCurious,
+      'independent': l10n.traitIndependent,
+      'shy': l10n.traitShy,
+      'trained': l10n.traitTrained,
+      'social': l10n.traitSocial,
+      'good with kids': l10n.traitGoodWithKids,
+      'پر انرژی': l10n.traitEnergetic,
+      'دوستانه': l10n.traitFriendly,
+      'خوب با بچه‌ها': l10n.traitGoodWithKids,
     };
     final lowerTrait = traitKey.toLowerCase().trim();
     if (kDebugMode) {
-      print('AddDogPage - Trait exact: "$traitKey" -> lower: "$lowerTrait"');
+      debugPrint('AddDogPage - Trait exact: "$traitKey" -> lower: "$lowerTrait"');
     }
     if (rawToLocalized.containsKey(lowerTrait)) {
       return rawToLocalized[lowerTrait]!;
     }
     switch (traitKey) {
       case 'traitEnergetic':
-        return l10n.traitEnergetic ?? 'Energetic';
+        return l10n.traitEnergetic;
       case 'traitPlayful':
-        return l10n.traitPlayful ?? 'Playful';
+        return l10n.traitPlayful;
       case 'traitCalm':
-        return l10n.traitCalm ?? 'Calm';
+        return l10n.traitCalm;
       case 'traitLoyal':
-        return l10n.traitLoyal ?? 'Loyal';
+        return l10n.traitLoyal;
       case 'traitFriendly':
-        return l10n.traitFriendly ?? 'Friendly';
+        return l10n.traitFriendly;
       case 'traitProtective':
-        return l10n.traitProtective ?? 'Protective';
+        return l10n.traitProtective;
       case 'traitIntelligent':
-        return l10n.traitIntelligent ?? 'Intelligent';
+        return l10n.traitIntelligent;
       case 'traitAffectionate':
-        return l10n.traitAffectionate ?? 'Affectionate';
+        return l10n.traitAffectionate;
       case 'traitCurious':
-        return l10n.traitCurious ?? 'Curious';
+        return l10n.traitCurious;
       case 'traitIndependent':
-        return l10n.traitIndependent ?? 'Independent';
+        return l10n.traitIndependent;
       case 'traitShy':
-        return l10n.traitShy ?? 'Shy';
+        return l10n.traitShy;
       case 'traitTrained':
-        return l10n.traitTrained ?? 'Trained';
+        return l10n.traitTrained;
       case 'traitSocial':
-        return l10n.traitSocial ?? 'Social';
+        return l10n.traitSocial;
       case 'traitGoodWithKids':
-        return l10n.traitGoodWithKids ?? 'Good with kids';
+        return l10n.traitGoodWithKids;
       default:
         if (kDebugMode) {
-          print('AddDogPage - No match for trait: "$traitKey"');
+          debugPrint('AddDogPage - No match for trait: "$traitKey"');
         }
         return traitKey;
     }
@@ -152,19 +152,19 @@ void didChangeDependencies() {
   String translateGender(String gender) {
     final l10n = AppLocalizations.of(context)!;
     if (gender.isEmpty) {
-      return l10n.unknownGender ?? 'Unknown Gender';
+      return l10n.unknownGender;
     }
     final lowerGender = gender.toLowerCase().trim();
     if (kDebugMode) {
-      print('AddDogPage - Gender exact: "$gender" -> lower: "$lowerGender"');
+      debugPrint('AddDogPage - Gender exact: "$gender" -> lower: "$lowerGender"');
     }
-    final maleFa = (l10n.genderMale ?? 'male').toLowerCase();
-    final femaleFa = (l10n.genderFemale ?? 'female').toLowerCase();
+    final maleFa = l10n.genderMale.toLowerCase();
+    final femaleFa = l10n.genderFemale.toLowerCase();
     if (lowerGender == maleFa || lowerGender == 'نر' || lowerGender == 'male') {
-      return l10n.genderMale ?? 'Male';
+      return l10n.genderMale;
     }
     if (lowerGender == femaleFa || lowerGender == 'ماده' || lowerGender == 'female') {
-      return l10n.genderFemale ?? 'Female';
+      return l10n.genderFemale;
     }
     return gender;
   }
@@ -172,47 +172,121 @@ void didChangeDependencies() {
   String translateHealthStatus(String status) {
     final l10n = AppLocalizations.of(context)!;
     if (status.isEmpty) {
-      return l10n.unknownStatus ?? 'Unknown Status';
+      return l10n.unknownStatus;
     }
     final lowerStatus = status.toLowerCase().trim();
     if (kDebugMode) {
-      print('AddDogPage - Health Status exact: "$status" -> lower: "$lowerStatus"');
+      debugPrint('AddDogPage - Health Status exact: "$status" -> lower: "$lowerStatus"');
     }
-    final healthyFa = (l10n.healthHealthy ?? 'healthy').toLowerCase();
-    final needsFa = (l10n.healthNeedsCare ?? 'needs care').toLowerCase();
-    final underFa = (l10n.healthUnderTreatment ?? 'under treatment').toLowerCase();
+    final healthyFa = l10n.healthHealthy.toLowerCase();
+    final needsFa = l10n.healthNeedsCare.toLowerCase();
+    final underFa = l10n.healthUnderTreatment.toLowerCase();
     if (lowerStatus == healthyFa || lowerStatus == 'سالم' || lowerStatus == 'healthy') {
-      return l10n.healthHealthy ?? 'Healthy';
+      return l10n.healthHealthy;
     }
     if (lowerStatus == needsFa || lowerStatus == 'نیاز به مراقبت' || lowerStatus == 'needs care' || lowerStatus == 'needs attention') {
-      return l10n.healthNeedsCare ?? 'Needs Care';
+      return l10n.healthNeedsCare;
     }
     if (lowerStatus == underFa || lowerStatus == 'در حال درمان' || lowerStatus == 'under treatment') {
-      return l10n.healthUnderTreatment ?? 'Under Treatment';
+      return l10n.healthUnderTreatment;
     }
     if (kDebugMode) {
-      print('AddDogPage - No match for health status: "$lowerStatus"');
+      debugPrint('AddDogPage - No match for health status: "$lowerStatus"');
     }
     return status;
+  }
+
+  String _localizedPetTypeLabel(String petType) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (petType.toLowerCase().trim()) {
+      case 'dog':
+        return l10n.petTypeDog;
+      case 'cat':
+        return l10n.petTypeCat;
+      case 'bird':
+        return l10n.petTypeBird;
+      case 'horse':
+        return l10n.petTypeHorse;
+      default:
+        return petType;
+    }
+  }
+
+  String _localizedGenderOption(String gender) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (gender.toLowerCase().trim()) {
+      case 'male':
+        return l10n.genderMale;
+      case 'female':
+        return l10n.genderFemale;
+      case 'other':
+        return l10n.genderOther;
+      default:
+        return gender;
+    }
+  }
+
+  String _localizedHealthStatusOption(String status) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (status.toLowerCase().trim()) {
+      case 'healthy':
+        return l10n.healthHealthy;
+      case 'needs attention':
+      case 'needs care':
+        return l10n.healthNeedsCare;
+      case 'under treatment':
+        return l10n.healthUnderTreatment;
+      default:
+        return status;
+    }
+  }
+
+  String _localizedBreedLabel(String breed) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (breed.toLowerCase().trim()) {
+      case 'persian':
+        return l10n.breedPersian;
+      case 'siamese':
+        return l10n.breedSiamese;
+      case 'maine coon':
+        return l10n.breedMaineCoon;
+      case 'british shorthair':
+        return l10n.breedBritishShorthair;
+      case 'parrot':
+        return l10n.breedParrot;
+      case 'canary':
+        return l10n.breedCanary;
+      case 'budgerigar':
+        return l10n.breedBudgerigar;
+      case 'arabian':
+        return l10n.breedArabian;
+      case 'thoroughbred':
+        return l10n.breedThoroughbred;
+      case 'mustang':
+        return l10n.breedMustang;
+      default:
+        return breed;
+    }
   }
 
   Future<void> _checkUserAndGetLocation() async {
   final user = FirebaseAuth.instance.currentUser;
 
   if (user == null) {
-    print("AddDogPage - No user logged in");
+    debugPrint("AddDogPage - No user logged in");
     return;
   }
 
   await _getCurrentLocation();
+  if (!mounted) return;
 }
   Future<void> _getCurrentLocation() async {
     final l10n = AppLocalizations.of(context)!;
-    print('AddDogPage - Attempting to get current location');
+    debugPrint('AddDogPage - Attempting to get current location');
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        print('AddDogPage - Location services are disabled');
+        debugPrint('AddDogPage - Location services are disabled');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -230,7 +304,7 @@ void didChangeDependencies() {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          print('AddDogPage - Location permission denied');
+          debugPrint('AddDogPage - Location permission denied');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -252,7 +326,7 @@ void didChangeDependencies() {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        print('AddDogPage - Location permission permanently denied');
+        debugPrint('AddDogPage - Location permission permanently denied');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -286,11 +360,11 @@ void didChangeDependencies() {
         setState(() {
           _latitude = position.latitude;
           _longitude = position.longitude;
-          print('AddDogPage - Location acquired: Latitude: $_latitude, Longitude: $_longitude');
+          debugPrint('AddDogPage - Location acquired: Latitude: $_latitude, Longitude: $_longitude');
         });
       }
     } catch (e) {
-      print('AddDogPage - Error getting location: $e');
+      debugPrint('AddDogPage - Error getting location: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -309,14 +383,18 @@ void didChangeDependencies() {
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source);
+    final pickedFile = await picker.pickImage(
+  source: source,
+  imageQuality: 70,
+  maxWidth: 1400,
+);
     if (pickedFile != null) {
       setState(() {
         _imageFiles.add(pickedFile);
-        print('AddDogPage - Added image file: ${pickedFile.path}');
+        debugPrint('AddDogPage - Added image file: ${pickedFile.path}');
       });
     } else {
-      print('AddDogPage - No image picked');
+      debugPrint('AddDogPage - No image picked');
     }
   }
 
@@ -325,7 +403,7 @@ void didChangeDependencies() {
 
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
-    print('AddDogPage - Upload failed: user not logged in');
+    debugPrint('AddDogPage - Upload failed: user not logged in');
     return urls;
   }
 
@@ -341,7 +419,7 @@ void didChangeDependencies() {
           .ref()
           .child('dog_images/$userId/$dogId/$fileName.jpg');
 
-      print("AddDogPage - Uploading image to ${ref.fullPath}");
+      debugPrint("AddDogPage - Uploading image to ${ref.fullPath}");
 
       await ref.putFile(file);
 
@@ -349,10 +427,10 @@ void didChangeDependencies() {
 
       urls.add(url);
 
-      print("AddDogPage - Uploaded image URL: $url");
+      debugPrint("AddDogPage - Uploaded image URL: $url");
 
     } catch (e) {
-      print('AddDogPage - Error uploading image: $e');
+      debugPrint('AddDogPage - Error uploading image: $e');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -372,29 +450,29 @@ void didChangeDependencies() {
 }
 
   Future<void> _submit() async {
-    print('AddDogPage - Add Dog button pressed');
-    print('AddDogPage - Validating form...');
-    print('AddDogPage - Name: ${_nameController.text}');
-    print('AddDogPage - Breed: $_selectedBreed');
-    print('AddDogPage - Age: ${_ageController.text}');
-    print('AddDogPage - Gender: $_selectedGender');
-    print('AddDogPage - Health Status: $_selectedHealthStatus');
-    print('AddDogPage - Neutered: $_isNeutered');
-    print('AddDogPage - Traits: $_selectedTraits');
-    print('AddDogPage - Owner Gender: $_selectedOwnerGender');
-    print('AddDogPage - Description: ${_descriptionController.text}');
-    print('AddDogPage - Available for Adoption: $_isAvailableForAdoption');
-    print('AddDogPage - Latitude: $_latitude, Longitude: $_longitude');
+    debugPrint('AddDogPage - Add Dog button pressed');
+    debugPrint('AddDogPage - Validating form...');
+    debugPrint('AddDogPage - Name: ${_nameController.text}');
+    debugPrint('AddDogPage - Breed: $_selectedBreed');
+    debugPrint('AddDogPage - Age: ${_ageController.text}');
+    debugPrint('AddDogPage - Gender: $_selectedGender');
+    debugPrint('AddDogPage - Health Status: $_selectedHealthStatus');
+    debugPrint('AddDogPage - Neutered: $_isNeutered');
+    debugPrint('AddDogPage - Traits: $_selectedTraits');
+    debugPrint('AddDogPage - Owner Gender: $_selectedOwnerGender');
+    debugPrint('AddDogPage - Description: ${_descriptionController.text}');
+    debugPrint('AddDogPage - Available for Adoption: $_isAvailableForAdoption');
+    debugPrint('AddDogPage - Latitude: $_latitude, Longitude: $_longitude');
 
     if (_isLoading) {
-      print('AddDogPage - Already submitting, ignoring additional presses');
+      debugPrint('AddDogPage - Already submitting, ignoring additional presses');
       return;
     }
 
     if (_formKey.currentState!.validate()) {
-      print('AddDogPage - Form validation passed for required fields');
+      debugPrint('AddDogPage - Form validation passed for required fields');
       if (_isNeutered == null) {
-        print('AddDogPage - Validation failed: Neutered not specified');
+        debugPrint('AddDogPage - Validation failed: Neutered not specified');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSpecifyNeutered)),
@@ -404,7 +482,7 @@ void didChangeDependencies() {
       }
 
       if (_selectedTraits.isEmpty) {
-        print('AddDogPage - Validation failed: No traits selected');
+        debugPrint('AddDogPage - Validation failed: No traits selected');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSelectAtLeastOneTrait)),
@@ -414,7 +492,7 @@ void didChangeDependencies() {
       }
 
       if (_latitude == null || _longitude == null) {
-        print('AddDogPage - Validation failed: Location not acquired');
+        debugPrint('AddDogPage - Validation failed: Location not acquired');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -430,7 +508,7 @@ void didChangeDependencies() {
         }
         await _getCurrentLocation(); // Retry getting location
         if (_latitude == null || _longitude == null) {
-          print('AddDogPage - Retry failed: Location still not acquired');
+          debugPrint('AddDogPage - Retry failed: Location still not acquired');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(AppLocalizations.of(context)!.locationNotAcquired)),
@@ -440,7 +518,7 @@ void didChangeDependencies() {
         }
       }
 
-      print('AddDogPage - All validations passed, proceeding to save dog');
+      debugPrint('AddDogPage - All validations passed, proceeding to save dog');
       setState(() {
         _isLoading = true;
       });
@@ -448,24 +526,24 @@ void didChangeDependencies() {
       try {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
-  print('AddDogPage - No user logged in');
+  debugPrint('AddDogPage - No user logged in');
 
   if (mounted) {
-    print("AddDogPage - User lost session");
+    debugPrint("AddDogPage - User lost session");
   }
 
   return;
 }
         final userId = user.uid;
-        print('AddDogPage - Current userId: $userId');
+        debugPrint('AddDogPage - Current userId: $userId');
 
         final dogId = FirebaseFirestore.instance.collection('dogs').doc().id;
-        print('AddDogPage - Generated dogId: $dogId');
+        debugPrint('AddDogPage - Generated dogId: $dogId');
 
         final dogsBox = Hive.box<Dog>('dogsBox');
         final doc = await FirebaseFirestore.instance.collection('dogs').doc(dogId).get();
         if (doc.exists) {
-          print('AddDogPage - Validation failed: A dog with this ID already exists');
+          debugPrint('AddDogPage - Validation failed: A dog with this ID already exists');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -503,9 +581,9 @@ void didChangeDependencies() {
           petType: _selectedPetType,
         );
 
-        print('AddDogPage - Saving dog to Hive: dogId=$dogId, ownerId=$userId');
+        debugPrint('AddDogPage - Saving dog to Hive: dogId=$dogId, ownerId=$userId');
         await dogsBox.put(dogId, newDog);
-        print('AddDogPage - Dog added to Hive: ${newDog.name}, ID: $dogId');
+        debugPrint('AddDogPage - Dog added to Hive: ${newDog.name}, ID: $dogId');
 
         await FirebaseFirestore.instance.collection('dogs').doc(dogId).set({
           'id': dogId,
@@ -531,11 +609,11 @@ void didChangeDependencies() {
   'isHidden': false,
   'moderationStatus': 'active',
         });
-        print('AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId');
+        debugPrint('AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId');
 
        
 
-print('AddDogPage - Redirecting to Home...');
+debugPrint('AddDogPage - Redirecting to Home...');
 
 widget.onDogAdded?.call(newDog);
 
@@ -546,9 +624,9 @@ await Future.delayed(const Duration(milliseconds: 100));
 if (!mounted) return;
 
 Navigator.pop(context);
-        print('AddDogPage - Navigation completed');
+        debugPrint('AddDogPage - Navigation completed');
       } catch (e) {
-        print('AddDogPage - Error adding dog: $e');
+        debugPrint('AddDogPage - Error adding dog: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(AppLocalizations.of(context)!.errorAddingDog(e.toString()))),
@@ -562,7 +640,7 @@ Navigator.pop(context);
         }
       }
     } else {
-      print('AddDogPage - Form validation failed');
+      debugPrint('AddDogPage - Form validation failed');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context)!.pleaseFillRequiredFields)),
@@ -583,7 +661,7 @@ Navigator.pop(context);
       ),
     ),
     child: Text(
-      AppLocalizations.of(context)!.retryLocation ?? 'Retry Location',
+      AppLocalizations.of(context)!.retryLocation,
       style: GoogleFonts.poppins(
         color: Colors.black, // 🔥 مهم (نه pink)
         fontSize: 16,
@@ -595,7 +673,7 @@ Navigator.pop(context);
 
   @override
   void dispose() {
-    print('AddDogPage - Disposing controllers');
+    debugPrint('AddDogPage - Disposing controllers');
     _nameController.dispose();
     _ageController.dispose();
     _descriptionController.dispose();
@@ -604,11 +682,11 @@ Navigator.pop(context);
 
   @override
   Widget build(BuildContext context) {
-    print('AddDogPage - Building UI');
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)?.addYourDog ?? 'Add Your Pet',
+          AppLocalizations.of(context)!.addYourDog,
           style: GoogleFonts.dancingScript(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -634,11 +712,11 @@ centerTitle: true,
                     children: [
                       _buildTextField(
                         controller: _nameController,
-                        label: AppLocalizations.of(context)?.nameLabel ?? 'Name *',
+                        label: AppLocalizations.of(context)!.nameLabel,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            print('AddDogPage - Validation failed: Name is empty');
-                            return AppLocalizations.of(context)?.pleaseEnterDogName ?? 'Please enter your dog\'s name';
+                            debugPrint('AddDogPage - Validation failed: Name is empty');
+                            return AppLocalizations.of(context)!.pleaseEnterDogName;
                           }
                           return null;
                         },
@@ -647,8 +725,9 @@ centerTitle: true,
 
 _buildDropdownField(
   value: _selectedPetType,
-  hint: 'Select Pet Type',
+  hint: AppLocalizations.of(context)!.petTypeLabel,
   items: const ['dog', 'cat', 'bird', 'horse'],
+  displayItemLabel: _localizedPetTypeLabel,
   onChanged: (value) {
     setState(() {
       _selectedPetType = value ?? 'dog';
@@ -659,8 +738,9 @@ _buildDropdownField(
                       const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedBreed,
-                        hint: AppLocalizations.of(context)?.selectBreedHint ?? 'Select Breed',
+                        hint: AppLocalizations.of(context)!.selectBreedHint,
                         items: getBreedsByPetType(context, _selectedPetType),
+                        displayItemLabel: _localizedBreedLabel,
                         onChanged: (value) {
                           setState(() {
                             _selectedBreed = value;
@@ -668,8 +748,8 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            print('AddDogPage - Validation failed: Breed not selected');
-                            return AppLocalizations.of(context)?.pleaseSelectBreed ?? 'Please select a breed';
+                            debugPrint('AddDogPage - Validation failed: Breed not selected');
+                            return AppLocalizations.of(context)!.pleaseSelectBreed;
                           }
                           return null;
                         },
@@ -677,17 +757,17 @@ _buildDropdownField(
                       const SizedBox(height: 14),
                       _buildTextField(
                         controller: _ageController,
-                        label: AppLocalizations.of(context)?.ageLabel ?? 'Age *',
+                        label: AppLocalizations.of(context)!.ageLabel,
                         
                         keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            print('AddDogPage - Validation failed: Age is empty');
-                            return AppLocalizations.of(context)?.pleaseEnterDogAge ?? 'Please enter your dog\'s age';
+                            debugPrint('AddDogPage - Validation failed: Age is empty');
+                            return AppLocalizations.of(context)!.pleaseEnterDogAge;
                           }
                           if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                            print('AddDogPage - Validation failed: Age is invalid');
-                            return AppLocalizations.of(context)?.pleaseEnterValidAge ?? 'Please enter a valid age';
+                            debugPrint('AddDogPage - Validation failed: Age is invalid');
+                            return AppLocalizations.of(context)!.pleaseEnterValidAge;
                           }
                           return null;
                         },
@@ -695,8 +775,9 @@ _buildDropdownField(
                       const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedGender,
-                        hint: AppLocalizations.of(context)?.selectGenderHint ?? 'Select Gender',
+                        hint: AppLocalizations.of(context)!.selectGenderHint,
                         items: _genders,
+                        displayItemLabel: _localizedGenderOption,
                         onChanged: (value) {
                           setState(() {
                             _selectedGender = value;
@@ -704,8 +785,8 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            print('AddDogPage - Validation failed: Gender not selected');
-                            return AppLocalizations.of(context)?.pleaseSelectGender ?? 'Please select a gender';
+                            debugPrint('AddDogPage - Validation failed: Gender not selected');
+                            return AppLocalizations.of(context)!.pleaseSelectGender;
                           }
                           return null;
                         },
@@ -713,8 +794,9 @@ _buildDropdownField(
                      const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedHealthStatus,
-                        hint: AppLocalizations.of(context)?.selectHealthStatusHint ?? 'Select Health Status',
+                        hint: AppLocalizations.of(context)!.selectHealthStatusHint,
                         items: _healthStatuses,
+                        displayItemLabel: _localizedHealthStatusOption,
                         onChanged: (value) {
                           setState(() {
                             _selectedHealthStatus = value;
@@ -722,8 +804,8 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            print('AddDogPage - Validation failed: Health Status not selected');
-                            return AppLocalizations.of(context)?.pleaseSelectHealthStatus ?? 'Please select a health status';
+                            debugPrint('AddDogPage - Validation failed: Health Status not selected');
+                            return AppLocalizations.of(context)!.pleaseSelectHealthStatus;
                           }
                           return null;
                         },
@@ -733,7 +815,7 @@ _buildDropdownField(
                      const SizedBox(height: 14),
                       _buildTextField(
                         controller: _descriptionController,
-                        label: AppLocalizations.of(context)?.descriptionLabel ?? 'Description',
+                        label: AppLocalizations.of(context)!.descriptionLabel,
                         maxLines: 3,
                       ),
                       const SizedBox(height: 14),
@@ -741,8 +823,9 @@ _buildDropdownField(
                      const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedOwnerGender,
-                        hint: AppLocalizations.of(context)?.selectOwnerGenderHint ?? 'Owner Gender',
+                        hint: AppLocalizations.of(context)!.selectOwnerGenderHint,
                         items: _ownerGenders,
+                        displayItemLabel: _localizedGenderOption,
                         onChanged: (value) {
                           setState(() {
                             _selectedOwnerGender = value;
@@ -750,8 +833,8 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            print('AddDogPage - Validation failed: Owner Gender not selected');
-                            return AppLocalizations.of(context)?.pleaseSelectOwnerGender ?? 'Please select your gender';
+                            debugPrint('AddDogPage - Validation failed: Owner Gender not selected');
+                            return AppLocalizations.of(context)!.pleaseSelectOwnerGender;
                           }
                           return null;
                         },
@@ -761,7 +844,7 @@ _buildDropdownField(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
     Text(
-      "Photos",
+      AppLocalizations.of(context)!.photosLabel,
       style: GoogleFonts.poppins(
         color: Colors.white,
         fontWeight: FontWeight.w600,
@@ -812,7 +895,7 @@ _buildDropdownField(
                                 color: Colors.pink,
                               )
                             : Text(
-                                AppLocalizations.of(context)?.addDogButton ?? 'Add Pet',
+                                AppLocalizations.of(context)!.addDogButton,
                                 style: GoogleFonts.poppins(
                                   color: Colors.pink,
                                   fontSize: 16,
@@ -827,7 +910,7 @@ _buildDropdownField(
             ),
             if (_isLoading)
               Container(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 child: const Center(
                   child: CircularProgressIndicator(
                     color: Colors.pink,
@@ -880,6 +963,7 @@ _buildDropdownField(
   required String? value,
   required String hint,
   required List<String> items,
+  required String Function(String) displayItemLabel,
   required ValueChanged<String?> onChanged,
   String? Function(String?)? validator,
 }) {
@@ -909,7 +993,7 @@ _buildDropdownField(
         items: items.map((item) {
           return DropdownMenuItem(
             value: item,
-            child: Text(item),
+            child: Text(displayItemLabel(item)),
           );
         }).toList(),
         onChanged: onChanged,
@@ -923,7 +1007,7 @@ _buildDropdownField(
     return Row(
       children: [
         Text(
-          AppLocalizations.of(context)?.neuteredLabel ?? 'Neutered *',
+          AppLocalizations.of(context)!.neuteredLabel,
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontSize: 16,
@@ -944,7 +1028,7 @@ _buildDropdownField(
               activeColor: Colors.white,
             ),
             Text(
-              AppLocalizations.of(context)?.yes ?? 'Yes',
+              AppLocalizations.of(context)!.yes,
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 16,
@@ -965,7 +1049,7 @@ _buildDropdownField(
               activeColor: Colors.white,
             ),
             Text(
-              AppLocalizations.of(context)?.no ?? 'No',
+              AppLocalizations.of(context)!.no,
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 16,
@@ -982,7 +1066,7 @@ _buildDropdownField(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        "Traits",
+        AppLocalizations.of(context)!.traitsLabel,
         style: GoogleFonts.poppins(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -1033,7 +1117,7 @@ _buildDropdownField(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          AppLocalizations.of(context)?.uploadImagesLabel ?? 'Upload Images',
+          AppLocalizations.of(context)!.uploadImagesLabel,
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontSize: 16,
@@ -1046,11 +1130,11 @@ _buildDropdownField(
           children: [
             ElevatedButton(
               onPressed: () => _pickImage(ImageSource.gallery),
-              child: Text(AppLocalizations.of(context)?.pickFromGallery ?? 'Pick from Gallery'),
+              child: Text(AppLocalizations.of(context)!.pickFromGallery),
             ),
             ElevatedButton(
               onPressed: () => _pickImage(ImageSource.camera),
-              child: Text(AppLocalizations.of(context)?.takePhoto ?? 'Take a Photo'),
+              child: Text(AppLocalizations.of(context)!.takePhoto),
             ),
           ],
         ),
@@ -1066,7 +1150,7 @@ _buildDropdownField(
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const CircularProgressIndicator();
                   } else if (snapshot.hasError || snapshot.data == null) {
-                    print('AddDogPage - Error loading image: ${snapshot.error} or file does not exist');
+                    debugPrint('AddDogPage - Error loading image: ${snapshot.error} or file does not exist');
                     return const Icon(Icons.error, color: Colors.red);
                   }
                   return Image.file(
@@ -1075,7 +1159,7 @@ _buildDropdownField(
                     height: 100,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      print('AddDogPage - Image error: $error');
+                      debugPrint('AddDogPage - Image error: $error');
                       return const Icon(Icons.error, color: Colors.red);
                     },
                   );
@@ -1101,7 +1185,7 @@ _buildDropdownField(
           activeColor: Colors.pink,
         ),
         Text(
-          AppLocalizations.of(context)?.availableForAdoption ?? 'Available for Adoption',
+          AppLocalizations.of(context)!.availableForAdoption,
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontSize: 16,
@@ -1205,4 +1289,3 @@ List<String> getDogBreeds(BuildContext context) {
       return getDogBreeds(context);
   }
 }
-

@@ -394,9 +394,11 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                           ),
                         ),
                       ),
-                      if (park['recommended'] == true) _badge('⭐ Recommended'),
-                      if (park['premiumOnly'] == true) _badge('🔒 Premium'),
-                      if (isFavorite) _badge('❤️ Saved'),
+                      if (park['recommended'] == true)
+                        _badge(l10n.dogParkRecommendedBadge),
+                      if (park['premiumOnly'] == true)
+                        _badge(l10n.dogParkPremiumBadge),
+                      if (isFavorite) _badge(l10n.dogParkSavedBadge),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -429,7 +431,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Recommended for Playdates',
+                              l10n.dogParkRecommendedForPlaydates,
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w500,
                               ),
@@ -453,7 +455,9 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                         color: const Color(0xFFFFC107),
                       ),
                       label: Text(
-                        isFavorite ? 'Saved to Favorites' : 'Save this Park',
+                        isFavorite
+                            ? l10n.dogParkSavedToFavorites
+                            : l10n.dogParkSaveThisPark,
                         style: GoogleFonts.poppins(),
                       ),
                       style: OutlinedButton.styleFrom(
@@ -472,7 +476,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.navigation),
-                        label: const Text('Get Directions'),
+                        label: Text(l10n.dogParkGetDirections),
                         onPressed: () => _navigateToGoogleMaps(park),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFC107),
@@ -497,7 +501,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
 
   if (uid == null || uid.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('User not ready yet. Please try again.')),
+      SnackBar(content: Text(l10n.dogParkUserNotReadyYet)),
     );
     return;
   }
@@ -505,7 +509,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
   final myDogs = appState.allDogs.where((d) => d.ownerId == uid).toList();
   if (myDogs.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('You need to add a dog first')),
+      SnackBar(content: Text(l10n.dogParkNeedToAddDogFirst)),
     );
     return;
   }
@@ -518,7 +522,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
       backgroundColor: const Color(0xFFFFC107),
       foregroundColor: Colors.black,
     ),
-    child: const Text('Schedule Playdate here'),
+    child: Text(l10n.dogParkSchedulePlaydateHere),
   ),
 ),
 
@@ -539,6 +543,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
   void _openSavedParksSheet(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     final savedNames = appState.favoriteParkNames; // ✅ Set<String>
+    final l10n = AppLocalizations.of(context)!;
 
 
     showModalBottomSheet(
@@ -571,7 +576,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
 
               // ───────── Title ─────────
               Text(
-                'Saved Parks',
+                l10n.dogParkSavedParksTitle,
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -584,7 +589,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Text(
-                    'No saved parks yet',
+                    l10n.dogParkNoSavedParksYet,
                     style: GoogleFonts.poppins(),
                   ),
                 )
@@ -789,8 +794,42 @@ Widget build(BuildContext context) {
     return Container(
       color: _bgSoftPink,
       child: Column(
-        children: [
-          // ───────── Date Label ─────────
+       children: [
+
+  Padding(
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+    child: Row(
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            context.read<AppState>().setCurrentTab(NavTab.home);
+          },
+          child: const Padding(
+            padding: EdgeInsets.all(6),
+            child: Icon(
+              Icons.arrow_back,
+              size: 28,
+              color: Colors.black,
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 10),
+
+        Text(
+          "Dog Parks",
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+        ),
+      ],
+    ),
+  ),
+
+  // Date Label
           Padding(
             padding: const EdgeInsets.all(8),
             child: Text(
@@ -812,7 +851,7 @@ Widget build(BuildContext context) {
                 onPressed: () => _openSavedParksSheet(context),
                 icon: const Icon(Icons.bookmark, size: 18),
                 label: Text(
-                  'Saved Parks',
+                  l10n.dogParkSavedParksTitle,
                   style: GoogleFonts.poppins(fontSize: 13),
                 ),
                 style: OutlinedButton.styleFrom(
@@ -833,24 +872,26 @@ Widget build(BuildContext context) {
     width: double.infinity,
     child: ElevatedButton.icon(
       icon: Icon(Icons.my_location),
-      label: Text("Find nearby parks"),
+      label: Text(l10n.dogParkFindNearbyParks),
       onPressed: () {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: Text("Location needed"),
-            content: Text("We use your location to show nearby dog parks"),
+            title: Text(l10n.dogParkLocationNeededTitle),
+            content: Text(
+              l10n.dogParkUseYourLocationToShowNearbyDogParks,
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("Cancel"),
+                child: Text(l10n.cancel),
               ),
               TextButton(
                 onPressed: () async {
                   Navigator.pop(context);
                   await requestLocationFromUser();
                 },
-                child: Text("Allow"),
+                child: Text(l10n.allowButton),
               ),
             ],
           ),
@@ -862,34 +903,30 @@ Widget build(BuildContext context) {
 
           // ───────── Map ─────────
           Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFFFC107),
-                    ),
-                  )
-                : FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: GoogleMap(
-                      initialCameraPosition: const CameraPosition(
-                        target: _fallbackLatLng,
-                        zoom: 11,
-                      ),
-                      markers: _markers,
-                      myLocationEnabled: true,
-                      myLocationButtonEnabled: true,
-                      compassEnabled: false,
-                      buildingsEnabled: false,
-                      trafficEnabled: false,
-                      onMapCreated: (controller) {
-                        _mapController = controller;
-                        if (_mapStyle != null) {
-                          controller.setMapStyle(_mapStyle);
-                        }
-                        _moveCameraToFitAllMarkers();
-                      },
-                    ),
-                  ),
+            child: GoogleMap(
+  style: _mapStyle,
+
+  initialCameraPosition: const CameraPosition(
+    target: _fallbackLatLng,
+    zoom: 11,
+  ),
+
+  markers: _markers,
+
+  myLocationEnabled: true,
+  myLocationButtonEnabled: true,
+
+  compassEnabled: false,
+  buildingsEnabled: false,
+  trafficEnabled: false,
+
+  onMapCreated: (controller) {
+
+    _mapController = controller;
+
+    _moveCameraToFitAllMarkers();
+  },
+),
           ),
 
           // ───────── Error Message ─────────

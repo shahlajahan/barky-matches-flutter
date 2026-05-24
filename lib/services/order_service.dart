@@ -89,8 +89,13 @@ class OrderService {
 
     await orderRef.set({
       "orderId": orderRef.id,
+      "userId": user.uid,
+      "buyerUid": user.uid,
+      "businessId": businessId,
       "buyerName": buyerName,
       "buyerEmail": buyerEmail,
+      "buyerPhone": buyerPhone,
+      "paymentStatus": "pending",
       "createdAt": FieldValue.serverTimestamp(),
     });
 

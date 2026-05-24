@@ -123,6 +123,9 @@
    <key>NSAppTransportSecurity</key>
 <dict>
 
+<key>io.flutter.embedded_views_preview</key>
+<true/>
+
     <key>NSAllowsArbitraryLoads</key>
     <true/>
 
@@ -131,6 +134,9 @@
 
     <key>NSAllowsLocalNetworking</key>
     <true/>
+
+    <key>GADApplicationIdentifier</key>
+<string>ca-app-pub-8741190851877191~3389990130</string>
 
 </dict>
 </dict>

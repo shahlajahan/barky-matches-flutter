@@ -7,8 +7,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
-  static final NotificationService _instance =
-      NotificationService._internal();
+  static final NotificationService _instance = NotificationService._internal();
 
   factory NotificationService() => _instance;
 
@@ -28,14 +27,15 @@ class NotificationService {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.local);
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
 
-   const iosSettings = DarwinInitializationSettings(
-  requestAlertPermission: false,
-  requestBadgePermission: false,
-  requestSoundPermission: false,
-);
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
 
     const initSettings = InitializationSettings(
       android: androidSettings,
@@ -45,8 +45,7 @@ class NotificationService {
     await _plugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: _onNotificationResponse,
-      onDidReceiveBackgroundNotificationResponse:
-          notificationTapBackground,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
     if (Platform.isAndroid) {
@@ -58,31 +57,28 @@ class NotificationService {
 
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
     }
 
     _initialized = true;
 
     if (kDebugMode) {
-      print('NotificationService - initialized successfully');
+      debugPrint('NotificationService - initialized successfully');
     }
   }
 
   @pragma('vm:entry-point')
   static void notificationTapBackground(NotificationResponse response) {
     if (kDebugMode) {
-      print(
-        'NotificationService(background) tapped: ${response.payload}',
-      );
+      debugPrint('NotificationService(background) tapped: ${response.payload}');
     }
   }
 
   void _onNotificationResponse(NotificationResponse response) {
     if (kDebugMode) {
-      print(
-        'NotificationService tapped: ${response.payload}',
-      );
+      debugPrint('NotificationService tapped: ${response.payload}');
     }
   }
 
@@ -109,6 +105,7 @@ class NotificationService {
       presentBadge: true,
       presentSound: true,
     );
+    debugPrint('NotificationService - iOS presentSound enabled');
 
     const details = NotificationDetails(
       android: androidDetails,
@@ -168,7 +165,6 @@ class NotificationService {
   }
 
   Future<void> cancel(int id) => _plugin.cancel(id);
-  Future<void> cancelByUniqueId(String id) =>
-      _plugin.cancel(id.hashCode);
+  Future<void> cancelByUniqueId(String id) => _plugin.cancel(id.hashCode);
   Future<void> cancelAll() => _plugin.cancelAll();
 }

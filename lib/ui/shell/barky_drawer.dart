@@ -85,8 +85,16 @@ _tile(
   LucideIcons.messageSquare,
   "Send Feedback",
   onTap: () {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const FeedbackFormPage()),
+
+    final appState =
+        context.read<AppState>();
+
+    appState.setCurrentTab(
+      NavTab.profile,
+    );
+
+    appState.openProfileSubPage(
+      ProfileSubPage.feedback,
     );
   },
 ),
@@ -96,8 +104,16 @@ _tile(
   LucideIcons.bug,
   "Report Problem",
   onTap: () {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const ReportProblemPage()),
+
+    final appState =
+        context.read<AppState>();
+
+    appState.setCurrentTab(
+      NavTab.profile,
+    );
+
+    appState.openProfileSubPage(
+      ProfileSubPage.reportProblem,
     );
   },
 ),
@@ -107,8 +123,16 @@ _tile(
   LucideIcons.helpCircle,
   "FAQ",
   onTap: () {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const FAQPage()),
+
+    final appState =
+        context.read<AppState>();
+
+    appState.setCurrentTab(
+      NavTab.profile,
+    );
+
+    appState.openProfileSubPage(
+      ProfileSubPage.faq,
     );
   },
 ),
@@ -224,6 +248,146 @@ _tile(
           fontWeight: FontWeight.w600,
           color: Colors.grey,
           letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _FaqCard extends StatefulWidget {
+
+  final String question;
+  final String answer;
+
+  const _FaqCard({
+    required this.question,
+    required this.answer,
+  });
+
+  @override
+  State<_FaqCard> createState() =>
+      _FaqCardState();
+}
+
+class _FaqCardState
+    extends State<_FaqCard> {
+
+  bool expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+
+    return InkWell(
+      borderRadius:
+          BorderRadius.circular(24),
+
+      onTap: () {
+        setState(() {
+          expanded = !expanded;
+        });
+      },
+
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+
+        child: Column(
+          children: [
+
+            Row(
+              children: [
+
+                Container(
+                  width: 44,
+                  height: 44,
+
+                  decoration: BoxDecoration(
+                    color: const Color(
+                      0xFF9E1B4F,
+                    ).withOpacity(.10),
+
+                    borderRadius:
+                        BorderRadius.circular(
+                      14,
+                    ),
+                  ),
+
+                  child: const Icon(
+                    LucideIcons.helpCircle,
+                    color:
+                        Color(0xFF9E1B4F),
+                    size: 22,
+                  ),
+                ),
+
+                const SizedBox(width: 14),
+
+                Expanded(
+                  child: Text(
+                    widget.question,
+
+                    style:
+                        GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight:
+                          FontWeight.w700,
+
+                      color: const Color(
+                        0xFF9E1B4F,
+                      ),
+                    ),
+                  ),
+                ),
+
+                AnimatedRotation(
+                  turns:
+                      expanded ? 0.5 : 0,
+
+                  duration:
+                      const Duration(
+                    milliseconds: 220,
+                  ),
+
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color:
+                        Color(0xFF9E1B4F),
+                    size: 28,
+                  ),
+                ),
+              ],
+            ),
+
+            AnimatedCrossFade(
+              firstChild:
+                  const SizedBox.shrink(),
+
+              secondChild: Padding(
+                padding:
+                    const EdgeInsets.only(
+                  top: 18,
+                ),
+
+                child: Text(
+                  widget.answer,
+
+                  style:
+                      GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.black87,
+                    height: 1.6,
+                  ),
+                ),
+              ),
+
+              crossFadeState: expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+
+              duration: const Duration(
+                milliseconds: 220,
+              ),
+            ),
+          ],
         ),
       ),
     );

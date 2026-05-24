@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 
 import '../../app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../models/product.dart';
 import '../../services/product_service.dart';
@@ -20,6 +22,8 @@ import 'package:barky_matches_fixed/ui/petshop/widgets/product_card_dashboard.da
 import 'package:barky_matches_fixed/ui/seller/seller_orders_page.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
+import 'package:barky_matches_fixed/models/order_return.dart';
+import 'package:barky_matches_fixed/ui/returns/order_return_card.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/edit_petshop_profile_page.dart';
@@ -56,6 +60,7 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final appState = context.watch<AppState>();
     final businessId = appState.businessId;
     if (appState.businessSubPage == BusinessSubPage.addProduct) {
@@ -67,9 +72,9 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
     debugPrint("🧠 DASHBOARD BUILD → businessId=$businessId");
 
     if (businessId == null) {
-      return const Center(
-  child: Text("No business found"),
-);
+      return Center(
+        child: Text(l10n.businessNotFound),
+      );
     }
 
     return Container(
@@ -79,17 +84,19 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
     child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-  _buildRevenueCard(businessId),
+  _buildRevenueCard(context, businessId),
   const SizedBox(height: 20),
   _buildProfileSection(context, businessId),
   const SizedBox(height: 20),
   _buildOrdersSection(context, businessId),
   const SizedBox(height: 20),
-  _buildCatalogStrengthSection(businessId),
+  _buildReturnsSection(context, businessId),
+  const SizedBox(height: 20),
+  _buildCatalogStrengthSection(context, businessId),
   const SizedBox(height: 20),
   _buildProductsSection(context, businessId),
   const SizedBox(height: 20),
-  _buildOffersSection(),
+  _buildOffersSection(context),
 ],
     ),
       ),
@@ -158,6 +165,7 @@ Future<void> _ensureSubMerchant(String businessId) async {
 }
 
 Widget _buildProfileSection(BuildContext context, String businessId) {
+  final l10n = AppLocalizations.of(context)!;
   return StreamBuilder<DocumentSnapshot>(
     stream: FirebaseFirestore.instance
         .collection('businesses')
@@ -165,7 +173,7 @@ Widget _buildProfileSection(BuildContext context, String businessId) {
         .snapshots(),
     builder: (context, snapshot) {
       if (snapshot.hasError) {
-        return _emptyBox("Profile error: ${snapshot.error}");
+        return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
       }
 
       if (!snapshot.hasData) {
@@ -213,7 +221,7 @@ Widget _buildProfileSection(BuildContext context, String businessId) {
             Row(
               children: [
                 Expanded(
-                  child: Text("Shop Profile", style: AppTheme.h2()),
+                  child: Text(l10n.shopProfileTitle, style: AppTheme.h2()),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
@@ -227,7 +235,7 @@ Widget _buildProfileSection(BuildContext context, String businessId) {
                     );
                   },
                   icon: const Icon(Icons.edit),
-                  label: const Text("Edit"),
+                  label: Text(l10n.editProfile),
                 ),
               ],
             ),
@@ -238,7 +246,7 @@ Widget _buildProfileSection(BuildContext context, String businessId) {
             ),
             const SizedBox(height: 8),
             Text(
-              bio.isNotEmpty ? bio : "No description added yet.",
+              bio.isNotEmpty ? bio : l10n.noDescriptionYet,
               style: AppTheme.body(
                 color: bio.isNotEmpty ? AppTheme.textDark : AppTheme.muted,
               ),
@@ -248,14 +256,14 @@ Widget _buildProfileSection(BuildContext context, String businessId) {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (phone.isNotEmpty) _chip("Phone: $phone"),
-                if (email.isNotEmpty) _chip("Email: $email"),
+                if (phone.isNotEmpty) _chip("${l10n.phoneLabel}: $phone"),
+                if (email.isNotEmpty) _chip("${l10n.emailLabel}: $email"),
                 if (district.isNotEmpty || city.isNotEmpty)
                   _chip(
-                    [
+                    "${l10n.locationLabel} ${[
                       if (district.isNotEmpty) district,
                       if (city.isNotEmpty) city,
-                    ].join(' / '),
+                    ].join(' / ')}",
                   ),
               ],
             ),
@@ -328,7 +336,14 @@ Widget _strengthBar(double value) {
   // =========================
   // 💰 REVENUE
   // =========================
-  Widget _buildRevenueCard(String businessId) {
+  Widget _buildRevenueCard(BuildContext context, String businessId) {
+  final l10n = AppLocalizations.of(context)!;
+  if (kDebugMode) {
+    debugPrint(
+      '💰 REVENUE QUERY → authUid=${FirebaseAuth.instance.currentUser?.uid ?? "NULL"} '
+      'businessId=$businessId path=sellerOrders where shopId==$businessId',
+    );
+  }
   return StreamBuilder<QuerySnapshot>(
     stream: FirebaseFirestore.instance
         .collection("sellerOrders")
@@ -338,8 +353,14 @@ Widget _strengthBar(double value) {
 
       // ❌ ERROR
       if (snapshot.hasError) {
+        if (kDebugMode) {
+          debugPrint(
+            '💰 REVENUE ERROR → authUid=${FirebaseAuth.instance.currentUser?.uid ?? "NULL"} '
+            'businessId=$businessId path=sellerOrders error=${snapshot.error}',
+          );
+        }
         _logFirestoreIndexLink(snapshot.error, "REVENUE");
-        return _emptyBox("Revenue error");
+        return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
       }
 
       // ⏳ LOADING
@@ -352,7 +373,7 @@ Widget _strengthBar(double value) {
 
       // ❌ EMPTY
       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-        return _emptyBox("No revenue yet");
+        return _emptyBox(l10n.noRevenueYet);
       }
 
       // =====================
@@ -434,8 +455,8 @@ Widget _strengthBar(double value) {
           children: [
 
             // 🧾 TITLE
-            const Text(
-              "Net Revenue",
+            Text(
+              l10n.netRevenueLabel,
               style: TextStyle(color: Colors.white70),
             ),
 
@@ -454,8 +475,8 @@ Widget _strengthBar(double value) {
             const SizedBox(height: 4),
 
             // 🧠 EXPLANATION
-            const Text(
-              "After platform commission",
+            Text(
+              l10n.afterPlatformCommissionLabel,
               style: TextStyle(
                 color: Colors.white60,
                 fontSize: 12,
@@ -465,9 +486,9 @@ Widget _strengthBar(double value) {
             const SizedBox(height: 12),
 
             // 📊 BREAKDOWN
-            _row("Gross Sales", grossSales),
-            _row("Platform Fee", -commissionTotal),
-            _row("Adjustments", -penaltyTotal),
+            _row(l10n.grossSalesLabel, grossSales),
+            _row(l10n.platformFeeLabel, -commissionTotal),
+            _row(l10n.adjustmentsLabel, -penaltyTotal),
           ],
         ),
       );
@@ -518,7 +539,8 @@ Widget _row(String title, double value) {
   // =========================
   // 📦 ORDERS
   // =========================
- Widget _buildOrdersSection(BuildContext context, String businessId) {
+Widget _buildOrdersSection(BuildContext context, String businessId) {
+  final l10n = AppLocalizations.of(context)!;
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -528,10 +550,10 @@ Widget _row(String title, double value) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Recent Orders", style: AppTheme.h2()),
+          Text(l10n.recentOrdersTitle, style: AppTheme.h2()),
           const SizedBox(height: 4),
           Text(
-            "Latest 5 orders",
+            l10n.latestOrdersSubtitle,
             style: AppTheme.caption(color: AppTheme.muted),
           ),
         ],
@@ -548,7 +570,7 @@ Widget _row(String title, double value) {
           ),
         );
       },
-      child: const Text("View all"),
+      child: Text(l10n.viewAllButton),
     ),
   ],
 ),
@@ -563,7 +585,7 @@ Widget _row(String title, double value) {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             _logFirestoreIndexLink(snapshot.error, "ORDERS");
-            return Text("Orders error: ${snapshot.error}");
+            return Text(l10n.errorOccurred(snapshot.error.toString()));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -573,7 +595,7 @@ Widget _row(String title, double value) {
 
           if (!snapshot.hasData) {
             debugPrint("⚠️ ORDERS NO DATA");
-            return const Text("No data");
+            return Text(l10n.noDataLabel);
           }
 
           final docs = snapshot.data!.docs;
@@ -587,12 +609,12 @@ Widget _row(String title, double value) {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.black12),
               ),
-              child: Row(
-                children: [
-                  const Icon(LucideIcons.package, color: Colors.black38),
-                  const SizedBox(width: 10),
-                  Text(
-                    "No orders yet",
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.package, color: Colors.black38),
+                      const SizedBox(width: 10),
+                      Text(
+                    l10n.noOrdersYet,
                     style: AppTheme.body(color: AppTheme.muted),
                   ),
                 ],
@@ -673,8 +695,8 @@ final trackingNumber = (shipping["trackingNumber"] ?? "").toString();
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-  "Order #${doc.id.substring(0, 6)}",
-  style: AppTheme.body(
+                      l10n.orderNumberLabel(doc.id.substring(0, 6)),
+                      style: AppTheme.body(
     color: AppTheme.textDark,
   ).copyWith(
     fontWeight: FontWeight.w700,
@@ -686,7 +708,7 @@ Row(
     _orderStatusPill(status),
     const SizedBox(width: 8),
     Text(
-      "${items.length} item${items.length == 1 ? '' : 's'}",
+      l10n.itemsCountLabel(items.length),
       style: AppTheme.caption(color: AppTheme.muted),
     ),
   ],
@@ -700,7 +722,7 @@ Text(
 if (carrier.isNotEmpty) ...[
   const SizedBox(height: 6),
   Text(
-    "Carrier: $carrier",
+    l10n.carrierLabel(carrier),
     style: AppTheme.caption(color: AppTheme.textDark),
   ),
 ],
@@ -708,7 +730,7 @@ if (carrier.isNotEmpty) ...[
 if (trackingNumber.isNotEmpty) ...[
   const SizedBox(height: 4),
   Text(
-    "Tracking: $trackingNumber",
+    l10n.trackingLabel(trackingNumber),
     style: AppTheme.caption(color: AppTheme.textDark),
   ),
 ],
@@ -722,7 +744,7 @@ if (carrier.isNotEmpty && trackingNumber.isNotEmpty) ...[
       }
     },
     child: Text(
-      "Track shipment",
+      l10n.trackShipmentButton,
       style: AppTheme.caption(
         color: Colors.blue,
       ).copyWith(
@@ -770,6 +792,68 @@ if (carrier.isNotEmpty && trackingNumber.isNotEmpty) ...[
   );
 }
 
+Widget _buildReturnsSection(BuildContext context, String businessId) {
+  final l10n = AppLocalizations.of(context)!;
+
+  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    stream: FirebaseFirestore.instance
+        .collection('order_returns')
+        .where('businessId', isEqualTo: businessId)
+        .orderBy('requestedAt', descending: true)
+        .limit(5)
+        .snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
+      }
+
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      final returns = snapshot.data?.docs
+              .map(OrderReturnRecord.fromDoc)
+              .toList() ??
+          [];
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(l10n.returnRequestsTitle, style: AppTheme.h2()),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (returns.isEmpty)
+              Text(
+                l10n.noReturnsYet,
+                style: AppTheme.body(color: AppTheme.muted),
+              )
+            else
+              ...returns.map(
+                (record) => OrderReturnCard(
+                  record: record,
+                  isSeller: true,
+                  isBuyer: false,
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 @override
 void initState() {
   super.initState();
@@ -788,14 +872,15 @@ void initState() {
   // =========================
   // 🧠 CATALOG STRENGTH
   // =========================
-  Widget _buildCatalogStrengthSection(String businessId) {
+  Widget _buildCatalogStrengthSection(BuildContext context, String businessId) {
+    final l10n = AppLocalizations.of(context)!;
     final service = ProductService();
 
     return StreamBuilder<List<Product>>(
       stream: service.getProducts(businessId),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _emptyBox("Catalog strength unavailable");
+          return _emptyBox(l10n.catalogStrengthUnavailable);
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -803,7 +888,7 @@ void initState() {
         }
 
         final products = snapshot.data ?? [];
-        final result = _calculateCatalogStrength(products);
+        final result = _calculateCatalogStrength(context, products);
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -816,7 +901,7 @@ void initState() {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Catalog Strength",
+                l10n.catalogStrengthTitle,
                 style: AppTheme.h2(),
               ),
               const SizedBox(height: 8),
@@ -866,7 +951,8 @@ void initState() {
   // =========================
   // 🛒 PRODUCTS
   // =========================
- Widget _buildProductsSection(BuildContext context, String businessId) {
+  Widget _buildProductsSection(BuildContext context, String businessId) {
+  final l10n = AppLocalizations.of(context)!;
   final service = ProductService();
 
   return Column(
@@ -879,7 +965,7 @@ void initState() {
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("Products", style: AppTheme.h2()),
+          Text(l10n.productsTitle, style: AppTheme.h2()),
 
           Row(
             children: [
@@ -900,7 +986,7 @@ void initState() {
     ),
   ),
   icon: const Icon(LucideIcons.plus),
-  label: const Text("Add"),
+  label: Text(l10n.addButton),
   onPressed: () {
   context.read<AppState>().openAddProduct();
 },
@@ -937,19 +1023,19 @@ final withKdv = products.where((p) => p.kdvRate != null).length;
   children: [
     Row(
       children: [
-        _statBox("Total", total.toString()),
+        _statBox(l10n.totalLabel, total.toString()),
         const SizedBox(width: 8),
-        _statBox("Low Stock", lowStock.toString(), color: Colors.orange),
+        _statBox(l10n.lowStockLabel, lowStock.toString(), color: Colors.orange),
         const SizedBox(width: 8),
-        _statBox("Strength", "$avgStrength%"),
+        _statBox(l10n.strengthLabel, "$avgStrength%"),
       ],
     ),
     const SizedBox(height: 8),
     Row(
       children: [
-        _statBox("Shippable", shippable.toString()),
+        _statBox(l10n.shippableLabel, shippable.toString()),
         const SizedBox(width: 8),
-        _statBox("With KDV", withKdv.toString()),
+        _statBox(l10n.withKdvLabel, withKdv.toString()),
       ],
     ),
   ],
@@ -966,7 +1052,7 @@ final withKdv = products.where((p) => p.kdvRate != null).length;
         stream: service.getProducts(businessId),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Text("Error: ${snapshot.error}");
+            return Text(l10n.errorOccurred(snapshot.error.toString()));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -976,7 +1062,7 @@ final withKdv = products.where((p) => p.kdvRate != null).length;
           final products = snapshot.data ?? [];
 
           if (products.isEmpty) {
-            return _emptyBox("No products yet");
+            return _emptyBox(l10n.noProductsYet);
           }
 
           return Column(
@@ -1009,29 +1095,29 @@ final withKdv = products.where((p) => p.kdvRate != null).length;
                 runSpacing: 8,
                 children: [
                   if (p.kdvRate != null)
-                    _chip("KDV ${p.kdvRate!.toStringAsFixed(0)}%"),
+                    _chip(l10n.kdvRateLabel(p.kdvRate!.toStringAsFixed(0))),
 
                   if (p.taxIncluded == true)
-                    _chip("KDV included"),
+                    _chip(l10n.kdvIncludedLabel),
 
                   if (p.originCity != null &&
                       p.originCity!.trim().isNotEmpty)
-                    _chip("From ${p.originCity!}"),
+                    _chip(l10n.fromLabel(p.originCity!)),
 
                   if (p.allowReturns)
-                    _chip("Returns ${p.returnWindowDays ?? 14}d"),
+                    _chip(l10n.returnsLabel((p.returnWindowDays ?? 14).toString())),
 
                   if (p.allowPickup)
-                    _chip("Pickup"),
+                    _chip(l10n.pickupLabel),
 
                   if (p.allowSameDay)
-                    _chip("Same day"),
+                    _chip(l10n.sameDayLabel),
                 ],
               ),
 
               const SizedBox(height: 10),
 
-              _buildShippingInfo(p),
+              _buildShippingInfo(context, p),
             ],
           ),
         ),
@@ -1064,7 +1150,8 @@ Widget _badge(String text, Color color) {
   );
 }
 
-Widget _buildMediaSection(BuildContext context, Product p) {
+  Widget _buildMediaSection(BuildContext context, Product p) {
+  final l10n = AppLocalizations.of(context)!;
   if (p.media.isEmpty) {
     return Container(
       height: 110,
@@ -1103,7 +1190,7 @@ Widget _buildMediaSection(BuildContext context, Product p) {
 
             if (safeMedia.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Media not ready yet")),
+                SnackBar(content: Text(l10n.mediaNotReadyYet)),
               );
               return;
             }
@@ -1188,7 +1275,7 @@ Widget _buildMediaSection(BuildContext context, Product p) {
 
 Widget _statBox(String title, String value, {Color? color}) {
   return Expanded(
-    child: Container(
+              child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1221,17 +1308,18 @@ Widget _statBox(String title, String value, {Color? color}) {
   // =========================
   // 🎯 OFFERS
   // =========================
-  Widget _buildOffersSection() {
+  Widget _buildOffersSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Offers", style: AppTheme.h2()),
+        Text(l10n.offersTitle, style: AppTheme.h2()),
         const SizedBox(height: 10),
         ElevatedButton(
           onPressed: () {
             debugPrint("🎯 CREATE OFFER CLICKED");
           },
-          child: const Text("Create Offer"),
+          child: Text(l10n.createOfferButton),
         )
       ],
     );
@@ -1284,7 +1372,8 @@ Widget _statBox(String title, String value, {Color? color}) {
     );
   }
 
-  Widget _buildVideoPreview(String url) {
+  Widget _buildVideoPreview(BuildContext context, String url) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: Colors.black,
       child: Stack(
@@ -1310,8 +1399,8 @@ Widget _statBox(String title, String value, {Color? color}) {
                 color: Colors.black54,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                "VIDEO",
+              child: Text(
+                l10n.videoLabel,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 11,
@@ -1340,13 +1429,14 @@ border: Border.all(color: Colors.black12),
     );
   }
 
-  _CatalogStrengthResult _calculateCatalogStrength(List<Product> products) {
+  _CatalogStrengthResult _calculateCatalogStrength(BuildContext context, List<Product> products) {
+    final l10n = AppLocalizations.of(context)!;
     if (products.isEmpty) {
       return _CatalogStrengthResult(
         percent: 10,
-        label: "Weak",
+        label: l10n.catalogStrengthWeakLabel,
         color: Colors.redAccent,
-        message: "Add products, description, media, and stock to strengthen your catalog.",
+        message: l10n.catalogStrengthAddItemsMessage,
       );
     }
 
@@ -1375,30 +1465,31 @@ border: Border.all(color: Colors.black12),
     if (percent < 40) {
       return _CatalogStrengthResult(
         percent: percent,
-        label: "Weak",
+        label: l10n.catalogStrengthWeakLabel,
         color: Colors.redAccent,
-        message: "Your product details are still weak. Add more media, descriptions, and stock info.",
+        message: l10n.catalogStrengthWeakDetailsMessage,
       );
     }
 
     if (percent < 75) {
       return _CatalogStrengthResult(
         percent: percent,
-        label: "Medium",
+        label: l10n.catalogStrengthMediumLabel,
         color: Colors.orange,
-        message: "Good start. Add richer descriptions and more product media to improve visibility.",
+        message: l10n.catalogStrengthMediumMessage,
       );
     }
 
     return _CatalogStrengthResult(
       percent: percent,
-      label: "Strong",
+      label: l10n.catalogStrengthStrongLabel,
       color: Colors.green,
-      message: "Great catalog quality. Your listings look strong and complete.",
+      message: l10n.catalogStrengthStrongMessage,
     );
   }
 
-Widget _buildShippingInfo(Product p) {
+Widget _buildShippingInfo(BuildContext context, Product p) {
+  final l10n = AppLocalizations.of(context)!;
   final mode = p.shippingMode;
   final freeThreshold = p.freeShippingThreshold;
 
@@ -1408,48 +1499,53 @@ Widget _buildShippingInfo(Product p) {
   // 🚚 SHIPPING COST
   // =====================
   if (mode == "free_shipping" || mode == "seller_absorbs") {
-    parts.add("Free shipping");
+    parts.add(l10n.freeShippingLabel);
   } else if (mode == "fixed_price" && p.shippingFee != null) {
     parts.add("₺${p.shippingFee}");
   } else {
-    parts.add("Shipping calculated");
+    parts.add(l10n.shippingCalculatedLabel);
   }
 
   // =====================
   // 🎯 FREE SHIPPING CONDITION
   // =====================
   if (freeThreshold != null && freeThreshold > 0) {
-    parts.add("Free over ₺$freeThreshold");
+    parts.add(l10n.freeOverLabel("₺$freeThreshold"));
   }
 
   // =====================
   // ⚡ DELIVERY TIME
   // =====================
   if (p.preparationDays != null && p.maxDeliveryDays != null) {
-    parts.add("${p.preparationDays}-${p.maxDeliveryDays} days");
+    parts.add(
+      l10n.deliveryDaysRangeLabel(
+        p.preparationDays.toString(),
+        p.maxDeliveryDays.toString(),
+      ),
+    );
   }
 
   // =====================
   // 📦 SPECIAL FLAGS
   // =====================
   if (p.isFragile == true) {
-    parts.add("Fragile");
+    parts.add(l10n.fragileLabel);
   }
 
   if (p.isOversize == true) {
-    parts.add("Oversize");
+    parts.add(l10n.oversizeLabel);
   }
 
   if (p.originCity != null && p.originCity!.trim().isNotEmpty) {
-  parts.add("Origin: ${p.originCity!}");
+  parts.add(l10n.originLabel(p.originCity!));
 }
 
 if (p.allowedCarrierCodes.isNotEmpty) {
-  parts.add("${p.allowedCarrierCodes.length} carriers");
+  parts.add(l10n.carriersCountLabel(p.allowedCarrierCodes.length.toString()));
 }
 
 if (p.kdvRate != null) {
-  parts.add("KDV ${p.kdvRate!.toStringAsFixed(0)}%");
+  parts.add(l10n.kdvRateLabel(p.kdvRate!.toStringAsFixed(0)));
 }
 
   return Container(
@@ -1508,5 +1604,3 @@ class _CatalogStrengthResult {
     required this.message,
   });
 }
-
-

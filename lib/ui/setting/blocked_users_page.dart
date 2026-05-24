@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../theme/app_theme.dart';
 
 class BlockedUsersPage extends StatefulWidget {
@@ -24,24 +26,96 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) {
-        return AlertDialog(
-          title: const Text("Unblock user"),
-          content: Text(
-            "Are you sure you want to unblock $blockedName?",
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Cancel"),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF9E1B4F).withOpacity(.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    LucideIcons.userCheck,
+                    color: Color(0xFF9E1B4F),
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  "Unblock user",
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF9E1B4F),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Are you sure you want to unblock $blockedName?",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.black87,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black87,
+                          side: BorderSide(color: Colors.grey.shade300),
+                          minimumSize: const Size(0, 52),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          "Cancel",
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF9E1B4F),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          minimumSize: const Size(0, 52),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          "Unblock",
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-              ),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Unblock"),
-            ),
-          ],
+          ),
         );
       },
     );
@@ -81,11 +155,19 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     final uid = currentUserId;
 
     return Scaffold(
-      backgroundColor: AppTheme.bg,
+      backgroundColor: const Color(0xFFFDF2F5),
       appBar: AppBar(
-        title: const Text("Blocked Users"),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: const Color(0xFFE91E63),
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          "Blocked Users",
+          style: GoogleFonts.poppins(
+            color: const Color(0xFFFFC107),
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: uid == null
           ? const Center(
@@ -100,20 +182,17 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
+                  return _ErrorState(
+                    message:
                         "Failed to load blocked users.\n${snapshot.error}",
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
                   );
                 }
 
                 if (!snapshot.hasData) {
                   return const Center(
-                    child: CircularProgressIndicator(),
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF9E1B4F),
+                    ),
                   );
                 }
 
@@ -123,38 +202,119 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                   return const _BlockedUsersEmptyState();
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>? ?? {};
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
+                  children: [
+                    _HeaderCard(count: docs.length),
+                    const SizedBox(height: 22),
+                    ...docs.map((doc) {
+                      final data =
+                          doc.data() as Map<String, dynamic>? ?? {};
 
-                    final blockedUserId = doc.id;
-                    final name = (data["name"] ?? "Unknown User").toString();
-                    final username = (data["username"] ?? "").toString();
-                    final photoUrl = (data["photoUrl"] ?? "").toString();
+                      final blockedUserId = doc.id;
+                      final name =
+                          (data["name"] ?? "Unknown User").toString();
+                      final username =
+                          (data["username"] ?? "").toString();
+                      final photoUrl =
+                          (data["photoUrl"] ?? "").toString();
 
-                    final Timestamp? blockedAtTs = data["blockedAt"];
-                    final DateTime? blockedAt = blockedAtTs?.toDate();
+                      final Timestamp? blockedAtTs = data["blockedAt"];
+                      final DateTime? blockedAt = blockedAtTs?.toDate();
 
-                    return _BlockedUserCard(
-                      name: name,
-                      username: username,
-                      photoUrl: photoUrl,
-                      blockedAt: blockedAt,
-                      onUnblock: () {
-                        _unblockUser(
-                          blockedUserId: blockedUserId,
-                          blockedName: name,
-                        );
-                      },
-                    );
-                  },
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _BlockedUserCard(
+                          name: name,
+                          username: username,
+                          photoUrl: photoUrl,
+                          blockedAt: blockedAt,
+                          onUnblock: () {
+                            _unblockUser(
+                              blockedUserId: blockedUserId,
+                              blockedName: name,
+                            );
+                          },
+                        ),
+                      );
+                    }),
+                  ],
                 );
               },
             ),
+    );
+  }
+}
+
+class _HeaderCard extends StatelessWidget {
+  final int count;
+
+  const _HeaderCard({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF9E1B4F),
+            Color(0xFFE91E63),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.pink.withOpacity(.22),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(.14),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              LucideIcons.userX,
+              color: Color(0xFFFFC107),
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "$count blocked user${count == 1 ? '' : 's'}",
+                  style: GoogleFonts.poppins(
+                    color: const Color(0xFFFFC107),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Manage users you have blocked from interacting with you.",
+                  style: GoogleFonts.poppins(
+                    color: Colors.white.withOpacity(.9),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -167,33 +327,80 @@ class _BlockedUsersEmptyState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.block_outlined,
-              size: 72,
-              color: AppTheme.primary.withOpacity(0.7),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "No blocked users",
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(.04),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Users you block will appear here. You can unblock them anytime.",
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.black54,
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 82,
+                height: 82,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF9E1B4F).withOpacity(.10),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  LucideIcons.userX,
+                  size: 38,
+                  color: Color(0xFF9E1B4F),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 18),
+              Text(
+                "No blocked users",
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF9E1B4F),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Users you block will appear here. You can unblock them anytime.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.black54,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+
+  const _ErrorState({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            color: Colors.red,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -217,85 +424,111 @@ class _BlockedUserCard extends StatelessWidget {
 
   String _formatDate(DateTime? date) {
     if (date == null) return "Unknown date";
-    return "${date.day}/${date.month}/${date.year}";
+
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final y = date.year.toString();
+
+    return "$d/$m/$y";
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(.04),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: AppTheme.primary.withOpacity(0.12),
-              backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-              child: photoUrl.isEmpty
-                  ? Icon(
-                      Icons.person,
-                      color: AppTheme.primary,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: const Color(0xFF9E1B4F).withOpacity(.10),
+            backgroundImage:
+                photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+            child: photoUrl.isEmpty
+                ? const Icon(
+                    LucideIcons.user,
+                    color: Color(0xFF9E1B4F),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
                   ),
-                  if (username.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      "@$username",
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 6),
+                ),
+                if (username.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    "Blocked on ${_formatDate(blockedAt)}",
+                    "@$username",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.black45,
+                      fontSize: 13,
+                      color: Colors.black54,
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primary,
-                side: BorderSide(color: AppTheme.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    const Icon(
+                      LucideIcons.calendar,
+                      size: 14,
+                      color: Colors.black38,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      "Blocked on ${_formatDate(blockedAt)}",
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.black45,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              onPressed: onUnblock,
-              child: const Text("Unblock"),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 10),
+          TextButton.icon(
+            onPressed: onUnblock,
+            icon: const Icon(
+              LucideIcons.userCheck,
+              size: 16,
+            ),
+            label: const Text("Unblock"),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF9E1B4F),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

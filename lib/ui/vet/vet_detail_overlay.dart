@@ -369,7 +369,7 @@ Text(
   if (widget.data.isPartner) {
     // ✅ partner → برو full page appointment
     widget.onClose(); // overlay بسته شود
-    widget.onOpenFullProfile?.call();
+    widget.onOpenAppointment?.call();
   } else {
     // ❌ partner نیست → Suggest Clinic Sheet
     widget.onClose(); // اول overlay بسته شود
@@ -446,4 +446,3 @@ Text(
   }
 }
 }
-

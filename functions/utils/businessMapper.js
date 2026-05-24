@@ -16,6 +16,7 @@ function normalizeStatus(status) {
 
 function mapAdoptionCenterToBusiness(oldDoc = {}) {
     const status = normalizeStatus(oldDoc.status);
+    const coverImageUrl = oldDoc.coverImageUrl || oldDoc.coverUrl || null;
 
     return {
         type: "adoption_center",
@@ -32,7 +33,8 @@ function mapAdoptionCenterToBusiness(oldDoc = {}) {
             displayName: oldDoc.name || "",
             description: oldDoc.description || "",
             logoUrl: oldDoc.logoUrl || null,
-            coverImageUrl: oldDoc.coverImageUrl || null,
+            coverImageUrl: coverImageUrl,
+            coverUrl: coverImageUrl,
             rating:
                 typeof oldDoc.rating === "number"
                     ? oldDoc.rating
@@ -42,11 +44,12 @@ function mapAdoptionCenterToBusiness(oldDoc = {}) {
                     ? oldDoc.reviewsCount
                     : 0,
         },
+        coverImageUrl: coverImageUrl,
 
         contact: {
             phone: oldDoc.phone || null,
             whatsapp: oldDoc.whatsapp || null,
-            instagram: oldDoc.instagram || null,
+            instagram: oldDoc.instagram || oldDoc.socialMedia?.instagram || null,
             website: oldDoc.website || null,
             city: oldDoc.city || "",
             district: oldDoc.district || "",

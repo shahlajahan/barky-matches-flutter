@@ -340,7 +340,7 @@ final ref = FirebaseStorage.instance
       setState(() => _licenseDocumentUrl = url);
       _snack('License document uploaded');
     } catch (e) {
-  print('UPLOAD ERROR: $e');
+  debugPrint('UPLOAD ERROR: $e');
   _snack('Upload failed: $e');
 }finally {
       if (mounted) setState(() => _loading = false);
@@ -358,7 +358,7 @@ final ref = FirebaseStorage.instance
       setState(() => _clinicLogoUrl = url);
       _snack('Clinic logo uploaded');
     } catch (e) {
-      print('UPLOAD ERROR: $e');
+      debugPrint('UPLOAD ERROR: $e');
 _snack('Upload failed: $e');
     } finally {
       if (mounted) setState(() => _loading = false);

@@ -48,7 +48,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
   @override
   void initState() {
     super.initState();
-    print('EditDogPage - Initializing for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+    debugPrint('EditDogPage - Initializing for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
     _nameController = TextEditingController(text: widget.dog.name);
     _ageController = TextEditingController(text: widget.dog.age.toString());
     _descriptionController = TextEditingController(text: widget.dog.description);
@@ -71,7 +71,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
 
   @override
   void dispose() {
-    print('EditDogPage - Disposing for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+    debugPrint('EditDogPage - Disposing for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
     _nameController.dispose();
     _ageController.dispose();
     _descriptionController.dispose();
@@ -80,7 +80,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
 
  Future<void> _saveDog() async {
     if (_isSaving) {
-      print('EditDogPage - Save already in progress for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+      debugPrint('EditDogPage - Save already in progress for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
       return;
     }
 
@@ -88,7 +88,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
 
     setState(() {
       _isSaving = true;
-      print('EditDogPage - Saving dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+      debugPrint('EditDogPage - Saving dog: ${widget.dog.name}, ID: ${widget.dog.id}');
     });
 
     final name = _nameController.text.trim();
@@ -96,7 +96,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
     final description = _descriptionController.text.trim();
 
     if (name.isEmpty) {
-      print('EditDogPage - Name is empty for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+      debugPrint('EditDogPage - Name is empty for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.editDogEnterName)),
       );
@@ -108,7 +108,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
 
     final int? age = int.tryParse(ageText);
     if (age == null || age <= 0) {
-      print('EditDogPage - Invalid age for dog: ${widget.dog.name}, ID: ${widget.dog.id}, age: $ageText');
+      debugPrint('EditDogPage - Invalid age for dog: ${widget.dog.name}, ID: ${widget.dog.id}, age: $ageText');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.editDogEnterValidAge)),
       );
@@ -150,7 +150,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
       longitude: widget.dog.longitude,
     );
 
-    print('EditDogPage - Dog updated: ${updatedDog.name}, ID: ${updatedDog.id}, calling onEditDog');
+    debugPrint('EditDogPage - Dog updated: ${updatedDog.name}, ID: ${updatedDog.id}, calling onEditDog');
    try {
   await context.read<AppState>().saveEditedDog(updatedDog);
 
@@ -169,7 +169,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
-    print('EditDogPage - Building UI for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+    debugPrint('EditDogPage - Building UI for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
     return AlertDialog(
       backgroundColor: Colors.transparent,
       contentPadding: EdgeInsets.zero,
@@ -262,7 +262,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                 onChanged: (value) {
                   setState(() {
                     _selectedHealthStatus = value;
-                    print('EditDogPage - Health status changed to: $value');
+                    debugPrint('EditDogPage - Health status changed to: $value');
                   });
                 },
               ),
@@ -286,7 +286,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                         onChanged: (value) {
                           setState(() {
                             _isNeutered = value!;
-                            print('EditDogPage - Neutered changed to: true');
+                            debugPrint('EditDogPage - Neutered changed to: true');
                           });
                         },
                         activeColor: Colors.white,
@@ -305,7 +305,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                         onChanged: (value) {
                           setState(() {
                             _isNeutered = value!;
-                            print('EditDogPage - Neutered changed to: false');
+                            debugPrint('EditDogPage - Neutered changed to: false');
                           });
                         },
                         activeColor: Colors.white,
@@ -362,10 +362,10 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                       setState(() {
                         if (selected) {
                           _selectedTraits.add(trait);
-                          print('EditDogPage - Trait added: $trait');
+                          debugPrint('EditDogPage - Trait added: $trait');
                         } else {
                           _selectedTraits.remove(trait);
-                          print('EditDogPage - Trait removed: $trait');
+                          debugPrint('EditDogPage - Trait removed: $trait');
                         }
                       });
                     },
@@ -404,7 +404,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                 onChanged: (value) {
                   setState(() {
                     _selectedOwnerGender = value;
-                    print('EditDogPage - Owner gender changed to: $value');
+                    debugPrint('EditDogPage - Owner gender changed to: $value');
                   });
                 },
               ),
@@ -416,7 +416,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                     onChanged: (value) {
                       setState(() {
                         _isAvailableForAdoption = value ?? false;
-                        print('EditDogPage - Available for adoption changed to: $_isAvailableForAdoption');
+                        debugPrint('EditDogPage - Available for adoption changed to: $_isAvailableForAdoption');
                       });
                     },
                     checkColor: Colors.white,
@@ -438,7 +438,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                 children: [
                   ElevatedButton(
                     onPressed: () {
-                      print('EditDogPage - Cancel button pressed for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+                      debugPrint('EditDogPage - Cancel button pressed for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -503,7 +503,7 @@ class EditDogDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('EditDogDialog - Building for dog: ${dog.name}, ID: ${dog.id}');
+    debugPrint('EditDogDialog - Building for dog: ${dog.name}, ID: ${dog.id}');
     return EditDogPage(
       dog: dog,
       onEditDog: onEditDog,

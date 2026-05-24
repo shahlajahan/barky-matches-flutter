@@ -11,7 +11,7 @@ class AdminDashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    print("📊 AdminDashboardPage BUILD");
+    debugPrint("📊 AdminDashboardPage BUILD");
 
     return Scaffold(
 
@@ -30,18 +30,18 @@ class AdminDashboardPage extends StatelessWidget {
           /// -------------------------------
           /// DEBUG SNAPSHOT STATE
           /// -------------------------------
-          print("📡 Dashboard snapshot state:");
-          print("  hasData: ${businessSnap.hasData}");
-          print("  hasError: ${businessSnap.hasError}");
-          print("  connectionState: ${businessSnap.connectionState}");
+          debugPrint("📡 Dashboard snapshot state:");
+          debugPrint("  hasData: ${businessSnap.hasData}");
+          debugPrint("  hasError: ${businessSnap.hasError}");
+          debugPrint("  connectionState: ${businessSnap.connectionState}");
 
           /// -------------------------------
           /// ERROR HANDLING
           /// -------------------------------
           if (businessSnap.hasError) {
 
-            print("❌ Firestore ERROR:");
-            print(businessSnap.error);
+            debugPrint("❌ Firestore ERROR:");
+            debugPrint(businessSnap.error.toString());
 
             return Center(
               child: Text(
@@ -56,7 +56,7 @@ class AdminDashboardPage extends StatelessWidget {
           /// -------------------------------
           if (!businessSnap.hasData) {
 
-            print("⏳ Waiting for businesses snapshot...");
+            debugPrint("⏳ Waiting for businesses snapshot...");
 
             return const Center(
               child: CircularProgressIndicator(),
@@ -65,7 +65,7 @@ class AdminDashboardPage extends StatelessWidget {
 
           final businesses = businessSnap.data!.docs;
 
-          print("✅ Businesses loaded: ${businesses.length}");
+          debugPrint("✅ Businesses loaded: ${businesses.length}");
 
           int approved = 0;
           int rejected = 0;
@@ -96,11 +96,11 @@ class AdminDashboardPage extends StatelessWidget {
 
           }
 
-          print("📊 KPI Stats:");
-          print("  approved: $approved");
-          print("  rejected: $rejected");
-          print("  suspended: $suspended");
-          print("  risk flags: $risk");
+          debugPrint("📊 KPI Stats:");
+          debugPrint("  approved: $approved");
+          debugPrint("  rejected: $rejected");
+          debugPrint("  suspended: $suspended");
+          debugPrint("  risk flags: $risk");
 
           /// -------------------------------
           /// UI

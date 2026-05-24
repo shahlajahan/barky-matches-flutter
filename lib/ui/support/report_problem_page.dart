@@ -4,8 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class ReportProblemPage extends StatefulWidget {
   const ReportProblemPage({super.key});
@@ -15,20 +16,23 @@ class ReportProblemPage extends StatefulWidget {
 }
 
 class _ReportProblemPageState extends State<ReportProblemPage> {
-
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
 
   String category = "Bug";
-
   File? screenshot;
-
   bool loading = false;
 
   final picker = ImagePicker();
 
-  Future<void> pickImage() async {
+  @override
+  void dispose() {
+    titleController.dispose();
+    descriptionController.dispose();
+    super.dispose();
+  }
 
+  Future<void> pickImage() async {
     final XFile? file = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,
@@ -42,11 +46,9 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
   }
 
   Future<String?> uploadScreenshot(String uid) async {
-
     if (screenshot == null) return null;
 
     try {
-
       final ref = FirebaseStorage.instance
           .ref()
           .child("complaints")
@@ -56,25 +58,17 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
       await ref.putFile(screenshot!);
 
       return await ref.getDownloadURL();
-
     } catch (e) {
-
       debugPrint("🔥 Screenshot upload failed: $e");
-
       return null;
     }
   }
 
   Future<void> submitReport() async {
-
     if (titleController.text.trim().isEmpty) {
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter a title"),
-        ),
+        const SnackBar(content: Text("Please enter a title")),
       );
-
       return;
     }
 
@@ -83,53 +77,64 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
     });
 
     try {
-
       final uid = FirebaseAuth.instance.currentUser?.uid;
 
       if (uid == null) throw Exception("User not logged in");
 
-      String? screenshotUrl =
-          await uploadScreenshot(uid);
+      final screenshotUrl = await uploadScreenshot(uid);
 
-      await FirebaseFirestore.instance
-          .collection("complaints")
-          .add({
+     await FirebaseFirestore.instance
+    .collection("complaints")
+    .add({
 
-        "createdBy": uid,
-        "title": titleController.text.trim(),
-        "description": descriptionController.text.trim(),
-        "category": category,
-        "status": "open",
-        "severity": "medium",
-        "priority": "normal",
-        "targetType": "app",
-        "targetId": null,
-        "screenshotUrl": screenshotUrl,
-        "evidenceCount": screenshotUrl == null ? 0 : 1,
-        "messageCount": 1,
-        "isArchived": false,
-        "createdAt": FieldValue.serverTimestamp(),
-        "updatedAt": FieldValue.serverTimestamp(),
-      });
+  "userId": uid,
+  "createdBy": uid,
+
+  "title": titleController.text.trim(),
+  "description": descriptionController.text.trim(),
+
+  "category": category,
+
+  "status": "open",
+  "severity": "medium",
+  "priority": "normal",
+
+  "targetType": "app",
+  "targetId": null,
+
+  "screenshotUrl": screenshotUrl,
+
+  "evidenceCount": screenshotUrl == null ? 0 : 1,
+  "messageCount": 1,
+
+  "isArchived": false,
+
+  "createdAt": FieldValue.serverTimestamp(),
+  "updatedAt": FieldValue.serverTimestamp(),
+});
 
       if (!mounted) return;
 
-      Navigator.pop(context);
+      titleController.clear();
+      descriptionController.clear();
 
+      setState(() {
+        category = "Bug";
+        screenshot = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Report submitted successfully")),
+      );
     } catch (e) {
-
       debugPrint("🔥 submitReport error: $e");
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Failed to send report: $e"),
-        ),
+        SnackBar(content: Text("Failed to send report: $e")),
       );
-
     } finally {
-
       if (mounted) {
         setState(() {
           loading = false;
@@ -138,212 +143,483 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
     }
   }
 
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.poppins(),
+      filled: true,
+      fillColor: Colors.white,
+      prefixIcon: Icon(
+        icon,
+        color: const Color(0xFF9E1B4F),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 18,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(
+          color: Color(0xFF9E1B4F),
+          width: 1.5,
+        ),
+      ),
+    );
+  }
+
   Widget buildScreenshotPreview() {
-
-    if (screenshot == null) return const SizedBox();
-
-    return Stack(
-      children: [
-
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            screenshot!,
-            height: 160,
-            width: double.infinity,
-            fit: BoxFit.cover,
+    if (screenshot == null) {
+      return GestureDetector(
+        onTap: pickImage,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: const Color(0xFF9E1B4F).withOpacity(.12),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(.04),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF9E1B4F).withOpacity(.10),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  LucideIcons.imagePlus,
+                  color: Color(0xFF9E1B4F),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                "Attach screenshot",
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF9E1B4F),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Optional, but helps us understand the issue faster.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.black54,
+                  height: 1.4,
+                ),
+              ),
+            ],
           ),
         ),
+      );
+    }
 
-        Positioned(
-          right: 8,
-          top: 8,
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                screenshot = null;
-              });
-            },
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
-              ),
-              padding: const EdgeInsets.all(6),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 18,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.04),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.file(
+              screenshot!,
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned(
+            right: 10,
+            top: 10,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  screenshot = null;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(.55),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  LucideIcons.x,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ),
           ),
-        )
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel({
+    required String title,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 18,
+          color: const Color(0xFF9E1B4F),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF9E1B4F),
+          ),
+        ),
       ],
     );
   }
 
   @override
 Widget build(BuildContext context) {
+  return Container(
+    color: const Color(0xFFFDF2F5),
 
-  return Scaffold(
-
-    appBar: AppBar(
-      title: const Text("Report a Problem"),
-      backgroundColor: AppTheme.primary,
-      elevation: 0,
-    ),
-
-    body: Stack(
-
+    child: Stack(
       children: [
 
-        SingleChildScrollView(
+        SafeArea(
+          child: GestureDetector(
 
-          padding: const EdgeInsets.all(20),
+            behavior: HitTestBehavior.opaque,
 
-          child: Column(
+            onTap: () {
+              FocusScope.of(context).unfocus();
+            },
 
-            crossAxisAlignment: CrossAxisAlignment.start,
+            child: SingleChildScrollView(
 
-            children: [
-
-              const Text(
-                "Category",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                120,
               ),
 
-              const SizedBox(height: 8),
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
 
-              DropdownButtonFormField(
+                children: [
 
-                value: category,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
 
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFF9E1B4F),
+                          Color(0xFFE91E63),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+
+                      borderRadius:
+                          BorderRadius.circular(28),
+
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.pink.withOpacity(.22),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+
+                      children: [
+
+                        const Icon(
+                          LucideIcons.bug,
+                          color: Color(0xFFFFC107),
+                          size: 36,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        Text(
+                          "Report a Problem",
+
+                          style: GoogleFonts.poppins(
+                            color:
+                                const Color(0xFFFFC107),
+                            fontSize: 26,
+                            fontWeight:
+                                FontWeight.w800,
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        Text(
+                          "Tell us what went wrong. Your report helps us improve PetSupo.",
+
+                          style: GoogleFonts.poppins(
+                            color: Colors.white
+                                .withOpacity(.92),
+
+                            fontSize: 14,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
-                items: const [
+                  const SizedBox(height: 28),
 
-                  DropdownMenuItem(
-                    value: "Bug",
-                    child: Text("Bug report"),
+                  _sectionLabel(
+                    title: "Category",
+                    icon: LucideIcons.listFilter,
                   ),
 
-                  DropdownMenuItem(
-                    value: "Abuse",
-                    child: Text("Abuse / harassment"),
+                  const SizedBox(height: 10),
+
+                  DropdownButtonFormField<String>(
+                    value: category,
+
+                    dropdownColor: Colors.white,
+
+                    decoration: _inputDecoration(
+                      label: "Select category",
+                      icon: LucideIcons.tag,
+                    ),
+
+                    items: const [
+
+                      DropdownMenuItem(
+                        value: "Bug",
+                        child: Text("Bug report"),
+                      ),
+
+                      DropdownMenuItem(
+                        value: "Abuse",
+                        child: Text(
+                          "Abuse / harassment",
+                        ),
+                      ),
+
+                      DropdownMenuItem(
+                        value: "Incorrect",
+                        child: Text(
+                          "Incorrect information",
+                        ),
+                      ),
+
+                      DropdownMenuItem(
+                        value: "Payment",
+                        child: Text(
+                          "Payment issue",
+                        ),
+                      ),
+
+                      DropdownMenuItem(
+                        value: "Other",
+                        child: Text("Other"),
+                      ),
+                    ],
+
+                    onChanged: (v) {
+                      setState(() {
+                        category = v!;
+                      });
+                    },
                   ),
 
-                  DropdownMenuItem(
-                    value: "Incorrect",
-                    child: Text("Incorrect information"),
+                  const SizedBox(height: 24),
+
+                  _sectionLabel(
+                    title: "Title",
+                    icon: LucideIcons.type,
                   ),
 
-                  DropdownMenuItem(
-                    value: "Payment",
-                    child: Text("Payment issue"),
+                  const SizedBox(height: 10),
+
+                  TextField(
+                    controller: titleController,
+
+                    decoration: _inputDecoration(
+                      label:
+                          "Briefly describe the problem",
+
+                      icon: LucideIcons.alertCircle,
+                    ),
                   ),
 
-                  DropdownMenuItem(
-                    value: "Other",
-                    child: Text("Other"),
+                  const SizedBox(height: 24),
+
+                  _sectionLabel(
+                    title: "Description",
+                    icon: LucideIcons.fileText,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  TextField(
+                    controller: descriptionController,
+                    maxLines: 6,
+
+                    decoration: _inputDecoration(
+                      label: "Add more details...",
+                      icon:
+                          LucideIcons.messageSquare,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  _sectionLabel(
+                    title: "Screenshot",
+                    icon: LucideIcons.image,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  buildScreenshotPreview(),
+
+                  const SizedBox(height: 36),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+
+                    child: ElevatedButton(
+
+                      style:
+                          ElevatedButton.styleFrom(
+
+                        backgroundColor:
+                            const Color(0xFF9E1B4F),
+
+                        foregroundColor:
+                            Colors.white,
+
+                        disabledBackgroundColor:
+                            Colors.grey.shade300,
+
+                        elevation: 0,
+
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            18,
+                          ),
+                        ),
+                      ),
+
+                      onPressed:
+                          loading ? null : submitReport,
+
+                      child: loading
+
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+
+                              child:
+                                  CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+
+                          : Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment
+                                      .center,
+
+                              children: [
+
+                                const Icon(
+                                  LucideIcons.send,
+                                  size: 18,
+                                ),
+
+                                const SizedBox(
+                                  width: 10,
+                                ),
+
+                                Text(
+                                  "Submit Report",
+
+                                  style:
+                                      GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight:
+                                        FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
                 ],
-
-                onChanged: (v) {
-                  setState(() {
-                    category = v!;
-                  });
-                },
               ),
-
-              const SizedBox(height: 20),
-
-              TextField(
-                controller: titleController,
-                decoration: InputDecoration(
-                  labelText: "Title",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              TextField(
-                controller: descriptionController,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  labelText: "Description",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              buildScreenshotPreview(),
-
-              const SizedBox(height: 10),
-
-              TextButton.icon(
-                onPressed: pickImage,
-                icon: const Icon(Icons.image),
-                label: const Text("Attach screenshot"),
-              ),
-
-              const SizedBox(height: 30),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-
-                  style: ElevatedButton.styleFrom(
-
-                    backgroundColor: const Color(0xFFFFC107),
-
-                    foregroundColor: Colors.black,
-
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                    ),
-
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-
-                  onPressed: loading ? null : submitReport,
-
-                  child: const Text(
-                    "Submit",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-            ],
+            ),
           ),
         ),
 
-        /// Loading Overlay
         if (loading)
           Container(
-            color: Colors.black38,
+            color: Colors.black26,
+
             child: const Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(
+                color: Color(0xFF9E1B4F),
+              ),
             ),
-          )
+          ),
       ],
     ),
   );

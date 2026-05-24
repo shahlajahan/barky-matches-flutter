@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'location_models.dart';
 import 'location_cache.dart';
+import 'package:flutter/material.dart';
 
 class LocationRepository {
   final FirebaseFirestore _db;
@@ -85,129 +86,167 @@ class LocationRepository {
   // ADMIN1
   // ============================================================
   Future<List<Admin1>> getAdmin1(
-    String countryCode, {
-    bool onlyEnabled = true,
-    bool forceRefresh = false,
-  }) async {
-    // memory
-    if (!forceRefresh && _admin1Cache[countryCode] != null) {
+  String countryCode, {
+  bool onlyEnabled = true,
+  bool forceRefresh = false,
+}) async {
+  // memory
+  if (!forceRefresh && _admin1Cache[countryCode] != null) {
+    return _admin1Cache[countryCode]!;
+  }
+
+  final hiveKey = 'admin1_$countryCode';
+
+  // hive fallback
+  if (!forceRefresh && _isCacheFresh) {
+    final raw = _cache.readRawList(hiveKey);
+
+    if (raw != null && raw.isNotEmpty) {
+      var list = raw
+          .map((e) => Admin1.fromMap(e['id'], e))
+          .toList();
+
+      if (onlyEnabled) {
+        list = list.where((e) => e.enabled).toList();
+      }
+
+      list.sort((a, b) => a.sort.compareTo(b.sort));
+
+      _admin1Cache[countryCode] = list;
+      return list;
+    }
+  }
+
+  try {
+    debugPrint("🌍 COUNTRY => $countryCode");
+
+    final snap = await _db
+        .collection('countries')
+        .doc(countryCode)
+        .collection('admin1')
+        .get();
+
+    debugPrint("📂 ADMIN1 DOCS => ${snap.docs.length}");
+
+    var list = snap.docs
+        .map(
+          (d) => Admin1.fromMap(
+            d.id,
+            d.data() as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+
+    if (onlyEnabled) {
+      list = list.where((e) => e.enabled).toList();
+    }
+
+    list.sort((a, b) => a.sort.compareTo(b.sort));
+
+    _admin1Cache[countryCode] = list;
+
+    await _cache.writeRawList(
+      hiveKey,
+      list.map((e) => e.toMap()).toList(),
+    );
+
+    return list;
+  } catch (e) {
+    debugPrint("❌ ADMIN1 ERROR => $e");
+
+    if (_admin1Cache[countryCode] != null) {
       return _admin1Cache[countryCode]!;
     }
 
-    final hiveKey = 'admin1_$countryCode';
-
-    // hive fallback
-    if (!forceRefresh && _isCacheFresh) {
-      final raw = _cache.readRawList(hiveKey);
-      if (raw != null && raw.isNotEmpty) {
-        final list = raw
-            .map((e) => Admin1.fromMap(e['id'], e))
-            .toList()
-            .onlyEnabled()
-            .sorted();
-
-        _admin1Cache[countryCode] = list;
-        return list;
-      }
-    }
-
-    try {
-      Query q = _db
-          .collection('countries')
-          .doc(countryCode)
-          .collection('admin1')
-          .orderBy('sort');
-
-      if (onlyEnabled) q = q.where('enabled', isEqualTo: true);
-
-      final snap = await q.get();
-
-      final list = snap.docs
-          .map((d) => Admin1.fromMap(d.id, d.data() as Map<String, dynamic>))
-          .toList()
-          .sorted();
-
-      _admin1Cache[countryCode] = list;
-
-      await _cache.writeRawList(
-        hiveKey,
-        list.map((e) => e.toMap()).toList(),
-      );
-
-      return list;
-    } catch (e) {
-      if (_admin1Cache[countryCode] != null) {
-        return _admin1Cache[countryCode]!;
-      }
-      return [];
-    }
+    return [];
   }
+}
 
   // ============================================================
   // ADMIN2
   // ============================================================
   Future<List<Admin2>> getAdmin2(
-    String countryCode,
-    String admin1Id, {
-    bool onlyEnabled = true,
-    bool forceRefresh = false,
-  }) async {
-    final key = '$countryCode|$admin1Id';
+  String countryCode,
+  String admin1Id, {
+  bool onlyEnabled = true,
+  bool forceRefresh = false,
+}) async {
+  final key = '$countryCode|$admin1Id';
 
-    if (!forceRefresh && _admin2Cache[key] != null) {
-      return _admin2Cache[key]!;
-    }
+  // memory cache
+  if (!forceRefresh && _admin2Cache[key] != null) {
+    return _admin2Cache[key]!;
+  }
 
-    final hiveKey = 'admin2_$key';
+  final hiveKey = 'admin2_$key';
 
-    if (!forceRefresh && _isCacheFresh) {
-      final raw = _cache.readRawList(hiveKey);
-      if (raw != null && raw.isNotEmpty) {
-        final list = raw
-            .map((e) => Admin2.fromMap(e['id'], e))
-            .toList()
-            .onlyEnabled()
-            .sorted();
+  // hive cache
+  if (!forceRefresh && _isCacheFresh) {
+    final raw = _cache.readRawList(hiveKey);
 
-        _admin2Cache[key] = list;
-        return list;
+    if (raw != null && raw.isNotEmpty) {
+      var list = raw
+          .map((e) => Admin2.fromMap(e['id'], e))
+          .toList();
+
+      if (onlyEnabled) {
+        list = list.where((e) => e.enabled).toList();
       }
-    }
 
-    try {
-      Query q = _db
-          .collection('countries')
-          .doc(countryCode)
-          .collection('admin1')
-          .doc(admin1Id)
-          .collection('admin2')
-          .orderBy('sort');
-
-      if (onlyEnabled) q = q.where('enabled', isEqualTo: true);
-
-      final snap = await q.get();
-
-      final list = snap.docs
-          .map((d) => Admin2.fromMap(d.id, d.data() as Map<String, dynamic>))
-          .toList()
-          .sorted();
+      list.sort((a, b) => a.sort.compareTo(b.sort));
 
       _admin2Cache[key] = list;
-
-      await _cache.writeRawList(
-        hiveKey,
-        list.map((e) => e.toMap()).toList(),
-      );
-
       return list;
-    } catch (e) {
-      if (_admin2Cache[key] != null) {
-        return _admin2Cache[key]!;
-      }
-      return [];
     }
   }
 
+  try {
+    debugPrint("🌍 ADMIN2 COUNTRY => $countryCode");
+    debugPrint("🏙 ADMIN2 ADMIN1 => $admin1Id");
+
+    final snap = await _db
+        .collection('countries')
+        .doc(countryCode)
+        .collection('admin1')
+        .doc(admin1Id)
+        .collection('admin2')
+        .get();
+
+    debugPrint("📂 ADMIN2 DOCS => ${snap.docs.length}");
+
+    var list = snap.docs
+        .map(
+          (d) => Admin2.fromMap(
+            d.id,
+            d.data() as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+
+    if (onlyEnabled) {
+      list = list.where((e) => e.enabled).toList();
+    }
+
+    list.sort((a, b) => a.sort.compareTo(b.sort));
+
+    _admin2Cache[key] = list;
+
+    await _cache.writeRawList(
+      hiveKey,
+      list.map((e) => e.toMap()).toList(),
+    );
+
+    return list;
+  } catch (e) {
+    debugPrint("❌ ADMIN2 ERROR => $e");
+
+    if (_admin2Cache[key] != null) {
+      return _admin2Cache[key]!;
+    }
+
+    return [];
+  }
+}
   // ---------------------------
   // Clear memory only
   // ---------------------------

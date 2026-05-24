@@ -93,7 +93,7 @@ final List<String> _contactTypes = [
             );
           });
         }
-        if (kDebugMode) print('FoundDogReportPage - Using default position due to disabled location services');
+        if (kDebugMode) debugPrint('FoundDogReportPage - Using default position due to disabled location services');
         return;
       }
 
@@ -117,7 +117,7 @@ final List<String> _contactTypes = [
               );
             });
           }
-          if (kDebugMode) print('FoundDogReportPage - Using default position due to permission denied');
+          if (kDebugMode) debugPrint('FoundDogReportPage - Using default position due to permission denied');
           return;
         }
       }
@@ -131,7 +131,7 @@ final List<String> _contactTypes = [
           _currentPosition = position;
         });
       }
-      if (kDebugMode) print('FoundDogReportPage - Current position: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
+      if (kDebugMode) debugPrint('FoundDogReportPage - Current position: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}');
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -149,7 +149,7 @@ final List<String> _contactTypes = [
           );
         });
       }
-      if (kDebugMode) print('FoundDogReportPage - Error getting location: $e, using default position');
+      if (kDebugMode) debugPrint('FoundDogReportPage - Error getting location: $e, using default position');
     }
   }
 
@@ -232,7 +232,7 @@ Future<String?> _uploadImage(String docId) async {
 }
 
   Future<void> _submitReport() async {
-    if (kDebugMode) print('FoundDogReportPage - Submitting report, _currentPosition: $_currentPosition, _isSubmitting: $_isSubmitting');
+    if (kDebugMode) debugPrint('FoundDogReportPage - Submitting report, _currentPosition: $_currentPosition, _isSubmitting: $_isSubmitting');
     if (_formKey.currentState!.validate() && !_isSubmitting) {
       setState(() => _isSubmitting = true);
       try {
@@ -260,8 +260,8 @@ Future<String?> _uploadImage(String docId) async {
         );
 
         if (kDebugMode) {
-          print('FoundDogReportPage - Submitting FoundDog: $foundDog');
-          print('FoundDogReportPage - toMap: ${foundDog.toMap()}');
+          debugPrint('FoundDogReportPage - Submitting FoundDog: $foundDog');
+          debugPrint('FoundDogReportPage - toMap: ${foundDog.toMap()}');
         }
 
         final docRef = await FirebaseFirestore.instance.collection('found_dogs').add(foundDog.toMap());
@@ -271,7 +271,7 @@ Future<String?> _uploadImage(String docId) async {
 if (imageUrl != null) {
   await docRef.update({'imageUrl': imageUrl});
 }
-        if (kDebugMode) print('FoundDogReportPage - Report submitted successfully with doc ID: ${docRef.id}');
+        if (kDebugMode) debugPrint('FoundDogReportPage - Report submitted successfully with doc ID: ${docRef.id}');
 
         await _sendNotification(
   title: 'Found Dog Reported',
@@ -285,7 +285,7 @@ if (imageUrl != null) {
         );
         context.read<AppState>().setCurrentTab(NavTab.home);
       } catch (e) {
-        if (kDebugMode) print('FoundDogReportPage - Error submitting report: $e');
+        if (kDebugMode) debugPrint('FoundDogReportPage - Error submitting report: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error submitting report: $e')),
         );
@@ -295,7 +295,7 @@ if (imageUrl != null) {
         }
       }
     } else {
-      if (kDebugMode) print('FoundDogReportPage - Form validation failed or submitting');
+      if (kDebugMode) debugPrint('FoundDogReportPage - Form validation failed or submitting');
     }
   }
 

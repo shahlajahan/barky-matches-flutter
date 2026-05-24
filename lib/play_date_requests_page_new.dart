@@ -472,19 +472,20 @@ Future<void> _createReminder(
   String requestId,
   int minutesBefore,
 ) async {
+  final loc = AppLocalizations.of(context)!;
  final appState = context.read<AppState>();
 
-if (appState.isGuest || FirebaseAuth.instance.currentUser == null) {
-  debugPrint('🚫 Guest/no user → skip reminder creation');
+  if (appState.isGuest || FirebaseAuth.instance.currentUser == null) {
+    debugPrint('🚫 Guest/no user → skip reminder creation');
 
-  if (!mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Please login to set reminders.'),
-    ),
-  );
-  return;
-}
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(loc.pleaseLoginToSetReminders),
+      ),
+    );
+    return;
+  }
 
   try {
     debugPrint('⏰ Calling createPlaydateReminder');
@@ -518,7 +519,7 @@ if (appState.isGuest || FirebaseAuth.instance.currentUser == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Reminder set for $minutesBefore minutes before 🐾',
+          loc.reminderSetForMinutesBefore(minutesBefore.toString()),
         ),
       ),
     );
@@ -528,8 +529,8 @@ if (appState.isGuest || FirebaseAuth.instance.currentUser == null) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Failed to set reminder ❌'),
+      SnackBar(
+        content: Text(loc.failedToSetReminder),
       ),
     );
   }
@@ -629,8 +630,8 @@ final bool isRequested = currentUserId == request.requestedUserId;
           /// ───────────────── Status Text ─────────────────
           Text(
             request.status == 'accepted'
-                ? 'Playdate Accepted 🐾'
-                : 'Playdate Not This Time',
+                ? loc.playdateAcceptedCardTitle
+                : loc.playdateRejectedCardTitle,
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -641,10 +642,8 @@ final bool isRequested = currentUserId == request.requestedUserId;
           const SizedBox(height: 8),
           Text(
             request.status == 'accepted'
-                ? '${request.requestedDog.name} accepted your playdate request.\n'
-                  'Be happy — a tail-wagging meeting awaits! 🐶💖'
-                : '${request.requestedDog.name} couldn’t accept this time.\n'
-                  'No worries — try again and keep the paws moving 🐾',
+                ? loc.playdateAcceptedCardBody(request.requestedDog.name)
+                : loc.playdateRejectedCardBody(request.requestedDog.name),
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: Colors.white70,
@@ -732,10 +731,10 @@ final bool isRequested = currentUserId == request.requestedUserId;
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const TabBar(
+        TabBar(
           tabs: [
-            Tab(icon: Icon(Icons.pets), text: 'Dog'),
-            Tab(icon: Icon(Icons.alarm), text: 'Reminder'),
+            Tab(icon: Icon(Icons.pets), text: loc.dogTab),
+            Tab(icon: Icon(Icons.alarm), text: loc.reminderTab),
           ],
         ),
         const SizedBox(height: 8),
@@ -760,7 +759,7 @@ final bool isRequested = currentUserId == request.requestedUserId;
               OutlinedButton.icon(
                 icon: const Icon(Icons.location_on, color: Colors.white),
                 label: Text(
-                  locationMap['text'] ?? 'View location',
+                  locationMap['text'] ?? loc.viewLocation,
                   style: GoogleFonts.poppins(color: Colors.white),
                 ),
                 onPressed: () async {
@@ -962,6 +961,7 @@ Widget build(BuildContext context) {
   );
 }
 Widget _buildGuestView() {
+  final loc = AppLocalizations.of(context)!;
   return Scaffold(
     body: Center(
       child: Column(
@@ -969,8 +969,8 @@ Widget _buildGuestView() {
         children: [
           const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text(
-            "Login to view playdate requests",
+          Text(
+            loc.pleaseLoginToViewPlaydateRequests,
             style: TextStyle(fontSize: 16),
           ),
         ],
@@ -981,6 +981,7 @@ Widget _buildGuestView() {
 
 
 Widget _buildAlarmTab(PlayDateRequest request) {
+  final loc = AppLocalizations.of(context)!;
  final bool hasSchedule = request.scheduledDateTime != null;
 final bool reminder30Set =
     _myReminders.contains('${request.requestId}_30');
@@ -999,10 +1000,10 @@ final bool reminder60Set =
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          hasSchedule
+      child: Text(
+        hasSchedule
               ? '📅 ${_formatPlaydateDate(request.scheduledDateTime!)}'
-              : '⏳ Playdate time not scheduled yet',
+              : loc.playdateTimeNotScheduledYet,
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontSize: 14,
@@ -1027,8 +1028,8 @@ final bool reminder60Set =
         icon: const Icon(Icons.alarm),
         label: Text(
   reminder30Set
-      ? 'Reminder set ✅'
-      : '30 minutes before',
+      ? loc.reminderSet
+      : loc.thirtyMinutesBefore,
 ),
 
       ),
@@ -1050,8 +1051,8 @@ final bool reminder60Set =
         icon: const Icon(Icons.alarm),
         label: Text(
   reminder60Set
-      ? 'Reminder set ✅'
-      : '1 hour before',
+      ? loc.reminderSet
+      : loc.oneHourBefore,
 ),
 
       ),

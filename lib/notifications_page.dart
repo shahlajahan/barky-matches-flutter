@@ -8,6 +8,11 @@ import 'app_notification.dart';
 import 'package:provider/provider.dart';
 import '../../app_state.dart'; // مسیر رو اگر فرق داره اصلاح کن
 
+
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
+
 class NotificationsPage extends StatefulWidget {
   final String? currentUserId;
   final void Function(Map<String, dynamic> payload) onNotificationSelected;
@@ -24,7 +29,6 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage>
     with WidgetsBindingObserver {
-
   bool _handlingTap = false;
 
   static const Color _cardColor = Color(0xFF9E1B4F);
@@ -45,17 +49,16 @@ class _NotificationsPageState extends State<NotificationsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       debugPrint('🔄 NotificationsPage resumed');
-      FirebaseFirestore.instance.enableNetwork();
+      debugPrint('🌐 FIRESTORE PASSIVE MODE ACTIVE → resume no network toggle');
     }
   }
 
   Widget _buildNotificationsBody(BuildContext context) {
-
     final userId = widget.currentUserId;
 
-if (userId == null || userId.isEmpty || userId == 'guest') {
-  return _buildGuestNotification();
-}
+    if (userId == null || userId.isEmpty || userId == 'guest') {
+      return _buildGuestNotification();
+    }
 
     return Container(
       color: const Color(0xFFFFF6F8),
@@ -66,7 +69,6 @@ if (userId == null || userId.isEmpty || userId == 'guest') {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-
           if (snapshot.hasError) {
             debugPrint("🔥 FIRESTORE ERROR: ${snapshot.error}");
             return Center(
@@ -104,7 +106,6 @@ if (userId == null || userId.isEmpty || userId == 'guest') {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             itemCount: notifications.length,
             itemBuilder: (context, index) {
-
               final notification = notifications[index];
 
               return Padding(
@@ -116,149 +117,288 @@ if (userId == null || userId.isEmpty || userId == 'guest') {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
+                      if (widget.currentUserId == null ||
+                          widget.currentUserId == 'guest') {
+                        debugPrint('🚫 Guest → tap ignored');
+                        return;
+                      }
 
-                      if (widget.currentUserId == null || widget.currentUserId == 'guest') {
-  debugPrint('🚫 Guest → tap ignored');
-  return;
-}
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('notifications')
+                            .doc(notification.id)
+                            .update({'isRead': true});
 
+                        final docSnap = await FirebaseFirestore.instance
+                            .collection('notifications')
+                            .doc(notification.id)
+                            .get();
 
-  try {
-    await FirebaseFirestore.instance
-        .collection('notifications')
-        .doc(notification.id)
-        .update({'isRead': true});
+                        final data = docSnap.data() ?? {};
+                        final rawType = (data['type'] ?? '')
+                            .toString()
+                            .toLowerCase()
+                            .trim();
 
-    final docSnap = await FirebaseFirestore.instance
-        .collection('notifications')
-        .doc(notification.id)
-        .get();
+                        debugPrint("🔔 Notification tapped → type=$rawType");
 
-    final data = docSnap.data() ?? {};
-    final rawType =
-        (data['type'] ?? '').toString().toLowerCase().trim();
+                        // ✅ اول overlay بسته شود
+                        //context.read<AppState>().closeNotifications();
 
-    debugPrint("🔔 Notification tapped → type=$rawType");
+                        switch (rawType) {
+                          case 'appointment_paid':
+                          case 'hotel_booking_payment_completed':
+                          case 'pet_taxi_payment_completed':
+                            widget.onNotificationSelected({
+                              'type': rawType,
+                              'appointmentId':
+                                  data['appointmentId'] ?? data['bookingId'],
+                              'bookingId': data['bookingId'],
+                              'appointmentCollection':
+                                  data['appointmentCollection'],
+                            });
+                            break;
 
-    // ✅ اول overlay بسته شود
-    //context.read<AppState>().closeNotifications();
+                            
 
-    switch (rawType) {
+                          case 'lost_dog':
+                            widget.onNotificationSelected({
+                              'type': 'lost_dog',
+                              'lostDogId': data['lostDogId'],
+                            });
+                            break;
 
-      case 'appointment_paid':
-  widget.onNotificationSelected({
-    'type': 'appointment_paid',
-    'appointmentId': data['appointmentId'],
-  });
-  break;
+                          case 'found_dog':
+                            widget.onNotificationSelected({
+                              'type': 'found_dog',
+                              'foundDogId': data['foundDogId'],
+                            });
+                            break;
 
-      case 'lost_dog':
-        widget.onNotificationSelected({
-          'type': 'lost_dog',
-          'lostDogId': data['lostDogId'],
-        });
-        break;
+                          case 'vet_appointment_request':
+                          case 'groomy_appointment_request':
+                          case 'groomy_appointment_cancelled_by_user':
+                          case 'groomy_appointment_payment_expired':
+                          case 'hotel_booking_request':
+                          case 'hotel_booking_cancelled_by_user':
+                          case 'hotel_booking_payment_expired':
+                          case 'pet_taxi_booking_request':
+                          case 'pet_taxi_booking_cancelled_by_user':
+                          case 'pet_taxi_booking_payment_expired':
+                            widget.onNotificationSelected({
+                              'type': rawType,
+                              'appointmentId':
+                                  data['appointmentId'] ?? data['bookingId'],
+                              'bookingId': data['bookingId'],
+                              'appointmentCollection':
+                                  data['appointmentCollection'],
+                              'businessId': data['businessId'],
+                            });
+                            break;
 
-      case 'found_dog':
-        widget.onNotificationSelected({
-          'type': 'found_dog',
-          'foundDogId': data['foundDogId'],
-        });
-        break;
+                          case 'vet_appointment_response':
+                          case 'groomy_appointment_response':
+                          case 'hotel_booking_response':
+                          case 'pet_taxi_price_proposed':
+                          case 'pet_taxi_payment_success':
+                          case 'pet_taxi_driver_on_the_way':
+                          case 'pet_taxi_driver_arrived':
+                          case 'pet_taxi_pet_picked_up':
+                          case 'pet_taxi_trip_started':
+                          case 'pet_taxi_trip_completed':
+                          case 'pet_taxi_booking_cancelled':
+                          case 'pet_taxi_status_update':
+                            widget.onNotificationSelected({
+                              'type': rawType,
+                              'appointmentId':
+                                  data['appointmentId'] ?? data['bookingId'],
+                              'bookingId': data['bookingId'],
+                              'appointmentCollection':
+                                  data['appointmentCollection'],
+                              'status': data['status'], // 🔥 خیلی مهم
+                            });
+                            break;
 
-        case 'vet_appointment_request':
-  widget.onNotificationSelected({
-    'type': 'vet_appointment_request',
-    'appointmentId': data['appointmentId'],
-    'businessId': data['businessId'],
-  });
-  break;
+                          case 'appointment_cancelled_confirmation':
+                          case 'vet_appointment_refunded':
+                            widget.onNotificationSelected({
+                              'type': rawType,
+                              'appointmentId': data['appointmentId'],
+                              'status': data['status'],
+                              'refundStatus': data['refundStatus'],
+                            });
+                            break;
 
-  case 'vet_appointment_response':
-  widget.onNotificationSelected({
-    'type': 'vet_appointment_response',
-    'appointmentId': data['appointmentId'],
-    'status': data['status'], // 🔥 خیلی مهم
-  });
-  break;
+                          case 'playdaterequest':
+                          case 'playdate_request':
+                            widget.onNotificationSelected({
+                              'type': 'playdate_request',
+                              'requestId': data['requestId'],
+                            });
+                            break;
 
-      case 'playdaterequest':
-      case 'playdate_request':
-        widget.onNotificationSelected({
-          'type': 'playdate_request',
-          'requestId': data['requestId'],
-        });
-        break;
+                          case 'playdate_response':
+                            widget.onNotificationSelected({
+                              'type': 'playdate_response',
+                              'requestId': data['requestId'],
+                            });
+                            break;
 
-      case 'playdate_response':
-        widget.onNotificationSelected({
-          'type': 'playdate_response',
-          'requestId': data['requestId'],
-        });
-        break;
+                          case 'new_order':
+                          case 'order_paid':
+                          case 'order_update':
+                          case 'order_created':
+                          case 'new_paid_order':
 
-       case 'new_order':
-case 'order_paid':
-case 'order_update':
-case 'order_created':
-case 'new_paid_order':
+                            // بعد از switch
+                            Future.microtask(() {
+                              if (mounted) {
+                                context.read<AppState>().closeNotifications();
+                              }
+                            });
 
-// بعد از switch
-Future.microtask(() {
-  if (mounted) {
-    context.read<AppState>().closeNotifications();
+                            widget.onNotificationSelected({
+                              'type': rawType,
+
+                              // ✅ هر دو رو بفرست
+                              'orderId': data['orderId'],
+                              'sellerOrderId': data['sellerOrderId'],
+                            });
+
+                            break;
+
+                          case 'playdate_reminder':
+                            widget.onNotificationSelected({
+                              'type': 'playdate_reminder',
+                              'requestId': data['requestId'],
+                            });
+                            break;
+
+                          case 'adoption_request': // ✅ این اضافه شد
+                            widget.onNotificationSelected({
+                              'type': 'adoption_request',
+                              'requestId': data['requestId'],
+                            });
+                            break;
+
+                          case 'business_resolution':
+                            widget.onNotificationSelected({
+                              'type': 'business_resolution',
+                              'status': data['status'],
+                              'centerId': data['centerId'],
+                              'reason': data['reason'],
+                            });
+                            break;
+
+                            case 'story_reply':
+
+ final senderId =
+    data['senderId'];
+
+final senderName =
+    data['senderUsername'] ??
+    'Pet User';
+
+  if (senderId == null) return;
+
+  final chatsQuery =
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .where(
+            'participants',
+            arrayContains:
+                FirebaseAuth
+                    .instance
+                    .currentUser!
+                    .uid,
+          )
+          .get();
+
+  String? existingChatId;
+
+  for (final doc in chatsQuery.docs) {
+
+    final participants =
+        List<String>.from(
+      doc['participants'] ?? [],
+    );
+
+    if (participants.contains(senderId)) {
+
+      existingChatId = doc.id;
+      break;
+    }
   }
-});
 
-  widget.onNotificationSelected({
-    'type': rawType,
+  if (existingChatId == null) {
 
-    // ✅ هر دو رو بفرست
-    'orderId': data['orderId'],
-    'sellerOrderId': data['sellerOrderId'],
-  });
+    final newChat =
+        await FirebaseFirestore
+            .instance
+            .collection('chats')
+            .add({
 
-  break;
+      'participants': [
+        FirebaseAuth
+            .instance
+            .currentUser!
+            .uid,
+        senderId,
+      ],
 
-      case 'playdate_reminder':
-        widget.onNotificationSelected({
-          'type': 'playdate_reminder',
-          'requestId': data['requestId'],
-        });
-        break;
+      'participantNames': {
+        FirebaseAuth
+            .instance
+            .currentUser!
+            .uid: 'You',
 
-        case 'adoption_request': // ✅ این اضافه شد
-    widget.onNotificationSelected({
-      'type': 'adoption_request',
-      'requestId': data['requestId'],
+        senderId: senderName,
+      },
+
+      'lastMessage': '',
+
+      'lastMessageAt':
+          FieldValue.serverTimestamp(),
+
+      'createdAt':
+          FieldValue.serverTimestamp(),
     });
-    break;
 
-    case 'business_resolution':
-  widget.onNotificationSelected({
-    'type': 'business_resolution',
-    'status': data['status'],
-    'centerId': data['centerId'],
-    'reason': data['reason'],
-  });
+    existingChatId = newChat.id;
+  }
+
+  if (!context.mounted) return;
+
+  Navigator.push(
+    context,
+
+    MaterialPageRoute(
+      builder: (_) => ChatDetailPage(
+        chatId: existingChatId!,
+        otherUserId: senderId,
+        otherUserName: senderName,
+      ),
+    ),
+  );
+
   break;
 
-      default:
-        debugPrint('⚠️ Unknown notification type: $rawType');
-    }
-
-  } finally {
-    if (mounted) {
-      _handlingTap = false;
-    }
-  }
-},
+                          default:
+                            debugPrint(
+                              '⚠️ Unknown notification type: $rawType',
+                            );
+                        }
+                      } finally {
+                        if (mounted) {
+                          _handlingTap = false;
+                        }
+                      }
+                    },
                     child: Padding(
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
                           Icon(
                             notification.isRead
                                 ? Icons.notifications_none
@@ -273,7 +413,6 @@ Future.microtask(() {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-
                                 Text(
                                   notification.title,
                                   style: GoogleFonts.poppins(
@@ -296,7 +435,7 @@ Future.microtask(() {
                                 const SizedBox(height: 6),
 
                                 Text(
-                                 notification.timestamp.toString() ?? '',
+                                  notification.timestamp.toString() ?? '',
                                   style: GoogleFonts.poppins(
                                     color: Colors.white38,
                                     fontSize: 11,
@@ -307,21 +446,19 @@ Future.microtask(() {
                           ),
 
                           IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.amber,
-                            ),
+                            icon: const Icon(Icons.delete, color: Colors.amber),
                             onPressed: () async {
-  if (widget.currentUserId == null || widget.currentUserId == 'guest') {
-    debugPrint('🚫 Guest → delete blocked');
-    return;
-  }
+                              if (widget.currentUserId == null ||
+                                  widget.currentUserId == 'guest') {
+                                debugPrint('🚫 Guest → delete blocked');
+                                return;
+                              }
 
-  await FirebaseFirestore.instance
-      .collection('notifications')
-      .doc(notification.id)
-      .delete();
-}
+                              await FirebaseFirestore.instance
+                                  .collection('notifications')
+                                  .doc(notification.id)
+                                  .delete();
+                            },
                           ),
                         ],
                       ),
@@ -337,33 +474,33 @@ Future.microtask(() {
   }
 
   Widget _buildGuestNotification() {
-  return Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.notifications_off, size: 80, color: Colors.grey),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.notifications_off, size: 80, color: Colors.grey),
 
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          const Text(
-            "No notifications for Guest",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+            const Text(
+              "No notifications for Guest",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
 
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
 
-          const Text(
-            "Login to receive updates and alerts",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
+            const Text(
+              "Login to receive updates and alerts",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

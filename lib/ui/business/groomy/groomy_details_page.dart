@@ -8,15 +8,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../models/business_draft.dart';
-import '../../../theme/app_theme.dart';
 
 class GroomyDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
 
-  const GroomyDetailsPage({
-    super.key,
-    required this.baseDraft,
-  });
+  const GroomyDetailsPage({super.key, required this.baseDraft});
 
   @override
   State<GroomyDetailsPage> createState() => _GroomyDetailsPageState();
@@ -40,17 +36,19 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
   // SECTION 2 — SERVICES
   // =========================
   final List<String> _allServices = [
-    "Bath",
-    "Haircut",
-    "Nail trimming",
-    "Ear cleaning",
-    "Teeth cleaning",
-    "Full grooming",
+    "Full Grooming",
+    "Bath & Dry",
+    "Nail Trimming",
+    "Hair Cutting",
+    "Ear Cleaning",
+    "Teeth Cleaning",
+    "Puppy Grooming",
+    "Cat Grooming",
+    "Flea Treatment Grooming",
+    "SPA Grooming",
   ];
 
   final List<String> _selectedServices = [];
-
- 
 
   // =========================
   // SECTION 4 — WORKING HOURS
@@ -58,7 +56,13 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
   final TextEditingController _workingHours = TextEditingController();
 
   final List<String> _days = [
-    "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
   ];
   final List<String> _selectedDays = [];
 
@@ -84,27 +88,37 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
   }
 
   @override
-void initState() {
-  super.initState();
-  _prefill();
-}
+  void initState() {
+    super.initState();
+    _prefill();
+  }
 
-void _prefill() {
-  final contact = widget.baseDraft.contact;
-  final profile = widget.baseDraft.profile;
+  @override
+  void dispose() {
+    _shopName.dispose();
+    _phone.dispose();
+    _whatsapp.dispose();
+    _instagram.dispose();
+    _workingHours.dispose();
+    super.dispose();
+  }
 
-  _shopName.text = profile.displayName;
-  _phone.text = contact.phone;
-  _whatsapp.text = contact.whatsapp;
-}
+  void _prefill() {
+    final contact = widget.baseDraft.contact;
+    final profile = widget.baseDraft.profile;
+
+    _shopName.text = profile.displayName;
+    _phone.text = contact.phone;
+    _whatsapp.text = contact.whatsapp;
+  }
 
   Future<String> _uploadFile(File file, String folder) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception("User not logged in");
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child("business_sector_docs/${user.uid}/groomy/$folder/${DateTime.now().millisecondsSinceEpoch}.jpg");
+    final ref = FirebaseStorage.instance.ref().child(
+      "business_sector_docs/${user.uid}/groomy/$folder/${DateTime.now().millisecondsSinceEpoch}.jpg",
+    );
 
     await ref.putFile(file);
     return ref.getDownloadURL();
@@ -114,12 +128,16 @@ void _prefill() {
     final xf = await _picker.pickImage(source: ImageSource.gallery);
     if (xf == null) return;
 
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final url = await _uploadFile(File(xf.path), "logo");
+      if (!mounted) return;
       setState(() => _logoUrl = url);
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -127,12 +145,16 @@ void _prefill() {
     final xf = await _picker.pickImage(source: ImageSource.gallery);
     if (xf == null) return;
 
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final url = await _uploadFile(File(xf.path), "photos");
+      if (!mounted) return;
       setState(() => _photos.add(url));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -140,8 +162,16 @@ void _prefill() {
   // BUILD DATA
   // =========================
   Map<String, dynamic> _buildData() {
+    final weekendOpen =
+        _selectedDays.contains("Saturday") || _selectedDays.contains("Sunday");
+
     return {
-      "name": _shopName.text.trim(),
+      "displayName": _shopName.text.trim(),
+      "description": widget.baseDraft.profile.description,
+      "logo": _logoUrl,
+      "coverImage": _photos.isNotEmpty ? _photos.first : null,
+      "specialties": _selectedServices,
+      "mobileService": _homeService,
 
       "contact": {
         "phone": _phone.text.trim(),
@@ -149,23 +179,26 @@ void _prefill() {
         "instagram": _instagram.text.trim(),
       },
 
-      "services": _selectedServices,
-
-      
+      "services": {"offeredServices": _selectedServices},
 
       "workingHours": {
-        "days": _selectedDays,
-        "hours": _workingHours.text.trim(),
+        "workingDays": _selectedDays,
+        "workingHours": _workingHours.text.trim(),
+        "weekendOpen": weekendOpen,
       },
 
-      "features": {
-        "homeService": _homeService,
+      "operationalDetails": {
+        "mobileService": _homeService,
         "pickupService": _pickupService,
       },
 
-      "media": {
-        "logo": _logoUrl,
-        "photos": _photos,
+      "profileContent": {
+        "clinicLogoUrl": _logoUrl,
+        "clinicPhotoUrls": _photos,
+        "socialMedia": {
+          "whatsapp": _whatsapp.text.trim(),
+          "instagram": _instagram.text.trim(),
+        },
       },
     };
   }
@@ -189,56 +222,37 @@ void _prefill() {
     }
 
     setState(() => _loading = true);
+    var shouldResetLoading = true;
 
     try {
-    final updatedDraft = widget.baseDraft.copyWith(
-  sectorData: {
-    ...widget.baseDraft.sectorData,
+      final groomingData = _buildData();
+      final updatedDraft = widget.baseDraft.copyWith(
+        sectorData: {
+          ...widget.baseDraft.sectorData,
 
-    "groomer": {
-      "services": _selectedServices,
+          "grooming": groomingData,
+          "groomer": groomingData,
+        },
+      );
 
-      "contact": {
-        "phone": _phone.text.trim(),
-        "whatsapp": _whatsapp.text.trim(),
-        "instagram": _instagram.text.trim(),
-      },
+      if (!mounted) return;
 
-      "workingHours": {
-        "days": _selectedDays,
-        "hours": _workingHours.text.trim(),
-      },
-
-      "features": {
-        "homeService": _homeService,
-        "pickupService": _pickupService,
-      },
-
-      "media": {
-        "logo": _logoUrl,
-        "photos": _photos,
-      },
-    }
-  },
-);
-
-if (!mounted) return;
-
-Navigator.of(context).pop(updatedDraft);
-
+      shouldResetLoading = false;
+      Navigator.of(context).pop(updatedDraft);
     } catch (e, st) {
-  debugPrint("❌ GROOMY ERROR => $e");
-  debugPrintStack(stackTrace: st);
+      debugPrint("❌ GROOMY ERROR => $e");
+      debugPrintStack(stackTrace: st);
 
-  _snack(e.toString());
-} finally {
-      setState(() => _loading = false);
+      _snack(e.toString());
+    } finally {
+      if (shouldResetLoading && mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   // =========================
@@ -249,8 +263,7 @@ Navigator.of(context).pop(updatedDraft);
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: c,
-        validator: (v) =>
-            (v == null || v.isEmpty) ? "Required" : null,
+        validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
         decoration: InputDecoration(labelText: label),
       ),
     );
@@ -270,113 +283,116 @@ Navigator.of(context).pop(updatedDraft);
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text("Groomy Details"),
-    ),
-    body: Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Groomy Details")),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // =========================
+            // BASIC INFO
+            // =========================
+            _field(_shopName, "Groomy Name"),
+            _field(_phone, "Phone"),
+            _field(_whatsapp, "WhatsApp"),
+            _field(_instagram, "Instagram"),
 
-          // =========================
-          // BASIC INFO
-          // =========================
-          _field(_shopName, "Groomy Name"),
-          _field(_phone, "Phone"),
-          _field(_whatsapp, "WhatsApp"),
-          _field(_instagram, "Instagram"),
+            const SizedBox(height: 20),
 
-          const SizedBox(height: 20),
-
-          // =========================
-          // SERVICES
-          // =========================
-          const Text("Services", style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          _chips(_allServices, _selectedServices),
-
-          const SizedBox(height: 20),
-
-          // =========================
-          // WORKING DAYS
-          // =========================
-          const Text("Working Days", style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          _chips(_days, _selectedDays),
-
-          const SizedBox(height: 10),
-
-          _field(_workingHours, "Working Hours (09:00 - 18:00)"),
-
-          const SizedBox(height: 10),
-
-          // =========================
-          // FEATURES
-          // =========================
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _homeService,
-            onChanged: (v) => setState(() => _homeService = v),
-            title: const Text("Home Service"),
-          ),
-
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _pickupService,
-            onChanged: (v) => setState(() => _pickupService = v),
-            title: const Text("Pickup Service"),
-          ),
-
-          const SizedBox(height: 20),
-
-          // =========================
-          // MEDIA (FIXED)
-          // =========================
-          const Text("Media", style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 10),
-
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _loading ? null : _pickLogo,
-                  icon: const Icon(Icons.image),
-                  label: const Text("Logo"),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _loading ? null : _pickPhoto,
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text("Photos"),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 30),
-
-          // =========================
-          // SUBMIT
-          // =========================
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+            // =========================
+            // SERVICES
+            // =========================
+            const Text(
+              "Services",
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            onPressed: _loading ? null : _submit,
-            child: _loading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text("Continue"),
-          ),
+            const SizedBox(height: 8),
+            _chips(_allServices, _selectedServices),
 
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 20),
+
+            // =========================
+            // WORKING DAYS
+            // =========================
+            const Text(
+              "Working Days",
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            _chips(_days, _selectedDays),
+
+            const SizedBox(height: 10),
+
+            _field(_workingHours, "Working Hours (09:00 - 18:00)"),
+
+            const SizedBox(height: 10),
+
+            // =========================
+            // FEATURES
+            // =========================
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _homeService,
+              onChanged: (v) => setState(() => _homeService = v),
+              title: const Text("Home Service"),
+            ),
+
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _pickupService,
+              onChanged: (v) => setState(() => _pickupService = v),
+              title: const Text("Pickup Service"),
+            ),
+
+            const SizedBox(height: 20),
+
+            // =========================
+            // MEDIA (FIXED)
+            // =========================
+            const Text("Media", style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 10),
+
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _loading ? null : _pickLogo,
+                    icon: const Icon(Icons.image),
+                    label: const Text("Logo"),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _loading ? null : _pickPhoto,
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text("Photos"),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 30),
+
+            // =========================
+            // SUBMIT
+            // =========================
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              onPressed: _loading ? null : _submit,
+              child: _loading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Continue"),
+            ),
+
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

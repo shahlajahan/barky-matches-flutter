@@ -1,9 +1,4 @@
-enum BusinessType {
-  vet,
-  adoptionCenter,
-  petShop,
-  groomer,
-}
+enum BusinessType { vet, adoptionCenter, petShop, groomer, petHotel, petTaxi }
 
 class BusinessCardData {
   final String id;
@@ -35,8 +30,10 @@ class BusinessCardData {
   final BusinessType type;
 
   final String? instagram;
-final String? website;
-final String? logoUrl;
+  final String? website;
+  final String? logoUrl;
+  final Map<String, dynamic>? rawData;
+  final Map<String, dynamic>? data;
 
   const BusinessCardData({
     required this.id,
@@ -60,9 +57,9 @@ final String? logoUrl;
     this.isEmergency = false,
     required this.type,
     this.instagram,
-this.website,
-this.logoUrl,
+    this.website,
+    this.logoUrl,
+    this.rawData,
+    this.data,
   });
 }
-
-

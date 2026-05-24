@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 class OfferDetailsPage extends StatelessWidget {
   final String? title;
@@ -140,7 +141,8 @@ class OfferDetailsPage extends StatelessWidget {
             if (imageUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: SmartMedia(url: url,
+                child: SmartMedia(
+                  url: imageUrl!,
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,

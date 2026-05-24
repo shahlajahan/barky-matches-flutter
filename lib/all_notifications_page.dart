@@ -177,11 +177,24 @@ if (userId.isEmpty || userId == 'guest') {
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final notification = notifications[index];
-                final payload = notification.payload != null
-                    ? Map<String, dynamic>.from(
-                        jsonDecode(notification.payload!),
-                      )
-                    : <String, dynamic>{};
+                Map<String, dynamic> payload = {};
+
+try {
+
+  if (notification.payload != null &&
+      notification.payload!.isNotEmpty) {
+
+    payload = Map<String, dynamic>.from(
+      jsonDecode(notification.payload!),
+    );
+  }
+
+} catch (e) {
+
+  debugPrint(
+    'Notification payload parse error: $e',
+  );
+}
 
                 return Card(
                   color: Colors.pink[50],
@@ -250,7 +263,7 @@ if (userId.isEmpty || userId == 'guest') {
                           rawType.contains('playdate') ||
                           title.contains('playdate') ||
                           body.contains('play');
-
+if (!mounted) return;
                       if (isPlaydate) {
                         Navigator.push(
                           context,

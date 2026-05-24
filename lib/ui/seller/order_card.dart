@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class SellerOrderCard extends StatelessWidget {
 
@@ -24,6 +25,7 @@ class SellerOrderCard extends StatelessWidget {
 });
 
  Future<void> updateStatus(BuildContext context, String status) async {
+  final l10n = AppLocalizations.of(context)!;
   try {
     final callable = FirebaseFunctions.instanceFor(
       region: 'europe-west3',
@@ -37,14 +39,14 @@ class SellerOrderCard extends StatelessWidget {
     if (!context.mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Updated → $status")),
+      SnackBar(content: Text(l10n.orderStatusUpdated(orderStatusLabel(status, l10n)))),
     );
   } catch (e) {
     debugPrint("❌ ERROR: $e");
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: $e")),
+      SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
     );
   }
 }
@@ -64,18 +66,18 @@ Color payoutColor(String status) {
   }
 }
 
-String payoutLabel(String status) {
+String payoutLabel(String status, AppLocalizations l10n) {
   switch (status) {
     case "paid":
-      return "Paid";
+      return l10n.paidPayoutStatusLabel;
     case "ready":
-      return "Ready for payout";
+      return l10n.readyForPayoutLabel;
     case "pending":
-      return "Payout pending";
+      return l10n.payoutPendingLabel;
     case "payment_pending":
-      return "Waiting for payment";
+      return l10n.waitingForPaymentLabel;
     default:
-      return "Payout not set";
+      return l10n.payoutNotSetLabel;
   }
 }
 
@@ -112,24 +114,62 @@ String payoutLabel(String status) {
     }
   }
 
-  String nextActionLabel(String status) {
+  String nextActionLabel(String status, AppLocalizations l10n) {
     switch (status) {
       case "paid":
-        return "Confirm Order";
+        return l10n.confirmOrderButton;
       case "confirmed":
-        return "Start Preparing";
+        return l10n.startPreparingButton;
 
       // 🔥 مهم: برای preparing دیگر مستقیم ship نکن
       case "preparing":
-        return "Open Order";
+        return l10n.openOrderButton;
 
       // 🔥 اگر خواستی delivered هم فقط از detail page انجام شود،
       // این case را هم حذف کن
       case "shipped":
-        return "Open Order";
+        return l10n.openOrderButton;
 
       default:
         return "";
+    }
+  }
+
+  String orderStatusLabel(String status, AppLocalizations l10n) {
+    switch (status) {
+      case "paid":
+        return l10n.paidStatusLabel;
+      case "confirmed":
+        return l10n.confirmedStatusLabel;
+      case "preparing":
+        return l10n.preparingStatusLabel;
+      case "shipped":
+        return l10n.shippedStatusLabel;
+      case "delivered":
+        return l10n.deliveredStatusLabel;
+      case "failed":
+        return l10n.failedStatusLabel;
+      default:
+        return status;
+    }
+  }
+
+  String invoiceStatusLabel(String status, AppLocalizations l10n) {
+    switch (status) {
+      case 'pending_upload':
+        return l10n.invoiceStatusPendingUploadLabel;
+      case 'uploaded_valid':
+        return l10n.invoiceStatusUploadedValidLabel;
+      case 'uploaded_with_issues':
+        return l10n.invoiceStatusUploadedWithIssuesLabel;
+      case 'late':
+        return l10n.invoiceStatusLateLabel;
+      case 'approved':
+        return l10n.invoiceStatusApprovedLabel;
+      case 'rejected':
+        return l10n.invoiceStatusRejectedLabel;
+      default:
+        return status;
     }
   }
 
@@ -153,6 +193,7 @@ String payoutLabel(String status) {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final rawStatus = data['status'] ?? 'pending';
     final status = normalizeStatus(rawStatus.toString());
     debugPrint("🔥 SELLER ORDER DATA: $data");
@@ -197,7 +238,7 @@ if (deadlineRaw is Timestamp) {
     }
 
     final color = statusColor(status);
-    final actionLabel = nextActionLabel(status);
+    final actionLabel = nextActionLabel(status, l10n);
     final actionStatus = nextActionStatus(status);
 
     final shipping = data['shipping'] as Map<String, dynamic>? ?? {};
@@ -258,7 +299,11 @@ final payoutReference = payout['reference'];
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Order #${sellerOrderId.length > 6 ? sellerOrderId.substring(0, 6) : sellerOrderId}",
+                        l10n.orderNumberLabel(
+                          sellerOrderId.length > 6
+                              ? sellerOrderId.substring(0, 6)
+                              : sellerOrderId,
+                        ),
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -311,7 +356,10 @@ final payoutReference = payout['reference'];
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          "Invoice: $invoiceStatus • Deadline: $deadlineLabel",
+                          l10n.invoiceSummaryLabel(
+                            invoiceStatusLabel(invoiceStatus, l10n),
+                            deadlineLabel,
+                          ),
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
@@ -349,7 +397,7 @@ Container(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              payoutLabel(payoutStatus),
+              payoutLabel(payoutStatus, l10n),
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: payoutColor(payoutStatus),
@@ -358,14 +406,14 @@ Container(
             const SizedBox(height: 4),
 
             Text(
-              "Seller net: ₺${payoutAmount.toString()}",
+              l10n.sellerNetLabel("₺${payoutAmount.toString()}"),
               style: const TextStyle(fontSize: 12),
             ),
 
             if (payoutReference != null &&
                 payoutReference.toString().isNotEmpty)
               Text(
-                "Ref: $payoutReference",
+                l10n.referenceLabel(payoutReference.toString()),
                 style: const TextStyle(
                   fontSize: 11,
                   color: Colors.black54,
@@ -377,12 +425,11 @@ Container(
     ],
   ),
 ),
-
-                  Text("Name: $billingName",
+                  Text(l10n.buyerNameLabel(billingName),
                       style: const TextStyle(fontSize: 12)),
-                  Text("Surname: $billingSurname",
+                  Text(l10n.buyerSurnameLabel(billingSurname),
                       style: const TextStyle(fontSize: 12)),
-                  Text("ID: $billingId",
+                  Text(l10n.buyerIdentityNumberLabel(billingId),
                       style: const TextStyle(fontSize: 12)),
                       
                 ],
@@ -406,8 +453,8 @@ Container(
                     color: color.withOpacity(0.10),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(
-                    status.toUpperCase(),
+                    child: Text(
+                    orderStatusLabel(status, l10n),
                     style: TextStyle(
                       color: color,
                       fontWeight: FontWeight.w700,
@@ -425,7 +472,7 @@ Container(
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    "${items.length} item${items.length == 1 ? '' : 's'}",
+                    l10n.itemsCountLabel(items.length),
                     style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w600,
@@ -465,7 +512,7 @@ Container(
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      "Tracking: $tracking",
+                      l10n.trackingLabel(tracking),
                       style: const TextStyle(
                         color: Colors.black87,
                         fontWeight: FontWeight.w600,
@@ -496,9 +543,8 @@ Container(
                       if (!context.mounted) return;
 
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content:
-                              Text("Invoice simulated as uploaded"),
+                        SnackBar(
+                          content: Text(l10n.invoiceSimulatedAsUploaded),
                         ),
                       );
                     } catch (e) {
@@ -508,13 +554,13 @@ Container(
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text("Invoice error: $e"),
+                          content: Text(l10n.invoiceError(e.toString())),
                         ),
                       );
                     }
                   },
                   icon: const Icon(Icons.upload_file),
-                  label: const Text("Simulate Upload Invoice"),
+                  label: Text(l10n.simulateUploadInvoiceButton),
                 ),
               ),
             ],

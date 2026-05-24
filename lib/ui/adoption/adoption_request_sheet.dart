@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/services/adoption_request_service.dart';
@@ -223,6 +224,7 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
   // ✅ Navigation / Validation
   // ─────────────────────────────────────────────
   void _next() {
+    final l10n = AppLocalizations.of(context)!;
     final ok = _keys[_step].currentState?.validate() ?? false;
 
     // step-specific hard validations (checkbox / uploads / conditional stuff)
@@ -231,14 +233,14 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
     if (_step == 1) {
       // Housing step: if rented -> landlord permission must be true
       if (_ownership == "Rented" && !_landlordPermission) {
-        _toast("❗ Landlord permission is required for rented homes");
+        _toast(l10n.adoptionLandlordPermissionRequired);
         return;
       }
       // if has garden -> fence height required
       if (_hasGarden) {
         final h = int.tryParse(_fenceHeight.text.trim());
         if (h == null || h <= 0 || h > 400) {
-          _toast("❗ Enter a valid fence height (1..400 cm)");
+          _toast(l10n.adoptionEnterValidFenceHeight);
           return;
         }
       }
@@ -249,7 +251,7 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
       if (_previousDog) {
         final t = _reasonPrevDog.text.trim();
         if (t.length < 10) {
-          _toast("❗ Please explain what happened to your previous dog");
+          _toast(l10n.adoptionExplainPreviousDog);
           return;
         }
       }
@@ -257,7 +259,7 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
       if (_otherPets) {
         final t = _otherPetsDetails.text.trim();
         if (t.length < 3) {
-          _toast("❗ Please describe your other pets");
+          _toast(l10n.adoptionDescribeOtherPetsRequired);
           return;
         }
       }
@@ -265,7 +267,7 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
       // Motivation required (legal-ish)
       final m = _motivation.text.trim();
       if (m.length < 20) {
-        _toast("❗ Motivation should be at least 20 characters");
+        _toast(l10n.adoptionMotivationMinLength);
         return;
       }
     }
@@ -293,15 +295,15 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
 
     // Step 4 requirements
     if (_housePhotoUrls.isEmpty) {
-      _toast("❗ Please upload at least 1 house photo");
+      _toast(AppLocalizations.of(context)!.adoptionUploadAtLeastOnePhoto);
       return;
     }
     if (_idPhotoUrl == null) {
-      _toast("❗ Please upload an ID photo");
+      _toast(AppLocalizations.of(context)!.adoptionUploadIdPhoto);
       return;
     }
     if (!_agreeContract) {
-      _toast("❗ You must agree to the adoption contract");
+      _toast(AppLocalizations.of(context)!.adoptionAgreeContractRequired);
       return;
     }
 
@@ -368,10 +370,10 @@ final requesterName = _fullName.text.trim();
 
       if (!mounted) return;
       Navigator.pop(context);
-      _toast("✅ Request sent");
+      _toast(AppLocalizations.of(context)!.requestCreatedSuccess);
     } catch (e) {
       if (!mounted) return;
-      _toast("❌ Failed: $e");
+      _toast(AppLocalizations.of(context)!.errorOccurred(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -460,13 +462,14 @@ Widget build(BuildContext context) {
   // ✅ Header + Step dots
   // ─────────────────────────────────────────────
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
         Expanded(
           child: Column(
             children: [
               Text(
-                "Adoption Request",
+                l10n.adoptionRequestTitle,
                 style: GoogleFonts.dancingScript(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
@@ -475,7 +478,7 @@ Widget build(BuildContext context) {
               ),
               const SizedBox(height: 4),
               Text(
-                "• ${widget.dogName}",
+                l10n.adoptionRequestSubtitle(widget.dogName),
                 style: GoogleFonts.poppins(
                   fontSize: 12.5,
                   color: Colors.white70,
@@ -520,71 +523,72 @@ Widget build(BuildContext context) {
   // ✅ Step 1: Personal Info
   // ─────────────────────────────────────────────
   Widget _stepPersonal() {
+    final l10n = AppLocalizations.of(context)!;
     return Form(
       key: _keys[0],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle("1️⃣ Personal Info"),
+          _sectionTitle(l10n.adoptionStepPersonalInfoTitle),
           const SizedBox(height: 10),
 
-          _label("Full Name"),
+          _label(l10n.adoptionFullNameLabel),
           const SizedBox(height: 6),
           _whiteField(
             _fullName,
-            hint: "Your full name",
+            hint: l10n.adoptionFullNameHint,
             validator: (v) {
               final t = (v ?? "").trim();
-              if (t.length < 3) return "Enter your full name";
+              if (t.length < 3) return l10n.adoptionEnterFullName;
               return null;
             },
           ),
           const SizedBox(height: 12),
 
-          _label("Gender"),
+          _label(l10n.genderLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: _gender,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
-            items: const [
-              DropdownMenuItem(value: "female", child: Text("Female")),
-              DropdownMenuItem(value: "male", child: Text("Male")),
-              DropdownMenuItem(value: "other", child: Text("Other")),
+            items: [
+              DropdownMenuItem(value: "female", child: Text(l10n.genderFemale)),
+              DropdownMenuItem(value: "male", child: Text(l10n.genderMale)),
+              DropdownMenuItem(value: "other", child: Text(l10n.genderOther)),
             ],
             onChanged: (v) => setState(() => _gender = v),
-            validator: (v) => v == null ? "Select gender" : null,
+            validator: (v) => v == null ? l10n.adoptionSelectGender : null,
           ),
           const SizedBox(height: 12),
 
-          _label("Phone"),
+          _label(l10n.phoneLabel),
           const SizedBox(height: 6),
           _whiteField(
             _phone,
             keyboardType: TextInputType.phone,
-            hint: "e.g. +90 5xx xxx xxxx",
+            hint: l10n.adoptionPhoneHint,
             validator: (v) {
               final t = (v ?? "").trim();
-              if (t.length < 8) return "Enter a valid phone number";
+              if (t.length < 8) return l10n.adoptionEnterValidPhone;
               return null;
             },
           ),
           const SizedBox(height: 12),
 
-          _label("Monthly Income Range"),
+          _label(l10n.adoptionIncomeRangeLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: _incomeRange,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
-            items: const [
-              DropdownMenuItem(value: "0-2000", child: Text("0 - 2,000")),
-              DropdownMenuItem(value: "2000-5000", child: Text("2,000 - 5,000")),
-              DropdownMenuItem(value: "5000-10000", child: Text("5,000 - 10,000")),
-              DropdownMenuItem(value: "10000+", child: Text("10,000+")),
+            items: [
+              DropdownMenuItem(value: "0-2000", child: Text(l10n.adoptionIncomeRange0_2000)),
+              DropdownMenuItem(value: "2000-5000", child: Text(l10n.adoptionIncomeRange2000_5000)),
+              DropdownMenuItem(value: "5000-10000", child: Text(l10n.adoptionIncomeRange5000_10000)),
+              DropdownMenuItem(value: "10000+", child: Text(l10n.adoptionIncomeRange10000Plus)),
             ],
             onChanged: (v) => setState(() => _incomeRange = v),
-            validator: (v) => v == null ? "Select income range" : null,
+            validator: (v) => v == null ? l10n.adoptionSelectIncomeRange : null,
           ),
         ],
       ),
@@ -595,38 +599,39 @@ Widget build(BuildContext context) {
   // ✅ Step 2: Housing
   // ─────────────────────────────────────────────
   Widget _stepHousing() {
+    final l10n = AppLocalizations.of(context)!;
     return Form(
       key: _keys[1],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle("2️⃣ Housing"),
+          _sectionTitle(l10n.adoptionStepHousingTitle),
           const SizedBox(height: 10),
 
-          _label("Housing type"),
+          _label(l10n.adoptionHousingTypeLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: _housingType,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
-            items: const [
-              DropdownMenuItem(value: "Apartment", child: Text("Apartment")),
-              DropdownMenuItem(value: "House", child: Text("House")),
-              DropdownMenuItem(value: "Villa", child: Text("Villa")),
+            items: [
+              DropdownMenuItem(value: "Apartment", child: Text(l10n.adoptionHousingApartment)),
+              DropdownMenuItem(value: "House", child: Text(l10n.adoptionHousingHouse)),
+              DropdownMenuItem(value: "Villa", child: Text(l10n.adoptionHousingVilla)),
             ],
             onChanged: (v) => setState(() => _housingType = v ?? "Apartment"),
           ),
           const SizedBox(height: 12),
 
-          _label("Owned / Rented"),
+          _label(l10n.adoptionOwnershipLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: _ownership,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
-            items: const [
-              DropdownMenuItem(value: "Owned", child: Text("Owned")),
-              DropdownMenuItem(value: "Rented", child: Text("Rented")),
+            items: [
+              DropdownMenuItem(value: "Owned", child: Text(l10n.adoptionOwnershipOwned)),
+              DropdownMenuItem(value: "Rented", child: Text(l10n.adoptionOwnershipRented)),
             ],
             onChanged: (v) {
               setState(() {
@@ -643,7 +648,7 @@ Widget build(BuildContext context) {
               value: _landlordPermission,
               onChanged: (v) => setState(() => _landlordPermission = v),
               title: Text(
-                "Landlord permission (required)",
+                l10n.adoptionLandlordPermissionRequired,
                 style: GoogleFonts.poppins(color: Colors.white),
               ),
             ),
@@ -653,7 +658,7 @@ Widget build(BuildContext context) {
             value: _hasGarden,
             onChanged: (v) => setState(() => _hasGarden = v),
             title: Text(
-              "Has garden",
+              l10n.adoptionHasGarden,
               style: GoogleFonts.poppins(color: Colors.white),
             ),
           ),
@@ -661,16 +666,16 @@ Widget build(BuildContext context) {
           // Fence height only if garden ON
           if (_hasGarden) ...[
             const SizedBox(height: 6),
-            _label("Fence height (cm)"),
+            _label(l10n.adoptionFenceHeightLabel),
             const SizedBox(height: 6),
             _whiteField(
               _fenceHeight,
               keyboardType: TextInputType.number,
-              hint: "e.g. 120",
+              hint: l10n.adoptionFenceHeightHint,
               validator: (v) {
                 if (!_hasGarden) return null;
                 final n = int.tryParse((v ?? "").trim());
-                if (n == null || n <= 0 || n > 400) return "Enter 1..400";
+                if (n == null || n <= 0 || n > 400) return l10n.adoptionEnterValidFenceHeight;
                 return null;
               },
             ),
@@ -684,23 +689,24 @@ Widget build(BuildContext context) {
   // ✅ Step 3: Experience
   // ─────────────────────────────────────────────
   Widget _stepExperience() {
+    final l10n = AppLocalizations.of(context)!;
     return Form(
       key: _keys[2],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle("3️⃣ Experience"),
+          _sectionTitle(l10n.adoptionStepExperienceTitle),
           const SizedBox(height: 10),
 
-          _label("Years of experience"),
+          _label(l10n.adoptionYearsOfExperienceLabel),
           const SizedBox(height: 6),
           _whiteField(
             _experienceYears,
             keyboardType: TextInputType.number,
-            hint: "0..60",
+            hint: l10n.adoptionYearsOfExperienceHint,
             validator: (v) {
               final n = int.tryParse((v ?? "").trim());
-              if (n == null || n < 0 || n > 60) return "Enter 0..60";
+              if (n == null || n < 0 || n > 60) return l10n.adoptionEnterYearsOfExperience;
               return null;
             },
           ),
@@ -711,23 +717,23 @@ Widget build(BuildContext context) {
             value: _previousDog,
             onChanged: (v) => setState(() => _previousDog = v),
             title: Text(
-              "Previous dog? (Yes/No)",
+              l10n.adoptionPreviousDogQuestion,
               style: GoogleFonts.poppins(color: Colors.white),
             ),
           ),
 
           if (_previousDog) ...[
             const SizedBox(height: 6),
-            _label("Reason previous dog no longer with you"),
+            _label(l10n.adoptionPreviousDogReasonLabel),
             const SizedBox(height: 6),
             _whiteField(
               _reasonPrevDog,
               maxLines: 2,
-              hint: "Explain briefly",
+              hint: l10n.adoptionPreviousDogReasonHint,
               validator: (v) {
                 if (!_previousDog) return null;
                 final t = (v ?? "").trim();
-                if (t.length < 10) return "At least 10 characters";
+                if (t.length < 10) return l10n.adoptionExplainPreviousDog;
                 return null;
               },
             ),
@@ -745,7 +751,7 @@ Widget build(BuildContext context) {
               });
             },
             title: Text(
-              "Other pets at home",
+              l10n.adoptionOtherPetsAtHome,
               style: GoogleFonts.poppins(color: Colors.white),
             ),
           ),
@@ -753,31 +759,31 @@ Widget build(BuildContext context) {
           // ✅ Conditional: ONLY show box when ON
           if (_otherPets) ...[
             const SizedBox(height: 6),
-            _label("Describe your other pets"),
+            _label(l10n.adoptionDescribeOtherPetsLabel),
             const SizedBox(height: 6),
             _whiteField(
               _otherPetsDetails,
               maxLines: 2,
-              hint: "e.g. 2 cats, vaccinated",
+              hint: l10n.adoptionDescribeOtherPetsHint,
               validator: (v) {
                 if (!_otherPets) return null;
                 final t = (v ?? "").trim();
-                if (t.length < 3) return "Required";
+                if (t.length < 3) return l10n.adoptionRequiredShort;
                 return null;
               },
             ),
           ],
 
           const SizedBox(height: 12),
-          _label("Motivation message"),
+          _label(l10n.adoptionMotivationMessageLabel),
           const SizedBox(height: 6),
           _whiteField(
             _motivation,
             maxLines: 3,
-            hint: "Why do you want to adopt?",
+            hint: l10n.whyDoYouWantToAdopt,
             validator: (v) {
               final t = (v ?? "").trim();
-              if (t.length < 20) return "At least 20 characters";
+              if (t.length < 20) return l10n.adoptionMotivationMinLength;
               return null;
             },
           ),
@@ -790,12 +796,13 @@ Widget build(BuildContext context) {
   // ✅ Step 4: Financial + Uploads + Contract
   // ─────────────────────────────────────────────
   Widget _stepFinancialAndUploads() {
+    final l10n = AppLocalizations.of(context)!;
     return Form(
       key: _keys[3],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle("4️⃣ Financial & Commitment"),
+          _sectionTitle(l10n.adoptionStepFinancialCommitmentTitle),
           const SizedBox(height: 10),
 
           SwitchListTile(
@@ -803,7 +810,7 @@ Widget build(BuildContext context) {
             value: _canAffordVet,
             onChanged: (v) => setState(() => _canAffordVet = v),
             title: Text(
-              "Can afford vet expenses?",
+              l10n.adoptionCanAffordVetExpenses,
               style: GoogleFonts.poppins(color: Colors.white),
             ),
           ),
@@ -813,23 +820,23 @@ Widget build(BuildContext context) {
             value: _emergencySavings,
             onChanged: (v) => setState(() => _emergencySavings = v),
             title: Text(
-              "Emergency savings available?",
+              l10n.adoptionEmergencySavingsAvailable,
               style: GoogleFonts.poppins(color: Colors.white),
             ),
           ),
 
           const SizedBox(height: 10),
-          _sectionTitle("📷 Uploads"),
+          _sectionTitle(l10n.adoptionUploadsSectionTitle),
           const SizedBox(height: 8),
 
           _uploadRow(
-            title: "House photos (required)",
+            title: l10n.adoptionHousePhotosRequiredTitle,
             subtitle: _housePhotoUrls.isEmpty
-                ? "Upload at least 1 photo"
-                : "${_housePhotoUrls.length} uploaded",
-            primaryText: "Upload",
+                ? l10n.adoptionUploadAtLeastOnePhoto
+                : l10n.adoptionUploadedCount(_housePhotoUrls.length),
+            primaryText: l10n.adoptionUploadButton,
             onPrimary: _loading ? null : _pickHousePhotos,
-            secondaryText: _housePhotoUrls.isEmpty ? null : "Clear",
+            secondaryText: _housePhotoUrls.isEmpty ? null : l10n.adoptionClearButton,
             onSecondary: _loading
                 ? null
                 : () => setState(() => _housePhotoUrls.clear()),
@@ -837,11 +844,11 @@ Widget build(BuildContext context) {
           const SizedBox(height: 10),
 
           _uploadRow(
-            title: "ID photo (required)",
-            subtitle: _idPhotoUrl == null ? "Not uploaded" : "Uploaded",
-            primaryText: _idPhotoUrl == null ? "Upload" : "Replace",
+            title: l10n.adoptionIdPhotoRequiredTitle,
+            subtitle: _idPhotoUrl == null ? l10n.adoptionNotUploaded : l10n.adoptionUploaded,
+            primaryText: _idPhotoUrl == null ? l10n.adoptionUploadButton : l10n.adoptionReplaceButton,
             onPrimary: _loading ? null : () => _pickSingleDoc(kind: "id"),
-            secondaryText: _idPhotoUrl == null ? null : "Remove",
+            secondaryText: _idPhotoUrl == null ? null : l10n.adoptionRemoveButton,
             onSecondary: _loading
                 ? null
                 : () => setState(() => _idPhotoUrl = null),
@@ -849,11 +856,11 @@ Widget build(BuildContext context) {
           const SizedBox(height: 10),
 
           _uploadRow(
-            title: "Proof of income (optional)",
-            subtitle: _incomeProofUrl == null ? "Optional" : "Uploaded",
-            primaryText: _incomeProofUrl == null ? "Upload" : "Replace",
+            title: l10n.adoptionProofOfIncomeOptionalTitle,
+            subtitle: _incomeProofUrl == null ? l10n.adoptionOptionalLabel : l10n.adoptionUploaded,
+            primaryText: _incomeProofUrl == null ? l10n.adoptionUploadButton : l10n.adoptionReplaceButton,
             onPrimary: _loading ? null : () => _pickSingleDoc(kind: "income"),
-            secondaryText: _incomeProofUrl == null ? null : "Remove",
+            secondaryText: _incomeProofUrl == null ? null : l10n.adoptionRemoveButton,
             onSecondary: _loading
                 ? null
                 : () => setState(() => _incomeProofUrl = null),
@@ -867,7 +874,7 @@ Widget build(BuildContext context) {
             activeColor: Colors.white,
             checkColor: Colors.black,
             title: Text(
-              "I agree to sign the adoption contract (required)",
+              l10n.adoptionAgreeContractRequiredLabel,
               style: GoogleFonts.poppins(color: Colors.white),
             ),
             controlAffinity: ListTileControlAffinity.leading,
@@ -889,6 +896,7 @@ Widget build(BuildContext context) {
   // ✅ Bottom bar (Back/Next/Send Request)
   // ─────────────────────────────────────────────
   Widget _buildBottomBar() {
+    final l10n = AppLocalizations.of(context)!;
     final isLast = _step == 3;
 
     return Row(
@@ -896,22 +904,20 @@ Widget build(BuildContext context) {
         Expanded(
           child: OutlinedButton(
             onPressed: _loading ? null : _back,
-            child: Text(_step == 0 ? "Cancel" : "Back"),
+            child: Text(_step == 0 ? l10n.cancel : l10n.backButton),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: ElevatedButton(
-            onPressed: _loading
-                ? null
-                : (isLast ? _submit : _next),
+            onPressed: _loading ? null : (isLast ? _submit : _next),
             child: _loading
                 ? const SizedBox(
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(isLast ? "Send Request" : "Next"),
+                : Text(isLast ? l10n.sendRequestButton : l10n.adoptionNextButton),
           ),
         ),
       ],

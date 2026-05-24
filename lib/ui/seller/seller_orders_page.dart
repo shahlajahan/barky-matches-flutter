@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/seller/order_card.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 
@@ -95,10 +96,11 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F7),
       appBar: AppBar(
-        title: const Text("Orders"),
+        title: Text(l10n.ordersTitle),
       ),
       body: Column(
         children: [
@@ -111,7 +113,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                   controller: _searchController,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    hintText: "Search by order id or product name",
+                    hintText: l10n.searchByOrderIdOrProductNameHint,
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
                     fillColor: Colors.white,
@@ -128,21 +130,21 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
-                      _buildFilterChip("All", "all"),
+                      _buildFilterChip(l10n.allFilterLabel, "all"),
                       const SizedBox(width: 8),
-                      _buildFilterChip("Pending", "pending"),
+                      _buildFilterChip(l10n.pendingStatusLabel, "pending"),
                       const SizedBox(width: 8),
-                      _buildFilterChip("Paid", "paid"),
+                      _buildFilterChip(l10n.paidStatusLabel, "paid"),
                       const SizedBox(width: 8),
-                      _buildFilterChip("Confirmed", "confirmed"),
+                      _buildFilterChip(l10n.confirmedStatusLabel, "confirmed"),
                       const SizedBox(width: 8),
-                      _buildFilterChip("Preparing", "preparing"),
+                      _buildFilterChip(l10n.preparingStatusLabel, "preparing"),
                       const SizedBox(width: 8),
-                      _buildFilterChip("Shipped", "shipped"),
+                      _buildFilterChip(l10n.shippedStatusLabel, "shipped"),
                       const SizedBox(width: 8),
-                      _buildFilterChip("Delivered", "delivered"),
+                      _buildFilterChip(l10n.deliveredStatusLabel, "delivered"),
                       const SizedBox(width: 8),
-                      _buildFilterChip("Failed", "failed"),
+                      _buildFilterChip(l10n.failedStatusLabel, "failed"),
                     ],
                   ),
                 ),
@@ -161,7 +163,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                 if (snapshot.hasError) {
                   debugPrint("❌ SELLER ORDERS ERROR: ${snapshot.error}");
                   return Center(
-                    child: Text("Error: ${snapshot.error}"),
+                    child: Text(l10n.errorOccurred(snapshot.error.toString())),
                   );
                 }
 
@@ -172,8 +174,8 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                 }
 
                 if (!snapshot.hasData || snapshot.data == null) {
-                  return const Center(
-                    child: Text("No data"),
+                  return Center(
+                    child: Text(l10n.noDataLabel),
                   );
                 }
 
@@ -181,14 +183,14 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                 final filteredOrders = _applyClientFilters(docs);
 
                 if (docs.isEmpty) {
-                  return const Center(
-                    child: Text("No orders yet"),
+                  return Center(
+                    child: Text(l10n.noOrdersYet),
                   );
                 }
 
                 if (filteredOrders.isEmpty) {
-                  return const Center(
-                    child: Text("No matching orders"),
+                  return Center(
+                    child: Text(l10n.noMatchingOrders),
                   );
                 }
 

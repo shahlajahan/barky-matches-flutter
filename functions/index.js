@@ -236,11 +236,477 @@ function computeRootStatusFromSellerStatuses(statuses) {
 }
 
 async function createNotification(db, payload) {
+  const { skipPush, fallbackToken, ...notificationPayload } = payload || {};
+
   await db.collection("notifications").add({
     isRead: false,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    ...payload,
+    ...notificationPayload,
   });
+
+  const recipientUserId =
+    notificationPayload?.recipientUserId || notificationPayload?.userId || null;
+  const title = notificationPayload?.title || null;
+  const body = notificationPayload?.body || null;
+  const type = notificationPayload?.type || null;
+
+  if (skipPush) {
+    logger.info("🔔 createNotification push skipped by caller", {
+      type: type || null,
+      recipientUserId: recipientUserId || null,
+    });
+    return;
+  }
+
+  if (!recipientUserId || !title || !body || !type) {
+    logger.info("🔔 createNotification push skipped", {
+      type: type || null,
+      recipientUserId: recipientUserId || null,
+      hasTitle: Boolean(title),
+      hasBody: Boolean(body),
+    });
+    return;
+  }
+
+  try {
+    const userSnap = await db.collection("users").doc(String(recipientUserId)).get();
+    const token = userSnap.data()?.fcmToken || fallbackToken || null;
+
+    if (type === "new_paid_order") {
+      console.log('🔔 PUSH TYPE = new_paid_order');
+      console.log('🔔 RECIPIENT UID =', recipientUserId);
+      console.log('🔔 BUSINESS ID =', notificationPayload?.businessId || null);
+      console.log('🔔 TOKEN FOUND =', !!token);
+      console.log('🔔 TOKEN VALUE =', token);
+    }
+
+    if (!token) {
+      logger.warn("⚠️ Push token missing", {
+        type,
+        recipientUserId,
+        businessId: notificationPayload?.businessId || null,
+        checkedUserToken: userSnap.exists,
+        hasFallbackToken: Boolean(fallbackToken),
+      });
+      return;
+    }
+
+    const data = {};
+    const addStringField = (key, value) => {
+      if (value === undefined || value === null) return;
+      if (typeof value === "object") return;
+      data[key] = String(value);
+    };
+
+    Object.entries(notificationPayload || {}).forEach(([key, value]) => {
+      if (["title", "body", "isRead", "createdAt"].includes(key)) return;
+      addStringField(key, value);
+    });
+
+    if (notificationPayload?.payload && typeof notificationPayload.payload === "object") {
+      Object.entries(notificationPayload.payload).forEach(([key, value]) => {
+        addStringField(key, value);
+      });
+    }
+
+    data.type = String(type);
+
+    logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+      type,
+      recipientUserId,
+      dataKeys: Object.keys(data),
+    });
+
+    const pushPayload = {
+      notification: {
+        title: String(title),
+        body: String(body),
+      },
+      data,
+      android: {
+        priority: "high",
+        notification: {
+          sound: "default",
+          channelId: "high_importance_channel",
+        },
+      },
+      apns: {
+        headers: { "apns-priority": "10" },
+        payload: {
+          aps: {
+            alert: {
+              title: String(title),
+              body: String(body),
+            },
+            sound: "default",
+            badge: 1,
+            "interruption-level": "time-sensitive",
+          },
+        },
+      },
+    };
+
+    if (type === "new_paid_order") {
+      console.log('🔔 PUSH PAYLOAD =', JSON.stringify(pushPayload));
+      console.log('🔔 ABOUT TO SEND PUSH');
+    }
+
+    const sent = await safeSendPush({
+      token,
+      userId: String(recipientUserId),
+      payload: pushPayload,
+    });
+
+    if (type === "new_paid_order" && sent) {
+      console.log('🔔 PUSH SENT SUCCESS');
+    }
+
+    if (type === "new_paid_order" && !sent) {
+      console.log('🔔 PUSH SEND FAILED', 'safeSendPush returned false');
+    }
+
+    logger.info("🔔 Push send result", {
+      type,
+      recipientUserId,
+      sent,
+      soundEnabled: true,
+      apnsPayloadAttached: true,
+    });
+  } catch (error) {
+    if (type === "new_paid_order") {
+      console.log('🔔 PUSH SEND FAILED', error);
+    }
+    logger.error("❌ createNotification push failed", {
+      type,
+      recipientUserId,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+  }
+}
+
+async function isAdminUser(db, uid) {
+  if (!uid) return false;
+
+  const snap = await db.collection("users").doc(uid).get();
+  return snap.exists && snap.data()?.role === "admin";
+}
+
+function addReturnTimelineStep(steps, status, by, note = null, extra = {}) {
+  steps.push({
+    status,
+    at: new Date().toISOString(),
+    by,
+    ...(note ? { note } : {}),
+    ...extra,
+  });
+}
+
+function normalizeReturnStatus(value) {
+  const lower = normalizeLower(value);
+
+  if (lower.includes("approved")) return "approved";
+  if (lower.includes("rejected")) return "rejected";
+  if (lower.includes("shipped")) return "shipped_back";
+  if (lower.includes("received")) return "received_by_seller";
+  if (lower.includes("refund_pending")) return "refund_pending";
+  if (lower.includes("refund_failed")) return "refund_failed";
+  if (lower.includes("refunded")) return "refunded";
+  if (lower.includes("cancel")) return "cancelled";
+
+  return "pending";
+}
+
+function extractPaymentTransactionIds(value) {
+  const list = [];
+
+  const push = (entry) => {
+    const id = String(entry || "").trim();
+    if (id && !list.includes(id)) {
+      list.push(id);
+    }
+  };
+
+  const visit = (entry) => {
+    if (!entry) return;
+
+    if (typeof entry === "string" || typeof entry === "number") {
+      push(entry);
+      return;
+    }
+
+    if (Array.isArray(entry)) {
+      for (const item of entry) {
+        visit(item);
+      }
+      return;
+    }
+
+    if (typeof entry === "object") {
+      push(entry.paymentTransactionId);
+      push(entry.iyzicoPaymentTransactionId);
+      push(entry.transactionId);
+      push(entry.id);
+
+      if (entry.paymentTransactionIds) visit(entry.paymentTransactionIds);
+      if (entry.itemTransactions) visit(entry.itemTransactions);
+      if (entry.raw && entry.raw !== entry) {
+        if (entry.raw.paymentTransactionIds) {
+          visit(entry.raw.paymentTransactionIds);
+        }
+        if (entry.raw.itemTransactions) visit(entry.raw.itemTransactions);
+        push(entry.raw.paymentTransactionId);
+      }
+    }
+  };
+
+  visit(value);
+
+  return list;
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+
+  return null;
+}
+
+function firstPositiveNumber(...values) {
+  for (const value of values) {
+    const amount = asNumber(value, 0);
+    if (amount > 0) return amount;
+  }
+
+  return 0;
+}
+
+function firstStringArray(...values) {
+  for (const value of values) {
+    if (!Array.isArray(value)) continue;
+
+    const strings = value
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean);
+
+    if (strings.length > 0) return strings;
+  }
+
+  return [];
+}
+
+function parseLocalizedNumber(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  const comma = raw.lastIndexOf(",");
+  const dot = raw.lastIndexOf(".");
+  let normalized = raw;
+
+  if (comma >= 0 && dot >= 0) {
+    normalized = comma > dot
+      ? raw.replace(/\./g, "").replace(",", ".")
+      : raw.replace(/,/g, "");
+  } else if (comma >= 0) {
+    normalized = raw.replace(",", ".");
+  } else if ((raw.match(/\./g) || []).length > 1) {
+    normalized = raw.replace(/\./g, "");
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parsePriceFromText(value) {
+  if (typeof value === "number") {
+    return value > 0 ? roundMoney(value) : null;
+  }
+
+  const text = String(value || "");
+  const matches = text.match(/\d+(?:[.,]\d+)*/g) || [];
+
+  for (const match of matches) {
+    const parsed = parseLocalizedNumber(match);
+    if (parsed && parsed > 0) return roundMoney(parsed);
+  }
+
+  return null;
+}
+
+function durationLabelToMinutes(value) {
+  if (typeof value === "number") {
+    return value > 0 ? Math.round(value) : 0;
+  }
+
+  const text = String(value || "").toLowerCase().trim();
+  if (!text) return 0;
+
+  const numberMatch = text.match(/\d+/);
+  const amount = numberMatch ? Number(numberMatch[0]) : 0;
+
+  if (text.includes("hour")) return amount > 0 ? amount * 60 : 0;
+  if (text.includes("half day")) return 4 * 60;
+  if (text.includes("full day")) return 8 * 60;
+  if (text.includes("min")) return amount;
+
+  return amount;
+}
+
+function formatIyzicoPrice(value) {
+  return asNumber(value, 0).toFixed(2);
+}
+
+function buildIyzicoAuthorizationHeader({
+  apiKey,
+  secretKey,
+  path,
+  bodyJson,
+  randomString,
+}) {
+  const signature = crypto
+    .createHmac("sha256", secretKey)
+    .update(randomString + path + bodyJson)
+    .digest("hex");
+  const authorizationParams = [
+    `apiKey:${apiKey}`,
+    `randomKey:${randomString}`,
+    `signature:${signature}`,
+  ].join("&");
+
+  return `IYZWSv2 ${Buffer.from(authorizationParams).toString("base64")}`;
+}
+
+async function createIyzicoTransactionRefund({
+  apiKey,
+  secretKey,
+  uri,
+  request,
+}) {
+  const path = "/payment/refund";
+  const baseUri = String(uri || "").replace(/\/+$/, "");
+  const body = Object.fromEntries(
+    Object.entries(request || {}).filter(([, value]) => value != null)
+  );
+  const bodyJson = JSON.stringify(body);
+  const randomString = `${process.hrtime()[0]}${Math.random()
+    .toString(36)
+    .slice(2)}`;
+
+  const response = await fetch(`${baseUri}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: buildIyzicoAuthorizationHeader({
+        apiKey,
+        secretKey,
+        path,
+        bodyJson,
+        randomString,
+      }),
+      "x-iyzi-rnd": randomString,
+      "x-iyzi-client-version": "iyzipay-node-2.0.67",
+    },
+    body: bodyJson,
+  });
+
+  const responseText = await response.text();
+  let parsed = null;
+  try {
+    parsed = responseText ? JSON.parse(responseText) : null;
+  } catch (error) {
+    parsed = null;
+  }
+
+  if (parsed && typeof parsed === "object") {
+    return {
+      ...parsed,
+      httpStatus: response.status,
+    };
+  }
+
+  return {
+    status: "failure",
+    httpStatus: response.status,
+    errorMessage:
+      responseText || `Iyzico refund HTTP ${response.status}`,
+    rawBody: responseText || null,
+  };
+}
+
+function sumReturnItemAmount(returnItems = []) {
+  return returnItems.reduce((sum, item) => {
+    const lineTotal = asNumber(item?.lineTotal, 0);
+    if (lineTotal > 0) {
+      return sum + lineTotal;
+    }
+
+    const quantity = Math.max(1, asNumber(item?.quantity, 1));
+    const unitPrice = asNumber(item?.unitPrice ?? item?.price, 0);
+    return sum + quantity * unitPrice;
+  }, 0);
+}
+
+function resolveReturnShippingResponsibility(values = []) {
+  const cleaned = values
+    .map((v) => normalizeLower(v))
+    .filter(Boolean);
+
+  if (cleaned.includes("buyer")) return "buyer";
+  if (cleaned.includes("seller_always")) return "seller";
+  if (cleaned.includes("seller_if_contract_carrier")) {
+    return "seller_if_contract_carrier";
+  }
+
+  return "seller_if_contract_carrier";
+}
+
+async function uploadReturnImagesToStorage({
+  bucket,
+  returnId,
+  sellerOrderId,
+  images = [],
+}) {
+  const uploaded = [];
+
+  for (let index = 0; index < images.length; index++) {
+    const image = images[index] || {};
+    const base64 = String(image.base64 || "");
+    if (!base64) continue;
+
+    const buffer = Buffer.from(base64, "base64");
+    if (!buffer.length) continue;
+
+    const safeName = String(image.name || `return_${index}.jpg`)
+      .replace(/[^\w.\-]/g, "_")
+      .slice(0, 120);
+    const contentType = String(image.contentType || "image/jpeg");
+    const path = `order_returns/${sellerOrderId}/${returnId}/${Date.now()}_${index}_${safeName}`;
+    const file = bucket.file(path);
+
+    await file.save(buffer, {
+      metadata: { contentType },
+      resumable: false,
+    });
+
+    await file.makePublic();
+
+    uploaded.push({
+      url: `https://storage.googleapis.com/${bucket.name}/${path}`,
+      path,
+      name: safeName,
+      contentType,
+    });
+  }
+
+  return uploaded;
 }
 
 function calculateShippingForItem({ item, config, selectedCarrier }) {
@@ -372,7 +838,7 @@ exports.ping = onRequest(
 async function safeSendPush({ token, payload, userId }) {
   if (!token) {
     console.log("⚠️ No FCM token provided");
-    return;
+    return false;
   }
 
   console.log("📦 FULL PAYLOAD:", JSON.stringify(payload, null, 2));
@@ -397,6 +863,7 @@ async function safeSendPush({ token, payload, userId }) {
 
     console.log("📨 Push sent OK");
     console.log("📨 SENT MESSAGE ID:", messageId);
+    return true;
 
   } catch (error) {
     console.error("🔥 FCM ERROR:", error.code);
@@ -415,6 +882,1022 @@ async function safeSendPush({ token, payload, userId }) {
           fcmToken: admin.firestore.FieldValue.delete(),
         });
     }
+    return false;
+  }
+}
+
+function truncateNotificationPreview(value, maxLength = 120) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1).trim()}…`;
+}
+
+function firstNonEmptyValue(...values) {
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+exports.onChatMessageCreated = onDocumentCreated(
+  {
+    region: "europe-west3",
+    document: "chats/{chatId}/messages/{messageId}",
+  },
+  async (event) => {
+    const messageData = event.data?.data() || {};
+    const chatId = event.params.chatId;
+    const messageId = event.params.messageId;
+    const senderId = String(messageData.senderId || "").trim();
+    const rawText = String(messageData.text || "").trim();
+
+    console.log("💬 CHAT PUSH START", {
+      chatId,
+      messageId,
+      senderId,
+      hasText: rawText.length > 0,
+    });
+
+    if (!senderId || !rawText) {
+      console.log("💬 CHAT PUSH SKIPPED", "missing senderId/text");
+      return;
+    }
+
+    const chatSnap = await db.collection("chats").doc(chatId).get();
+    if (!chatSnap.exists) {
+      console.log("💬 CHAT PUSH SKIPPED", "chat not found");
+      return;
+    }
+
+    const chatData = chatSnap.data() || {};
+    const participants = Array.isArray(chatData.participants)
+      ? chatData.participants.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+    const recipientUserId = firstNonEmptyValue(
+      messageData.receiverId,
+      participants.find((id) => id && id !== senderId)
+    );
+
+    if (!recipientUserId || recipientUserId === senderId) {
+      console.log("💬 CHAT PUSH SKIPPED", {
+        reason: "recipient not resolved",
+        chatId,
+        messageId,
+        senderId,
+        recipientUserId,
+      });
+      return;
+    }
+
+    const senderSnap = await db.collection("users").doc(senderId).get();
+    const senderData = senderSnap.data() || {};
+    const participantNames = chatData.participantNames || {};
+    const senderName = firstNonEmptyValue(
+      senderData.username,
+      senderData.displayName,
+      senderData.name,
+      senderData.fullName,
+      messageData.senderName,
+      participantNames[senderId],
+      "PetSupo user"
+    );
+
+    const recipientSnap = await db.collection("users").doc(recipientUserId).get();
+    const token = recipientSnap.data()?.fcmToken || null;
+    const preview = truncateNotificationPreview(rawText);
+
+    const payload = {
+      notification: {
+        title: `${senderName} sent you a message`,
+        body: preview,
+      },
+      data: {
+        type: "chat_message",
+        chatId: String(chatId),
+        conversationId: String(chatId),
+        messageId: String(messageId),
+        senderId: String(senderId),
+        senderName: String(senderName),
+        recipientUserId: String(recipientUserId),
+      },
+      android: {
+        priority: "high",
+        notification: {
+          sound: "default",
+          channelId: "high_importance_channel",
+        },
+      },
+    };
+
+    console.log("💬 CHAT PUSH TOKEN FOUND", !!token);
+    console.log("💬 CHAT PUSH PAYLOAD", JSON.stringify(payload));
+
+    if (!token) {
+      console.log("💬 CHAT PUSH SKIPPED", {
+        reason: "missing token",
+        recipientUserId,
+      });
+      return;
+    }
+
+    const sent = await safeSendPush({
+      token,
+      userId: recipientUserId,
+      payload,
+    });
+
+    console.log("💬 CHAT PUSH RESULT", {
+      chatId,
+      messageId,
+      recipientUserId,
+      sent,
+    });
+  }
+);
+
+function normalizeAppointmentRefundStatus(value) {
+  const lower = normalizeLower(value);
+
+  if (lower.includes("success")) return "success";
+  if (lower.includes("refunded")) return "success";
+  if (lower.includes("refund_failed")) return "refund_failed";
+  if (lower.includes("failed")) return "refund_failed";
+  if (lower.includes("refund_pending")) return "refund_pending";
+  if (lower.includes("pending_manual_review")) return "refund_pending";
+  if (lower.includes("pending")) return "refund_pending";
+
+  return lower;
+}
+
+function isPaidAppointmentOrder(data = {}) {
+  const statuses = [
+    data.status,
+    data.paymentStatus,
+    data.payment?.status,
+    data.payment?.paymentStatus,
+    data.iyzicoStatus,
+    data.payment?.iyzicoStatus,
+  ].map((value) => normalizeLower(value));
+
+  const rejected = ["cancelled", "canceled", "failed", "failure", "unpaid"];
+  if (statuses.some((status) => rejected.includes(status))) {
+    return false;
+  }
+
+  return statuses.some((status) =>
+    ["paid", "success", "completed", "confirmed_paid"].includes(status)
+  );
+}
+
+function timestampMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
+function newestAppointmentOrderMillis(data = {}) {
+  return Math.max(
+    timestampMillis(data.paidAt),
+    timestampMillis(data.payment?.paidAt),
+    timestampMillis(data.updatedAt),
+    timestampMillis(data.createdAt)
+  );
+}
+
+function extractAppointmentOrderMeta(doc, collectionName) {
+  const data = doc.data() || {};
+  const payment = data.payment || {};
+  const rawPayment = payment.raw || {};
+  const paymentTransactionIds = extractPaymentTransactionIds(
+    [
+      payment.paymentTransactionIds,
+      payment.itemTransactions,
+      rawPayment.paymentTransactionIds,
+      rawPayment.itemTransactions,
+      data.paymentTransactionIds,
+      data.itemTransactions,
+    ]
+  );
+  const paymentTransactionId = firstNonEmptyString(
+    payment.paymentTransactionId ||
+    payment.iyzicoPaymentTransactionId ||
+    rawPayment.paymentTransactionId ||
+    data.paymentTransactionId ||
+    data.iyzicoPaymentTransactionId ||
+    (paymentTransactionIds.length > 0 ? paymentTransactionIds[0] : null)
+  );
+  const paymentId = firstNonEmptyString(
+    payment.paymentId,
+    rawPayment.paymentId,
+    data.paymentId,
+    data.iyzicoPaymentId
+  );
+  const conversationId = firstNonEmptyString(
+    payment.conversationId,
+    rawPayment.conversationId,
+    data.conversationId,
+    doc.id
+  );
+  const currency = firstNonEmptyString(
+    payment.currency,
+    rawPayment.currency,
+    data.currency,
+    data.pricing?.currency,
+    "TRY"
+  ).toUpperCase();
+  const refundAmount = Number(
+    firstPositiveNumber(
+      payment.paidPrice,
+      rawPayment.paidPrice,
+      payment.price,
+      rawPayment.price,
+      data.paidPrice,
+      data.price,
+      data.pricing?.grandTotal,
+      data.pricing?.price
+    ).toFixed(2)
+  );
+
+  return {
+    orderId: doc.id,
+    orderCollection: collectionName,
+    orderData: data,
+    paymentId,
+    paymentTransactionId,
+    paymentTransactionIds,
+    conversationId,
+    currency,
+    refundAmount,
+    formattedPrice: formatIyzicoPrice(refundAmount),
+    paidSortMillis: newestAppointmentOrderMillis(data),
+  };
+}
+
+async function loadAppointmentOrderCandidates(collectionName, appointmentId) {
+  const snap = await db
+    .collection(collectionName)
+    .where("appointmentId", "==", appointmentId)
+    .limit(20)
+    .get();
+
+  return snap.docs.map((doc) => extractAppointmentOrderMeta(doc, collectionName));
+}
+
+async function resolveVetAppointmentPaymentMeta(appointmentId) {
+  const appointmentOrderCandidates =
+    await loadAppointmentOrderCandidates("appointment_orders", appointmentId);
+  const legacyOrderCandidates =
+    appointmentOrderCandidates.length > 0
+      ? []
+      : await loadAppointmentOrderCandidates("orders", appointmentId);
+
+  const candidates = [...appointmentOrderCandidates, ...legacyOrderCandidates];
+
+  if (candidates.length > 1) {
+    logger.warn("⚠️ MULTIPLE APPOINTMENT ORDER MATCHES", {
+      appointmentId,
+      orderIds: candidates.map((candidate) => candidate.orderId),
+      orderCollections: candidates.map((candidate) => candidate.orderCollection),
+    });
+  }
+
+  const paidCandidates = candidates
+    .filter((candidate) => isPaidAppointmentOrder(candidate.orderData))
+    .sort((a, b) => b.paidSortMillis - a.paidSortMillis);
+
+  const selected = paidCandidates[0] || null;
+
+  logger.info("🩺 RESOLVED REFUND PAYMENT META", {
+    appointmentId,
+    candidateCount: candidates.length,
+    paidCandidateCount: paidCandidates.length,
+    selectedOrderId: selected?.orderId || null,
+    selectedOrderCollection: selected?.orderCollection || null,
+    selectedPaymentId: selected?.paymentId || null,
+    selectedConversationId: selected?.conversationId || null,
+    selectedPaymentTransactionId: selected?.paymentTransactionId || null,
+    selectedRefundAmount: selected?.refundAmount || null,
+    selectedFormattedPrice: selected?.formattedPrice || null,
+    selectedCurrency: selected?.currency || null,
+  });
+
+  if (selected) {
+    logger.info("🩺 REFUND TARGET ORDER", {
+      appointmentId,
+      orderId: selected.orderId,
+      orderCollection: selected.orderCollection,
+      paymentId: selected.paymentId || null,
+      conversationId: selected.conversationId || null,
+      paymentTransactionId: selected.paymentTransactionId || null,
+      paymentTransactionIds: selected.paymentTransactionIds || [],
+      refundAmount: selected.refundAmount || null,
+      formattedPrice: selected.formattedPrice || null,
+      currency: selected.currency || null,
+    });
+  }
+
+  return selected || {
+    paymentId: null,
+    paymentTransactionId: null,
+    paymentTransactionIds: [],
+    conversationId: null,
+    orderId: null,
+    orderData: {},
+    currency: "TRY",
+    refundAmount: 0,
+    formattedPrice: "0.00",
+  };
+}
+
+async function resolveVetAppointmentRefundContext(db, appointmentId, appointmentData = {}) {
+  const paymentMeta = await resolveVetAppointmentPaymentMeta(appointmentId);
+  const orderData = paymentMeta.orderData || {};
+  const orderId = paymentMeta.orderId || String(appointmentData.orderId || "").trim() || null;
+  const payment = orderData.payment || {};
+  const rawPayment = payment.raw || {};
+  const appointmentPayment = appointmentData.payment || {};
+  const appointmentRawPayment = appointmentPayment.raw || {};
+  const refundDetails = appointmentData.refundDetails || {};
+
+  const paymentId = firstNonEmptyString(
+    paymentMeta.paymentId,
+    payment.paymentId,
+    rawPayment.paymentId,
+    orderData.paymentId,
+    orderData.iyzicoPaymentId,
+    appointmentPayment.paymentId,
+    appointmentRawPayment.paymentId,
+    appointmentData.paymentId,
+    appointmentData.iyzicoPaymentId,
+    refundDetails.paymentId
+  );
+
+  const paymentTransactionIds = extractPaymentTransactionIds(
+    [
+      paymentMeta.paymentTransactionIds,
+      payment.paymentTransactionIds,
+      payment.itemTransactions,
+      rawPayment.paymentTransactionIds,
+      rawPayment.itemTransactions,
+      orderData.paymentTransactionIds,
+      orderData.itemTransactions,
+      appointmentPayment.paymentTransactionIds,
+      appointmentPayment.itemTransactions,
+      appointmentRawPayment.paymentTransactionIds,
+      appointmentRawPayment.itemTransactions,
+      appointmentData.paymentTransactionIds,
+      appointmentData.itemTransactions,
+      refundDetails.paymentTransactionIds,
+      refundDetails.itemTransactions,
+    ]
+  );
+
+  const paymentTransactionId = firstNonEmptyString(
+    paymentMeta.paymentTransactionId,
+    payment.paymentTransactionId,
+    payment.iyzicoPaymentTransactionId,
+    rawPayment.paymentTransactionId,
+    rawPayment.iyzicoPaymentTransactionId,
+    orderData.paymentTransactionId,
+    orderData.iyzicoPaymentTransactionId,
+    appointmentPayment.paymentTransactionId,
+    appointmentPayment.iyzicoPaymentTransactionId,
+    appointmentRawPayment.paymentTransactionId,
+    appointmentRawPayment.iyzicoPaymentTransactionId,
+    appointmentData.paymentTransactionId,
+    appointmentData.iyzicoPaymentTransactionId,
+    refundDetails.paymentTransactionId,
+    refundDetails.iyzicoPaymentTransactionId,
+    paymentTransactionIds.length > 0 ? paymentTransactionIds[0] : null
+  );
+
+  const currency = firstNonEmptyString(
+    paymentMeta.currency ||
+    payment.currency ||
+    rawPayment.currency ||
+    orderData.currency ||
+    orderData.pricing?.currency ||
+    appointmentPayment.currency ||
+    appointmentRawPayment.currency ||
+    appointmentData.currency ||
+    refundDetails.currency ||
+    "TRY"
+  ).toUpperCase();
+
+  const refundAmount = Number(
+    firstPositiveNumber(
+      paymentMeta.refundAmount,
+      payment.paidPrice,
+      rawPayment.paidPrice,
+      payment.price,
+      rawPayment.price,
+      orderData.paidPrice,
+      orderData.price,
+      orderData.pricing?.grandTotal,
+      orderData.pricing?.price,
+      appointmentPayment.paidPrice,
+      appointmentRawPayment.paidPrice,
+      appointmentPayment.price,
+      appointmentRawPayment.price,
+      appointmentData.paidPrice,
+      appointmentData.price,
+      appointmentData.servicePrice,
+      refundDetails.refundAmount,
+      refundDetails.clampedRefundAmount,
+      refundDetails.requestedRefundAmount
+    ).toFixed(2)
+  );
+  const formattedPrice = formatIyzicoPrice(refundAmount);
+
+  const conversationId = firstNonEmptyString(
+    paymentMeta.conversationId,
+    payment.conversationId,
+    rawPayment.conversationId,
+    orderData.conversationId,
+    appointmentPayment.conversationId,
+    appointmentRawPayment.conversationId,
+    appointmentData.conversationId,
+    refundDetails.conversationId,
+    orderId,
+    appointmentId
+  );
+
+  return {
+    orderId,
+    orderData,
+    paymentId,
+    paymentTransactionIds,
+    paymentTransactionId,
+    conversationId,
+    currency,
+    refundAmount,
+    formattedPrice,
+  };
+}
+
+async function processVetAppointmentRefund({
+  db,
+  appointmentId,
+  appointmentData,
+  beforeData = null,
+  eventId = null,
+  actorUid = null,
+  preserveManualReviewOnFailure = false,
+}) {
+  const currentStatus = normalizeLower(appointmentData?.status);
+  const paymentStatus = normalizeLower(appointmentData?.paymentStatus);
+  const refundStatus = normalizeAppointmentRefundStatus(
+    appointmentData?.refundStatus
+  );
+  const isRefunded =
+    paymentStatus === "refunded" ||
+    refundStatus === "refunded" ||
+    refundStatus === "success";
+
+  logger.info("🩺 VET REFUND GATE", {
+    appointmentId,
+    currentStatus,
+    paymentStatus,
+    refundStatus,
+    eventId: eventId || null,
+    actorUid: actorUid || null,
+  });
+
+  if (currentStatus !== "cancelled_by_user" || paymentStatus !== "paid") {
+    logger.info("🩺 VET REFUND SKIPPED NOT ELIGIBLE", {
+      appointmentId,
+      currentStatus,
+      paymentStatus,
+    });
+    return { skipped: true, reason: "not_eligible" };
+  }
+
+  if (isRefunded) {
+    logger.info("🩺 VET REFUND SKIPPED ALREADY REFUNDED", {
+      appointmentId,
+      paymentStatus,
+      refundStatus,
+    });
+    return { skipped: true, reason: "already_refunded" };
+  }
+
+  const existingRequestId = String(appointmentData.refundRequestId || "").trim();
+  if (
+    existingRequestId &&
+    eventId &&
+    existingRequestId !== eventId &&
+    (refundStatus === "refund_pending" || refundStatus === "refund_processing")
+  ) {
+    logger.info("🩺 VET REFUND DUPLICATE SKIPPED", {
+      appointmentId,
+      eventId,
+      existingRequestId,
+      refundStatus,
+    });
+    return { skipped: true, reason: "already_processing" };
+  }
+
+  const {
+    orderId,
+    orderData,
+    paymentId,
+    paymentTransactionIds,
+    paymentTransactionId,
+    conversationId,
+    currency,
+    refundAmount,
+    formattedPrice,
+  } = await resolveVetAppointmentRefundContext(db, appointmentId, appointmentData);
+  const appointmentRef = db.collection("vet_appointments").doc(appointmentId);
+
+  if (!paymentTransactionId) {
+    const failedAt = admin.firestore.FieldValue.serverTimestamp();
+    logger.error("🩺 VET REFUND MISSING PAYMENT META", {
+      appointmentId,
+      reason: "paymentTransactionId missing",
+      orderId: orderId || null,
+      paymentId: paymentId || null,
+      conversationId: conversationId || null,
+      paymentTransactionIds,
+      refundAmount,
+      formattedPrice,
+      currency,
+    });
+    await appointmentRef.set(
+      {
+        refundStatus: "refund_failed",
+        refundRequired: false,
+        refundError: "paymentTransactionId missing",
+        refundFailedAt: failedAt,
+        updatedAt: failedAt,
+        refundDetails: {
+          ...(appointmentData.refundDetails || {}),
+          status: "refund_failed",
+          reason: "paymentTransactionId missing",
+          orderId: orderId || null,
+          paymentId: paymentId || null,
+          conversationId: conversationId || null,
+          paymentTransactionId: null,
+          paymentTransactionIds,
+          refundAmount,
+          formattedPrice,
+          currency,
+        },
+      },
+      { merge: true }
+    );
+    return { success: false, reason: "paymentTransactionId missing" };
+  }
+
+  if (!(refundAmount > 0)) {
+    const failedAt = admin.firestore.FieldValue.serverTimestamp();
+    logger.error("🩺 VET REFUND MISSING PAYMENT META", {
+      appointmentId,
+      reason: "Refund amount must be greater than zero",
+      orderId: orderId || null,
+      paymentId: paymentId || null,
+      paymentTransactionId: paymentTransactionId || null,
+      formattedPrice,
+      currency,
+    });
+    await appointmentRef.set(
+      {
+        refundStatus: "refund_failed",
+        refundRequired: false,
+        refundError: "Refund amount must be greater than zero",
+        refundFailedAt: failedAt,
+        updatedAt: failedAt,
+        refundDetails: {
+          ...(appointmentData.refundDetails || {}),
+          status: "refund_failed",
+          reason: "Refund amount must be greater than zero",
+          orderId: orderId || null,
+          paymentId: paymentId || null,
+          paymentTransactionId: paymentTransactionId || null,
+          paymentTransactionIds,
+          refundAmount,
+          formattedPrice,
+          currency,
+        },
+      },
+      { merge: true }
+    );
+    return {
+      success: false,
+      reason: "Refund amount must be greater than zero",
+    };
+  }
+
+  const existingRetryCount = asNumber(appointmentData.refundRetryCount, 0);
+  const retryCount =
+    existingRequestId && eventId && existingRequestId === eventId
+      ? Math.max(1, existingRetryCount)
+      : Math.max(1, existingRetryCount + 1);
+  const requestId = eventId || existingRequestId || `${appointmentId}_${Date.now()}`;
+  const pendingAt = admin.firestore.FieldValue.serverTimestamp();
+
+  logger.info("🩺 VET REFUND FLOW DETECTED", {
+    appointmentId,
+    currentStatus,
+    paymentStatus,
+    refundStatus,
+    orderId: orderId || null,
+    paymentId: paymentId || null,
+    paymentTransactionId: paymentTransactionId || null,
+    iyzicoPaymentId: paymentId || null,
+    iyzicoPaymentTransactionId: paymentTransactionId || null,
+    conversationId: conversationId || null,
+    currency,
+    refundAmount,
+    formattedPrice,
+    checkoutToken: appointmentData.checkoutToken || null,
+  });
+
+  logger.info("🩺 BYPASSING PETSHOP RETURN FLOW", {
+    appointmentId,
+    reason: "vet_appointment_direct_refund",
+  });
+
+  console.log("🩺 VET REFUND START", {
+    appointmentId,
+    serviceRequiresPayment:
+      appointmentData.serviceRequiresPayment ?? appointmentData.requiresPayment ?? null,
+    servicePrice: appointmentData.servicePrice ?? null,
+    price: appointmentData.price ?? null,
+    refundAmount,
+    formattedPrice,
+    requiresPayment: true,
+  });
+
+  await appointmentRef.set(
+    {
+      refundRequestId: requestId,
+      refundRequestedAt: appointmentData.refundRequestedAt || pendingAt,
+      refundStartedAt: pendingAt,
+      refundRetryCount: retryCount,
+      refundStatus: "refund_processing",
+      refundRequired: false,
+      refundReason:
+        appointmentData.refundReason || "user_cancelled_paid_appointment",
+      refundDetails: {
+        ...(appointmentData.refundDetails || {}),
+        status: "refund_processing",
+        retryCount,
+        paymentId,
+        paymentTransactionId: paymentTransactionId || null,
+        paymentTransactionIds,
+        currency,
+        refundAmount,
+        formattedPrice,
+        conversationId: conversationId || null,
+        orderId,
+        appointmentId,
+        rawRequest: {
+          appointmentId,
+          orderId,
+          paymentId,
+          paymentTransactionId,
+          conversationId: conversationId || null,
+          refundAmount,
+          formattedPrice,
+          currency,
+          retryCount,
+          requestId,
+        },
+      },
+      updatedAt: pendingAt,
+    },
+    { merge: true }
+  );
+
+  logger.info("🩺 VET REFUND MARKED PENDING", {
+    appointmentId,
+    orderId,
+    paymentId,
+    paymentTransactionId,
+    paymentTransactionIds,
+    conversationId: conversationId || null,
+    currency,
+    refundAmount,
+    formattedPrice,
+    retryCount,
+    requestId,
+  });
+
+  try {
+    const iyzicoRefundRequest = {
+      locale: Iyzipay.LOCALE.TR,
+      conversationId: conversationId || appointmentId,
+      paymentTransactionId,
+      price: formattedPrice,
+      currency,
+      ip: "85.34.78.112",
+    };
+
+    const refundResult = await new Promise((resolve, reject) => {
+      logger.info("🩺 IYZICO REFUND START", {
+        appointmentId,
+        retryCount,
+        paymentId,
+        paymentTransactionId: paymentTransactionId || null,
+        conversationId: conversationId || null,
+        currency,
+        refundAmount,
+        formattedPrice,
+      });
+      logger.info("🩺 IYZICO REFUND REQUEST", {
+        appointmentId,
+        retryCount,
+        paymentId,
+        paymentTransactionId: paymentTransactionId || null,
+        paymentTransactionIds,
+        currency,
+        refundAmount,
+        formattedPrice,
+        conversationId: conversationId || appointmentId,
+        request: iyzicoRefundRequest,
+      });
+
+      createIyzicoTransactionRefund({
+        apiKey: IYZICO_API_KEY.value(),
+        secretKey: IYZICO_SECRET_KEY.value(),
+        uri: "https://sandbox-api.iyzipay.com",
+        request: iyzicoRefundRequest,
+      })
+        .then(resolve)
+        .catch(reject);
+    });
+
+    logger.info("🩺 VET REFUND IYZICO RESPONSE", {
+      appointmentId,
+      retryCount,
+      response: refundResult || null,
+    });
+
+    if (!refundResult || normalizeLower(refundResult.status) !== "success") {
+      logger.error("🩺 IYZICO REFUND FAILED RESPONSE", {
+        appointmentId,
+        retryCount,
+        status: refundResult?.status || null,
+        errorCode: refundResult?.errorCode || null,
+        errorMessage: refundResult?.errorMessage || null,
+        rawResponse: refundResult || null,
+      });
+
+      const failure = new Error(
+        refundResult?.errorMessage ||
+        refundResult?.errorCode ||
+        "Iyzico refund failed"
+      );
+      failure.iyzicoRefundResult = refundResult || null;
+      throw failure;
+    }
+
+    const completedAt = admin.firestore.FieldValue.serverTimestamp();
+    await appointmentRef.set(
+      {
+        paymentStatus: "refunded",
+        refundStatus: "refunded",
+        refundRequired: false,
+        refundError: null,
+        refundedAt: completedAt,
+        refundCompletedAt: completedAt,
+        updatedAt: completedAt,
+        paymentId: paymentId || appointmentData.paymentId || null,
+        orderId: orderId || appointmentData.orderId || null,
+        paymentTransactionId: paymentTransactionId || null,
+        paymentTransactionIds,
+        iyzicoPaymentTransactionId: paymentTransactionId || null,
+        refundDetails: {
+          ...(appointmentData.refundDetails || {}),
+          status: "refunded",
+          gatewayStatus: refundResult.status || "success",
+          retryCount,
+          paymentId: refundResult.paymentId || paymentId || null,
+          paymentTransactionId: paymentTransactionId || null,
+          paymentTransactionIds,
+          refundHostReference: refundResult.refundHostReference || null,
+          authCode: refundResult.authCode || null,
+          hostReference: refundResult.hostReference || null,
+          currency: refundResult.currency || currency,
+          price: refundResult.price || formattedPrice,
+          refundAmount,
+          formattedPrice,
+          raw: refundResult,
+        },
+      },
+      { merge: true }
+    );
+
+    logger.info("🩺 VET REFUND SUCCESS", {
+      appointmentId,
+      refundStatus: "refunded",
+    });
+    logger.info("🩺 IYZICO REFUND SUCCESS", {
+      appointmentId,
+      paymentId,
+      conversationId: conversationId || null,
+      refundAmount,
+      formattedPrice,
+    });
+    logger.info("🩺 PAYMENT PRESERVED AFTER CANCELLATION", {
+      appointmentId,
+      paymentId: paymentId || null,
+      orderId: orderId || null,
+    });
+    logger.info("🩺 VET REFUND COMPLETE", {
+      appointmentId,
+      paymentId,
+      retryCount,
+      paymentTransactionId,
+      formattedPrice,
+    });
+
+    const userId = appointmentData.userId || appointmentData.buyerUid || null;
+    const serviceTitle = appointmentData.serviceTitle || "Appointment";
+    if (userId) {
+      await createNotification(db, {
+        recipientUserId: userId,
+        userId,
+        type: "vet_appointment_refunded",
+        title: "Refund completed",
+        body: `${serviceTitle} refund has been completed`,
+        appointmentId,
+        orderId: orderId || appointmentData.orderId || null,
+        skipPush: true,
+      });
+
+      const userSnap = await db.collection("users").doc(userId).get();
+      const fcmToken = userSnap.data()?.fcmToken;
+      if (fcmToken) {
+        await safeSendPush({
+          token: fcmToken,
+          userId,
+          payload: {
+            notification: {
+              title: "Refund completed",
+              body: `${serviceTitle} refund has been completed`,
+            },
+            data: {
+              type: "vet_appointment_refunded",
+              appointmentId,
+              status: "cancelled_by_user",
+              paymentStatus: "refunded",
+              refundStatus: "refunded",
+            },
+            android: { priority: "high" },
+          },
+        });
+      }
+    }
+
+    return {
+      success: true,
+      paymentTransactionId,
+      paymentId: paymentId || null,
+      conversationId: conversationId || null,
+      refundAmount,
+      formattedPrice,
+      refundResult,
+    };
+  } catch (error) {
+    const rawIyzicoResponse = error?.iyzicoRefundResult || null;
+    const refundError =
+      rawIyzicoResponse?.errorMessage ||
+      rawIyzicoResponse?.errorCode ||
+      error?.errorMessage ||
+      error?.errorCode ||
+      error?.message ||
+      "Iyzico refund failed";
+
+    logger.error("🩺 VET REFUND FAILED", {
+      appointmentId,
+      retryCount,
+      message: refundError,
+      stack: error?.stack || null,
+    });
+    logger.error("🩺 IYZICO REFUND FAILED", {
+      appointmentId,
+      paymentId,
+      paymentTransactionId: paymentTransactionId || null,
+      paymentTransactionIds,
+      conversationId: conversationId || null,
+      currency,
+      refundAmount,
+      formattedPrice,
+      status: rawIyzicoResponse?.status || null,
+      errorCode: rawIyzicoResponse?.errorCode || error?.errorCode || null,
+      errorMessage: rawIyzicoResponse?.errorMessage || error?.errorMessage || null,
+      rawResponse: rawIyzicoResponse,
+      message: refundError,
+    });
+
+    const failedAt = admin.firestore.FieldValue.serverTimestamp();
+    await appointmentRef.set(
+      {
+        refundStatus: "refund_failed",
+        refundError,
+        refundFailedAt: failedAt,
+        updatedAt: failedAt,
+        refundRetryCount: retryCount,
+        refundRequired: false,
+        refundDetails: {
+          ...(appointmentData.refundDetails || {}),
+          status: "refund_failed",
+          gatewayStatus: rawIyzicoResponse?.status || "failed",
+          errorCode: rawIyzicoResponse?.errorCode || error?.errorCode || null,
+          errorMessage:
+            rawIyzicoResponse?.errorMessage ||
+            error?.errorMessage ||
+            refundError,
+          retryCount,
+          paymentId,
+          paymentTransactionId: paymentTransactionId || null,
+          paymentTransactionIds,
+          currency,
+          refundAmount,
+          formattedPrice,
+          conversationId: conversationId || null,
+          orderId,
+          appointmentId,
+          raw: rawIyzicoResponse || null,
+          rawError: {
+            message: refundError,
+            stack: error?.stack || null,
+          },
+        },
+      },
+      { merge: true }
+    );
+
+    const userId = appointmentData.userId || appointmentData.buyerUid || null;
+    if (userId) {
+      await createNotification(db, {
+        recipientUserId: userId,
+        userId,
+        type: "vet_appointment_refund_failed",
+        title: "Refund failed",
+        body: `${appointmentData.serviceTitle || "Appointment"} refund failed`,
+        appointmentId,
+        orderId: orderId || appointmentData.orderId || null,
+      });
+    }
+
+    return {
+      success: false,
+      error: refundError,
+    };
+  }
+}
+
+// =====================================================
+// ADOPTION REQUEST STATUS
+// =====================================================
+
+const ADOPTION_REQUEST_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+  "completed",
+  "cancelled",
+];
+
+const ADOPTION_REQUEST_ALLOWED_TRANSITIONS = {
+  pending: [
+    "approved",
+    "rejected",
+    "cancelled",
+  ],
+
+  approved: [
+    "completed",
+    "cancelled",
+  ],
+};
+
+function assertAdoptionRequestStatus(
+  status,
+) {
+  const normalized = String(
+    status || "",
+  ).trim();
+
+  if (
+    !ADOPTION_REQUEST_STATUSES.includes(
+      normalized,
+    )
+  ) {
+    throw new HttpsError(
+      "invalid-argument",
+      `Invalid adoption request status: ${normalized}`,
+    );
   }
 }
 
@@ -430,64 +1913,155 @@ exports.onAdoptionRequestCreated = onDocumentCreated(
   async (event) => {
     try {
       const data = event.data?.data();
+
       if (!data) return;
 
       const requestId = event.params.requestId;
-      const targetOwnerId = data.targetOwnerId;
-      const requesterName = data.requesterName || "Someone";
-      const targetType = data.targetType || "dog";
+
+      // =====================================================
+      // NEW BUSINESS-BASED ARCHITECTURE
+      // =====================================================
+
+      const businessId = data.businessId;
+
+      if (!businessId) {
+        console.error(
+          "❌ Missing businessId in adoption request",
+        );
+        return;
+      }
+
+      const requesterName =
+        data.requesterName || "Someone";
+
+      const targetType =
+        data.targetType || "dog";
 
       const db = admin.firestore();
 
-      /* ----------------------------------------------------
-       * 1️⃣ CREATE FIRESTORE IN-APP NOTIFICATION
-       * -------------------------------------------------- */
-      await db.collection("notifications").add({
-        recipientUserId: targetOwnerId,
-        title: "New Adoption Request 🐾",
-        body: `${requesterName} sent an adoption request`,
-        type: "adoption_request",
-        requestId: requestId,
-        targetType: targetType,
-        isRead: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      // =====================================================
+      // GET BUSINESS OWNER
+      // =====================================================
 
-      /* ----------------------------------------------------
-       * 2️⃣ GET OWNER FCM TOKEN
-       * -------------------------------------------------- */
-      const ownerDoc = await db
-        .collection("users")
-        .doc(targetOwnerId)
+      const businessSnap = await db
+        .collection("businesses")
+        .doc(businessId)
         .get();
 
-      const token = ownerDoc.data()?.fcmToken;
+      if (!businessSnap.exists) {
+        console.error(
+          "❌ Business not found:",
+          businessId,
+        );
+        return;
+      }
 
-      /* ----------------------------------------------------
-       * 3️⃣ SEND PUSH (SAFE)
-       * -------------------------------------------------- */
+      const businessData =
+        businessSnap.data() || {};
+
+      const businessOwnerUid =
+        businessData.ownerUid ||
+        businessData.uid;
+
+      if (!businessOwnerUid) {
+        console.error(
+          "❌ Missing business owner uid:",
+          businessId,
+        );
+        return;
+      }
+
+      // =====================================================
+      // CREATE FIRESTORE NOTIFICATION
+      // =====================================================
+
+      await db.collection("notifications").add({
+        recipientUserId:
+          businessOwnerUid,
+
+        senderUserId:
+          data.requesterUserId || null,
+
+        businessId,
+
+        title:
+          "New Adoption Request 🐾",
+
+        body:
+          `${requesterName} sent an adoption request`,
+
+        type: "adoption_request",
+
+        requestId,
+
+        targetType,
+
+        isRead: false,
+
+        createdAt:
+          admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // =====================================================
+      // GET OWNER TOKEN
+      // =====================================================
+
+      const ownerDoc = await db
+        .collection("users")
+        .doc(businessOwnerUid)
+        .get();
+
+      const token =
+        ownerDoc.data()?.fcmToken;
+
+      // =====================================================
+      // SEND PUSH
+      // =====================================================
+
       await safeSendPush({
         token,
-        userId: targetOwnerId,
+
+        userId: businessOwnerUid,
+
         payload: {
           notification: {
-            title: "New Adoption Request 🐾",
-            body: `${requesterName} sent an adoption request`,
+            title:
+              "New Adoption Request 🐾",
+
+            body:
+              `${requesterName} sent an adoption request`,
           },
+
           data: {
-            type: "adoption_request",
-            requestId: requestId,
+            type:
+              "adoption_request",
+
+            requestId,
+
+            businessId,
           },
-          android: { priority: "high" },
+
+          android: {
+            priority: "high",
+          },
+
           apns: {
-            headers: { "apns-priority": "10" },
+            headers: {
+              "apns-priority": "10",
+            },
+
             payload: {
               aps: {
                 alert: {
-                  title: "New Adoption Request 🐾",
-                  body: `${requesterName} sent an adoption request`,
+                  title:
+                    "New Adoption Request 🐾",
+
+                  body:
+                    `${requesterName} sent an adoption request`,
                 },
+
                 sound: "default",
+
                 badge: 1,
               },
             },
@@ -495,14 +2069,370 @@ exports.onAdoptionRequestCreated = onDocumentCreated(
         },
       });
 
-      console.log("✅ Adoption request push sent:", requestId);
-
+      console.log(
+        "✅ Adoption request push sent:",
+        requestId,
+      );
     } catch (err) {
-      console.error("❌ onAdoptionRequestCreated error:", err);
+      console.error(
+        "❌ onAdoptionRequestCreated error:",
+        err,
+      );
     }
-  }
+  },
 );
 
+/* =====================================================
+ * 🐶 UPDATE ADOPTION REQUEST STATUS
+ * ===================================================== */
+
+exports.updateAdoptionRequestStatus =
+  onCall(
+    {
+      region: "europe-west3",
+    },
+
+    async (request) => {
+      // =====================================================
+      // AUTH
+      // =====================================================
+
+      if (!request.auth) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Login required",
+        );
+      }
+
+      const uid = request.auth.uid;
+
+      // =====================================================
+      // INPUT
+      // =====================================================
+
+      const requestId =
+        request.data?.requestId;
+
+      const newStatus = String(
+        request.data?.newStatus || "",
+      ).trim();
+
+      if (!requestId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "requestId required",
+        );
+      }
+
+      if (!newStatus) {
+        throw new HttpsError(
+          "invalid-argument",
+          "newStatus required",
+        );
+      }
+
+      assertAdoptionRequestStatus(
+        newStatus,
+      );
+
+      // =====================================================
+      // REQUEST
+      // =====================================================
+
+      const requestRef = db
+        .collection(
+          "adoption_requests",
+        )
+        .doc(requestId);
+
+      const snap =
+        await requestRef.get();
+
+      if (!snap.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Request not found",
+        );
+      }
+
+      const data = snap.data() || {};
+
+      const currentStatus =
+        data.status || "pending";
+
+      assertAdoptionRequestStatus(
+        currentStatus,
+      );
+
+      // =====================================================
+      // BUSINESS
+      // =====================================================
+
+      const businessId =
+        data.businessId;
+
+      if (!businessId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Missing businessId",
+        );
+      }
+
+      const businessSnap =
+        await db
+          .collection("businesses")
+          .doc(businessId)
+          .get();
+
+      if (!businessSnap.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Business not found",
+        );
+      }
+
+      const businessData =
+        businessSnap.data() || {};
+
+      const businessOwnerUid =
+        businessData.ownerUid ||
+        businessData.uid;
+
+      if (
+        businessOwnerUid !== uid
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only business owner can update requests",
+        );
+      }
+
+      // =====================================================
+      // VALIDATE TRANSITION
+      // =====================================================
+
+      const allowedNext =
+        ADOPTION_REQUEST_ALLOWED_TRANSITIONS[
+        currentStatus
+        ] || [];
+
+      if (
+        !allowedNext.includes(
+          newStatus,
+        )
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Invalid transition: ${currentStatus} → ${newStatus}`,
+        );
+      }
+
+      // =====================================================
+      // UPDATE
+      // =====================================================
+
+      await requestRef.update({
+        status: newStatus,
+
+        updatedAt:
+          admin.firestore.FieldValue.serverTimestamp(),
+
+        statusUpdatedAt:
+          admin.firestore.FieldValue.serverTimestamp(),
+
+        statusUpdatedBy: uid,
+
+        lastStatusChange: {
+          from: currentStatus,
+          to: newStatus,
+          by: uid,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+
+      // =====================================================
+      // NOTIFICATION
+      // =====================================================
+
+      const requesterUserId =
+        data.requesterUserId ||
+        data.userId;
+
+      if (requesterUserId) {
+        let title =
+          "Adoption Request Updated";
+
+        let body =
+          "Your adoption request status changed";
+
+        let type =
+          "adoption_request_update";
+
+        if (
+          newStatus === "approved"
+        ) {
+          title =
+            "Adoption Approved ✅";
+
+          body =
+            "Your adoption request was approved";
+
+          type =
+            "adoption_request_approved";
+        }
+
+        else if (
+          newStatus === "rejected"
+        ) {
+          title =
+            "Adoption Rejected ❌";
+
+          body =
+            "Your adoption request was rejected";
+
+          type =
+            "adoption_request_rejected";
+        }
+
+        else if (
+          newStatus === "completed"
+        ) {
+          title =
+            "Adoption Completed 🎉";
+
+          body =
+            "Adoption completed successfully";
+
+          type =
+            "adoption_request_completed";
+        }
+
+        else if (
+          newStatus === "cancelled"
+        ) {
+          title =
+            "Adoption Cancelled";
+
+          body =
+            "Adoption request cancelled";
+
+          type =
+            "adoption_request_cancelled";
+        }
+
+        // =====================================================
+        // FIRESTORE NOTIFICATION
+        // =====================================================
+
+        await db
+          .collection(
+            "notifications",
+          )
+          .add({
+            recipientUserId:
+              requesterUserId,
+
+            senderUserId: uid,
+
+            businessId,
+
+            requestId,
+
+            type,
+
+            status: newStatus,
+
+            title,
+
+            body,
+
+            isRead: false,
+
+            createdAt:
+              admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+        // =====================================================
+        // PUSH
+        // =====================================================
+
+        try {
+          const userSnap =
+            await db
+              .collection(
+                "users",
+              )
+              .doc(
+                requesterUserId,
+              )
+              .get();
+
+          const token =
+            userSnap.data()
+              ?.fcmToken;
+
+          if (token) {
+            await safeSendPush({
+              token,
+
+              userId:
+                requesterUserId,
+
+              payload: {
+                notification: {
+                  title,
+                  body,
+                },
+
+                data: {
+                  type,
+                  requestId,
+                  businessId,
+                  status:
+                    newStatus,
+                },
+
+                android: {
+                  priority:
+                    "high",
+                },
+              },
+            });
+          }
+        } catch (pushError) {
+          logger.error(
+            "❌ Adoption push failed",
+            {
+              requestId,
+              message:
+                pushError?.message ||
+                String(
+                  pushError,
+                ),
+            },
+          );
+        }
+      }
+
+      logger.info(
+        "✅ Adoption request updated",
+        {
+          requestId,
+          oldStatus:
+            currentStatus,
+          newStatus,
+        },
+      );
+
+      return {
+        ok: true,
+        requestId,
+        oldStatus:
+          currentStatus,
+        newStatus,
+      };
+    },
+  );
 /* ===============================
  * 🔥 DEBUG: Direct FCM sendToDevice test
  * =============================== */
@@ -2510,6 +4440,114 @@ exports.registerBusiness = onCall(
       const profile = draft.profile || {};
       const contact = draft.contact || {};
       const legal = draft.legal || {};
+      const sectorData = draft.sectorData || {};
+      const veterinaryData = sectorData.veterinary || {};
+      const veterinaryProfile = veterinaryData.profileContent || {};
+      const veterinarySocial = veterinaryProfile.socialMedia || {};
+      const veterinaryServices = veterinaryData.services || {};
+      const groomingData = sectorData.grooming || sectorData.groomer || {};
+      const groomingProfile = groomingData.profileContent || groomingData.media || {};
+      const groomingSocial = groomingProfile.socialMedia || groomingData.contact || {};
+      const groomingServices = groomingData.services || {};
+      const hotelData = sectorData.pet_hotel || sectorData.hotel || sectorData.petHotel || {};
+      const hotelProfile = hotelData.profileContent || hotelData.media || {};
+      const hotelSocial = hotelProfile.socialMedia || hotelData.contact || {};
+      const hotelServices = hotelData.services || {};
+      const petTaxiData = sectorData.pet_taxi || sectorData.petTaxi || {};
+      const adoptionData =
+        sectorData.adoptionCenter ||
+        sectorData.adoption_center ||
+        {};
+
+      const adoptionProfile =
+        adoptionData.profileContent ||
+        adoptionData.media ||
+        {};
+
+      const adoptionSocial =
+        adoptionProfile.socialMedia ||
+        adoptionData.contact ||
+        {};
+
+      const adoptionServices =
+        adoptionData.services ||
+        {};
+      const veterinaryImages = firstStringArray(
+        veterinaryProfile.clinicPhotoUrls,
+        veterinaryProfile.images
+      );
+      const groomingImages = firstStringArray(
+        groomingProfile.clinicPhotoUrls,
+        groomingProfile.images,
+        groomingProfile.photos,
+        groomingData.media?.photos
+      );
+      const hotelImages = firstStringArray(
+        hotelProfile.clinicPhotoUrls,
+        hotelProfile.images,
+        hotelProfile.photos,
+        hotelData.coverImage
+      );
+      const adoptionImages = firstStringArray(
+        adoptionProfile.photoUrls,
+        adoptionProfile.images,
+        adoptionProfile.photos,
+        adoptionData.coverImage
+      );
+      const businessImages =
+        veterinaryImages.length > 0
+          ? veterinaryImages
+          : groomingImages.length > 0
+            ? groomingImages
+            : hotelImages.length > 0
+              ? hotelImages
+              : adoptionImages;
+      const profileLogoUrl = firstNonEmptyString(
+        profile.logoUrl,
+        veterinaryProfile.clinicLogoUrl,
+        groomingProfile.clinicLogoUrl,
+        groomingProfile.logo,
+        groomingData.logo,
+        adoptionProfile.logoUrl,
+        adoptionProfile.logo,
+        adoptionData.logo,
+        hotelProfile.clinicLogoUrl,
+        hotelProfile.logo,
+        hotelData.logo
+      );
+      const coverImageUrl = firstNonEmptyString(
+        profile.coverImageUrl,
+        profile.coverUrl,
+        veterinaryProfile.coverImageUrl,
+        groomingProfile.coverImageUrl,
+        groomingData.coverImage,
+        hotelProfile.coverImageUrl,
+        hotelData.coverImage,
+        adoptionProfile.coverImageUrl,
+        adoptionData.coverImage,
+        businessImages[0]
+      );
+      const contactInstagram = firstNonEmptyString(
+        contact.instagram,
+        veterinarySocial.instagram,
+        groomingSocial.instagram,
+        adoptionSocial.instagram,
+        hotelSocial.instagram
+      );
+      const contactWhatsapp = firstNonEmptyString(
+        contact.whatsapp,
+        veterinarySocial.whatsapp,
+        groomingSocial.whatsapp,
+        adoptionSocial.whatsapp,
+        hotelSocial.whatsapp
+      );
+      const contactWebsite = firstNonEmptyString(
+        contact.website,
+        veterinarySocial.website,
+        groomingSocial.website,
+        adoptionSocial.website,
+        hotelSocial.website
+      );
 
       if (!profile.displayName || !contact.city || !contact.district) {
         throw new HttpsError(
@@ -2531,7 +4569,7 @@ exports.registerBusiness = onCall(
       const existingRequest = await db
         .collection("business_requests")
         .where("uid", "==", uid)
-        .where("status", "in", ["pending", "under_review"])
+        .where("status", "in", ["pending", "under_review", "pending_review"])
         .limit(1)
         .get();
 
@@ -2614,6 +4652,21 @@ exports.registerBusiness = onCall(
 
       console.log("🔥 SECTORS:", sectors);
       console.log("🔥 SECTOR DATA:", draft.sectorData);
+      const hasPetTaxiSector = sectors.includes("pet_taxi");
+      const publicSectorData = hasPetTaxiSector
+        ? {
+          ...sectorData,
+          pet_taxi: {
+            ...(sectorData.pet_taxi || {}),
+            documents: {
+              requiredDocumentKeys:
+                sectorData.pet_taxi?.documents?.requiredDocumentKeys || [],
+              optionalDocumentKeys:
+                sectorData.pet_taxi?.documents?.optionalDocumentKeys || [],
+            },
+          },
+        }
+        : sectorData;
 
       // =========================
       // CREATE BUSINESS (PENDING)
@@ -2622,9 +4675,11 @@ exports.registerBusiness = onCall(
 
       const businessDoc = {
         sectors,
-        sectorData: draft.sectorData || {},
+        sectorData: publicSectorData,
         ownerUid: uid,
-        status: "pending", // 🔥 مهم — هنوز تایید نشده
+        status: hasPetTaxiSector ? "pending_review" : "pending",
+        isActive: hasPetTaxiSector ? false : true,
+        published: hasPetTaxiSector ? false : true,
 
         verification: {
           level: "basic",
@@ -2638,18 +4693,30 @@ exports.registerBusiness = onCall(
         profile: {
           displayName: profile.displayName.trim(),
           description: profile.description?.trim() || "",
-          logoUrl: profile.logoUrl || null,
-          coverUrl: profile.coverUrl || null,
+          logoUrl: profileLogoUrl,
+          coverUrl: coverImageUrl,
           categories: [],
           tags: [],
         },
 
+        coverImageUrl,
+        images: businessImages,
+        clinicPhotoUrls: businessImages,
+        ...(hotelData.maxCapacity || hotelData.capacity?.maxCapacity
+          ? {
+            maxCapacity: asNumber(
+              hotelData.capacity?.maxCapacity ?? hotelData.maxCapacity,
+              25
+            ),
+          }
+          : {}),
+
         contact: {
           phone: contact.phone || null,
-          whatsapp: contact.whatsapp || null,
+          whatsapp: contactWhatsapp,
           email: contact.email || null,
-          instagram: contact.instagram || null,
-          website: contact.website || null,
+          instagram: contactInstagram,
+          website: contactWebsite,
           city: contact.city.trim(),
           district: contact.district.trim(),
           addressLine: contact.addressLine || "",
@@ -2660,6 +4727,7 @@ exports.registerBusiness = onCall(
           taxNumber: legal.taxNumber,
           mersisNumber: legal.mersisNumber,
           documents: [],
+          petTaxiDocumentsPrivate: hasPetTaxiSector,
           disclaimerAcceptedAt:
             admin.firestore.FieldValue.serverTimestamp(),
         },
@@ -2684,13 +4752,99 @@ exports.registerBusiness = onCall(
       // 🔥 SAVE BUSINESS
       await businessRef.set(businessDoc);
 
+      const hasVeterinarySector = sectors.includes("veterinary");
+      const hasGroomingSector =
+        sectors.includes("grooming") || sectors.includes("groomer");
+      const hasHotelSector =
+        sectors.includes("pet_hotel") || sectors.includes("hotel");
+      const hasAdoptionSector =
+        sectors.includes("adoption_center") ||
+        sectors.includes("adoptionCenter");
+      const offeredServices = [
+        ...(hasVeterinarySector
+          ? firstStringArray(veterinaryServices.offeredServices)
+          : []),
+        ...(hasGroomingSector
+          ? firstStringArray(
+            groomingServices.offeredServices,
+            Array.isArray(groomingServices) ? groomingServices : null,
+            groomingData.specialties
+          )
+          : []),
+        ...(hasHotelSector
+          ? firstStringArray(
+            hotelServices.offeredServices,
+            Array.isArray(hotelServices) ? hotelServices : null,
+            hotelData.specialties
+          )
+          : []),
+        ...(hasAdoptionSector
+          ? firstStringArray(
+            adoptionServices.offeredServices,
+            Array.isArray(adoptionServices)
+              ? adoptionServices
+              : null,
+            adoptionData.specialties
+          )
+          : []),
+      ].filter((service, index, list) => list.indexOf(service) === index);
+      const defaultServicePrice = parsePriceFromText(
+        hasHotelSector
+          ? hotelServices.averagePriceRange
+          : hasGroomingSector
+            ? groomingServices.averagePriceRange
+            : hasAdoptionSector
+              ? adoptionServices.averagePriceRange
+              : veterinaryServices.averagePriceRange
+      );
+      if (
+        (
+          hasVeterinarySector ||
+          hasGroomingSector ||
+          hasHotelSector ||
+          hasAdoptionSector
+        ) &&
+        offeredServices.length > 0
+      ) {
+        const servicesBatch = db.batch();
+
+        offeredServices.forEach((serviceTitle, index) => {
+          const serviceRef = businessRef
+            .collection("services")
+            .doc(slugify(serviceTitle));
+
+          servicesBatch.set(serviceRef, {
+            title: serviceTitle,
+            price: defaultServicePrice,
+            currency: "TRY",
+            durationMin:
+              hasHotelSector
+                ? 1440
+                : hasAdoptionSector
+                  ? 60
+                  : 30,
+            durationType:
+              hasHotelSector
+                ? "night"
+                : "minute",
+            description: "",
+            isActive: true,
+            sortOrder: index + 1,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        });
+
+        await servicesBatch.commit();
+      }
+
       // =========================
       // CREATE REQUEST (FOR ADMIN)
       // =========================
       const requestRef = await db.collection("business_requests").add({
         uid,
         businessId: businessRef.id, // 🔥🔥🔥 مهم‌ترین خط
-        status: "pending",
+        status: hasPetTaxiSector ? "pending_review" : "pending",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
 
         sectors,
@@ -2698,16 +4852,17 @@ exports.registerBusiness = onCall(
         profile: {
           displayName: profile.displayName.trim(),
           description: profile.description?.trim() || "",
-          logoUrl: profile.logoUrl || null,
-          coverUrl: profile.coverUrl || null,
+          logoUrl: profileLogoUrl,
+          coverUrl: coverImageUrl,
+          coverImageUrl,
         },
 
         contact: {
           phone: contact.phone || null,
-          whatsapp: contact.whatsapp || null,
+          whatsapp: contactWhatsapp,
           email: contact.email || null,
-          instagram: contact.instagram || null,
-          website: contact.website || null,
+          instagram: contactInstagram,
+          website: contactWebsite,
           city: contact.city.trim(),
           district: contact.district.trim(),
           addressLine: contact.addressLine || "",
@@ -2719,7 +4874,10 @@ exports.registerBusiness = onCall(
           mersisNumber: legal.mersisNumber,
         },
 
-        sectorData: draft.sectorData || {},
+        coverImageUrl,
+        images: businessImages,
+        clinicPhotoUrls: businessImages,
+        sectorData,
       });
 
       // =========================
@@ -2729,7 +4887,7 @@ exports.registerBusiness = onCall(
         {
           business: {
             requestId: requestRef.id,
-            status: "pending",
+            status: hasPetTaxiSector ? "pending_review" : "pending",
             sectors,
             isVerified: false,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2899,7 +5057,7 @@ exports.resolveBusinessRequest = onCall(
 exports.migrateAdoptionCentersToBusinesses = onRequest(
   {
     region: "europe-west3",
-    invoker: "public",
+    invoker: "admin",
   },
   async (req, res) => {
     const dryRun = req.query.dryRun !== "false"; // default = true
@@ -3783,7 +5941,7 @@ function getModerationCollection(type) {
       return "found_dogs";
 
     case "adoption":
-      return "adoption_centers";
+      return "businesses";
 
     default:
       throw new Error(`Unknown moderation type: ${type}`);
@@ -4545,6 +6703,10 @@ exports.migrateServices = onRequest(async (req, res) => {
       data.sectorData?.veterinary?.services?.offeredServices ||
       data.services?.offeredServices || // 🔥 FIX
       [];
+    const defaultServicePrice = parsePriceFromText(
+      data.sectorData?.veterinary?.services?.averagePriceRange ||
+      data.services?.averagePriceRange
+    );
 
     console.log("Services found:", services);
 
@@ -4560,7 +6722,7 @@ exports.migrateServices = onRequest(async (req, res) => {
 
       await doc.ref.collection("services").add({
         title: name,
-        price: 0,
+        price: defaultServicePrice,
         currency: "TRY",
         durationMin: 30,
         description: "",
@@ -5146,7 +7308,15 @@ exports.createCheckoutSession = onCall(
           businessId,
           sellerNetAmount,
           commission: sellerPricing.commissionAmount,
+          subMerchantKey: subMerchantKey || null,
         });
+
+        if (!subMerchantKey) {
+          logger.warn("⚠️ MISSING SUB MERCHANT KEY", {
+            businessId,
+            orderId,
+          });
+        }
 
         basketItems.push({
           id: `item-${businessId}`,
@@ -5228,12 +7398,42 @@ exports.createCheckoutSession = onCall(
         basketItems,
       };
 
-      const iyziResult = await new Promise((resolve, reject) => {
-        iyzi.checkoutFormInitialize.create(iyziRequest, (err, result) => {
-          if (err) return reject(err);
-          return resolve(result);
-        });
+      logger.info("🧾 IYZICO REQUEST PAYLOAD", {
+        orderId,
+        conversationId,
+        paidPrice: iyziRequest.paidPrice,
+        price: iyziRequest.price,
+        basketItems,
+        buyer: iyziRequest.buyer,
+        shippingAddress: iyziRequest.shippingAddress,
+        billingAddress: iyziRequest.billingAddress,
+        carrier: selectedCarrier || null,
+        subMerchantKey: null,
       });
+
+      let iyziResult;
+      try {
+        iyziResult = await new Promise((resolve, reject) => {
+          iyzi.checkoutFormInitialize.create(iyziRequest, (err, result) => {
+            if (err) return reject(err);
+            return resolve(result);
+          });
+        });
+      } catch (error) {
+        logger.error("❌ IYZICO CHECKOUT CREATE FAILED", {
+          orderId,
+          conversationId,
+          message: error?.message || String(error),
+          code: error?.code || error?.response?.code || null,
+          response:
+            error?.response?.data ||
+            error?.response ||
+            error?.body ||
+            null,
+          stack: error?.stack || null,
+        });
+        throw error;
+      }
 
       if (!iyziResult || iyziResult.status !== "success") {
         await orderRef.update({
@@ -5567,32 +7767,14 @@ exports.createCheckoutSession = onCall(
           { merge: true }
         );
 
-        const businessSnap = await db
-          .collection("businesses")
-          .doc(sellerBusinessId)
-          .get();
-
-        const sellerUid = sellerSnapshot?.ownerUid || null;
-
-        if (sellerUid) {
-          const notifRef = db.collection("notifications").doc();
-          sellerBatch.set(notifRef, {
-            recipientUserId: sellerUid,
-            type: "new_order",
-            title: "New order received 📦",
-            body: "A new order is waiting for payment confirmation.",
-
-            /// 🔥 مهم‌ترین بخش
-            payload: {
-              type: "new_order",
-              orderId: orderId,
-              sellerOrderId: doc.id,
-            },
-
-            isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        }
+        console.log("📦 ORDER NOTIFICATION DEBUG", {
+          skippedAt: "createCheckoutSession",
+          reason: "seller notification is created only after successful payment",
+          type: "new_order",
+          orderId: String(orderId || ""),
+          sellerOrderId: String(doc.id || ""),
+          businessId: String(sellerBusinessId || ""),
+        });
       }
 
       const buyerUid = orderData.buyerUid || buyer.buyerId || auth.uid;
@@ -5906,6 +8088,21 @@ exports.verifyPaymentByOrderId = onCall(
         normalizeLower(result?.status) === "success" &&
         normalizeLower(result?.paymentStatus) === "success";
 
+      const paymentTransactionIds = extractPaymentTransactionIds(
+        result?.itemTransactions
+      );
+      const paymentTransactionId =
+        paymentTransactionIds.length > 0
+          ? paymentTransactionIds[0]
+          : result?.paymentTransactionId?.toString?.() ||
+          result?.paymentTransactionId ||
+          null;
+
+      console.log("💳 PAYMENT TRANSACTION ID", paymentTransactionId);
+      if (!paymentTransactionId) {
+        console.warn("⚠️ Missing paymentTransactionId");
+      }
+
       // -------------------------
       // HARD FAILURE
       // -------------------------
@@ -6012,6 +8209,9 @@ exports.verifyPaymentByOrderId = onCall(
             status: "paid",
             provider: "iyzico",
             paymentId: result?.paymentId || null,
+            paymentTransactionId,
+            paymentTransactionIds,
+            itemTransactions: result?.itemTransactions || [],
             conversationId: result?.conversationId || null,
             paidPrice: asNumber(result?.paidPrice, 0),
             price: asNumber(result?.price, 0),
@@ -6030,11 +8230,17 @@ exports.verifyPaymentByOrderId = onCall(
       );
 
       const sellerBusinessIds = new Set();
+      const sellerOrderIdsByBusiness = new Map();
 
       for (const doc of sellerOrdersSnap.docs) {
         const sellerOrder = doc.data() || {};
         const businessId = sellerOrder.businessId || sellerOrder.shopId || null;
-        if (businessId) sellerBusinessIds.add(String(businessId));
+        if (businessId) {
+          sellerBusinessIds.add(String(businessId));
+          if (!sellerOrderIdsByBusiness.has(String(businessId))) {
+            sellerOrderIdsByBusiness.set(String(businessId), doc.id);
+          }
+        }
 
         batch.set(
           doc.ref,
@@ -6046,12 +8252,20 @@ exports.verifyPaymentByOrderId = onCall(
               ...(sellerOrder.payment || {}),
               status: "paid",
               provider: "iyzico",
+              paymentProvider: sellerOrder.payment?.paymentProvider || "iyzico",
               paymentId: result?.paymentId || null,
+              paymentTransactionId,
+              paymentTransactionIds,
+              itemTransactions: result?.itemTransactions || [],
               conversationId: result?.conversationId || null,
               paidPrice: asNumber(result?.paidPrice, 0),
               price: asNumber(result?.price, 0),
               currency: result?.currency || sellerOrder?.currency || "TRY",
               installment: asNumber(result?.installment, 1),
+              paymentTransactionId,
+              paymentTransactionIds,
+              itemTransactions: result?.itemTransactions || [],
+              iyzicoPaymentTransactionId: paymentTransactionId || null,
             },
             updatedAt: now,
             timeline: admin.firestore.FieldValue.arrayUnion({
@@ -6079,48 +8293,135 @@ exports.verifyPaymentByOrderId = onCall(
         });
       }
 
-      for (const businessId of sellerBusinessIds) {
-        const businessSnap = await db.collection("businesses").doc(businessId).get();
-        const ownerUid = businessSnap.exists
-          ? businessSnap.data()?.ownerUid || null
-          : null;
-
-        if (ownerUid) {
-          await createNotification(db, {
-            recipientUserId: ownerUid,
-            userId: ownerUid,
-            type: "new_paid_order",
-            title: "New paid order 🛒",
-            body: "A customer has completed payment for a new order.",
-            orderId: safeOrderId,
-          });
-        }
-      }
-
       for (const doc of sellerOrdersSnap.docs) {
         const sellerOrderId = doc.id;
         const sellerData = doc.data() || {};
         const businessId = sellerData.businessId || sellerData.shopId || null;
 
         const businessSnap = await db.collection("businesses").doc(businessId).get();
+        const businessData = businessSnap.exists ? businessSnap.data() || {} : {};
         const ownerUid = businessSnap.exists
-          ? businessSnap.data()?.ownerUid || null
+          ? businessData.ownerUid || businessData.uid || null
           : null;
+        const businessToken = businessData.fcmToken || null;
+
+        console.log('🔔 PUSH TYPE = new_paid_order');
+        console.log('🔔 RECIPIENT UID =', ownerUid);
+        console.log('🔔 BUSINESS ID =', businessId);
 
         if (ownerUid) {
-          await createNotification(db, {
+          const notificationKey = `new_order_${sellerOrderId}`;
+          const orderNotificationDebug = {
+            type: "new_order",
+            orderId: String(safeOrderId || ""),
+            sellerOrderId: String(sellerOrderId || ""),
+            businessId: String(businessId || ""),
+            recipientUserId: String(ownerUid || ""),
+            notificationKey,
+          };
+          const existingNotificationSnap = await db
+            .collection("notifications")
+            .where("notificationKey", "==", notificationKey)
+            .limit(1)
+            .get();
+
+          console.log("📦 ORDER NOTIFICATION DEBUG", {
+            ...orderNotificationDebug,
+            exists: !existingNotificationSnap.empty,
+          });
+
+          if (!existingNotificationSnap.empty) {
+            console.log("📦 ORDER NOTIFICATION DEBUG", {
+              skipped: true,
+              reason: "duplicate notificationKey",
+              ...orderNotificationDebug,
+            });
+            continue;
+          }
+
+          await db.collection("notifications").add({
             recipientUserId: ownerUid,
             userId: ownerUid,
-            type: "new_paid_order",
+            type: "new_order",
             title: "New paid order 🛒",
             body: "A customer has completed payment for a new order.",
 
-            orderId: safeOrderId,
-            sellerOrderId: sellerOrderId, // ✅🔥 این خط کل داستانه
+            orderId: orderNotificationDebug.orderId,
+            sellerOrderId: orderNotificationDebug.sellerOrderId,
+            businessId: orderNotificationDebug.businessId,
+            notificationKey,
+            payload: orderNotificationDebug,
 
             isRead: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           });
+
+          try {
+            const recipientSnap = await db.collection("users").doc(ownerUid).get();
+            const token = recipientSnap.data()?.fcmToken || businessToken || null;
+            const message = {
+              token,
+              notification: {
+                title: "New paid order 🛒",
+                body: "A customer has completed payment for a new order.",
+              },
+              data: {
+                type: orderNotificationDebug.type,
+                orderId: orderNotificationDebug.orderId,
+                sellerOrderId: orderNotificationDebug.sellerOrderId,
+                businessId: orderNotificationDebug.businessId,
+                recipientUserId: orderNotificationDebug.recipientUserId,
+                notificationKey: orderNotificationDebug.notificationKey,
+              },
+              android: {
+                priority: "high",
+                notification: {
+                  sound: "default",
+                  channelId: "high_importance_channel",
+                },
+              },
+              apns: {
+                headers: {
+                  "apns-priority": "10",
+                },
+                payload: {
+                  aps: {
+                    alert: {
+                      title: "New paid order 🛒",
+                      body: "A customer has completed payment for a new order.",
+                    },
+                    sound: "default",
+                    badge: 1,
+                    "interruption-level": "time-sensitive",
+                  },
+                },
+              },
+            };
+
+            console.log("📨 FCM PAYLOAD DEBUG", message);
+            console.log("🔔 PUSH TYPE = new_paid_order");
+            console.log("🔔 RECIPIENT UID =", ownerUid);
+            console.log("🔔 BUSINESS ID =", businessId);
+            console.log("🔔 TOKEN FOUND =", !!token);
+
+            if (token) {
+              console.log("🔔 ABOUT TO SEND PUSH");
+              console.log("🔔 PUSH TOKEN", token);
+              console.log("🔔 PUSH PAYLOAD", message);
+              try {
+                const response = await admin.messaging().send(message);
+                console.log("✅ PUSH SENT SUCCESS", response);
+              } catch (e) {
+                console.error("❌ PUSH SEND FAILED", e);
+              }
+            } else {
+              console.error("❌ PUSH SEND FAILED", "missing token");
+            }
+          } catch (error) {
+            console.error("❌ PUSH SEND FAILED", error);
+          }
+        } else {
+          console.log('❌ PUSH SEND FAILED', 'new_paid_order ownerUid missing');
         }
       }
 
@@ -6166,6 +8467,8 @@ exports.verifyPayment = onCall(
       const db = admin.firestore();
       const orderRef = db.collection("orders").doc(orderId);
       const orderSnap = await orderRef.get();
+      let paymentTransactionIds = [];
+      let paymentTransactionId = null;
 
       if (!orderSnap.exists) {
         throw new HttpsError("not-found", "Order not found");
@@ -6204,13 +8507,87 @@ exports.verifyPayment = onCall(
         );
       }
 
+      paymentTransactionIds = extractPaymentTransactionIds(
+        result?.itemTransactions
+      );
+      paymentTransactionId =
+        paymentTransactionIds.length > 0
+          ? paymentTransactionIds[0]
+          : result?.paymentTransactionId?.toString?.() ||
+          result?.paymentTransactionId ||
+          null;
+
+      console.log("💳 PAYMENT TRANSACTION ID", paymentTransactionId);
+      if (!paymentTransactionId) {
+        console.warn("⚠️ Missing paymentTransactionId");
+      }
+
       // 🔁 جلوگیری از دوباره پرداخت
       if (orderData.payment?.status === "paid") {
         return {
           success: true,
           alreadyPaid: true,
+          type: orderData.type || null,
+          appointmentCollection: orderData.type === "appointment"
+            ? appointmentCollectionForOrder(orderData)
+            : null,
+          appointmentType: orderData.appointmentType || null,
+          appointmentId: orderData.type === "appointment"
+            ? orderData.appointmentId || null
+            : null,
           sellerOrderIds: orderData.sellerOrderIds || [],
         };
+      }
+
+      if (orderData.type === "appointment") {
+        const appointmentId = orderData.appointmentId;
+        const appointmentCollection = appointmentCollectionForOrder(orderData);
+
+        if (!appointmentId) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Missing appointmentId in order"
+          );
+        }
+
+        const appointmentRef = db
+          .collection(appointmentCollection)
+          .doc(appointmentId);
+        const appointmentSnap = await appointmentRef.get();
+
+        if (!appointmentSnap.exists) {
+          throw new HttpsError("not-found", "Appointment not found");
+        }
+
+        const appointmentData = appointmentSnap.data() || {};
+        const appointmentStatus = appointmentData.status || "pending";
+        const appointmentPaymentPolicy = resolveAppointmentPaymentPolicy(
+          appointmentData
+        );
+        const deadlineMillis = toMillisSafe(
+          appointmentData.paymentDeadlineAt || null
+        );
+
+        if (appointmentStatus !== "awaiting_payment") {
+          throw new HttpsError(
+            "failed-precondition",
+            `Appointment is not awaiting payment: ${appointmentStatus}`
+          );
+        }
+
+        if (!appointmentPaymentPolicy.requiresPayment) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Appointment does not require payment"
+          );
+        }
+
+        if (deadlineMillis && deadlineMillis < Date.now()) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Payment window expired"
+          );
+        }
       }
 
       // =========================
@@ -6221,7 +8598,14 @@ exports.verifyPayment = onCall(
         paymentStatus: "paid",
         status: "paid",
         "payment.paymentId": result.paymentId || null,
+        "payment.paymentProvider": "iyzico",
         "payment.paidPrice": result.paidPrice || null,
+        "payment.price": result.price || null,
+        "payment.conversationId": result.conversationId || orderData.payment?.conversationId || null,
+        "payment.paymentTransactionId": paymentTransactionId || null,
+        "payment.paymentTransactionIds": paymentTransactionIds,
+        "payment.iyzicoPaymentTransactionId": paymentTransactionId || null,
+        "payment.currency": result.currency || orderData.payment?.currency || orderData.currency || "TRY",
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -6231,10 +8615,11 @@ exports.verifyPayment = onCall(
       // =========================
       if (orderData.type === "appointment") {
         const appointmentId = orderData.appointmentId;
+        const appointmentCollection = appointmentCollectionForOrder(orderData);
 
         if (appointmentId) {
           const appointmentRef = db
-            .collection("vet_appointments")
+            .collection(appointmentCollection)
             .doc(appointmentId);
 
           const appointmentSnap = await appointmentRef.get();
@@ -6247,14 +8632,43 @@ exports.verifyPayment = onCall(
             status: "confirmed_paid",
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            paymentId: result.paymentId || null,
+            iyzicoPaymentId: result.paymentId || null,
+            paymentTransactionId: paymentTransactionId || null,
+            paymentTransactionIds,
+            iyzicoPaymentTransactionId: paymentTransactionId || null,
+            conversationId:
+              result.conversationId || orderData.payment?.conversationId || null,
+            orderId: orderId || null,
+            checkoutToken: orderData.payment?.checkoutToken || null,
           });
 
           // 🎯 پیدا کردن گیرنده (vet)
-          const recipientUserId =
+          const targetBusinessId =
             orderData.businessId ||
             appointmentData.businessId ||
             appointmentData.vetId ||
             null;
+          let recipientUserId = targetBusinessId;
+          if (targetBusinessId) {
+            try {
+              const businessSnap = await db
+                .collection("businesses")
+                .doc(targetBusinessId)
+                .get();
+              const businessData = businessSnap.data() || {};
+              recipientUserId =
+                businessData.ownerUid ||
+                businessData.uid ||
+                targetBusinessId;
+            } catch (error) {
+              logger.warn("⚠️ Payment recipient owner lookup failed", {
+                businessId: targetBusinessId,
+                message: error?.message || String(error),
+              });
+            }
+          }
+          const isHotelBooking = appointmentCollection === "hotel_bookings";
 
           logger.info("🐾 Appointment marked as PAID", {
             appointmentId,
@@ -6266,15 +8680,22 @@ exports.verifyPayment = onCall(
             // 🟣 1. SAVE IN-APP NOTIFICATION
             // =========================
             await db.collection("notifications").add({
-              type: "appointment_paid",
+              type: isHotelBooking
+                ? "hotel_booking_payment_completed"
+                : "appointment_paid",
               recipientUserId: recipientUserId,
               senderUserId: auth.uid,
-              title: "Payment Completed",
+              title: isHotelBooking
+                ? "Hotel Payment Completed"
+                : "Payment Completed",
               body: `${appointmentData.petName ||
                 appointmentData.dogName ||
-                "Appointment"
+                (isHotelBooking ? "Booking" : "Appointment")
                 } payment completed successfully`,
               appointmentId: appointmentId,
+              bookingId: isHotelBooking ? appointmentId : null,
+              appointmentCollection,
+              appointmentType: orderData.appointmentType || null,
               orderId: orderId,
               isRead: false,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -6291,21 +8712,59 @@ exports.verifyPayment = onCall(
             const fcmToken = userSnap.data()?.fcmToken;
 
             if (fcmToken) {
+              logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+                type: isHotelBooking
+                  ? "hotel_booking_payment_completed"
+                  : "appointment_paid",
+                recipientUserId,
+                appointmentId,
+              });
               await admin.messaging().send({
                 token: fcmToken,
                 notification: {
                   title: "Payment Completed",
-                  body: "Appointment has been paid",
+                  body: isHotelBooking
+                    ? "Hotel booking has been paid"
+                    : "Appointment has been paid",
                 },
                 data: {
-                  type: "appointment_paid",
+                  type: isHotelBooking
+                    ? "hotel_booking_payment_completed"
+                    : "appointment_paid",
                   appointmentId: appointmentId,
+                  bookingId: isHotelBooking ? appointmentId : "",
+                  appointmentCollection,
+                  appointmentType: orderData.appointmentType || "",
+                },
+                android: {
+                  priority: "high",
+                  notification: {
+                    sound: "default",
+                    channelId: "high_importance_channel",
+                  },
+                },
+                apns: {
+                  headers: { "apns-priority": "10" },
+                  payload: {
+                    aps: {
+                      alert: {
+                        title: "Payment Completed",
+                        body: isHotelBooking
+                          ? "Hotel booking has been paid"
+                          : "Appointment has been paid",
+                      },
+                      sound: "default",
+                      badge: 1,
+                      "interruption-level": "time-sensitive",
+                    },
+                  },
                 },
               });
 
               logger.info("🔔 FCM sent", {
                 recipientUserId,
                 appointmentId,
+                soundEnabled: true,
               });
             } else {
               logger.warn("⚠️ No FCM token found", {
@@ -6317,7 +8776,34 @@ exports.verifyPayment = onCall(
               appointmentId,
             });
           }
+
+          if (isHotelBooking && appointmentData.userId) {
+            await createNotification(db, {
+              type: "hotel_booking_response",
+              recipientUserId: appointmentData.userId,
+              userId: appointmentData.userId,
+              senderUserId: recipientUserId || "system",
+              businessId: appointmentData.businessId || targetBusinessId,
+              appointmentId,
+              bookingId: appointmentId,
+              appointmentCollection,
+              status: "confirmed_paid",
+              title: "Hotel Payment Completed",
+              body: `${appointmentData.serviceTitle || "Hotel stay"} is confirmed and paid`,
+            });
+          }
         }
+      }
+
+      if (orderData.type === "appointment") {
+        return {
+          success: true,
+          type: "appointment",
+          appointmentCollection: appointmentCollectionForOrder(orderData),
+          appointmentType: orderData.appointmentType || null,
+          appointmentId: orderData.appointmentId || null,
+          sellerOrderIds: [],
+        };
       }
 
       // =========================
@@ -6341,6 +8827,20 @@ exports.verifyPayment = onCall(
         batch.update(doc.ref, {
           status: "paid",
           paymentStatus: "paid",
+          payment: {
+            ...(data.payment || {}),
+            status: "paid",
+            provider: "iyzico",
+            paymentProvider: data.payment?.paymentProvider || "iyzico",
+            paymentId: result.paymentId || null,
+            paidPrice: result.paidPrice || null,
+            price: result.price || null,
+            conversationId: result.conversationId || orderData.payment?.conversationId || null,
+            currency: result.currency || orderData.payment?.currency || orderData.currency || "TRY",
+            paymentTransactionId: paymentTransactionId || null,
+            paymentTransactionIds: paymentTransactionIds,
+            iyzicoPaymentTransactionId: paymentTransactionId || null,
+          },
           "payout.status": "pending",
           "payout.amount": sellerNetAmount,
           "payout.requestedAt":
@@ -6353,11 +8853,144 @@ exports.verifyPayment = onCall(
 
       await batch.commit();
 
+      for (const doc of sellerOrdersSnap.docs) {
+        const sellerOrderId = doc.id;
+        const sellerData = doc.data() || {};
+        const businessId = sellerData.businessId || sellerData.shopId || null;
+
+        const businessSnap = businessId
+          ? await db.collection("businesses").doc(String(businessId)).get()
+          : null;
+        const businessData = businessSnap?.exists ? businessSnap.data() || {} : {};
+        const ownerUid = businessSnap?.exists
+          ? businessData.ownerUid || businessData.uid || null
+          : null;
+        const businessToken = businessData.fcmToken || null;
+
+        console.log("🔔 PUSH TYPE = new_paid_order");
+        console.log("🔔 RECIPIENT UID =", ownerUid);
+        console.log("🔔 BUSINESS ID =", businessId);
+
+        if (ownerUid) {
+          const notificationKey = `new_order_${sellerOrderId}`;
+          const orderNotificationDebug = {
+            type: "new_order",
+            orderId: String(orderId || ""),
+            sellerOrderId: String(sellerOrderId || ""),
+            businessId: String(businessId || ""),
+            recipientUserId: String(ownerUid || ""),
+            notificationKey,
+          };
+          const existingNotificationSnap = await db
+            .collection("notifications")
+            .where("notificationKey", "==", notificationKey)
+            .limit(1)
+            .get();
+
+          console.log("📦 ORDER NOTIFICATION DEBUG", {
+            ...orderNotificationDebug,
+            exists: !existingNotificationSnap.empty,
+          });
+
+          if (!existingNotificationSnap.empty) {
+            console.log("📦 ORDER NOTIFICATION DEBUG", {
+              skipped: true,
+              reason: "duplicate notificationKey",
+              ...orderNotificationDebug,
+            });
+            continue;
+          }
+
+          await db.collection("notifications").add({
+            recipientUserId: ownerUid,
+            userId: ownerUid,
+            type: "new_order",
+            title: "New paid order 🛒",
+            body: "A customer has completed payment for a new order.",
+            orderId: orderNotificationDebug.orderId,
+            sellerOrderId: orderNotificationDebug.sellerOrderId,
+            businessId: orderNotificationDebug.businessId,
+            notificationKey,
+            payload: orderNotificationDebug,
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          try {
+            const recipientSnap = await db
+              .collection("users")
+              .doc(String(ownerUid))
+              .get();
+            const token = recipientSnap.data()?.fcmToken || businessToken || null;
+            const message = {
+              token,
+              notification: {
+                title: "New paid order 🛒",
+                body: "A customer has completed payment for a new order.",
+              },
+              data: {
+                type: orderNotificationDebug.type,
+                orderId: orderNotificationDebug.orderId,
+                sellerOrderId: orderNotificationDebug.sellerOrderId,
+                businessId: orderNotificationDebug.businessId,
+                recipientUserId: orderNotificationDebug.recipientUserId,
+                notificationKey: orderNotificationDebug.notificationKey,
+              },
+              android: {
+                priority: "high",
+                notification: {
+                  sound: "default",
+                  channelId: "high_importance_channel",
+                },
+              },
+              apns: {
+                headers: {
+                  "apns-priority": "10",
+                },
+                payload: {
+                  aps: {
+                    alert: {
+                      title: "New paid order 🛒",
+                      body: "A customer has completed payment for a new order.",
+                    },
+                    sound: "default",
+                    badge: 1,
+                    "interruption-level": "time-sensitive",
+                  },
+                },
+              },
+            };
+
+            console.log("📨 FCM PAYLOAD DEBUG", message);
+            console.log("🔔 TOKEN FOUND =", !!token);
+
+            if (token) {
+              console.log("🔔 ABOUT TO SEND PUSH");
+              console.log("🔔 PUSH TOKEN", token);
+              console.log("🔔 PUSH PAYLOAD", message);
+              try {
+                const response = await admin.messaging().send(message);
+                console.log("✅ PUSH SENT SUCCESS", response);
+              } catch (e) {
+                console.error("❌ PUSH SEND FAILED", e);
+              }
+            } else {
+              console.error("❌ PUSH SEND FAILED", "missing token");
+            }
+          } catch (error) {
+            console.error("❌ PUSH SEND FAILED", error);
+          }
+        } else {
+          console.log("❌ PUSH SEND FAILED", "new_paid_order ownerUid missing");
+        }
+      }
+
       return {
         success: true,
         sellerOrderIds,
       };
     } catch (error) {
+      console.error("❌ verifyPayment INTERNAL CRASH", error);
       logger.error("❌ verifyPayment ERROR", {
         message: error?.message || String(error),
         stack: error?.stack || null,
@@ -6371,6 +9004,542 @@ exports.verifyPayment = onCall(
         "internal",
         error?.message || "Verify failed"
       );
+    }
+  }
+);
+
+exports.verifyHotelBookingPayment = exports.verifyPayment;
+
+exports.expireAwaitingAppointmentPayments = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 5 minutes",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+
+    const snap = await db
+      .collection("vet_appointments")
+      .where("status", "==", "awaiting_payment")
+      .where("paymentDeadlineAt", "<", now)
+      .orderBy("paymentDeadlineAt")
+      .limit(100)
+      .get();
+
+    if (snap.empty) {
+      logger.info("🩺 PAYMENT EXPIRE JOB: no overdue appointments");
+      return;
+    }
+
+    const batch = db.batch();
+    const targets = [];
+
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      const appointmentId = doc.id;
+      const businessId = data.businessId || null;
+      const userId = data.userId || data.buyerUid || null;
+
+      console.log("🩺 PAYMENT EXPIRED", {
+        appointmentId,
+        businessId,
+        userId,
+        currentStatus: data.status || null,
+        paymentDeadlineAt: data.paymentDeadlineAt || null,
+      });
+      console.log("🩺 SLOT RELEASED", {
+        appointmentId,
+      });
+
+      batch.update(doc.ref, {
+        status: "payment_expired",
+        paymentStatus: "expired",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedBy: "system",
+        paymentExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastStatusChange: {
+          from: "awaiting_payment",
+          to: "payment_expired",
+          by: "system",
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+
+      targets.push({
+        appointmentId,
+        businessId,
+        userId,
+        serviceTitle: data.serviceTitle || "Service",
+      });
+    }
+
+    await batch.commit();
+
+    for (const target of targets) {
+      try {
+        if (target.userId) {
+          await db.collection("notifications").add({
+            type: "appointment_payment_expired",
+            recipientUserId: target.userId,
+            senderUserId: "system",
+            appointmentId: target.appointmentId,
+            status: "payment_expired",
+            title: "Payment window expired",
+            body: `${target.serviceTitle} payment window expired`,
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          const userSnap = await db.collection("users").doc(target.userId).get();
+          const fcmToken = userSnap.data()?.fcmToken;
+
+          if (fcmToken) {
+            logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+              type: "appointment_payment_expired",
+              recipientUserId: target.userId,
+              appointmentId: target.appointmentId,
+            });
+            await admin.messaging().send({
+              token: fcmToken,
+              notification: {
+                title: "Payment window expired",
+                body: `${target.serviceTitle} payment window expired`,
+              },
+              data: {
+                type: "appointment_payment_expired",
+                appointmentId: target.appointmentId,
+                status: "payment_expired",
+              },
+              android: {
+                priority: "high",
+                notification: {
+                  sound: "default",
+                  channelId: "high_importance_channel",
+                },
+              },
+              apns: {
+                headers: { "apns-priority": "10" },
+                payload: {
+                  aps: {
+                    alert: {
+                      title: "Payment window expired",
+                      body: `${target.serviceTitle} payment window expired`,
+                    },
+                    sound: "default",
+                    badge: 1,
+                    "interruption-level": "time-sensitive",
+                  },
+                },
+              },
+            });
+            logger.info("🔔 Push send success", {
+              type: "appointment_payment_expired",
+              recipientUserId: target.userId,
+              soundEnabled: true,
+            });
+          } else {
+            logger.warn("⚠️ Push token missing", {
+              type: "appointment_payment_expired",
+              recipientUserId: target.userId,
+            });
+          }
+        }
+
+        if (target.businessId) {
+          const businessSnap = await db
+            .collection("businesses")
+            .doc(target.businessId)
+            .get();
+          const businessData = businessSnap.data() || {};
+          const businessOwnerUid = businessData.ownerUid || businessData.uid || target.businessId;
+
+          await db.collection("notifications").add({
+            type: "vet_appointment_payment_expired",
+            recipientUserId: businessOwnerUid,
+            senderUserId: "system",
+            appointmentId: target.appointmentId,
+            status: "payment_expired",
+            title: "Appointment payment expired",
+            body: `${target.serviceTitle} payment window expired`,
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          const vetUserSnap = await db.collection("users").doc(businessOwnerUid).get();
+          const vetToken = vetUserSnap.data()?.fcmToken;
+
+          if (vetToken) {
+            await safeSendPush({
+              token: vetToken,
+              userId: businessOwnerUid,
+              payload: {
+                notification: {
+                  title: "Appointment payment expired",
+                  body: `${target.serviceTitle} payment window expired`,
+                },
+                data: {
+                  type: "vet_appointment_payment_expired",
+                  appointmentId: target.appointmentId,
+                  status: "payment_expired",
+                },
+                android: { priority: "high" },
+              },
+            });
+          }
+        }
+      } catch (error) {
+        logger.error("❌ payment expiry notification failed", {
+          appointmentId: target.appointmentId,
+          message: error?.message || String(error),
+        });
+      }
+    }
+  }
+);
+
+exports.expireAwaitingGroomyAppointmentPayments = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 5 minutes",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+
+    const snap = await db
+      .collection("groomy_appointments")
+      .where("status", "==", "awaiting_payment")
+      .where("paymentDeadlineAt", "<", now)
+      .orderBy("paymentDeadlineAt")
+      .limit(100)
+      .get();
+
+    if (snap.empty) {
+      logger.info("✂️ GROOMY PAYMENT EXPIRE JOB: no overdue appointments");
+      return;
+    }
+
+    const batch = db.batch();
+    const targets = [];
+
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+
+      batch.update(doc.ref, {
+        status: "payment_expired",
+        paymentStatus: "expired",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedBy: "system",
+        paymentExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastStatusChange: {
+          from: "awaiting_payment",
+          to: "payment_expired",
+          by: "system",
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+
+      targets.push({
+        appointmentId: doc.id,
+        businessId: data.businessId || null,
+        userId: data.userId || data.buyerUid || null,
+        serviceTitle: data.serviceTitle || "Grooming service",
+      });
+    }
+
+    await batch.commit();
+
+    for (const target of targets) {
+      try {
+        if (target.userId) {
+          await createNotification(db, {
+            type: "groomy_appointment_response",
+            recipientUserId: target.userId,
+            userId: target.userId,
+            senderUserId: "system",
+            appointmentId: target.appointmentId,
+            appointmentCollection: "groomy_appointments",
+            status: "payment_expired",
+            title: "Payment window expired",
+            body: `${target.serviceTitle} payment window expired`,
+          });
+        }
+
+        if (target.businessId) {
+          const businessSnap = await db
+            .collection("businesses")
+            .doc(target.businessId)
+            .get();
+          const businessData = businessSnap.data() || {};
+          const businessOwnerUid =
+            businessData.ownerUid || businessData.uid || target.businessId;
+
+          await createNotification(db, {
+            type: "groomy_appointment_payment_expired",
+            recipientUserId: businessOwnerUid,
+            userId: businessOwnerUid,
+            senderUserId: "system",
+            appointmentId: target.appointmentId,
+            appointmentCollection: "groomy_appointments",
+            businessId: target.businessId,
+            status: "payment_expired",
+            title: "Grooming payment expired",
+            body: `${target.serviceTitle} payment window expired`,
+          });
+        }
+      } catch (error) {
+        logger.error("❌ Groomy payment expiry notification failed", {
+          appointmentId: target.appointmentId,
+          message: error?.message || String(error),
+        });
+      }
+    }
+  }
+);
+
+exports.expireAwaitingHotelBookingPayments = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 5 minutes",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+
+    const snap = await db
+      .collection("hotel_bookings")
+      .where("status", "==", "awaiting_payment")
+      .where("paymentDeadlineAt", "<", now)
+      .orderBy("paymentDeadlineAt")
+      .limit(100)
+      .get();
+
+    if (snap.empty) {
+      logger.info("🏨 HOTEL PAYMENT EXPIRE JOB: no overdue bookings");
+      return;
+    }
+
+    const batch = db.batch();
+    const targets = [];
+
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+
+      batch.update(doc.ref, {
+        status: "payment_expired",
+        paymentStatus: "expired",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedBy: "system",
+        paymentExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastStatusChange: {
+          from: "awaiting_payment",
+          to: "payment_expired",
+          by: "system",
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+
+      targets.push({
+        bookingId: doc.id,
+        businessId: data.businessId || null,
+        userId: data.userId || data.buyerUid || null,
+        serviceTitle: data.serviceTitle || "Hotel stay",
+      });
+    }
+
+    await batch.commit();
+
+    for (const target of targets) {
+      try {
+        if (target.userId) {
+          await createNotification(db, {
+            type: "hotel_booking_response",
+            recipientUserId: target.userId,
+            userId: target.userId,
+            senderUserId: "system",
+            appointmentId: target.bookingId,
+            bookingId: target.bookingId,
+            appointmentCollection: "hotel_bookings",
+            status: "payment_expired",
+            title: "Payment window expired",
+            body: `${target.serviceTitle} payment window expired`,
+          });
+        }
+
+        if (target.businessId) {
+          const businessSnap = await db
+            .collection("businesses")
+            .doc(target.businessId)
+            .get();
+          const businessData = businessSnap.data() || {};
+          const businessOwnerUid =
+            businessData.ownerUid || businessData.uid || target.businessId;
+
+          await createNotification(db, {
+            type: "hotel_booking_payment_expired",
+            recipientUserId: businessOwnerUid,
+            userId: businessOwnerUid,
+            senderUserId: "system",
+            appointmentId: target.bookingId,
+            bookingId: target.bookingId,
+            appointmentCollection: "hotel_bookings",
+            businessId: target.businessId,
+            status: "payment_expired",
+            title: "Hotel payment expired",
+            body: `${target.serviceTitle} payment window expired`,
+          });
+        }
+      } catch (error) {
+        logger.error("❌ Hotel payment expiry notification failed", {
+          bookingId: target.bookingId,
+          message: error?.message || String(error),
+        });
+      }
+    }
+  }
+);
+
+exports.reminderHotelBookings = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 30 minutes",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+    const in24Hours = admin.firestore.Timestamp.fromMillis(
+      now.toMillis() + 24 * 60 * 60 * 1000
+    );
+
+    const checkInSnap = await db
+      .collection("hotel_bookings")
+      .where("checkInDate", "<=", in24Hours)
+      .where("checkInDate", ">", now)
+      .where("status", "in", ["confirmed", "confirmed_paid"])
+      .limit(100)
+      .get();
+
+    const checkOutSnap = await db
+      .collection("hotel_bookings")
+      .where("checkOutDate", "<=", in24Hours)
+      .where("checkOutDate", ">", now)
+      .where("status", "in", ["checked_in", "confirmed", "confirmed_paid"])
+      .limit(100)
+      .get();
+
+    async function sendReminder(doc, kind) {
+      const data = doc.data() || {};
+      const sentField =
+        kind === "check_in" ? "checkInReminderSent" : "checkOutReminderSent";
+      if (data[sentField]) return;
+
+      const userId = data.userId || data.buyerUid || null;
+      if (!userId) return;
+
+      const title =
+        kind === "check_in"
+          ? "Check-in Reminder"
+          : "Check-out Reminder";
+      const body =
+        kind === "check_in"
+          ? `${data.petName || data.dogName || "Your pet"} checks in soon`
+          : `${data.petName || data.dogName || "Your pet"} checks out soon`;
+
+      await db.collection("notifications").add({
+        type:
+          kind === "check_in"
+            ? "hotel_booking_check_in_reminder"
+            : "hotel_booking_check_out_reminder",
+        recipientUserId: userId,
+        senderUserId: "system",
+        appointmentId: doc.id,
+        bookingId: doc.id,
+        appointmentCollection: "hotel_bookings",
+        title,
+        body,
+        isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      await doc.ref.update({
+        [sentField]: true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const userSnap = await db.collection("users").doc(userId).get();
+      const fcmToken = userSnap.data()?.fcmToken;
+      if (fcmToken) {
+        logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+          type:
+            kind === "check_in"
+              ? "hotel_booking_check_in_reminder"
+              : "hotel_booking_check_out_reminder",
+          recipientUserId: userId,
+          bookingId: doc.id,
+        });
+        await admin.messaging().send({
+          token: fcmToken,
+          notification: { title, body },
+          data: {
+            type:
+              kind === "check_in"
+                ? "hotel_booking_check_in_reminder"
+                : "hotel_booking_check_out_reminder",
+            appointmentId: doc.id,
+            bookingId: doc.id,
+            appointmentCollection: "hotel_bookings",
+          },
+          android: {
+            priority: "high",
+            notification: {
+              sound: "default",
+              channelId: "high_importance_channel",
+            },
+          },
+          apns: {
+            headers: { "apns-priority": "10" },
+            payload: {
+              aps: {
+                alert: {
+                  title,
+                  body,
+                },
+                sound: "default",
+                badge: 1,
+                "interruption-level": "time-sensitive",
+              },
+            },
+          },
+        });
+        logger.info("🔔 Push send success", {
+          type:
+            kind === "check_in"
+              ? "hotel_booking_check_in_reminder"
+              : "hotel_booking_check_out_reminder",
+          recipientUserId: userId,
+          soundEnabled: true,
+        });
+      } else {
+        logger.warn("⚠️ Push token missing", {
+          type:
+            kind === "check_in"
+              ? "hotel_booking_check_in_reminder"
+              : "hotel_booking_check_out_reminder",
+          recipientUserId: userId,
+        });
+      }
+    }
+
+    for (const doc of checkInSnap.docs) {
+      await sendReminder(doc, "check_in");
+    }
+
+    for (const doc of checkOutSnap.docs) {
+      await sendReminder(doc, "check_out");
     }
   }
 );
@@ -6407,6 +9576,11 @@ exports.reminderAppointments = onSchedule(
       const fcmToken = userSnap.data()?.fcmToken;
 
       if (fcmToken) {
+        logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+          type: "appointment_reminder",
+          recipientUserId: userId,
+          appointmentId: doc.id,
+        });
         await admin.messaging().send({
           token: fcmToken,
           notification: {
@@ -6417,6 +9591,37 @@ exports.reminderAppointments = onSchedule(
             type: "appointment_reminder",
             appointmentId: doc.id,
           },
+          android: {
+            priority: "high",
+            notification: {
+              sound: "default",
+              channelId: "high_importance_channel",
+            },
+          },
+          apns: {
+            headers: { "apns-priority": "10" },
+            payload: {
+              aps: {
+                alert: {
+                  title: "Reminder ⏰",
+                  body: "You have an appointment in 2 hours",
+                },
+                sound: "default",
+                badge: 1,
+                "interruption-level": "time-sensitive",
+              },
+            },
+          },
+        });
+        logger.info("🔔 Push send success", {
+          type: "appointment_reminder",
+          recipientUserId: userId,
+          soundEnabled: true,
+        });
+      } else {
+        logger.warn("⚠️ Push token missing", {
+          type: "appointment_reminder",
+          recipientUserId: userId,
         });
       }
 
@@ -7670,6 +10875,18 @@ exports.createMarketplaceOrderV2 = onCall(
           shippedAt: null,
           deliveredAt: null,
         },
+        payment: {
+          provider: payment.provider || null,
+          paymentProvider: payment.paymentProvider || payment.provider || null,
+          paymentId: payment.paymentId || null,
+          paymentTransactionId: payment.paymentTransactionId || null,
+          paymentTransactionIds: Array.isArray(payment.paymentTransactionIds)
+            ? payment.paymentTransactionIds
+            : [],
+          conversationId: payment.conversationId || null,
+          iyzicoPaymentTransactionId:
+            payment.iyzicoPaymentTransactionId || payment.paymentTransactionId || null,
+        },
         pricing: {
           currency,
           subtotal,
@@ -7776,8 +10993,15 @@ exports.createMarketplaceOrderV2 = onCall(
       },
       payment: {
         provider: payment.provider || null,
+        paymentProvider: payment.paymentProvider || payment.provider || null,
         paymentId: payment.paymentId || null,
+        paymentTransactionId: payment.paymentTransactionId || null,
+        paymentTransactionIds: Array.isArray(payment.paymentTransactionIds)
+          ? payment.paymentTransactionIds
+          : [],
         conversationId: payment.conversationId || null,
+        iyzicoPaymentTransactionId:
+          payment.iyzicoPaymentTransactionId || payment.paymentTransactionId || null,
       },
       legal: {
         kvkkAccepted: legal.kvkkAccepted === true,
@@ -8351,6 +11575,1539 @@ async function extractTextFromPdfGcs(bucketName, inputFilePath) {
   return fullText.trim();
 }
 
+exports.createOrderReturnRequest = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+    const authUid = request.auth?.uid;
+
+    logger.info("🔄 ORDER RETURN REQUEST CREATE START", {
+      authUid: authUid || null,
+      rawData: request.data || null,
+    });
+
+    if (!authUid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const data = request.data || {};
+    console.log("RETURN RAW DATA", data);
+    const sellerOrderId = String(data.sellerOrderId || "").trim();
+    const rootOrderId = String(data.rootOrderId || "").trim();
+    const reason = normalizeLower(data.reason) || "other";
+    const description = String(data.description || "").trim();
+    const refundType = normalizeLower(data.refundType) || "partial";
+    const shippingResponsibilityInput = normalizeLower(
+      data.shippingResponsibility
+    );
+    const requestedRefundAmount = asNumber(data.refundAmount, 0);
+    const returnWindowDaysInput = Math.max(
+      1,
+      asNumber(data.returnWindowDays, 14)
+    );
+    const rawReturnItems = Array.isArray(data.returnItems) ? data.returnItems : [];
+    const rawImages = Array.isArray(data.images) ? data.images : [];
+
+    console.log("RETURN VALIDATION ENTRY");
+
+    const normalizeStatus = (value) => {
+      const lower = String(value || "").trim().toLowerCase();
+      if (lower.includes("pending")) return "pending";
+      if (lower.includes("paid")) return "paid";
+      if (lower.includes("confirmed")) return "confirmed";
+      if (lower.includes("preparing")) return "preparing";
+      if (lower.includes("shipped")) return "shipped";
+      if (lower.includes("delivered")) return "delivered";
+      if (lower.includes("completed")) return "completed";
+      if (lower.includes("fail")) return "failed";
+      if (lower.includes("cancel")) return "cancelled";
+      return lower;
+    };
+
+    const failValidation = (code, message, extra = {}) => {
+      logger.warn("❌ RETURN VALIDATION FAILED", {
+        code,
+        message,
+        sellerOrderId,
+        rootOrderId,
+        authUid,
+        ...extra,
+      });
+      throw new HttpsError(code, message);
+    };
+
+    if (!sellerOrderId) {
+      failValidation("invalid-argument", "sellerOrderId required");
+    }
+
+    if (!rootOrderId) {
+      failValidation("invalid-argument", "rootOrderId required");
+    }
+
+    if (!reason) {
+      failValidation("invalid-argument", "reason required");
+    }
+
+    if (!description && reason !== "changed_mind") {
+      failValidation("invalid-argument", "description required", { reason });
+    }
+
+    if (rawReturnItems.length === 0) {
+      failValidation("invalid-argument", "returnItems required");
+    }
+
+    logger.info("🔎 RETURN SELLER ORDER LOOKUP", {
+      sellerOrderId,
+      rootOrderId,
+      lookupPath: `sellerOrders/${sellerOrderId}`,
+    });
+
+    let sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
+    let sellerOrderSnap = await sellerOrderRef.get();
+
+    if (!sellerOrderSnap.exists) {
+      logger.warn("⚠️ RETURN SELLER ORDER LOOKUP MISS", {
+        sellerOrderId,
+        rootOrderId,
+      });
+
+      const candidatesSnap = await db
+        .collection("sellerOrders")
+        .where("rootOrderId", "==", rootOrderId)
+        .limit(10)
+        .get();
+
+      logger.info("🔎 RETURN SELLER ORDER CANDIDATES", {
+        rootOrderId,
+        candidateCount: candidatesSnap.size,
+        candidateIds: candidatesSnap.docs.map((doc) => doc.id),
+      });
+
+      if (candidatesSnap.size === 1) {
+        sellerOrderRef = candidatesSnap.docs[0].ref;
+        sellerOrderSnap = candidatesSnap.docs[0];
+        logger.info("✅ RETURN SELLER ORDER FALLBACK RESOLVED", {
+          sellerOrderId: sellerOrderSnap.id,
+          rootOrderId,
+        });
+      }
+    }
+
+    if (!sellerOrderSnap.exists) {
+      failValidation("not-found", "Seller order not found", {
+        lookupPath: `sellerOrders/${sellerOrderId}`,
+      });
+    }
+
+    const sellerOrder = sellerOrderSnap.data() || {};
+    const rootOrderSnap = await db.collection("orders").doc(rootOrderId).get();
+    const rootOrder = rootOrderSnap.exists ? rootOrderSnap.data() || {} : {};
+    const buyerUid = sellerOrder.buyerUid || sellerOrder.userId || null;
+    const sellerUid =
+      sellerOrder.sellerUid ||
+      sellerOrder.sellerSnapshot?.ownerUid ||
+      sellerOrder.shopId ||
+      null;
+    const businessId = sellerOrder.businessId || sellerOrder.shopId || null;
+    const sellerPayment = sellerOrder?.payment || {};
+    const rootPayment = rootOrder?.payment || {};
+    const paymentId =
+      sellerPayment.paymentId ||
+      rootPayment.paymentId ||
+      rootOrder.paymentId ||
+      null;
+    const paymentProvider =
+      sellerPayment.paymentProvider ||
+      sellerPayment.provider ||
+      rootPayment.paymentProvider ||
+      rootPayment.provider ||
+      null;
+    const paymentTransactionIds = extractPaymentTransactionIds(
+      sellerPayment.paymentTransactionIds ||
+      sellerPayment.itemTransactions ||
+      rootPayment.paymentTransactionIds ||
+      rootPayment.itemTransactions ||
+      []
+    );
+    const paymentTransactionId =
+      sellerPayment.paymentTransactionId ||
+      rootPayment.paymentTransactionId ||
+      (paymentTransactionIds.length > 0 ? paymentTransactionIds[0] : null);
+    const conversationId =
+      sellerPayment.conversationId ||
+      rootPayment.conversationId ||
+      rootOrder.payment?.conversationId ||
+      null;
+
+    logger.info("🧾 RETURN SELLER ORDER RESOLVED", {
+      sellerOrderId: sellerOrderSnap.id,
+      rootOrderId: sellerOrder.rootOrderId || null,
+      buyerUid,
+      sellerUid,
+      businessId,
+      paymentId,
+      paymentTransactionId,
+      paymentTransactionIds,
+      status: sellerOrder.status || null,
+      deliveredAt:
+        sellerOrder?.shipping?.deliveredAt ||
+        sellerOrder?.deliveredAt ||
+        sellerOrder?.timeline?.find?.((step) =>
+          normalizeLower(step?.status) === "delivered"
+        )?.at ||
+        null,
+      returnItemCount: rawReturnItems.length,
+      imageCount: rawImages.length,
+    });
+
+    if (!buyerUid) {
+      failValidation("failed-precondition", "Missing buyerUid", {
+        sellerOrderId: sellerOrderSnap.id,
+      });
+    }
+
+    if (!sellerUid || !businessId) {
+      failValidation("failed-precondition", "Missing seller identity", {
+        sellerUid,
+        businessId,
+        sellerOrderId: sellerOrderSnap.id,
+      });
+    }
+
+    const isAdmin = await isAdminUser(db, authUid);
+    if (authUid !== buyerUid && !isAdmin) {
+      failValidation("permission-denied", "Only the buyer can create a return", {
+        buyerUid,
+        authUid,
+        isAdmin,
+      });
+    }
+
+    const status = normalizeStatus(sellerOrder.status || "");
+    if (status !== "delivered") {
+      failValidation(
+        "failed-precondition",
+        "Return requests are only allowed after delivery",
+        { status, sellerOrderStatus: sellerOrder.status || null }
+      );
+    }
+
+    const deliveredAtRaw =
+      sellerOrder?.shipping?.deliveredAt ||
+      sellerOrder?.deliveredAt ||
+      sellerOrder?.timeline?.find?.((step) =>
+        normalizeLower(step?.status) === "delivered"
+      )?.at ||
+      null;
+    const deliveredMillis = toMillisSafe(deliveredAtRaw);
+
+    if (!deliveredMillis) {
+      failValidation("failed-precondition", "Delivered timestamp not found", {
+        deliveredAtRaw,
+      });
+    }
+
+    const orderItems = Array.isArray(sellerOrder.items) ? sellerOrder.items : [];
+    const orderItemsByProductId = new Map(
+      orderItems.map((item) => [String(item.productId || ""), item])
+    );
+
+    const normalizedReturnItems = [];
+    const shippingPayerSources = [];
+    let calculatedRefundAmount = 0;
+    let effectiveReturnWindowDays = null;
+
+    for (const rawItem of rawReturnItems) {
+      const productId = String(rawItem?.productId || "").trim();
+      const quantity = Math.max(1, asNumber(rawItem?.quantity, 1));
+
+      if (!productId) {
+        failValidation("invalid-argument", "Return item missing productId", {
+          rawItem,
+        });
+      }
+
+      const orderItem = orderItemsByProductId.get(productId);
+      if (!orderItem) {
+        failValidation(
+          "failed-precondition",
+          `Return item not in order: ${productId}`,
+          { productId, sellerOrderId: sellerOrderSnap.id }
+        );
+      }
+
+      const orderQuantity = Math.max(1, asNumber(orderItem.quantity, 1));
+      if (quantity > orderQuantity) {
+        failValidation("invalid-argument", `Invalid quantity for ${productId}`, {
+          productId,
+          quantity,
+          orderQuantity,
+        });
+      }
+
+      const productSnap = await db
+        .collection("businesses")
+        .doc(String(businessId))
+        .collection("products")
+        .doc(productId)
+        .get();
+
+      if (!productSnap.exists) {
+        failValidation("not-found", `Product not found: ${productId}`, {
+          businessId,
+          productId,
+        });
+      }
+
+      const productData = productSnap.data() || {};
+      if (productData.allowReturns !== true) {
+        failValidation(
+          "failed-precondition",
+          `Returns are disabled for ${productId}`,
+          { productId, businessId }
+        );
+      }
+
+      const productWindowDays = Math.max(
+        1,
+        asNumber(
+          productData.returnWindowDays ||
+          sellerOrder.returnWindowDays ||
+          14,
+          14
+        )
+      );
+      effectiveReturnWindowDays =
+        effectiveReturnWindowDays == null
+          ? productWindowDays
+          : Math.min(effectiveReturnWindowDays, productWindowDays);
+
+      shippingPayerSources.push(
+        productData.returnShippingPayer || "seller_if_contract_carrier"
+      );
+
+      const unitPrice = asNumber(
+        orderItem.unitPrice ?? orderItem.price ?? orderItem.subtotal,
+        0
+      );
+      const lineTotal = Number((unitPrice * quantity).toFixed(2));
+      calculatedRefundAmount += lineTotal;
+
+      normalizedReturnItems.push({
+        productId,
+        name: String(orderItem.name || rawItem.name || ""),
+        quantity,
+        unitPrice,
+        lineTotal,
+        imageUrl: orderItem.imageUrl || rawItem.imageUrl || null,
+      });
+    }
+
+    const windowDays = effectiveReturnWindowDays || returnWindowDaysInput;
+    const deadline = deliveredMillis + windowDays * 24 * 60 * 60 * 1000;
+    if (Date.now() > deadline) {
+      failValidation("failed-precondition", "Return window expired", {
+        deadline,
+        deliveredMillis,
+        windowDays,
+      });
+    }
+
+    const shippingResponsibility =
+      shippingResponsibilityInput ||
+      resolveReturnShippingResponsibility(shippingPayerSources);
+
+    const returnRef = db.collection("order_returns").doc();
+    console.log("💳 REFUND PAYMENT META", {
+      paymentId,
+      paymentProvider,
+      returnId: returnRef.id,
+      orderId: rootOrderId,
+      conversationId,
+    });
+    const uploadedImages = await uploadReturnImagesToStorage({
+      bucket,
+      returnId: returnRef.id,
+      sellerOrderId,
+      images: rawImages,
+    });
+
+    const requestedAt = admin.firestore.FieldValue.serverTimestamp();
+    const timeline = [];
+    addReturnTimelineStep(timeline, "pending", authUid, "created");
+
+    const refundAmount = Number(
+      (
+        requestedRefundAmount > 0
+          ? requestedRefundAmount
+          : calculatedRefundAmount
+      ).toFixed(2)
+    );
+
+    const payload = {
+      returnId: returnRef.id,
+      orderId: rootOrderId,
+      sellerOrderId,
+      rootOrderId,
+      buyerUid,
+      sellerUid,
+      businessId,
+      status: "pending",
+      reason,
+      description,
+      images: uploadedImages.map((i) => i.url),
+      returnItems: normalizedReturnItems,
+      requestedAt,
+      reviewedAt: null,
+      resolvedAt: null,
+      refundAmount,
+      refundType,
+      shippingResponsibility,
+      trackingNumber: null,
+      carrier: null,
+      paymentId,
+      paymentProvider,
+      paymentTransactionId,
+      paymentTransactionIds,
+      conversationId,
+      adminNotes: null,
+      sellerNotes: null,
+      refundDetails: {
+        requestedRefundAmount: refundAmount,
+        currency:
+          sellerOrder?.pricing?.currency ||
+          sellerOrder?.currency ||
+          rootOrder?.payment?.currency ||
+          rootOrder?.currency ||
+          "TRY",
+        paymentId,
+        paymentProvider,
+        paymentTransactionId,
+        paymentTransactionIds,
+        iyzicoPaymentTransactionId: paymentTransactionId,
+        conversationId,
+      },
+      returnWindowDays: windowDays,
+      imagesMeta: uploadedImages,
+      timeline,
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
+    };
+
+    await returnRef.set(payload);
+
+    logger.info("✅ RETURN REQUEST CREATED", {
+      returnId: returnRef.id,
+      sellerOrderId,
+      buyerUid,
+      sellerUid,
+      businessId,
+      refundAmount,
+      itemCount: normalizedReturnItems.length,
+    });
+
+    await createNotification(db, {
+      recipientUserId: sellerUid,
+      userId: sellerUid,
+      type: "order_return_requested",
+      title: "Return requested",
+      body: `Return request created for order ${sellerOrderId}`,
+      sellerOrderId,
+      orderId: rootOrderId,
+      returnId: returnRef.id,
+    });
+
+    return {
+      success: true,
+      returnId: returnRef.id,
+    };
+  }
+);
+
+exports.reviewOrderReturnRequest = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const authUid = request.auth?.uid;
+
+    logger.info("🔔 RETURN REVIEW START", {
+      authUid: authUid || null,
+      rawData: request.data || null,
+    });
+
+    if (!authUid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const data = request.data || {};
+    const returnId = String(data.returnId || "").trim();
+    const action = normalizeLower(data.action);
+    const notes = String(data.notes || "").trim();
+    const shippingResponsibility = normalizeLower(data.shippingResponsibility);
+
+    if (!returnId) {
+      throw new HttpsError("invalid-argument", "returnId required");
+    }
+
+    if (!["approved", "rejected"].includes(action)) {
+      throw new HttpsError("invalid-argument", "Invalid return action");
+    }
+
+    const returnRef = db.collection("order_returns").doc(returnId);
+    const returnSnap = await returnRef.get();
+
+    if (!returnSnap.exists) {
+      throw new HttpsError("not-found", "Return request not found");
+    }
+
+    const returnData = returnSnap.data() || {};
+    const businessId = returnData.businessId || null;
+    const sellerUid = returnData.sellerUid || null;
+    const buyerUid = returnData.buyerUid || null;
+
+    const isAdmin = await isAdminUser(db, authUid);
+    const businessSnap = businessId
+      ? await db.collection("businesses").doc(String(businessId)).get()
+      : null;
+    const ownerUid = businessSnap?.exists
+      ? businessSnap.data()?.ownerUid || null
+      : null;
+
+    if (
+      !isAdmin &&
+      authUid !== sellerUid &&
+      authUid !== ownerUid
+    ) {
+      throw new HttpsError("permission-denied", "Not allowed");
+    }
+
+    if (normalizeReturnStatus(returnData.status) !== "pending") {
+      throw new HttpsError(
+        "failed-precondition",
+        `Return is already ${returnData.status}`
+      );
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const timeline = Array.isArray(returnData.timeline)
+      ? [...returnData.timeline]
+      : [];
+
+    addReturnTimelineStep(
+      timeline,
+      action,
+      authUid,
+      notes || null,
+      shippingResponsibility ? { shippingResponsibility } : {}
+    );
+
+    const updateData = {
+      status: action,
+      reviewedAt: now,
+      updatedAt: now,
+      sellerNotes: notes || returnData.sellerNotes || null,
+      ...(shippingResponsibility
+        ? { shippingResponsibility }
+        : {}),
+      ...(action === "approved"
+        ? {
+          refundDetails: {
+            ...(returnData.refundDetails || {}),
+            shippingResponsibility:
+              shippingResponsibility || returnData.shippingResponsibility || null,
+          },
+        }
+        : {}),
+    };
+
+    await returnRef.set(updateData, { merge: true });
+
+    logger.info("✅ RETURN REVIEWED", {
+      returnId,
+      action,
+      authUid,
+      businessId,
+    });
+
+    await createNotification(db, {
+      recipientUserId: buyerUid,
+      userId: buyerUid,
+      type: action === "approved" ? "order_return_approved" : "order_return_rejected",
+      title: action === "approved" ? "Return approved" : "Return rejected",
+      body:
+        action === "approved"
+          ? `Return request ${returnId} was approved`
+          : `Return request ${returnId} was rejected`,
+      orderId: returnData.rootOrderId || returnData.orderId || null,
+      sellerOrderId: returnData.sellerOrderId || null,
+      returnId,
+    });
+
+    return { success: true };
+  }
+);
+
+exports.cancelOrderReturnRequest = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const authUid = request.auth?.uid;
+
+    if (!authUid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const { returnId, notes } = request.data || {};
+    const safeReturnId = String(returnId || "").trim();
+
+    if (!safeReturnId) {
+      throw new HttpsError("invalid-argument", "returnId required");
+    }
+
+    const returnRef = db.collection("order_returns").doc(safeReturnId);
+    const returnSnap = await returnRef.get();
+
+    if (!returnSnap.exists) {
+      throw new HttpsError("not-found", "Return request not found");
+    }
+
+    const returnData = returnSnap.data() || {};
+    if (returnData.buyerUid !== authUid) {
+      throw new HttpsError("permission-denied", "Not allowed");
+    }
+
+    if (normalizeReturnStatus(returnData.status) !== "pending") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Only pending requests can be cancelled"
+      );
+    }
+
+    const timeline = Array.isArray(returnData.timeline)
+      ? [...returnData.timeline]
+      : [];
+    addReturnTimelineStep(timeline, "cancelled", authUid, notes || null);
+
+    await returnRef.set(
+      {
+        status: "cancelled",
+        resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        buyerNotes: notes || returnData.buyerNotes || null,
+        timeline,
+      },
+      { merge: true }
+    );
+
+    await createNotification(db, {
+      recipientUserId: returnData.sellerUid,
+      userId: returnData.sellerUid,
+      type: "order_return_cancelled",
+      title: "Return cancelled",
+      body: `Return request ${safeReturnId} was cancelled`,
+      orderId: returnData.rootOrderId || returnData.orderId || null,
+      sellerOrderId: returnData.sellerOrderId || null,
+      returnId: safeReturnId,
+    });
+
+    logger.info("✅ RETURN CANCELLED", {
+      returnId: safeReturnId,
+      authUid,
+    });
+
+    return { success: true };
+  }
+);
+
+exports.markOrderReturnShippedBack = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const authUid = request.auth?.uid;
+
+    try {
+      if (!authUid) {
+        console.error("❌ INVALID_ACTOR", {
+          returnId: null,
+          authUid: null,
+          currentStatus: null,
+          sellerUid: null,
+          businessId: null,
+          buyerUid: null,
+          trackingNumber: null,
+          carrier: null,
+          reason: "missing authUid",
+        });
+        throw new HttpsError("unauthenticated", "Login required");
+      }
+
+      const { returnId, trackingNumber, carrier, notes } = request.data || {};
+      const safeReturnId = String(returnId || "").trim();
+      const safeTracking = String(trackingNumber || "").trim();
+      const safeCarrier = String(carrier || "").trim();
+
+      if (!safeReturnId) {
+        console.error("❌ RETURN_ID_REQUIRED", {
+          returnId: null,
+          authUid,
+          currentStatus: null,
+          sellerUid: null,
+          businessId: null,
+          buyerUid: null,
+          trackingNumber: safeTracking || null,
+          carrier: safeCarrier || null,
+        });
+        throw new HttpsError("invalid-argument", "returnId required");
+      }
+
+      const returnRef = db.collection("order_returns").doc(safeReturnId);
+      const returnSnap = await returnRef.get();
+
+      if (!returnSnap.exists) {
+        console.error("❌ RETURN_NOT_FOUND", {
+          returnId: safeReturnId,
+          authUid,
+          currentStatus: null,
+          sellerUid: null,
+          businessId: null,
+          buyerUid: null,
+          trackingNumber: safeTracking || null,
+          carrier: safeCarrier || null,
+        });
+        throw new HttpsError("not-found", "Return request not found");
+      }
+
+      const returnData = returnSnap.data() || {};
+      console.log("📦 SHIPPED BACK SNAPSHOT", returnData);
+
+      const businessId = returnData.businessId || null;
+      const trackingInfo = {
+        returnId: safeReturnId,
+        authUid,
+        currentStatus: returnData.status || null,
+        sellerUid: returnData.sellerUid || null,
+        buyerUid: returnData.buyerUid || null,
+        businessId,
+        trackingNumber: safeTracking || null,
+        carrier: safeCarrier || null,
+      };
+
+      logger.info("🧪 SHIPPED BACK VALIDATION", {
+        ...trackingInfo,
+        expectedPreviousStatus: "approved",
+      });
+
+      const failShippedBackValidation = (reason, code, message, extra = {}) => {
+        console.error(`❌ ${reason}`, {
+          ...trackingInfo,
+          ...extra,
+        });
+        throw new HttpsError(code, message);
+      };
+
+      if (returnData.buyerUid !== authUid && !(await isAdminUser(db, authUid))) {
+        failShippedBackValidation("BUYER_MISMATCH", "permission-denied", "Not allowed", {
+          expectedActor: returnData.buyerUid || null,
+        });
+      }
+
+      if (!safeTracking) {
+        failShippedBackValidation(
+          "INVALID_TRACKING",
+          "invalid-argument",
+          "trackingNumber required"
+        );
+      }
+
+      if (!safeCarrier) {
+        failShippedBackValidation(
+          "INVALID_CARRIER",
+          "invalid-argument",
+          "carrier required"
+        );
+      }
+
+      const currentStatus = normalizeReturnStatus(returnData.status);
+      if (currentStatus === "shipped_back") {
+        failShippedBackValidation(
+          "ALREADY_SHIPPED",
+          "failed-precondition",
+          "Return is already shipped back",
+          { currentStatus }
+        );
+      }
+
+      if (currentStatus !== "approved") {
+        failShippedBackValidation(
+          "INVALID_STATUS",
+          "failed-precondition",
+          "Return must be approved before shipping back",
+          { currentStatus, expectedPreviousStatus: "approved" }
+        );
+      }
+
+      const timeline = Array.isArray(returnData.timeline)
+        ? [...returnData.timeline]
+        : [];
+      addReturnTimelineStep(timeline, "shipped_back", authUid, notes || null, {
+        trackingNumber: safeTracking,
+        carrier: safeCarrier,
+      });
+
+      await returnRef.set(
+        {
+          status: "shipped_back",
+          trackingNumber: safeTracking,
+          carrier: safeCarrier,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          timeline,
+        },
+        { merge: true }
+      );
+
+      await createNotification(db, {
+        recipientUserId: returnData.sellerUid,
+        userId: returnData.sellerUid,
+        type: "order_return_shipped_back",
+        title: "Return shipped back",
+        body: `Return request ${safeReturnId} has been shipped back`,
+        orderId: returnData.rootOrderId || returnData.orderId || null,
+        sellerOrderId: returnData.sellerOrderId || null,
+        returnId: safeReturnId,
+      });
+
+      logger.info("✅ RETURN SHIPPED BACK", {
+        returnId: safeReturnId,
+        authUid,
+        trackingNumber: safeTracking,
+        carrier: safeCarrier,
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error("❌ SHIPPED BACK FATAL", error);
+      throw error;
+    }
+  }
+);
+
+exports.markOrderReturnReceived = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const authUid = request.auth?.uid;
+
+    if (!authUid) {
+      console.error("❌ INVALID_ACTOR", {
+        returnId: null,
+        authUid: null,
+        currentStatus: null,
+        sellerUid: null,
+        businessId: null,
+        buyerUid: null,
+        reason: "missing authUid",
+      });
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const { returnId, notes } = request.data || {};
+    const safeReturnId = String(returnId || "").trim();
+
+    if (!safeReturnId) {
+      console.error("❌ RETURN_ID_REQUIRED", {
+        returnId: null,
+        authUid,
+        currentStatus: null,
+        sellerUid: null,
+        businessId: null,
+        buyerUid: null,
+      });
+      throw new HttpsError("invalid-argument", "returnId required");
+    }
+
+    const returnRef = db.collection("order_returns").doc(safeReturnId);
+    const returnSnap = await returnRef.get();
+
+    if (!returnSnap.exists) {
+      console.error("❌ RETURN_NOT_FOUND", {
+        returnId: safeReturnId,
+        authUid: authUid || null,
+        currentStatus: null,
+        sellerUid: null,
+        businessId: null,
+        buyerUid: null,
+      });
+      throw new HttpsError("not-found", "Return request not found");
+    }
+
+    const returnData = returnSnap.data() || {};
+    console.log("📦 RETURN SNAPSHOT", returnData);
+    const businessId = returnData.businessId || null;
+    const businessSnap = businessId
+      ? await db.collection("businesses").doc(String(businessId)).get()
+      : null;
+    const ownerUid = businessSnap?.exists
+      ? businessSnap.data()?.ownerUid || null
+      : null;
+
+    logger.info("🧪 RETURN RECEIVE VALIDATION", {
+      returnId: safeReturnId,
+      authUid,
+      currentStatus: returnData.status || null,
+      sellerUid: returnData.sellerUid || null,
+      businessId,
+      buyerUid: returnData.buyerUid || null,
+      ownerUid,
+      allowedActor:
+        authUid === returnData.sellerUid ||
+        authUid === ownerUid ||
+        (await isAdminUser(db, authUid)),
+      expectedPreviousStatus: "approved|shipped_back",
+    });
+
+    if (
+      authUid !== returnData.sellerUid &&
+      authUid !== ownerUid &&
+      !(await isAdminUser(db, authUid))
+    ) {
+      console.error("❌ INVALID_ACTOR", {
+        returnId: safeReturnId,
+        authUid,
+        currentStatus: returnData.status || null,
+        sellerUid: returnData.sellerUid || null,
+        businessId,
+        buyerUid: returnData.buyerUid || null,
+        ownerUid,
+      });
+      throw new HttpsError("permission-denied", "Not allowed");
+    }
+
+    const currentStatus = normalizeReturnStatus(returnData.status);
+    console.error("🧪 RETURN_STATUS_CHECK", {
+      returnId: safeReturnId,
+      authUid,
+      currentStatus,
+      sellerUid: returnData.sellerUid || null,
+      businessId,
+      buyerUid: returnData.buyerUid || null,
+      expectedPreviousStatus: "approved|shipped_back",
+    });
+    if (!["approved", "shipped_back"].includes(currentStatus)) {
+      console.error("❌ INVALID_STATUS", {
+        returnId: safeReturnId,
+        authUid,
+        currentStatus,
+        sellerUid: returnData.sellerUid || null,
+        businessId,
+        buyerUid: returnData.buyerUid || null,
+        expectedPreviousStatus: "approved|shipped_back",
+      });
+      throw new HttpsError(
+        "failed-precondition",
+        "Return must be approved or shipped back before marking received"
+      );
+    }
+
+    const timeline = Array.isArray(returnData.timeline)
+      ? [...returnData.timeline]
+      : [];
+    addReturnTimelineStep(timeline, "received_by_seller", authUid, notes || null);
+
+    await returnRef.set(
+      {
+        status: "received_by_seller",
+        reviewedAt:
+          returnData.reviewedAt || admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sellerNotes: notes || returnData.sellerNotes || null,
+        timeline,
+      },
+      { merge: true }
+    );
+
+    await createNotification(db, {
+      recipientUserId: returnData.buyerUid,
+      userId: returnData.buyerUid,
+      type: "order_return_received",
+      title: "Return received",
+      body: `Seller received return request ${safeReturnId}`,
+      orderId: returnData.rootOrderId || returnData.orderId || null,
+      sellerOrderId: returnData.sellerOrderId || null,
+      returnId: safeReturnId,
+    });
+
+    logger.info("✅ RETURN RECEIVED BY SELLER", {
+      returnId: safeReturnId,
+      authUid,
+    });
+
+    return { success: true };
+  }
+);
+
+exports.triggerOrderReturnRefund = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const authUid = request.auth?.uid;
+
+    logger.info("💸 RETURN REFUND START", {
+      authUid: authUid || null,
+      rawData: request.data || null,
+    });
+
+    if (!authUid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const data = request.data || {};
+    console.log("RETURN REFUND RAW DATA", data);
+    const returnId = String(data.returnId || "").trim();
+    const refundAmount = asNumber(data.refundAmount, 0);
+    const refundType = normalizeLower(data.refundType) || "full";
+    const notes = String(data.notes || "").trim();
+    const paymentId = String(data.paymentId || "").trim();
+    console.log("RETURN REFUND VALIDATION ENTRY");
+
+    const failRefundValidation = (code, message, extra = {}) => {
+      logger.warn("❌ RETURN REFUND VALIDATION FAILED", {
+        code,
+        message,
+        authUid,
+        returnId: returnId || null,
+        refundAmount,
+        refundType,
+        paymentId: paymentId || null,
+        ...extra,
+      });
+      throw new HttpsError(code, message);
+    };
+
+    if (!returnId) {
+      failRefundValidation("invalid-argument", "returnId required");
+    }
+
+    if (!(refundAmount > 0)) {
+      failRefundValidation("invalid-argument", "refundAmount required");
+    }
+
+    const returnRef = db.collection("order_returns").doc(returnId);
+    const returnSnap = await returnRef.get();
+
+    if (!returnSnap.exists) {
+      failRefundValidation("not-found", "Return request not found");
+    }
+
+    const returnData = returnSnap.data() || {};
+    const businessId = returnData.businessId || null;
+    const businessSnap = businessId
+      ? await db.collection("businesses").doc(String(businessId)).get()
+      : null;
+    const ownerUid = businessSnap?.exists
+      ? businessSnap.data()?.ownerUid || null
+      : null;
+
+    if (
+      authUid !== returnData.sellerUid &&
+      authUid !== ownerUid &&
+      !(await isAdminUser(db, authUid))
+    ) {
+      failRefundValidation("permission-denied", "Not allowed", {
+        sellerUid: returnData.sellerUid || null,
+        ownerUid: ownerUid || null,
+      });
+    }
+
+    const returnStatus = normalizeReturnStatus(returnData.status);
+    if (returnStatus === "refund_pending") {
+      failRefundValidation("failed-precondition", "Refund is already pending", {
+        status: returnStatus,
+      });
+    }
+
+    if (returnStatus === "refunded") {
+      failRefundValidation("failed-precondition", "Return is already refunded", {
+        status: returnStatus,
+      });
+    }
+
+    if (!["received_by_seller", "refund_failed"].includes(returnStatus)) {
+      failRefundValidation(
+        "failed-precondition",
+        "Return must be received before refund",
+        { status: returnStatus }
+      );
+    }
+
+    const sellerOrderId = returnData.sellerOrderId || null;
+    const sellerOrderSnap = sellerOrderId
+      ? await db.collection("sellerOrders").doc(String(sellerOrderId)).get()
+      : null;
+    const sellerOrder = sellerOrderSnap?.exists ? sellerOrderSnap.data() || {} : {};
+    const rootOrderId = returnData.rootOrderId || returnData.orderId || null;
+    const rootOrderSnap = rootOrderId
+      ? await db.collection("orders").doc(String(rootOrderId)).get()
+      : null;
+    const rootOrder = rootOrderSnap?.exists ? rootOrderSnap.data() || {} : {};
+
+    const payment = sellerOrder.payment || {};
+    const rootPayment = rootOrder.payment || {};
+    const paymentProvider =
+      payment.paymentProvider ||
+      payment.provider ||
+      rootPayment.paymentProvider ||
+      rootPayment.provider ||
+      returnData.refundDetails?.paymentProvider ||
+      null;
+    const orderPaymentId =
+      payment.paymentId ||
+      rootPayment.paymentId ||
+      rootOrder.paymentId ||
+      returnData.paymentId ||
+      returnData.refundDetails?.paymentId ||
+      paymentId;
+    if (!orderPaymentId) {
+      failRefundValidation("failed-precondition", "paymentId required", {
+        sellerOrderId,
+        rootOrderId,
+      });
+    }
+    const currency =
+      payment.currency ||
+      sellerOrder.currency ||
+      rootPayment.currency ||
+      rootOrder.currency ||
+      "TRY";
+    const buyerUid = returnData.buyerUid || null;
+    console.log("💳 REFUND PAYMENT META", {
+      paymentId: orderPaymentId,
+      paymentProvider,
+      returnId,
+      orderId: rootOrderId,
+    });
+    const originalPaidAmount = Math.max(
+      0,
+      asNumber(
+        payment.paidPrice ??
+        sellerOrder?.pricing?.grandTotal ??
+        sellerOrder?.financial?.grossAmount ??
+        sellerOrder?.payment?.price ??
+        0,
+        0
+      )
+    );
+    const returnItemsAmount = Number(
+      sumReturnItemAmount(Array.isArray(returnData.returnItems) ? returnData.returnItems : []).toFixed(2)
+    );
+    const shippingAmount = Math.max(
+      0,
+      asNumber(
+        sellerOrder?.pricing?.shippingTotal ??
+        sellerOrder?.shipping?.price ??
+        sellerOrder?.shipping?.amount ??
+        0,
+        0
+      )
+    );
+    const maxAllowedRefund =
+      refundType === "shipping"
+        ? shippingAmount
+        : refundType === "full"
+          ? Math.min(originalPaidAmount, returnItemsAmount + shippingAmount)
+          : Math.min(originalPaidAmount, returnItemsAmount);
+    const requestedRefundAmount =
+      refundAmount > 0 ? refundAmount : asNumber(returnData.refundAmount, 0);
+    const clampedRefundAmount = Number(
+      Math.min(
+        requestedRefundAmount > 0 ? requestedRefundAmount : maxAllowedRefund,
+        maxAllowedRefund || requestedRefundAmount || 0,
+        originalPaidAmount || requestedRefundAmount || 0
+      ).toFixed(2)
+    );
+    if (!(clampedRefundAmount > 0)) {
+      failRefundValidation("failed-precondition", "Refund amount must be greater than zero", {
+        originalPaidAmount,
+        returnItemsAmount,
+        shippingAmount,
+        refundType,
+      });
+    }
+    const existingRetryCount = asNumber(
+      returnData.refundRetryCount ??
+      returnData.refundDetails?.retryCount ??
+      0,
+      0
+    );
+    const retryCount = existingRetryCount + 1;
+    const sellerPaymentTransactionIds = extractPaymentTransactionIds(
+      payment.paymentTransactionIds ||
+      payment.itemTransactions ||
+      returnData.refundDetails?.paymentTransactionIds ||
+      []
+    );
+    const sellerPaymentTransactionId =
+      payment.paymentTransactionId ||
+      returnData.refundDetails?.paymentTransactionId ||
+      (sellerPaymentTransactionIds.length > 0
+        ? sellerPaymentTransactionIds[0]
+        : null);
+
+    logger.info("🧾 RETURN REFUND VALIDATED", {
+      returnId,
+      sellerOrderId,
+      rootOrderId: returnData.rootOrderId || null,
+      authUid,
+      sellerUid: returnData.sellerUid || null,
+      ownerUid: ownerUid || null,
+      returnStatus,
+      originalPaidAmount,
+      returnItemsAmount,
+      shippingAmount,
+      requestedRefundAmount,
+      clampedRefundAmount,
+      retryCount,
+      paymentTransactionId: sellerPaymentTransactionId,
+      paymentTransactionIds: sellerPaymentTransactionIds,
+    });
+
+    if (!sellerOrderSnap?.exists) {
+      failRefundValidation("not-found", "Seller order not found", {
+        sellerOrderId,
+        rootOrderId: returnData.rootOrderId || null,
+      });
+    }
+
+    const iyzi = new Iyzipay({
+      apiKey: IYZICO_API_KEY.value(),
+      secretKey: IYZICO_SECRET_KEY.value(),
+      uri: "https://sandbox-api.iyzipay.com",
+    });
+
+    const pendingAt = admin.firestore.FieldValue.serverTimestamp();
+    const timeline = Array.isArray(returnData.timeline)
+      ? [...returnData.timeline]
+      : [];
+    addReturnTimelineStep(timeline, "refund_pending", authUid, notes || null, {
+      requestedRefundAmount,
+      clampedRefundAmount,
+      retryCount,
+      paymentId: orderPaymentId,
+      paymentTransactionId: sellerPaymentTransactionId,
+    });
+
+    await returnRef.set(
+      {
+        status: "refund_pending",
+        refundRequestedAt: returnData.refundRequestedAt || pendingAt,
+        refundStartedAt: pendingAt,
+        updatedAt: pendingAt,
+        refundAmount: clampedRefundAmount,
+        refundType,
+        refundRetryCount: retryCount,
+        paymentTransactionId: sellerPaymentTransactionId || null,
+        paymentTransactionIds: sellerPaymentTransactionIds,
+        refundDetails: {
+          ...(returnData.refundDetails || {}),
+          status: "refund_pending",
+          retryCount,
+          paymentId: orderPaymentId,
+          paymentTransactionId: sellerPaymentTransactionId || null,
+          paymentTransactionIds: sellerPaymentTransactionIds,
+          refundRequestedAmount: requestedRefundAmount,
+          clampedRefundAmount,
+          originalPaidAmount,
+          returnItemsAmount,
+          shippingAmount,
+          currency,
+          method: "iyzico",
+          rawRequest: {
+            returnId,
+            refundAmount: clampedRefundAmount,
+            refundType,
+            paymentId: orderPaymentId,
+            retryCount,
+          },
+        },
+        adminNotes: notes || returnData.adminNotes || null,
+        timeline,
+      },
+      { merge: true }
+    );
+
+    try {
+      const refundResult = await new Promise((resolve, reject) => {
+        iyzi.refundV2.create(
+          {
+            locale: Iyzipay.LOCALE.TR,
+            conversationId: returnId,
+            paymentId: orderPaymentId,
+            price: clampedRefundAmount.toString(),
+            currency,
+            ip: request.rawRequest?.ip || "85.34.78.112",
+          },
+          (err, res) => {
+            if (err) return reject(err);
+            return resolve(res);
+          }
+        );
+      });
+
+      logger.info("💸 RETURN REFUND IYZICO RESPONSE", {
+        returnId,
+        retryCount,
+        response: refundResult || null,
+      });
+
+      if (!refundResult || normalizeLower(refundResult.status) !== "success") {
+        logger.error("❌ RETURN REFUND FAILED", {
+          returnId,
+          retryCount,
+          refundResult,
+        });
+
+        const failedAt = admin.firestore.FieldValue.serverTimestamp();
+        const failedTimeline = Array.isArray(returnData.timeline)
+          ? [...returnData.timeline]
+          : [];
+        addReturnTimelineStep(
+          failedTimeline,
+          "refund_failed",
+          authUid,
+          notes || null,
+          {
+            retryCount,
+            failureReason: refundResult?.errorMessage || "Refund failed",
+            paymentId: orderPaymentId,
+            paymentTransactionId: sellerPaymentTransactionId,
+          }
+        );
+
+        await returnRef.set(
+          {
+            status: "refund_failed",
+            refundFailedAt: failedAt,
+            updatedAt: failedAt,
+            refundAmount: clampedRefundAmount,
+            refundType,
+            refundRetryCount: retryCount,
+            paymentTransactionId: sellerPaymentTransactionId || null,
+            paymentTransactionIds: sellerPaymentTransactionIds,
+            refundDetails: {
+              ...(returnData.refundDetails || {}),
+              status: "refund_failed",
+              retryCount,
+              errorMessage: refundResult?.errorMessage || null,
+              errorCode: refundResult?.errorCode || null,
+              paymentId: orderPaymentId,
+              paymentTransactionId: sellerPaymentTransactionId || null,
+              paymentTransactionIds: sellerPaymentTransactionIds,
+              requestedRefundAmount,
+              clampedRefundAmount,
+              originalPaidAmount,
+              returnItemsAmount,
+              shippingAmount,
+              currency,
+              raw: refundResult || null,
+            },
+            adminNotes: notes || returnData.adminNotes || null,
+            timeline: failedTimeline,
+          },
+          { merge: true }
+        );
+
+        await createNotification(db, {
+          recipientUserId: buyerUid,
+          userId: buyerUid,
+          type: "order_return_refund_failed",
+          title: "Return refund failed",
+          body: `Refund failed for return ${returnId}`,
+          orderId: returnData.rootOrderId || returnData.orderId || null,
+          sellerOrderId: sellerOrderId || null,
+          returnId,
+        });
+
+        throw new HttpsError(
+          "internal",
+          refundResult?.errorMessage || "Refund failed"
+        );
+      }
+
+      const completedAt = admin.firestore.FieldValue.serverTimestamp();
+      const completedTimeline = Array.isArray(returnData.timeline)
+        ? [...returnData.timeline]
+        : [];
+      addReturnTimelineStep(
+        completedTimeline,
+        "refunded",
+        authUid,
+        notes || null,
+        {
+          refundAmount: clampedRefundAmount,
+          refundType,
+          paymentId: orderPaymentId,
+          paymentTransactionId: sellerPaymentTransactionId,
+          retryCount,
+        }
+      );
+
+      await returnRef.set(
+        {
+          status: "refunded",
+          resolvedAt: completedAt,
+          refundCompletedAt: completedAt,
+          updatedAt: completedAt,
+          refundAmount: clampedRefundAmount,
+          refundType,
+          refundRetryCount: retryCount,
+          paymentTransactionId: sellerPaymentTransactionId || null,
+          paymentTransactionIds: sellerPaymentTransactionIds,
+          refundDetails: {
+            ...(returnData.refundDetails || {}),
+            status: "refunded",
+            gatewayStatus: refundResult.status || "success",
+            retryCount,
+            paymentId: refundResult.paymentId || orderPaymentId,
+            paymentTransactionId: sellerPaymentTransactionId || null,
+            paymentTransactionIds: sellerPaymentTransactionIds,
+            refundHostReference: refundResult.refundHostReference || null,
+            authCode: refundResult.authCode || null,
+            hostReference: refundResult.hostReference || null,
+            currency: refundResult.currency || currency,
+            price: refundResult.price || clampedRefundAmount,
+            raw: refundResult,
+          },
+          adminNotes: notes || returnData.adminNotes || null,
+          timeline: completedTimeline,
+        },
+        { merge: true }
+      );
+
+      await createNotification(db, {
+        recipientUserId: buyerUid,
+        userId: buyerUid,
+        type: "order_return_refunded",
+        title: "Return refunded",
+        body: `Refund completed for return ${returnId}`,
+        orderId: returnData.rootOrderId || returnData.orderId || null,
+        sellerOrderId: sellerOrderId || null,
+        returnId,
+      });
+
+      logger.info("✅ RETURN REFUND SUCCESS", {
+        returnId,
+        refundAmount: clampedRefundAmount,
+        refundType,
+        paymentId: orderPaymentId,
+        retryCount,
+      });
+
+      return {
+        success: true,
+        refundResult,
+      };
+    } catch (error) {
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      logger.error("❌ RETURN REFUND ERROR", {
+        returnId,
+        retryCount,
+        message: error?.message || String(error),
+        stack: error?.stack || null,
+      });
+
+      const failedAt = admin.firestore.FieldValue.serverTimestamp();
+      const failedTimeline = Array.isArray(returnData.timeline)
+        ? [...returnData.timeline]
+        : [];
+      addReturnTimelineStep(
+        failedTimeline,
+        "refund_failed",
+        authUid,
+        notes || null,
+        {
+          retryCount,
+          failureReason: error?.message || String(error),
+          paymentId: orderPaymentId,
+          paymentTransactionId: sellerPaymentTransactionId,
+        }
+      );
+
+      await returnRef.set(
+        {
+          status: "refund_failed",
+          refundFailedAt: failedAt,
+          updatedAt: failedAt,
+          refundAmount: clampedRefundAmount,
+          refundType,
+          refundRetryCount: retryCount,
+          paymentTransactionId: sellerPaymentTransactionId || null,
+          paymentTransactionIds: sellerPaymentTransactionIds,
+          refundDetails: {
+            ...(returnData.refundDetails || {}),
+            status: "refund_failed",
+            gatewayStatus: "failed",
+            retryCount,
+            errorMessage: error?.message || String(error),
+            paymentId: orderPaymentId,
+            paymentTransactionId: sellerPaymentTransactionId || null,
+            paymentTransactionIds: sellerPaymentTransactionIds,
+            requestedRefundAmount,
+            clampedRefundAmount,
+            originalPaidAmount,
+            returnItemsAmount,
+            shippingAmount,
+            currency,
+            rawError: {
+              message: error?.message || String(error),
+              stack: error?.stack || null,
+            },
+          },
+          adminNotes: notes || returnData.adminNotes || null,
+          timeline: failedTimeline,
+        },
+        { merge: true }
+      );
+
+      throw error;
+    }
+  }
+);
+
+// Backward-compatible aliases for return callables.
+exports.createReturnRequest = exports.createOrderReturnRequest;
+exports.approveReturnRequest = exports.reviewOrderReturnRequest;
+exports.rejectReturnRequest = exports.reviewOrderReturnRequest;
+exports.refundOrderReturn = exports.triggerOrderReturnRefund;
+
 exports.uploadInvoiceAndValidate = onCall(
   { region: "europe-west3" },
   async (request) => {
@@ -8761,7 +13518,7 @@ exports.upsertService = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Login required");
   }
 
-  const { businessId, title, price, duration } = data;
+  const { businessId, title, price, duration, durationMin } = data;
 
   if (!businessId || !title) {
     throw new HttpsError("invalid-argument", "Missing fields");
@@ -8790,11 +13547,20 @@ exports.upsertService = onCall(async (request) => {
   const serviceRef = businessRef.collection("services").doc(slug);
 
   const existing = await serviceRef.get();
+  const existingData = existing.data() || {};
+  const normalizedPrice = parsePriceFromText(price);
+  const normalizedDurationMin = asNumber(
+    durationMin ?? durationLabelToMinutes(duration),
+    0
+  );
+  const nextSortOrder = existingData.sortOrder || Date.now();
 
   if (existing.exists) {
     await serviceRef.update({
-      price: price ?? null,
+      price: normalizedPrice,
       duration: duration ?? null,
+      durationMin: normalizedDurationMin,
+      sortOrder: nextSortOrder,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -8802,11 +13568,14 @@ exports.upsertService = onCall(async (request) => {
   } else {
     await serviceRef.set({
       title,
-      price: price ?? null,
+      price: normalizedPrice,
       duration: duration ?? null,
+      durationMin: normalizedDurationMin,
       currency: "TRY",
       isActive: true,
+      sortOrder: nextSortOrder,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return { status: "created", id: slug };
@@ -8819,7 +13588,10 @@ exports.upsertService = onCall(async (request) => {
 
 const VET_APPOINTMENT_STATUSES = [
   "pending",
+  "awaiting_payment",
   "confirmed",
+  "confirmed_paid",
+  "payment_expired",
   "rejected",
   "completed",
   "cancelled_by_user",
@@ -8828,14 +13600,240 @@ const VET_APPOINTMENT_STATUSES = [
 ];
 
 const VET_APPOINTMENT_ALLOWED_TRANSITIONS = {
-  pending: ["confirmed", "rejected"],
+  pending: ["awaiting_payment", "confirmed", "rejected"],
+  awaiting_payment: ["confirmed_paid", "payment_expired", "cancelled_by_vet"],
   confirmed: ["completed", "cancelled_by_vet", "rejected"],
+  confirmed_paid: ["completed", "cancelled_by_vet"],
+};
+
+const GROOMY_APPOINTMENT_STATUSES = [
+  "pending",
+  "awaiting_payment",
+  "confirmed",
+  "confirmed_paid",
+  "payment_expired",
+  "rejected",
+  "completed",
+  "cancelled_by_user",
+  "cancelled_by_groomy",
+  "expired",
+];
+
+const GROOMY_APPOINTMENT_ALLOWED_TRANSITIONS = {
+  pending: ["awaiting_payment", "confirmed", "rejected"],
+  awaiting_payment: [
+    "confirmed_paid",
+    "payment_expired",
+    "cancelled_by_groomy",
+  ],
+  confirmed: ["completed", "cancelled_by_groomy", "rejected"],
+  confirmed_paid: ["completed", "cancelled_by_groomy"],
+};
+
+const HOTEL_BOOKING_STATUSES = [
+  "pending",
+  "awaiting_payment",
+  "confirmed",
+  "confirmed_paid",
+  "checked_in",
+  "rejected",
+  "cancelled_by_user",
+  "cancelled_by_hotel",
+  "completed",
+  "payment_expired",
+  "expired",
+];
+
+const HOTEL_BOOKING_ALLOWED_TRANSITIONS = {
+  pending: ["awaiting_payment", "confirmed", "rejected", "cancelled_by_hotel"],
+  awaiting_payment: [
+    "confirmed_paid",
+    "payment_expired",
+    "cancelled_by_hotel",
+  ],
+  confirmed: ["checked_in", "completed", "cancelled_by_hotel", "rejected"],
+  confirmed_paid: ["checked_in", "completed", "cancelled_by_hotel"],
+  checked_in: ["completed", "cancelled_by_hotel"],
 };
 
 function assertVetAppointmentStatus(status) {
-  if (!VET_APPOINTMENT_STATUSES.includes(status)) {
-    throw new HttpsError("invalid-argument", `Invalid status: ${status}`);
+  const requestedStatus = String(status || "").trim();
+  const allowedStatuses = VET_APPOINTMENT_STATUSES;
+
+  console.log("🩺 STATUS VALIDATION CHECK", {
+    requestedStatus,
+    allowedStatuses,
+  });
+
+  if (!allowedStatuses.includes(requestedStatus)) {
+    console.log("🩺 INVALID STATUS REJECTED", {
+      requestedStatus,
+    });
+    throw new HttpsError("invalid-argument", `Invalid status: ${requestedStatus}`);
   }
+}
+
+function assertGroomyAppointmentStatus(status) {
+  const requestedStatus = String(status || "").trim();
+
+  if (!GROOMY_APPOINTMENT_STATUSES.includes(requestedStatus)) {
+    throw new HttpsError("invalid-argument", `Invalid status: ${requestedStatus}`);
+  }
+}
+
+function assertHotelBookingStatus(status) {
+  const requestedStatus = String(status || "").trim();
+
+  if (!HOTEL_BOOKING_STATUSES.includes(requestedStatus)) {
+    throw new HttpsError("invalid-argument", `Invalid status: ${requestedStatus}`);
+  }
+}
+
+const DEFAULT_APPOINTMENT_PAYMENT_WINDOW_MINUTES = 15;
+
+function requiresAppointmentPayment(source = {}) {
+  const serviceRequiresPayment = source.serviceRequiresPayment;
+  const servicePrice = asNumber(source.servicePrice ?? 0, 0);
+  const price = asNumber(source.price ?? 0, 0);
+
+  return (
+    serviceRequiresPayment === true ||
+    servicePrice > 0 ||
+    price > 0
+  );
+}
+
+function resolveAppointmentPaymentPolicy(source = {}) {
+  const servicePrice = asNumber(
+    source.servicePrice ?? source.price ?? source.grandTotal ?? 0,
+    0,
+  );
+  const price = asNumber(source.price ?? 0, 0);
+
+  const paymentWindowMinutesRaw = asNumber(
+    source.paymentWindowMinutes ?? source.paymentWindow ?? 0,
+    DEFAULT_APPOINTMENT_PAYMENT_WINDOW_MINUTES,
+  );
+  const requiresPayment = requiresAppointmentPayment({
+    serviceRequiresPayment: source.requiresPayment ?? source.serviceRequiresPayment,
+    servicePrice,
+    price,
+  });
+
+  return {
+    requiresPayment,
+    servicePrice,
+    paymentWindowMinutes:
+      paymentWindowMinutesRaw > 0
+        ? paymentWindowMinutesRaw
+        : DEFAULT_APPOINTMENT_PAYMENT_WINDOW_MINUTES,
+  };
+}
+
+function buildAppointmentPaymentDeadline(paymentWindowMinutes) {
+  const minutes = asNumber(
+    paymentWindowMinutes,
+    DEFAULT_APPOINTMENT_PAYMENT_WINDOW_MINUTES
+  );
+
+  return admin.firestore.Timestamp.fromMillis(
+    Date.now() + minutes * 60 * 1000
+  );
+}
+
+function asDateOrNull(value) {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate();
+  if (value instanceof Date) return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
+
+function hotelIntervalsOverlap(aCheckIn, aCheckOut, bCheckIn, bCheckOut) {
+  return aCheckIn < bCheckOut && aCheckOut > bCheckIn;
+}
+
+function hotelMaxCapacity(businessData = {}) {
+  const sectorData = businessData.sectorData || {};
+  const hotelData =
+    sectorData.pet_hotel || sectorData.hotel || sectorData.petHotel || {};
+  const capacity = hotelData.capacity || {};
+  return asNumber(
+    capacity.maxCapacity ?? hotelData.maxCapacity ?? businessData.maxCapacity,
+    25
+  );
+}
+
+async function countOverlappingHotelBookings({
+  businessId,
+  checkInDate,
+  checkOutDate,
+  statuses,
+  excludeBookingId = null,
+}) {
+  const snap = await db
+    .collection("hotel_bookings")
+    .where("businessId", "==", businessId)
+    .where("status", "in", statuses)
+    .get();
+
+  let count = 0;
+  for (const doc of snap.docs) {
+    if (excludeBookingId && doc.id === excludeBookingId) continue;
+    const data = doc.data() || {};
+    const existingCheckIn = asDateOrNull(data.checkInDate);
+    const existingCheckOut = asDateOrNull(data.checkOutDate);
+    if (!existingCheckIn || !existingCheckOut) continue;
+    if (
+      hotelIntervalsOverlap(
+        existingCheckIn,
+        existingCheckOut,
+        checkInDate,
+        checkOutDate
+      )
+    ) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+async function assertHotelCapacityAvailable({
+  businessId,
+  checkInDate,
+  checkOutDate,
+  excludeBookingId = null,
+  includePending = false,
+}) {
+  const businessSnap = await db.collection("businesses").doc(businessId).get();
+  if (!businessSnap.exists) {
+    throw new HttpsError("not-found", "Business not found.");
+  }
+
+  const maxCapacity = hotelMaxCapacity(businessSnap.data() || {});
+  const statuses = includePending
+    ? ["pending", "awaiting_payment", "confirmed", "confirmed_paid", "checked_in"]
+    : ["awaiting_payment", "confirmed", "confirmed_paid", "checked_in"];
+  const overlapping = await countOverlappingHotelBookings({
+    businessId,
+    checkInDate,
+    checkOutDate,
+    statuses,
+    excludeBookingId,
+  });
+
+  if (overlapping >= maxCapacity) {
+    throw new HttpsError(
+      "already-exists",
+      "Pet hotel capacity is full for the selected dates."
+    );
+  }
+
+  return { businessSnap, maxCapacity, overlapping };
 }
 
 exports.updateVetAppointmentStatus = onCall(
@@ -8848,13 +13846,16 @@ exports.updateVetAppointmentStatus = onCall(
     }
 
     const uid = request.auth.uid;
-    const { appointmentId, newStatus } = request.data || {};
+    const { appointmentId } = request.data || {};
+    const newStatus = String(
+      request.data?.newStatus || request.data?.status || "",
+    ).trim();
 
     if (!appointmentId || typeof appointmentId !== "string") {
       throw new HttpsError("invalid-argument", "appointmentId is required.");
     }
 
-    if (!newStatus || typeof newStatus !== "string") {
+    if (!newStatus) {
       throw new HttpsError("invalid-argument", "newStatus is required.");
     }
 
@@ -8874,6 +13875,15 @@ exports.updateVetAppointmentStatus = onCall(
 
       const data = snap.data() || {};
       const currentStatus = data.status || "pending";
+      const businessId = data.businessId;
+      const ownerUid = data.userId || null;
+      const isAdminUser = await db
+        .collection("users")
+        .doc(uid)
+        .get()
+        .then((userSnap) => (userSnap.exists ? userSnap.data()?.role === "admin" : false))
+        .catch(() => false);
+
       // =========================
       // 🛑 PREVENT SAME STATUS UPDATE (FIX ERROR)
       // =========================
@@ -8891,7 +13901,6 @@ exports.updateVetAppointmentStatus = onCall(
           skipped: true, // 👈 مهم
         };
       }
-      const businessId = data.businessId;
 
       assertVetAppointmentStatus(currentStatus);
 
@@ -8910,9 +13919,222 @@ exports.updateVetAppointmentStatus = onCall(
       }
 
       const businessData = businessSnap.data() || {};
-      const ownerUid = businessData.ownerUid || businessData.uid;
+      const businessOwnerUid = businessData.ownerUid || businessData.uid;
+      const appointmentOwnerUid = data.userId || data.buyerUid || null;
+      const isOwner = appointmentOwnerUid === uid;
+      const isBusinessOwner = businessOwnerUid === uid;
+      const canUseStaffFlow = isBusinessOwner || isAdminUser;
+      const isOwnerCancellation = newStatus === "cancelled_by_user";
+      const ownerCancelableStatuses = [
+        "pending",
+        "awaiting_payment",
+        "confirmed",
+        "confirmed_paid",
+        "awaiting_service",
+      ];
+      const isApprovalAttempt =
+        currentStatus === "pending" &&
+        (newStatus === "confirmed" || newStatus === "awaiting_payment");
+      let approvalPolicySource = data;
 
-      if (ownerUid !== uid) {
+      if (
+        isApprovalAttempt &&
+        businessId &&
+        data.serviceId &&
+        (!data.serviceRequiresPayment ||
+          data.serviceRequiresPayment === null ||
+          data.serviceRequiresPayment === undefined)
+      ) {
+        try {
+          const serviceRef = db
+            .collection("businesses")
+            .doc(businessId)
+            .collection("services")
+            .doc(data.serviceId);
+
+          const serviceSnap = await tx.get(serviceRef);
+          if (serviceSnap.exists) {
+            const serviceData = serviceSnap.data() || {};
+            approvalPolicySource = {
+              ...data,
+              ...serviceData,
+              servicePrice: serviceData.price ?? data.servicePrice ?? data.price ?? 0,
+              price: serviceData.price ?? data.servicePrice ?? data.price ?? 0,
+              paymentWindowMinutes:
+                serviceData.paymentWindowMinutes ??
+                data.paymentWindowMinutes ??
+                data.paymentWindow ??
+                0,
+              requiresPayment: serviceData.requiresPayment,
+              requiresDeposit: serviceData.requiresDeposit,
+            };
+          }
+        } catch (error) {
+          logger.warn("⚠️ Approval service lookup failed", {
+            appointmentId,
+            businessId,
+            serviceId: data.serviceId || null,
+            message: error?.message || String(error),
+          });
+        }
+      }
+
+      const paymentPolicy = resolveAppointmentPaymentPolicy(approvalPolicySource);
+      const requiresPayment = requiresAppointmentPayment({
+        serviceRequiresPayment:
+          approvalPolicySource.serviceRequiresPayment ??
+          approvalPolicySource.requiresPayment,
+        servicePrice: paymentPolicy.servicePrice,
+        price: approvalPolicySource.price ?? data.price ?? 0,
+      });
+      const finalStatus = requiresPayment ? "awaiting_payment" : "confirmed";
+      const finalPaymentStatus = requiresPayment ? "pending" : "not_required";
+      let appliedStatus = newStatus;
+
+      console.log("🩺 PAYMENT REQUIREMENT ANALYSIS", {
+        appointmentId,
+        serviceRequiresPayment:
+          approvalPolicySource.serviceRequiresPayment ??
+          approvalPolicySource.requiresPayment ??
+          null,
+        servicePrice: paymentPolicy.servicePrice,
+        price: approvalPolicySource.price ?? data.price ?? null,
+        requiresPayment,
+      });
+
+      if (isApprovalAttempt) {
+        appliedStatus = finalStatus;
+      } else if (
+        currentStatus === "pending" &&
+        newStatus === "confirmed" &&
+        !requiresPayment
+      ) {
+        appliedStatus = "confirmed";
+      }
+
+      if (
+        currentStatus === "awaiting_payment" &&
+        newStatus === "confirmed_paid"
+      ) {
+        appliedStatus = "confirmed_paid";
+      }
+
+      if (
+        currentStatus === "awaiting_payment" &&
+        newStatus === "payment_expired"
+      ) {
+        appliedStatus = "payment_expired";
+      }
+
+      const logCancelValidation = (reason, extra = {}) => {
+        console.log("🩺 CANCEL VALIDATION", {
+          appointmentId,
+          uid,
+          currentStatus,
+          requestedStatus: newStatus,
+          sellerUid: businessOwnerUid,
+          businessId,
+          buyerUid: appointmentOwnerUid,
+          ...extra,
+          reason,
+        });
+      };
+
+      console.log("🩺 APPOINTMENT STATUS REQUEST", {
+        appointmentId,
+        uid,
+        currentStatus,
+        requestedStatus: newStatus,
+        appliedStatus,
+        sellerUid: businessOwnerUid,
+        businessId,
+        buyerUid: appointmentOwnerUid,
+        isOwner,
+        isBusinessOwner,
+        isAdminUser,
+      });
+
+      console.log("🩺 FINAL APPROVAL DECISION", {
+        appointmentId,
+        finalStatus,
+        finalPaymentStatus,
+      });
+
+      const isPaidCancellation =
+        currentStatus === "confirmed_paid" ||
+        currentStatus === "awaiting_service" ||
+        currentStatus === "confirmed" ||
+        normalizeLower(data.paymentStatus) === "paid";
+
+      if (isOwnerCancellation) {
+        logCancelValidation("OWNER_CANCELLATION_ATTEMPT");
+
+        if (!isOwner) {
+          console.error("🩺 INVALID CANCEL ATTEMPT", {
+            appointmentId,
+            currentStatus,
+            requestedStatus: newStatus,
+            uid,
+            userId: data.userId || null,
+            buyerUid: data.buyerUid || null,
+            sellerUid: businessOwnerUid || null,
+            businessId,
+            reason: "INVALID_ACTOR",
+          });
+          throw new HttpsError(
+            "permission-denied",
+            "Only the appointment owner can cancel this appointment."
+          );
+        }
+
+        if (!ownerCancelableStatuses.includes(currentStatus)) {
+          console.error("🩺 INVALID CANCEL ATTEMPT", {
+            appointmentId,
+            currentStatus,
+            requestedStatus: newStatus,
+            appliedStatus,
+            uid,
+            userId: data.userId || null,
+            buyerUid: data.buyerUid || null,
+            sellerUid: businessOwnerUid || null,
+            businessId,
+            reason: "INVALID_STATUS",
+          });
+          throw new HttpsError(
+            "failed-precondition",
+            `Invalid cancellation transition: ${currentStatus} → ${newStatus}`
+          );
+        }
+
+        console.log("🩺 USER CANCEL APPOINTMENT", {
+          appointmentId,
+          uid,
+        });
+        if (isPaidCancellation) {
+          console.log("🩺 CONFIRMED_PAID CANCELLED_BY_USER (payment preserved)", {
+            appointmentId,
+            uid,
+            paymentStatus: data.paymentStatus || null,
+            paymentId: data.paymentId || null,
+            orderId: data.orderId || null,
+          });
+          console.log("🩺 PAID APPOINTMENT CANCELLED_BY_USER", {
+            appointmentId,
+            uid,
+          });
+        }
+      } else if (!canUseStaffFlow) {
+        console.error("🩺 INVALID CANCEL ATTEMPT", {
+          appointmentId,
+          currentStatus,
+          requestedStatus: newStatus,
+          uid,
+          userId: data.userId || null,
+          buyerUid: data.buyerUid || null,
+          sellerUid: businessOwnerUid || null,
+          businessId,
+          reason: "INVALID_ACTOR",
+        });
         throw new HttpsError(
           "permission-denied",
           "Only the vet business owner can update this appointment."
@@ -8922,10 +14144,10 @@ exports.updateVetAppointmentStatus = onCall(
       const allowedNext =
         VET_APPOINTMENT_ALLOWED_TRANSITIONS[currentStatus] || [];
 
-      if (!allowedNext.includes(newStatus)) {
+      if (!isOwnerCancellation && !allowedNext.includes(appliedStatus)) {
         throw new HttpsError(
           "failed-precondition",
-          `Invalid transition: ${currentStatus} → ${newStatus}`
+          `Invalid transition: ${currentStatus} → ${appliedStatus}`
         );
       }
 
@@ -8933,32 +14155,184 @@ exports.updateVetAppointmentStatus = onCall(
         appointmentId,
         currentStatus,
         newStatus,
+        appliedStatus,
       });
 
-      tx.update(appointmentRef, {
-        status: newStatus,
+      const refundRequestId =
+        isOwnerCancellation && isPaidCancellation
+          ? `vet_refund_${appointmentId}_${crypto.randomUUID()}`
+          : null;
+
+      const updatePayload = {
+        status: appliedStatus,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedBy: uid,
         lastStatusChange: {
           from: currentStatus,
-          to: newStatus,
+          to: appliedStatus,
           by: uid,
           at: admin.firestore.FieldValue.serverTimestamp(),
         },
+      };
+
+      if (isOwnerCancellation && isPaidCancellation) {
+        const scheduledAt =
+          data.scheduledAt?.toDate?.() ||
+          (data.scheduledAt ? new Date(data.scheduledAt) : null);
+
+        const now = new Date();
+
+        const hoursUntilAppointment = scheduledAt
+          ? (scheduledAt.getTime() - now.getTime()) / (1000 * 60 * 60)
+          : 0;
+
+        const eligibleForAutoRefund = hoursUntilAppointment >= 24;
+
+        updatePayload.refundRequestId = refundRequestId;
+        updatePayload.refundRequestedAt =
+          admin.firestore.FieldValue.serverTimestamp();
+
+        updatePayload.refundReason =
+          "user_cancelled_paid_appointment";
+
+        updatePayload.refundRetryCount = 0;
+
+        console.log("🩺 REFUND POLICY CHECK", {
+          appointmentId,
+          scheduledAt: scheduledAt || null,
+          hoursUntilAppointment,
+          eligibleForAutoRefund,
+        });
+
+        // =========================
+        // ✅ AUTO REFUND
+        // =========================
+
+        if (eligibleForAutoRefund) {
+          updatePayload.refundRequired = false;
+          updatePayload.refundStatus = "refund_processing";
+
+          updatePayload.refundStartedAt =
+            admin.firestore.FieldValue.serverTimestamp();
+
+          console.log("🩺 AUTO REFUND ENABLED", {
+            appointmentId,
+            uid,
+            refundStatus: "refund_processing",
+          });
+        }
+
+        // =========================
+        // ⏳ MANUAL REVIEW
+        // =========================
+
+        else {
+          updatePayload.refundRequired = true;
+
+          updatePayload.refundStatus =
+            "pending_manual_review";
+
+          console.log("🩺 MANUAL REFUND REVIEW REQUIRED", {
+            appointmentId,
+            uid,
+            refundStatus: "pending_manual_review",
+          });
+        }
+
+        console.log("🩺 PAYMENT PRESERVED AFTER CANCELLATION", {
+          appointmentId,
+          uid,
+          paymentStatus: data.paymentStatus || null,
+          paymentId: data.paymentId || null,
+          orderId: data.orderId || null,
+        });
+      }
+
+      if (appliedStatus === "awaiting_payment") {
+        const paymentDeadlineAt = buildAppointmentPaymentDeadline(
+          paymentPolicy.paymentWindowMinutes
+        );
+
+        updatePayload.paymentStatus = finalPaymentStatus;
+        updatePayload.paymentDeadlineAt = paymentDeadlineAt;
+
+        console.log("🩺 APPOINTMENT AWAITING PAYMENT", {
+          appointmentId,
+          uid,
+          paymentWindowMinutes: paymentPolicy.paymentWindowMinutes,
+          paymentDeadlineAt,
+        });
+        console.log("🩺 PAYMENT DEADLINE SET", {
+          appointmentId,
+          paymentWindowMinutes: paymentPolicy.paymentWindowMinutes,
+          paymentDeadlineAt,
+        });
+      } else if (appliedStatus === "confirmed") {
+        updatePayload.paymentStatus = finalPaymentStatus;
+        if (!requiresPayment) {
+          updatePayload.paymentDeadlineAt = null;
+          console.log("🩺 APPOINTMENT CONFIRMED WITHOUT PAYMENT", {
+            appointmentId,
+            uid,
+          });
+        }
+      } else if (appliedStatus === "payment_expired") {
+        updatePayload.paymentStatus = "expired";
+        console.log("🩺 PAYMENT EXPIRED", {
+          appointmentId,
+          uid,
+        });
+      }
+
+      tx.update(appointmentRef, updatePayload);
+
+      console.log("🩺 APPROVAL RESULT STATUS", {
+        appointmentId,
+        currentStatus,
+        requestedStatus: newStatus,
+        appliedStatus,
+        paymentWindowMinutes: paymentPolicy.paymentWindowMinutes,
+        paymentDeadlineAt: updatePayload.paymentDeadlineAt || null,
       });
+
+      if (appliedStatus === "cancelled_by_user") {
+        console.log("🩺 APPOINTMENT CANCELLED_BY_USER", {
+          appointmentId,
+        });
+      }
 
       logger.info("🔥 AFTER UPDATE", {
         appointmentId,
-        newStatus,
+        newStatus: appliedStatus,
       });
 
       return {
         appointmentId,
         oldStatus: currentStatus,
-        newStatus,
+        newStatus: appliedStatus,
         businessId, // 🔥 مهم
       };
+    });
+
+    const finalSnap = await appointmentRef.get();
+    const finalData = finalSnap.data() || {};
+    logger.info("🩺 APPROVAL FINAL STATUS", {
+      appointmentId,
+      status: finalData.status ?? null,
+    });
+    logger.info("🩺 APPROVAL PAYMENT STATUS", {
+      appointmentId,
+      paymentStatus: finalData.paymentStatus ?? null,
+      serviceRequiresPayment: finalData.serviceRequiresPayment ?? null,
+    });
+    logger.info("🩺 APPOINTMENT DOC AFTER APPROVAL", {
+      appointmentId,
+      status: finalData.status ?? null,
+      paymentStatus: finalData.paymentStatus ?? null,
+      serviceRequiresPayment: finalData.serviceRequiresPayment ?? null,
+      servicePrice: finalData.servicePrice ?? null,
+      paymentDeadlineAt: finalData.paymentDeadlineAt ?? null,
     });
 
     // =========================
@@ -9001,6 +14375,34 @@ exports.updateVetAppointmentStatus = onCall(
 
       const data = snap.data() || {};
       const userId = data.userId;
+      const businessId = data.businessId || result.businessId || null;
+      const businessSnap = businessId
+        ? await db.collection("businesses").doc(businessId).get()
+        : null;
+      const businessData = businessSnap?.data() || {};
+      const businessOwnerUid = businessData.ownerUid || businessData.uid || null;
+
+      if (result.newStatus === "cancelled_by_user") {
+        logger.info("🩺 APPOINTMENT DOC AFTER CANCELLATION", {
+          appointmentId: result.appointmentId,
+          status: data.status ?? null,
+          paymentStatus: data.paymentStatus ?? null,
+          refundStatus: data.refundStatus ?? null,
+          refundRequired: data.refundRequired ?? null,
+          refundReason: data.refundReason ?? null,
+          paymentId: data.paymentId ?? null,
+          iyzicoPaymentId: data.iyzicoPaymentId ?? null,
+          orderId: data.orderId ?? null,
+          paymentTransactionId: data.paymentTransactionId ?? null,
+          iyzicoPaymentTransactionId:
+            data.iyzicoPaymentTransactionId ?? data.paymentTransactionId ?? null,
+          conversationId: data.conversationId ?? null,
+          checkoutToken: data.checkoutToken ?? null,
+          refundRequestId: data.refundRequestId ?? null,
+          refundedAt: data.refundedAt ?? null,
+          refundError: data.refundError ?? null,
+        });
+      }
 
       // =========================
       // 🔥 BUILD TITLE & BODY (MOVE OUTSIDE PUSH)
@@ -9008,21 +14410,43 @@ exports.updateVetAppointmentStatus = onCall(
 
       let title = "Appointment Update";
       let body = "Your appointment status changed";
+      const wasPaidCancellationForNotify =
+        result.newStatus === "cancelled_by_user" &&
+        (normalizeLower(data.paymentStatus) === "paid" ||
+          ["confirmed_paid", "awaiting_service", "confirmed"].includes(
+            normalizeLower(result.oldStatus)
+          ));
 
-      if (result.newStatus === "confirmed") {
+      if (result.newStatus === "awaiting_payment") {
+        title = "Payment Required ⏳";
+        body = `${data.serviceTitle || "Service"} is waiting for payment`;
+      } else if (result.newStatus === "confirmed") {
         title = "Appointment Confirmed ✅";
         body = `${data.serviceTitle || "Service"} is confirmed`;
       } else if (result.newStatus === "rejected") {
         title = "Appointment Rejected ❌";
         body = `Your appointment was rejected`;
+      } else if (result.newStatus === "cancelled_by_user") {
+        title = "Appointment Cancelled";
+        body = `${data.serviceTitle || "Service"} was cancelled by the user`;
       }
+
+      const userBody = wasPaidCancellationForNotify
+        ? `${data.serviceTitle || "Service"} was cancelled by the user. Refund is being processed automatically.`
+        : body;
+      const vetBody = wasPaidCancellationForNotify
+        ? `${data.serviceTitle || "Service"} was cancelled by the user. Refund is being processed automatically.`
+        : `${data.serviceTitle || "Service"} was cancelled by the user`;
 
       if (userId) {
         // =========================
         // 🔥 SAVE FIRESTORE NOTIFICATION (MISSING PART)
         // =========================
         await db.collection("notifications").add({
-          type: "vet_appointment_response",
+          type:
+            result.newStatus === "cancelled_by_user"
+              ? "appointment_cancelled_confirmation"
+              : "vet_appointment_response",
 
           recipientUserId: userId,
           senderUserId: result.businessId,
@@ -9031,7 +14455,7 @@ exports.updateVetAppointmentStatus = onCall(
           status: result.newStatus,
 
           title,
-          body,
+          body: userBody,
 
           isRead: false,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -9043,6 +14467,11 @@ exports.updateVetAppointmentStatus = onCall(
         if (fcmToken) {
 
 
+          logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+            type: "vet_appointment_response",
+            recipientUserId: userId,
+            appointmentId: result.appointmentId,
+          });
           await admin.messaging().send({
             token: fcmToken,
             notification: { title, body },
@@ -9050,6 +14479,81 @@ exports.updateVetAppointmentStatus = onCall(
               type: "vet_appointment_response",
               appointmentId: result.appointmentId,
               status: result.newStatus, // 🔥 مهم
+              refundRequired: wasPaidCancellationForNotify ? "true" : "false",
+              refundStatus: wasPaidCancellationForNotify
+                ? "refund_pending"
+                : "",
+            },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "high_importance_channel",
+              },
+            },
+            apns: {
+              headers: { "apns-priority": "10" },
+              payload: {
+                aps: {
+                  alert: {
+                    title,
+                    body,
+                  },
+                  sound: "default",
+                  badge: 1,
+                  "interruption-level": "time-sensitive",
+                },
+              },
+            },
+          });
+          logger.info("🔔 Push send success", {
+            type: "vet_appointment_response",
+            recipientUserId: userId,
+            soundEnabled: true,
+          });
+        } else {
+          logger.warn("⚠️ Push token missing", {
+            type: "vet_appointment_response",
+            recipientUserId: userId,
+          });
+        }
+      }
+
+      if (result.newStatus === "cancelled_by_user" && businessOwnerUid) {
+        await db.collection("notifications").add({
+          type: "vet_appointment_cancelled_by_user",
+          recipientUserId: businessOwnerUid,
+          senderUserId: userId || uid,
+          appointmentId: result.appointmentId,
+          status: result.newStatus,
+          title: "Appointment Cancelled",
+          body: vetBody,
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const vetUserSnap = await db.collection("users").doc(businessOwnerUid).get();
+        const vetToken = vetUserSnap.data()?.fcmToken;
+
+        if (vetToken) {
+          await safeSendPush({
+            token: vetToken,
+            userId: businessOwnerUid,
+            payload: {
+              notification: {
+                title: "Appointment Cancelled",
+                body: `${data.serviceTitle || "Service"} was cancelled by the user`,
+              },
+              data: {
+                type: "vet_appointment_cancelled_by_user",
+                appointmentId: result.appointmentId,
+                status: result.newStatus,
+                refundRequired: wasPaidCancellationForNotify ? "true" : "false",
+                refundStatus: wasPaidCancellationForNotify
+                  ? "refund_pending"
+                  : "",
+              },
+              android: { priority: "high" },
             },
           });
         }
@@ -9058,10 +14562,715 @@ exports.updateVetAppointmentStatus = onCall(
       logger.error("❌ notify user failed", e);
     }
 
+    if (
+      result.newStatus === "cancelled_by_user" &&
+      finalData.refundStatus === "refund_processing" &&
+      (normalizeLower(finalData.paymentStatus) === "paid" ||
+        ["confirmed_paid", "awaiting_service", "confirmed"].includes(
+          normalizeLower(result.oldStatus)
+        ))
+    ) {
+      try {
+        logger.info("🩺 VET REFUND FLOW DETECTED", {
+          appointmentId: result.appointmentId,
+          oldStatus: result.oldStatus || null,
+          newStatus: result.newStatus || null,
+          paymentStatus: finalData.paymentStatus || null,
+          refundStatus: finalData.refundStatus || null,
+          paymentId: finalData.paymentId || null,
+          iyzicoPaymentId: finalData.iyzicoPaymentId || null,
+          paymentTransactionId: finalData.paymentTransactionId || null,
+          iyzicoPaymentTransactionId:
+            finalData.iyzicoPaymentTransactionId ||
+            finalData.paymentTransactionId ||
+            null,
+          conversationId: finalData.conversationId || null,
+          checkoutToken: finalData.checkoutToken || null,
+        });
+        logger.info("🩺 BYPASSING PETSHOP RETURN FLOW", {
+          appointmentId: result.appointmentId,
+          reason: "vet_direct_cancel_refund",
+        });
+        logger.info("🩺 DIRECT VET REFUND START", {
+          appointmentId: result.appointmentId,
+          status: finalData.status || null,
+          paymentStatus: finalData.paymentStatus || null,
+          refundStatus: finalData.refundStatus || null,
+        });
+        const refundResult = await processVetAppointmentRefund({
+          db,
+          appointmentId: result.appointmentId,
+          appointmentData: finalData,
+          beforeData: null,
+          eventId: finalData.refundRequestId || null,
+          actorUid: uid,
+        });
+
+        if (refundResult?.success) {
+          logger.info("🩺 DIRECT VET REFUND SUCCESS", {
+            appointmentId: result.appointmentId,
+            source: "callable",
+          });
+        } else if (!refundResult?.skipped) {
+          throw new HttpsError(
+            "internal",
+            refundResult?.error || "Refund processing failed"
+          );
+        }
+      } catch (error) {
+        logger.error("🩺 DIRECT VET REFUND FAILURE", {
+          appointmentId: result.appointmentId,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw error instanceof HttpsError
+          ? error
+          : new HttpsError("internal", error?.message || "Refund failed");
+      }
+    }
+
     return {
       ok: true,
       ...result,
     };
+  }
+);
+
+exports.updateGroomyAppointmentStatus = onCall(
+  {
+    region: "europe-west3",
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const uid = request.auth.uid;
+    const { appointmentId } = request.data || {};
+    const newStatus = String(
+      request.data?.newStatus || request.data?.status || "",
+    ).trim();
+
+    if (!appointmentId || typeof appointmentId !== "string") {
+      throw new HttpsError("invalid-argument", "appointmentId is required.");
+    }
+
+    if (!newStatus) {
+      throw new HttpsError("invalid-argument", "newStatus is required.");
+    }
+
+    assertGroomyAppointmentStatus(newStatus);
+
+    const appointmentRef = db.collection("groomy_appointments").doc(appointmentId);
+
+    const result = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(appointmentRef);
+
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Appointment not found.");
+      }
+
+      const data = snap.data() || {};
+      const currentStatus = data.status || "pending";
+      const businessId = data.businessId;
+      const appointmentOwnerUid = data.userId || data.buyerUid || null;
+
+      assertGroomyAppointmentStatus(currentStatus);
+
+      if (!businessId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Appointment has no businessId."
+        );
+      }
+
+      if (currentStatus === newStatus) {
+        return {
+          appointmentId,
+          oldStatus: currentStatus,
+          newStatus,
+          businessId,
+          userId: appointmentOwnerUid,
+          skipped: true,
+        };
+      }
+
+      const businessRef = db.collection("businesses").doc(businessId);
+      const businessSnap = await tx.get(businessRef);
+
+      if (!businessSnap.exists) {
+        throw new HttpsError("not-found", "Business not found.");
+      }
+
+      const adminSnap = await tx.get(db.collection("users").doc(uid));
+      const isAdminUser = adminSnap.exists && adminSnap.data()?.role === "admin";
+      const businessData = businessSnap.data() || {};
+      const businessOwnerUid = businessData.ownerUid || businessData.uid || null;
+      const isOwner = appointmentOwnerUid === uid;
+      const isBusinessOwner = businessOwnerUid === uid;
+      const canUseStaffFlow = isBusinessOwner || isAdminUser;
+      const isOwnerCancellation = newStatus === "cancelled_by_user";
+      const ownerCancelableStatuses = [
+        "pending",
+        "awaiting_payment",
+        "confirmed",
+        "confirmed_paid",
+      ];
+      const isApprovalAttempt =
+        currentStatus === "pending" &&
+        (newStatus === "confirmed" || newStatus === "awaiting_payment");
+      let approvalPolicySource = data;
+
+      if (
+        isApprovalAttempt &&
+        data.serviceId &&
+        (!data.serviceRequiresPayment ||
+          data.serviceRequiresPayment === null ||
+          data.serviceRequiresPayment === undefined)
+      ) {
+        const serviceSnap = await tx.get(
+          businessRef.collection("services").doc(data.serviceId)
+        );
+
+        if (serviceSnap.exists) {
+          const serviceData = serviceSnap.data() || {};
+          approvalPolicySource = {
+            ...data,
+            ...serviceData,
+            servicePrice: serviceData.price ?? data.servicePrice ?? data.price ?? 0,
+            price: serviceData.price ?? data.servicePrice ?? data.price ?? 0,
+            paymentWindowMinutes:
+              serviceData.paymentWindowMinutes ??
+              data.paymentWindowMinutes ??
+              data.paymentWindow ??
+              0,
+            requiresPayment: serviceData.requiresPayment,
+            requiresDeposit: serviceData.requiresDeposit,
+          };
+        }
+      }
+
+      const paymentPolicy = resolveAppointmentPaymentPolicy(approvalPolicySource);
+      const requiresPayment = requiresAppointmentPayment({
+        serviceRequiresPayment:
+          approvalPolicySource.serviceRequiresPayment ??
+          approvalPolicySource.requiresPayment,
+        servicePrice: paymentPolicy.servicePrice,
+        price: approvalPolicySource.price ?? data.price ?? 0,
+      });
+      const finalStatus = requiresPayment ? "awaiting_payment" : "confirmed";
+      const finalPaymentStatus = requiresPayment ? "pending" : "not_required";
+      let appliedStatus = newStatus;
+
+      if (isApprovalAttempt) {
+        appliedStatus = finalStatus;
+      } else if (
+        currentStatus === "awaiting_payment" &&
+        newStatus === "confirmed_paid"
+      ) {
+        appliedStatus = "confirmed_paid";
+      } else if (
+        currentStatus === "awaiting_payment" &&
+        newStatus === "payment_expired"
+      ) {
+        appliedStatus = "payment_expired";
+      }
+
+      if (isOwnerCancellation) {
+        if (!isOwner) {
+          throw new HttpsError(
+            "permission-denied",
+            "Only the appointment owner can cancel this appointment."
+          );
+        }
+
+        if (!ownerCancelableStatuses.includes(currentStatus)) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Invalid cancellation transition: ${currentStatus} → ${newStatus}`
+          );
+        }
+      } else if (!canUseStaffFlow) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the grooming business owner can update this appointment."
+        );
+      }
+
+      const allowedNext =
+        GROOMY_APPOINTMENT_ALLOWED_TRANSITIONS[currentStatus] || [];
+
+      if (!isOwnerCancellation && !allowedNext.includes(appliedStatus)) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Invalid transition: ${currentStatus} → ${appliedStatus}`
+        );
+      }
+
+      const updatePayload = {
+        status: appliedStatus,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedBy: uid,
+        lastStatusChange: {
+          from: currentStatus,
+          to: appliedStatus,
+          by: uid,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      };
+
+      if (appliedStatus === "awaiting_payment") {
+        updatePayload.paymentStatus = finalPaymentStatus;
+        logger.info("🟣 GROOMY PAYMENT POLICY", {
+          paymentWindowMinutes: paymentPolicy.paymentWindowMinutes,
+          servicePrice: paymentPolicy.servicePrice,
+          requiresPayment,
+        });
+        updatePayload.paymentDeadlineAt = buildAppointmentPaymentDeadline(
+          paymentPolicy.paymentWindowMinutes
+        );
+        updatePayload.serviceRequiresPayment = true;
+        updatePayload.servicePrice = paymentPolicy.servicePrice;
+        updatePayload.price = paymentPolicy.servicePrice;
+        updatePayload.paymentWindowMinutes = paymentPolicy.paymentWindowMinutes;
+      } else if (appliedStatus === "confirmed") {
+        updatePayload.paymentStatus = finalPaymentStatus;
+        if (!requiresPayment) {
+          updatePayload.paymentDeadlineAt = null;
+        }
+      } else if (appliedStatus === "payment_expired") {
+        updatePayload.paymentStatus = "expired";
+      }
+
+      tx.update(appointmentRef, updatePayload);
+
+      return {
+        appointmentId,
+        oldStatus: currentStatus,
+        newStatus: appliedStatus,
+        businessId,
+        userId: appointmentOwnerUid,
+        businessOwnerUid,
+      };
+    });
+
+    try {
+      const countSnap = await db
+        .collection("groomy_appointments")
+        .where("businessId", "==", result.businessId)
+        .get();
+
+      await db.collection("businesses").doc(result.businessId).set(
+        {
+          stats: {
+            groomingAppointmentCount: countSnap.size,
+          },
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      logger.error("❌ Groomy stats update failed", err);
+    }
+
+    try {
+      const finalSnap = await appointmentRef.get();
+      const data = finalSnap.data() || {};
+      const userId = data.userId || result.userId;
+      const businessId = data.businessId || result.businessId;
+      const businessSnap = businessId
+        ? await db.collection("businesses").doc(businessId).get()
+        : null;
+      const businessData = businessSnap?.data() || {};
+      const businessOwnerUid =
+        businessData.ownerUid || businessData.uid || result.businessOwnerUid;
+
+      let title = "Grooming Appointment Update";
+      let body = "Your grooming appointment status changed";
+
+      if (result.newStatus === "awaiting_payment") {
+        title = "Payment Required";
+        body = `${data.serviceTitle || "Grooming service"} is waiting for payment`;
+      } else if (result.newStatus === "confirmed") {
+        title = "Grooming Appointment Confirmed";
+        body = `${data.serviceTitle || "Grooming service"} is confirmed`;
+      } else if (result.newStatus === "rejected") {
+        title = "Grooming Appointment Rejected";
+        body = "Your grooming appointment was rejected";
+      } else if (result.newStatus === "cancelled_by_groomy") {
+        title = "Grooming Appointment Cancelled";
+        body = `${data.serviceTitle || "Grooming service"} was cancelled`;
+      } else if (result.newStatus === "completed") {
+        title = "Grooming Appointment Completed";
+        body = `${data.serviceTitle || "Grooming service"} is completed`;
+      } else if (result.newStatus === "cancelled_by_user") {
+        title = "Grooming Appointment Cancelled";
+        body = `${data.serviceTitle || "Grooming service"} was cancelled by the user`;
+      }
+
+      if (userId) {
+        await db.collection("notifications").add({
+          type: "groomy_appointment_response",
+          recipientUserId: userId,
+          senderUserId: businessOwnerUid || uid,
+          businessId,
+          appointmentId: result.appointmentId,
+          appointmentCollection: "groomy_appointments",
+          status: result.newStatus,
+          title,
+          body,
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const userSnap = await db.collection("users").doc(userId).get();
+        const fcmToken = userSnap.data()?.fcmToken;
+
+        if (fcmToken) {
+          logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+            type: "groomy_appointment_response",
+            recipientUserId: userId,
+            appointmentId: result.appointmentId,
+          });
+          await admin.messaging().send({
+            token: fcmToken,
+            notification: { title, body },
+            data: {
+              type: "groomy_appointment_response",
+              appointmentId: result.appointmentId,
+              appointmentCollection: "groomy_appointments",
+              status: result.newStatus,
+            },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "high_importance_channel",
+              },
+            },
+            apns: {
+              headers: { "apns-priority": "10" },
+              payload: {
+                aps: {
+                  alert: {
+                    title,
+                    body,
+                  },
+                  sound: "default",
+                  badge: 1,
+                  "interruption-level": "time-sensitive",
+                },
+              },
+            },
+          });
+          logger.info("🔔 Push send success", {
+            type: "groomy_appointment_response",
+            recipientUserId: userId,
+            soundEnabled: true,
+          });
+        } else {
+          logger.warn("⚠️ Push token missing", {
+            type: "groomy_appointment_response",
+            recipientUserId: userId,
+          });
+        }
+      }
+
+      if (result.newStatus === "cancelled_by_user" && businessOwnerUid) {
+        await db.collection("notifications").add({
+          type: "groomy_appointment_cancelled_by_user",
+          recipientUserId: businessOwnerUid,
+          senderUserId: userId || uid,
+          businessId,
+          appointmentId: result.appointmentId,
+          appointmentCollection: "groomy_appointments",
+          status: result.newStatus,
+          title: "Grooming Appointment Cancelled",
+          body: `${data.serviceTitle || "Grooming service"} was cancelled by the user`,
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      logger.error("❌ Groomy notify failed", e);
+    }
+
+    return {
+      ok: true,
+      ...result,
+    };
+  }
+);
+
+exports.reviewVetAppointmentRefund = onCall(
+  {
+    region: "europe-west3",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const adminUid = request.auth.uid;
+    const allowed = await isAdminUser(db, adminUid);
+    if (!allowed) {
+      throw new HttpsError("permission-denied", "Admin only");
+    }
+
+    const appointmentId = String(request.data?.appointmentId || "").trim();
+    const action = String(request.data?.action || "").trim().toLowerCase();
+    const note = String(request.data?.note || "").trim();
+
+    if (!appointmentId) {
+      throw new HttpsError("invalid-argument", "appointmentId is required.");
+    }
+
+    if (!["approve", "reject"].includes(action)) {
+      throw new HttpsError("invalid-argument", "Invalid refund review action.");
+    }
+
+    const appointmentRef = db.collection("vet_appointments").doc(appointmentId);
+    const snap = await appointmentRef.get();
+
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Appointment not found.");
+    }
+
+    const data = snap.data() || {};
+    const paymentStatus = normalizeLower(data.paymentStatus);
+    const refundStatus = normalizeLower(data.refundStatus);
+
+    if (paymentStatus !== "paid") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Only paid appointments can be refunded."
+      );
+    }
+
+    if (refundStatus !== "pending_manual_review") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Appointment is not pending manual refund review."
+      );
+    }
+
+    logger.info("🩺 ADMIN REFUND REVIEW OPEN", {
+      appointmentId,
+      action,
+      adminUid,
+    });
+
+    if (action === "reject") {
+      const reviewedAt = admin.firestore.FieldValue.serverTimestamp();
+
+      await appointmentRef.set(
+        {
+          refundStatus: "rejected",
+          refundRequired: false,
+          refundReviewedAt: reviewedAt,
+          refundReviewedBy: adminUid,
+          refundReviewNote: note || null,
+          updatedAt: reviewedAt,
+        },
+        { merge: true }
+      );
+
+      await db.collection("admin_logs").add({
+        entityType: "vet_appointment",
+        entityId: appointmentId,
+        action: "vet_refund_rejected",
+        performedBy: adminUid,
+        reason: note || null,
+        metadata: {
+          appointmentId,
+          paymentStatus,
+          refundStatus,
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info("🩺 ADMIN REFUND REJECTED", {
+        appointmentId,
+        adminUid,
+      });
+
+      return {
+        success: true,
+        appointmentId,
+        action,
+        refundStatus: "rejected",
+      };
+    }
+
+    logger.info("🩺 ADMIN REFUND APPROVED", {
+      appointmentId,
+      adminUid,
+    });
+
+    const refundResult = await processVetAppointmentRefund({
+      db,
+      appointmentId,
+      appointmentData: {
+        ...data,
+        status: "cancelled_by_user",
+        refundStatus: "pending_manual_review",
+      },
+      beforeData: null,
+      eventId:
+        data.refundRequestId ||
+        `vet_manual_refund_${appointmentId}_${crypto.randomUUID()}`,
+      actorUid: adminUid,
+      preserveManualReviewOnFailure: true,
+    });
+
+    if (!refundResult?.success) {
+      await db.collection("admin_logs").add({
+        entityType: "vet_appointment",
+        entityId: appointmentId,
+        action: "vet_refund_approve_failed",
+        performedBy: adminUid,
+        reason: note || null,
+        metadata: {
+          appointmentId,
+          error: refundResult?.error || refundResult?.reason || null,
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      throw new HttpsError(
+        "internal",
+        refundResult?.error || refundResult?.reason || "Refund failed"
+      );
+    }
+
+    const reviewedAt = admin.firestore.FieldValue.serverTimestamp();
+    await appointmentRef.set(
+      {
+        status: "cancelled_by_user",
+        refundStatus: "refunded",
+        refundRequired: false,
+        refundedAt: data.refundedAt || reviewedAt,
+        refundReviewedAt: reviewedAt,
+        refundReviewedBy: adminUid,
+        refundReviewNote: note || null,
+        refundError: null,
+        updatedAt: reviewedAt,
+      },
+      { merge: true }
+    );
+
+    await db.collection("admin_logs").add({
+      entityType: "vet_appointment",
+      entityId: appointmentId,
+      action: "vet_refund_approved",
+      performedBy: adminUid,
+      reason: note || null,
+      metadata: {
+        appointmentId,
+        paymentStatus,
+        refundStatus,
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info("🩺 REFUND SUCCESS", {
+      appointmentId,
+      adminUid,
+      source: "manual_review",
+    });
+
+    return {
+      success: true,
+      appointmentId,
+      action,
+      refundStatus: "refunded",
+    };
+  }
+);
+
+exports.triggerAppointmentRefund = onDocumentUpdated(
+  {
+    region: "europe-west3",
+    document: "vet_appointments/{appointmentId}",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+  },
+  async (event) => {
+    const db = admin.firestore();
+    const appointmentId = event.params.appointmentId;
+    const beforeData = event.data?.before?.data() || {};
+    const afterData = event.data?.after?.data() || {};
+    const eventId = event.id || `${appointmentId}_${Date.now()}`;
+
+    const beforeStatus = normalizeLower(beforeData.status);
+    const afterStatus = normalizeLower(afterData.status);
+    const beforePaymentStatus = normalizeLower(beforeData.paymentStatus);
+    const afterPaymentStatus = normalizeLower(afterData.paymentStatus);
+
+    if (afterData.refundRequestId) {
+      logger.info("🩺 VET REFUND SKIPPED ALREADY HANDLED BY CALLABLE", {
+        appointmentId,
+        refundRequestId: afterData.refundRequestId,
+        refundStatus: afterData.refundStatus || null,
+      });
+      return null;
+    }
+
+    logger.info("🩺 VET REFUND START", {
+      appointmentId,
+      beforeStatus,
+      afterStatus,
+      beforePaymentStatus,
+      afterPaymentStatus,
+      refundStatus: afterData.refundStatus || null,
+      eventId,
+    });
+
+    const becameCancelledByUser =
+      beforeStatus !== "cancelled_by_user" && afterStatus === "cancelled_by_user";
+
+    if (!becameCancelledByUser) {
+      return null;
+    }
+
+    if (afterPaymentStatus !== "paid") {
+      logger.info("🩺 VET REFUND SKIPPED NOT ELIGIBLE", {
+        appointmentId,
+        reason: "payment_not_paid",
+        paymentStatus: afterPaymentStatus,
+      });
+      return null;
+    }
+
+    try {
+      const refundResult = await processVetAppointmentRefund({
+        db,
+        appointmentId,
+        appointmentData: afterData,
+        beforeData,
+        eventId,
+        actorUid: afterData.statusUpdatedBy || null,
+      });
+
+      if (refundResult?.success) {
+        logger.info("🩺 VET REFUND SUCCESS", {
+          appointmentId,
+        });
+      } else {
+        logger.warn("🩺 VET REFUND FAILED", {
+          appointmentId,
+          result: refundResult || null,
+        });
+      }
+    } catch (error) {
+      logger.error("🩺 VET REFUND FAILED", {
+        appointmentId,
+        message: error?.message || String(error),
+        stack: error?.stack || null,
+      });
+    }
+
+    return null;
   }
 );
 
@@ -9113,6 +15322,34 @@ exports.createVetAppointment = onCall(
           "Missing required fields."
         );
       }
+
+      let serviceSnapshot = null;
+      if (serviceId) {
+        try {
+          serviceSnapshot = await db
+            .collection("businesses")
+            .doc(businessId)
+            .collection("services")
+            .doc(serviceId)
+            .get();
+        } catch (error) {
+          logger.warn("⚠️ Service snapshot lookup failed", {
+            businessId,
+            serviceId,
+            message: error?.message || String(error),
+          });
+        }
+      }
+
+      const serviceData = serviceSnapshot?.data() || {};
+      const paymentPolicy = resolveAppointmentPaymentPolicy({
+        ...serviceData,
+        servicePrice: serviceData.price ?? price ?? 0,
+        price: serviceData.price ?? price ?? 0,
+        paymentWindowMinutes: serviceData.paymentWindowMinutes,
+        requiresPayment: serviceData.requiresPayment,
+        requiresDeposit: serviceData.requiresDeposit,
+      });
 
       const scheduledDate = new Date(scheduledAt);
 
@@ -9184,8 +15421,18 @@ exports.createVetAppointment = onCall(
         // 🧾 SERVICE
         serviceId: serviceId || null,
         serviceTitle: serviceTitle || "",
-        price: price || 0,
+        price: paymentPolicy.servicePrice ?? price ?? 0,
         durationMin: durationMin || 0,
+        serviceRequiresPayment: paymentPolicy.requiresPayment,
+        servicePrice: paymentPolicy.servicePrice ?? price ?? 0,
+        paymentWindowMinutes: paymentPolicy.paymentWindowMinutes,
+        paymentStatus: paymentPolicy.requiresPayment ? "pending" : "not_required",
+        paymentDeadlineAt: null,
+        paidAt: null,
+        paymentId: null,
+        orderId: null,
+        paymentTransactionId: null,
+        paymentTransactionIds: [],
 
         // ⏱ TIME
         scheduledAt: scheduledTs,
@@ -9241,6 +15488,11 @@ exports.createVetAppointment = onCall(
         // 2. SEND PUSH
         // =========================
         if (fcmToken) {
+          logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+            type: "vet_appointment_request",
+            recipientUserId: businessId,
+            appointmentId: docRef.id,
+          });
           await admin.messaging().send({
             token: fcmToken,
 
@@ -9254,9 +15506,33 @@ exports.createVetAppointment = onCall(
               appointmentId: docRef.id,
               businessId: businessId,
             },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "high_importance_channel",
+              },
+            },
+            apns: {
+              headers: { "apns-priority": "10" },
+              payload: {
+                aps: {
+                  alert: {
+                    title,
+                    body,
+                  },
+                  sound: "default",
+                  badge: 1,
+                  "interruption-level": "time-sensitive",
+                },
+              },
+            },
           });
 
-          logger.info("🔔 Push sent to vet:", businessId);
+          logger.info("🔔 Push sent to vet:", {
+            businessId,
+            soundEnabled: true,
+          });
         } else {
           logger.warn("⚠️ No FCM token for business:", businessId);
         }
@@ -9285,24 +15561,1896 @@ exports.createVetAppointment = onCall(
   }
 );
 
-exports.syncBusinessToken = onCall(async (req) => {
-  const uid = req.auth.uid;
-  const token = req.data.token;
+exports.createGroomyAppointment = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    try {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Login required.");
+      }
 
-  const businessSnap = await db
-    .collection('businesses')
-    .where('ownerUid', '==', uid)
-    .limit(1)
-    .get();
+      const uid = request.auth.uid;
 
-  if (!businessSnap.empty) {
-    await businessSnap.docs[0].ref.update({
-      fcmToken: token,
+      const {
+        petId,
+        petName,
+        petType,
+        dogId,
+        dogName,
+        businessId,
+        businessName,
+        serviceId,
+        serviceTitle,
+        price,
+        durationMin,
+        scheduledAt,
+        note,
+      } = request.data || {};
+
+      const finalPetId = petId || dogId;
+      const finalPetName = petName || dogName;
+      const finalPetType = petType || "dog";
+
+      if (!finalPetId || !businessId || !scheduledAt) {
+        throw new HttpsError("invalid-argument", "Missing required fields.");
+      }
+
+      const businessSnap = await db.collection("businesses").doc(businessId).get();
+      if (!businessSnap.exists) {
+        throw new HttpsError("not-found", "Business not found.");
+      }
+
+      const businessData = businessSnap.data() || {};
+      const businessSectors = Array.isArray(businessData.sectors)
+        ? businessData.sectors.map((sector) => normalizeLower(sector))
+        : [];
+      const businessSectorData = businessData.sectorData || {};
+      const isGroomingBusiness =
+        businessSectors.includes("grooming") ||
+        businessSectors.includes("groomer") ||
+        Boolean(businessSectorData.grooming || businessSectorData.groomer);
+
+      if (!isGroomingBusiness) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Business is not a grooming business."
+        );
+      }
+
+      let serviceSnapshot = null;
+      if (serviceId) {
+        try {
+          serviceSnapshot = await db
+            .collection("businesses")
+            .doc(businessId)
+            .collection("services")
+            .doc(serviceId)
+            .get();
+        } catch (error) {
+          logger.warn("⚠️ Groomy service snapshot lookup failed", {
+            businessId,
+            serviceId,
+            message: error?.message || String(error),
+          });
+        }
+      }
+
+      const serviceData = serviceSnapshot?.data() || {};
+      const paymentPolicy = resolveAppointmentPaymentPolicy({
+        ...serviceData,
+        servicePrice: serviceData.price ?? price ?? 0,
+        price: serviceData.price ?? price ?? 0,
+        paymentWindowMinutes: serviceData.paymentWindowMinutes,
+        requiresPayment: serviceData.requiresPayment,
+        requiresDeposit: serviceData.requiresDeposit,
+      });
+
+      const scheduledDate = new Date(scheduledAt);
+      if (isNaN(scheduledDate.getTime())) {
+        throw new HttpsError("invalid-argument", "Invalid date.");
+      }
+
+      const scheduledTs = admin.firestore.Timestamp.fromDate(scheduledDate);
+      const col = db.collection("groomy_appointments");
+
+      const duplicateSnap = await col
+        .where("userId", "==", uid)
+        .where("scheduledAt", "==", scheduledTs)
+        .limit(1)
+        .get();
+
+      if (!duplicateSnap.empty) {
+        throw new HttpsError(
+          "already-exists",
+          "You already have an appointment at this time."
+        );
+      }
+
+      const conflictSnap = await col
+        .where("businessId", "==", businessId)
+        .where("scheduledAt", "==", scheduledTs)
+        .where("status", "in", [
+          "pending",
+          "awaiting_payment",
+          "confirmed",
+          "confirmed_paid",
+        ])
+        .limit(1)
+        .get();
+
+      if (!conflictSnap.empty) {
+        throw new HttpsError(
+          "already-exists",
+          "This time slot is already booked."
+        );
+      }
+
+      const finalBusinessName = businessName ||
+        businessData.profile?.displayName ||
+        "Grooming studio";
+
+      const docRef = await col.add({
+        appointmentType: "grooming",
+        userId: uid,
+
+        petId: finalPetId,
+        petName: finalPetName,
+        petType: finalPetType,
+        petBreed: request.data.petBreed || "",
+        petAge: request.data.petAge ?? null,
+        dogId: finalPetId,
+        dogName: finalPetName,
+
+        businessId,
+        businessName: finalBusinessName,
+        groomyId: businessId,
+        groomyName: finalBusinessName,
+
+        serviceId: serviceId || null,
+        serviceTitle: serviceTitle || "",
+        price: paymentPolicy.servicePrice ?? price ?? 0,
+        durationMin: durationMin || serviceData.durationMin || 0,
+        serviceRequiresPayment: paymentPolicy.requiresPayment,
+        servicePrice: paymentPolicy.servicePrice ?? price ?? 0,
+        paymentWindowMinutes: paymentPolicy.paymentWindowMinutes,
+        paymentStatus: paymentPolicy.requiresPayment ? "pending" : "not_required",
+        paymentDeadlineAt: null,
+        paidAt: null,
+        paymentId: null,
+        orderId: null,
+        paymentTransactionId: null,
+        paymentTransactionIds: [],
+
+        scheduledAt: scheduledTs,
+        note: note || "",
+        status: "pending",
+
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        isActive: true,
+      });
+
+      logger.info("✅ Groomy appointment created:", docRef.id);
+
+      try {
+        const businessOwnerUid =
+          businessData.ownerUid || businessData.uid || businessId;
+        const title = "New Grooming Request";
+        const body = `${finalPetName} requested ${serviceTitle || "grooming"}`;
+
+        await db.collection("notifications").add({
+          type: "groomy_appointment_request",
+          recipientUserId: businessOwnerUid,
+          senderUserId: uid,
+          title,
+          body,
+          appointmentId: docRef.id,
+          appointmentCollection: "groomy_appointments",
+          businessId,
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const ownerSnap = await db.collection("users").doc(businessOwnerUid).get();
+        const fcmToken = ownerSnap.data()?.fcmToken || businessData.fcmToken;
+
+        if (fcmToken) {
+          logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+            type: "groomy_appointment_request",
+            recipientUserId: businessOwnerUid,
+            appointmentId: docRef.id,
+          });
+          await admin.messaging().send({
+            token: fcmToken,
+            notification: { title, body },
+            data: {
+              type: "groomy_appointment_request",
+              appointmentId: docRef.id,
+              appointmentCollection: "groomy_appointments",
+              businessId,
+            },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "high_importance_channel",
+              },
+            },
+            apns: {
+              headers: { "apns-priority": "10" },
+              payload: {
+                aps: {
+                  alert: {
+                    title,
+                    body,
+                  },
+                  sound: "default",
+                  badge: 1,
+                  "interruption-level": "time-sensitive",
+                },
+              },
+            },
+          });
+          logger.info("🔔 Push send success", {
+            type: "groomy_appointment_request",
+            recipientUserId: businessOwnerUid,
+            soundEnabled: true,
+          });
+        } else {
+          logger.warn("⚠️ Push token missing", {
+            type: "groomy_appointment_request",
+            recipientUserId: businessOwnerUid,
+          });
+        }
+      } catch (e) {
+        logger.error("❌ Groomy notification error:", e);
+      }
+
+      return {
+        ok: true,
+        appointmentId: docRef.id,
+      };
+    } catch (e) {
+      logger.error("❌ createGroomyAppointment FAILED:", e);
+
+      if (e instanceof HttpsError) {
+        throw e;
+      }
+
+      throw new HttpsError("internal", e.message);
+    }
+  }
+);
+
+exports.createHotelBooking = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    try {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Login required.");
+      }
+
+      const uid = request.auth.uid;
+      const {
+        petId,
+        petName,
+        petType,
+        dogId,
+        dogName,
+        businessId,
+        businessName,
+        serviceId,
+        serviceTitle,
+        price,
+        pricePerNight,
+        checkInDate,
+        checkOutDate,
+        note,
+      } = request.data || {};
+
+      const finalPetId = petId || dogId;
+      const finalPetName = petName || dogName;
+      const finalPetType = petType || "dog";
+
+      if (!finalPetId || !businessId || !checkInDate || !checkOutDate) {
+        throw new HttpsError("invalid-argument", "Missing required fields.");
+      }
+
+      const parsedCheckIn = new Date(checkInDate);
+      const parsedCheckOut = new Date(checkOutDate);
+      if (
+        Number.isNaN(parsedCheckIn.getTime()) ||
+        Number.isNaN(parsedCheckOut.getTime()) ||
+        parsedCheckOut <= parsedCheckIn
+      ) {
+        throw new HttpsError("invalid-argument", "Invalid stay dates.");
+      }
+
+      const capacityResult = await assertHotelCapacityAvailable({
+        businessId,
+        checkInDate: parsedCheckIn,
+        checkOutDate: parsedCheckOut,
+        includePending: true,
+      });
+      const businessData = capacityResult.businessSnap.data() || {};
+      const businessSectors = Array.isArray(businessData.sectors)
+        ? businessData.sectors.map((sector) => normalizeLower(sector))
+        : [];
+      const businessSectorData = businessData.sectorData || {};
+      const isHotelBusiness =
+        businessSectors.includes("pet_hotel") ||
+        businessSectors.includes("hotel") ||
+        Boolean(businessSectorData.pet_hotel || businessSectorData.hotel);
+
+      if (!isHotelBusiness) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Business is not a pet hotel."
+        );
+      }
+
+      let serviceSnapshot = null;
+      if (serviceId) {
+        try {
+          serviceSnapshot = await db
+            .collection("businesses")
+            .doc(businessId)
+            .collection("services")
+            .doc(serviceId)
+            .get();
+        } catch (error) {
+          logger.warn("⚠️ Hotel service snapshot lookup failed", {
+            businessId,
+            serviceId,
+            message: error?.message || String(error),
+          });
+        }
+      }
+
+      const serviceData = serviceSnapshot?.data() || {};
+      const nightlyPrice = asNumber(
+        serviceData.price ?? serviceData.pricePerNight ?? pricePerNight ?? price ?? 0,
+        0
+      );
+      const totalNights = Math.max(
+        1,
+        Math.ceil(
+          (parsedCheckOut.getTime() - parsedCheckIn.getTime()) /
+          (24 * 60 * 60 * 1000)
+        )
+      );
+      const totalPrice = roundMoney(nightlyPrice * totalNights);
+      const paymentPolicy = resolveAppointmentPaymentPolicy({
+        ...serviceData,
+        servicePrice: totalPrice,
+        price: totalPrice,
+        requiresPayment: serviceData.requiresPayment,
+        paymentWindowMinutes: serviceData.paymentWindowMinutes,
+      });
+
+      const finalBusinessName =
+        businessName ||
+        businessData.profile?.displayName ||
+        "Pet hotel";
+
+      const docRef = await db.collection("hotel_bookings").add({
+        appointmentType: "pet_hotel",
+        bookingType: "pet_hotel",
+        userId: uid,
+
+        petId: finalPetId,
+        petName: finalPetName,
+        petType: finalPetType,
+        petBreed: request.data.petBreed || "",
+        petAge: request.data.petAge ?? null,
+        dogId: finalPetId,
+        dogName: finalPetName,
+
+        businessId,
+        businessName: finalBusinessName,
+        hotelId: businessId,
+        hotelName: finalBusinessName,
+
+        serviceId: serviceId || null,
+        serviceTitle: serviceTitle || serviceData.title || "Hotel stay",
+        durationType: serviceData.durationType || "night",
+
+        checkInDate: admin.firestore.Timestamp.fromDate(parsedCheckIn),
+        checkOutDate: admin.firestore.Timestamp.fromDate(parsedCheckOut),
+        totalNights,
+        pricePerNight: nightlyPrice,
+        totalPrice,
+        price: totalPrice,
+        requiresPayment: paymentPolicy.requiresPayment,
+        serviceRequiresPayment: paymentPolicy.requiresPayment,
+        servicePrice: totalPrice,
+        paymentWindowMinutes: paymentPolicy.paymentWindowMinutes,
+        paymentStatus: paymentPolicy.requiresPayment ? "pending" : "not_required",
+        paymentDeadlineAt: null,
+        paidAt: null,
+        paymentId: null,
+        orderId: null,
+        paymentTransactionId: null,
+        paymentTransactionIds: [],
+
+        note: note || "",
+        status: "pending",
+
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        isActive: true,
+      });
+
+      logger.info("✅ Hotel booking created:", docRef.id);
+
+      try {
+        const businessOwnerUid =
+          businessData.ownerUid || businessData.uid || businessId;
+        const title = "New Hotel Booking Request";
+        const body = `${finalPetName} requested ${serviceTitle || "a stay"}`;
+
+        await db.collection("notifications").add({
+          type: "hotel_booking_request",
+          recipientUserId: businessOwnerUid,
+          senderUserId: uid,
+          title,
+          body,
+          appointmentId: docRef.id,
+          bookingId: docRef.id,
+          appointmentCollection: "hotel_bookings",
+          businessId,
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const ownerSnap = await db.collection("users").doc(businessOwnerUid).get();
+        const fcmToken = ownerSnap.data()?.fcmToken || businessData.fcmToken;
+
+        if (fcmToken) {
+          logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+            type: "hotel_booking_request",
+            recipientUserId: businessOwnerUid,
+            bookingId: docRef.id,
+          });
+          await admin.messaging().send({
+            token: fcmToken,
+            notification: { title, body },
+            data: {
+              type: "hotel_booking_request",
+              appointmentId: docRef.id,
+              bookingId: docRef.id,
+              appointmentCollection: "hotel_bookings",
+              businessId,
+            },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "high_importance_channel",
+              },
+            },
+            apns: {
+              headers: { "apns-priority": "10" },
+              payload: {
+                aps: {
+                  alert: {
+                    title,
+                    body,
+                  },
+                  sound: "default",
+                  badge: 1,
+                  "interruption-level": "time-sensitive",
+                },
+              },
+            },
+          });
+          logger.info("🔔 Push send success", {
+            type: "hotel_booking_request",
+            recipientUserId: businessOwnerUid,
+            soundEnabled: true,
+          });
+        } else {
+          logger.warn("⚠️ Push token missing", {
+            type: "hotel_booking_request",
+            recipientUserId: businessOwnerUid,
+          });
+        }
+      } catch (e) {
+        logger.error("❌ Hotel booking notification error:", e);
+      }
+
+      return {
+        ok: true,
+        bookingId: docRef.id,
+        appointmentId: docRef.id,
+      };
+    } catch (e) {
+      logger.error("❌ createHotelBooking FAILED:", e);
+
+      if (e instanceof HttpsError) {
+        throw e;
+      }
+
+      throw new HttpsError("internal", e.message);
+    }
+  }
+);
+
+exports.updateHotelBookingStatus = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const uid = request.auth.uid;
+    const bookingId = String(
+      request.data?.bookingId || request.data?.appointmentId || ""
+    ).trim();
+    const newStatus = String(
+      request.data?.newStatus || request.data?.status || ""
+    ).trim();
+
+    if (!bookingId) {
+      throw new HttpsError("invalid-argument", "bookingId is required.");
+    }
+
+    if (!newStatus) {
+      throw new HttpsError("invalid-argument", "newStatus is required.");
+    }
+
+    assertHotelBookingStatus(newStatus);
+
+    const bookingRef = db.collection("hotel_bookings").doc(bookingId);
+
+    const result = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(bookingRef);
+
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Booking not found.");
+      }
+
+      const data = snap.data() || {};
+      const currentStatus = data.status || "pending";
+      const businessId = data.businessId;
+      const bookingOwnerUid = data.userId || data.buyerUid || null;
+
+      assertHotelBookingStatus(currentStatus);
+
+      if (!businessId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Booking has no businessId."
+        );
+      }
+
+      if (currentStatus === newStatus) {
+        return {
+          bookingId,
+          appointmentId: bookingId,
+          oldStatus: currentStatus,
+          newStatus,
+          businessId,
+          userId: bookingOwnerUid,
+          skipped: true,
+        };
+      }
+
+      const businessRef = db.collection("businesses").doc(businessId);
+      const businessSnap = await tx.get(businessRef);
+
+      if (!businessSnap.exists) {
+        throw new HttpsError("not-found", "Business not found.");
+      }
+
+      const adminSnap = await tx.get(db.collection("users").doc(uid));
+      const isAdminUser = adminSnap.exists && adminSnap.data()?.role === "admin";
+      const businessData = businessSnap.data() || {};
+      const businessOwnerUid = businessData.ownerUid || businessData.uid || null;
+      const isOwner = bookingOwnerUid === uid;
+      const isBusinessOwner = businessOwnerUid === uid;
+      const canUseStaffFlow = isBusinessOwner || isAdminUser;
+      const isOwnerCancellation = newStatus === "cancelled_by_user";
+      const ownerCancelableStatuses = [
+        "pending",
+        "awaiting_payment",
+        "confirmed",
+        "confirmed_paid",
+      ];
+      const isApprovalAttempt =
+        currentStatus === "pending" &&
+        (newStatus === "confirmed" || newStatus === "awaiting_payment");
+      let approvalPolicySource = data;
+
+      if (
+        isApprovalAttempt &&
+        data.serviceId &&
+        (!data.serviceRequiresPayment ||
+          data.serviceRequiresPayment === null ||
+          data.serviceRequiresPayment === undefined)
+      ) {
+        const serviceSnap = await tx.get(
+          businessRef.collection("services").doc(data.serviceId)
+        );
+
+        if (serviceSnap.exists) {
+          const serviceData = serviceSnap.data() || {};
+          approvalPolicySource = {
+            ...data,
+            ...serviceData,
+            servicePrice: data.totalPrice ?? data.price ?? serviceData.price ?? 0,
+            price: data.totalPrice ?? data.price ?? serviceData.price ?? 0,
+            paymentWindowMinutes:
+              serviceData.paymentWindowMinutes ??
+              data.paymentWindowMinutes ??
+              data.paymentWindow ??
+              0,
+            requiresPayment: serviceData.requiresPayment,
+          };
+        }
+      }
+
+      const paymentPolicy = resolveAppointmentPaymentPolicy(approvalPolicySource);
+      const requiresPayment = requiresAppointmentPayment({
+        serviceRequiresPayment:
+          approvalPolicySource.serviceRequiresPayment ??
+          approvalPolicySource.requiresPayment,
+        servicePrice:
+          approvalPolicySource.totalPrice ??
+          paymentPolicy.servicePrice ??
+          data.totalPrice ??
+          data.price ??
+          0,
+        price: approvalPolicySource.price ?? data.price ?? 0,
+      });
+      const finalStatus = requiresPayment ? "awaiting_payment" : "confirmed";
+      const finalPaymentStatus = requiresPayment ? "pending" : "not_required";
+      let appliedStatus = newStatus;
+
+      if (isApprovalAttempt) {
+        appliedStatus = finalStatus;
+      } else if (
+        currentStatus === "awaiting_payment" &&
+        newStatus === "confirmed_paid"
+      ) {
+        appliedStatus = "confirmed_paid";
+      } else if (
+        currentStatus === "awaiting_payment" &&
+        newStatus === "payment_expired"
+      ) {
+        appliedStatus = "payment_expired";
+      }
+
+      if (isOwnerCancellation) {
+        if (!isOwner) {
+          throw new HttpsError(
+            "permission-denied",
+            "Only the booking owner can cancel this booking."
+          );
+        }
+
+        if (!ownerCancelableStatuses.includes(currentStatus)) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Invalid cancellation transition: ${currentStatus} → ${newStatus}`
+          );
+        }
+      } else if (!canUseStaffFlow) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the hotel business owner can update this booking."
+        );
+      }
+
+      const allowedNext =
+        HOTEL_BOOKING_ALLOWED_TRANSITIONS[currentStatus] || [];
+
+      if (!isOwnerCancellation && !allowedNext.includes(appliedStatus)) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Invalid transition: ${currentStatus} → ${appliedStatus}`
+        );
+      }
+
+      const checkIn = asDateOrNull(data.checkInDate);
+      const checkOut = asDateOrNull(data.checkOutDate);
+      if (
+        ["awaiting_payment", "confirmed", "confirmed_paid", "checked_in"].includes(
+          appliedStatus
+        ) &&
+        checkIn &&
+        checkOut
+      ) {
+        const maxCapacity = hotelMaxCapacity(businessData);
+        const overlapping = await countOverlappingHotelBookings({
+          businessId,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          statuses: ["awaiting_payment", "confirmed", "confirmed_paid", "checked_in"],
+          excludeBookingId: bookingId,
+        });
+
+        if (overlapping >= maxCapacity) {
+          throw new HttpsError(
+            "already-exists",
+            "Pet hotel capacity is full for these dates."
+          );
+        }
+      }
+
+      const updatePayload = {
+        status: appliedStatus,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        statusUpdatedBy: uid,
+        lastStatusChange: {
+          from: currentStatus,
+          to: appliedStatus,
+          by: uid,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      };
+
+      if (appliedStatus === "awaiting_payment") {
+        updatePayload.paymentStatus = finalPaymentStatus;
+        updatePayload.paymentDeadlineAt = buildAppointmentPaymentDeadline(
+          paymentPolicy.paymentWindowMinutes
+        );
+        updatePayload.serviceRequiresPayment = true;
+        updatePayload.requiresPayment = true;
+        updatePayload.servicePrice = data.totalPrice ?? data.price ?? 0;
+        updatePayload.price = data.totalPrice ?? data.price ?? 0;
+        updatePayload.paymentWindowMinutes = paymentPolicy.paymentWindowMinutes;
+      } else if (appliedStatus === "confirmed") {
+        updatePayload.paymentStatus = finalPaymentStatus;
+        if (!requiresPayment) {
+          updatePayload.paymentDeadlineAt = null;
+        }
+      } else if (appliedStatus === "payment_expired") {
+        updatePayload.paymentStatus = "expired";
+      }
+
+      tx.update(bookingRef, updatePayload);
+
+      return {
+        bookingId,
+        appointmentId: bookingId,
+        oldStatus: currentStatus,
+        newStatus: appliedStatus,
+        businessId,
+        userId: bookingOwnerUid,
+        businessOwnerUid,
+      };
+    });
+
+    try {
+      const finalSnap = await bookingRef.get();
+      const data = finalSnap.data() || {};
+      const userId = data.userId || result.userId;
+      const businessId = data.businessId || result.businessId;
+      const businessSnap = businessId
+        ? await db.collection("businesses").doc(businessId).get()
+        : null;
+      const businessData = businessSnap?.data() || {};
+      const businessOwnerUid =
+        businessData.ownerUid || businessData.uid || result.businessOwnerUid;
+
+      let title = "Hotel Booking Update";
+      let body = "Your hotel booking status changed";
+
+      if (result.newStatus === "awaiting_payment") {
+        title = "Payment Required";
+        body = `${data.serviceTitle || "Hotel stay"} is waiting for payment`;
+      } else if (result.newStatus === "confirmed") {
+        title = "Hotel Booking Confirmed";
+        body = `${data.serviceTitle || "Hotel stay"} is confirmed`;
+      } else if (result.newStatus === "confirmed_paid") {
+        title = "Hotel Booking Paid";
+        body = `${data.serviceTitle || "Hotel stay"} payment completed`;
+      } else if (result.newStatus === "rejected") {
+        title = "Hotel Booking Rejected";
+        body = "Your hotel booking was rejected";
+      } else if (result.newStatus === "cancelled_by_hotel") {
+        title = "Hotel Booking Cancelled";
+        body = `${data.serviceTitle || "Hotel stay"} was cancelled`;
+      } else if (result.newStatus === "completed") {
+        title = "Hotel Stay Completed";
+        body = `${data.serviceTitle || "Hotel stay"} is completed`;
+      } else if (result.newStatus === "cancelled_by_user") {
+        title = "Hotel Booking Cancelled";
+        body = `${data.serviceTitle || "Hotel stay"} was cancelled by the user`;
+      } else if (result.newStatus === "checked_in") {
+        title = "Pet Checked In";
+        body = `${data.petName || data.dogName || "Pet"} checked in`;
+      }
+
+      if (userId) {
+        await db.collection("notifications").add({
+          type: "hotel_booking_response",
+          recipientUserId: userId,
+          senderUserId: businessOwnerUid || uid,
+          businessId,
+          appointmentId: result.bookingId,
+          bookingId: result.bookingId,
+          appointmentCollection: "hotel_bookings",
+          status: result.newStatus,
+          title,
+          body,
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const userSnap = await db.collection("users").doc(userId).get();
+        const fcmToken = userSnap.data()?.fcmToken;
+
+        if (fcmToken) {
+          logger.info("🔔 Playdate/PetTaxi reference sound payload attached", {
+            type: "hotel_booking_response",
+            recipientUserId: userId,
+            bookingId: result.bookingId,
+          });
+          await admin.messaging().send({
+            token: fcmToken,
+            notification: { title, body },
+            data: {
+              type: "hotel_booking_response",
+              appointmentId: result.bookingId,
+              bookingId: result.bookingId,
+              appointmentCollection: "hotel_bookings",
+              status: result.newStatus,
+            },
+            android: {
+              priority: "high",
+              notification: {
+                sound: "default",
+                channelId: "high_importance_channel",
+              },
+            },
+            apns: {
+              headers: { "apns-priority": "10" },
+              payload: {
+                aps: {
+                  alert: {
+                    title,
+                    body,
+                  },
+                  sound: "default",
+                  badge: 1,
+                  "interruption-level": "time-sensitive",
+                },
+              },
+            },
+          });
+          logger.info("🔔 Push send success", {
+            type: "hotel_booking_response",
+            recipientUserId: userId,
+            soundEnabled: true,
+          });
+        } else {
+          logger.warn("⚠️ Push token missing", {
+            type: "hotel_booking_response",
+            recipientUserId: userId,
+          });
+        }
+      }
+
+      if (result.newStatus === "cancelled_by_user" && businessOwnerUid) {
+        await db.collection("notifications").add({
+          type: "hotel_booking_cancelled_by_user",
+          recipientUserId: businessOwnerUid,
+          senderUserId: userId || uid,
+          businessId,
+          appointmentId: result.bookingId,
+          bookingId: result.bookingId,
+          appointmentCollection: "hotel_bookings",
+          status: result.newStatus,
+          title: "Hotel Booking Cancelled",
+          body: `${data.serviceTitle || "Hotel stay"} was cancelled by the user`,
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      logger.error("❌ Hotel booking notify failed", e);
+    }
+
+    return {
+      ok: true,
+      ...result,
+    };
+  }
+);
+
+const PET_TAXI_STATUSES = [
+  "pending",
+  "awaiting_user_payment",
+  "confirmed_paid",
+  "payment_failed",
+  "refund_pending",
+  "refunded",
+  "driver_on_the_way",
+  "arrived",
+  "pet_picked_up",
+  "on_trip",
+  "completed",
+  "cancelled_by_user",
+  "cancelled_by_business",
+];
+
+function assertPetTaxiStatus(status) {
+  if (!PET_TAXI_STATUSES.includes(status)) {
+    throw new HttpsError("invalid-argument", "Invalid pet taxi status.");
+  }
+}
+
+function petTaxiAllowedTransition(from, to) {
+  const allowed = {
+    pending: ["awaiting_user_payment", "cancelled_by_user", "cancelled_by_business"],
+    awaiting_user_payment: ["awaiting_user_payment", "confirmed_paid", "payment_failed", "cancelled_by_user", "cancelled_by_business"],
+    payment_failed: ["awaiting_user_payment", "cancelled_by_user", "cancelled_by_business"],
+    confirmed_paid: ["driver_on_the_way", "refund_pending", "cancelled_by_business"],
+    refund_pending: ["refunded"],
+    driver_on_the_way: ["arrived", "cancelled_by_business"],
+    arrived: ["pet_picked_up", "cancelled_by_business"],
+    pet_picked_up: ["on_trip", "cancelled_by_business"],
+    on_trip: ["completed", "cancelled_by_business"],
+    completed: [],
+    refunded: [],
+    cancelled_by_user: [],
+    cancelled_by_business: [],
+  };
+  return (allowed[from] || []).includes(to);
+}
+
+function petTaxiPushData({
+  type,
+  bookingId,
+  businessId,
+  recipientUserId,
+  status,
+}) {
+  return {
+    type: String(type || ""),
+    bookingId: String(bookingId || ""),
+    appointmentId: String(bookingId || ""),
+    appointmentCollection: "pet_taxi_bookings",
+    businessId: String(businessId || ""),
+    recipientUserId: String(recipientUserId || ""),
+    status: String(status || ""),
+  };
+}
+
+async function sendPetTaxiPush({
+  recipientUserId,
+  fallbackToken = null,
+  type,
+  title,
+  body,
+  bookingId,
+  businessId,
+  status,
+}) {
+  try {
+    logger.info("🚕 Pet Taxi push lookup", {
+      type,
+      bookingId,
+      recipientUserId,
+      status,
+    });
+
+    let token = fallbackToken || null;
+    if (recipientUserId) {
+      const userSnap = await db.collection("users").doc(recipientUserId).get();
+      token = userSnap.data()?.fcmToken || token;
+    }
+
+    if (!token) {
+      logger.warn("🚕 Pet Taxi push token missing", {
+        type,
+        bookingId,
+        recipientUserId,
+      });
+      return;
+    }
+
+    logger.info("🚕 Pet Taxi push token found", {
+      type,
+      bookingId,
+      recipientUserId,
+    });
+
+    logger.info("🚕 Playdate reference path detected", {
+      reference: "safeSendPush(notification + data + android priority + apns aps sound)",
+      type,
+      bookingId,
+      recipientUserId,
+    });
+
+    const pushPayload = {
+      notification: {
+        title,
+        body,
+      },
+      data: petTaxiPushData({
+        type,
+        bookingId,
+        businessId,
+        recipientUserId,
+        status,
+      }),
+      android: {
+        priority: "high",
+        notification: {
+          sound: "default",
+          channelId: "high_importance_channel",
+        },
+      },
+      apns: {
+        headers: { "apns-priority": "10" },
+        payload: {
+          aps: {
+            alert: {
+              title,
+              body,
+            },
+            sound: "default",
+            badge: 1,
+            "interruption-level": "time-sensitive",
+          },
+        },
+      },
+    };
+
+    logger.info("🚕 Pet Taxi using same sound path", {
+      type,
+      bookingId,
+      recipientUserId,
+      helper: "safeSendPush",
+      hasNotification: Boolean(pushPayload.notification),
+      dataKeys: Object.keys(pushPayload.data),
+    });
+    logger.info("🚕 Pet Taxi APNS payload built", {
+      type,
+      bookingId,
+      recipientUserId,
+      sound: pushPayload.apns.payload.aps.sound,
+      badge: pushPayload.apns.payload.aps.badge,
+      priority: pushPayload.apns.headers["apns-priority"],
+    });
+    logger.info("🚕 Pet Taxi sound payload attached", {
+      type,
+      bookingId,
+      recipientUserId,
+    });
+
+    const sent = await safeSendPush({
+      token,
+      userId: recipientUserId,
+      payload: pushPayload,
+    });
+
+    logger.info("🚕 Pet Taxi push sent", {
+      type,
+      bookingId,
+      recipientUserId,
+      sent,
+    });
+  } catch (error) {
+    logger.error("🚕 Pet Taxi push failed", {
+      type,
+      bookingId,
+      recipientUserId,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
     });
   }
+}
 
-  return { success: true };
-});
+async function createPetTaxiNotification({
+  type,
+  recipientUserId,
+  senderUserId,
+  title,
+  body,
+  bookingId,
+  businessId,
+  status,
+  fallbackToken = null,
+  extra = {},
+}) {
+  await db.collection("notifications").add({
+    type,
+    recipientUserId,
+    senderUserId,
+    title,
+    body,
+    bookingId,
+    appointmentId: bookingId,
+    appointmentCollection: "pet_taxi_bookings",
+    businessId,
+    status: status || null,
+    isRead: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...extra,
+  });
+
+  await sendPetTaxiPush({
+    recipientUserId,
+    fallbackToken,
+    type,
+    title,
+    body,
+    bookingId,
+    businessId,
+    status,
+  });
+}
+
+function petTaxiUserPushTypeForStatus(status) {
+  const map = {
+    awaiting_user_payment: "pet_taxi_price_proposed",
+    driver_on_the_way: "pet_taxi_driver_on_the_way",
+    arrived: "pet_taxi_driver_arrived",
+    pet_picked_up: "pet_taxi_pet_picked_up",
+    on_trip: "pet_taxi_trip_started",
+    completed: "pet_taxi_trip_completed",
+    cancelled_by_business: "pet_taxi_booking_cancelled",
+  };
+  return map[status] || "pet_taxi_status_update";
+}
+
+exports.createPetTaxiBooking = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    try {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Login required.");
+      }
+
+      const uid = request.auth.uid;
+      const {
+        businessId,
+        businessName,
+        petId,
+        petName,
+        petType,
+        petBreed,
+        pickupAddress,
+        pickupLocation,
+        pickupLat,
+        pickupLng,
+        dropoffAddress,
+        dropoffLocation,
+        dropoffLat,
+        dropoffLng,
+        scheduledAt,
+        tripType,
+        serviceReason,
+        petSize,
+        specialNotes,
+        userPhone,
+        paymentMethod,
+      } = request.data || {};
+
+      if (!businessId || !petId || !petName || !pickupAddress || !dropoffAddress || !scheduledAt || !userPhone) {
+        throw new HttpsError("invalid-argument", "Missing required fields.");
+      }
+
+      const parsedScheduledAt = new Date(scheduledAt);
+      if (Number.isNaN(parsedScheduledAt.getTime())) {
+        throw new HttpsError("invalid-argument", "Invalid scheduledAt.");
+      }
+
+      const businessSnap = await db.collection("businesses").doc(businessId).get();
+      if (!businessSnap.exists) {
+        throw new HttpsError("not-found", "Business not found.");
+      }
+
+      const businessData = businessSnap.data() || {};
+      const sectors = Array.isArray(businessData.sectors)
+        ? businessData.sectors.map((sector) => String(sector).toLowerCase())
+        : [];
+      const sectorData = businessData.sectorData || {};
+      const isPetTaxi =
+        sectors.includes("pet_taxi") ||
+        Boolean(sectorData.pet_taxi || sectorData.petTaxi || sectorData.taxi);
+
+      if (!isPetTaxi) {
+        throw new HttpsError("failed-precondition", "Business is not a pet taxi.");
+      }
+
+      const finalBusinessName =
+        businessName ||
+        businessData.profile?.displayName ||
+        "Pet Taxi";
+
+      const docRef = await db.collection("pet_taxi_bookings").add({
+        userId: uid,
+        businessId,
+        businessName: finalBusinessName,
+        petId,
+        petName,
+        petType: petType || "dog",
+        petBreed: petBreed || "",
+        pickupAddress,
+        pickupLocation: pickupLocation || null,
+        pickupLat: pickupLat ?? pickupLocation?.lat ?? null,
+        pickupLng: pickupLng ?? pickupLocation?.lng ?? null,
+        dropoffAddress,
+        dropoffLocation: dropoffLocation || null,
+        dropoffLat: dropoffLat ?? dropoffLocation?.lat ?? null,
+        dropoffLng: dropoffLng ?? dropoffLocation?.lng ?? null,
+        scheduledAt: admin.firestore.Timestamp.fromDate(parsedScheduledAt),
+        tripType: tripType || "one_way",
+        serviceReason: serviceReason || "custom",
+        petSize: petSize || "medium",
+        specialNotes: specialNotes || "",
+        userPhone,
+        paymentMethod: "in_app",
+        paymentStatus: "unpaid",
+        paymentOrderId: null,
+        paymentTransactionId: null,
+        paymentProvider: "iyzico",
+        paidAt: null,
+        paymentAmount: null,
+        paymentCurrency: request.data.estimateCurrency || "TRY",
+        providerPayoutStatus: "not_ready",
+        providerPayoutAt: null,
+        refundStatus: "none",
+        refundReason: null,
+        priceEstimate: request.data.priceEstimate ?? null,
+        estimatedMinPrice: request.data.estimatedMinPrice ?? null,
+        estimatedMaxPrice: request.data.estimatedMaxPrice ?? null,
+        estimateCurrency: request.data.estimateCurrency || "TRY",
+        estimatedDistanceKm: request.data.estimatedDistanceKm ?? null,
+        routeDistanceKm: request.data.routeDistanceKm ?? null,
+        routeDurationMinutes: request.data.routeDurationMinutes ?? null,
+        routeEstimate: request.data.routeEstimate || null,
+        pricingRulesSnapshot: request.data.pricingRulesSnapshot || null,
+        finalPrice: null,
+        finalPriceCurrency: request.data.estimateCurrency || "TRY",
+        priceConfirmedBy: null,
+        priceConfirmedAt: null,
+        userAcceptedPrice: false,
+        userAcceptedAt: null,
+        petMicrochipId: request.data.petMicrochipId || "",
+        vaccinationCardInfo: request.data.vaccinationCardInfo || "",
+        medicalConditionNotes: request.data.medicalConditionNotes || "",
+        behaviorNotes: request.data.behaviorNotes || "",
+        emergencyContactNumber: request.data.emergencyContactNumber || "",
+        cageCarrierRequired: request.data.cageCarrierRequired === true,
+        leashRequired: request.data.leashRequired === true,
+        largeDog: request.data.largeDog === true,
+        specialAssistanceRequired: request.data.specialAssistanceRequired === true,
+        status: "pending",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastStatusChange: {
+          from: null,
+          to: "pending",
+          at: admin.firestore.FieldValue.serverTimestamp(),
+          by: uid,
+        },
+      });
+
+      try {
+        const businessOwnerUid = businessData.ownerUid || businessData.uid || businessId;
+        const title = "New Pet Taxi Request";
+        const body = `${petName} needs a pet taxi ride`;
+
+        await createPetTaxiNotification({
+          type: "pet_taxi_booking_request",
+          recipientUserId: businessOwnerUid,
+          senderUserId: uid,
+          title,
+          body,
+          bookingId: docRef.id,
+          businessId,
+          status: "pending",
+          fallbackToken: businessData.fcmToken || null,
+        });
+      } catch (e) {
+        logger.error("❌ Pet taxi booking notification error:", e);
+      }
+
+      return { ok: true, bookingId: docRef.id };
+    } catch (e) {
+      logger.error("❌ createPetTaxiBooking FAILED:", e);
+      if (e instanceof HttpsError) throw e;
+      throw new HttpsError("internal", e.message || "Failed to create booking.");
+    }
+  }
+);
+
+exports.updatePetTaxiBookingStatus = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const uid = request.auth.uid;
+    const bookingId = String(request.data?.bookingId || "").trim();
+    const newStatus = String(request.data?.newStatus || request.data?.status || "").trim();
+    const finalPrice = request.data?.finalPrice;
+    const finalPriceCurrency = request.data?.finalPriceCurrency || "TRY";
+
+    if (!bookingId || !newStatus) {
+      throw new HttpsError("invalid-argument", "bookingId and newStatus are required.");
+    }
+
+    assertPetTaxiStatus(newStatus);
+    const bookingRef = db.collection("pet_taxi_bookings").doc(bookingId);
+
+    const result = await db.runTransaction(async (tx) => {
+      const bookingSnap = await tx.get(bookingRef);
+      if (!bookingSnap.exists) {
+        throw new HttpsError("not-found", "Booking not found.");
+      }
+
+      const data = bookingSnap.data() || {};
+      const oldStatus = data.status || "pending";
+      assertPetTaxiStatus(oldStatus);
+
+      const businessId = data.businessId;
+      const businessRef = db.collection("businesses").doc(businessId);
+      const businessSnap = await tx.get(businessRef);
+      if (!businessSnap.exists) {
+        throw new HttpsError("not-found", "Business not found.");
+      }
+
+      const adminSnap = await tx.get(db.collection("users").doc(uid));
+      const isAdminUser = adminSnap.exists && adminSnap.data()?.role === "admin";
+      const businessData = businessSnap.data() || {};
+      const businessOwnerUid = businessData.ownerUid || businessData.uid || businessId;
+      const isBusinessOwner = businessOwnerUid === uid;
+      const isBookingOwner = data.userId === uid;
+      const proposingPrice =
+        newStatus === "awaiting_user_payment";
+      const editingProposedPrice =
+        proposingPrice &&
+        (oldStatus === "awaiting_user_payment" || oldStatus === "payment_failed");
+
+      if (oldStatus === newStatus && !editingProposedPrice) {
+        return { skipped: true, data, oldStatus, newStatus };
+      }
+
+      if (!editingProposedPrice && !petTaxiAllowedTransition(oldStatus, newStatus)) {
+        throw new HttpsError("failed-precondition", "Status transition is not allowed.");
+      }
+
+      if (newStatus === "cancelled_by_user") {
+        if (!isBookingOwner && !isAdminUser) {
+          throw new HttpsError("permission-denied", "Only the user can cancel this booking.");
+        }
+      } else if (!isBusinessOwner && !isAdminUser) {
+        throw new HttpsError("permission-denied", "Only the business owner can update this booking.");
+      }
+
+      const update = {
+        status: proposingPrice ? "awaiting_user_payment" : newStatus,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastStatusChange: {
+          from: oldStatus,
+          to: proposingPrice ? "awaiting_user_payment" : newStatus,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+          by: uid,
+        },
+      };
+
+      if (proposingPrice) {
+        const parsedFinalPrice = Number(finalPrice);
+        if (!Number.isFinite(parsedFinalPrice) || parsedFinalPrice <= 0) {
+          throw new HttpsError("invalid-argument", "Final price is required.");
+        }
+        update.finalPrice = Math.round(parsedFinalPrice * 100) / 100;
+        update.finalPriceCurrency = String(finalPriceCurrency || "TRY");
+        update.priceConfirmedBy = uid;
+        update.priceConfirmedAt = admin.firestore.FieldValue.serverTimestamp();
+        update.paymentStatus = "unpaid";
+        update.paymentAmount = Math.round(parsedFinalPrice * 100) / 100;
+        update.paymentCurrency = String(finalPriceCurrency || "TRY");
+      }
+
+      if (newStatus === "cancelled_by_user" && request.data?.priceRejected === true) {
+        update.userRejectedPrice = true;
+        update.userRejectedAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      if (newStatus === "completed") {
+        update.providerPayoutStatus = data.paymentStatus === "paid"
+          ? "pending"
+          : data.providerPayoutStatus || "not_ready";
+        update.providerPayoutAt = null;
+      }
+
+      tx.update(bookingRef, update);
+
+      return {
+        skipped: false,
+        data,
+        oldStatus,
+        newStatus: proposingPrice ? "awaiting_user_payment" : newStatus,
+        businessData,
+        businessOwnerUid,
+      };
+    });
+
+    if (!result.skipped) {
+      try {
+        const data = result.data || {};
+        const businessData = result.businessData || {};
+        const businessOwnerUid = result.businessOwnerUid ||
+          businessData.ownerUid ||
+          businessData.uid ||
+          data.businessId;
+        const effectiveStatus = result.newStatus || newStatus;
+        const providerSide = effectiveStatus === "cancelled_by_user";
+        const type = providerSide
+          ? "pet_taxi_booking_cancelled_by_user"
+          : petTaxiUserPushTypeForStatus(effectiveStatus);
+        const recipientId = providerSide ? businessOwnerUid : data.userId;
+        const senderId = providerSide ? data.userId : businessOwnerUid;
+        const title = effectiveStatus === "awaiting_user_payment"
+          ? "Pet Taxi Final Price"
+          : effectiveStatus === "cancelled_by_user"
+            ? "Pet Taxi Booking Cancelled"
+            : effectiveStatus === "cancelled_by_business"
+              ? "Pet Taxi Booking Cancelled"
+              : "Pet Taxi Status Update";
+        const body = effectiveStatus === "awaiting_user_payment"
+          ? `Final price proposed for ${data.petName || "your pet taxi booking"}`
+          : effectiveStatus === "cancelled_by_user"
+            ? `${data.petName || "Pet taxi booking"} was cancelled by the customer`
+            : `${data.petName || "Your pet taxi booking"} is ${effectiveStatus.replace(/_/g, " ")}`;
+
+        await createPetTaxiNotification({
+          type,
+          recipientUserId: recipientId,
+          senderUserId: senderId,
+          title,
+          body,
+          bookingId,
+          businessId: data.businessId,
+          status: effectiveStatus,
+        });
+      } catch (e) {
+        logger.error("❌ Pet taxi status notification error:", e);
+      }
+    }
+
+    return {
+      ok: true,
+      bookingId,
+      oldStatus: result.oldStatus,
+      newStatus: result.newStatus || newStatus,
+      skipped: result.skipped,
+    };
+  }
+);
+
+exports.createPetTaxiOrder = onCall(
+  {
+    region: "europe-west3",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+  },
+  async (request) => {
+    try {
+      const uid = request.auth?.uid;
+      if (!uid) {
+        throw new HttpsError("unauthenticated", "Login required");
+      }
+
+      const bookingId = String(request.data?.bookingId || request.data?.appointmentId || "").trim();
+      if (!bookingId) {
+        throw new HttpsError("invalid-argument", "bookingId required");
+      }
+
+      const bookingRef = db.collection("pet_taxi_bookings").doc(bookingId);
+      const bookingSnap = await bookingRef.get();
+      if (!bookingSnap.exists) {
+        throw new HttpsError("not-found", "Pet taxi booking not found");
+      }
+
+      const data = bookingSnap.data() || {};
+      if (data.userId !== uid) {
+        throw new HttpsError("permission-denied", "Only the booking owner can pay");
+      }
+      if (!["awaiting_user_payment", "payment_failed"].includes(data.status)) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Payment can only be started while awaiting payment. Current status: ${data.status}`
+        );
+      }
+
+      const price = Number(data.finalPrice || data.paymentAmount || 0);
+      if (!Number.isFinite(price) || price <= 0) {
+        throw new HttpsError("failed-precondition", "Invalid final price");
+      }
+      const currency = data.finalPriceCurrency || data.paymentCurrency || "TRY";
+
+      const userSnap = await db.collection("users").doc(uid).get();
+      const user = userSnap.data() || {};
+
+      const buyer = {
+        id: uid,
+        name: safe(user.name || user.displayName, "User"),
+        surname: safe(user.surname, "User"),
+        gsmNumber: safe(user.phone || data.userPhone, "+905000000000"),
+        email: safe(user.email, "test@email.com"),
+        identityNumber: "11111111111",
+        registrationAddress: safe(user.address || data.pickupAddress, "Istanbul"),
+        ip: request.rawRequest?.ip || "85.34.78.112",
+        city: safe(user.city, "Istanbul"),
+        country: "Turkey",
+        zipCode: safe(user.zipCode, "34000"),
+        registrationDate: formatIyziDate(),
+        lastLoginDate: formatIyziDate(),
+      };
+
+      const address = {
+        contactName: `${buyer.name} ${buyer.surname}`,
+        city: buyer.city,
+        country: buyer.country,
+        address: buyer.registrationAddress,
+        zipCode: buyer.zipCode,
+      };
+
+      const orderRef = db.collection("orders").doc();
+      await orderRef.set({
+        type: "pet_taxi",
+        appointmentType: "pet_taxi",
+        appointmentCollection: "pet_taxi_bookings",
+        appointmentId: bookingId,
+        bookingId,
+        buyerUid: uid,
+        businessId: data.businessId,
+        status: "pending",
+        paymentStatus: "pending",
+        pricing: {
+          grandTotal: price,
+          currency,
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const iyzi = new Iyzipay({
+        apiKey: IYZICO_API_KEY.value(),
+        secretKey: IYZICO_SECRET_KEY.value(),
+        uri: "https://sandbox-api.iyzipay.com",
+      });
+
+      const result = await new Promise((resolve, reject) => {
+        iyzi.checkoutFormInitialize.create(
+          {
+            locale: Iyzipay.LOCALE.TR,
+            conversationId: orderRef.id,
+            price: price.toString(),
+            paidPrice: price.toString(),
+            currency,
+            buyer,
+            shippingAddress: address,
+            billingAddress: address,
+            basketItems: [
+              {
+                id: bookingId,
+                name: data.serviceTitle || `Pet Taxi Booking - ${data.petName || "Pet"}`,
+                category1: "Pet Taxi",
+                itemType: "VIRTUAL",
+                price: price.toString(),
+              },
+            ],
+            callbackUrl:
+              "https://barkymatches.app/payment-success?orderId=" +
+              orderRef.id,
+          },
+          (err, res) => {
+            if (err) return reject(err);
+            resolve(res);
+          }
+        );
+      });
+
+      if (!result || !result.token || !result.paymentPageUrl) {
+        logger.error("❌ INVALID PET TAXI IYZICO RESPONSE", result);
+        throw new HttpsError("internal", "Iyzi failed");
+      }
+
+      await orderRef.update({
+        payment: {
+          checkoutToken: result.token,
+          checkoutUrl: result.paymentPageUrl,
+          provider: "iyzico",
+          status: "pending",
+          currency,
+          price,
+          conversationId: orderRef.id,
+        },
+      });
+
+      await bookingRef.set(
+        {
+          status: "awaiting_user_payment",
+          orderId: orderRef.id,
+          paymentOrderId: orderRef.id,
+          checkoutToken: result.token,
+          conversationId: orderRef.id,
+          paymentStatus: "pending",
+          paymentProvider: "iyzico",
+          paymentAmount: price,
+          paymentCurrency: currency,
+          refundStatus: data.refundStatus || "none",
+          providerPayoutStatus: data.providerPayoutStatus || "not_ready",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastStatusChange: {
+            from: data.status || "awaiting_user_payment",
+            to: "awaiting_user_payment",
+            at: admin.firestore.FieldValue.serverTimestamp(),
+            by: uid,
+          },
+        },
+        { merge: true }
+      );
+
+      return {
+        orderId: orderRef.id,
+        checkoutUrl: result.paymentPageUrl,
+      };
+    } catch (error) {
+      logger.error("❌ createPetTaxiOrder ERROR", error);
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", error?.message || "Unknown error");
+    }
+  }
+);
+
+exports.verifyPetTaxiPayment = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+  },
+  async (request) => {
+    try {
+      const uid = request.auth?.uid;
+      if (!uid) {
+        throw new HttpsError("unauthenticated", "Login required");
+      }
+
+      const orderId = String(request.data?.orderId || "").trim();
+      if (!orderId) {
+        throw new HttpsError("invalid-argument", "Missing orderId");
+      }
+
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderSnap = await orderRef.get();
+      if (!orderSnap.exists) {
+        throw new HttpsError("not-found", "Order not found");
+      }
+
+      const orderData = orderSnap.data() || {};
+      if (orderData.type !== "pet_taxi") {
+        throw new HttpsError("failed-precondition", "Order is not a pet taxi order");
+      }
+      if (orderData.buyerUid !== uid) {
+        throw new HttpsError("permission-denied", "Only the buyer can verify payment");
+      }
+
+      const token = orderData.payment?.checkoutToken;
+      if (!token) {
+        throw new HttpsError("failed-precondition", "Missing payment token in order");
+      }
+
+      const bookingId = orderData.bookingId || orderData.appointmentId;
+      const bookingRef = db.collection("pet_taxi_bookings").doc(bookingId);
+      const bookingSnap = await bookingRef.get();
+      if (!bookingSnap.exists) {
+        throw new HttpsError("not-found", "Pet taxi booking not found");
+      }
+      const bookingData = bookingSnap.data() || {};
+
+      if (orderData.payment?.status === "paid") {
+        return {
+          success: true,
+          alreadyPaid: true,
+          type: "pet_taxi",
+          appointmentCollection: "pet_taxi_bookings",
+          appointmentType: "pet_taxi",
+          appointmentId: bookingId,
+        };
+      }
+
+      const iyzi = new Iyzipay({
+        apiKey: IYZICO_API_KEY.value(),
+        secretKey: IYZICO_SECRET_KEY.value(),
+        uri: "https://sandbox-api.iyzipay.com",
+      });
+
+      const result = await new Promise((resolve, reject) => {
+        iyzi.checkoutForm.retrieve({ token }, (err, res) => {
+          if (err) return reject(err);
+          return resolve(res);
+        });
+      });
+
+      const paymentTransactionIds = extractPaymentTransactionIds(
+        result?.itemTransactions
+      );
+      const paymentTransactionId =
+        paymentTransactionIds.length > 0
+          ? paymentTransactionIds[0]
+          : result?.paymentTransactionId?.toString?.() ||
+          result?.paymentTransactionId ||
+          null;
+
+      if (!result || result.status !== "success") {
+        await orderRef.set(
+          {
+            status: "failed",
+            paymentStatus: "failed",
+            payment: {
+              ...(orderData.payment || {}),
+              status: "failed",
+              provider: "iyzico",
+              errorMessage: result?.errorMessage || "Payment not successful",
+              rawStatus: result?.status || null,
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        await bookingRef.set(
+          {
+            status: "payment_failed",
+            paymentStatus: "failed",
+            paymentOrderId: orderId,
+            paymentProvider: "iyzico",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastStatusChange: {
+              from: bookingData.status || "awaiting_user_payment",
+              to: "payment_failed",
+              at: admin.firestore.FieldValue.serverTimestamp(),
+              by: uid,
+            },
+          },
+          { merge: true }
+        );
+        throw new HttpsError("failed-precondition", "Payment not successful");
+      }
+
+      await orderRef.update({
+        "payment.status": "paid",
+        paymentStatus: "paid",
+        status: "paid",
+        "payment.paymentId": result.paymentId || null,
+        "payment.paymentProvider": "iyzico",
+        "payment.paidPrice": result.paidPrice || null,
+        "payment.price": result.price || null,
+        "payment.conversationId": result.conversationId || orderData.payment?.conversationId || null,
+        "payment.paymentTransactionId": paymentTransactionId || null,
+        "payment.paymentTransactionIds": paymentTransactionIds,
+        "payment.iyzicoPaymentTransactionId": paymentTransactionId || null,
+        "payment.currency": result.currency || orderData.payment?.currency || orderData.pricing?.currency || "TRY",
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      await bookingRef.update({
+        paymentStatus: "paid",
+        status: "confirmed_paid",
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        paymentOrderId: orderId,
+        orderId,
+        paymentId: result.paymentId || null,
+        iyzicoPaymentId: result.paymentId || null,
+        paymentTransactionId: paymentTransactionId || null,
+        paymentTransactionIds,
+        iyzicoPaymentTransactionId: paymentTransactionId || null,
+        paymentProvider: "iyzico",
+        paymentAmount: Number(result.paidPrice || result.price || bookingData.finalPrice || 0),
+        paymentCurrency: result.currency || bookingData.finalPriceCurrency || "TRY",
+        providerPayoutStatus: "pending_completion",
+        providerPayoutAt: null,
+        refundStatus: bookingData.refundStatus || "none",
+        refundReason: bookingData.refundReason || null,
+        conversationId: result.conversationId || orderData.payment?.conversationId || null,
+        checkoutToken: orderData.payment?.checkoutToken || null,
+        lastStatusChange: {
+          from: bookingData.status || "awaiting_user_payment",
+          to: "confirmed_paid",
+          at: admin.firestore.FieldValue.serverTimestamp(),
+          by: uid,
+        },
+      });
+
+      const businessId = bookingData.businessId || orderData.businessId;
+      let recipientUserId = businessId;
+      if (businessId) {
+        try {
+          const businessSnap = await db.collection("businesses").doc(businessId).get();
+          const businessData = businessSnap.data() || {};
+          recipientUserId = businessData.ownerUid || businessData.uid || businessId;
+        } catch (error) {
+          logger.warn("⚠️ Pet taxi payment recipient lookup failed", {
+            businessId,
+            message: error?.message || String(error),
+          });
+        }
+      }
+
+      if (recipientUserId) {
+        await createPetTaxiNotification({
+          type: "pet_taxi_payment_completed",
+          recipientUserId,
+          senderUserId: uid,
+          title: "Pet Taxi Payment Completed",
+          body: `${bookingData.petName || "Pet taxi booking"} payment completed successfully`,
+          bookingId,
+          businessId,
+          status: "confirmed_paid",
+          extra: {
+            appointmentType: "pet_taxi",
+            orderId,
+          },
+        });
+      }
+
+      await createPetTaxiNotification({
+        type: "pet_taxi_payment_success",
+        recipientUserId: uid,
+        senderUserId: recipientUserId || "system",
+        title: "Pet Taxi Payment Successful",
+        body: `${bookingData.petName || "Your pet taxi booking"} is paid and confirmed`,
+        bookingId,
+        businessId,
+        status: "confirmed_paid",
+        extra: {
+          appointmentType: "pet_taxi",
+          orderId,
+        },
+      });
+
+      return {
+        success: true,
+        type: "pet_taxi",
+        appointmentCollection: "pet_taxi_bookings",
+        appointmentType: "pet_taxi",
+        appointmentId: bookingId,
+      };
+    } catch (error) {
+      logger.error("❌ verifyPetTaxiPayment ERROR", {
+        message: error?.message || String(error),
+        stack: error?.stack || null,
+      });
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", error?.message || "Unknown error");
+    }
+  }
+);
+
+exports.syncBusinessToken = onCall(
+  { region: 'europe-west3' },
+  async (req) => {
+    const uid = req.auth.uid;
+    const token = req.data.token;
+
+    const businessSnap = await db
+      .collection('businesses')
+      .where('ownerUid', '==', uid)
+      .limit(1)
+      .get();
+
+    if (!businessSnap.empty) {
+      await businessSnap.docs[0].ref.update({
+        fcmToken: token,
+      });
+    }
+
+    return { success: true };
+  },
+);
 
 exports.createAppointmentCheckout = onCall(
   { region: "europe-west3" },
@@ -9386,6 +17534,64 @@ const safe = (val, fallback) => {
   return val;
 };
 
+function appointmentCollectionForRequest(data = {}) {
+  const requestedCollection = String(data.appointmentCollection || "").trim();
+  if (requestedCollection === "hotel_bookings") {
+    return "hotel_bookings";
+  }
+
+  if (requestedCollection === "groomy_appointments") {
+    return "groomy_appointments";
+  }
+
+  const requestedType = normalizeLower(
+    data.appointmentType || data.businessType || data.sector || ""
+  );
+
+  if (
+    requestedType.includes("hotel") ||
+    requestedType.includes("boarding") ||
+    requestedType.includes("pet_hotel")
+  ) {
+    return "hotel_bookings";
+  }
+
+  return requestedType.includes("groom")
+    ? "groomy_appointments"
+    : "vet_appointments";
+}
+
+function appointmentCollectionForOrder(orderData = {}) {
+  logger.info("🧪 appointmentCollectionForOrder INPUT", orderData);
+
+  if (orderData.appointmentCollection === "groomy_appointments") {
+    logger.info("🧪 RETURN groomy_appointments via explicit collection");
+    return "groomy_appointments";
+  }
+
+  if (orderData.appointmentCollection === "hotel_bookings") {
+    logger.info("🧪 RETURN hotel_bookings via explicit collection");
+    return "hotel_bookings";
+  }
+
+  const normalizedType = normalizeLower(orderData.appointmentType);
+
+  logger.info("🧪 normalizedType", normalizedType);
+
+  const result =
+    normalizedType.includes("hotel") ||
+      normalizedType.includes("boarding") ||
+      normalizedType.includes("pet_hotel")
+      ? "hotel_bookings"
+      : normalizedType.includes("groom")
+        ? "groomy_appointments"
+        : "vet_appointments";
+
+  logger.info("🧪 appointmentCollectionForOrder RESULT", result);
+
+  return result;
+}
+
 exports.createAppointmentOrder = onCall(
   {
     region: "europe-west3",
@@ -9412,12 +17618,19 @@ exports.createAppointmentOrder = onCall(
       if (!appointmentId) {
         throw new HttpsError("invalid-argument", "appointmentId required");
       }
+      const appointmentCollection = appointmentCollectionForRequest(request.data);
+      const appointmentType =
+        appointmentCollection === "hotel_bookings"
+          ? "pet_hotel"
+          : appointmentCollection === "groomy_appointments"
+            ? "grooming"
+            : "veterinary";
 
       // =========================
       // APPOINTMENT
       // =========================
       const snap = await db
-        .collection("vet_appointments")
+        .collection(appointmentCollection)
         .doc(appointmentId)
         .get();
 
@@ -9426,10 +17639,37 @@ exports.createAppointmentOrder = onCall(
       }
 
       const data = snap.data() || {};
+      const paymentPolicy = resolveAppointmentPaymentPolicy(data);
+      const currentStatus = data.status || "pending";
+      const paymentDeadlineAt = data.paymentDeadlineAt || null;
 
       const price = data.price;
       if (!price || price <= 0) {
         throw new HttpsError("failed-precondition", "Invalid price");
+      }
+
+      if (!paymentPolicy.requiresPayment) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This appointment does not require payment"
+        );
+      }
+
+      if (currentStatus !== "awaiting_payment") {
+        throw new HttpsError(
+          "failed-precondition",
+          `Payment can only be started while awaiting payment. Current status: ${currentStatus}`
+        );
+      }
+
+      if (paymentDeadlineAt) {
+        const deadlineMillis = toMillisSafe(paymentDeadlineAt);
+        if (deadlineMillis && deadlineMillis < Date.now()) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Payment window has expired"
+          );
+        }
       }
 
       // =========================
@@ -9472,6 +17712,8 @@ exports.createAppointmentOrder = onCall(
 
       await orderRef.set({
         type: "appointment",
+        appointmentType,
+        appointmentCollection,
         appointmentId,
         buyerUid: uid,
         businessId: data.businessId,
@@ -9509,8 +17751,17 @@ exports.createAppointmentOrder = onCall(
             basketItems: [
               {
                 id: appointmentId,
-                name: data.serviceTitle || "Vet Appointment",
-                category1: "Vet",
+                name: data.serviceTitle ||
+                  (appointmentType === "pet_hotel"
+                    ? "Pet Hotel Booking"
+                    : appointmentType === "grooming"
+                      ? "Grooming Appointment"
+                      : "Vet Appointment"),
+                category1: appointmentType === "pet_hotel"
+                  ? "Pet Hotel"
+                  : appointmentType === "grooming"
+                    ? "Grooming"
+                    : "Vet",
                 itemType: "VIRTUAL",
                 price: price.toString(),
               },
@@ -9538,6 +17789,19 @@ exports.createAppointmentOrder = onCall(
         },
       });
 
+      await db
+        .collection(appointmentCollection)
+        .doc(appointmentId)
+        .set(
+          {
+            orderId: orderRef.id,
+            checkoutToken: result.token,
+            conversationId: orderRef.id,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
       return {
         orderId: orderRef.id,
         checkoutUrl: result.paymentPageUrl,
@@ -9552,6 +17816,8 @@ exports.createAppointmentOrder = onCall(
     }
   }
 );
+
+exports.createHotelBookingOrder = exports.createAppointmentOrder;
 
 
 exports.activateSubscription = onCall(async (request) => {

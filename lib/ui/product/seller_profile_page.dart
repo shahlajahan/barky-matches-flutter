@@ -78,8 +78,8 @@ final logoUrl = (
   profile['imageUrl'] ??
   data['logoUrl'] // ✅ fallback به root
 );
-print("🔥 COVER URL: $coverUrl");
-print("🔥 LOGO URL: $logoUrl");
+debugPrint("🔥 COVER URL: $coverUrl");
+debugPrint("🔥 LOGO URL: $logoUrl");
 
                   final city = (contact['city'] ?? profile['city'])?.toString();
                   final district =
@@ -238,17 +238,17 @@ else
   builder: (context, snapshot) {
 
     // 🔥 DEBUG START
-    print("🟡 SellerProfilePage QUERY RUN");
-    print("👉 sellerId = $sellerId");
-    print("👉 hasError = ${snapshot.hasError}");
-    print("👉 hasData = ${snapshot.hasData}");
+    debugPrint("🟡 SellerProfilePage QUERY RUN");
+    debugPrint("👉 sellerId = $sellerId");
+    debugPrint("👉 hasError = ${snapshot.hasError}");
+    debugPrint("👉 hasData = ${snapshot.hasData}");
 
     if (snapshot.hasError) {
-      print("🔥 FIRESTORE ERROR: ${snapshot.error}");
+      debugPrint("🔥 FIRESTORE ERROR: ${snapshot.error}");
     }
 
     if (snapshot.hasData) {
-      print("📦 DOC COUNT: ${snapshot.data!.docs.length}");
+      debugPrint("📦 DOC COUNT: ${snapshot.data!.docs.length}");
     }
     // 🔥 DEBUG END
                     final docs = snapshot.data?.docs ?? [];
@@ -328,9 +328,9 @@ final petshopProfile =
 final nestedProfile =
     (profile['profile'] as Map<String, dynamic>?) ?? {};
 
-print("🔥 PROFILE RAW: ${data['profile']}");
-print("🔥 SECTOR DATA RAW: ${data['sectorData']}");
-print("🔥 PETSHOP PROFILE RAW: $petshopProfile");
+debugPrint("🔥 PROFILE RAW: ${data['profile']}");
+debugPrint("🔥 SECTOR DATA RAW: ${data['sectorData']}");
+debugPrint("🔥 PETSHOP PROFILE RAW: $petshopProfile");
 
 String? about;
 

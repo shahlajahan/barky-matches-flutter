@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../models/media_item.dart';
 
+
 class GalleryViewerPage extends StatefulWidget {
   final List<MediaItem> items;
   final int initialIndex;
@@ -41,28 +42,75 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
 
   bool _isVideo(MediaItem item) => item.type == MediaType.video;
 
-  Future<void> _preloadAround(int index) async {
-    for (int i = index - 1; i <= index + 1; i++) {
-      if (i < 0 || i >= widget.items.length) continue;
+  Future<void> _preloadAround(
+  int index,
+) async {
 
-      final item = widget.items[i];
+  for (int i = index - 1; i <= index + 1; i++) {
 
-      if (_isVideo(item)) {
-        await _initVideo(i, item.url, autoPlay: i == _currentIndex);
-      } else {
-        final uri = Uri.tryParse(item.url);
-        if (uri != null &&
-            uri.hasScheme &&
-            (uri.scheme == 'http' || uri.scheme == 'https')) {
-          try {
-            await precacheImage(NetworkImage(item.url), context);
-          } catch (_) {}
-        }
-      }
+    if (i < 0 || i >= widget.items.length) {
+      continue;
     }
 
-    _disposeFarControllers(index);
+    final item = widget.items[i];
+
+    if (_isVideo(item)) {
+
+      await _initVideo(
+        i,
+        item.url,
+        autoPlay: i == _currentIndex,
+      );
+
+    } else {
+
+      final uri = Uri.tryParse(item.url);
+
+      if (uri != null &&
+          uri.hasScheme &&
+          (uri.scheme == 'http' ||
+           uri.scheme == 'https')) {
+
+        await safePrecacheImage(
+          context,
+          item.url,
+        );
+
+        await Future.delayed(
+          const Duration(milliseconds: 50),
+        );
+      }
+    }
   }
+
+  _disposeFarControllers(index);
+}
+
+Future<void> safePrecacheImage(
+  BuildContext context,
+  String imageUrl,
+) async {
+
+  try {
+
+    final imageProvider = NetworkImage(imageUrl);
+
+    await precacheImage(
+      imageProvider,
+      context,
+    );
+
+    debugPrint('🧠 precached: $imageUrl');
+
+  } catch (e) {
+
+    debugPrint(
+      '⚠️ precache failed: $e',
+    );
+  }
+}
+
+
 
   Future<void> _initVideo(
     int index,
@@ -362,14 +410,49 @@ class _ZoomableImageState extends State<_ZoomableImage> {
         minScale: 1,
         maxScale: 4,
         child: Image.network(
-          widget.url,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(
-            Icons.broken_image,
-            color: Colors.white54,
-            size: 56,
-          ),
+  widget.url,
+
+  fit: BoxFit.contain,
+
+  gaplessPlayback: true,
+
+  filterQuality: FilterQuality.medium,
+
+  errorBuilder: (
+    context,
+    error,
+    stackTrace,
+  ) {
+
+    return const Icon(
+      Icons.broken_image,
+      color: Colors.white54,
+      size: 56,
+    );
+  },
+
+  loadingBuilder: (
+    context,
+    child,
+    progress,
+  ) {
+
+    if (progress == null) {
+      return child;
+    }
+
+    return const Center(
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Colors.white,
         ),
+      ),
+    );
+  },
+)
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
 import 'sections/vet_dashboard_overview_tab.dart';
@@ -114,6 +115,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
       
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
@@ -153,7 +155,7 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Veterinary Dashboard',
+                  l10n.veterinaryDashboardTitle,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.8),
@@ -180,9 +182,10 @@ class _TopTabs extends StatelessWidget {
 
   @override
 Widget build(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   final items = [
-    (VetDashboardSection.overview, 'Overview', LucideIcons.layoutDashboard),
-    (VetDashboardSection.appointments, 'Appointments', LucideIcons.calendar),
+    (VetDashboardSection.overview, l10n.overviewTab, LucideIcons.layoutDashboard),
+    (VetDashboardSection.appointments, l10n.appointmentsTab, LucideIcons.calendar),
   ];
 
   return Container(
