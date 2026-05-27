@@ -1,0 +1,36 @@
+graph TD
+    V[lib/ui/business/dashboard/vet/vet_dashboard_page.dart]
+
+    V --> O[sections/vet_dashboard_overview_tab.dart]
+    V --> A[sections/vet_dashboard_appointments_tab.dart]
+    V --> G[sections/vet_dashboard_gallery_tab.dart]
+    V --> S[sections/vet_dashboard_services_tab.dart]
+    V --> I[sections/vet_dashboard_info_tab.dart]
+
+    V --> GM[vet_gallery_management_page.dart]
+    V --> SM[vet_services_management_page.dart]
+    V --> WH[vet_working_hours_page.dart]
+    V --> SC[vet_schedule_page.dart]
+    V --> ST[vet_settings_page.dart]
+
+    V --> CM[client_messages/]
+    CM --> CI[client_messages/vet_inbox_page.dart]
+    CM --> CP[client_messages/vet_client_messages_page.dart]
+    CM --> QR[client_messages/quick_replies/vet_quick_replies_page.dart]
+
+    CP --> BCS[lib/services/business_chat_service.dart]
+
+    V --> P[patients/]
+    P --> PL[vet_patients_page.dart]
+    P --> PD[patients/vet_patient_detail_page.dart]
+    P --> EMP[patients/edit_medical_profile_page.dart]
+    P --> EV[patients/edit_visit_page.dart]
+
+    PL --> PD
+    PD --> EMP
+    PD --> EV
+
+    EMP --> MR[lib/ui/medical_records/]
+    EV --> PS[lib/social/services/patient_service.dart]
+    PS --> VC[lib/constants/vaccine_catalog.dart]
+    PS --> PB[lib/constants/pet_breeds.dart]

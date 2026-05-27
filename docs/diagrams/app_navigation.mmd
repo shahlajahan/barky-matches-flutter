@@ -1,0 +1,35 @@
+graph TD
+    A[lib/main.dart] --> B[lib/app_state.dart]
+    B --> C[lib/home_gate.dart]
+
+    C --> D[Authentication Stack]
+    C --> E[lib/ui/admin/]
+    C --> F[lib/ui/shell/barky_scaffold.dart]
+
+    subgraph Consumer Shell
+        F --> F1[lib/home_page.dart]
+        F --> F2[lib/playmate_page.dart]
+        F --> F3[lib/vet_page.dart]
+        F --> F4[lib/adoption_page.dart]
+        F --> F5[lib/ui/shell/barky_drawer.dart]
+    end
+
+    F1 --> H1[lib/ui/business/business_detail_overlay.dart]
+    H1 --> H2[lib/ui/business/chat/business_chat_page.dart]
+
+    F2 --> I1[lib/dog_info_page.dart]
+
+    F5 --> J1[lib/screens/lost_dogs_list_page.dart]
+    J1 --> J2[lib/screens/lost_dog_report_page.dart]
+    J1 --> J3[lib/screens/lost_dog_detail_page.dart]
+
+    F5 --> K1[lib/screens/found_dogs_list_page.dart]
+    K1 --> K2[lib/screens/found_dog_report_page.dart]
+    K1 --> K3[lib/screens/found_dog_detail_page.dart]
+
+    F5 --> M1[lib/notifications_page.dart]
+    M1 --> M2[lib/all_notifications_page.dart]
+
+    F5 --> S1[lib/ui/setting/]
+    F5 --> L1[lib/ui/legal/]
+    F5 --> P1[lib/ui/support/]

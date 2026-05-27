@@ -1,0 +1,121 @@
+erDiagram
+    USERS {
+        string uid
+        string role
+        string email
+        string locale
+        string subscriptionPlan
+    }
+
+    BUSINESSES {
+        string businessId
+        string ownerId
+        string sector
+        string displayName
+        map location
+        map profile
+        map sectorData
+    }
+
+    PETS {
+        string petId
+        string ownerId
+        string name
+        string breed
+        string gender
+        int age
+    }
+
+    MEDICAL_RECORDS {
+        string recordId
+        string petId
+        string ownerId
+        string vetBusinessId
+        map profile
+        array visits
+        array vaccines
+    }
+
+    BUSINESS_CHATS {
+        string chatId
+        string businessId
+        string userId
+        string lastMessage
+        timestamp lastMessageAt
+        int userUnreadCount
+        int businessUnreadCount
+    }
+
+    BUSINESS_CHAT_MESSAGES {
+        string messageId
+        string chatId
+        string senderId
+        string senderType
+        string text
+        timestamp createdAt
+    }
+
+    VET_APPOINTMENTS {
+        string appointmentId
+        string businessId
+        string userId
+        string petId
+        string status
+        timestamp scheduledAt
+    }
+
+    ORDERS {
+        string orderId
+        string buyerId
+        string sellerId
+        string status
+        number totalAmount
+    }
+
+    ORDER_RETURNS {
+        string returnId
+        string orderId
+        string requesterId
+        string status
+    }
+
+    ADOPTION_REQUESTS {
+        string requestId
+        string applicantUserId
+        string petId
+        string centerBusinessId
+        string status
+    }
+
+    LOST_PETS {
+        string reportId
+        string ownerId
+        string petName
+        geopoint location
+        string status
+    }
+
+    FOUND_PETS {
+        string reportId
+        string reporterId
+        string petName
+        geopoint location
+        string status
+    }
+
+    USERS ||--o{ PETS : owns
+    USERS ||--o{ BUSINESSES : manages
+    USERS ||--o{ VET_APPOINTMENTS : books
+    USERS ||--o{ BUSINESS_CHATS : starts
+    USERS ||--o{ ORDERS : creates
+
+    BUSINESSES ||--o{ VET_APPOINTMENTS : receives
+    BUSINESSES ||--o{ BUSINESS_CHATS : participates
+    BUSINESSES ||--o{ ORDERS : sells
+    BUSINESSES ||--o{ ADOPTION_REQUESTS : receives
+
+    PETS ||--o{ MEDICAL_RECORDS : has
+    PETS ||--o{ VET_APPOINTMENTS : attends
+
+    BUSINESS_CHATS ||--o{ BUSINESS_CHAT_MESSAGES : contains
+    ORDERS ||--o{ ORDER_RETURNS : may_have

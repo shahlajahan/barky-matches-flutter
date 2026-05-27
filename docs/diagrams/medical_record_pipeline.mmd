@@ -1,0 +1,49 @@
+graph LR
+    A[patients/vet_patient_detail_page.dart]
+    B[patients/edit_medical_profile_page.dart]
+    C[patients/edit_visit_page.dart]
+
+    D[lib/ui/medical_records/medical_records_page.dart]
+    E[lib/ui/medical_records/medical_record_pet_card.dart]
+    F[lib/ui/medical_records/medical_record_flow_button.dart]
+
+    G[lib/social/services/patient_service.dart]
+    H[lib/constants/vaccine_catalog.dart]
+    I[lib/constants/pet_breeds.dart]
+
+    J[Firestore: medical_records]
+    K[firestore.rules]
+
+    A --> B
+    A --> C
+    D --> E
+    D --> F
+
+    B --> G
+    C --> G
+    G --> H
+    G --> I
+    G --> J
+    J --> K
+
+    subgraph Vet Dashboard Patient Flow
+        A
+        B
+        C
+    end
+
+    subgraph User Medical Record Flow
+        D
+        E
+        F
+    end
+
+    subgraph Domain Validation
+        H
+        I
+    end
+
+    subgraph Firebase Layer
+        J
+        K
+    end
