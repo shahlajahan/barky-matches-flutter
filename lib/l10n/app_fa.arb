@@ -901,9 +901,12 @@
 
   "reportTitle": "گزارش",
   "lostDogTitle": "سگ گمشده",
+  "lostPetTitle": "حیوان گمشده",
   "foundDogTitle": "سگ پیدا شده",
+  "foundPetTitle": "حیوان پیدا شده",
   "lostTitle": "گمشده",
   "dogsTitle": "سگ‌ها",
+  "petsTitle": "حیوانات",
   "foundTitle": "پیدا شده",
   "homeDefaultUsername": "کاربر",
   "homePetHotelTitle": "هتل حیوانات",

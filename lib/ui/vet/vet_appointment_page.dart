@@ -34,10 +34,15 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
   TimeOfDay? _selectedTime;
 
   final TextEditingController _noteController = TextEditingController();
+  final Map<String, TextEditingController> _preVisitTextControllers = {};
+  final Map<String, dynamic> _preVisitAnswers = {};
   bool _submitting = false;
 
   Map<String, dynamic>? _selectedServiceLocal;
   String? _dogsRefreshRequestedForUid;
+  String? _lastPreVisitLogSignature;
+  late final Future<DocumentSnapshot<Map<String, dynamic>>>
+  _businessSettingsFuture;
 
   bool get _isValid =>
       _selectedDog != null &&
@@ -50,6 +55,9 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
   @override
   void dispose() {
     _noteController.dispose();
+    for (final controller in _preVisitTextControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -58,12 +66,17 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
     super.initState();
 
     _selectedServiceLocal = widget.selectedService;
+    _businessSettingsFuture = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(widget.vet.id)
+        .get();
 
     _servicesStream = FirebaseFirestore.instance
-    .collection('businesses')
-    .doc(widget.vet.id)
-    .collection('services')
-    .snapshots();
+        .collection('businesses')
+        .doc(widget.vet.id)
+        .collection('services')
+        .where('isActive', isEqualTo: true)
+        .snapshots();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -114,229 +127,148 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
   }
 
   Widget _serviceSelector() {
-  final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
-  return StreamBuilder<QuerySnapshot>(
-    stream: _servicesStream,
-    builder: (context, snapshot) {
-      /// ─────────────────────────────
-      /// LOADING
-      /// ─────────────────────────────
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const SizedBox(
-          height: 80,
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-      }
-debugPrint(
-  "🧪 SUBCOLLECTION DOCS = ${snapshot.data?.docs.length}",
-);
-      final List<Map<String, dynamic>> services = [];
+    return StreamBuilder<QuerySnapshot>(
+      stream: _servicesStream,
+      builder: (context, snapshot) {
+        /// ─────────────────────────────
+        /// LOADING
+        /// ─────────────────────────────
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 80,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        debugPrint("🧪 SUBCOLLECTION DOCS = ${snapshot.data?.docs.length}");
+        final List<Map<String, dynamic>> services = [];
 
-      /// ─────────────────────────────
-      /// NEW STRUCTURE
-      /// businesses/{id}/services/*
-      /// ─────────────────────────────
-      if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-        final docs = snapshot.data!.docs;
-
-        services.addAll(
-          docs.map((doc) {
-            final data =
-                doc.data() as Map<String, dynamic>;
-
-            return {
-              ...data,
-              'id': doc.id,
-            };
-          }),
-        );
-      }
-
-      /// ─────────────────────────────
-      /// FALLBACK OLD STRUCTURE
-      /// sectorData.veterinary.services.offeredServices
-      /// ─────────────────────────────
-      else {
-        final businessData =
-            widget.vet.rawData ?? {};
-
-        final vetData =
-            (businessData['sectorData']
-                    ?['veterinary']
-                as Map<String, dynamic>?) ??
-            {};
-
-        final servicesData =
-            (vetData['services']
-                as Map<String, dynamic>?) ??
-            {};
-
-        debugPrint(
-          "🧪 APPOINTMENT FALLBACK SERVICES = $servicesData",
-        );
-
-        if (servicesData['offeredServices'] is List) {
-          final offered =
-              List<String>.from(
-                servicesData['offeredServices'],
-              );
+        /// ─────────────────────────────
+        /// NEW STRUCTURE
+        /// businesses/{id}/services/*
+        /// ─────────────────────────────
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          final docs = snapshot.data!.docs;
 
           services.addAll(
-            offered.map(
-              (e) => {
-                'id': e.toLowerCase(),
-                'title': e,
+            docs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
 
-                /// fallback values
-                'price': null,
-                'durationMin': 30,
-              },
+              return {...data, 'id': doc.id};
+            }),
+          );
+        }
+
+        debugPrint("📦 APPOINTMENT SERVICES COUNT: ${services.length}");
+
+        /// ─────────────────────────────
+        /// EMPTY
+        /// ─────────────────────────────
+        if (services.isEmpty) {
+          return SizedBox(
+            height: 60,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(l10n.noServicesAvailable, style: AppTheme.caption()),
             ),
           );
         }
-      }
 
-      debugPrint(
-        "📦 APPOINTMENT SERVICES COUNT: ${services.length}",
-      );
+        /// ─────────────────────────────
+        /// AUTO SELECT FIRST
+        /// ─────────────────────────────
+        _selectedServiceLocal ??= services.first;
 
-      /// ─────────────────────────────
-      /// EMPTY
-      /// ─────────────────────────────
-      if (services.isEmpty) {
+        /// ─────────────────────────────
+        /// UI
+        /// ─────────────────────────────
         return SizedBox(
-          height: 60,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              l10n.noServicesAvailable,
-              style: AppTheme.caption(),
-            ),
-          ),
-        );
-      }
+          height: 70,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: services.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final service = services[index];
 
-      /// ─────────────────────────────
-      /// AUTO SELECT FIRST
-      /// ─────────────────────────────
-      if (_selectedServiceLocal == null) {
-        _selectedServiceLocal = services.first;
-      }
+              final isSelected = _selectedServiceLocal?['id'] == service['id'];
 
-      /// ─────────────────────────────
-      /// UI
-      /// ─────────────────────────────
-      return SizedBox(
-        height: 70,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-          ),
-          itemCount: services.length,
-          separatorBuilder: (_, __) =>
-              const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            final service = services[index];
+              return GestureDetector(
+                onTap: () {
+                  if (isSelected) return;
 
-            final isSelected =
-                _selectedServiceLocal?['id'] ==
-                service['id'];
-
-            return GestureDetector(
-              onTap: () {
-                if (isSelected) return;
-
-                setState(() {
-                  _selectedServiceLocal = service;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(
-                  milliseconds: 180,
-                ),
-                padding:
-                    const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.amber
-                      : Colors.white,
-                  borderRadius:
-                      BorderRadius.circular(24),
-                  border: Border.all(
-                    color: isSelected
-                        ? Colors.amber
-                        : Colors.grey.shade300,
+                  setState(() {
+                    _selectedServiceLocal = service;
+                    _clearPreVisitAnswers();
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: Colors.amber
-                                .withOpacity(0.25),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      service['title'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight:
-                            FontWeight.w600,
-                        color: Colors.black,
-                      ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.amber : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: isSelected ? Colors.amber : Colors.grey.shade300,
                     ),
-
-                    const SizedBox(width: 6),
-
-                    Text(
-                      l10n.durationMinutesShort(
-                        service['durationMin'] ??
-                            30,
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Colors.amber.withOpacity(0.25),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        service['title'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
                       ),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isSelected
-                            ? Colors.black87
-                            : Colors.grey,
-                      ),
-                    ),
 
-                    if (service['price'] !=
-                            null &&
-                        service['price'] > 0) ...[
                       const SizedBox(width: 6),
 
                       Text(
-                        "${service['price']}₺",
-                        style: const TextStyle(
+                        l10n.durationMinutesShort(service['durationMin'] ?? 30),
+                        style: TextStyle(
                           fontSize: 11,
-                          fontWeight:
-                              FontWeight.bold,
+                          color: isSelected ? Colors.black87 : Colors.grey,
                         ),
                       ),
+
+                      if (service['price'] != null && service['price'] > 0) ...[
+                        const SizedBox(width: 6),
+
+                        Text(
+                          "${service['price']}₺",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-      );
-    },
-  );
-}
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 
   // ─────────────────────────────
   // UI
@@ -413,6 +345,10 @@ debugPrint(
 
                   _sectionTitle(l10n.notesOptional),
                   _notesField(),
+
+                  const SizedBox(height: 20),
+
+                  _preVisitFormSection(),
 
                   const SizedBox(height: 32),
 
@@ -548,6 +484,175 @@ debugPrint(
     );
   }
 
+  Widget _preVisitFormSection() {
+    final selectedServiceId = _selectedServiceLocal?['id']?.toString();
+
+    if (selectedServiceId == null || selectedServiceId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: _businessSettingsFuture,
+      builder: (context, snapshot) {
+        final settings = _preVisitSettingsFromBusiness(snapshot.data?.data());
+        final serviceForm = _preVisitFormForService(
+          settings,
+          selectedServiceId,
+        );
+        final formEnabled = serviceForm['enabled'] == true;
+        final questions = _preVisitQuestions(serviceForm);
+        final required = formEnabled && questions.isNotEmpty;
+
+        _logPreVisitState(
+          selectedServiceId: selectedServiceId,
+          enabled: formEnabled,
+          questionsLength: questions.length,
+          required: required,
+          serviceForm: serviceForm,
+        );
+
+        if (!required) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle('Pre-visit form'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: questions.map(_preVisitQuestionWidget).toList(),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _preVisitQuestionWidget(Map<String, dynamic> question) {
+    final id = (question['id'] ?? '').toString();
+    final text = (question['question'] ?? '').toString();
+    final type = (question['type'] ?? 'text').toString();
+    final required = question['required'] == true;
+    final options = _stringList(question['options']);
+
+    final label = required ? '$text *' : text;
+
+    Widget field;
+
+    switch (type) {
+      case 'boolean':
+        field = Row(
+          children: [
+            Expanded(
+              child: ChoiceChip(
+                label: const Center(child: Text('Yes')),
+                selected: _preVisitAnswers[id] == true,
+                selectedColor: Colors.amber,
+                onSelected: (selected) {
+                  setState(() {
+                    _preVisitAnswers[id] = selected ? true : null;
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ChoiceChip(
+                label: const Center(child: Text('No')),
+                selected: _preVisitAnswers[id] == false,
+                selectedColor: Colors.amber,
+                onSelected: (selected) {
+                  setState(() {
+                    _preVisitAnswers[id] = selected ? false : null;
+                  });
+                },
+              ),
+            ),
+          ],
+        );
+        break;
+      case 'single_select':
+        field = DropdownButtonFormField<String>(
+          initialValue: _preVisitAnswers[id] as String?,
+          decoration: const InputDecoration(hintText: 'Select an option'),
+          items: options
+              .map(
+                (option) =>
+                    DropdownMenuItem(value: option, child: Text(option)),
+              )
+              .toList(),
+          onChanged: (value) {
+            setState(() => _preVisitAnswers[id] = value);
+          },
+        );
+        break;
+      case 'multi_select':
+        final selected = (_preVisitAnswers[id] as Set<String>?) ?? <String>{};
+        _preVisitAnswers.putIfAbsent(id, () => selected);
+        field = Column(
+          children: options.map((option) {
+            return CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: selected.contains(option),
+              title: Text(option),
+              activeColor: AppTheme.card,
+              onChanged: (value) {
+                setState(() {
+                  if (value == true) {
+                    selected.add(option);
+                  } else {
+                    selected.remove(option);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        );
+        break;
+      case 'text':
+      case 'multiline':
+      case 'number':
+      default:
+        final controller = _preVisitTextControllers.putIfAbsent(
+          id,
+          () => TextEditingController(),
+        );
+        field = TextField(
+          controller: controller,
+          maxLines: type == 'multiline' ? 4 : 1,
+          keyboardType: type == 'number'
+              ? TextInputType.number
+              : TextInputType.text,
+          decoration: const InputDecoration(
+            hintText: 'Enter details',
+            border: OutlineInputBorder(),
+          ),
+        );
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTheme.body(weight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          field,
+        ],
+      ),
+    );
+  }
+
   Widget _submitButton() {
     final l10n = AppLocalizations.of(context)!;
     return SizedBox(
@@ -634,6 +739,19 @@ debugPrint(
           .doc(widget.vet.id)
           .get();
       final businessData = businessSnap.data() ?? {};
+      final preVisitForm = _buildPreVisitPayload(businessData);
+
+      if (preVisitForm == _invalidPreVisitFormMarker) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please complete required pre-visit questions.'),
+          ),
+        );
+        setState(() => _submitting = false);
+        return;
+      }
+
       final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
       final liveBusinessName =
           profile['displayName']?.toString().trim().isNotEmpty == true
@@ -646,28 +764,30 @@ debugPrint(
         'selectedPricingSource=businesses/${widget.vet.id}/services/${selectedService?['id']}',
       );
 
-      /// 🔥 CALL CLOUD FUNCTION (به‌جای Firestore مستقیم)
-      await FirebaseFunctions.instanceFor(
-        region: 'europe-west3',
-      ).httpsCallable('createVetAppointment').call({
+      final appointmentPayload = {
         'petId': _selectedDog!.id,
         'petName': _selectedDog!.name,
         'petType': _selectedDog!.petType,
-
         'petBreed': _selectedDog!.breed,
         'petAge': _selectedDog!.age,
-
         'businessId': widget.vet.id,
         'businessName': liveBusinessName,
-
         'serviceId': selectedService?['id'],
         'serviceTitle': selectedService?['title'],
         'price': selectedService?['price'],
         'durationMin': selectedService?['durationMin'],
-
         'scheduledAt': scheduledDateTime.toIso8601String(),
         'note': _noteController.text.trim(),
-      });
+      };
+
+      if (preVisitForm != null) {
+        appointmentPayload.addAll(preVisitForm as Map<String, dynamic>);
+      }
+
+      /// 🔥 CALL CLOUD FUNCTION (به‌جای Firestore مستقیم)
+      await FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('createVetAppointment').call(appointmentPayload);
 
       debugPrint("✅ FUNCTION SUCCESS");
 
@@ -718,5 +838,221 @@ debugPrint(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  static const Object _invalidPreVisitFormMarker = Object();
+
+  Object? _buildPreVisitPayload(Map<String, dynamic> businessData) {
+    final selectedServiceId = _selectedServiceLocal?['id']?.toString();
+
+    if (selectedServiceId == null || selectedServiceId.isEmpty) {
+      return null;
+    }
+
+    final settings = _preVisitSettingsFromBusiness(businessData);
+    final serviceForm = _preVisitFormForService(settings, selectedServiceId);
+    final formEnabled = serviceForm['enabled'] == true;
+    final questions = _preVisitQuestions(serviceForm);
+    final required = formEnabled && questions.isNotEmpty;
+
+    debugPrint('🩺 PREVISIT RAW DATA = $serviceForm');
+    debugPrint('🩺 PREVISIT QUESTION COUNT = ${questions.length}');
+    debugPrint(
+      '🩺 PREVISIT SETTINGS LOAD serviceId=$selectedServiceId enabled=$formEnabled questions=${questions.length}',
+    );
+    debugPrint(
+      '🩺 PREVISIT FORM REQUIRED serviceId=$selectedServiceId required=$required',
+    );
+
+    if (!required) {
+      return null;
+    }
+
+    final answers = <String, dynamic>{};
+
+    for (final question in questions) {
+      final id = (question['id'] ?? '').toString();
+      final type = (question['type'] ?? 'text').toString();
+      final required = question['required'] == true;
+
+      dynamic answer;
+
+      switch (type) {
+        case 'boolean':
+        case 'single_select':
+          answer = _preVisitAnswers[id];
+          break;
+        case 'multi_select':
+          answer = (_preVisitAnswers[id] as Set<String>? ?? <String>{})
+              .toList();
+          break;
+        case 'text':
+        case 'multiline':
+        case 'number':
+        default:
+          answer = _preVisitTextControllers[id]?.text.trim() ?? '';
+          if (type == 'number' && answer.toString().trim().isNotEmpty) {
+            answer = num.tryParse(answer.toString().trim()) ?? answer;
+          }
+          break;
+      }
+
+      final empty =
+          answer == null ||
+          (answer is String && answer.trim().isEmpty) ||
+          (answer is List && answer.isEmpty);
+
+      if (required && empty) {
+        return _invalidPreVisitFormMarker;
+      }
+
+      answers[id] = answer;
+    }
+
+    debugPrint(
+      '🩺 PREVISIT ANSWERS SUBMIT serviceId=$selectedServiceId answers=${answers.length}',
+    );
+
+    return {
+      'preVisitAnswers': answers,
+      'preVisitSnapshot': {
+        'serviceId': selectedServiceId,
+        'questions': questions,
+      },
+    };
+  }
+
+  Map<String, dynamic> _preVisitSettingsFromBusiness(
+    Map<String, dynamic>? businessData,
+  ) {
+    final data = businessData ?? {};
+    final sectorData = _asMap(data['sectorData']);
+    final veterinary = _asMap(sectorData['veterinary']);
+    return _asMap(veterinary['preVisitFormSettings']);
+  }
+
+  Map<String, dynamic> _preVisitFormForService(
+    Map<String, dynamic> settings,
+    String serviceId,
+  ) {
+    final forms = _asMap(settings['preVisitForms']);
+    final selected = _normalizeServiceId(serviceId);
+
+    for (final entry in forms.entries) {
+      final key = entry.key.toString();
+      if (key == serviceId || _normalizeServiceId(key) == selected) {
+        return _asMap(entry.value);
+      }
+    }
+
+    // Backward compatibility for old global settings. Do not require or block
+    // submit unless legacy settings actually contain questions.
+    if (settings['enabled'] == true &&
+        _stringList(settings['enabledServiceIds']).any((id) {
+          return id == serviceId || _normalizeServiceId(id) == selected;
+        })) {
+      return {'enabled': true, 'questions': _listOfMaps(settings['questions'])};
+    }
+
+    return <String, dynamic>{};
+  }
+
+  List<Map<String, dynamic>> _preVisitQuestions(Map<String, dynamic> settings) {
+    final rawQuestions = _listOfMaps(settings['questions']);
+    final questions = <Map<String, dynamic>>[];
+
+    for (var index = 0; index < rawQuestions.length; index++) {
+      final question = Map<String, dynamic>.from(rawQuestions[index]);
+      final text = (question['question'] ?? '').toString().trim();
+
+      if (text.isEmpty) continue;
+
+      final id = (question['id'] ?? '').toString().trim();
+      question['id'] = id.isNotEmpty ? id : 'question_$index';
+      question['question'] = text;
+      question['type'] = _normalizeQuestionType(
+        (question['type'] ?? 'text').toString(),
+      );
+      questions.add(question);
+    }
+
+    return questions;
+  }
+
+  void _clearPreVisitAnswers() {
+    for (final controller in _preVisitTextControllers.values) {
+      controller.dispose();
+    }
+    _preVisitTextControllers.clear();
+    _preVisitAnswers.clear();
+    _lastPreVisitLogSignature = null;
+  }
+
+  void _logPreVisitState({
+    required String selectedServiceId,
+    required bool enabled,
+    required int questionsLength,
+    required bool required,
+    required Map<String, dynamic> serviceForm,
+  }) {
+    final signature = '$selectedServiceId|$enabled|$questionsLength|$required';
+    if (_lastPreVisitLogSignature == signature) return;
+
+    _lastPreVisitLogSignature = signature;
+    debugPrint('🩺 PREVISIT RAW DATA = $serviceForm');
+    debugPrint('🩺 PREVISIT QUESTION COUNT = $questionsLength');
+    debugPrint(
+      '🩺 PREVISIT SETTINGS LOAD serviceId=$selectedServiceId enabled=$enabled questions=$questionsLength',
+    );
+    debugPrint(
+      '🩺 PREVISIT FORM REQUIRED serviceId=$selectedServiceId required=$required',
+    );
+  }
+}
+
+Map<String, dynamic> _asMap(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return <String, dynamic>{};
+}
+
+List<Map<String, dynamic>> _listOfMaps(Object? value) {
+  if (value is! List) return <Map<String, dynamic>>[];
+  return value
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+}
+
+List<String> _stringList(Object? value) {
+  if (value is! List) return <String>[];
+  return value
+      .map((item) => item.toString().trim())
+      .where((item) => item.isNotEmpty)
+      .toList();
+}
+
+String _normalizeServiceId(String value) {
+  return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+}
+
+String _normalizeQuestionType(String value) {
+  switch (value) {
+    case 'yes_no':
+    case 'boolean':
+      return 'boolean';
+    case 'single_choice':
+    case 'single_select':
+      return 'single_select';
+    case 'multi_choice':
+    case 'multi_select':
+      return 'multi_select';
+    case 'multiline':
+      return 'multiline';
+    case 'number':
+      return 'number';
+    case 'text':
+    default:
+      return 'text';
   }
 }

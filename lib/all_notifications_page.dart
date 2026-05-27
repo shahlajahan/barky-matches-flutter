@@ -6,8 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'dog.dart';
 import 'notification_model.dart';
-import 'dog_card.dart'; // ❗ طبق درخواستت حذف نشده
-import 'other_user_dog_page.dart';
+// ❗ طبق درخواستت حذف نشده
 
 import 'screens/lost_dog_detail_page.dart';
 import 'screens/found_dog_detail_page.dart';
@@ -45,13 +44,13 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
   }
 
   Future<List<AppNotification>> _loadNotifications() async {
-  try {
-    final userId = widget.currentUserId.trim();
+    try {
+      final userId = widget.currentUserId.trim();
 
-if (userId.isEmpty || userId == 'guest') {
-      debugPrint('🚫 Guest → skip notifications load');
-      return [];
-    }
+      if (userId.isEmpty || userId == 'guest') {
+        debugPrint('🚫 Guest → skip notifications load');
+        return [];
+      }
 
       final personalSnapshot = await FirebaseFirestore.instance
           .collection('notifications')
@@ -92,15 +91,16 @@ if (userId.isEmpty || userId == 'guest') {
 
   Future<String?> _findLostDogId(String name, String body) async {
     try {
-      final coordinatesMatch =
-          RegExp(r'near\s+([\d.]+),\s+([\d.]+)').firstMatch(body);
+      final coordinatesMatch = RegExp(
+        r'near\s+([\d.]+),\s+([\d.]+)',
+      ).firstMatch(body);
       if (coordinatesMatch == null) return null;
 
       final lat = double.tryParse(coordinatesMatch.group(1)!) ?? 0.0;
       final lng = double.tryParse(coordinatesMatch.group(2)!) ?? 0.0;
 
       final snapshot = await FirebaseFirestore.instance
-          .collection('lost_dogs')
+          .collection('lost_pets')
           .where('name', isEqualTo: name)
           .where('latitude', isEqualTo: lat)
           .where('longitude', isEqualTo: lng)
@@ -179,22 +179,16 @@ if (userId.isEmpty || userId == 'guest') {
                 final notification = notifications[index];
                 Map<String, dynamic> payload = {};
 
-try {
-
-  if (notification.payload != null &&
-      notification.payload!.isNotEmpty) {
-
-    payload = Map<String, dynamic>.from(
-      jsonDecode(notification.payload!),
-    );
-  }
-
-} catch (e) {
-
-  debugPrint(
-    'Notification payload parse error: $e',
-  );
-}
+                try {
+                  if (notification.payload != null &&
+                      notification.payload!.isNotEmpty) {
+                    payload = Map<String, dynamic>.from(
+                      jsonDecode(notification.payload!),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Notification payload parse error: $e');
+                }
 
                 return Card(
                   color: Colors.pink[50],
@@ -223,8 +217,9 @@ try {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          DateFormat('yyyy-MM-dd – kk:mm')
-                              .format(notification.timestamp),
+                          DateFormat(
+                            'yyyy-MM-dd – kk:mm',
+                          ).format(notification.timestamp),
                           style: TextStyle(
                             color: Colors.pink[400],
                             fontSize: 12,
@@ -240,6 +235,7 @@ try {
                             .doc(notification.id)
                             .delete();
 
+                        if (!mounted) return;
                         setState(() {
                           _notificationsFuture = _loadNotifications();
                         });
@@ -253,17 +249,15 @@ try {
 
                       final rawType =
                           payload['type']?.toString().toLowerCase() ?? '';
-                      final title =
-                          notification.title?.toLowerCase() ?? '';
-                      final body =
-                          notification.body?.toLowerCase() ?? '';
+                      final title = notification.title?.toLowerCase() ?? '';
+                      final body = notification.body?.toLowerCase() ?? '';
 
                       /// ✅ تشخیص امن Playdate (FIX قطعی)
                       final isPlaydate =
                           rawType.contains('playdate') ||
                           title.contains('playdate') ||
                           body.contains('play');
-if (!mounted) return;
+                      if (!context.mounted) return;
                       if (isPlaydate) {
                         Navigator.push(
                           context,
@@ -273,20 +267,21 @@ if (!mounted) return;
                               favoriteDogs: widget.favoriteDogs ?? [],
                               onToggleFavorite:
                                   widget.onToggleFavorite ?? (_) {},
-                              initialRequestId:
-                                  payload['requestId']?.toString(),
+                              initialRequestId: payload['requestId']
+                                  ?.toString(),
                             ),
                           ),
                         );
                         return;
                       }
 
-                      if (rawType == 'lost_dog') {
-                        String? lostDogId = payload['lostDogId'];
+                      if (rawType == 'lost_dog' || rawType == 'lost_pet') {
+                        String? lostDogId = payload['lostDogId']?.toString();
+                        lostDogId ??= payload['lostPetId']?.toString();
                         if (lostDogId == null) {
-                          final nameMatch =
-                              RegExp(r'(\w+)\s*\(')
-                                  .firstMatch(notification.body ?? '');
+                          final nameMatch = RegExp(
+                            r'(\w+)\s*\(',
+                          ).firstMatch(notification.body ?? '');
                           if (nameMatch != null) {
                             lostDogId = await _findLostDogId(
                               nameMatch.group(1)!,
@@ -295,19 +290,20 @@ if (!mounted) return;
                           }
                         }
 
-                        if (lostDogId != null && mounted) {
+                        if (lostDogId != null && context.mounted) {
                           final doc = await FirebaseFirestore.instance
-                              .collection('lost_dogs')
+                              .collection('lost_pets')
                               .doc(lostDogId)
                               .get();
+                          if (!context.mounted) return;
                           if (doc.exists) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => LostDogDetailPage(
-                                  lostDog:
-                                      LostDog.fromMap(doc.data()!)
-                                          .copyWith(id: doc.id),
+                                  lostDog: LostDog.fromMap(
+                                    doc.data()!,
+                                  ).copyWith(id: doc.id),
                                 ),
                               ),
                             );
@@ -316,21 +312,24 @@ if (!mounted) return;
                         return;
                       }
 
-                      if (rawType == 'found_dog') {
-                        final foundDogId = payload['foundDogId'];
-                        if (foundDogId != null && mounted) {
+                      if (rawType == 'found_dog' || rawType == 'found_pet') {
+                        final foundDogId =
+                            payload['foundDogId']?.toString() ??
+                            payload['foundPetId']?.toString();
+                        if (foundDogId != null && context.mounted) {
                           final doc = await FirebaseFirestore.instance
-                              .collection('found_dogs')
+                              .collection('found_pets')
                               .doc(foundDogId)
                               .get();
+                          if (!context.mounted) return;
                           if (doc.exists) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => FoundDogDetailPage(
-                                  foundDog:
-                                      FoundDog.fromMap(doc.data()!)
-                                          .copyWith(id: doc.id),
+                                  foundDog: FoundDog.fromMap(
+                                    doc.data()!,
+                                  ).copyWith(id: doc.id),
                                 ),
                               ),
                             );

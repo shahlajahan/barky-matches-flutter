@@ -8,27 +8,20 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
-import 'package:collection/collection.dart';
 import 'dog_card.dart';
 //import 'filter_page.dart';
 import 'adoption_page.dart';
 import 'dart:io' show InternetAddress, SocketException;
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/utils/localization_utils.dart';
-import 'dart:io' show Platform;
-import 'package:barky_matches_fixed/ui/shell/barky_scaffold.dart';
-import 'ui/shell/nav_tab.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
-import 'other_user_dog_page.dart';
-import 'debug/firestore_debug.dart';
 
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 
 enum PlaymatePageMode {
@@ -109,6 +102,7 @@ StreamSubscription<QuerySnapshot>? _dogsSubscription;
   return matches / s1.length;
 }
 
+  @override
   bool get wantKeepAlive => true;
 @override
 void initState() {
@@ -204,8 +198,7 @@ List<Dog> _applyFiltersMainThread({
     return false;
   }
 
-  if (currentUserId != null &&
-    currentUserId.isNotEmpty &&
+  if (currentUserId.isNotEmpty &&
     dog.ownerId == currentUserId) {
   debugPrint("🚫 OWN DOG REMOVED → ${dog.name}");
   return false;
@@ -376,8 +369,12 @@ int levenshtein(String s, String t) {
   List<List<int>> dp =
       List.generate(m + 1, (_) => List.filled(n + 1, 0));
 
-  for (int i = 0; i <= m; i++) dp[i][0] = i;
-  for (int j = 0; j <= n; j++) dp[0][j] = j;
+  for (int i = 0; i <= m; i++) {
+    dp[i][0] = i;
+  }
+  for (int j = 0; j <= n; j++) {
+    dp[0][j] = j;
+  }
 
   for (int i = 1; i <= m; i++) {
     for (int j = 1; j <= n; j++) {
@@ -1382,7 +1379,7 @@ Padding(
 
     icon: const Icon(
             LucideIcons.slidersHorizontal,
-            color: const Color(0xFF9E1B4F),
+            color: Color(0xFF9E1B4F),
             size: 20,
           ),
         ),
@@ -2027,7 +2024,7 @@ debugPrint("🟣 isPremium = $isPremium");
 
                 /// 🐾 PET TYPE
                 DropdownButtonFormField<String>(
-                  value: petType,
+                  initialValue: petType,
                   hint: Text(localizations.petTypeLabel),
                   items: [
                     DropdownMenuItem(
@@ -2054,7 +2051,7 @@ debugPrint("🟣 isPremium = $isPremium");
 
                 /// 🐶 BREED (Gold only)
                 DropdownButtonFormField<String>(
-                  value: breed,
+                  initialValue: breed,
                   hint: Text(
                     isGold
                         ? localizations.breed
@@ -2079,7 +2076,7 @@ debugPrint("🟣 isPremium = $isPremium");
 
                 /// ⚥ DOG GENDER
                 DropdownButtonFormField<String>(
-                  value: gender,
+                  initialValue: gender,
                   hint: Text(localizations.gender),
                   items: [
                     DropdownMenuItem(
@@ -2098,7 +2095,7 @@ debugPrint("🟣 isPremium = $isPremium");
 
                 /// 👤 OWNER GENDER (Premium)
                 DropdownButtonFormField<String>(
-                  value: ownerGender,
+                  initialValue: ownerGender,
                   hint: Text(
                     isPremium
                         ? localizations.selectOwnerGenderHint

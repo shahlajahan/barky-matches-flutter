@@ -706,9 +706,9 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
       case NavTab.reportLost:
         return AppLocalizations.of(context)!.reportLostDogMenuItem;
       case NavTab.lostDogs:
-        return AppLocalizations.of(context)!.lostDogsMenuItem;
+        return AppLocalizations.of(context)!.lostPetTitle;
       case NavTab.foundDogs:
-        return AppLocalizations.of(context)!.foundDogsMenuItem;
+        return AppLocalizations.of(context)!.foundPetTitle;
       case NavTab.none:
         return '';
       case NavTab.reportFound:

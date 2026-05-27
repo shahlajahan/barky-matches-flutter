@@ -9,15 +9,12 @@ import 'dog.dart';
 import 'dog_card.dart';
 import 'app_state.dart';
 import 'theme/app_theme.dart';
-import 'models/adoption_center.dart';
 
 import 'ui/business/business_card_data.dart';
 import 'ui/business/business_card.dart';
-import 'ui/business/business_detail_overlay.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
-import 'package:barky_matches_fixed/core/firestore_paths.dart';
 
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
 

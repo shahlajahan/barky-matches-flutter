@@ -5,7 +5,6 @@
 // - هیچ نوشتن مستقیم Firestore در کلاینت وجود ندارد
 // - push notification از سمت بک‌اند (Cloud Function) ارسال می‌شود
 
-import 'dart:convert';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,8 +16,6 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
@@ -602,7 +599,7 @@ void initState() {
       borderRadius: BorderRadius.circular(12),
     ),
   ),
-    value: friendDogs.contains(_selectedRequestedDog)
+    initialValue: friendDogs.contains(_selectedRequestedDog)
         ? _selectedRequestedDog
         : null,
     items: friendDogs
@@ -920,7 +917,7 @@ Widget build(BuildContext context) {
                     )
                   else
                     DropdownButtonFormField<String>(
-                      value: _selectedRequesterDogId,
+                      initialValue: _selectedRequesterDogId,
                       isExpanded: true,
                       decoration: InputDecoration(
                         filled: true,

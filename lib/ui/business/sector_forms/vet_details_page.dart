@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +37,7 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
   final ImagePicker _picker = ImagePicker();
 
   bool _loading = false;
-final _scrollController = ScrollController();
+  final _scrollController = ScrollController();
   // =========================================================
   // SECTION 1 — Temel Bilgiler / Basic Information
   // Only fields that are NOT already captured in baseDraft
@@ -61,15 +60,8 @@ final _scrollController = ScrollController();
   DateTime? _licenseExpiryDate;
   String? _licenseDocumentUrl;
   final TextEditingController _taxOrBusinessInfo = TextEditingController();
-  final TextEditingController _authorizedContractPerson = TextEditingController();
-
-  // =========================================================
-  // SECTION 3 — Hizmetler / Services
-  // =========================================================
-  final List<String> _selectedServices = [];
-  final TextEditingController _additionalServices = TextEditingController();
-  final TextEditingController _averagePriceRange = TextEditingController();
-  String _appointmentRequired = 'yes';
+  final TextEditingController _authorizedContractPerson =
+      TextEditingController();
 
   // =========================================================
   // SECTION 4 — Çalışma Saatleri / Working Hours
@@ -123,108 +115,92 @@ final _scrollController = ScrollController();
   bool _acceptPartnershipTerms = false;
 
   String? _nameValidator(String? v) {
-  final text = (v ?? '').trim();
-  if (text.isEmpty) return 'Required';
+    final text = (v ?? '').trim();
+    if (text.isEmpty) return 'Required';
 
-  if (text.length < 3) return 'Too short';
+    if (text.length < 3) return 'Too short';
 
-  final regex = RegExp(r'^[a-zA-Z\s]+$');
-  if (!regex.hasMatch(text)) return 'Only letters allowed';
+    final regex = RegExp(r'^[a-zA-Z\s]+$');
+    if (!regex.hasMatch(text)) return 'Only letters allowed';
 
-  return null;
-}
-
-String? _yearValidator(String? v) {
-  final text = (v ?? '').trim();
-  if (text.isEmpty) return null;
-
-  final year = int.tryParse(text);
-  if (year == null) return 'Invalid year';
-
-  final currentYear = DateTime.now().year;
-
-  if (year < 1950) return 'Too old';
-  if (year > currentYear) return 'Future year not allowed';
-
-  return null;
-}
-
-String? _ibanValidator(String? v) {
-  final text = (v ?? '').replaceAll(' ', '');
-
-  if (text.isEmpty) return null;
-
-  final regex = RegExp(r'^TR\d{24}$');
-  if (!regex.hasMatch(text)) {
-    return 'Invalid IBAN (TR + 24 digits)';
+    return null;
   }
 
-  return null;
-}
+  String? _yearValidator(String? v) {
+    final text = (v ?? '').trim();
+    if (text.isEmpty) return null;
 
-String? _dailyCapacityValidator(String? v) {
-  final text = (v ?? '').trim();
-  if (text.isEmpty) return null;
+    final year = int.tryParse(text);
+    if (year == null) return 'Invalid year';
 
-  final value = int.tryParse(text);
-  if (value == null) return 'Enter a number';
+    final currentYear = DateTime.now().year;
 
-  if (value < 1) return 'Must be at least 1';
-  if (value > 50) return 'Too high (max 50 per day)';
+    if (year < 1950) return 'Too old';
+    if (year > currentYear) return 'Future year not allowed';
 
-  return null;
-}
-
-String? _workingHoursValidator(String? v) {
-  final text = (v ?? '').trim();
-  if (text.isEmpty) return 'Required';
-
-  final regex = RegExp(r'^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$');
-  if (!regex.hasMatch(text)) {
-    return 'Format must be like 09:00 - 18:00';
+    return null;
   }
 
-  return null;
-}
+  String? _ibanValidator(String? v) {
+    final text = (v ?? '').replaceAll(' ', '');
 
-String? _phoneValidator(String? v) {
-  final text = (v ?? '').trim();
-  if (text.isEmpty) return 'Required';
+    if (text.isEmpty) return null;
 
-  final regex = RegExp(r'^[0-9]{10,15}$');
-  if (!regex.hasMatch(text)) return 'Invalid phone number';
+    final regex = RegExp(r'^TR\d{24}$');
+    if (!regex.hasMatch(text)) {
+      return 'Invalid IBAN (TR + 24 digits)';
+    }
 
-  return null;
-}
-
-String? _licenseValidator(String? v) {
-  final text = (v ?? '').trim();
-  if (text.isEmpty) return 'Required';
-  if (text.length < 5) return 'Must be at least 5 characters';
-
-  final regex = RegExp(r'^[a-zA-Z0-9\-\/]+$');
-  if (!regex.hasMatch(text)) {
-    return 'Only letters, numbers, dash, and slash are allowed';
+    return null;
   }
 
-  return null;
-}
+  String? _dailyCapacityValidator(String? v) {
+    final text = (v ?? '').trim();
+    if (text.isEmpty) return null;
 
-  static const List<String> _allServices = [
-    'General Check-up',
-    'Vaccination',
-    'Laboratory',
-    'X-ray',
-    'Ultrasound',
-    'Surgery',
-    'Neutering',
-    'Dental Care',
-    'Emergency',
-    'Hospitalization',
-    'Microchip',
-    'Home Visit',
-    'Online Consultation',
-  ];
+    final value = int.tryParse(text);
+    if (value == null) return 'Enter a number';
+
+    if (value < 1) return 'Must be at least 1';
+    if (value > 50) return 'Too high (max 50 per day)';
+
+    return null;
+  }
+
+  String? _workingHoursValidator(String? v) {
+    final text = (v ?? '').trim();
+    if (text.isEmpty) return 'Required';
+
+    final regex = RegExp(r'^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$');
+    if (!regex.hasMatch(text)) {
+      return 'Format must be like 09:00 - 18:00';
+    }
+
+    return null;
+  }
+
+  String? _phoneValidator(String? v) {
+    final text = (v ?? '').trim();
+    if (text.isEmpty) return 'Required';
+
+    final regex = RegExp(r'^[0-9]{10,15}$');
+    if (!regex.hasMatch(text)) return 'Invalid phone number';
+
+    return null;
+  }
+
+  String? _licenseValidator(String? v) {
+    final text = (v ?? '').trim();
+    if (text.isEmpty) return 'Required';
+    if (text.length < 5) return 'Must be at least 5 characters';
+
+    final regex = RegExp(r'^[a-zA-Z0-9\-\/]+$');
+    if (!regex.hasMatch(text)) {
+      return 'Only letters, numbers, dash, and slash are allowed';
+    }
+
+    return null;
+  }
 
   static const List<String> _allWorkingDays = [
     'Monday',
@@ -236,12 +212,7 @@ String? _licenseValidator(String? v) {
     'Sunday',
   ];
 
-  static const List<String> _allAnimalTypes = [
-    'Dog',
-    'Cat',
-    'Bird',
-    'Exotic',
-  ];
+  static const List<String> _allAnimalTypes = ['Dog', 'Cat', 'Bird', 'Exotic'];
 
   @override
   void initState() {
@@ -259,14 +230,16 @@ String? _licenseValidator(String? v) {
     _whatsapp.text = contact.whatsapp;
     _website.text = contact.website;
     _fullAddress.text = contact.addressLine;
-    _cityDistrict.text = [contact.city, contact.district]
-        .where((e) => e.trim().isNotEmpty)
-        .join(' / ');
+    _cityDistrict.text = [
+      contact.city,
+      contact.district,
+    ].where((e) => e.trim().isNotEmpty).join(' / ');
 
     _clinicName.text = profile.displayName;
     _taxOrBusinessInfo.text = [
       if ((legal.taxNumber).trim().isNotEmpty) 'Tax: ${legal.taxNumber}',
-      if ((legal.mersisNumber).trim().isNotEmpty) 'MERSIS: ${legal.mersisNumber}',
+      if ((legal.mersisNumber).trim().isNotEmpty)
+        'MERSIS: ${legal.mersisNumber}',
     ].join(' | ');
 
     if (widget.lat != null && widget.lng != null) {
@@ -291,9 +264,6 @@ String? _licenseValidator(String? v) {
     _taxOrBusinessInfo.dispose();
     _authorizedContractPerson.dispose();
 
-    _additionalServices.dispose();
-    _averagePriceRange.dispose();
-
     _workingHours.dispose();
 
     _dailyCapacity.dispose();
@@ -316,21 +286,24 @@ String? _licenseValidator(String? v) {
   }
 
   Future<String> _uploadFile(File file, String folder) async {
-  final user = FirebaseAuth.instance.currentUser;
-if (user == null) throw Exception('User not logged in');
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
 
-final uid = user.uid;
+    final uid = user.uid;
 
-final ref = FirebaseStorage.instance
-    .ref()
-    .child('business_sector_docs/$uid/$folder/${DateTime.now().millisecondsSinceEpoch}.jpg');
+    final ref = FirebaseStorage.instance.ref().child(
+      'business_sector_docs/$uid/$folder/${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
 
     await ref.putFile(file);
     return ref.getDownloadURL();
   }
 
   Future<void> _pickLicenseDocument() async {
-    final xf = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final xf = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (xf == null) return;
 
     setState(() => _loading = true);
@@ -340,15 +313,18 @@ final ref = FirebaseStorage.instance
       setState(() => _licenseDocumentUrl = url);
       _snack('License document uploaded');
     } catch (e) {
-  debugPrint('UPLOAD ERROR: $e');
-  _snack('Upload failed: $e');
-}finally {
+      debugPrint('UPLOAD ERROR: $e');
+      _snack('Upload failed: $e');
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _pickClinicLogo() async {
-    final xf = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final xf = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (xf == null) return;
 
     setState(() => _loading = true);
@@ -359,14 +335,17 @@ final ref = FirebaseStorage.instance
       _snack('Clinic logo uploaded');
     } catch (e) {
       debugPrint('UPLOAD ERROR: $e');
-_snack('Upload failed: $e');
+      _snack('Upload failed: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _pickClinicPhoto() async {
-    final xf = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final xf = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (xf == null) return;
 
     setState(() => _loading = true);
@@ -456,14 +435,6 @@ _snack('Upload failed: $e');
         'authorizedContractPerson': _authorizedContractPerson.text.trim(),
       },
 
-      // SECTION 3
-      'services': {
-        'offeredServices': _selectedServices,
-        'additionalServices': _additionalServices.text.trim(),
-        'averagePriceRange': _averagePriceRange.text.trim(),
-        'appointmentRequired': _appointmentRequired,
-      },
-
       // SECTION 4
       'workingHours': {
         'workingDays': _selectedWorkingDays,
@@ -520,95 +491,84 @@ _snack('Upload failed: $e');
   }
 
   Future<void> _submit() async {
-  if (_loading) return;
+    if (_loading) return;
 
-  final isValid = _formKey.currentState?.validate() ?? false;
-  if (!isValid) {
-    _snack('Please fix highlighted fields');
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) {
+      _snack('Please fix highlighted fields');
 
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
+      Future.delayed(const Duration(milliseconds: 200), () {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      });
+
+      return;
+    }
+
+    if (_selectedWorkingDays.isEmpty) {
+      _snack('Please select working days');
+      return;
+    }
+
+    if (_acceptedAnimalTypes.isEmpty) {
+      _snack('Please select accepted animal types');
+      return;
+    }
+
+    if (_licenseExpiryDate == null) {
+      _snack('License expiry date is required');
+      return;
+    }
+
+    if (_licenseDocumentUrl == null) {
+      _snack('Please upload license document');
+      return;
+    }
+
+    if (!_confirmAccuracy ||
+        !_agreeDisplayInfo ||
+        !_agreeUserReviews ||
+        !_acceptPartnershipTerms) {
+      _snack('You must accept all agreements');
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      final updatedDraft = widget.baseDraft.copyWith(
+        sectorData: {
+          ...widget.baseDraft.sectorData,
+          'veterinary': _buildVetData(),
+        },
       );
-    });
 
-    return;
-  }
+      if (!mounted) return;
 
-  if (_selectedServices.isEmpty) {
-    _snack('Select at least one service');
-    return;
-  }
-
-  if (_selectedWorkingDays.isEmpty) {
-    _snack('Please select working days');
-    return;
-  }
-
-  if (_acceptedAnimalTypes.isEmpty) {
-    _snack('Please select accepted animal types');
-    return;
-  }
-
-  if (_licenseExpiryDate == null) {
-    _snack('License expiry date is required');
-    return;
-  }
-
-  if (_licenseDocumentUrl == null) {
-    _snack('Please upload license document');
-    return;
-  }
-
-  if (!_confirmAccuracy ||
-      !_agreeDisplayInfo ||
-      !_agreeUserReviews ||
-      !_acceptPartnershipTerms) {
-    _snack('You must accept all agreements');
-    return;
-  }
-
-  setState(() => _loading = true);
-
-  try {
-    final updatedDraft = widget.baseDraft.copyWith(
-      sectorData: {
-        ...widget.baseDraft.sectorData,
-        'veterinary': _buildVetData(),
-      },
-    );
-
-    if (!mounted) return;
-
-    // 🔥 فقط data برگردون
-    Navigator.pop(context, updatedDraft);
-
-  } catch (e) {
-    _snack('Unexpected error occurred');
-  } finally {
-    if (mounted) {
-      setState(() => _loading = false);
+      // 🔥 فقط data برگردون
+      Navigator.pop(context, updatedDraft);
+    } catch (e) {
+      _snack('Unexpected error occurred');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
-}
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Widget _sectionHeader(String title) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 12, top: 4),
-    child: Text(
-      title,
-      style: AppTheme.h2(),
-    ),
-  );
-}
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 4),
+      child: Text(title, style: AppTheme.h2()),
+    );
+  }
 
   Widget _card(List<Widget> children) {
     return Container(
@@ -634,40 +594,40 @@ _snack('Upload failed: $e');
   }
 
   Widget _field({
-  required TextEditingController controller,
-  required String label,
-  String? Function(String?)? validator,
-  TextInputType keyboardType = TextInputType.text,
-  int maxLines = 1,
-  bool readOnly = false,
-  Widget? suffixIcon,
-  String? hintText,
-  String? helperText,
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 14),
-    child: TextFormField(
-      controller: controller,
-      validator: validator,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      readOnly: readOnly,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hintText,
-        helperText: helperText,
-        errorStyle: const TextStyle(color: Colors.red),
-        filled: true,
-        fillColor: readOnly ? Colors.grey.shade200 : Colors.grey.shade100,
-        suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+    required TextEditingController controller,
+    required String label,
+    String? Function(String?)? validator,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+    bool readOnly = false,
+    Widget? suffixIcon,
+    String? hintText,
+    String? helperText,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: TextFormField(
+        controller: controller,
+        validator: validator,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        readOnly: readOnly,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hintText,
+          helperText: helperText,
+          errorStyle: const TextStyle(color: Colors.red),
+          filled: true,
+          fillColor: readOnly ? Colors.grey.shade200 : Colors.grey.shade100,
+          suffixIcon: suffixIcon,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _choiceChipList({
     required List<String> items,
@@ -705,10 +665,7 @@ _snack('Upload failed: $e');
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
           ),
           const SizedBox(height: 8),
           ...options.map(
@@ -747,7 +704,7 @@ _snack('Upload failed: $e');
           Expanded(
             child: Text(
               multiple
-                  ? '$title (${itemCount} uploaded)'
+                  ? '$title ($itemCount uploaded)'
                   : (url == null ? title : '$title ✓'),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
@@ -772,21 +729,9 @@ _snack('Upload failed: $e');
         ),
       ),
       const SizedBox(height: 10),
-      _field(
-        controller: _mobile,
-        label: 'Mobile Phone',
-        readOnly: true,
-      ),
-      _field(
-        controller: _email,
-        label: 'Email Address',
-        readOnly: true,
-      ),
-      _field(
-        controller: _fullAddress,
-        label: 'Full Address',
-        readOnly: true,
-      ),
+      _field(controller: _mobile, label: 'Mobile Phone', readOnly: true),
+      _field(controller: _email, label: 'Email Address', readOnly: true),
+      _field(controller: _fullAddress, label: 'Full Address', readOnly: true),
       _field(
         controller: _locationText,
         label: 'Location (coordinates)',
@@ -821,8 +766,9 @@ _snack('Upload failed: $e');
             children: [
               Expanded(
                 child: SingleChildScrollView(
-  controller: _scrollController,
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  controller: _scrollController,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -857,22 +803,23 @@ _snack('Upload failed: $e');
                       _card([
                         _sectionHeader('SECTION 2 — License & Verification'),
                         _field(
-  controller: _licenseNumber,
-  label: '10. Veterinary License Number',
-  hintText: 'e.g. TR-45821',
-  helperText: 'Enter the official license number issued by the veterinary authority. Minimum 5 characters.',
-  validator: _licenseValidator,
-),
-Padding(
-  padding: const EdgeInsets.only(bottom: 14),
-  child: Text(
-    'This number will be reviewed during verification.',
-    style: TextStyle(
-      fontSize: 12,
-      color: Colors.grey.shade600,
-    ),
-  ),
-),
+                          controller: _licenseNumber,
+                          label: '10. Veterinary License Number',
+                          hintText: 'e.g. TR-45821',
+                          helperText:
+                              'Enter the official license number issued by the veterinary authority. Minimum 5 characters.',
+                          validator: _licenseValidator,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Text(
+                            'This number will be reviewed during verification.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
                         _field(
                           controller: _issuingAuthority,
                           label: '11. Issuing Authority',
@@ -909,38 +856,6 @@ Padding(
                         ),
                       ]),
 
-                      // SECTION 3
-                      _card([
-                        _sectionHeader('SECTION 3 — Services'),
-                        const SizedBox(height: 10),
-                        _choiceChipList(
-                          items: _allServices,
-                          selectedValues: _selectedServices,
-                        ),
-                        const SizedBox(height: 14),
-                        _field(
-                          controller: _additionalServices,
-                          label: '17. Additional Services (if any)',
-                        ),
-                        _field(
-                          controller: _averagePriceRange,
-                          label: '18. Average Price Range (Optional)',
-                        ),
-                        _radioGroup<String>(
-                          title: '19. Is Appointment Required?',
-                          value: _appointmentRequired,
-                          options: const [
-                            MapEntry('yes', 'Yes'),
-                            MapEntry('no', 'No'),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) {
-                              setState(() => _appointmentRequired = v);
-                            }
-                          },
-                        ),
-                      ]),
-
                       // SECTION 4
                       _card([
                         _sectionHeader('SECTION 4 — Working Hours'),
@@ -958,7 +873,7 @@ Padding(
                           controller: _workingHours,
                           label: '21. Working Hours',
                           validator: _workingHoursValidator,
-hintText: '09:00 - 18:00',
+                          hintText: '09:00 - 18:00',
                         ),
                         _radioGroup<String>(
                           title: '22. Open on Weekends?',
@@ -991,9 +906,7 @@ hintText: '09:00 - 18:00',
 
                       // SECTION 5
                       _card([
-                        _sectionHeader(
-                          'SECTION 5 — Operational Details',
-                        ),
+                        _sectionHeader('SECTION 5 — Operational Details'),
                         Text(
                           '24. Accepted Animal Types',
                           style: const TextStyle(fontWeight: FontWeight.w700),
@@ -1035,8 +948,9 @@ hintText: '09:00 - 18:00',
                           label: '27. Daily Capacity',
                           keyboardType: TextInputType.number,
                           validator: _dailyCapacityValidator,
-hintText: 'e.g. 10-30 patients per day',
-helperText: 'Typical clinics handle 10–30 patients daily',
+                          hintText: 'e.g. 10-30 patients per day',
+                          helperText:
+                              'Typical clinics handle 10–30 patients daily',
                         ),
                       ]),
 
@@ -1071,20 +985,11 @@ helperText: 'Typical clinics handle 10–30 patients daily',
                           label: '32. Year Established',
                           keyboardType: TextInputType.number,
                           validator: _yearValidator,
-hintText: 'e.g. 2015',
+                          hintText: 'e.g. 2015',
                         ),
-                        _field(
-                          controller: _instagram,
-                          label: '33. Instagram',
-                        ),
-                        _field(
-                          controller: _whatsapp,
-                          label: '33. WhatsApp',
-                        ),
-                        _field(
-                          controller: _website,
-                          label: '33. Website',
-                        ),
+                        _field(controller: _instagram, label: '33. Instagram'),
+                        _field(controller: _whatsapp, label: '33. WhatsApp'),
+                        _field(controller: _website, label: '33. Website'),
                       ]),
 
                       // SECTION 7
@@ -1094,7 +999,10 @@ hintText: 'e.g. 2015',
                           title: '34. Preferred Partnership Model',
                           value: _partnershipModel,
                           options: const [
-                            MapEntry('monthly_subscription', 'Monthly Subscription'),
+                            MapEntry(
+                              'monthly_subscription',
+                              'Monthly Subscription',
+                            ),
                             MapEntry('commission', 'Commission per booking'),
                             MapEntry('pay_per_lead', 'Pay per lead'),
                             MapEntry('advertising', 'Advertising'),
@@ -1106,11 +1014,11 @@ hintText: 'e.g. 2015',
                           },
                         ),
                         _field(
-  controller: _iban,
-  label: '35. IBAN / Payment Details',
-  validator: _ibanValidator,
-  hintText: 'TRXXXXXXXXXXXXXXXXXXXXXXXX',
-),
+                          controller: _iban,
+                          label: '35. IBAN / Payment Details',
+                          validator: _ibanValidator,
+                          hintText: 'TRXXXXXXXXXXXXXXXXXXXXXXXX',
+                        ),
                         _field(
                           controller: _billingInformation,
                           label: '36. Billing Information',
@@ -1138,13 +1046,13 @@ hintText: 'e.g. 2015',
                           },
                         ),
                         if (_offerDiscountToUsers == 'yes')
-  _field(
-    controller: _promotionDetails,
-    label: '39. Promotion Details',
-    maxLines: 3,
-    hintText: 'e.g. 15% discount on vaccinations',
-    helperText: 'Describe your offer clearly',
-  ),
+                          _field(
+                            controller: _promotionDetails,
+                            label: '39. Promotion Details',
+                            maxLines: 3,
+                            hintText: 'e.g. 15% discount on vaccinations',
+                            helperText: 'Describe your offer clearly',
+                          ),
                         _radioGroup<String>(
                           title: '40. Interested in being a Featured Vet?',
                           value: _featuredVet,
@@ -1166,26 +1074,39 @@ hintText: 'e.g. 2015',
                         CheckboxListTile(
                           value: _confirmAccuracy,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('41. I confirm that the information provided is accurate'),
-                          onChanged: (v) => setState(() => _confirmAccuracy = v ?? false),
+                          title: const Text(
+                            '41. I confirm that the information provided is accurate',
+                          ),
+                          onChanged: (v) =>
+                              setState(() => _confirmAccuracy = v ?? false),
                         ),
                         CheckboxListTile(
                           value: _agreeDisplayInfo,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('42. I agree to display my information in the app'),
-                          onChanged: (v) => setState(() => _agreeDisplayInfo = v ?? false),
+                          title: const Text(
+                            '42. I agree to display my information in the app',
+                          ),
+                          onChanged: (v) =>
+                              setState(() => _agreeDisplayInfo = v ?? false),
                         ),
                         CheckboxListTile(
                           value: _agreeUserReviews,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('43. I agree to user reviews being displayed'),
-                          onChanged: (v) => setState(() => _agreeUserReviews = v ?? false),
+                          title: const Text(
+                            '43. I agree to user reviews being displayed',
+                          ),
+                          onChanged: (v) =>
+                              setState(() => _agreeUserReviews = v ?? false),
                         ),
                         CheckboxListTile(
                           value: _acceptPartnershipTerms,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('44. I accept PetSopu partnership terms'),
-                          onChanged: (v) => setState(() => _acceptPartnershipTerms = v ?? false),
+                          title: const Text(
+                            '44. I accept PetSopu partnership terms',
+                          ),
+                          onChanged: (v) => setState(
+                            () => _acceptPartnershipTerms = v ?? false,
+                          ),
                         ),
                       ]),
                     ],

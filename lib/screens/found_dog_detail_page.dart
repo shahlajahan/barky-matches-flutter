@@ -4,17 +4,14 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../models/found_dog.dart';
+import '../models/lost_dog.dart';
 import '../../app_state.dart';
-import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 class FoundDogDetailPage extends StatelessWidget {
   final FoundDog foundDog;
 
-  const FoundDogDetailPage({
-    super.key,
-    required this.foundDog,
-  });
+  const FoundDogDetailPage({super.key, required this.foundDog});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +24,6 @@ class FoundDogDetailPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-
             /// 🔙 BACK HEADER (مثل Lost دقیق)
             Row(
               children: [
@@ -39,10 +35,7 @@ class FoundDogDetailPage extends StatelessWidget {
                   },
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  "Found Dog Details",
-                  style: AppTheme.h2(),
-                ),
+                Text("Found Pet Details", style: AppTheme.h2()),
               ],
             ),
 
@@ -59,10 +52,10 @@ class FoundDogDetailPage extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-
                     /// 🐾 IMAGE OR PAW (همان سایز icon)
                     GestureDetector(
-                      onTap: foundDog.imageUrl != null &&
+                      onTap:
+                          foundDog.imageUrl != null &&
                               foundDog.imageUrl!.isNotEmpty
                           ? () {
                               _showFullImage(context, foundDog.imageUrl!);
@@ -73,31 +66,33 @@ class FoundDogDetailPage extends StatelessWidget {
                         width: 56,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: foundDog.imageUrl == null ||
+                          gradient:
+                              foundDog.imageUrl == null ||
                                   foundDog.imageUrl!.isEmpty
                               ? LinearGradient(
                                   colors: isClaimed
                                       ? [Colors.greenAccent, Colors.teal]
                                       : [
                                           Colors.orangeAccent,
-                                          Colors.deepOrange
+                                          Colors.deepOrange,
                                         ],
                                 )
                               : null,
                         ),
                         child: ClipOval(
-  child: foundDog.imageUrl != null &&
-          foundDog.imageUrl!.isNotEmpty
-      ? SmartMedia(
-          url: foundDog.imageUrl!,
-          fit: BoxFit.cover,
-        )
-      : const Icon(
-          Icons.pets,
-          color: Colors.white,
-          size: 28,
-        ),
-),
+                          child:
+                              foundDog.imageUrl != null &&
+                                  foundDog.imageUrl!.isNotEmpty
+                              ? SmartMedia(
+                                  url: foundDog.imageUrl!,
+                                  fit: BoxFit.cover,
+                                )
+                              : const Icon(
+                                  Icons.pets,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                        ),
                       ),
                     ),
 
@@ -165,8 +160,10 @@ class FoundDogDetailPage extends StatelessWidget {
                           "https://www.google.com/maps/search/?api=1&query=${foundDog.latitude},${foundDog.longitude}",
                         );
                         if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
                         }
                       },
                       icon: const Icon(Icons.location_on, size: 16),
@@ -181,29 +178,41 @@ class FoundDogDetailPage extends StatelessWidget {
                     ElevatedButton.icon(
                       onPressed: () async {
                         final contact = foundDog.contactInfo;
-                        final type = contact["type"];
-                        final value = contact["value"];
+                        final type = normalizedContactType(contact["type"]);
+                        final value = contact["value"]?.toString().trim() ?? '';
+                        if (value.isEmpty) return;
 
-                        if (type == "Phone") {
+                        if (type == "phone") {
                           final uri = Uri.parse("tel:$value");
                           if (await canLaunchUrl(uri)) {
                             await launchUrl(uri);
                           }
                         }
 
-                        if (type == "Email") {
+                        if (type == "email") {
                           final uri = Uri.parse("mailto:$value");
                           if (await canLaunchUrl(uri)) {
                             await launchUrl(uri);
                           }
                         }
 
-                        if (type == "Instagram") {
-                          final uri =
-                              Uri.parse("https://instagram.com/$value");
+                        if (type == "whatsapp") {
+                          final uri = Uri.parse("https://wa.me/$value");
                           if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri,
-                                mode: LaunchMode.externalApplication);
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        }
+
+                        if (type == "instagram") {
+                          final uri = Uri.parse("https://instagram.com/$value");
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
                           }
                         }
                       },
@@ -215,8 +224,7 @@ class FoundDogDetailPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                      icon:
-                          const Icon(Icons.chat_bubble_outline, size: 18),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
                       label: const Text(
                         "Contact Reporter",
                         style: TextStyle(fontSize: 13),
@@ -226,7 +234,7 @@ class FoundDogDetailPage extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     Text(
-                      isClaimed ? "Dog Claimed 🐾" : "Not Claimed",
+                      isClaimed ? "Pet Claimed 🐾" : "Not Claimed",
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontSize: 14,
@@ -253,10 +261,7 @@ class FoundDogDetailPage extends StatelessWidget {
         child: GestureDetector(
           onTap: () => Navigator.pop(context),
           child: InteractiveViewer(
-            child: SmartMedia(
-  url: imageUrl,
-  fit: BoxFit.contain,
-),
+            child: SmartMedia(url: imageUrl, fit: BoxFit.contain),
           ),
         ),
       ),
@@ -287,8 +292,7 @@ class FoundDogDetailPage extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style:
-            GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
+        style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
       ),
     );
   }

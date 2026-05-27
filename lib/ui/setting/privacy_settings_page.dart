@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'blocked_users_page.dart';
@@ -625,7 +624,7 @@ class _ToggleTile extends StatelessWidget {
           Switch(
             value: value,
 
-            activeColor:
+            activeThumbColor:
                 const Color(0xFFFFC107),
 
             activeTrackColor:

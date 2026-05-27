@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:carousel_slider/carousel_slider.dart';
 
 import '../../app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -15,12 +14,9 @@ import 'package:barky_matches_fixed/models/media_item.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:barky_matches_fixed/ui/common/smart_video_preview.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../theme/app_theme.dart';
-import 'package:barky_matches_fixed/ui/petshop/widgets/product_card_shared.dart';
 import 'package:barky_matches_fixed/ui/petshop/widgets/product_card_dashboard.dart';
 
 import 'package:barky_matches_fixed/ui/seller/seller_orders_page.dart';
-import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:barky_matches_fixed/models/order_return.dart';
 import 'package:barky_matches_fixed/ui/returns/order_return_card.dart';
@@ -109,7 +105,7 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
 
  if (p.name.trim().length >= 3) score += 20;
 if (p.description.trim().length >= 20) score += 20;
-if (p.media.length >= 1) score += 20;
+if (p.media.isNotEmpty) score += 20;
 if (p.media.length >= 3) score += 10;
 if (p.price > 0) score += 15;
 if (p.stock > 0) score += 10;

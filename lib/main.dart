@@ -11,9 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'app_entry.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 //import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,43 +22,29 @@ import 'package:path_provider/path_provider.dart';
 import 'firebase_options.dart';
 import 'dog.dart';
 import 'welcome_page.dart';
-import 'home_page.dart';
-import 'adoption_page.dart';
-import 'favorites_page.dart';
-import 'play_date_requests_page_new.dart';
-import 'notifications_page.dart';
-import 'splash_screen.dart';
 import 'app_state.dart';
 import 'notification_service.dart';
-import 'play_date_scheduling_page.dart';
-import 'screens/lost_dog_report_page.dart';
-import 'screens/lost_dogs_list_page.dart';
-import 'screens/found_dog_report_page.dart';
-import 'screens/found_dogs_list_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'playmate_page.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/firestore_recovery.dart';
 import 'dart:async';
-import 'ui/shell/barky_scaffold.dart';
 import 'ui/shell/nav_tab.dart';
 import 'home_gate.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
-import 'nav_logger.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-<<<<<<< HEAD
+
 import 'package:app_links/app_links.dart';
-=======
+
 import 'package:uni_links/uni_links.dart';
 import 'ui/appointments/my_appointments_page.dart';
 import 'ui/business/dashboard/vet/appointment_payment_page.dart';
->>>>>>> 823c872 (ci: add flutter github actions workflow)
+
 import 'ui/orders/order_detail_page.dart';
 import 'ui/chat/chat_detail_page.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart'
@@ -109,7 +93,7 @@ Future<void> saveIosPushDebug({
   try {
     await FirebaseFirestore.instance
         .collection('debug_tokens')
-        .doc('ios_${stage}')
+        .doc('ios_$stage')
         .set({
           'platform': Platform.isIOS ? 'ios' : 'other',
           'stage': stage,
@@ -129,9 +113,7 @@ Future<void> waitForInternet() async {
   for (int i = 0; i < 10; i++) {
     final result = await connectivity.checkConnectivity();
 
-    final hasConnection = result is List<ConnectivityResult>
-        ? result.any((e) => e != ConnectivityResult.none)
-        : result != ConnectivityResult.none;
+    final hasConnection = result.any((e) => e != ConnectivityResult.none);
 
     if (hasConnection) debugPrint('⏳ Waiting for internet... (${i + 1})');
     await Future.delayed(const Duration(milliseconds: 500));

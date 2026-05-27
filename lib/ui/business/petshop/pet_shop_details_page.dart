@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../models/business_draft.dart';
-import '../../../theme/app_theme.dart';
 
 class PetShopDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -52,8 +51,8 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
 
   // 🟣 SECTION 6
   String _hasDelivery = 'yes';
-  String _onlineOrder = 'no';
-  String _whatsappOrder = 'yes';
+  final String _onlineOrder = 'no';
+  final String _whatsappOrder = 'yes';
 
   // 🟡 SECTION 7
   final _workingHours = TextEditingController();
@@ -199,7 +198,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
             const SizedBox(height: 20),
             const Text("Price Level"),
             DropdownButtonFormField(
-              value: _priceLevel,
+              initialValue: _priceLevel,
               items: const [
                 DropdownMenuItem(value: 'low', child: Text('Low')),
                 DropdownMenuItem(value: 'mid', child: Text('Mid')),

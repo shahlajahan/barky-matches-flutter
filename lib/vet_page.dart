@@ -3,7 +3,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'package:barky_matches_fixed/services/business_chat_service.dart';
+import 'package:barky_matches_fixed/ui/business/chat/business_chat_page.dart';
 import 'package:barky_matches_fixed/app_state.dart' as app;
 import 'package:barky_matches_fixed/ui/vet/vet_card.dart';
 import 'package:barky_matches_fixed/ui/vet/vet_card_data.dart';
@@ -13,6 +14,8 @@ import 'package:barky_matches_fixed/services/weather_service.dart';
 import 'package:barky_matches_fixed/subscription/models/subscription_plan.dart';
 import 'ui/vet/vet_details_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:barky_matches_fixed/ui/medical_records/medical_record_flow_button.dart';
+import 'package:barky_matches_fixed/ui/medical_records/medical_records_page.dart';
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
@@ -39,7 +42,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
   List<VetCardData> _filteredVets = [];
   List<VetCardData> _vets = [];
 
-  int _promoIndex = 0;
+  final int _promoIndex = 0;
   late Timer _promoTimer;
   List<String> _dynamicTips = [];
 
@@ -386,62 +389,73 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
             if (!sectors.contains('veterinary')) return null;
 
             final contact = Map<String, dynamic>.from(data['contact'] ?? {});
-            // 🔥 COVER IMAGE LOGIC
-            final coverImageUrl = (data['coverImageUrl'] ?? '').toString();
-            final images = List<String>.from(data['images'] ?? []);
-
-            final displayImage = coverImageUrl.isNotEmpty
-                ? coverImageUrl
-                : (images.isNotEmpty ? images.first : null);
-           
 
             final profile = Map<String, dynamic>.from(data['profile'] ?? {});
+
             final sectorData = Map<String, dynamic>.from(
               data['sectorData'] ?? {},
             );
 
-            // ✅ FIRST define veterinary
             final veterinary = Map<String, dynamic>.from(
               sectorData['veterinary'] ?? {},
             );
 
-            // ✅ THEN use it
             final profileContent = Map<String, dynamic>.from(
               veterinary['profileContent'] ?? {},
             );
+
+            // 🔥 NEW GALLERY SOURCE
+            final clinicPhotos =
+                (profileContent['clinicPhotoUrls'] as List?)
+                    ?.map((e) => e.toString())
+                    .where((e) => e.isNotEmpty)
+                    .toList() ??
+                [];
+
+            // 🔥 NEW COVER SOURCE
+            final coverImageUrl = (profileContent['coverImageUrl'] ?? '')
+                .toString()
+                .trim();
+
+            // 🔥 FINAL DISPLAY IMAGE
+            final displayImage = coverImageUrl.isNotEmpty
+                ? coverImageUrl
+                : (clinicPhotos.isNotEmpty ? clinicPhotos.first : null);
+
             final socialMedia = Map<String, dynamic>.from(
-  profileContent['socialMedia'] ?? {},
-);
+              profileContent['socialMedia'] ?? {},
+            );
 
-final String? instagram =
-    socialMedia['instagram']?.toString();
+            final String? instagram = socialMedia['instagram']?.toString();
 
-final String? website =
-    socialMedia['website']?.toString();
+            final String? website = socialMedia['website']?.toString();
 
             final String? logoUrl = profileContent['clinicLogoUrl']?.toString();
-            final displayName = (profile['displayName'] ?? '').toString().trim();
-            final description =
-    (profileContent['bio'] ?? '')
-        .toString()
-        .trim();
+            final displayName = (profile['displayName'] ?? '')
+                .toString()
+                .trim();
+            final description = (profileContent['bio'] ?? '').toString().trim();
 
             debugPrint("🔥 LOGO URL: $logoUrl");
 
-            final workingHours = Map<String, dynamic>.from(
-              veterinary['workingHours'] ?? {},
-            );
-            debugPrint("🔥 WORKING HOURS RAW: $workingHours");
-            debugPrint("🔥 RAW INNER: ${workingHours['workingHours']}");
-            final rawWorkingHours = workingHours['workingHours'];
+            final rawWorkingHours =
+                veterinary['workingHoursMap'] ??
+                veterinary['workingHours'] ??
+                {};
 
-            Map<String, String> workingHoursMap = {};
+            debugPrint("🔥 WORKING HOURS RAW: $rawWorkingHours");
 
-            if (rawWorkingHours is Map) {
-              workingHoursMap = Map<String, String>.from(rawWorkingHours);
+            Map<String, dynamic> workingHoursMap = {};
+
+            if (rawWorkingHours is Map<String, dynamic>) {
+              workingHoursMap = rawWorkingHours;
+            } else if (rawWorkingHours is Map) {
+              workingHoursMap = rawWorkingHours.map(
+                (key, value) => MapEntry(key.toString(), value),
+              );
             } else if (rawWorkingHours is String &&
                 rawWorkingHours.isNotEmpty) {
-              workingHoursMap = {"hours": rawWorkingHours};
+              workingHoursMap = {'hours': rawWorkingHours};
             }
             final services = Map<String, dynamic>.from(
               veterinary['services'] ?? {},
@@ -489,11 +503,27 @@ final String? website =
             final int reviewsCount = reviewsRaw is num ? reviewsRaw.toInt() : 0;
 
             final String emergencyValue =
-                (workingHours['emergencyService'] ?? '').toString().trim();
+                (rawWorkingHours is Map
+                        ? rawWorkingHours['emergencyService']
+                        : '')
+                    ?.toString()
+                    .trim() ??
+                '';
 
+            // 🔥 NEW SETTINGS VALUE
+            final bool emergencyAvailability =
+                data['emergencyAvailability'] == true;
+
+            // 🔥 24 HOURS
             final bool is24h = emergencyValue == '24_hours';
+
+            // 🔥 FINAL EMERGENCY STATUS
             final bool isEmergency =
-                emergencyValue == 'yes' || emergencyValue == 'emergency';
+                emergencyAvailability ||
+                emergencyValue == 'yes' ||
+                emergencyValue == 'emergency';
+
+            debugPrint('🚨 FINAL EMERGENCY STATUS: $isEmergency');
 
             final bool isPartner =
                 data['status'] == 'approved' ||
@@ -876,6 +906,41 @@ final String? website =
                                                 addressQuery,
                                               ),
                                         onWhatsAppTap: null,
+                                        onMessageTap: () async {
+                                          final currentUserId =
+                                              appState.currentUserId;
+
+                                          if (currentUserId == null) {
+                                            return;
+                                          }
+
+                                          debugPrint('💬 OPEN BUSINESS CHAT');
+
+                                          final chatId =
+                                              await BusinessChatService.instance
+                                                  .getOrCreateBusinessChat(
+                                                    businessId: vetData.id,
+                                                    businessName: vetData.name,
+                                                    businessLogoUrl:
+                                                        vetData.logoUrl ??
+                                                        vetData.coverImageUrl,
+                                                    businessType: 'veterinary',
+                                                    clientUserId: currentUserId,
+                                                  );
+
+                                          if (!context.mounted) return;
+
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => BusinessChatPage(
+                                                chatId: chatId,
+                                                businessName: vetData.name,
+                                                viewerRole: 'client',
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       );
                                     },
                                   ),
@@ -885,11 +950,28 @@ final String? website =
                     ),
 
                     Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: _buildEducationBox(),
-                    ),
+  bottom: 86,
+  left: 16,
+  right: 16,
+
+  child: MedicalRecordFlowButton(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const MedicalRecordsPage(),
+        ),
+      );
+    },
+  ),
+),
+
+Positioned(
+  bottom: 0,
+  left: 0,
+  right: 0,
+  child: _buildEducationBox(),
+),
                   ],
                 ),
         ),

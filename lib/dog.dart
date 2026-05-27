@@ -1,6 +1,5 @@
 import 'package:hive/hive.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 
 part 'dog.g.dart';
 
@@ -26,17 +25,17 @@ class Dog extends HiveObject {
   @HiveField(0)
   String id;
 
- @HiveField(1)
-String name = '';
+  @HiveField(1)
+  String name = '';
 
   @HiveField(2)
- String breed = '';
+  String breed = '';
 
   @HiveField(3)
   int age;
 
   @HiveField(4)
- String gender = '';
+  String gender = '';
 
   @HiveField(5)
   String healthStatus = '';
@@ -104,7 +103,7 @@ String name = '';
   String sponsorshipType;
 
   @HiveField(26)
-String petType;
+  String petType;
 
   Timestamp? updatedAt;
 
@@ -150,7 +149,7 @@ String petType;
 
     return Dog(
       id: doc.id,
-      name: data['name'] ?? '',
+      name: data['petName'] ?? data['name'] ?? '',
       breed: data['breed'] ?? '',
       age: (data['age'] as num?)?.toInt() ?? 0,
       gender: data['gender'] ?? '',
@@ -160,8 +159,7 @@ String petType;
       traits: List<String>.from(data['traits'] ?? const []),
       ownerGender: data['ownerGender'],
       imagePaths: List<String>.from(data['imagePaths'] ?? const []),
-      isAvailableForAdoption:
-          Dog._asBool(data['isAvailableForAdoption']),
+      isAvailableForAdoption: Dog._asBool(data['isAvailableForAdoption']),
       isOwner: Dog._asBool(data['isOwner']),
       ownerId: data['ownerUid'] ?? data['ownerId'],
       latitude: Dog._asDouble(data['latitude']),
@@ -196,8 +194,7 @@ String petType;
       traits: List<String>.from(map['traits'] ?? const []),
       ownerGender: map['ownerGender'],
       imagePaths: List<String>.from(map['imagePaths'] ?? const []),
-      isAvailableForAdoption:
-          Dog._asBool(map['isAvailableForAdoption']),
+      isAvailableForAdoption: Dog._asBool(map['isAvailableForAdoption']),
       isOwner: Dog._asBool(map['isOwner']),
       ownerId: map['ownerId'],
       latitude: Dog._asDouble(map['latitude']),
@@ -220,6 +217,7 @@ String petType;
   Map<String, dynamic> toMap() {
     return {
       'name': name,
+      'petName': name,
       'breed': breed,
       'age': age,
       'gender': gender,
@@ -288,8 +286,9 @@ String petType;
       description: description ?? this.description,
       traits: traits != null ? List.from(traits) : List.from(this.traits),
       ownerGender: ownerGender ?? this.ownerGender,
-      imagePaths:
-          imagePaths != null ? List.from(imagePaths) : List.from(this.imagePaths),
+      imagePaths: imagePaths != null
+          ? List.from(imagePaths)
+          : List.from(this.imagePaths),
       isAvailableForAdoption:
           isAvailableForAdoption ?? this.isAvailableForAdoption,
       isOwner: isOwner ?? this.isOwner,
@@ -299,10 +298,8 @@ String petType;
       reportCount: reportCount ?? this.reportCount,
       isHidden: isHidden ?? this.isHidden,
       moderationStatus: moderationStatus ?? this.moderationStatus,
-      ownerProfileVisible:
-          ownerProfileVisible ?? this.ownerProfileVisible,
-      dogProfileVisible:
-          dogProfileVisible ?? this.dogProfileVisible,
+      ownerProfileVisible: ownerProfileVisible ?? this.ownerProfileVisible,
+      dogProfileVisible: dogProfileVisible ?? this.dogProfileVisible,
       isPremium: isPremium ?? this.isPremium,
       isSponsored: isSponsored ?? this.isSponsored,
       boostScore: boostScore ?? this.boostScore,

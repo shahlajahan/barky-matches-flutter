@@ -894,7 +894,7 @@ class _TopDropDown<T> extends StatelessWidget {
     return SizedBox(
       width: width,
       child: DropdownButtonFormField<T>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         decoration: InputDecoration(
   isDense: true,
@@ -1364,7 +1364,7 @@ String _rest(String title) {
   final words = title.trim().split(' ');
   if (words.length <= 1) return "";
 
-  return words.skip(1).take(5).join(' ') + "...";
+  return "${words.skip(1).take(5).join(' ')}...";
 }
 
 }

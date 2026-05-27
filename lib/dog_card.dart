@@ -2,20 +2,16 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'dog.dart';
-import 'edit_dog_dialog.dart';
 import 'app_state.dart';
-import 'other_user_dog_page.dart';
 import 'play_date_scheduling_page.dart';
 import 'dart:io';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'ui/common/report_button.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/ui/common/pages/submit_complaint_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -28,7 +24,6 @@ import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:barky_matches_fixed/services/chat_service.dart';
 
 enum DogCardMode {
   normal,
@@ -59,6 +54,7 @@ class DogCard extends StatefulWidget {
   final bool enableEdit;
   final bool enablePlaydate;
   final bool disableTap;
+  
   
 
   final VoidCallback? onCardTap;   // ✅ اینجا
@@ -95,13 +91,17 @@ class _DogCardState extends State<DogCard>
     with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
 
   late AppLocalizations localizations;
-bool _showHeart = false;
-double _heartScale = 0.5;
+final bool _showHeart = false;
+final double _heartScale = 0.5;
   bool _isEditing = false;
   bool _isDialogOpen = false;
-  double _dragX = 0;
+  final double _dragX = 0;
 bool get _enableHero => widget.mode == DogCardMode.normal;
   late ScaffoldMessengerState _scaffoldMessenger;
+
+  int _vaccineCount = 0;
+
+bool _vaccinesLoading = true;
 
   int _likeCount = 0;
   bool _isDisliked = false;
@@ -112,7 +112,41 @@ bool get _enableHero => widget.mode == DogCardMode.normal;
 Animation<double>? _pulseAnimation;
 
 int _currentIndex = 0;
-PageController _pageController = PageController();
+final PageController _pageController = PageController();
+
+Future<void> _loadVaccines() async {
+  try {
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('dogs')
+            .doc(widget.dog.id)
+            .collection('vaccines')
+            .get();
+
+    if (!mounted) return;
+
+    setState(() {
+      _vaccineCount =
+          snapshot.docs.length;
+
+      _vaccinesLoading = false;
+    });
+
+    debugPrint(
+      '🐶 OWNER DOG VACCINES → ${snapshot.docs.length}',
+    );
+  } catch (e) {
+    debugPrint(
+      '❌ OWNER VACCINES ERROR: $e',
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _vaccinesLoading = false;
+    });
+  }
+}
 
   @override
   bool get wantKeepAlive => true;
@@ -702,6 +736,8 @@ Widget _fallbackImage() {
   @override
 void initState() {
   super.initState();
+
+  _loadVaccines();
 
   _pulseController = AnimationController(
     vsync: this,
@@ -1569,13 +1605,83 @@ if (widget.dog.imagePaths.length > 1)
 
                   const SizedBox(height: 10),
 
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _buildTag(translateGender(widget.dog.gender)),
-                      _buildTag(translateHealthStatus(widget.dog.healthStatus)),
-                    ],
+                 Wrap(
+  spacing: 8,
+  runSpacing: 8,
+  children: [
+
+    _buildTag(
+      translateGender(
+        widget.dog.gender,
+      ),
+    ),
+
+    _buildTag(
+      translateHealthStatus(
+        widget.dog.healthStatus,
+      ),
+    ),
+
+    if (
+      !_vaccinesLoading &&
+      _vaccineCount > 0
+    )
+      Container(
+        padding:
+            const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+
+        decoration: BoxDecoration(
+          color: const Color(
+            0xFFF5E8EE,
+          ),
+
+          borderRadius:
+              BorderRadius.circular(
+                10,
+              ),
+        ),
+
+        child: Row(
+          mainAxisSize:
+              MainAxisSize.min,
+
+          children: [
+
+            const Icon(
+              Icons.vaccines_rounded,
+
+              size: 14,
+
+              color: Color(
+                0xFF9E1B4F,
+              ),
+            ),
+
+            const SizedBox(width: 5),
+
+            Text(
+              '$_vaccineCount vaccines',
+
+              style:
+                  const TextStyle(
+                    color: Color(
+                      0xFF9E1B4F,
+                    ),
+
+                    fontWeight:
+                        FontWeight.w600,
+
+                    fontSize: 12,
                   ),
+            ),
+          ],
+        ),
+      ),
+  ],
+),
                 ],
               ),
             ),

@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
@@ -457,7 +456,7 @@ class _PetHotelReviewsTabState
                         ? ClipOval(
                             child:
                                 Image.network(
-                                  photoUrl!,
+                                  photoUrl,
                                   width: 32,
                                   height: 32,
                                   fit:

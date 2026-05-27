@@ -132,7 +132,7 @@ class LocationRepository {
         .map(
           (d) => Admin1.fromMap(
             d.id,
-            d.data() as Map<String, dynamic>,
+            d.data(),
           ),
         )
         .toList();
@@ -218,7 +218,7 @@ class LocationRepository {
         .map(
           (d) => Admin2.fromMap(
             d.id,
-            d.data() as Map<String, dynamic>,
+            d.data(),
           ),
         )
         .toList();

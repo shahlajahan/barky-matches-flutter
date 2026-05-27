@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -214,7 +213,7 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _reason,
+                initialValue: _reason,
                 decoration: InputDecoration(
                   labelText: l10n.selectReturnReasonLabel,
                 ),

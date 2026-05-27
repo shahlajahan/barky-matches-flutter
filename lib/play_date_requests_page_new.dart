@@ -68,7 +68,7 @@ AppState? _appState;
   Stream<List<PlayDateRequest>>? _requestsStream;
   String? currentUserId;
 
-bool _isFirstSnapshot = true;
+final bool _isFirstSnapshot = true;
 //bool _isDirectFromNotification = false;
 
   bool _isUpdating = false;
@@ -201,7 +201,7 @@ void initState() {
     final list = snap.docs.map((doc) {
       return PlayDateRequest.fromFirestore(
         doc.id,
-        doc.data() as Map<String, dynamic>,
+        doc.data(),
       );
     }).toList();
 
@@ -330,7 +330,7 @@ void _switchToPendingMode() {
     final list = snap.docs.map((doc) {
       return PlayDateRequest.fromFirestore(
         doc.id,
-        doc.data() as Map<String, dynamic>,
+        doc.data(),
       );
     }).toList();
 

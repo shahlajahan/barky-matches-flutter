@@ -170,9 +170,7 @@ class _GroomyAppointmentPageState extends State<GroomyAppointmentPage> {
           );
         }
 
-        if (_selectedServiceLocal == null) {
-          _selectedServiceLocal = services.first;
-        }
+        _selectedServiceLocal ??= services.first;
 
         return SizedBox(
           height: 76,

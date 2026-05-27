@@ -321,7 +321,7 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
               const SizedBox(height: 10),
 
               DropdownButtonFormField<String>(
-                value: category,
+                initialValue: category,
 
                 decoration: _inputDecoration(
                   label: "Select category",

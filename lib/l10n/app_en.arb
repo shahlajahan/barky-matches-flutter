@@ -2036,9 +2036,12 @@
 
   "reportTitle": "Report",
   "lostDogTitle": "Lost Dog",
+  "lostPetTitle": "Lost Pet",
   "foundDogTitle": "Found Dog",
+  "foundPetTitle": "Found Pet",
   "lostTitle": "Lost",
   "dogsTitle": "Dogs",
+  "petsTitle": "Pets",
   "foundTitle": "Found",
   "homeDefaultUsername": "User",
   "homePetHotelTitle": "Pet Hotel",

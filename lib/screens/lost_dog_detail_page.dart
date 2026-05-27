@@ -8,14 +8,10 @@ import '../../theme/app_theme.dart';
 import '../models/lost_dog.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
-
 class LostDogDetailPage extends StatelessWidget {
   final LostDog lostDog;
 
-  const LostDogDetailPage({
-    super.key,
-    required this.lostDog,
-  });
+  const LostDogDetailPage({super.key, required this.lostDog});
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +24,6 @@ class LostDogDetailPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-
             /// 🔙 Back Header
             Row(
               children: [
@@ -40,10 +35,7 @@ class LostDogDetailPage extends StatelessWidget {
                   },
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  "Lost Dog Details",
-                  style: AppTheme.h2(),
-                ),
+                Text("Lost Pet Details", style: AppTheme.h2()),
               ],
             ),
 
@@ -60,10 +52,10 @@ class LostDogDetailPage extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-
                     /// 🐾 IMAGE OR PAW (دایره 56)
                     GestureDetector(
-                      onTap: lostDog.imageUrl != null &&
+                      onTap:
+                          lostDog.imageUrl != null &&
                               lostDog.imageUrl!.isNotEmpty
                           ? () {
                               _showFullImage(context, lostDog.imageUrl!);
@@ -74,25 +66,27 @@ class LostDogDetailPage extends StatelessWidget {
                         width: 56,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: lostDog.imageUrl == null ||
+                          gradient:
+                              lostDog.imageUrl == null ||
                                   lostDog.imageUrl!.isEmpty
                               ? LinearGradient(
                                   colors: isFound
                                       ? [Colors.greenAccent, Colors.teal]
                                       : [
                                           Colors.orangeAccent,
-                                          Colors.deepOrange
+                                          Colors.deepOrange,
                                         ],
                                 )
                               : null,
                         ),
                         child: ClipOval(
-                          child: lostDog.imageUrl != null &&
+                          child:
+                              lostDog.imageUrl != null &&
                                   lostDog.imageUrl!.isNotEmpty
                               ? SmartMedia(
-  url: lostDog.imageUrl!,
-  fit: BoxFit.cover,
-)
+                                  url: lostDog.imageUrl!,
+                                  fit: BoxFit.cover,
+                                )
                               : const Icon(
                                   Icons.pets,
                                   color: Colors.white,
@@ -168,8 +162,10 @@ class LostDogDetailPage extends StatelessWidget {
                           "https://www.google.com/maps/search/?api=1&query=${lostDog.latitude},${lostDog.longitude}",
                         );
                         if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
                         }
                       },
                       icon: const Icon(Icons.location_on, size: 16),
@@ -180,9 +176,128 @@ class LostDogDetailPage extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 12),
+                    if (!isFound &&
+                        lostDog.contactInfo != null &&
+                        (lostDog.contactInfo!['value']
+                                ?.toString()
+                                .trim()
+                                .isNotEmpty ??
+                            false)) ...[
+                      const SizedBox(height: 18),
 
+                      Text(
+                        "Have information about this pet?",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          // 📞 PHONE
+                          if (normalizedContactType(
+                                lostDog.contactInfo!['type'],
+                              ) ==
+                              'phone')
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final phone = lostDog.contactInfo!['value'];
+
+                                final uri = Uri.parse('tel:$phone');
+
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri);
+                                }
+                              },
+
+                              icon: const Icon(Icons.call, size: 18),
+
+                              label: const Text("Call Owner"),
+
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF9E1B4F),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+
+                          // 📧 EMAIL
+                          if (normalizedContactType(
+                                lostDog.contactInfo!['type'],
+                              ) ==
+                              'email')
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final email = lostDog.contactInfo!['value'];
+
+                                final uri = Uri.parse(
+                                  'mailto:$email?subject=Lost Pet Report',
+                                );
+
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri);
+                                }
+                              },
+
+                              icon: const Icon(Icons.email, size: 18),
+
+                              label: const Text("Email Owner"),
+
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF9E1B4F),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+
+                          // 💬 WHATSAPP
+                          if (normalizedContactType(
+                                lostDog.contactInfo!['type'],
+                              ) ==
+                              'whatsapp')
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final phone = lostDog.contactInfo!['value'];
+
+                                final uri = Uri.parse('https://wa.me/$phone');
+
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                }
+                              },
+
+                              icon: const Icon(Icons.chat, size: 18),
+
+                              label: const Text("WhatsApp"),
+
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF9E1B4F),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                     Text(
-                      isFound ? "Dog Found 🐾" : "Still Missing",
+                      isFound ? "Pet Found 🐾" : "Still Missing",
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                         fontSize: 14,
@@ -208,10 +323,7 @@ class LostDogDetailPage extends StatelessWidget {
         child: GestureDetector(
           onTap: () => Navigator.pop(context),
           child: InteractiveViewer(
-           child: SmartMedia(
-  url: imageUrl,
-  fit: BoxFit.contain,
-),
+            child: SmartMedia(url: imageUrl, fit: BoxFit.contain),
           ),
         ),
       ),
@@ -242,10 +354,7 @@ class LostDogDetailPage extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: GoogleFonts.poppins(
-          fontSize: 14,
-          color: Colors.white70,
-        ),
+        style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
       ),
     );
   }

@@ -234,7 +234,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedHealthStatus,
+                initialValue: _selectedHealthStatus,
                 decoration: InputDecoration(
                   labelText: localizations.selectHealthStatusHint,
                   labelStyle: GoogleFonts.poppins(color: Colors.white),
@@ -376,7 +376,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedOwnerGender,
+                initialValue: _selectedOwnerGender,
                 decoration: InputDecoration(
                   labelText: localizations.selectOwnerGenderHint,
                   labelStyle: GoogleFonts.poppins(color: Colors.white),

@@ -54,7 +54,11 @@ class _VetDashboardAppointmentsTabState
   }
 
   void _onAppStateChanged() {
-    final appState = context.read<AppState>();
+    if (!mounted) return;
+
+    final appState = _appState;
+    if (appState == null) return;
+
     final targetId = appState.openAppointmentId;
 
     debugPrint("👀 openAppointmentId = $targetId");
@@ -71,59 +75,188 @@ class _VetDashboardAppointmentsTabState
 
     // 🔥 تا مطمئن نشیم UI آماده‌ست
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _scrollToAppointment(targetId);
+      if (!mounted) return;
       appState.consumeOpenAppointment();
     });
   }
 
-  Widget _buildAppointmentDetail(Map<String, dynamic> data, String id) {
-    final status = (data['status'] ?? 'pending') as String;
+  Widget _preVisitFormSection(Map<String, dynamic> data, String appointmentId) {
+    final answers = _asMap(data['preVisitAnswers']);
+    final snapshot = _asMap(data['preVisitSnapshot']);
+    final questions = _listOfMaps(snapshot['questions']);
+    final legacyAnswers = _legacyPreVisitAnswers(data['preVisitForm']);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    debugPrint(
+      '🩺 PREVISIT UI RENDER '
+      'appointmentId=${data['id'] ?? appointmentId} '
+      'answers=${answers.length} '
+      'questions=${questions.length}',
+    );
+
+    final hasNew = answers.isNotEmpty && questions.isNotEmpty;
+    final hasLegacy = legacyAnswers.isNotEmpty;
+
+    if (!hasNew && !hasLegacy) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        const Divider(height: 1),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7FBFA),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE0F0EC)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.medical_information_outlined,
+                    size: 18,
+                    color: Color(0xFF0F766E),
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'Pre-visit form',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF134E4A),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (hasNew)
+                ...questions.map((question) {
+                  final questionId = (question['id'] ?? '').toString();
+                  final questionText = (question['question'] ?? '').toString();
+                  final answer = answers[questionId];
+                  debugPrint(
+                    '🩺 PREVISIT ANSWER FOUND questionId=$questionId value=$answer',
+                  );
+
+                  return _preVisitAnswerBlock(
+                    questionText,
+                    _formatPreVisitAnswer(answer),
+                  );
+                })
+              else
+                ...legacyAnswers.map((answer) {
+                  final questionId = (answer['questionId'] ?? '').toString();
+                  final question = (answer['question'] ?? questionId)
+                      .toString();
+                  final rawAnswer = answer['answer'];
+                  debugPrint(
+                    '🩺 PREVISIT ANSWER FOUND questionId=$questionId value=$rawAnswer',
+                  );
+                  final value = _formatPreVisitAnswer(rawAnswer);
+                  return _preVisitAnswerBlock(question, value);
+                }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _preVisitAnswerBlock(String question, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            data['petName'] ?? '',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            question.isEmpty ? 'Question' : question,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1F2937),
+            ),
           ),
+          const SizedBox(height: 3),
+          Text(
+            value.isEmpty ? '-' : value,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.35,
+              color: Color(0xFF374151),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 10),
+  Widget _clientNoteSection(Map<String, dynamic> data, String appointmentId) {
+    final note = _appointmentNote(data);
 
-          Text("Service: ${data['serviceTitle'] ?? ''}"),
-          Text("Status: ${_statusLabel(status)}"),
+    if (note.isEmpty) {
+      debugPrint('📝 CLIENT NOTE EMPTY appointmentId=$appointmentId');
+      return const SizedBox.shrink();
+    }
 
-          const SizedBox(height: 20),
+    debugPrint(
+      '📝 CLIENT NOTE FOUND appointmentId=$appointmentId length=${note.length}',
+    );
 
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFDE68A)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // accept logic بعداً
-                  },
-                  child: const Text("Accept"),
-                ),
+              const Row(
+                children: [
+                  Icon(
+                    Icons.sticky_note_2_outlined,
+                    size: 18,
+                    color: Color(0xFF92400E),
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'Client note',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF78350F),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    // reject logic بعداً
-                  },
-                  child: const Text("Reject"),
+              const SizedBox(height: 8),
+              Text(
+                note,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: Color(0xFF374151),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -157,6 +290,8 @@ class _VetDashboardAppointmentsTabState
   }
 
   void _scrollToAppointment(String id) {
+    if (!mounted) return;
+
     final index = _docs.indexWhere((d) => d.id == id); // 👈 FIX
 
     if (index == -1) {
@@ -166,6 +301,7 @@ class _VetDashboardAppointmentsTabState
 
     debugPrint("✅ FOUND index = $index");
 
+    if (!mounted) return;
     setState(() {
       _highlightedAppointmentId = id;
     });
@@ -181,21 +317,11 @@ class _VetDashboardAppointmentsTabState
 
     // remove highlight after 2 sec
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _highlightedAppointmentId = null;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _highlightedAppointmentId = null;
+      });
     });
-  }
-
-  void _handleAutoOpen(AppState appState) {
-    final targetId = appState.openAppointmentId;
-
-    if (targetId == null) return;
-
-    _scrollToAppointment(targetId); // ✅
-    appState.consumeOpenAppointment();
   }
 
   @override
@@ -240,7 +366,7 @@ class _VetDashboardAppointmentsTabState
               margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
                 color: isHighlighted
-                    ? Colors.yellow.withOpacity(0.2)
+                    ? Colors.yellow.withValues(alpha: 0.2)
                     : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
@@ -317,7 +443,7 @@ class _VetDashboardAppointmentsTabState
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: _statusColor(status).withOpacity(0.15),
+                          color: _statusColor(status).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -328,6 +454,10 @@ class _VetDashboardAppointmentsTabState
                           ),
                         ),
                       ),
+
+                      _preVisitFormSection(data, doc.id),
+
+                      _clientNoteSection(data, doc.id),
 
                       const SizedBox(height: 12),
 
@@ -419,6 +549,7 @@ class _VetDashboardAppointmentsTabState
       onPressed: isLoading
           ? null
           : () async {
+              if (!mounted) return;
               setState(() => _processingId = doc.id);
               debugPrint(
                 '🩺 PAYMENT CTA DECISION → '
@@ -483,4 +614,54 @@ class _VetDashboardAppointmentsTabState
         return Colors.orange; // pending
     }
   }
+}
+
+Map<String, dynamic> _asMap(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return <String, dynamic>{};
+}
+
+List<Map<String, dynamic>> _listOfMaps(Object? value) {
+  if (value is! List) return <Map<String, dynamic>>[];
+  return value
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+}
+
+List<Map<String, dynamic>> _legacyPreVisitAnswers(Object? value) {
+  final preVisitForm = _asMap(value);
+  final rawAnswers = preVisitForm['answers'];
+
+  if (rawAnswers is List) {
+    return _listOfMaps(rawAnswers);
+  }
+
+  if (rawAnswers is Map) {
+    return rawAnswers.entries.map((entry) {
+      return {
+        'questionId': entry.key.toString(),
+        'question': entry.key.toString(),
+        'answer': entry.value,
+      };
+    }).toList();
+  }
+
+  return <Map<String, dynamic>>[];
+}
+
+String _appointmentNote(Map<String, dynamic> data) {
+  for (final key in ['note', 'notes', 'appointmentNote']) {
+    final value = data[key]?.toString().trim() ?? '';
+    if (value.isNotEmpty) return value;
+  }
+
+  return '';
+}
+
+String _formatPreVisitAnswer(Object? value) {
+  if (value is List) return value.map((e) => e.toString()).join(', ');
+  if (value is bool) return value ? 'Yes' : 'No';
+  return (value ?? '').toString();
 }

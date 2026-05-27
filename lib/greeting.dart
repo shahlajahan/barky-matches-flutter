@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'dog.dart';
 import 'auth_page.dart';
 
-import 'vet_page.dart';
 import 'adoption_page.dart';
 import 'dog_park_page.dart';
 import 'add_dog_page.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'home_page.dart';
 import 'package:barky_matches_fixed/home_gate.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';

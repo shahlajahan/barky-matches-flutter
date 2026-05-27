@@ -412,7 +412,7 @@ final isVideo = lower.contains('.mp4');
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: _selectedHealthStatus,
+                        initialValue: _selectedHealthStatus,
                         dropdownColor: Colors.white,
                         items: [
                           DropdownMenuItem(
@@ -548,7 +548,7 @@ final isVideo = lower.contains('.mp4');
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        value: _selectedOwnerGender,
+                        initialValue: _selectedOwnerGender,
                         dropdownColor: Colors.white,
                         items: [
                           DropdownMenuItem(

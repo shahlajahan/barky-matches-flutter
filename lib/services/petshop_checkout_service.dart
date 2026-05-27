@@ -1,10 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
-import 'seller_shipping_service.dart';
-import 'shipping_engine.dart';
-import 'package:barky_matches_fixed/models/product.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:barky_matches_fixed/models/seller_shipping_config.dart';
 
 class CheckoutSessionResult {
   final String orderId;

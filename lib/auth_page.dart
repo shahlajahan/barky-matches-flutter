@@ -8,10 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/services.dart';
 import 'dog.dart';
-import 'add_dog_page.dart';
-import 'playmate_page.dart';
 import 'terms_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -1307,8 +1304,8 @@ class _AuthPageState extends State<AuthPage> {
             MaterialPageRoute(
               builder: (context) => VerifyEmailPage(
                 email: email,
-                userId: userId!,
-                requestId: requestId!,
+                userId: userId,
+                requestId: requestId,
               ),
             ),
           ).then((isVerified) async {

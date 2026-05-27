@@ -98,8 +98,8 @@ class _AdoptionCenterDashboardGalleryTabState
         videoUrls.add(url);
       }
 
-      final nextImages = [...currentImages, ...imageUrls].toSet().toList();
-      final nextVideos = [...currentVideos, ...videoUrls].toSet().toList();
+      final nextImages = <dynamic>{...currentImages, ...imageUrls}.toList();
+      final nextVideos = <dynamic>{...currentVideos, ...videoUrls}.toList();
 
       await docRef.set({
         'images': nextImages,
@@ -181,9 +181,9 @@ class _AdoptionCenterDashboardGalleryTabState
   }
 
   List<String> _mergedImagesFromData(Map<String, dynamic> data) {
-    return [
+    return <dynamic>{
       ...List<String>.from(data['images'] ?? []),
-    ].toSet().toList();
+    }.toList();
   }
 
   @override
@@ -280,7 +280,6 @@ class _GalleryCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _GalleryCard({
-    super.key,
     required this.imageUrl,
     required this.isCover,
     required this.isVideo,

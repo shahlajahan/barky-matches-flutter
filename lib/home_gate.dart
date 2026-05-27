@@ -24,10 +24,8 @@ import 'package:barky_matches_fixed/screens/found_dog_report_page.dart';
 import 'package:barky_matches_fixed/screens/lost_dog_report_page.dart';
 import 'package:barky_matches_fixed/screens/lost_dogs_list_page.dart';
 import 'package:barky_matches_fixed/screens/found_dogs_list_page.dart';
-import 'app_state.dart';
 import 'package:barky_matches_fixed/play_date_scheduling_page.dart';
 import 'package:barky_matches_fixed/ui/adoption/adoption_inbox_page.dart';
-import 'package:barky_matches_fixed/playmate_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
@@ -144,7 +142,7 @@ class _HomeGateState extends State<HomeGate> {
 // ─────────────────────────────────────────────
 
 class _HomeBody extends StatefulWidget {
-  const _HomeBody({super.key});
+  const _HomeBody();
 
   @override
   State<_HomeBody> createState() => _HomeBodyState();
@@ -153,7 +151,7 @@ class _HomeBody extends StatefulWidget {
 class _HomeBodyState extends State<_HomeBody> {
   //late final List<Widget> _pages;
   bool _isTransitioning = false;
-  bool _firstLoad = true;
+  final bool _firstLoad = true;
   NavTab? _lastTab;
   @override
   void initState() {

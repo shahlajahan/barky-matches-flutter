@@ -10,9 +10,6 @@ import 'package:barky_matches_fixed/services/order_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 //import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:barky_matches_fixed/ui/checkout/payment_result_pages.dart';
-import 'package:provider/provider.dart';
-import 'package:barky_matches_fixed/app_state.dart';
 
 import 'package:barky_matches_fixed/utils/carrier_mapper.dart';
 
@@ -1175,7 +1172,7 @@ Widget _buildAddressSection() {
           if (_shippingExpanded) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _selectedCarrier ?? carriers.first,
+              initialValue: _selectedCarrier ?? carriers.first,
               items: carriers
                   .map((c) => DropdownMenuItem(
                         value: c,

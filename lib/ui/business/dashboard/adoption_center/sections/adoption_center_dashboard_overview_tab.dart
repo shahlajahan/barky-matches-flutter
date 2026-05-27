@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -698,8 +697,9 @@ class AdoptionCenterDashboardOverviewTab
                 newStatus,
           });
 
-      if (!context.mounted)
+      if (!context.mounted) {
         return;
+      }
 
       ScaffoldMessenger.of(
         context,
@@ -717,8 +717,9 @@ class AdoptionCenterDashboardOverviewTab
         "❌ ADOPTION UPDATE ERROR: $e",
       );
 
-      if (!context.mounted)
+      if (!context.mounted) {
         return;
+      }
 
       ScaffoldMessenger.of(
         context,

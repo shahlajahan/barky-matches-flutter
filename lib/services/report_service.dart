@@ -15,7 +15,7 @@ class ReportService {
 await callable.call({
   "type": type,
   "targetId": targetId,
-  if (targetOwnerId != null) "targetOwnerId": targetOwnerId,
+  "targetOwnerId": ?targetOwnerId,
 
   "reasonCode": reason,
   "reasonText": reason,

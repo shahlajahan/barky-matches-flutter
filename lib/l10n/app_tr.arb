@@ -901,9 +901,12 @@
 
   "reportTitle": "Bildirim",
   "lostDogTitle": "Kayıp Köpek",
+  "lostPetTitle": "Kayıp Evcil Hayvan",
   "foundDogTitle": "Bulunan Köpek",
+  "foundPetTitle": "Bulunan Evcil Hayvan",
   "lostTitle": "Kayıp",
   "dogsTitle": "Köpekler",
+  "petsTitle": "Evcil Hayvanlar",
   "foundTitle": "Bulunan",
   "homeDefaultUsername": "Kullanıcı",
   "homePetHotelTitle": "Pet Otel",

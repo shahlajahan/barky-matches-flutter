@@ -7,7 +7,6 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
@@ -332,7 +331,7 @@ Future<void> _openWriteReviewSheet({
               data['id'] = doc.id;
 
               return _buildReviewItem(data, key: ValueKey(doc.id));
-            }).toList(),
+            }),
           ],
         );
       },

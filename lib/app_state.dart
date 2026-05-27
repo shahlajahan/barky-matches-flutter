@@ -9,14 +9,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/firestore_recovery.dart';
 import 'package:barky_matches_fixed/firebase_options.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
-import 'package:barky_matches_fixed/ui/vet/vet_card_data.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'theme/app_theme.dart';
 import 'main.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/subscription/models/user_subscription.dart';
@@ -183,7 +180,7 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  List<CartItem> _cartItems = [];
+  final List<CartItem> _cartItems = [];
 
   List<CartItem> get cartItems => List.unmodifiable(_cartItems);
 
@@ -518,7 +515,7 @@ class AppState with ChangeNotifier {
   String? _currentUserId;
   static bool enableDiagnosticsAuthReset = true;
   bool _authRecoveryAttempted = false;
-  bool _authResetInProgress = false;
+  final bool _authResetInProgress = false;
   bool _suppressGuestModeOnce = false;
   bool _hasSeenAuthenticatedUser = false;
   bool _pendingSessionRecoveryNotice = false;
@@ -565,7 +562,7 @@ class AppState with ChangeNotifier {
 
   ProfileSubPage get profileSubPage => _profileSubPage;
 
-  bool _isHandlingPlaydateResult = false;
+  final bool _isHandlingPlaydateResult = false;
 
   String? _userRole;
   String? get userRole => _userRole;
@@ -812,6 +809,7 @@ class AppState with ChangeNotifier {
 
       await docRef.update({
         'name': updatedDog.name,
+        'petName': updatedDog.name,
         'age': updatedDog.age,
         'healthStatus': updatedDog.healthStatus,
         'isNeutered': updatedDog.isNeutered,
@@ -826,6 +824,9 @@ class AppState with ChangeNotifier {
         'ownerRole': data['ownerRole'],
         'centerId': data['centerId'],
       });
+      debugPrint(
+        '🐾 PET NAME SYNC → name=${updatedDog.name} petName=${updatedDog.name}',
+      );
 
       final myIndex = _myDogs.indexWhere((d) => d.id == updatedDog.id);
       if (myIndex != -1) {
@@ -2690,7 +2691,7 @@ class AppState with ChangeNotifier {
     _foundSub?.cancel();
 
     _lostSub = FirebaseFirestore.instance
-        .collection('lost_dogs')
+        .collection('lost_pets')
         .where('isActive', isEqualTo: true)
         .snapshots()
         .listen((snapshot) {
@@ -2699,7 +2700,7 @@ class AppState with ChangeNotifier {
         });
 
     _foundSub = FirebaseFirestore.instance
-        .collection('found_dogs')
+        .collection('found_pets')
         .where('isActive', isEqualTo: true)
         .snapshots()
         .listen((snapshot) {
@@ -2891,8 +2892,10 @@ class AppState with ChangeNotifier {
     debugPrint("🧪 TYPE CLEAN = [$type]");
     final requestId = payload['requestId']?.toString();
     final likerUserId = payload['likerUserId']?.toString();
-    final lostDogId = payload['lostDogId']?.toString();
-    final foundDogId = payload['foundDogId']?.toString();
+    final lostDogId =
+        payload['lostDogId']?.toString() ?? payload['lostPetId']?.toString();
+    final foundDogId =
+        payload['foundDogId']?.toString() ?? payload['foundPetId']?.toString();
 
     // ───────────────── PLAYDATE REQUEST ─────────────────
     if (type == 'playdate_request') {
@@ -2920,16 +2923,20 @@ class AppState with ChangeNotifier {
       return;
     }
 
-    // ───────────────── LOST DOG ─────────────────
-    if (type == 'lost_dog' && lostDogId != null && lostDogId.isNotEmpty) {
+    // ───────────────── LOST PET ─────────────────
+    if ((type == 'lost_dog' || type == 'lost_pet') &&
+        lostDogId != null &&
+        lostDogId.isNotEmpty) {
       closeNotifications();
       setCurrentTab(NavTab.lostDogs);
       openLostDogDetail(lostDogId);
       return;
     }
 
-    // ───────────────── FOUND DOG ─────────────────
-    if (type == 'found_dog' && foundDogId != null && foundDogId.isNotEmpty) {
+    // ───────────────── FOUND PET ─────────────────
+    if ((type == 'found_dog' || type == 'found_pet') &&
+        foundDogId != null &&
+        foundDogId.isNotEmpty) {
       closeNotifications();
       setCurrentTab(NavTab.foundDogs);
       openFoundDogDetail(foundDogId);
@@ -4046,7 +4053,7 @@ class AppState with ChangeNotifier {
     final likerDog = _myDogs.firstWhere(
       (dog) => dog.ownerId == likerUserId,
       orElse: () => Dog(
-        id: 'unknown_${likerUserId}',
+        id: 'unknown_$likerUserId',
         name: 'Unknown',
         breed: '',
         age: 0,

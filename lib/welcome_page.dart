@@ -1,28 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'dog.dart';
-import 'home_page.dart';
-import 'vet_page.dart';
-import 'adoption_page.dart';
-import 'dog_park_page.dart';
 import 'auth_page.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'offers_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'main.dart'; // برای دسترسی به MyApp
+// برای دسترسی به MyApp
 import 'package:barky_matches_fixed/ui/welcome/preview_dogs_section.dart';
 import 'theme/app_theme.dart';
 import 'package:barky_matches_fixed/app_state.dart' as app;
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/home_gate.dart';
-import 'package:flutter/foundation.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';

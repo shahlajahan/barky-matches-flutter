@@ -43,7 +43,7 @@ class ReportButton extends StatelessWidget {
 
                   DropdownButtonFormField<String>(
                     hint: const Text("Select reason"),
-                    value: selectedReason,
+                    initialValue: selectedReason,
                     items: reasons.entries.map((e) {
                       return DropdownMenuItem(
                         value: e.key,

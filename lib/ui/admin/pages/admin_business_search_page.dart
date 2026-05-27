@@ -48,7 +48,7 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: DropdownButtonFormField<String>(
-              value: statusFilter,
+              initialValue: statusFilter,
               items: const [
                 DropdownMenuItem(value: "all", child: Text("All")),
                 DropdownMenuItem(value: "approved", child: Text("Approved")),

@@ -732,7 +732,7 @@ return Container(
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${dateText} • ${timeText}',
+                          '$dateText • $timeText',
                           style: const TextStyle(color: Colors.grey),
                         ),
                         const SizedBox(height: 8),

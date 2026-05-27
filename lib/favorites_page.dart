@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
-import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/dog_card.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 

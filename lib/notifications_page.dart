@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -162,18 +161,36 @@ class _NotificationsPageState extends State<NotificationsPage>
                             
 
                           case 'lost_dog':
-                            widget.onNotificationSelected({
-                              'type': 'lost_dog',
-                              'lostDogId': data['lostDogId'],
-                            });
-                            break;
+case 'lost_pet':
 
-                          case 'found_dog':
-                            widget.onNotificationSelected({
-                              'type': 'found_dog',
-                              'foundDogId': data['foundDogId'],
-                            });
-                            break;
+  widget.onNotificationSelected({
+
+    // ✅ unified type
+    'type': 'lost_pet',
+
+    // ✅ backward compatibility
+    'lostPetId':
+        data['lostPetId'] ??
+        data['lostDogId'],
+  });
+
+  break;
+
+case 'found_dog':
+case 'found_pet':
+
+  widget.onNotificationSelected({
+
+    // ✅ unified type
+    'type': 'found_pet',
+
+    // ✅ backward compatibility
+    'foundPetId':
+        data['foundPetId'] ??
+        data['foundDogId'],
+  });
+
+  break;
 
                           case 'vet_appointment_request':
                           case 'groomy_appointment_request':

@@ -426,7 +426,7 @@ Widget build(BuildContext context) {
                   const SizedBox(height: 10),
 
                   DropdownButtonFormField<String>(
-                    value: category,
+                    initialValue: category,
 
                     dropdownColor: Colors.white,
 

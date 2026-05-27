@@ -1,12 +1,16 @@
 import '../business/business_card_data.dart';
 
 class VetCardData extends BusinessCardData {
+  @override
   final String? instagram;
+  @override
   final String? website;
+  @override
   final String? logoUrl;
   final String? coverImageUrl;
   
-final Map<String, dynamic>? rawData;
+@override
+  final Map<String, dynamic>? rawData;
   // 🔥 NEW
   final Map<String, dynamic>? sectorData;
 
@@ -36,7 +40,7 @@ final Map<String, dynamic>? rawData;
   super.is24h,
   super.isEmergency,
 
-  required BusinessType type,
+  required super.type,
 
   this.instagram,
   this.website,
@@ -45,9 +49,7 @@ final Map<String, dynamic>? rawData;
   this.rawData,
 
   this.sectorData,
-}) : super(
-       type: type,
-     );
+});
 
   // 🔥 VERY IMPORTANT
   Map<String, dynamic> toMap() {

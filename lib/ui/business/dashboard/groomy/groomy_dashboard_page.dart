@@ -14,12 +14,7 @@ import 'sections/groomy_dashboard_overview_tab.dart';
 import 'sections/groomy_dashboard_gallery_tab.dart';
 import 'sections/groomy_dashboard_appointments_tab.dart';
 
-enum GroomyDashboardSection {
-  overview,
-  services,
-  gallery,
-  appointments,
-}
+enum GroomyDashboardSection { overview, services, gallery, appointments }
 
 class GroomyDashboardPage extends StatefulWidget {
   final String businessId;
@@ -32,14 +27,11 @@ class GroomyDashboardPage extends StatefulWidget {
   });
 
   @override
-  State<GroomyDashboardPage> createState() =>
-      _GroomyDashboardPageState();
+  State<GroomyDashboardPage> createState() => _GroomyDashboardPageState();
 }
 
-class _GroomyDashboardPageState
-    extends State<GroomyDashboardPage> {
-  static const List<String>
-      _groomingServiceTemplates = [
+class _GroomyDashboardPageState extends State<GroomyDashboardPage> {
+  static const List<String> _groomingServiceTemplates = [
     'Full Grooming',
     'Bath & Dry',
     'Nail Trimming',
@@ -51,8 +43,7 @@ class _GroomyDashboardPageState
     'SPA Grooming',
   ];
 
-  GroomyDashboardSection _selected =
-      GroomyDashboardSection.overview;
+  GroomyDashboardSection _selected = GroomyDashboardSection.overview;
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +53,12 @@ class _GroomyDashboardPageState
     /// ➕ ADD SERVICE
     /// =============================
 
-    if (appState.businessSubPage ==
-        BusinessSubPage.addService) {
+    if (appState.businessSubPage == BusinessSubPage.addService) {
       return AddServicesPage(
+        businessId: widget.businessId,
         services: _groomingServiceTemplates,
         title: 'Add Grooming Service',
-        sectionTitle:
-            'Select Grooming Service',
+        sectionTitle: 'Select Grooming Service',
         fallbackIcon: LucideIcons.scissors,
       );
     }
@@ -77,17 +67,12 @@ class _GroomyDashboardPageState
     /// ✏️ ADD SERVICE DETAIL
     /// =============================
 
-    if (appState.businessSubPage ==
-        BusinessSubPage.addServiceDetail) {
+    if (appState.businessSubPage == BusinessSubPage.addServiceDetail) {
       return AddServiceDetailPage(
         businessId: widget.businessId,
-        serviceTitle:
-            appState.selectedServiceTitle ??
-                '',
-        serviceId:
-            appState.editingServiceId,
-        existingData:
-            appState.editingServiceData,
+        serviceTitle: appState.selectedServiceTitle ?? '',
+        serviceId: appState.editingServiceId,
+        existingData: appState.editingServiceData,
       );
     }
 
@@ -108,10 +93,7 @@ class _GroomyDashboardPageState
 
             Expanded(
               child: AnimatedSwitcher(
-                duration:
-                    const Duration(
-                  milliseconds: 250,
-                ),
+                duration: const Duration(milliseconds: 250),
                 child: _buildContent(),
               ),
             ),
@@ -129,12 +111,9 @@ class _GroomyDashboardPageState
 
       case GroomyDashboardSection.overview:
         return GroomyDashboardOverviewTab(
-          key: const ValueKey(
-            'overview',
-          ),
+          key: const ValueKey('overview'),
           businessId: widget.businessId,
-          businessData:
-              widget.businessData,
+          businessData: widget.businessData,
         );
 
       /// =============================
@@ -143,9 +122,7 @@ class _GroomyDashboardPageState
 
       case GroomyDashboardSection.services:
         return GroomyServicesTab(
-          key: const ValueKey(
-            'services',
-          ),
+          key: const ValueKey('services'),
           businessId: widget.businessId,
         );
 
@@ -155,9 +132,7 @@ class _GroomyDashboardPageState
 
       case GroomyDashboardSection.gallery:
         return GroomyDashboardGalleryTab(
-          key: const ValueKey(
-            'gallery',
-          ),
+          key: const ValueKey('gallery'),
           businessId: widget.businessId,
         );
 
@@ -167,9 +142,7 @@ class _GroomyDashboardPageState
 
       case GroomyDashboardSection.appointments:
         return GroomyDashboardAppointmentsTab(
-          key: const ValueKey(
-            'appointments',
-          ),
+          key: const ValueKey('appointments'),
           businessId: widget.businessId,
         );
     }
@@ -179,13 +152,9 @@ class _GroomyDashboardPageState
 class _TopTabs extends StatelessWidget {
   final GroomyDashboardSection selected;
 
-  final ValueChanged<
-      GroomyDashboardSection> onChange;
+  final ValueChanged<GroomyDashboardSection> onChange;
 
-  const _TopTabs({
-    required this.selected,
-    required this.onChange,
-  });
+  const _TopTabs({required this.selected, required this.onChange});
 
   @override
   Widget build(BuildContext context) {
@@ -196,17 +165,9 @@ class _TopTabs extends StatelessWidget {
         LucideIcons.layoutDashboard,
       ),
 
-      (
-        GroomyDashboardSection.services,
-        'Services',
-        LucideIcons.scissors,
-      ),
+      (GroomyDashboardSection.services, 'Services', LucideIcons.scissors),
 
-      (
-        GroomyDashboardSection.gallery,
-        'Gallery',
-        LucideIcons.image,
-      ),
+      (GroomyDashboardSection.gallery, 'Gallery', LucideIcons.image),
 
       (
         GroomyDashboardSection.appointments,
@@ -216,81 +177,43 @@ class _TopTabs extends StatelessWidget {
     ];
 
     return Container(
-      margin:
-          const EdgeInsets.only(top: 10),
+      margin: const EdgeInsets.only(top: 10),
       height: 64,
 
       child: ListView.separated(
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 12,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
 
-        scrollDirection:
-            Axis.horizontal,
+        scrollDirection: Axis.horizontal,
 
         itemCount: items.length,
 
-        separatorBuilder:
-            (_, __) =>
-                const SizedBox(
-          width: 10,
-        ),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
 
-        itemBuilder: (
-          context,
-          index,
-        ) {
-          final (
-            section,
-            title,
-            icon,
-          ) = items[index];
+        itemBuilder: (context, index) {
+          final (section, title, icon) = items[index];
 
-          final isSelected =
-              selected == section;
+          final isSelected = selected == section;
 
           return GestureDetector(
-            onTap: () =>
-                onChange(section),
+            onTap: () => onChange(section),
 
             child: AnimatedContainer(
-              duration:
-                  const Duration(
-                milliseconds: 180,
-              ),
+              duration: const Duration(milliseconds: 180),
 
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
 
-              decoration:
-                  BoxDecoration(
-                color: isSelected
-                    ? const Color(
-                        0xFF9E1B4F)
-                    : Colors.white,
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF9E1B4F) : Colors.white,
 
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
+                borderRadius: BorderRadius.circular(18),
 
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black
-                        .withOpacity(
-                      0.06,
-                    ),
+                    color: Colors.black.withValues(alpha: 0.06),
 
                     blurRadius: 10,
 
-                    offset:
-                        const Offset(
-                      0,
-                      4,
-                    ),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -300,28 +223,21 @@ class _TopTabs extends StatelessWidget {
                   Icon(
                     icon,
                     size: 18,
-                    color: isSelected
-                        ? Colors.white
-                        : const Color(
-                            0xFF9E1B4F),
+                    color: isSelected ? Colors.white : const Color(0xFF9E1B4F),
                   ),
 
-                  const SizedBox(
-                    width: 6,
-                  ),
+                  const SizedBox(width: 6),
 
                   Text(
                     title,
 
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight:
-                          FontWeight.w700,
+                      fontWeight: FontWeight.w700,
 
                       color: isSelected
                           ? Colors.white
-                          : const Color(
-                              0xFF9E1B4F),
+                          : const Color(0xFF9E1B4F),
                     ),
                   ),
                 ],

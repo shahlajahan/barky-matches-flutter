@@ -112,7 +112,7 @@ Widget build(BuildContext context) {
                 const SizedBox(height: 8),
 
                 DropdownButtonFormField<String>(
-                  value: _selectedPetType,
+                  initialValue: _selectedPetType,
                   hint: Text(localizations.anyGender),
                   items: [
                     DropdownMenuItem<String>(

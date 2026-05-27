@@ -17,7 +17,7 @@ class BusinessCardData {
   final double? rating;
   final int? reviewsCount;
 
-  final Map<String, String>? workingHours;
+  final Map<String, dynamic>? workingHours;
   final String? description;
 
   final bool isPartner;

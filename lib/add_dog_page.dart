@@ -11,8 +11,6 @@ import 'dog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
-import 'package:barky_matches_fixed/auth_page.dart';
-import 'package:barky_matches_fixed/home_gate.dart';
 
 class AddDogPage extends StatefulWidget {
   final Function(Dog)? onDogAdded;
@@ -50,7 +48,11 @@ class _AddDogPageState extends State<AddDogPage> {
   final List<XFile> _imageFiles = [];
 
   final List<String> _genders = ['Male', 'Female'];
-  final List<String> _healthStatuses = ['Healthy', 'Needs Attention', 'Under Treatment'];
+  final List<String> _healthStatuses = [
+    'Healthy',
+    'Needs Attention',
+    'Under Treatment',
+  ];
   final List<String> _ownerGenders = ['Male', 'Female', 'Other'];
   final List<String> _traitKeys = [
     'traitEnergetic',
@@ -71,15 +73,15 @@ class _AddDogPageState extends State<AddDogPage> {
 
   bool _didInitLocation = false;
 
-@override
-void didChangeDependencies() {
-  super.didChangeDependencies();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-  if (!_didInitLocation) {
-    _didInitLocation = true;
-    _checkUserAndGetLocation();
+    if (!_didInitLocation) {
+      _didInitLocation = true;
+      _checkUserAndGetLocation();
+    }
   }
-}
 
   String translateTrait(String traitKey) {
     final l10n = AppLocalizations.of(context)!;
@@ -107,7 +109,9 @@ void didChangeDependencies() {
     };
     final lowerTrait = traitKey.toLowerCase().trim();
     if (kDebugMode) {
-      debugPrint('AddDogPage - Trait exact: "$traitKey" -> lower: "$lowerTrait"');
+      debugPrint(
+        'AddDogPage - Trait exact: "$traitKey" -> lower: "$lowerTrait"',
+      );
     }
     if (rawToLocalized.containsKey(lowerTrait)) {
       return rawToLocalized[lowerTrait]!;
@@ -156,14 +160,18 @@ void didChangeDependencies() {
     }
     final lowerGender = gender.toLowerCase().trim();
     if (kDebugMode) {
-      debugPrint('AddDogPage - Gender exact: "$gender" -> lower: "$lowerGender"');
+      debugPrint(
+        'AddDogPage - Gender exact: "$gender" -> lower: "$lowerGender"',
+      );
     }
     final maleFa = l10n.genderMale.toLowerCase();
     final femaleFa = l10n.genderFemale.toLowerCase();
     if (lowerGender == maleFa || lowerGender == 'نر' || lowerGender == 'male') {
       return l10n.genderMale;
     }
-    if (lowerGender == femaleFa || lowerGender == 'ماده' || lowerGender == 'female') {
+    if (lowerGender == femaleFa ||
+        lowerGender == 'ماده' ||
+        lowerGender == 'female') {
       return l10n.genderFemale;
     }
     return gender;
@@ -176,18 +184,27 @@ void didChangeDependencies() {
     }
     final lowerStatus = status.toLowerCase().trim();
     if (kDebugMode) {
-      debugPrint('AddDogPage - Health Status exact: "$status" -> lower: "$lowerStatus"');
+      debugPrint(
+        'AddDogPage - Health Status exact: "$status" -> lower: "$lowerStatus"',
+      );
     }
     final healthyFa = l10n.healthHealthy.toLowerCase();
     final needsFa = l10n.healthNeedsCare.toLowerCase();
     final underFa = l10n.healthUnderTreatment.toLowerCase();
-    if (lowerStatus == healthyFa || lowerStatus == 'سالم' || lowerStatus == 'healthy') {
+    if (lowerStatus == healthyFa ||
+        lowerStatus == 'سالم' ||
+        lowerStatus == 'healthy') {
       return l10n.healthHealthy;
     }
-    if (lowerStatus == needsFa || lowerStatus == 'نیاز به مراقبت' || lowerStatus == 'needs care' || lowerStatus == 'needs attention') {
+    if (lowerStatus == needsFa ||
+        lowerStatus == 'نیاز به مراقبت' ||
+        lowerStatus == 'needs care' ||
+        lowerStatus == 'needs attention') {
       return l10n.healthNeedsCare;
     }
-    if (lowerStatus == underFa || lowerStatus == 'در حال درمان' || lowerStatus == 'under treatment') {
+    if (lowerStatus == underFa ||
+        lowerStatus == 'در حال درمان' ||
+        lowerStatus == 'under treatment') {
       return l10n.healthUnderTreatment;
     }
     if (kDebugMode) {
@@ -270,16 +287,17 @@ void didChangeDependencies() {
   }
 
   Future<void> _checkUserAndGetLocation() async {
-  final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
-  if (user == null) {
-    debugPrint("AddDogPage - No user logged in");
-    return;
+    if (user == null) {
+      debugPrint("AddDogPage - No user logged in");
+      return;
+    }
+
+    await _getCurrentLocation();
+    if (!mounted) return;
   }
 
-  await _getCurrentLocation();
-  if (!mounted) return;
-}
   Future<void> _getCurrentLocation() async {
     final l10n = AppLocalizations.of(context)!;
     debugPrint('AddDogPage - Attempting to get current location');
@@ -360,7 +378,9 @@ void didChangeDependencies() {
         setState(() {
           _latitude = position.latitude;
           _longitude = position.longitude;
-          debugPrint('AddDogPage - Location acquired: Latitude: $_latitude, Longitude: $_longitude');
+          debugPrint(
+            'AddDogPage - Location acquired: Latitude: $_latitude, Longitude: $_longitude',
+          );
         });
       }
     } catch (e) {
@@ -384,10 +404,10 @@ void didChangeDependencies() {
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
-  source: source,
-  imageQuality: 70,
-  maxWidth: 1400,
-);
+      source: source,
+      imageQuality: 70,
+      maxWidth: 1400,
+    );
     if (pickedFile != null) {
       setState(() {
         _imageFiles.add(pickedFile);
@@ -399,55 +419,55 @@ void didChangeDependencies() {
   }
 
   Future<List<String>> _uploadImages(String dogId) async {
-  List<String> urls = [];
+    List<String> urls = [];
 
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    debugPrint('AddDogPage - Upload failed: user not logged in');
-    return urls;
-  }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('AddDogPage - Upload failed: user not logged in');
+      return urls;
+    }
 
-  final userId = user.uid;
+    final userId = user.uid;
 
-  for (var imageFile in _imageFiles) {
-    try {
-      final file = File(imageFile.path);
+    for (var imageFile in _imageFiles) {
+      try {
+        final file = File(imageFile.path);
 
-      final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+        final fileName = DateTime.now().millisecondsSinceEpoch.toString();
 
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('dog_images/$userId/$dogId/$fileName.jpg');
-
-      debugPrint("AddDogPage - Uploading image to ${ref.fullPath}");
-
-      await ref.putFile(file);
-
-      final url = await ref.getDownloadURL();
-
-      urls.add(url);
-
-      debugPrint("AddDogPage - Uploaded image URL: $url");
-
-    } catch (e) {
-      debugPrint('AddDogPage - Error uploading image: $e');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)
-                      ?.errorUploadingImage(e.toString()) ??
-                  'Error uploading image: $e',
-            ),
-          ),
+        final ref = FirebaseStorage.instance.ref().child(
+          'dog_images/$userId/$dogId/$fileName.jpg',
         );
+
+        debugPrint("AddDogPage - Uploading image to ${ref.fullPath}");
+
+        await ref.putFile(file);
+
+        final url = await ref.getDownloadURL();
+
+        urls.add(url);
+
+        debugPrint("AddDogPage - Uploaded image URL: $url");
+      } catch (e) {
+        debugPrint('AddDogPage - Error uploading image: $e');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(
+                      context,
+                    )?.errorUploadingImage(e.toString()) ??
+                    'Error uploading image: $e',
+              ),
+            ),
+          );
+        }
       }
     }
-  }
 
-  return urls;
-}
+    return urls;
+  }
 
   Future<void> _submit() async {
     debugPrint('AddDogPage - Add Dog button pressed');
@@ -465,7 +485,9 @@ void didChangeDependencies() {
     debugPrint('AddDogPage - Latitude: $_latitude, Longitude: $_longitude');
 
     if (_isLoading) {
-      debugPrint('AddDogPage - Already submitting, ignoring additional presses');
+      debugPrint(
+        'AddDogPage - Already submitting, ignoring additional presses',
+      );
       return;
     }
 
@@ -475,7 +497,11 @@ void didChangeDependencies() {
         debugPrint('AddDogPage - Validation failed: Neutered not specified');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSpecifyNeutered)),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.pleaseSpecifyNeutered,
+              ),
+            ),
           );
         }
         return;
@@ -485,7 +511,11 @@ void didChangeDependencies() {
         debugPrint('AddDogPage - Validation failed: No traits selected');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSelectAtLeastOneTrait)),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.pleaseSelectAtLeastOneTrait,
+              ),
+            ),
           );
         }
         return;
@@ -511,7 +541,11 @@ void didChangeDependencies() {
           debugPrint('AddDogPage - Retry failed: Location still not acquired');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(AppLocalizations.of(context)!.locationNotAcquired)),
+              SnackBar(
+                content: Text(
+                  AppLocalizations.of(context)!.locationNotAcquired,
+                ),
+              ),
             );
           }
           return;
@@ -526,14 +560,14 @@ void didChangeDependencies() {
       try {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
-  debugPrint('AddDogPage - No user logged in');
+          debugPrint('AddDogPage - No user logged in');
 
-  if (mounted) {
-    debugPrint("AddDogPage - User lost session");
-  }
+          if (mounted) {
+            debugPrint("AddDogPage - User lost session");
+          }
 
-  return;
-}
+          return;
+        }
         final userId = user.uid;
         debugPrint('AddDogPage - Current userId: $userId');
 
@@ -541,13 +575,22 @@ void didChangeDependencies() {
         debugPrint('AddDogPage - Generated dogId: $dogId');
 
         final dogsBox = Hive.box<Dog>('dogsBox');
-        final doc = await FirebaseFirestore.instance.collection('dogs').doc(dogId).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('dogs')
+            .doc(dogId)
+            .get();
         if (doc.exists) {
-          debugPrint('AddDogPage - Validation failed: A dog with this ID already exists');
+          debugPrint(
+            'AddDogPage - Validation failed: A dog with this ID already exists',
+          );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)!.dogNameAlreadyExists(_nameController.text)),
+                content: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.dogNameAlreadyExists(_nameController.text),
+                ),
               ),
             );
           }
@@ -581,13 +624,18 @@ void didChangeDependencies() {
           petType: _selectedPetType,
         );
 
-        debugPrint('AddDogPage - Saving dog to Hive: dogId=$dogId, ownerId=$userId');
+        debugPrint(
+          'AddDogPage - Saving dog to Hive: dogId=$dogId, ownerId=$userId',
+        );
         await dogsBox.put(dogId, newDog);
-        debugPrint('AddDogPage - Dog added to Hive: ${newDog.name}, ID: $dogId');
+        debugPrint(
+          'AddDogPage - Dog added to Hive: ${newDog.name}, ID: $dogId',
+        );
 
         await FirebaseFirestore.instance.collection('dogs').doc(dogId).set({
           'id': dogId,
           'name': newDog.name,
+          'petName': newDog.name,
           'breed': newDog.breed,
           'age': newDog.age,
           'gender': newDog.gender,
@@ -605,31 +653,38 @@ void didChangeDependencies() {
           'petType': newDog.petType,
 
           // 🔐 Trust & Safety fields
-  'reportCount': 0,
-  'isHidden': false,
-  'moderationStatus': 'active',
+          'reportCount': 0,
+          'isHidden': false,
+          'moderationStatus': 'active',
         });
-        debugPrint('AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId');
+        debugPrint(
+          '🐾 PET NAME SYNC → name=${newDog.name} petName=${newDog.name}',
+        );
+        debugPrint(
+          'AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId',
+        );
 
-       
+        debugPrint('AddDogPage - Redirecting to Home...');
 
-debugPrint('AddDogPage - Redirecting to Home...');
+        widget.onDogAdded?.call(newDog);
 
-widget.onDogAdded?.call(newDog);
+        FocusScope.of(context).unfocus();
 
-FocusScope.of(context).unfocus();
+        await Future.delayed(const Duration(milliseconds: 100));
 
-await Future.delayed(const Duration(milliseconds: 100));
+        if (!mounted) return;
 
-if (!mounted) return;
-
-Navigator.pop(context);
+        Navigator.pop(context);
         debugPrint('AddDogPage - Navigation completed');
       } catch (e) {
         debugPrint('AddDogPage - Error adding dog: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.errorAddingDog(e.toString()))),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.errorAddingDog(e.toString()),
+              ),
+            ),
           );
         }
       } finally {
@@ -643,33 +698,35 @@ Navigator.pop(context);
       debugPrint('AddDogPage - Form validation failed');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.pleaseFillRequiredFields)),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.pleaseFillRequiredFields,
+            ),
+          ),
         );
       }
     }
   }
 
   Widget _buildRetryLocationButton() {
-  return ElevatedButton(
-    onPressed: _getCurrentLocation,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black,
-      minimumSize: const Size(double.infinity, 52),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+    return ElevatedButton(
+      onPressed: _getCurrentLocation,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        minimumSize: const Size(double.infinity, 52),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
-    ),
-    child: Text(
-      AppLocalizations.of(context)!.retryLocation,
-      style: GoogleFonts.poppins(
-        color: Colors.black, // 🔥 مهم (نه pink)
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
+      child: Text(
+        AppLocalizations.of(context)!.retryLocation,
+        style: GoogleFonts.poppins(
+          color: Colors.black, // 🔥 مهم (نه pink)
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   void dispose() {
@@ -682,7 +739,6 @@ Navigator.pop(context);
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -694,12 +750,11 @@ Navigator.pop(context);
           ),
         ),
         backgroundColor: const Color(0xFF9E1B4F),
-elevation: 0,
-centerTitle: true,
-       
+        elevation: 0,
+        centerTitle: true,
       ),
       body: Container(
-  color: const Color(0xFF9E1B4F),
+        color: const Color(0xFF9E1B4F),
         child: Stack(
           children: [
             Padding(
@@ -715,26 +770,30 @@ centerTitle: true,
                         label: AppLocalizations.of(context)!.nameLabel,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            debugPrint('AddDogPage - Validation failed: Name is empty');
-                            return AppLocalizations.of(context)!.pleaseEnterDogName;
+                            debugPrint(
+                              'AddDogPage - Validation failed: Name is empty',
+                            );
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseEnterDogName;
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 14),
 
-_buildDropdownField(
-  value: _selectedPetType,
-  hint: AppLocalizations.of(context)!.petTypeLabel,
-  items: const ['dog', 'cat', 'bird', 'horse'],
-  displayItemLabel: _localizedPetTypeLabel,
-  onChanged: (value) {
-    setState(() {
-      _selectedPetType = value ?? 'dog';
-      _selectedBreed = null; // reset
-    });
-  },
-),
+                      _buildDropdownField(
+                        value: _selectedPetType,
+                        hint: AppLocalizations.of(context)!.petTypeLabel,
+                        items: const ['dog', 'cat', 'bird', 'horse'],
+                        displayItemLabel: _localizedPetTypeLabel,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedPetType = value ?? 'dog';
+                            _selectedBreed = null; // reset
+                          });
+                        },
+                      ),
                       const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedBreed,
@@ -748,8 +807,12 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            debugPrint('AddDogPage - Validation failed: Breed not selected');
-                            return AppLocalizations.of(context)!.pleaseSelectBreed;
+                            debugPrint(
+                              'AddDogPage - Validation failed: Breed not selected',
+                            );
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseSelectBreed;
                           }
                           return null;
                         },
@@ -758,16 +821,25 @@ _buildDropdownField(
                       _buildTextField(
                         controller: _ageController,
                         label: AppLocalizations.of(context)!.ageLabel,
-                        
+
                         keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            debugPrint('AddDogPage - Validation failed: Age is empty');
-                            return AppLocalizations.of(context)!.pleaseEnterDogAge;
+                            debugPrint(
+                              'AddDogPage - Validation failed: Age is empty',
+                            );
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseEnterDogAge;
                           }
-                          if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                            debugPrint('AddDogPage - Validation failed: Age is invalid');
-                            return AppLocalizations.of(context)!.pleaseEnterValidAge;
+                          if (int.tryParse(value) == null ||
+                              int.parse(value) <= 0) {
+                            debugPrint(
+                              'AddDogPage - Validation failed: Age is invalid',
+                            );
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseEnterValidAge;
                           }
                           return null;
                         },
@@ -785,16 +857,22 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            debugPrint('AddDogPage - Validation failed: Gender not selected');
-                            return AppLocalizations.of(context)!.pleaseSelectGender;
+                            debugPrint(
+                              'AddDogPage - Validation failed: Gender not selected',
+                            );
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseSelectGender;
                           }
                           return null;
                         },
                       ),
-                     const SizedBox(height: 14),
+                      const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedHealthStatus,
-                        hint: AppLocalizations.of(context)!.selectHealthStatusHint,
+                        hint: AppLocalizations.of(
+                          context,
+                        )!.selectHealthStatusHint,
                         items: _healthStatuses,
                         displayItemLabel: _localizedHealthStatusOption,
                         onChanged: (value) {
@@ -804,15 +882,19 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            debugPrint('AddDogPage - Validation failed: Health Status not selected');
-                            return AppLocalizations.of(context)!.pleaseSelectHealthStatus;
+                            debugPrint(
+                              'AddDogPage - Validation failed: Health Status not selected',
+                            );
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseSelectHealthStatus;
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 14),
                       _buildNeuteredField(),
-                     const SizedBox(height: 14),
+                      const SizedBox(height: 14),
                       _buildTextField(
                         controller: _descriptionController,
                         label: AppLocalizations.of(context)!.descriptionLabel,
@@ -820,10 +902,12 @@ _buildDropdownField(
                       ),
                       const SizedBox(height: 14),
                       _buildTraitsField(),
-                     const SizedBox(height: 14),
+                      const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedOwnerGender,
-                        hint: AppLocalizations.of(context)!.selectOwnerGenderHint,
+                        hint: AppLocalizations.of(
+                          context,
+                        )!.selectOwnerGenderHint,
                         items: _ownerGenders,
                         displayItemLabel: _localizedGenderOption,
                         onChanged: (value) {
@@ -833,51 +917,58 @@ _buildDropdownField(
                         },
                         validator: (value) {
                           if (value == null) {
-                            debugPrint('AddDogPage - Validation failed: Owner Gender not selected');
-                            return AppLocalizations.of(context)!.pleaseSelectOwnerGender;
+                            debugPrint(
+                              'AddDogPage - Validation failed: Owner Gender not selected',
+                            );
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseSelectOwnerGender;
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 14),
                       Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Text(
-      AppLocalizations.of(context)!.photosLabel,
-      style: GoogleFonts.poppins(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-    const SizedBox(height: 8),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppLocalizations.of(context)!.photosLabel,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
 
-    SizedBox(
-      height: 110,
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => _pickImage(ImageSource.gallery),
-            child: Container(
-              width: 100,
-              margin: const EdgeInsets.only(right: 10),
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Center(
-                child: Icon(Icons.add, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  ],
-),
+                          SizedBox(
+                            height: 110,
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _pickImage(ImageSource.gallery),
+                                  child: Container(
+                                    width: 100,
+                                    margin: const EdgeInsets.only(right: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white24,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.add,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 14),
                       _buildAdoptionCheckbox(),
-                     const SizedBox(height: 14),
+                      const SizedBox(height: 14),
                       _buildRetryLocationButton(),
                       const SizedBox(height: 20),
                       ElevatedButton(
@@ -912,9 +1003,7 @@ _buildDropdownField(
               Container(
                 color: Colors.black.withValues(alpha: 0.5),
                 child: const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.pink,
-                  ),
+                  child: CircularProgressIndicator(color: Colors.pink),
                 ),
               ),
           ],
@@ -924,84 +1013,84 @@ _buildDropdownField(
   }
 
   Widget _buildTextField({
-  required TextEditingController controller,
-  required String label,
-  TextInputType? keyboardType,
-  int maxLines = 1,
-  String? Function(String?)? validator,
-}) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      const SizedBox(height: 6),
-      TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        validator: validator,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+    required TextEditingController controller,
+    required String label,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
         ),
-      ),
-    ],
-  );
-}
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          validator: validator,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildDropdownField({
-  required String? value,
-  required String hint,
-  required List<String> items,
-  required String Function(String) displayItemLabel,
-  required ValueChanged<String?> onChanged,
-  String? Function(String?)? validator,
-}) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        hint,
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      const SizedBox(height: 6),
-      DropdownButtonFormField<String>(
-        value: value,
-        dropdownColor: Colors.white,
-        style: const TextStyle(color: Colors.black),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+    required String? value,
+    required String hint,
+    required List<String> items,
+    required String Function(String) displayItemLabel,
+    required ValueChanged<String?> onChanged,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          hint,
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        items: items.map((item) {
-          return DropdownMenuItem(
-            value: item,
-            child: Text(displayItemLabel(item)),
-          );
-        }).toList(),
-        onChanged: onChanged,
-        validator: validator,
-      ),
-    ],
-  );
-}
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: value,
+          dropdownColor: Colors.white,
+          style: const TextStyle(color: Colors.black),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          items: items.map((item) {
+            return DropdownMenuItem(
+              value: item,
+              child: Text(displayItemLabel(item)),
+            );
+          }).toList(),
+          onChanged: onChanged,
+          validator: validator,
+        ),
+      ],
+    );
+  }
 
   Widget _buildNeuteredField() {
     return Row(
@@ -1029,10 +1118,7 @@ _buildDropdownField(
             ),
             Text(
               AppLocalizations.of(context)!.yes,
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 16,
-              ),
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
             ),
           ],
         ),
@@ -1050,10 +1136,7 @@ _buildDropdownField(
             ),
             Text(
               AppLocalizations.of(context)!.no,
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 16,
-              ),
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
             ),
           ],
         ),
@@ -1062,55 +1145,57 @@ _buildDropdownField(
   }
 
   Widget _buildTraitsField() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        AppLocalizations.of(context)!.traitsLabel,
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.traitsLabel,
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: _traitKeys.map((trait) {
-          final selected = _selectedTraits.contains(trait);
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _traitKeys.map((trait) {
+            final selected = _selectedTraits.contains(trait);
 
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                if (selected) {
-                  _selectedTraits.remove(trait);
-                } else {
-                  _selectedTraits.add(trait);
-                }
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: selected ? Colors.white : Colors.white24,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                translateTrait(trait),
-                style: TextStyle(
-                  color: selected ? Colors.black : Colors.white,
-                  fontWeight: FontWeight.w600,
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (selected) {
+                    _selectedTraits.remove(trait);
+                  } else {
+                    _selectedTraits.add(trait);
+                  }
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? Colors.white : Colors.white24,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  translateTrait(trait),
+                  style: TextStyle(
+                    color: selected ? Colors.black : Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
-      ),
-    ],
-  );
-}
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
 
   Widget _buildImagePickerField() {
     return Column(
@@ -1145,12 +1230,16 @@ _buildDropdownField(
             runSpacing: 4.0,
             children: _imageFiles.map((imageFile) {
               return FutureBuilder<File?>(
-                future: File(imageFile.path).exists().then((exists) => exists ? File(imageFile.path) : null),
+                future: File(imageFile.path).exists().then(
+                  (exists) => exists ? File(imageFile.path) : null,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const CircularProgressIndicator();
                   } else if (snapshot.hasError || snapshot.data == null) {
-                    debugPrint('AddDogPage - Error loading image: ${snapshot.error} or file does not exist');
+                    debugPrint(
+                      'AddDogPage - Error loading image: ${snapshot.error} or file does not exist',
+                    );
                     return const Icon(Icons.error, color: Colors.red);
                   }
                   return Image.file(
@@ -1262,28 +1351,16 @@ List<String> getDogBreeds(BuildContext context) {
     l10n.breedWestHighlandWhiteTerrier,
     l10n.breedYorkshireTerrier,
   ];
-  }
-  List<String> getBreedsByPetType(BuildContext context, String petType) {
+}
+
+List<String> getBreedsByPetType(BuildContext context, String petType) {
   switch (petType) {
     case 'cat':
-      return [
-        'Persian',
-        'Siamese',
-        'Maine Coon',
-        'British Shorthair',
-      ];
+      return ['Persian', 'Siamese', 'Maine Coon', 'British Shorthair'];
     case 'bird':
-      return [
-        'Parrot',
-        'Canary',
-        'Budgerigar',
-      ];
+      return ['Parrot', 'Canary', 'Budgerigar'];
     case 'horse':
-      return [
-        'Arabian',
-        'Thoroughbred',
-        'Mustang',
-      ];
+      return ['Arabian', 'Thoroughbred', 'Mustang'];
     case 'dog':
     default:
       return getDogBreeds(context);

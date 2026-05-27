@@ -3,19 +3,24 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'add_service_detail_page.dart';
 
 class AddServicesPage extends StatelessWidget {
   final List<String>? services;
   final String title;
   final String sectionTitle;
   final IconData fallbackIcon;
+  final String businessId;
+  final bool openedAsRoute;
 
   const AddServicesPage({
     super.key,
+    required this.businessId,
     this.services,
     this.title = "Add Service",
     this.sectionTitle = "Select Service Type",
     this.fallbackIcon = LucideIcons.stethoscope,
+    this.openedAsRoute = false,
   });
 
   // ✅ لیست کامل
@@ -74,7 +79,11 @@ class AddServicesPage extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () {
-                      context.read<AppState>().closeBusinessSubPage();
+                      if (openedAsRoute) {
+                        Navigator.pop(context);
+                      } else {
+                        context.read<AppState>().closeBusinessSubPage();
+                      }
                     },
                   ),
                   const SizedBox(width: 4),
@@ -132,33 +141,76 @@ class AddServicesPage extends StatelessWidget {
         .contains(title.toLowerCase());
 
     return GestureDetector(
-      onTap: exists
-          ? null // ❌ disable
-          : () {
-              context.read<AppState>().openAddServiceDetail(title);
-            },
-      child: Opacity(
-        opacity: exists ? 0.4 : 1,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AddServiceDetailPage(
+              businessId: businessId,
+              serviceTitle: title,
+              openedAsRoute: true,
+            ),
           ),
-          child: Row(
-            children: [
-              Icon(icon, size: 20),
-              const SizedBox(width: 12),
-              Expanded(child: Text(title)),
+        );
+      },
 
-              if (exists)
-                const Icon(Icons.check, color: Colors.green)
-              else
-                const Icon(Icons.add),
-            ],
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+
+        decoration: BoxDecoration(
+          color: Colors.white,
+
+          borderRadius: BorderRadius.circular(22),
+
+          border: Border.all(
+            color: exists
+                ? AppTheme.card
+                : Colors.black.withValues(alpha: 0.06),
+            width: exists ? 2 : 1,
           ),
+
+          boxShadow: AppTheme.cardShadow(opacity: 0.04),
+        ),
+
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+
+              decoration: BoxDecoration(
+                color: AppTheme.card.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+
+              child: Icon(icon, size: 20, color: AppTheme.card),
+            ),
+
+            const SizedBox(width: 14),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTheme.h3()),
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    exists ? "Tap to edit service" : "Tap to add service",
+                    style: AppTheme.caption(),
+                  ),
+                ],
+              ),
+            ),
+
+            Icon(
+              exists ? LucideIcons.pencil : LucideIcons.plus,
+              color: AppTheme.card,
+              size: 20,
+            ),
+          ],
         ),
       ),
     );
@@ -168,7 +220,16 @@ class AddServicesPage extends StatelessWidget {
   Widget _addCustomServiceCard(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.read<AppState>().openAddServiceDetail("Custom Service");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AddServiceDetailPage(
+              businessId: businessId,
+              serviceTitle: "Custom Service",
+              openedAsRoute: true,
+            ),
+          ),
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(16),

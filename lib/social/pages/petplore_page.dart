@@ -7,7 +7,6 @@ import 'social_feed_page.dart';
 import '../widgets/user_posts_grid.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/follow_service.dart';
-import '../search/petplore_search_delegate.dart';
 import '../overlay/petplore_search_overlay.dart';
 
 class PetplorePage extends StatefulWidget {

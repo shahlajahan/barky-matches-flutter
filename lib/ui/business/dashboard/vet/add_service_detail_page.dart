@@ -9,6 +9,7 @@ class AddServiceDetailPage extends StatefulWidget {
   final String serviceTitle;
   final String? serviceId;
   final Map<String, dynamic>? existingData;
+  final bool openedAsRoute;
 
   const AddServiceDetailPage({
     super.key,
@@ -16,6 +17,7 @@ class AddServiceDetailPage extends StatefulWidget {
     required this.serviceTitle,
     this.serviceId,
     this.existingData,
+    this.openedAsRoute = false,
   });
 
   @override
@@ -99,7 +101,7 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
 
       shouldResetLoading = false;
       FocusManager.instance.primaryFocus?.unfocus();
-      context.read<AppState>().closeBusinessSubPage();
+      _closePage();
     } catch (e) {
       debugPrint("❌ ERROR: $e");
 
@@ -138,7 +140,7 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () {
                       FocusManager.instance.primaryFocus?.unfocus();
-                      context.read<AppState>().closeBusinessSubPage();
+                      _closePage();
                     },
                   ),
                   Text(
@@ -170,7 +172,7 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
                   const SizedBox(height: 6),
 
                   DropdownButtonFormField<String>(
-                    value: _selectedDuration,
+                    initialValue: _selectedDuration,
                     items: _durations.map((e) {
                       return DropdownMenuItem(value: e, child: Text(e));
                     }).toList(),
@@ -241,5 +243,13 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
         ),
       ],
     );
+  }
+
+  void _closePage() {
+    if (widget.openedAsRoute) {
+      Navigator.of(context).pop();
+    } else {
+      context.read<AppState>().closeBusinessSubPage();
+    }
   }
 }

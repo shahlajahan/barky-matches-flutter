@@ -58,7 +58,7 @@ class _ReportDialogState extends State<ReportDialog> {
         children: [
 
           DropdownButtonFormField<String>(
-            value: _reason,
+            initialValue: _reason,
             items: reasons
                 .map((r) => DropdownMenuItem(
                       value: r,

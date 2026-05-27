@@ -4,7 +4,6 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,13 +12,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:barky_matches_fixed/ui/shell/barky_scaffold.dart';
-import 'package:barky_matches_fixed/play_date_scheduling_page.dart';
 import 'package:barky_matches_fixed/dog.dart';
-import 'package:barky_matches_fixed/playmate_page.dart';
-import 'package:barky_matches_fixed/playdate_flow_router.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 
 
@@ -51,7 +45,7 @@ class _DogParkPageState extends State<DogParkPage>
   BitmapDescriptor? _customMarker;
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
-  bool _playdateFlowPushed = false;
+  final bool _playdateFlowPushed = false;
 
   static const Color _bgSoftPink = Color(0xFFFFF6F8);
   static const LatLng _fallbackLatLng = LatLng(41.0457, 29.0048);
@@ -146,7 +140,7 @@ class _DogParkPageState extends State<DogParkPage>
   @override
   void initState() {
     super.initState();
-    debugPrint('🟢 DogPark initState ${hashCode}');
+    debugPrint('🟢 DogPark initState $hashCode');
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -644,7 +638,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
 
                     ),
                   );
-                }).toList(),
+                }),
             ],
           ),
         );
@@ -946,7 +940,7 @@ Widget build(BuildContext context) {
 
   @override
   void dispose() {
-    debugPrint('🟢 DogPark initState ${hashCode}');
+    debugPrint('🟢 DogPark initState $hashCode');
     //_mapController?.dispose();
     _animationController.dispose();
     super.dispose();

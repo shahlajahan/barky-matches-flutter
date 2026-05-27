@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/app_state.dart';
-import 'package:flutter/foundation.dart';
 
 
 class DogInfoPage extends StatelessWidget {

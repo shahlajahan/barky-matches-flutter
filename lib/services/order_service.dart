@@ -52,8 +52,8 @@ class OrderService {
     final payload = {
       "sellerOrderId": sellerOrderId,
       "status": status,
-      if (trackingNumber != null) "trackingNumber": trackingNumber,
-      if (carrier != null) "carrier": carrier,
+      "trackingNumber": ?trackingNumber,
+      "carrier": ?carrier,
     };
 
     final res = await callable.call(payload);

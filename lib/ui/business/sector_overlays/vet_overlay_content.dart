@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../theme/app_theme.dart';
 import '../business_card_data.dart';
 import '../../vet/suggest_clinic_sheet.dart';
@@ -95,44 +96,93 @@ class VetOverlayContent extends StatelessWidget {
   // SERVICES
   // ─────────────────────────────
   Widget _buildServices() {
-    if (data.services == null || data.services!.isEmpty) {
-      return Text(
-        "No services provided.",
-        style: AppTheme.caption(color: Colors.white70),
-      );
-    }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(data.id)
+          .collection('services')
+          .where('isActive', isEqualTo: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: data.services!
-          .map(
-            (s) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: Icon(
-                      LucideIcons.check,
-                      color: Colors.amber,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      s,
-                      style: AppTheme.bodyMedium(
-                        color: Colors.white,
-                      ).copyWith(height: 1.4),
-                    ),
+        if (snapshot.hasError) {
+          return Text(
+            'Services could not be loaded.',
+            style: AppTheme.caption(color: Colors.white70),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        if (docs.isEmpty) {
+          return Text(
+            "No services provided.",
+            style: AppTheme.caption(color: Colors.white70),
+          );
+        }
+
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: docs.map((doc) {
+            final service = doc.data();
+            return _serviceRow(service);
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _serviceRow(Map<String, dynamic> service) {
+    final title = (service['title'] ?? '').toString().trim();
+    final price = service['price'];
+    final duration = service['duration'] ?? service['durationMin'];
+    final description = (service['description'] ?? '').toString().trim();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(LucideIcons.check, color: Colors.amber, size: 16),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title.isEmpty ? 'Service' : title,
+                  style: AppTheme.bodyMedium(
+                    color: Colors.white,
+                  ).copyWith(height: 1.4),
+                ),
+                if (price != null || duration != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    [
+                      if (price != null) '₺$price',
+                      if (duration != null) duration.toString(),
+                    ].join(' • '),
+                    style: AppTheme.caption(color: Colors.white70),
                   ),
                 ],
-              ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    description,
+                    style: AppTheme.caption(color: Colors.white60),
+                  ),
+                ],
+              ],
             ),
-          )
-          .toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -165,8 +215,8 @@ class VetOverlayContent extends StatelessWidget {
           GestureDetector(
             onTap: () {
               if (data.isPartner) {
- onOpenFullProfile?.call();
-} else {
+                onOpenFullProfile?.call();
+              } else {
                 onClose?.call();
 
                 showModalBottomSheet(

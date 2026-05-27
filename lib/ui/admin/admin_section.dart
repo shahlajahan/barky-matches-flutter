@@ -65,7 +65,7 @@ class AdminSection extends StatelessWidget {
                 ),
               ),
 
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
 

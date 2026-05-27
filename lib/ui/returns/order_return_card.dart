@@ -160,7 +160,7 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: shippingResponsibility,
+                      initialValue: shippingResponsibility,
                       decoration: InputDecoration(
                         labelText: l10n.shippingResponsibilityLabel,
                       ),
@@ -491,7 +491,7 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: refundType,
+                      initialValue: refundType,
                       decoration: InputDecoration(
                         labelText: l10n.refundTypeLabel,
                       ),

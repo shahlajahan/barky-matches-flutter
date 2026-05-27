@@ -57,6 +57,7 @@ class _PetHotelDashboardPageState extends State<PetHotelDashboardPage> {
 
     if (appState.businessSubPage == BusinessSubPage.addService) {
       return AddServicesPage(
+        businessId: widget.businessId,
         services: _hotelServiceTemplates,
         title: 'Add Hotel Service',
         sectionTitle: 'Select Hotel Service',
@@ -163,7 +164,7 @@ class _TopTabs extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final (section, title, icon) = items[index];
           final isSelected = selected == section;
@@ -178,7 +179,7 @@ class _TopTabs extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

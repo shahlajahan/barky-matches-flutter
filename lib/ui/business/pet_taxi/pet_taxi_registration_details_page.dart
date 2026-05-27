@@ -607,7 +607,7 @@ class _PetTaxiRegistrationDetailsPageState
               },
             ),
             DropdownButtonFormField<String>(
-              value: _selectedVehicleType,
+              initialValue: _selectedVehicleType,
               decoration: const InputDecoration(labelText: 'Vehicle type'),
               items: _vehicleTypes.map((type) {
                 return DropdownMenuItem(value: type, child: Text(type));

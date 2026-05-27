@@ -900,6 +900,249 @@ function firstNonEmptyValue(...values) {
   return "";
 }
 
+function firstPushTokenFromData(data = {}) {
+  const fields = [
+    "fcmToken",
+    "deviceToken",
+    "notificationToken",
+  ];
+
+  for (const field of fields) {
+    const token = String(data[field] || "").trim();
+    if (token) return token;
+  }
+
+  const listFields = [
+    "fcmTokens",
+    "deviceTokens",
+    "notificationTokens",
+  ];
+
+  for (const field of listFields) {
+    const value = data[field];
+
+    if (Array.isArray(value)) {
+      const token = value
+        .map((item) => String(item || "").trim())
+        .find(Boolean);
+      if (token) return token;
+    }
+
+    if (value && typeof value === "object") {
+      const token = Object.values(value)
+        .map((item) => String(item || "").trim())
+        .find(Boolean);
+      if (token) return token;
+    }
+  }
+
+  return null;
+}
+
+async function safeMessagingSend(message, context = {}) {
+  try {
+    const response = await admin.messaging().send(message);
+    return response;
+  } catch (error) {
+    console.error("🔔 NOTIFICATION SEND FAILED BUT CONTINUING", {
+      ...context,
+      code: error?.code || null,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+    return null;
+  }
+}
+
+async function syncVetPatientVisitAfterPaid({
+  db,
+  appointmentId,
+  appointmentData,
+}) {
+  try {
+    const businessId = appointmentData.businessId || null;
+    const ownerId =
+      appointmentData.userId ||
+      appointmentData.ownerId ||
+      null;
+    const petId = appointmentData.petId || null;
+
+    if (!businessId || !ownerId || !petId) {
+      logger.warn("⚠️ VET PATIENT VISIT SYNC SKIPPED", {
+        appointmentId,
+        businessId,
+        ownerId,
+        petId,
+      });
+      return;
+    }
+
+    const petName =
+      appointmentData.petName ||
+      appointmentData.dogName ||
+      "Unnamed pet";
+    const breed =
+      appointmentData.breed ||
+      appointmentData.petBreed ||
+      "Breed not set";
+    const ownerName =
+      appointmentData.userName ||
+      appointmentData.ownerName ||
+      "Owner";
+
+    const patientsRef = db
+      .collection("businesses")
+      .doc(String(businessId))
+      .collection("patients");
+
+    const existingPatient = await patientsRef
+      .where("petId", "==", petId)
+      .limit(1)
+      .get();
+
+    let patientRef;
+    let patientId;
+
+    if (!existingPatient.empty) {
+      patientRef = existingPatient.docs[0].ref;
+      patientId = existingPatient.docs[0].id;
+
+      await patientRef.set({
+        businessId,
+        ownerId,
+        petId,
+        petName,
+        breed,
+        ownerName,
+        lastVisitAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      logger.info("🩺 PATIENT RECORD UPDATED", {
+        appointmentId,
+        patientId,
+        petId,
+        businessId,
+      });
+    } else {
+      patientRef = patientsRef.doc();
+      patientId = patientRef.id;
+
+      await patientRef.set({
+        businessId,
+        ownerId,
+        petId,
+        petName,
+        breed,
+        ownerName,
+        notes: "",
+        needsFollowUp: false,
+        isActive: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastVisitAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      logger.info("🩺 PATIENT RECORD UPDATED", {
+        appointmentId,
+        patientId,
+        petId,
+        businessId,
+        created: true,
+      });
+    }
+
+    const visitRef = patientRef
+      .collection("visits")
+      .doc(String(appointmentId));
+
+    await visitRef.set({
+      appointmentId,
+      title:
+        appointmentData.serviceTitle ||
+        appointmentData.serviceName ||
+        "Veterinary Visit",
+      summary: "Appointment payment completed successfully.",
+      diagnosis: "",
+      treatment: "",
+      followUpRequired: false,
+      paymentStatus: "paid",
+      status: "confirmed_paid",
+      visitDate: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    logger.info("🩺 VISIT AUTO CREATED", {
+      appointmentId,
+      patientId,
+      petId,
+    });
+  } catch (error) {
+    logger.error("❌ VET PATIENT VISIT SYNC FAILED", {
+      appointmentId,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+  }
+}
+
+async function sendBusinessChatPush({
+  token,
+  payload,
+  recipientRole,
+  recipientDocRef,
+}) {
+  if (!token) {
+    console.log("💼 BUSINESS CHAT TOKEN FOUND", false);
+    return false;
+  }
+
+  console.log("💼 BUSINESS CHAT TOKEN FOUND", true);
+  console.log("💼 BUSINESS CHAT PUSH PAYLOAD", JSON.stringify(payload));
+
+  const message = {
+    token,
+    ...payload,
+    apns: {
+      headers: {
+        "apns-priority": "10",
+      },
+      payload: {
+        aps: {
+          alert: payload.notification,
+          sound: "default",
+          badge: 1,
+        },
+      },
+    },
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log("💼 BUSINESS CHAT PUSH SENT OK", response);
+    return true;
+  } catch (error) {
+    console.error("💼 BUSINESS CHAT PUSH ERROR", error);
+
+    if (
+      recipientDocRef &&
+      (
+        error.code === "messaging/registration-token-not-registered" ||
+        error.code === "messaging/invalid-registration-token"
+      )
+    ) {
+      await recipientDocRef.set({
+        fcmToken: admin.firestore.FieldValue.delete(),
+      }, { merge: true });
+
+      console.log("💼 BUSINESS CHAT INVALID TOKEN REMOVED", recipientRole);
+    }
+
+    return false;
+  }
+}
+
 exports.onChatMessageCreated = onDocumentCreated(
   {
     region: "europe-west3",
@@ -1012,6 +1255,171 @@ exports.onChatMessageCreated = onDocumentCreated(
       messageId,
       recipientUserId,
       sent,
+    });
+  }
+);
+
+exports.onBusinessChatMessageCreated = onDocumentCreated(
+  {
+    region: "europe-west3",
+    document: "business_chats/{chatId}/messages/{messageId}",
+  },
+  async (event) => {
+    const chatId = event.params.chatId;
+    const messageId = event.params.messageId;
+    const messageData = event.data?.data() || {};
+    const senderId = String(messageData.senderId || "").trim();
+    const text = String(messageData.text || "").replace(/\s+/g, " ").trim();
+
+    console.log("💼 BUSINESS CHAT PUSH START", {
+      chatId,
+      messageId,
+      senderId,
+      hasText: text.length > 0,
+    });
+
+    if (!senderId) {
+      console.log("💼 BUSINESS CHAT PUSH SKIPPED", "missing senderId");
+      return;
+    }
+
+    const chatRef = db.collection("business_chats").doc(chatId);
+    const chatSnap = await chatRef.get();
+
+    if (!chatSnap.exists) {
+      console.log("💼 BUSINESS CHAT PUSH SKIPPED", "chat doc missing");
+      return;
+    }
+
+    const chatData = chatSnap.data() || {};
+    console.log("💼 BUSINESS CHAT DOC FOUND", {
+      chatId,
+      businessId: chatData.businessId || "",
+      clientUserId: chatData.clientUserId || "",
+    });
+
+    const businessId = String(chatData.businessId || "").trim();
+    const businessName = firstNonEmptyValue(chatData.businessName, "Business");
+    const clientUserId = String(chatData.clientUserId || "").trim();
+    const clientUserName = firstNonEmptyValue(
+      chatData.clientUserName,
+      chatData.clientName,
+      "Pet Owner"
+    );
+
+    let senderRole = String(messageData.senderRole || chatData.lastSenderRole || "").trim();
+    if (!senderRole) {
+      senderRole = senderId === clientUserId ? "client" : "business";
+    }
+
+    if (senderRole !== "client" && senderRole !== "business") {
+      console.log("💼 BUSINESS CHAT PUSH SKIPPED", {
+        reason: "invalid senderRole",
+        senderRole,
+      });
+      return;
+    }
+
+    const recipientRole = senderRole === "client" ? "business" : "client";
+
+    console.log("💼 BUSINESS CHAT RECIPIENT ROLE", {
+      senderRole,
+      recipientRole,
+    });
+
+    let recipientDocRef = null;
+    let recipientSnap = null;
+    let recipientId = "";
+
+    if (recipientRole === "business") {
+      if (!businessId) {
+        console.log("💼 BUSINESS CHAT PUSH SKIPPED", "missing businessId");
+        return;
+      }
+
+      recipientId = businessId;
+      recipientDocRef = db.collection("businesses").doc(businessId);
+      recipientSnap = await recipientDocRef.get();
+
+      if (!recipientSnap.exists) {
+        console.log("💼 BUSINESS CHAT PUSH SKIPPED", "business doc missing");
+        return;
+      }
+
+      const businessOwnerUid = String(recipientSnap.data()?.ownerUid || "").trim();
+      if (businessOwnerUid && businessOwnerUid === senderId) {
+        console.log("💼 BUSINESS CHAT PUSH SKIPPED", "sender is business recipient");
+        return;
+      }
+    } else {
+      if (!clientUserId) {
+        console.log("💼 BUSINESS CHAT PUSH SKIPPED", "missing clientUserId");
+        return;
+      }
+
+      if (senderId === clientUserId) {
+        console.log("💼 BUSINESS CHAT PUSH SKIPPED", "sender is client recipient");
+        return;
+      }
+
+      recipientId = clientUserId;
+      recipientDocRef = db.collection("users").doc(clientUserId);
+      recipientSnap = await recipientDocRef.get();
+
+      if (!recipientSnap.exists) {
+        console.log("💼 BUSINESS CHAT PUSH SKIPPED", "client user doc missing");
+        return;
+      }
+    }
+
+    const recipientData = recipientSnap.data() || {};
+    const token = firstPushTokenFromData(recipientData);
+    const preview = truncateNotificationPreview(text || "New message");
+
+    if (!token) {
+      console.log("💼 BUSINESS CHAT TOKEN FOUND", false);
+      console.log("💼 BUSINESS CHAT PUSH SKIPPED", {
+        reason: "missing token",
+        recipientRole,
+        recipientId,
+      });
+      return;
+    }
+
+    const title = recipientRole === "business"
+      ? `${clientUserName} sent you a message`
+      : `${businessName} sent you a message`;
+
+    const payload = {
+      notification: {
+        title,
+        body: preview || "New message",
+      },
+      data: {
+        type: "business_chat_message",
+        chatId: String(chatId),
+        conversationId: String(chatId),
+        messageId: String(messageId),
+        senderId: String(senderId),
+        senderRole: String(senderRole),
+        businessId: String(businessId),
+        clientUserId: String(clientUserId),
+        recipientRole: String(recipientRole),
+      },
+      android: {
+        priority: "high",
+        notification: {
+          sound: "default",
+          channelId: "high_importance_channel",
+        },
+      },
+    };
+
+    await sendBusinessChatPush({
+      token,
+      payload,
+      recipientRole,
+      recipientDocRef,
     });
   }
 );
@@ -4146,7 +4554,7 @@ exports.sendLostFoundNotificationHttp = onRequest(
         });
       }
 
-      const type = lostDogId ? "lost_dog" : "found_dog";
+      const type = lostDogId ? "lost_pet" : "found_pet";
 
       const db = admin.firestore();
 
@@ -4164,7 +4572,9 @@ exports.sendLostFoundNotificationHttp = onRequest(
         data: {
           type,
           ...(lostDogId && { lostDogId: String(lostDogId) }),
+          ...(lostDogId && { lostPetId: String(lostDogId) }),
           ...(foundDogId && { foundDogId: String(foundDogId) }),
+          ...(foundDogId && { foundPetId: String(foundDogId) }),
           senderUid: currentUserId,
         },
 
@@ -4211,7 +4621,9 @@ exports.sendLostFoundNotificationHttp = onRequest(
           body,
           type,
           ...(lostDogId && { lostDogId: String(lostDogId) }),
+          ...(lostDogId && { lostPetId: String(lostDogId) }),
           ...(foundDogId && { foundDogId: String(foundDogId) }),
+          ...(foundDogId && { foundPetId: String(foundDogId) }),
 
           recipientUserId: userDoc.id,   // ✅ IMPORTANT
           senderUid: currentUserId,
@@ -4269,9 +4681,11 @@ exports.sendNotification = onCall(
       },
       topic: "all_users",
       data: {
-        type: lostDogId ? "lost_dog" : "found_dog",
+        type: lostDogId ? "lost_pet" : "found_pet",
         ...(lostDogId && { lostDogId: lostDogId.toString() }),
+        ...(lostDogId && { lostPetId: lostDogId.toString() }),
         ...(foundDogId && { foundDogId: foundDogId.toString() }),
+        ...(foundDogId && { foundPetId: foundDogId.toString() }),
       },
       android: {
         priority: "high",
@@ -4294,9 +4708,11 @@ exports.sendNotification = onCall(
       await db.collection("notifications").add({
         title,
         body,
-        type: lostDogId ? "lost_dog" : "found_dog",
+        type: lostDogId ? "lost_pet" : "found_pet",
         ...(lostDogId && { lostDogId: lostDogId.toString() }),
+        ...(lostDogId && { lostPetId: lostDogId.toString() }),
         ...(foundDogId && { foundDogId: foundDogId.toString() }),
+        ...(foundDogId && { foundPetId: foundDogId.toString() }),
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         isRead: false,
         recipientUserId: null,
@@ -4310,6 +4726,87 @@ exports.sendNotification = onCall(
     }
 
     return { success: true };
+  }
+);
+
+exports.sendVaccineCompletedPush = onCall(
+  { region: "europe-west3", cors: true, enforceAppCheck: false },
+  async (request) => {
+    const {
+      ownerId,
+      vaccineName,
+      businessId,
+      patientId,
+      vaccineId,
+    } = request.data || {};
+
+    if (!request.auth?.uid) {
+      logger.warn("sendVaccineCompletedPush unauthenticated");
+      return { success: false, reason: "unauthenticated" };
+    }
+
+    if (!ownerId || !vaccineName || !businessId || !patientId || !vaccineId) {
+      logger.warn("sendVaccineCompletedPush invalid payload", {
+        ownerId,
+        vaccineName,
+        businessId,
+        patientId,
+        vaccineId,
+      });
+      return { success: false, reason: "invalid-payload" };
+    }
+
+    try {
+      const userSnap = await db.collection("users").doc(String(ownerId)).get();
+      const token = userSnap.data()?.fcmToken || null;
+
+      if (!token) {
+        logger.info("sendVaccineCompletedPush missing token", { ownerId });
+        return { success: false, reason: "missing-token" };
+      }
+
+      const body = `${String(vaccineName)} vaccine has been completed.`;
+      const payload = {
+        token,
+        notification: {
+          title: "Vaccination Completed",
+          body,
+        },
+        data: {
+          type: "vaccine_completed",
+          ownerId: String(ownerId),
+          businessId: String(businessId),
+          patientId: String(patientId),
+          vaccineId: String(vaccineId),
+        },
+        android: {
+          priority: "high",
+        },
+        apns: {
+          headers: {
+            "apns-priority": "10",
+          },
+          payload: {
+            aps: {
+              sound: "default",
+              badge: 1,
+            },
+          },
+        },
+      };
+
+      const response = await admin.messaging().send(payload);
+      logger.info("sendVaccineCompletedPush sent", {
+        ownerId,
+        vaccineId,
+        response,
+      });
+
+      return { success: true };
+    } catch (error) {
+      logger.error("sendVaccineCompletedPush failed", toPlainError(error));
+      return { success: false, reason: "push-failed" };
+    }
   }
 );
 /* ----------------------------------------------------
@@ -5935,10 +6432,10 @@ function getModerationCollection(type) {
       return "chats";
 
     case "lost_dog":
-      return "lost_dogs";
+      return "lost_pets";
 
     case "found_dog":
-      return "found_dogs";
+      return "found_pets";
 
     case "adoption":
       return "businesses";
@@ -8408,11 +8905,16 @@ exports.verifyPaymentByOrderId = onCall(
               console.log("🔔 ABOUT TO SEND PUSH");
               console.log("🔔 PUSH TOKEN", token);
               console.log("🔔 PUSH PAYLOAD", message);
-              try {
-                const response = await admin.messaging().send(message);
+              const response = await safeMessagingSend(message, {
+                functionName: "verifyPaymentByOrderId",
+                notificationType: "new_order",
+                orderId: orderNotificationDebug.orderId,
+                sellerOrderId: orderNotificationDebug.sellerOrderId,
+                businessId: orderNotificationDebug.businessId,
+                recipientUserId: orderNotificationDebug.recipientUserId,
+              });
+              if (response) {
                 console.log("✅ PUSH SENT SUCCESS", response);
-              } catch (e) {
-                console.error("❌ PUSH SEND FAILED", e);
               }
             } else {
               console.error("❌ PUSH SEND FAILED", "missing token");
@@ -8524,6 +9026,26 @@ exports.verifyPayment = onCall(
 
       // 🔁 جلوگیری از دوباره پرداخت
       if (orderData.payment?.status === "paid") {
+        if (orderData.type === "appointment") {
+          const appointmentCollection = appointmentCollectionForOrder(orderData);
+          const appointmentId = orderData.appointmentId || null;
+
+          if (appointmentCollection === "vet_appointments" && appointmentId) {
+            const appointmentSnap = await db
+              .collection(appointmentCollection)
+              .doc(appointmentId)
+              .get();
+
+            if (appointmentSnap.exists) {
+              await syncVetPatientVisitAfterPaid({
+                db,
+                appointmentId,
+                appointmentData: appointmentSnap.data() || {},
+              });
+            }
+          }
+        }
+
         return {
           success: true,
           alreadyPaid: true,
@@ -8675,6 +9197,14 @@ exports.verifyPayment = onCall(
             recipientUserId,
           });
 
+          if (appointmentCollection === "vet_appointments") {
+            await syncVetPatientVisitAfterPaid({
+              db,
+              appointmentId,
+              appointmentData,
+            });
+          }
+
           if (recipientUserId) {
             // =========================
             // 🟣 1. SAVE IN-APP NOTIFICATION
@@ -8719,7 +9249,7 @@ exports.verifyPayment = onCall(
                 recipientUserId,
                 appointmentId,
               });
-              await admin.messaging().send({
+              const paymentPushMessage = {
                 token: fcmToken,
                 notification: {
                   title: "Payment Completed",
@@ -8759,13 +9289,25 @@ exports.verifyPayment = onCall(
                     },
                   },
                 },
-              });
+              };
 
-              logger.info("🔔 FCM sent", {
+              const fcmResponse = await safeMessagingSend(paymentPushMessage, {
+                functionName: "verifyPayment",
+                notificationType: isHotelBooking
+                  ? "hotel_booking_payment_completed"
+                  : "appointment_paid",
                 recipientUserId,
                 appointmentId,
-                soundEnabled: true,
+                appointmentCollection,
               });
+
+              if (fcmResponse) {
+                logger.info("🔔 FCM sent", {
+                  recipientUserId,
+                  appointmentId,
+                  soundEnabled: true,
+                });
+              }
             } else {
               logger.warn("⚠️ No FCM token found", {
                 recipientUserId,
@@ -8968,11 +9510,16 @@ exports.verifyPayment = onCall(
               console.log("🔔 ABOUT TO SEND PUSH");
               console.log("🔔 PUSH TOKEN", token);
               console.log("🔔 PUSH PAYLOAD", message);
-              try {
-                const response = await admin.messaging().send(message);
+              const response = await safeMessagingSend(message, {
+                functionName: "verifyPayment",
+                notificationType: "new_order",
+                orderId: orderNotificationDebug.orderId,
+                sellerOrderId: orderNotificationDebug.sellerOrderId,
+                businessId: orderNotificationDebug.businessId,
+                recipientUserId: orderNotificationDebug.recipientUserId,
+              });
+              if (response) {
                 console.log("✅ PUSH SENT SUCCESS", response);
-              } catch (e) {
-                console.error("❌ PUSH SEND FAILED", e);
               }
             } else {
               console.error("❌ PUSH SEND FAILED", "missing token");
@@ -10350,11 +10897,11 @@ exports.deleteUserAccount = onCall(
       // --------------------------------------------------
 
       await deleteByQuery(
-        db.collection("found_dogs").where("ownerId", "==", uid)
+        db.collection("found_pets").where("ownerId", "==", uid)
       );
 
       await deleteByQuery(
-        db.collection("lost_dogs").where("ownerId", "==", uid)
+        db.collection("lost_pets").where("ownerId", "==", uid)
       );
 
       // --------------------------------------------------
@@ -14367,6 +14914,291 @@ exports.updateVetAppointmentStatus = onCall(
 
     logger.info("✅ Vet appointment status updated", result);
 
+    // =========================
+    // 🐾 AUTO CREATE / UPDATE PATIENT
+    // =========================
+
+    try {
+
+      const appointmentSnap = await db
+        .collection("vet_appointments")
+        .doc(result.appointmentId)
+        .get();
+
+      const appointmentData =
+        appointmentSnap.data() || {};
+
+      const shouldCreatePatient =
+        result.newStatus === "confirmed" ||
+        result.newStatus === "confirmed_paid";
+
+      if (shouldCreatePatient) {
+
+        const businessId =
+          appointmentData.businessId || null;
+
+        const ownerId =
+          appointmentData.userId ||
+          appointmentData.ownerId ||
+          null;
+
+        const petId =
+          appointmentData.petId || null;
+
+        const petName =
+          appointmentData.petName ||
+          appointmentData.dogName ||
+          "Unnamed pet";
+
+        const breed =
+          appointmentData.breed ||
+          appointmentData.petBreed ||
+          "Breed not set";
+
+        const ownerName =
+          appointmentData.userName ||
+          appointmentData.ownerName ||
+          "Owner";
+
+        if (
+          businessId &&
+          ownerId &&
+          petId
+        ) {
+
+          const patientsRef = db
+            .collection("businesses")
+            .doc(businessId)
+            .collection("patients");
+
+          const existingPatient =
+            await patientsRef
+              .where("petId", "==", petId)
+              .limit(1)
+              .get();
+
+          // =========================
+          // ♻️ UPDATE EXISTING
+          // =========================
+
+          if (!existingPatient.empty) {
+
+            await existingPatient
+              .docs[0]
+              .ref
+              .update({
+
+                lastVisitAt:
+                  admin.firestore.FieldValue
+                    .serverTimestamp(),
+
+                updatedAt:
+                  admin.firestore.FieldValue
+                    .serverTimestamp(),
+              });
+
+            logger.info(
+              "♻️ PATIENT UPDATED",
+              {
+                petId,
+                businessId,
+              }
+            );
+          }
+
+          // =========================
+          // 🐾 CREATE NEW PATIENT
+          // =========================
+
+          else {
+
+            await patientsRef.add({
+
+              businessId,
+
+              ownerId,
+              petId,
+
+              petName,
+              breed,
+              ownerName,
+
+              notes: "",
+
+              needsFollowUp: false,
+              isActive: true,
+
+              createdAt:
+                admin.firestore.FieldValue
+                  .serverTimestamp(),
+
+              updatedAt:
+                admin.firestore.FieldValue
+                  .serverTimestamp(),
+
+              lastVisitAt:
+                admin.firestore.FieldValue
+                  .serverTimestamp(),
+            });
+
+            logger.info(
+              "🐾 PATIENT AUTO CREATED",
+              {
+                petId,
+                petName,
+                businessId,
+              }
+            );
+          }
+        }
+
+        else {
+
+          logger.warn(
+            "⚠️ PATIENT AUTO CREATE SKIPPED",
+            {
+              businessId,
+              ownerId,
+              petId,
+            }
+          );
+        }
+      }
+
+    } catch (error) {
+
+      logger.error(
+        "❌ PATIENT AUTO CREATE FAILED",
+        {
+          appointmentId:
+            result.appointmentId,
+
+          message:
+            error?.message ||
+            String(error),
+        }
+      );
+    }
+
+    // =========================
+    // 🩺 AUTO CREATE VISIT
+    // =========================
+
+    if (result.newStatus === "completed") {
+
+      try {
+
+        const appointmentSnap = await db
+          .collection("vet_appointments")
+          .doc(result.appointmentId)
+          .get();
+
+        const appointmentData =
+          appointmentSnap.data() || {};
+
+        const businessId =
+          appointmentData.businessId || null;
+
+        const petId =
+          appointmentData.petId || null;
+
+        if (businessId && petId) {
+
+          const patientsRef = db
+            .collection("businesses")
+            .doc(businessId)
+            .collection("patients");
+
+          const patientQuery =
+            await patientsRef
+              .where("petId", "==", petId)
+              .limit(1)
+              .get();
+
+          if (!patientQuery.empty) {
+
+            const patientDoc =
+              patientQuery.docs[0];
+
+            const patientRef =
+              patientDoc.ref;
+
+            // =========================
+            // 🩺 CREATE VISIT
+            // =========================
+
+            await patientRef
+              .collection("visits")
+              .add({
+
+                appointmentId:
+                  result.appointmentId,
+
+                title:
+                  appointmentData.serviceName ||
+                  "Veterinary Visit",
+
+                summary:
+                  "Appointment completed successfully.",
+
+                diagnosis: "",
+
+                treatment: "",
+
+                followUpRequired: false,
+
+                visitDate:
+                  admin.firestore.FieldValue
+                    .serverTimestamp(),
+
+                createdAt:
+                  admin.firestore.FieldValue
+                    .serverTimestamp(),
+              });
+
+            // =========================
+            // ♻️ UPDATE PATIENT
+            // =========================
+
+            await patientRef.update({
+
+              lastVisitAt:
+                admin.firestore.FieldValue
+                  .serverTimestamp(),
+
+              updatedAt:
+                admin.firestore.FieldValue
+                  .serverTimestamp(),
+            });
+
+            logger.info(
+              "🩺 VISIT AUTO CREATED",
+              {
+                patientId:
+                  patientDoc.id,
+
+                petId,
+              }
+            );
+          }
+        }
+
+      } catch (error) {
+
+        logger.error(
+          "❌ AUTO VISIT CREATE FAILED",
+          {
+            appointmentId:
+              result.appointmentId,
+
+            message:
+              error?.message ||
+              String(error),
+          }
+        );
+      }
+    }
+
     try {
       const snap = await db
         .collection("vet_appointments")
@@ -15307,6 +16139,9 @@ exports.createVetAppointment = onCall(
 
         scheduledAt,
         note,
+        preVisitForm,
+        preVisitAnswers,
+        preVisitSnapshot,
       } = request.data || {};
 
       // =========================
@@ -15359,6 +16194,81 @@ exports.createVetAppointment = onCall(
 
       const scheduledTs =
         admin.firestore.Timestamp.fromDate(scheduledDate);
+
+      let safePreVisitAnswers = null;
+      let safePreVisitSnapshot = null;
+
+      if (preVisitAnswers && typeof preVisitAnswers === "object" && !Array.isArray(preVisitAnswers)) {
+        safePreVisitAnswers = {};
+        Object.entries(preVisitAnswers).forEach(([key, value]) => {
+          const safeKey = String(key || "").trim();
+          if (!safeKey) return;
+          safePreVisitAnswers[safeKey] = Array.isArray(value)
+            ? value.map((item) => String(item))
+            : value;
+        });
+      }
+
+      if (preVisitSnapshot && typeof preVisitSnapshot === "object") {
+        const rawQuestions = Array.isArray(preVisitSnapshot.questions)
+          ? preVisitSnapshot.questions
+          : [];
+
+        safePreVisitSnapshot = {
+          serviceId: preVisitSnapshot.serviceId
+            ? String(preVisitSnapshot.serviceId)
+            : (serviceId ? String(serviceId) : null),
+          questions: rawQuestions
+            .filter((item) => item && typeof item === "object")
+            .map((item) => ({
+              id: item.id ? String(item.id) : "",
+              question: item.question ? String(item.question) : "",
+              type: item.type ? String(item.type) : "text",
+              required: item.required === true,
+              options: Array.isArray(item.options)
+                ? item.options.map((option) => String(option))
+                : [],
+            }))
+            .filter((item) => item.id && item.question),
+        };
+      }
+
+      // Backward compatibility for the previous preVisitForm payload.
+      if (!safePreVisitAnswers && preVisitForm && typeof preVisitForm === "object") {
+        const rawAnswers = Array.isArray(preVisitForm.answers)
+          ? preVisitForm.answers
+          : [];
+
+        safePreVisitAnswers = {};
+        const snapshotQuestions = [];
+
+        rawAnswers
+          .filter((item) => item && typeof item === "object")
+          .forEach((item) => {
+            const questionId = item.questionId ? String(item.questionId) : "";
+            if (!questionId) return;
+
+            const answer = Array.isArray(item.answer)
+              ? item.answer.map((value) => String(value))
+              : (item.answer === undefined ? null : item.answer);
+
+            safePreVisitAnswers[questionId] = answer;
+            snapshotQuestions.push({
+              id: questionId,
+              question: item.question ? String(item.question) : "",
+              type: item.type ? String(item.type) : "text",
+              required: false,
+              options: [],
+            });
+          });
+
+        safePreVisitSnapshot = {
+          serviceId: preVisitForm.serviceId
+            ? String(preVisitForm.serviceId)
+            : (serviceId ? String(serviceId) : null),
+          questions: snapshotQuestions.filter((item) => item.id && item.question),
+        };
+      }
 
       const col = db.collection("vet_appointments");
 
@@ -15439,6 +16349,8 @@ exports.createVetAppointment = onCall(
 
         // 📝 META
         note: note || "",
+        preVisitAnswers: safePreVisitAnswers,
+        preVisitSnapshot: safePreVisitSnapshot,
         status: "pending",
 
         createdAt: admin.firestore.FieldValue.serverTimestamp(),

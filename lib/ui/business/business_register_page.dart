@@ -1,7 +1,6 @@
 // lib/ui/business/business_register_page.dart
 
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,9 +22,7 @@ import '../../models/business_draft.dart';
 import '../../data/location_repository.dart';
 import '../../data/location_models.dart';
 import '../../data/location_cache.dart';
-import '../widgets/location_picker_sheet.dart';
 
-import '../../data/validators/tr_tax_validator.dart';
 import '../../ui/formatters/vkn_input_formatter.dart';
 import '../../config/api_keys.dart';
 
@@ -172,9 +169,9 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   bool _agreeTerms = false;
   bool _agreeLegalResponsibility = false;
 
-  bool _ocrVerified = false;
+  final bool _ocrVerified = false;
   String _ocrStatus = "idle"; // idle | processing | verified | failed
-  List<String> _riskFlags = [];
+  final List<String> _riskFlags = [];
 
   bool _taxLocked = false;
   bool _mersisLocked = false;
@@ -723,8 +720,9 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   String? _validateEmail(String? v) {
     final email = (v ?? "").trim();
     final regex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$');
-    if (!regex.hasMatch(email))
+    if (!regex.hasMatch(email)) {
       return AppLocalizations.of(context)!.businessRegisterInvalidEmail;
+    }
     return null;
   }
 
@@ -1499,7 +1497,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<String>(
-                value: _selectedCountryCode,
+                initialValue: _selectedCountryCode,
                 decoration: _inputDecoration(
                   AppLocalizations.of(context)!.businessRegisterCountry,
                   icon: LucideIcons.globe2,
@@ -1609,7 +1607,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 
           // 🟣 CITY
           DropdownButtonFormField<Admin1>(
-            value: _selectedAdmin1,
+            initialValue: _selectedAdmin1,
             decoration: _inputDecoration(
               _loadingAdmin1
                   ? AppLocalizations.of(context)!.businessRegisterLoadingCities
@@ -1640,7 +1638,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 
           // 🟡 DISTRICT
           DropdownButtonFormField<Admin2>(
-            value: _selectedAdmin2,
+            initialValue: _selectedAdmin2,
             decoration: _inputDecoration(
               _loadingAdmin2
                   ? AppLocalizations.of(

@@ -174,7 +174,7 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
 
               /// CATEGORY
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: "Category",
                   border: OutlineInputBorder(),

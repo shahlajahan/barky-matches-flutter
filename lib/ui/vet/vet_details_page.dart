@@ -40,21 +40,37 @@ class _VetDetailsPageState extends State<VetDetailsPage>
   int _liveReviewCount = 0;
 
   Map<String, dynamic>? get _workingHoursMap {
-    final raw = widget.vet.workingHours;
+    final businessData = widget.vet.rawData ?? {};
 
-    if (raw == null) return null;
+    final sectorData =
+        (businessData['sectorData'] as Map<String, dynamic>?) ?? {};
 
-    // حالت استاندارد
+    final vetData =
+        (sectorData['vet'] as Map<String, dynamic>?) ??
+        (sectorData['veterinary'] as Map<String, dynamic>?) ??
+        (sectorData['veterinarian'] as Map<String, dynamic>?) ??
+        {};
+
+    final raw =
+        vetData['workingHoursMap'] ??
+        businessData['workingHoursMap'] ??
+        widget.vet.workingHours;
+
+    if (raw == null) {
+      return null;
+    }
+
+    // 🔥 STANDARD MAP
     if (raw is Map<String, dynamic>) {
       return raw;
     }
 
-    // حالت dynamic map (Firestore)
-    if (raw is Map<dynamic, dynamic>) {
+    // 🔥 FIRESTORE DYNAMIC MAP
+    if (raw is Map) {
       return raw.map((key, value) => MapEntry(key.toString(), value));
     }
 
-    // حالت string (fallback)
+    // 🔥 OLD STRING FALLBACK
     if (raw is String) {
       return {'hours': raw};
     }
@@ -64,48 +80,55 @@ class _VetDetailsPageState extends State<VetDetailsPage>
 
   String get _locationText {
     final vet = widget.vet;
-    return '${vet.district ?? ''}${(vet.district != null && vet.city != null) ? ', ' : ''}${vet.city ?? ''}';
+    return '${vet.district ?? ''}${(vet.city != null) ? ', ' : ''}${vet.city ?? ''}';
   }
 
   String _todayHoursText() {
     final l10n = AppLocalizations.of(context)!;
+
     final hours = _workingHoursMap;
-    if (hours == null || hours.isEmpty) return l10n.workingHoursNotAvailable;
+
+    if (hours == null || hours.isEmpty) {
+      return l10n.workingHoursNotAvailable;
+    }
 
     final weekday = DateTime.now().weekday;
+
     const keys = {
-      1: ['monday', 'mon'],
-      2: ['tuesday', 'tue'],
-      3: ['wednesday', 'wed'],
-      4: ['thursday', 'thu'],
-      5: ['friday', 'fri'],
-      6: ['saturday', 'sat'],
-      7: ['sunday', 'sun'],
+      1: 'monday',
+      2: 'tuesday',
+      3: 'wednesday',
+      4: 'thursday',
+      5: 'friday',
+      6: 'saturday',
+      7: 'sunday',
     };
 
-    final todayKeys = keys[weekday]!;
-    dynamic value;
+    final key = keys[weekday];
 
-    for (final key in todayKeys) {
-      if (hours.containsKey(key)) {
-        value = hours[key];
-        break;
-      }
-      final capitalized = key[0].toUpperCase() + key.substring(1);
-      if (hours.containsKey(capitalized)) {
-        value = hours[capitalized];
-        break;
-      }
+    if (key == null) {
+      return l10n.workingHoursNotAvailable;
     }
 
-    if (value == null) {
-      if (hours.containsKey('hours')) {
-        value = hours['hours'];
+    final raw = hours[key];
+
+    // 🔥 NEW STRUCTURE
+    if (raw is Map<String, dynamic>) {
+      final isOpen = raw['open'] == true;
+
+      if (!isOpen) {
+        return 'Closed';
       }
+
+      return (raw['hours'] ?? '09:00 - 18:00').toString();
     }
 
-    if (value == null) return l10n.workingHoursNotAvailable;
-    return value.toString();
+    // 🔥 OLD STRUCTURE SUPPORT
+    if (raw is String) {
+      return raw;
+    }
+
+    return l10n.workingHoursNotAvailable;
   }
 
   String _openingStatusLabel() {
@@ -413,48 +436,35 @@ class _VetDetailsPageState extends State<VetDetailsPage>
                               height: 54,
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: () {
-  final businessData = widget.vet.rawData ?? {};
+                                onPressed: () async {
+                                  final noServicesText =
+                                      l10n.noServicesAvailable;
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  final snapshot = await FirebaseFirestore
+                                      .instance
+                                      .collection('businesses')
+                                      .doc(widget.vet.id)
+                                      .collection('services')
+                                      .where('isActive', isEqualTo: true)
+                                      .limit(1)
+                                      .get();
 
-  final vetData =
-      (businessData['sectorData']?['veterinary']
-          as Map<String, dynamic>?) ??
-      {};
+                                  if (!mounted) return;
 
-  final servicesData =
-      (vetData['services']
-          as Map<String, dynamic>?) ??
-      {};
-      debugPrint("🧪 FULL VET DATA = $vetData");
-debugPrint("🧪 SERVICES DATA = $servicesData");
-debugPrint("🧪 SERVICES DATA = $servicesData");
-  final services = servicesData.entries
-    .where((e) => e.value is Map)
-    .map((e) {
-      final map = Map<String, dynamic>.from(e.value);
+                                  if (snapshot.docs.isEmpty) {
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text(noServicesText)),
+                                    );
+                                    return;
+                                  }
 
-      return {
-        'id': e.key,
-        'title': map['title'] ?? e.key,
-        'price': map['price'],
-        'duration': map['duration'],
-      };
-    })
-    .toList();
-
-if (services.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.noServicesAvailable),
-      ),
-    );
-    return;
-  }
-
-  _openAppointmentPage({
-    ...services.first,
-  });
-},
+                                  final doc = snapshot.docs.first;
+                                  _openAppointmentPage({
+                                    ...doc.data(),
+                                    'id': doc.id,
+                                  });
+                                },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primary,
                                   foregroundColor: Colors.white,
@@ -792,8 +802,7 @@ if (services.isEmpty) {
           .snapshots(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};
-        final rawProfile =
-    data['sectorData']?['veterinary']?['profileContent'];
+        final rawProfile = data['sectorData']?['veterinary']?['profileContent'];
         final liveProfile = rawProfile is Map
             ? Map<String, dynamic>.from(rawProfile)
             : <String, dynamic>{};
@@ -955,32 +964,21 @@ if (services.isEmpty) {
     final vet = widget.vet;
     final businessData = widget.vet.rawData ?? {};
 
-final vetData =
-    (businessData['sectorData']?['veterinary']
-        as Map<String, dynamic>?) ??
-    {};
+    final vetData =
+        (businessData['sectorData']?['veterinary'] as Map<String, dynamic>?) ??
+        {};
 
-final profileContent =
-    (vetData['profileContent']
-        as Map<String, dynamic>?) ??
-    {};
+    final profileContent =
+        (vetData['profileContent'] as Map<String, dynamic>?) ?? {};
 
-final bio =
-    (profileContent['bio'] ?? '').toString().trim();
+    final bio = (profileContent['bio'] ?? '').toString().trim();
 
-final about = bio.isNotEmpty
-    ? bio
-    : l10n.noClinicDescriptionAvailable;
+    final about = bio.isNotEmpty ? bio : l10n.noClinicDescriptionAvailable;
 
     final socialMedia =
-    (profileContent['socialMedia']
-        as Map<String, dynamic>?) ??
-    {};
+        (profileContent['socialMedia'] as Map<String, dynamic>?) ?? {};
 
-final instagram =
-    (socialMedia['instagram'] ?? '')
-        .toString()
-        .trim();
+    final instagram = (socialMedia['instagram'] ?? '').toString().trim();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1001,17 +999,12 @@ final instagram =
         ),
         const SizedBox(height: 14),
         _sectionCard(
-  title: l10n.instagramTitle,
-  child: Text(
-    instagram.isNotEmpty
-        ? instagram
-        : l10n.instagramNotAvailable,
-    style: AppTheme.bodyMedium(
-      color: Colors.black87,
-    ),
-  ),
-),
-
+          title: l10n.instagramTitle,
+          child: Text(
+            instagram.isNotEmpty ? instagram : l10n.instagramNotAvailable,
+            style: AppTheme.bodyMedium(color: Colors.black87),
+          ),
+        ),
 
         const SizedBox(height: 14),
         _sectionCard(
@@ -1026,145 +1019,121 @@ final instagram =
   }
 
   Widget _buildServicesTab() {
-  final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
-  final businessData = widget.vet.rawData ?? {};
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(widget.vet.id)
+          .collection('services')
+          .where('isActive', isEqualTo: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-  final vetData =
-      (businessData['sectorData']?['veterinary']
-          as Map<String, dynamic>?) ??
-      {};
-
-  final servicesData =
-      (vetData['services']
-          as Map<String, dynamic>?) ??
-      {};
-
-  debugPrint("🧪 SERVICES DATA = $servicesData");
-
-  final List<Map<String, dynamic>> services = [];
-
-  // 🔥 OLD STRUCTURE
-  if (servicesData['offeredServices'] is List) {
-    final offered = List<String>.from(
-      servicesData['offeredServices'],
-    );
-
-    services.addAll(
-      offered.map(
-        (e) => {
-          'title': e,
-        },
-      ),
-    );
-  }
-
-  // 🔥 NEW STRUCTURE
-  else {
-    services.addAll(
-      servicesData.entries
-          .where((e) => e.value is Map)
-          .map((e) {
-            final map = Map<String, dynamic>.from(e.value);
-
-            return {
-              'id': e.key,
-              'title': map['title'] ?? e.key,
-              'price': map['price'],
-              'duration': map['duration'],
-            };
-          })
-          .toList(),
-    );
-  }
-
-  debugPrint("📦 SERVICES COUNT: ${services.length}");
-
-  if (services.isEmpty) {
-    return Center(
-      child: Text(
-        l10n.noServicesProvided,
-        style: AppTheme.caption(color: Colors.black54),
-      ),
-    );
-  }
-
-  return ListView.separated(
-    padding: const EdgeInsets.all(16),
-    itemCount: services.length,
-    separatorBuilder: (_, __) => const SizedBox(height: 10),
-    itemBuilder: (_, index) {
-      final service = services[index];
-
-      final title =
-          (service['title'] ?? '').toString();
-
-      final price = service['price'];
-      final duration = service['duration'];
-
-      return GestureDetector(
-        onTap: () {
-          debugPrint("🔥 OPEN APPOINTMENT WITH: $service");
-
-          _openAppointmentPage(service);
-        },
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: Colors.grey.shade200,
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Services could not be loaded.',
+              style: AppTheme.caption(color: Colors.black54),
             ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                LucideIcons.check,
-                color: Colors.amber,
-                size: 18,
-              ),
+          );
+        }
 
-              const SizedBox(width: 10),
+        final docs = snapshot.data?.docs ?? [];
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+        debugPrint("📦 VET PUBLIC SERVICES COUNT: ${docs.length}");
+
+        if (docs.isEmpty) {
+          return Center(
+            child: Text(
+              l10n.noServicesProvided,
+              style: AppTheme.caption(color: Colors.black54),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final service = {...docs[index].data(), 'id': docs[index].id};
+
+            final title = (service['title'] ?? '').toString();
+
+            final price = service['price'];
+            final duration = service['duration'] ?? service['durationMin'];
+            final description = (service['description'] ?? '')
+                .toString()
+                .trim();
+
+            return GestureDetector(
+              onTap: () {
+                debugPrint("🔥 OPEN APPOINTMENT WITH: $service");
+
+                _openAppointmentPage(service);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: AppTheme.bodyMedium(),
+                    const Icon(
+                      LucideIcons.check,
+                      color: Colors.amber,
+                      size: 18,
                     ),
 
-                    if (price != null ||
-                        duration != null) ...[
-                      const SizedBox(height: 4),
+                    const SizedBox(width: 10),
 
-                      Text(
-                        [
-                          if (price != null)
-                            '₺$price',
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title.isEmpty ? 'Service' : title,
+                            style: AppTheme.bodyMedium(),
+                          ),
 
-                          if (duration != null)
-                            duration.toString(),
-                        ].join(' • '),
-                        style: AppTheme.caption(
-                          color: Colors.black54,
-                        ),
+                          if (price != null || duration != null) ...[
+                            const SizedBox(height: 4),
+
+                            Text(
+                              [
+                                if (price != null) '₺$price',
+
+                                if (duration != null) duration.toString(),
+                              ].join(' • '),
+                              style: AppTheme.caption(color: Colors.black54),
+                            ),
+                          ],
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              description,
+                              style: AppTheme.caption(color: Colors.black45),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-}
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _sectionCard({required String title, required Widget child}) {
     return Container(
@@ -1203,24 +1172,47 @@ final instagram =
 
     return Column(
       children: entries.map((entry) {
+        final value = entry.value;
+
+        String hoursText = '';
+
+        // 🔥 NEW STRUCTURE
+        if (value is Map<String, dynamic>) {
+          final isOpen = value['open'] == true;
+
+          hoursText = isOpen ? (value['hours'] ?? '').toString() : 'Closed';
+        }
+        // 🔥 OLD STRUCTURE SUPPORT
+        else {
+          hoursText = value.toString();
+        }
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
+
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Expanded(
                 child: Text(
-                  entry.key.toString(),
+                  entry.key.toString()[0].toUpperCase() +
+                      entry.key.toString().substring(1),
+
                   style: AppTheme.bodyMedium().copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
+
               const SizedBox(width: 12),
+
               Flexible(
                 child: Text(
-                  entry.value.toString(),
+                  hoursText,
+
                   textAlign: TextAlign.right,
+
                   style: AppTheme.bodyMedium(color: Colors.black87),
                 ),
               ),
@@ -1303,7 +1295,7 @@ final instagram =
               data['id'] = doc.id;
 
               return _buildReviewItem(data, key: ValueKey(doc.id));
-            }).toList(),
+            }),
           ],
         );
       },
@@ -1448,20 +1440,19 @@ final instagram =
 
         // 🔥 مهم: هم images هم videos
         final rawProfileContent =
-    data['sectorData']?['veterinary']?['profileContent'];
+            data['sectorData']?['veterinary']?['profileContent'];
 
-final profileContent =
-    rawProfileContent is Map
-        ? Map<String, dynamic>.from(rawProfileContent)
-        : <String, dynamic>{};
+        final profileContent = rawProfileContent is Map
+            ? Map<String, dynamic>.from(rawProfileContent)
+            : <String, dynamic>{};
 
-final images = List<String>.from(
-  profileContent['clinicPhotoUrls'] ?? [],
-);
+        final images = List<String>.from(
+          profileContent['clinicPhotoUrls'] ?? [],
+        );
 
-final videos = List<String>.from(
-  profileContent['clinicVideoUrls'] ?? [],
-);
+        final videos = List<String>.from(
+          profileContent['clinicVideoUrls'] ?? [],
+        );
 
         final gallery = [
           ...images.map((e) => MediaItem.fromUrl(e)),

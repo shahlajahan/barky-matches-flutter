@@ -10,11 +10,7 @@ import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/welcome_page.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 
-import 'package:barky_matches_fixed/ui/feedback/feedback_form_page.dart';
-import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
-import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
 
-import 'package:barky_matches_fixed/ui/support/faq_page.dart';
 import 'package:barky_matches_fixed/ui/support/about_us_page.dart';
 import 'package:barky_matches_fixed/ui/legal/privacy_policy_page.dart';
 import 'package:barky_matches_fixed/ui/legal/terms_page.dart';

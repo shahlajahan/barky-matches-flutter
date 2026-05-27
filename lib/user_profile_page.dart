@@ -9,14 +9,12 @@ import 'add_dog_page.dart';
 import 'app_state.dart';
 import 'dog.dart';
 import 'dog_card.dart';
-import 'globals.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/screens/dog_parks/saved_parks_page.dart';
 import 'package:barky_matches_fixed/adoption_page.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/ui/adoption/adoption_inbox_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_register_page.dart';
-import 'package:barky_matches_fixed/ui/admin/admin_approval_page.dart';
 import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'ui/admin/pages/admin_hub_page.dart';
@@ -24,9 +22,6 @@ import 'package:barky_matches_fixed/ui/feedback/feedback_form_page.dart';
 import 'package:barky_matches_fixed/welcome_page.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:barky_matches_fixed/play_date_requests_page_new.dart';
-import 'package:provider/provider.dart';
-import 'play_date_requests_page_new.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
 import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
@@ -36,16 +31,13 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
 import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
-import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
 
 import 'package:barky_matches_fixed/ui/setting/delete_account_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/pet_hotel/pet_hotel_dashboard_page.dart';
 
-import 'package:barky_matches_fixed/home_gate.dart';
 import 'package:barky_matches_fixed/ui/profile/change_password_page.dart';
 
-import 'package:barky_matches_fixed/ui/help/help_center_page.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/social/pages/create_social_post_page.dart';
 
@@ -290,14 +282,14 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   // همان متغیرهای قبلی بدون تغییر
-  bool _initialized = false;
+  final bool _initialized = false;
   bool _disposed = false;
   Future<ImageProvider?>? _profileImageFuture;
   late AppState _appState;
   String _currentUserId = '';
   Box<Dog>? _dogsBox;
-  List<Dog> _userDogs = [];
-  List<Dog> _adoptionDogs = [];
+  final List<Dog> _userDogs = [];
+  final List<Dog> _adoptionDogs = [];
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -305,8 +297,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = true;
   bool _generatingFcmToken = false;
-  List<Dog> _cachedUserDogs = [];
-  List<Dog> _cachedAdoptionDogs = [];
+  final List<Dog> _cachedUserDogs = [];
+  final List<Dog> _cachedAdoptionDogs = [];
   String _city = '';
   String _district = '';
 
@@ -344,7 +336,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       if (!Hive.isBoxOpen('dogsBox')) {
         debugPrint('UserProfilePage - dogsBox is not open yet!');
       }
-      Box<Dog>? _dogsBox;
+      Box<Dog>? dogsBox;
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -442,7 +434,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     try {
       final uid = _currentUserId;
 
-      if (uid == null || uid.isEmpty) {
+      if (uid.isEmpty) {
         debugPrint("❌ UID is null");
         return;
       }
@@ -608,6 +600,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         await FirebaseFirestore.instance.collection('dogs').doc(dog.id).set({
           'id': dog.id,
           'name': updatedDog.name,
+          'petName': updatedDog.name,
           'breed': updatedDog.breed,
           'age': updatedDog.age,
           'gender': updatedDog.gender,
@@ -623,6 +616,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
           'latitude': updatedDog.latitude,
           'longitude': updatedDog.longitude,
         }, SetOptions(merge: true));
+        debugPrint(
+          '🐾 PET NAME SYNC → name=${updatedDog.name} petName=${updatedDog.name}',
+        );
       }
     } catch (e) {
       debugPrint('UserProfilePage - fixDogs error: $e');
@@ -711,6 +707,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     await FirebaseFirestore.instance.collection('dogs').doc(dog.id).set({
       'id': dog.id,
       'name': dog.name,
+      'petName': dog.name,
       'breed': dog.breed,
       'age': dog.age,
       'gender': dog.gender,
@@ -726,6 +723,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       'latitude': dog.latitude,
       'longitude': dog.longitude,
     }, SetOptions(merge: true));
+    debugPrint('🐾 PET NAME SYNC → name=${dog.name} petName=${dog.name}');
   }
 
   void _updateDogInHive(Dog updatedDog, int originalIndex) {

@@ -180,9 +180,7 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
           );
         }
 
-        if (_selectedServiceLocal == null) {
-          _selectedServiceLocal = services.first;
-        }
+        _selectedServiceLocal ??= services.first;
 
         return SizedBox(
           height: 76,
@@ -412,8 +410,9 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
 
   Widget _priceSummary() {
     final service = _selectedServiceLocal;
-    if (service == null || _selectedRange == null)
+    if (service == null || _selectedRange == null) {
       return const SizedBox.shrink();
+    }
 
     final pricePerNight = _servicePrice(service);
     final total = pricePerNight * _totalNights;

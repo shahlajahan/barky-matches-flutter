@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/models/product.dart';
-import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/services/product_service.dart';
 
 import 'package:barky_matches_fixed/ui/business/petshop/add_product_page.dart';
@@ -128,7 +126,7 @@ class ProductCardDashboard extends StatelessWidget {
                     ),
 
                   Text(
-                    "${displayPrice} ${p.currency}",
+                    "$displayPrice ${p.currency}",
                     style: AppTheme.h2(
                       color: const Color(0xFF9E1B4F),
                       weight: FontWeight.w900,

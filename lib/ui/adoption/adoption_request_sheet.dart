@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
-import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/services/adoption_request_service.dart';
 
 class AdoptionRequestSheet extends StatefulWidget {
@@ -354,8 +353,8 @@ final requesterName = _fullName.text.trim();
       // Documents array (for your service signature)
       final documents = <String>[
   ..._housePhotoUrls,
-  if (_idPhotoUrl != null) _idPhotoUrl!,
-  if (_incomeProofUrl != null) _incomeProofUrl!,
+  ?_idPhotoUrl,
+  ?_incomeProofUrl,
 ];
 
       await AdoptionRequestService.createRequest(
@@ -548,7 +547,7 @@ Widget build(BuildContext context) {
           _label(l10n.genderLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: _gender,
+            initialValue: _gender,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
             items: [
@@ -578,7 +577,7 @@ Widget build(BuildContext context) {
           _label(l10n.adoptionIncomeRangeLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: _incomeRange,
+            initialValue: _incomeRange,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
             items: [
@@ -611,7 +610,7 @@ Widget build(BuildContext context) {
           _label(l10n.adoptionHousingTypeLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: _housingType,
+            initialValue: _housingType,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
             items: [
@@ -626,7 +625,7 @@ Widget build(BuildContext context) {
           _label(l10n.adoptionOwnershipLabel),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: _ownership,
+            initialValue: _ownership,
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
             items: [

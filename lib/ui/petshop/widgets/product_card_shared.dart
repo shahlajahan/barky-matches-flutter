@@ -5,7 +5,6 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
-import 'package:barky_matches_fixed/ui/petshop/seller_offers_page.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/add_product_page.dart';
 import 'package:barky_matches_fixed/services/product_service.dart';
 
@@ -40,7 +39,7 @@ class ProductCardShared extends StatelessWidget {
 
     if (p.name.trim().length >= 3) score += 20;
     if (p.description.trim().length >= 20) score += 20;
-    if (p.media.length >= 1) score += 20;
+    if (p.media.isNotEmpty) score += 20;
     if (p.media.length >= 3) score += 10;
     if (p.price > 0) score += 15;
     if (p.stock > 0) score += 10;
@@ -447,8 +446,8 @@ void _buyNow(BuildContext context) {
   }
 
   // 🚛 carrier names
-  if (p.allowedCarrierCodes != null && p.allowedCarrierCodes!.isNotEmpty) {
-    final carriers = p.allowedCarrierCodes!.join(", ");
+  if (p.allowedCarrierCodes.isNotEmpty) {
+    final carriers = p.allowedCarrierCodes.join(", ");
     parts.add(l10n.carrierLabel(carriers));
   }
 
@@ -671,7 +670,7 @@ Widget _buildDiscountInfo(BuildContext context, Product p) {
                       height: 110,
                       child: hasVideo
                           ? SmartVideoPreview(
-                              videoUrl: resolvedVideoUrl!,
+                              videoUrl: resolvedVideoUrl,
                               thumbnail: hasThumb ? m.thumbnailUrl : null,
                             )
                           : hasThumb

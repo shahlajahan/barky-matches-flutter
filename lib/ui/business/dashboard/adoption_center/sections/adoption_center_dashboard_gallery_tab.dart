@@ -27,9 +27,7 @@ class _AdoptionCenterDashboardGalleryTabState
 
   bool _isVideo(String path) {
     final p = path.toLowerCase();
-    return p.endsWith('.mp4') ||
-        p.endsWith('.mov') ||
-        p.endsWith('.hevc');
+    return p.endsWith('.mp4') || p.endsWith('.mov') || p.endsWith('.hevc');
   }
 
   Future<void> _pickAndUploadMultiple() async {
@@ -89,17 +87,17 @@ class _AdoptionCenterDashboardGalleryTabState
       for (final videoFile in videoFiles) {
         final fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${videoFile.path.split('/').last}';
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('business_gallery/${widget.businessId}/videos/$fileName');
+        final ref = FirebaseStorage.instance.ref().child(
+          'business_gallery/${widget.businessId}/videos/$fileName',
+        );
         final task = ref.putFile(videoFile);
         final snap = await task;
         final url = await snap.ref.getDownloadURL();
         videoUrls.add(url);
       }
 
-      final nextImages = [...currentImages, ...imageUrls].toSet().toList();
-      final nextVideos = [...currentVideos, ...videoUrls].toSet().toList();
+      final nextImages = <dynamic>{...currentImages, ...imageUrls}.toList();
+      final nextVideos = <dynamic>{...currentVideos, ...videoUrls}.toList();
 
       await docRef.set({
         'images': nextImages,
@@ -111,9 +109,9 @@ class _AdoptionCenterDashboardGalleryTabState
     } catch (e) {
       debugPrint('MULTI UPLOAD ERROR: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
       }
     } finally {
       _picking = false;
@@ -146,17 +144,17 @@ class _AdoptionCenterDashboardGalleryTabState
           .collection('businesses')
           .doc(widget.businessId)
           .set({
-        'images': nextOnlyImages,
-        'videos': nextOnlyVideos,
-        'coverImageUrl': nextCover,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'images': nextOnlyImages,
+            'videos': nextOnlyVideos,
+            'coverImageUrl': nextCover,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('DELETE ERROR: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
       }
     }
   }
@@ -167,23 +165,21 @@ class _AdoptionCenterDashboardGalleryTabState
           .collection('businesses')
           .doc(widget.businessId)
           .set({
-        'coverImageUrl': url,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'coverImageUrl': url,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('SET COVER ERROR: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to set cover: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to set cover: $e')));
       }
     }
   }
 
   List<String> _mergedImagesFromData(Map<String, dynamic> data) {
-    return [
-      ...List<String>.from(data['images'] ?? []),
-    ].toSet().toList();
+    return <String>{...List<String>.from(data['images'] ?? [])}.toList();
   }
 
   @override
@@ -233,19 +229,17 @@ class _AdoptionCenterDashboardGalleryTabState
             ),
             Expanded(
               child: media.isEmpty
-                  ? const Center(
-                      child: Text('No media yet'),
-                    )
+                  ? const Center(child: Text('No media yet'))
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                       itemCount: media.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.92,
-                      ),
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.92,
+                          ),
                       itemBuilder: (_, i) {
                         final url = media[i];
                         final isVideo = _isVideo(url);
@@ -280,7 +274,6 @@ class _GalleryCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _GalleryCard({
-    super.key,
     required this.imageUrl,
     required this.isCover,
     required this.isVideo,
@@ -317,16 +310,10 @@ class _GalleryCard extends StatelessWidget {
                       children: [
                         // 🖼 IMAGE
                         if (!isVideo)
-                          SmartMedia(
-                            url: imageUrl,
-                            fit: BoxFit.cover,
-                          ),
+                          SmartMedia(url: imageUrl, fit: BoxFit.cover),
                         // 🎥 VIDEO PLACEHOLDER
                         if (isVideo)
-                          SmartMedia(
-                            url: imageUrl,
-                            fit: BoxFit.cover,
-                          ),
+                          SmartMedia(url: imageUrl, fit: BoxFit.cover),
                       ],
                     ),
                   ),
@@ -364,11 +351,7 @@ class _GalleryCard extends StatelessWidget {
                     child: const CircleAvatar(
                       radius: 16,
                       backgroundColor: Colors.black54,
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.white,
-                      ),
+                      child: Icon(Icons.close, size: 16, color: Colors.white),
                     ),
                   ),
                 ),

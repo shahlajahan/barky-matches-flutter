@@ -8,8 +8,6 @@ import '../../../models/product.dart';
 import '../../../services/product_service.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:typed_data';
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import '../../../models/product_media.dart';
 import 'package:uuid/uuid.dart';
@@ -23,16 +21,12 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../services/shipping_estimator.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../app_state.dart';
-<<<<<<< HEAD
+
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-
-=======
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
->>>>>>> 823c872 (ci: add flutter github actions workflow)
 
 class AddProductPage extends StatefulWidget {
   final String businessId;
@@ -88,7 +82,8 @@ class _AddProductPageState extends State<AddProductPage> {
   bool _isPerishable = false;
   bool _isOversize = false;
   bool _allowReturns = true;
-  bool _cashOnDelivery = false; // only if later legally/operationally supported
+  final bool _cashOnDelivery =
+      false; // only if later legally/operationally supported
   bool _hasContractedReturnCarrier = true;
 
   bool _isBarcodeLoading = false;
@@ -124,9 +119,9 @@ class _AddProductPageState extends State<AddProductPage> {
 
   File? _image;
   bool _loading = false;
-  List<XFile> _media = [];
+  final List<XFile> _media = [];
   bool _picking = false;
-  Map<String, double> _progressMap = {};
+  final Map<String, double> _progressMap = {};
   double _uploadProgress = 0;
   bool _hasDiscount = false;
 
@@ -449,7 +444,7 @@ class _AddProductPageState extends State<AddProductPage> {
       debugPrint("🟡 MARKET DATA LOADED FROM PRODUCTS FALLBACK");
     } catch (e, stack) {
       debugPrint("🔥🔥🔥 FIRESTORE RAW ERROR:");
-     debugPrint('$e'); // 👈 خیلی مهم (نه debugPrint)
+      debugPrint('$e'); // 👈 خیلی مهم (نه debugPrint)
       debugPrint('$stack');
 
       if (e is FirebaseException) {
@@ -1485,122 +1480,181 @@ class _AddProductPageState extends State<AddProductPage> {
   }
 
   Future<List<ProductMedia>> _uploadMedia() async {
-    final result = <ProductMedia>[];
+    final uploadedMedia = <ProductMedia>[];
 
-    for (final file in _media) {
-      final originalPath = file.path;
+    if (_media.isEmpty) {
+      return uploadedMedia;
+    }
+
+    for (var index = 0; index < _media.length; index++) {
+      final pickedFile = _media[index];
+      final originalPath = pickedFile.path;
       final lowerPath = originalPath.toLowerCase();
-
-      final isVideo =
-          lowerPath.endsWith('.mp4') ||
-          lowerPath.endsWith('.mov') ||
-          lowerPath.endsWith('.hevc') ||
-          lowerPath.endsWith('.webm') ||
-          lowerPath.endsWith('.m4v');
-
-<<<<<<< HEAD
-Future<void> _scanBarcode() async {
-  try {
-    final result = await Navigator.push<String>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const _BarcodeScannerPage(),
-      ),
-    );
-
-    if (result == null || result.isEmpty) return;
-=======
-      final ext = originalPath.split('.').last; // 🔥 از original بگیر
+      final isVideo = _isVideoPath(lowerPath);
+      final ext = _fileExtension(
+        originalPath,
+        fallback: isVideo ? 'mp4' : 'jpg',
+      );
 
       final fileName =
-          "${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}.$ext";
->>>>>>> 823c872 (ci: add flutter github actions workflow)
+          '${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}.$ext';
 
-      // 🔥 RAW STORAGE PATH (خیلی مهم)
       final ref = FirebaseStorage.instance
           .ref()
           .child('products_raw')
           .child(widget.businessId)
           .child(fileName);
-      final bytes = await file.readAsBytes();
 
+      final bytes = await pickedFile.readAsBytes();
       final uploadTask = ref.putData(
         bytes,
-        SettableMetadata(contentType: isVideo ? 'video/mp4' : 'image/jpeg'),
+        SettableMetadata(contentType: _contentTypeFor(ext, isVideo)),
       );
 
       uploadTask.snapshotEvents.listen((snapshot) {
-        double progress = 0;
+        if (!mounted || snapshot.totalBytes <= 0) return;
 
-        if (snapshot.totalBytes > 0) {
-          progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        }
+        final itemProgress = snapshot.bytesTransferred / snapshot.totalBytes;
+        final totalProgress = ((index + itemProgress) / _media.length).clamp(
+          0.0,
+          1.0,
+        );
 
-        progress = progress.clamp(0.0, 1.0);
-
-        if (mounted) {
-          setState(() {
-            _uploadProgress = progress;
-          });
-        }
+        setState(() {
+          _uploadProgress = totalProgress;
+          _progressMap[pickedFile.path] = itemProgress.clamp(0.0, 1.0);
+        });
       });
 
       await uploadTask;
 
       final rawUrl = await ref.getDownloadURL();
+      String? thumbnailUrl;
 
-      // 🔥 IMAGE
-      if (!isVideo) {
-        result.add(
-          ProductMedia(
-            type: 'image',
-            originalUrl: rawUrl,
-            thumbnailUrl: rawUrl,
-            playbackUrl: null,
-            status: 'ready',
-          ),
+      if (isVideo) {
+        thumbnailUrl = await _uploadVideoThumbnail(
+          videoPath: originalPath,
+          businessId: widget.businessId,
+          fileName: fileName,
         );
       }
-      // 🔥 VIDEO (بدون convert)
-      else {
-        result.add(
-          ProductMedia(
-            type: 'video',
-            originalUrl: rawUrl,
-            playbackUrl: null,
-            thumbnailUrl: null,
-            status: 'processing', // 🔥 مهم
-          ),
-        );
+
+      uploadedMedia.add(
+        ProductMedia(
+          type: isVideo ? 'video' : 'image',
+          originalUrl: rawUrl,
+          playbackUrl: null,
+          thumbnailUrl: isVideo ? thumbnailUrl : rawUrl,
+          status: isVideo ? 'processing' : 'ready',
+        ),
+      );
+    }
+
+    return uploadedMedia;
+  }
+
+  bool _isVideoPath(String path) {
+    final lowerPath = path.toLowerCase();
+    return lowerPath.endsWith('.mp4') ||
+        lowerPath.endsWith('.mov') ||
+        lowerPath.endsWith('.hevc') ||
+        lowerPath.endsWith('.webm') ||
+        lowerPath.endsWith('.m4v');
+  }
+
+  String _fileExtension(String path, {required String fallback}) {
+    final dot = path.lastIndexOf('.');
+    if (dot == -1 || dot == path.length - 1) {
+      return fallback;
+    }
+
+    return path.substring(dot + 1).toLowerCase();
+  }
+
+  String _contentTypeFor(String ext, bool isVideo) {
+    if (isVideo) {
+      switch (ext) {
+        case 'mov':
+          return 'video/quicktime';
+        case 'm4v':
+          return 'video/x-m4v';
+        case 'webm':
+          return 'video/webm';
+        default:
+          return 'video/mp4';
       }
     }
 
-    return result;
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+      case 'heif':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
+    }
   }
 
-  Future<void> _scanBarcode() async {
+  Future<String?> _uploadVideoThumbnail({
+    required String videoPath,
+    required String businessId,
+    required String fileName,
+  }) async {
     try {
-      final result = await FlutterBarcodeScanner.scanBarcode(
-        "#ff6666",
-        AppLocalizations.of(context)!.cancelButton,
-        true,
-        ScanMode.BARCODE,
+      final thumbnailBytes = await VideoThumbnail.thumbnailData(
+        video: videoPath,
+        imageFormat: ImageFormat.JPEG,
+        maxWidth: 720,
+        quality: 78,
       );
 
-      if (result == "-1") return;
+      if (thumbnailBytes == null || thumbnailBytes.isEmpty) {
+        return null;
+      }
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('products_raw')
+          .child(businessId)
+          .child('thumbnails')
+          .child('${fileName}_thumb.jpg');
+
+      await ref.putData(
+        thumbnailBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+
+      return ref.getDownloadURL();
+    } catch (e) {
+      debugPrint('❌ VIDEO THUMBNAIL UPLOAD ERROR: $e');
+      return null;
+    }
+  }
+
+  Future<void> scanBarcode() async {
+    try {
+      final result = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (_) => const _BarcodeScannerPage()),
+      );
+
+      if (result == null || result.isEmpty) return;
 
       setState(() {
         _barcode.text = result;
       });
 
-      await _handleBarcodeInput(result);
+      await handleBarcodeInput(result);
     } catch (e) {
-      debugPrint("❌ SCAN ERROR: $e");
+      debugPrint('❌ SCAN ERROR: $e');
       _snack(AppLocalizations.of(context)!.scanFailed, isError: true);
     }
   }
 
-  Future<void> _fetchFromOpenFoodFacts(String code) async {
+  Future<void> fetchFromOpenFoodFacts(String code) async {
     final l10n = AppLocalizations.of(context)!;
     try {
       debugPrint("🌍 CALLING API...");
@@ -1637,12 +1691,10 @@ Future<void> _scanBarcode() async {
               _price.text = fallbackPrice.toStringAsFixed(0);
             }
 
-            if (_priceSuggestionText == null) {
-              _priceSuggestionText = l10n.estimatedPriceLabel(
-                fallbackPrice.toStringAsFixed(0),
-                _currency,
-              );
-            }
+            _priceSuggestionText ??= l10n.estimatedPriceLabel(
+              fallbackPrice.toStringAsFixed(0),
+              _currency,
+            );
 
             if (_sku.text.trim().isEmpty && code.length >= 5) {
               _sku.text = "BC-${code.substring(code.length - 5)}";
@@ -1696,12 +1748,10 @@ Future<void> _scanBarcode() async {
               _price.text = fallbackPrice.toStringAsFixed(0);
             }
 
-            if (_priceSuggestionText == null) {
-              _priceSuggestionText = l10n.fallbackEstimateLabel(
-                fallbackPrice.toStringAsFixed(0),
-                _currency,
-              );
-            }
+            _priceSuggestionText ??= l10n.fallbackEstimateLabel(
+              fallbackPrice.toStringAsFixed(0),
+              _currency,
+            );
 
             if (_sku.text.trim().isEmpty && code.length >= 5) {
               _sku.text = "BC-${code.substring(code.length - 5)}";
@@ -1722,12 +1772,10 @@ Future<void> _scanBarcode() async {
             _price.text = fallbackPrice.toStringAsFixed(0);
           }
 
-          if (_priceSuggestionText == null) {
-            _priceSuggestionText = l10n.offlineEstimateLabel(
-              fallbackPrice.toStringAsFixed(0),
-              _currency,
-            );
-          }
+          _priceSuggestionText ??= l10n.offlineEstimateLabel(
+            fallbackPrice.toStringAsFixed(0),
+            _currency,
+          );
         });
       }
     } catch (e) {
@@ -1740,12 +1788,10 @@ Future<void> _scanBarcode() async {
           _price.text = fallbackPrice.toStringAsFixed(0);
         }
 
-        if (_priceSuggestionText == null) {
-          _priceSuggestionText = l10n.errorEstimateLabel(
-            fallbackPrice.toStringAsFixed(0),
-            _currency,
-          );
-        }
+        _priceSuggestionText ??= l10n.errorEstimateLabel(
+          fallbackPrice.toStringAsFixed(0),
+          _currency,
+        );
       });
     }
   }
@@ -1780,7 +1826,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
   };
 }
 */
-  void _generateSmartDescription() {
+  void generateSmartDescription() {
     final l10n = AppLocalizations.of(context)!;
     final name = _name.text;
     final brand = _brand.text;
@@ -1795,7 +1841,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     });
   }
 
-  Future<void> _fetchProductFromBarcode(String code) async {
+  Future<void> fetchProductFromBarcode(String code) async {
     final l10n = AppLocalizations.of(context)!;
     try {
       final globalDoc = await _getGlobalProductByBarcode(code);
@@ -1809,7 +1855,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
 
         // 🔥 description fallback
         if (_desc.text.trim().isEmpty) {
-          _generateSuggestedDescription();
+          generateSuggestedDescription();
         }
 
         // 🔥 run engine بعد از fill
@@ -1825,7 +1871,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
       // 2) API FALLBACK
       // =========================
       debugPrint("🌍 Not in Firestore → fetching from global API...");
-      await _fetchFromOpenFoodFacts(code);
+      await fetchFromOpenFoodFacts(code);
 
       // اگر API موفق بود (name پر شده)
       if (_name.text.trim().isNotEmpty) {
@@ -1837,7 +1883,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
         }
 
         if (_desc.text.trim().isEmpty) {
-          _generateSuggestedDescription();
+          generateSuggestedDescription();
         }
 
         // 🔥 مهم: price engine اجرا بشه
@@ -1885,7 +1931,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     }
   }
 
-  Future<void> _generateSuggestedDescription() async {
+  Future<void> generateSuggestedDescription() async {
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isGeneratingDescription = true);
 
@@ -1947,7 +1993,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     }
   }
 
-  Widget _buildPriceSuggestionBox() {
+  Widget buildPriceSuggestionBox() {
     final l10n = AppLocalizations.of(context)!;
     final hasData = _priceSuggestionText != null;
 
@@ -2006,7 +2052,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  Widget _buildFinalPriceBox() {
+  Widget buildFinalPriceBox() {
     final l10n = AppLocalizations.of(context)!;
     if (_finalRecommendedPrice == null) return const SizedBox();
 
@@ -2045,7 +2091,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  Widget _buildMarketInsights() {
+  Widget buildMarketInsights() {
     final l10n = AppLocalizations.of(context)!;
     if (_marketAverage == null && _marketMedian == null) {
       return const SizedBox();
@@ -2115,7 +2161,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  double _estimateSmartPrice() {
+  double estimateSmartPrice() {
     final weight = double.tryParse(_weightKg.text);
 
     final category = "$_mainCategory > $_subCategory";
@@ -2137,7 +2183,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     return 100;
   }
 
-  Future<void> _handleBarcodeInput(String value) async {
+  Future<void> handleBarcodeInput(String value) async {
     final l10n = AppLocalizations.of(context)!;
     final code = value.trim();
 
@@ -2182,7 +2228,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
         _barcodeStatusColor = Colors.blue;
       });
 
-      await _fetchProductFromBarcode(code);
+      await fetchProductFromBarcode(code);
 
       await Future.delayed(const Duration(milliseconds: 150));
 
@@ -2216,7 +2262,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
       // 4) FAILSAFE PRICE
       // =========================
       if (_suggestedPrice == null) {
-        final fallbackPrice = _estimateSmartPrice();
+        final fallbackPrice = estimateSmartPrice();
 
         setState(() {
           _suggestedPrice = fallbackPrice;
@@ -2237,7 +2283,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
       // 5) DESCRIPTION
       // =========================
       if (_desc.text.trim().isEmpty) {
-        _generateSuggestedDescription();
+        generateSuggestedDescription();
       }
 
       // =========================
@@ -2275,7 +2321,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     }
   }
 
-  Widget _buildBarcodeStatus() {
+  Widget buildBarcodeStatus() {
     if (_barcodeStatusText == null) return const SizedBox();
 
     return AnimatedContainer(
@@ -2314,7 +2360,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  Widget _buildNumberField({
+  Widget buildNumberField({
     required TextEditingController controller,
     required String label,
     String? suffix,
@@ -2354,7 +2400,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  Widget _sectionHeader(String title, IconData icon) {
+  Widget sectionHeader(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(top: 18, bottom: 10),
       child: Row(
@@ -2367,7 +2413,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  Widget _buildSwitchTile({
+  Widget buildSwitchTile({
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
@@ -2535,22 +2581,22 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   const SizedBox(height: 20),
 
                   // 🔹 BASIC INFO
-                  _sectionHeader(
+                  sectionHeader(
                     l10n.basicInfoSectionTitle,
                     LucideIcons.package,
                   ),
                   const SizedBox(height: 12),
 
-                  _input(_name, l10n.productNameMinCharsLabel),
+                  input(_name, l10n.productNameMinCharsLabel),
                   const SizedBox(height: 12),
-                  _input(_brand, l10n.brandLabel),
+                  input(_brand, l10n.brandLabel),
                   const SizedBox(height: 12),
 
-                  _buildPriceSuggestionBox(),
+                  buildPriceSuggestionBox(),
                   const SizedBox(height: 12),
-                  _buildFinalPriceBox(),
+                  buildFinalPriceBox(),
                   const SizedBox(height: 12),
-                  _buildMarketInsights(),
+                  buildMarketInsights(),
 
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2570,13 +2616,17 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                                     final clean = value.trim();
 
                                     // فقط عدد
-                                    if (!RegExp(r'^\d+$').hasMatch(clean))
+                                    if (!RegExp(r'^\d+$').hasMatch(clean)) {
                                       return;
+                                    }
 
-                                    if (!RegExp(r'^\d{12,13}$').hasMatch(clean))
+                                    if (!RegExp(
+                                      r'^\d{12,13}$',
+                                    ).hasMatch(clean)) {
                                       return;
+                                    }
 
-                                    await _handleBarcodeInput(clean);
+                                    await handleBarcodeInput(clean);
                                   },
                                 );
                               },
@@ -2609,7 +2659,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                                 ),
                               ),
                             ),
-                            _buildBarcodeStatus(),
+                            buildBarcodeStatus(),
                             const SizedBox(height: 6),
                             Text(
                               l10n.enterBarcodeHint,
@@ -2635,22 +2685,26 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       const SizedBox(width: 8),
                       Column(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(LucideIcons.scanLine, size: 20),
-                                const SizedBox(height: 4),
-                                Text(
-                                  l10n.scanButtonLabel,
-                                  style: AppTheme.caption(),
-                                ),
-                              ],
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: scanBarcode,
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(LucideIcons.scanLine, size: 20),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    l10n.scanButtonLabel,
+                                    style: AppTheme.caption(),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -2690,7 +2744,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   const SizedBox(height: 12),
 
                   // 🔥 PRICE SECTION (FIXED + PRO)
-                  _sectionHeader(
+                  sectionHeader(
                     l10n.shippingAndDeliverySectionTitle,
                     LucideIcons.truck,
                   ),
@@ -2718,7 +2772,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // 🔹 NORMAL PRICE
-                            _input(
+                            input(
                               _price,
                               _hasDiscount
                                   ? l10n.originalPriceLabel
@@ -2729,13 +2783,13 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                             const SizedBox(height: 12),
 
                             // 🔹 WHOLESALE PRICE (B2B)
-                            _input(
+                            input(
                               _wholesalePrice,
                               l10n.wholesalePriceLabel,
                               isNumber: true,
                             ),
                             const SizedBox(height: 12),
-                            _input(
+                            input(
                               _wholesaleMinQty,
                               l10n.minimumQuantityForWholesaleLabel,
                               isNumber: true,
@@ -2766,7 +2820,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                               ),
                             if (_hasDiscount) ...[
                               const SizedBox(height: 12),
-                              _input(
+                              input(
                                 _salePrice,
                                 l10n.discountPriceLabel,
                                 isNumber: true,
@@ -2781,7 +2835,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       SizedBox(
                         width: 90, // 🔥 مهم
                         child: DropdownButtonFormField<double>(
-                          value: _kdvRate,
+                          initialValue: _kdvRate,
                           decoration: InputDecoration(
                             labelText: l10n.kdvLabel,
                             border: OutlineInputBorder(
@@ -2813,7 +2867,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       SizedBox(
                         width: 90,
                         child: DropdownButtonFormField<String>(
-                          value: _currency,
+                          initialValue: _currency,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: Colors.white,
@@ -2840,8 +2894,8 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   // 🔥 DISCOUNT PRICE
 
                   // 🔥 SMART PRICE SUGGESTION
-                  _buildPriceSuggestionBox(),
-                  _buildFinalPriceBox(),
+                  buildPriceSuggestionBox(),
+                  buildFinalPriceBox(),
 
                   if (_suggestedPrice != null)
                     Padding(
@@ -2869,7 +2923,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   const SizedBox(height: 12),
 
                   // 📦 WEIGHT
-                  _input(
+                  input(
                     _weightKg,
                     l10n.weightLabel,
                     isNumber: true,
@@ -2885,7 +2939,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       Expanded(
                         child: Column(
                           children: [
-                            _input(
+                            input(
                               _lengthCm,
                               l10n.lengthLabel,
                               isNumber: true,
@@ -2899,7 +2953,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                         ),
                       ),
                       Expanded(
-                        child: _input(
+                        child: input(
                           _widthCm,
                           l10n.widthLabel,
                           isNumber: true,
@@ -2911,7 +2965,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: _input(
+                        child: input(
                           _heightCm,
                           l10n.heightLabel,
                           isNumber: true,
@@ -2941,7 +2995,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                     ),
                   ),
 
-                  _input(
+                  input(
                     _fixedDesi,
                     l10n.manualDesiOverrideOptionalLabel,
                     isNumber: true,
@@ -2955,7 +3009,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
 
                   // 🚚 SHIPPING MODE
                   DropdownButtonFormField<String>(
-                    value: _shippingMode,
+                    initialValue: _shippingMode,
                     decoration: InputDecoration(
                       labelText: l10n.shippingModeLabel,
                       filled: true,
@@ -3000,7 +3054,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
 
                   // 💵 FIXED PRICE
                   if (_shippingMode == "fixed_price")
-                    _input(
+                    input(
                       _shippingFee,
                       l10n.fixedShippingFeeLabel,
                       isNumber: true,
@@ -3017,7 +3071,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   ),
 
                   if (_shippingPayer == "conditional" || _allowFreeShipping)
-                    _input(
+                    input(
                       _freeShippingThreshold,
                       l10n.freeShippingThresholdLabel,
                       isNumber: true,
@@ -3027,18 +3081,18 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   const SizedBox(height: 12),
 
                   // ⏱ DELIVERY TIME
-                  _input(
+                  input(
                     _prepDays,
                     l10n.preparationTimeDaysLabel,
                     isNumber: true,
                   ),
                   const SizedBox(height: 12),
-                  _input(
+                  input(
                     _maxDeliveryDays,
                     l10n.maxDeliveryTimeDaysLabel,
                     isNumber: true,
                   ),
-                  _buildShippingPreview(),
+                  buildShippingPreview(),
                   const SizedBox(height: 12),
 
                   // 🚛 CARRIERS
@@ -3078,14 +3132,14 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   ),
 
                   if (_allowReturns) ...[
-                    _input(
+                    input(
                       _returnWindowDays,
                       l10n.returnWindowDaysLabel,
                       isNumber: true,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _returnShippingPayer,
+                      initialValue: _returnShippingPayer,
                       decoration: InputDecoration(
                         labelText: l10n.returnShippingPayerLabel,
                         filled: true,
@@ -3119,9 +3173,9 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   Text(l10n.inventoryTitle, style: AppTheme.h2()),
                   const SizedBox(height: 12),
 
-                  _input(_stock, l10n.inventoryStockFieldLabel, isNumber: true),
+                  input(_stock, l10n.inventoryStockFieldLabel, isNumber: true),
                   const SizedBox(height: 12),
-                  _input(_minStock, l10n.lowStockAlertLabel, isNumber: true),
+                  input(_minStock, l10n.lowStockAlertLabel, isNumber: true),
 
                   const SizedBox(height: 12),
 
@@ -3130,7 +3184,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   const SizedBox(height: 12),
 
                   DropdownButtonFormField<String>(
-                    value: _mainCategory,
+                    initialValue: _mainCategory,
                     decoration: InputDecoration(
                       labelText: l10n.mainCategoryLabel,
                       filled: true,
@@ -3160,7 +3214,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                   const SizedBox(height: 12),
 
                   DropdownButtonFormField<String>(
-                    value: _subCategory,
+                    initialValue: _subCategory,
                     decoration: InputDecoration(
                       labelText: l10n.subCategoryLabel,
                       filled: true,
@@ -3194,7 +3248,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       TextButton.icon(
                         onPressed: _isGeneratingDescription
                             ? null
-                            : _generateSuggestedDescription,
+                            : generateSuggestedDescription,
                         icon: const Icon(LucideIcons.sparkles, size: 16),
                         label: Text(
                           _isGeneratingDescription
@@ -3205,7 +3259,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _input(_desc, l10n.descriptionLabel, maxLines: 4),
+                  input(_desc, l10n.descriptionLabel, maxLines: 4),
 
                   const SizedBox(height: 30),
 
@@ -3252,7 +3306,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  Widget _buildShippingPreview() {
+  Widget buildShippingPreview() {
     final l10n = AppLocalizations.of(context)!;
     if (_shippingPreview == null) return const SizedBox();
 
@@ -3311,7 +3365,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  Widget _input(
+  Widget input(
     TextEditingController controller,
     String label, {
     bool isNumber = false,
@@ -3339,7 +3393,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     );
   }
 
-  static double getCarrierPrice(String carrier, double desi) {
+  double getCarrierPrice(String carrier, double desi) {
     double base;
 
     if (desi <= 1) {
@@ -3365,7 +3419,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     }
   }
 
-  static Map<String, dynamic> getBestCarrier({
+  Map<String, dynamic> getBestCarrier({
     required List<String> carriers,
     required double desi,
   }) {
@@ -3384,7 +3438,7 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     return {"carrier": bestCarrier, "price": bestPrice};
   }
 
-  static Map<String, dynamic> calculateFinalShipping({
+  Map<String, dynamic> calculateFinalShipping({
     required double productPrice,
     required double shippingPrice,
     required String shippingMode,
@@ -3418,8 +3472,6 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
     return {"buyerPays": buyerPays, "sellerPays": sellerPays};
   }
 }
-<<<<<<< HEAD
-}
 
 class _BarcodeScannerPage extends StatefulWidget {
   const _BarcodeScannerPage();
@@ -3451,5 +3503,3 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
     );
   }
 }
-=======
->>>>>>> 823c872 (ci: add flutter github actions workflow)

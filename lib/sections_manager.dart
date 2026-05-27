@@ -6,7 +6,6 @@ import 'dog_card.dart';
 import 'app_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:flutter/foundation.dart';
 
 
 

@@ -8,6 +8,11 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/ui/vet/edit_vet_profile_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_schedule_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_patients_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_settings_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_gallery_management_page.dart';
 
 class VetDashboardOverviewTab extends StatelessWidget {
   final String businessId;
@@ -227,34 +232,73 @@ class VetDashboardOverviewTab extends StatelessWidget {
 
         Row(
           children: [
-            _ActionBtn(
-              "Schedule",
-              LucideIcons.calendar,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Schedule page coming next")),
-                );
-              },
+            Expanded(
+              child: _ActionBtn(
+                "Schedule",
+                LucideIcons.calendar,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VetSchedulePage(businessId: businessId),
+                    ),
+                  );
+                },
+              ),
             ),
+
             const SizedBox(width: 10),
-            _ActionBtn(
-              "Patients",
-              LucideIcons.users,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Patients page coming next")),
-                );
-              },
+
+            Expanded(
+              child: _ActionBtn(
+                "Patients",
+                LucideIcons.users,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VetPatientsPage(businessId: businessId),
+                    ),
+                  );
+                },
+              ),
             ),
+
             const SizedBox(width: 10),
-            _ActionBtn(
-              "Settings",
-              LucideIcons.settings,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Settings page coming next")),
-                );
-              },
+
+Expanded(
+  child: _ActionBtn(
+    "Gallery",
+    LucideIcons.image,
+
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VetGalleryManagementPage(
+            businessId: businessId,
+          ),
+        ),
+      );
+    },
+  ),
+),
+
+            const SizedBox(width: 10),
+
+            Expanded(
+              child: _ActionBtn(
+                "Settings",
+                LucideIcons.settings,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VetSettingsPage(businessId: businessId),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -860,8 +904,12 @@ class VetDashboardOverviewTab extends StatelessWidget {
                   foregroundColor: Colors.black,
                 ),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Edit profile coming soon")),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          EditVetProfilePage(businessId: businessId),
+                    ),
                   );
                 },
                 icon: const Icon(LucideIcons.edit2, size: 18),
@@ -982,9 +1030,9 @@ class _ActionBtn extends StatelessWidget {
   const _ActionBtn(this.text, this.icon, {this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
+
+Widget build(BuildContext context) {
+  return GestureDetector(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(12),
@@ -1001,7 +1049,7 @@ class _ActionBtn extends StatelessWidget {
             ],
           ),
         ),
-      ),
+     
     );
   }
 }
