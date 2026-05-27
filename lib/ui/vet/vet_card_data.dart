@@ -8,48 +8,48 @@ class VetCardData extends BusinessCardData {
   @override
   final String? logoUrl;
   final String? coverImageUrl;
-  
-@override
+
+  @override
   final Map<String, dynamic>? rawData;
   // 🔥 NEW
   final Map<String, dynamic>? sectorData;
 
   const VetCardData({
-  required super.id,
-  required super.name,
-  required super.city,
-  required super.district,
-  required super.address,
+    required super.id,
+    required super.name,
+    required super.city,
+    required super.district,
+    required super.address,
 
-  super.distanceKm,
+    super.distanceKm,
 
-  required super.specialties,
+    required super.specialties,
 
-  super.services,
-  super.phone,
-  super.whatsapp,
+    super.services,
+    super.phone,
+    super.whatsapp,
 
-  super.rating,
-  super.reviewsCount,
+    super.rating,
+    super.reviewsCount,
 
-  super.workingHours,
-  super.description,
+    super.workingHours,
+    super.description,
 
-  super.isPartner,
-  super.isVerified,
-  super.is24h,
-  super.isEmergency,
+    super.isPartner,
+    super.isVerified,
+    super.is24h,
+    super.isEmergency,
 
-  required super.type,
+    required super.type,
 
-  this.instagram,
-  this.website,
-  this.logoUrl,
-  this.coverImageUrl,
-  this.rawData,
+    this.instagram,
+    this.website,
+    this.logoUrl,
+    this.coverImageUrl,
+    this.rawData,
 
-  this.sectorData,
-});
+    this.sectorData,
+  });
 
   // 🔥 VERY IMPORTANT
   Map<String, dynamic> toMap() {

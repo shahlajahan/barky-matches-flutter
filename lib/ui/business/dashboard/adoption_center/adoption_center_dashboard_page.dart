@@ -17,21 +17,12 @@ import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/sectio
 
 import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/adoption_center_requests_tab.dart';
 
+enum AdoptionCenterDashboardSection { overview, pets, gallery, requests }
 
-
-enum AdoptionCenterDashboardSection {
-  overview,
-  pets,
-  gallery,
-  requests,
-}
-
-class AdoptionCenterDashboardPage
-    extends StatefulWidget {
+class AdoptionCenterDashboardPage extends StatefulWidget {
   final String businessId;
 
-  final Map<String, dynamic>
-      businessData;
+  final Map<String, dynamic> businessData;
 
   const AdoptionCenterDashboardPage({
     super.key,
@@ -40,21 +31,13 @@ class AdoptionCenterDashboardPage
   });
 
   @override
-  State<
-    AdoptionCenterDashboardPage
-  >
-  createState() =>
+  State<AdoptionCenterDashboardPage> createState() =>
       _AdoptionCenterDashboardPageState();
 }
 
 class _AdoptionCenterDashboardPageState
-    extends State<
-      AdoptionCenterDashboardPage
-    > {
-
-  static const List<String>
-      _adoptionPetTemplates = [
-
+    extends State<AdoptionCenterDashboardPage> {
+  static const List<String> _adoptionPetTemplates = [
     'Dog',
 
     'Cat',
@@ -74,35 +57,26 @@ class _AdoptionCenterDashboardPageState
     'Rescue Cat',
   ];
 
-  AdoptionCenterDashboardSection
-      _selected =
-      AdoptionCenterDashboardSection
-          .overview;
+  AdoptionCenterDashboardSection _selected =
+      AdoptionCenterDashboardSection.overview;
 
   @override
   Widget build(BuildContext context) {
-
-    final appState =
-        context.watch<AppState>();
+    final appState = context.watch<AppState>();
 
     /// =============================
     /// ➕ ADD PET
     /// =============================
 
-    if (appState.businessSubPage ==
-        BusinessSubPage.addService) {
-
+    if (appState.businessSubPage == BusinessSubPage.addService) {
       return AddAdoptionPetPage(
-
         pets: _adoptionPetTemplates,
 
         title: 'Add Adoption Pet',
 
-        sectionTitle:
-            'Select Pet Type',
+        sectionTitle: 'Select Pet Type',
 
-        fallbackIcon:
-            Icons.pets,
+        fallbackIcon: Icons.pets,
       );
     }
 
@@ -110,27 +84,15 @@ class _AdoptionCenterDashboardPageState
     /// ✏️ ADD PET DETAIL
     /// =============================
 
-    if (appState.businessSubPage ==
-        BusinessSubPage
-            .addServiceDetail) {
-
+    if (appState.businessSubPage == BusinessSubPage.addServiceDetail) {
       return AddAdoptionPetDetailPage(
+        businessId: widget.businessId,
 
-        businessId:
-            widget.businessId,
+        petTitle: appState.selectedServiceTitle ?? '',
 
-        petTitle:
-            appState
-                    .selectedServiceTitle ??
-                '',
+        petId: appState.editingServiceId,
 
-        petId:
-            appState
-                .editingServiceId,
-
-        existingData:
-            appState
-                .editingServiceData,
+        existingData: appState.editingServiceData,
       );
     }
 
@@ -142,14 +104,11 @@ class _AdoptionCenterDashboardPageState
 
         child: Column(
           children: [
-
             _TopTabs(
               selected: _selected,
 
               onChange: (section) {
-
                 setState(() {
-
                   _selected = section;
                 });
               },
@@ -157,14 +116,9 @@ class _AdoptionCenterDashboardPageState
 
             Expanded(
               child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
 
-                duration:
-                    const Duration(
-                  milliseconds: 250,
-                ),
-
-                child:
-                    _buildContent(),
+                child: _buildContent(),
               ),
             ),
           ],
@@ -174,132 +128,80 @@ class _AdoptionCenterDashboardPageState
   }
 
   Widget _buildContent() {
-
     switch (_selected) {
-
       /// =============================
       /// OVERVIEW
       /// =============================
 
-      case AdoptionCenterDashboardSection
-          .overview:
-
+      case AdoptionCenterDashboardSection.overview:
         return AdoptionCenterDashboardOverviewTab(
+          key: const ValueKey('overview'),
 
-          key: const ValueKey(
-            'overview',
-          ),
+          businessId: widget.businessId,
 
-          businessId:
-              widget.businessId,
-
-          businessData:
-              widget.businessData,
+          businessData: widget.businessData,
         );
 
       /// =============================
       /// PETS
       /// =============================
 
-      case AdoptionCenterDashboardSection
-          .pets:
-
+      case AdoptionCenterDashboardSection.pets:
         return AdoptionPetsTab(
+          key: const ValueKey('pets'),
 
-          key: const ValueKey(
-            'pets',
-          ),
-
-          businessId:
-              widget.businessId,
+          businessId: widget.businessId,
         );
 
       /// =============================
       /// GALLERY
       /// =============================
 
-      case AdoptionCenterDashboardSection
-          .gallery:
-
+      case AdoptionCenterDashboardSection.gallery:
         return AdoptionCenterDashboardGalleryTab(
+          key: const ValueKey('gallery'),
 
-          key: const ValueKey(
-            'gallery',
-          ),
-
-          businessId:
-              widget.businessId,
+          businessId: widget.businessId,
         );
 
       /// =============================
       /// REQUESTS
       /// =============================
 
-      case AdoptionCenterDashboardSection
-          .requests:
-
+      case AdoptionCenterDashboardSection.requests:
         return AdoptionCenterRequestsTab(
+          key: const ValueKey('requests'),
 
-          key: const ValueKey(
-            'requests',
-          ),
-
-          businessId:
-              widget.businessId,
+          businessId: widget.businessId,
         );
     }
   }
 }
 
 class _TopTabs extends StatelessWidget {
+  final AdoptionCenterDashboardSection selected;
 
-  final AdoptionCenterDashboardSection
-      selected;
+  final ValueChanged<AdoptionCenterDashboardSection> onChange;
 
-  final ValueChanged<
-      AdoptionCenterDashboardSection>
-      onChange;
-
-  const _TopTabs({
-    required this.selected,
-    required this.onChange,
-  });
+  const _TopTabs({required this.selected, required this.onChange});
 
   @override
   Widget build(BuildContext context) {
-
     final items = [
-
       (
-        AdoptionCenterDashboardSection
-            .overview,
+        AdoptionCenterDashboardSection.overview,
 
         'Overview',
 
         LucideIcons.layoutDashboard,
       ),
 
-      (
-        AdoptionCenterDashboardSection
-            .pets,
+      (AdoptionCenterDashboardSection.pets, 'Pets', Icons.pets),
 
-        'Pets',
-
-        Icons.pets,
-      ),
+      (AdoptionCenterDashboardSection.gallery, 'Gallery', LucideIcons.image),
 
       (
-        AdoptionCenterDashboardSection
-            .gallery,
-
-        'Gallery',
-
-        LucideIcons.image,
-      ),
-
-      (
-        AdoptionCenterDashboardSection
-            .requests,
+        AdoptionCenterDashboardSection.requests,
 
         'Requests',
 
@@ -308,134 +210,71 @@ class _TopTabs extends StatelessWidget {
     ];
 
     return Container(
-
-      margin:
-          const EdgeInsets.only(
-        top: 10,
-      ),
+      margin: const EdgeInsets.only(top: 10),
 
       height: 64,
 
       child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
 
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 12,
-        ),
-
-        scrollDirection:
-            Axis.horizontal,
+        scrollDirection: Axis.horizontal,
 
         itemCount: items.length,
 
-        separatorBuilder:
-            (_, __) =>
-                const SizedBox(
-          width: 10,
-        ),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
 
-        itemBuilder: (
-          context,
-          index,
-        ) {
+        itemBuilder: (context, index) {
+          final (section, title, icon) = items[index];
 
-          final (
-            section,
-            title,
-            icon,
-          ) = items[index];
-
-          final isSelected =
-              selected == section;
+          final isSelected = selected == section;
 
           return GestureDetector(
+            onTap: () => onChange(section),
 
-            onTap: () =>
-                onChange(section),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
 
-            child:
-                AnimatedContainer(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
 
-              duration:
-                  const Duration(
-                milliseconds: 180,
-              ),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF9E1B4F) : Colors.white,
 
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 14,
-              ),
-
-              decoration:
-                  BoxDecoration(
-
-                color: isSelected
-                    ? const Color(
-                        0xFF9E1B4F,
-                      )
-                    : Colors.white,
-
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
+                borderRadius: BorderRadius.circular(18),
 
                 boxShadow: [
-
                   BoxShadow(
-
-                    color: Colors.black
-                        .withOpacity(
-                      0.06,
-                    ),
+                    color: Colors.black.withOpacity(0.06),
 
                     blurRadius: 10,
 
-                    offset:
-                        const Offset(
-                      0,
-                      4,
-                    ),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
 
               child: Row(
                 children: [
-
                   Icon(
-
                     icon,
 
                     size: 18,
 
-                    color: isSelected
-                        ? Colors.white
-                        : const Color(
-                            0xFF9E1B4F,
-                          ),
+                    color: isSelected ? Colors.white : const Color(0xFF9E1B4F),
                   ),
 
-                  const SizedBox(
-                    width: 6,
-                  ),
+                  const SizedBox(width: 6),
 
                   Text(
-
                     title,
 
                     style: TextStyle(
-
                       fontSize: 13,
 
-                      fontWeight:
-                          FontWeight.w700,
+                      fontWeight: FontWeight.w700,
 
                       color: isSelected
                           ? Colors.white
-                          : const Color(
-                              0xFF9E1B4F,
-                            ),
+                          : const Color(0xFF9E1B4F),
                     ),
                   ),
                 ],

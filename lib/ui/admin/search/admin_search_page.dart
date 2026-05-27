@@ -63,10 +63,7 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
     });
 
     try {
-      final data = await _service.search(
-        query: trimmed,
-        type: _selectedType,
-      );
+      final data = await _service.search(query: trimmed, type: _selectedType);
 
       if (!mounted) return;
       setState(() => _items = data);
@@ -132,7 +129,9 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
   }
 
   Future<void> _openItem(AdminSearchItem item) async {
-    debugPrint('Open admin search item → ${item.entityType} / ${item.entityId}');
+    debugPrint(
+      'Open admin search item → ${item.entityType} / ${item.entityId}',
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -230,7 +229,9 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: _statusColor(item.status).withOpacity(0.12),
+                              color: _statusColor(
+                                item.status,
+                              ).withOpacity(0.12),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
@@ -293,10 +294,7 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -328,9 +326,7 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Global Admin Search'),
-      ),
+      appBar: AppBar(title: const Text('Global Admin Search')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

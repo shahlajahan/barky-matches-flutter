@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 
-
 class DogDetailsPage extends StatefulWidget {
   final Dog? dog;
   final Function(Dog) onDogAdded;
@@ -54,8 +53,12 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
     dogsBox = Hive.box<Dog>('dogsBox');
     nameController = TextEditingController(text: widget.dog?.name ?? '');
     breedController = TextEditingController(text: widget.dog?.breed ?? '');
-    ageController = TextEditingController(text: widget.dog?.age.toString() ?? '');
-    descriptionController = TextEditingController(text: widget.dog?.description ?? '');
+    ageController = TextEditingController(
+      text: widget.dog?.age.toString() ?? '',
+    );
+    descriptionController = TextEditingController(
+      text: widget.dog?.description ?? '',
+    );
     selectedGender = widget.dog?.gender ?? 'Male';
     selectedBreed = widget.dog?.breed ?? breeds[0];
     selectedHealth = widget.dog?.healthStatus ?? 'Healthy';
@@ -74,7 +77,9 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
       if (await file.exists()) {
         validPaths.add(path);
       } else {
-        debugPrint('DogDetailsPage - Image path invalid or file does not exist: $path');
+        debugPrint(
+          'DogDetailsPage - Image path invalid or file does not exist: $path',
+        );
       }
     }
     setState(() {
@@ -181,21 +186,29 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
     // match انگلیسی یا فارسی
     final healthyFa = (l10n.healthHealthy ?? 'healthy').toLowerCase();
     final needsFa = (l10n.healthNeedsCare ?? 'needs care').toLowerCase();
-    final underFa = (l10n.healthUnderTreatment ?? 'under treatment').toLowerCase();
-    
-    if (lowerStatus == healthyFa || lowerStatus == 'سالم' || lowerStatus == 'healthy') {
+    final underFa = (l10n.healthUnderTreatment ?? 'under treatment')
+        .toLowerCase();
+
+    if (lowerStatus == healthyFa ||
+        lowerStatus == 'سالم' ||
+        lowerStatus == 'healthy') {
       return l10n.healthHealthy ?? 'Healthy';
     }
-    if (lowerStatus == needsFa || lowerStatus == 'نیاز به مراقبت' || lowerStatus == 'needs care' || lowerStatus == 'needs attention') {
+    if (lowerStatus == needsFa ||
+        lowerStatus == 'نیاز به مراقبت' ||
+        lowerStatus == 'needs care' ||
+        lowerStatus == 'needs attention') {
       return l10n.healthNeedsCare ?? 'Needs Care';
     }
-    if (lowerStatus == underFa || lowerStatus == 'در حال درمان' || lowerStatus == 'under treatment') {
+    if (lowerStatus == underFa ||
+        lowerStatus == 'در حال درمان' ||
+        lowerStatus == 'under treatment') {
       return l10n.healthUnderTreatment ?? 'Under Treatment';
     }
     if (kDebugMode) {
       debugPrint('No match for health status: "$lowerStatus"');
     }
-    return status;  // fallback به raw (فارسی)
+    return status; // fallback به raw (فارسی)
   }
 
   @override
@@ -203,7 +216,11 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.dog == null ? l10n.dogDetailsAddTitle : l10n.dogDetailsEditTitle),
+        title: Text(
+          widget.dog == null
+              ? l10n.dogDetailsAddTitle
+              : l10n.dogDetailsEditTitle,
+        ),
         backgroundColor: Colors.pink,
       ),
       body: Container(
@@ -243,10 +260,12 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                     });
                   },
                   items: breeds
-                      .map((breed) => DropdownMenuItem(
-                            value: breed,
-                            child: Text(translateBreed(breed)),
-                          ))
+                      .map(
+                        (breed) => DropdownMenuItem(
+                          value: breed,
+                          child: Text(translateBreed(breed)),
+                        ),
+                      )
                       .toList(),
                   dropdownColor: Colors.pinkAccent,
                   style: const TextStyle(color: Colors.white),
@@ -281,12 +300,15 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                       selectedGender = value;
                     });
                   },
-                  items: [l10n.dogDetailsGenderMale, l10n.dogDetailsGenderFemale]
-                      .map((gender) => DropdownMenuItem(
-                            value: gender,
-                            child: Text(gender),
-                          ))
-                      .toList(),
+                  items:
+                      [l10n.dogDetailsGenderMale, l10n.dogDetailsGenderFemale]
+                          .map(
+                            (gender) => DropdownMenuItem(
+                              value: gender,
+                              child: Text(gender),
+                            ),
+                          )
+                          .toList(),
                   dropdownColor: Colors.pinkAccent,
                   style: const TextStyle(color: Colors.white),
                   iconEnabledColor: Colors.white,
@@ -304,16 +326,22 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                       selectedHealth = value;
                     });
                   },
-                  items: [
-                    l10n.dogDetailsHealthHealthy,
-                    l10n.dogDetailsHealthSick,
-                    l10n.dogDetailsHealthRecovering,
-                  ]
-                      .map((health) => DropdownMenuItem(
-                            value: health,  // ← value رو raw نگه دار، label رو ترجمه کن
-                            child: Text(translateHealthStatus(health)),  // ← label ترجمه‌شده
-                          ))
-                      .toList(),
+                  items:
+                      [
+                            l10n.dogDetailsHealthHealthy,
+                            l10n.dogDetailsHealthSick,
+                            l10n.dogDetailsHealthRecovering,
+                          ]
+                          .map(
+                            (health) => DropdownMenuItem(
+                              value:
+                                  health, // ← value رو raw نگه دار، label رو ترجمه کن
+                              child: Text(
+                                translateHealthStatus(health),
+                              ), // ← label ترجمه‌شده
+                            ),
+                          )
+                          .toList(),
                   dropdownColor: Colors.pinkAccent,
                   style: const TextStyle(color: Colors.white),
                   iconEnabledColor: Colors.white,
@@ -361,30 +389,35 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                 ),
                 Wrap(
                   spacing: 8.0,
-                  children: [
-                    'traitEnergetic',
-                    'traitCalm',
-                    'traitPlayful',
-                    'traitLoyal',
-                    'traitCurious',
-                  ]
-                      .map((trait) => ChoiceChip(
-                            label: Text(translateTrait(trait)),  // ← ترجمه traits (نه حذف!)
-                            selected: traits.contains(trait),
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  traits.add(trait);
-                                } else {
-                                  traits.remove(trait);
-                                }
-                              });
-                            },
-                            selectedColor: Colors.pinkAccent,
-                            labelStyle: const TextStyle(color: Colors.black),
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                          ))
-                      .toList(),
+                  children:
+                      [
+                            'traitEnergetic',
+                            'traitCalm',
+                            'traitPlayful',
+                            'traitLoyal',
+                            'traitCurious',
+                          ]
+                          .map(
+                            (trait) => ChoiceChip(
+                              label: Text(
+                                translateTrait(trait),
+                              ), // ← ترجمه traits (نه حذف!)
+                              selected: traits.contains(trait),
+                              onSelected: (selected) {
+                                setState(() {
+                                  if (selected) {
+                                    traits.add(trait);
+                                  } else {
+                                    traits.remove(trait);
+                                  }
+                                });
+                              },
+                              selectedColor: Colors.pinkAccent,
+                              labelStyle: const TextStyle(color: Colors.black),
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                            ),
+                          )
+                          .toList(),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -398,12 +431,19 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                       selectedOwnerGender = value;
                     });
                   },
-                  items: [l10n.dogDetailsGenderMale, l10n.dogDetailsGenderFemale, l10n.dogDetailsOwnerGenderPreferNotToSay]
-                      .map((gender) => DropdownMenuItem(
-                            value: gender,
-                            child: Text(gender),
-                          ))
-                      .toList(),
+                  items:
+                      [
+                            l10n.dogDetailsGenderMale,
+                            l10n.dogDetailsGenderFemale,
+                            l10n.dogDetailsOwnerGenderPreferNotToSay,
+                          ]
+                          .map(
+                            (gender) => DropdownMenuItem(
+                              value: gender,
+                              child: Text(gender),
+                            ),
+                          )
+                          .toList(),
                   dropdownColor: Colors.pinkAccent,
                   style: const TextStyle(color: Colors.white),
                   iconEnabledColor: Colors.white,
@@ -413,12 +453,16 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                 ElevatedButton(
                   onPressed: () async {
                     final picker = ImagePicker();
-                    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                    final pickedFile = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
                     if (pickedFile != null) {
                       setState(() {
                         imagePaths.add(pickedFile.path);
                       });
-                      debugPrint('DogDetailsPage - Image picked: ${pickedFile.path}');
+                      debugPrint(
+                        'DogDetailsPage - Image picked: ${pickedFile.path}',
+                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -439,13 +483,20 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                             return FutureBuilder<bool>(
                               future: file.exists(),
                               builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
                                   return const CircularProgressIndicator();
                                 }
-                                if (snapshot.hasError || !snapshot.hasData || !snapshot.data!) {
+                                if (snapshot.hasError ||
+                                    !snapshot.hasData ||
+                                    !snapshot.data!) {
                                   return const Padding(
                                     padding: EdgeInsets.only(right: 8.0),
-                                    child: Icon(Icons.error, color: Colors.white, size: 100),
+                                    child: Icon(
+                                      Icons.error,
+                                      color: Colors.white,
+                                      size: 100,
+                                    ),
                                   );
                                 }
                                 return Padding(
@@ -456,8 +507,13 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                                     height: 100,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
-                                      debugPrint('DogDetailsPage - Error loading image: $error');
-                                      return const Icon(Icons.error, color: Colors.white);
+                                      debugPrint(
+                                        'DogDetailsPage - Error loading image: $error',
+                                      );
+                                      return const Icon(
+                                        Icons.error,
+                                        color: Colors.white,
+                                      );
                                     },
                                   ),
                                 );
@@ -495,61 +551,72 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                     final existingDog = dogsBox.values.firstWhere(
                       (dog) =>
                           dog.name == nameController.text &&
-                          dog.ownerId == Hive.box<String>('userBox').get('currentUserId'),
+                          dog.ownerId ==
+                              Hive.box<String>('userBox').get('currentUserId'),
                       orElse: () => Dog(
-  id: '',
-  name: '',
-  breed: '',
-  gender: '',
-  age: 0,
-  healthStatus: '',
-  isNeutered: false,
-  description: '',
-  traits: [],
-  ownerGender: '',
-  imagePaths: [],
-  isAvailableForAdoption: false,
-  isOwner: false,
-  ownerId: '',
-),
+                        id: '',
+                        name: '',
+                        breed: '',
+                        gender: '',
+                        age: 0,
+                        healthStatus: '',
+                        isNeutered: false,
+                        description: '',
+                        traits: [],
+                        ownerGender: '',
+                        imagePaths: [],
+                        isAvailableForAdoption: false,
+                        isOwner: false,
+                        ownerId: '',
+                      ),
                     );
                     if (existingDog.name.isNotEmpty) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        'Dog name "${nameController.text}" already exists',
-      ),
-    ),
-  );
-  return;
-}
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Dog name "${nameController.text}" already exists',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     final newDog = Dog(
-  id: DateTime.now().millisecondsSinceEpoch.toString(),
-  name: nameController.text,
-  breed: selectedBreed ?? 'Pekingese',
-  gender: selectedGender ?? 'Male',
-  age: int.tryParse(ageController.text) ?? 0,
-  healthStatus: selectedHealth ?? 'Healthy',
-  isNeutered: isNeutered,
-  description: descriptionController.text,
-  traits: traits,
-  ownerGender: selectedOwnerGender ?? 'Female',
-  imagePaths: imagePaths,
-  isAvailableForAdoption: isAvailableForAdoption,
-  isOwner: true,
-  ownerId: Hive.box<String>('userBox').get('currentUserId') ?? '',
-);
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      name: nameController.text,
+                      breed: selectedBreed ?? 'Pekingese',
+                      gender: selectedGender ?? 'Male',
+                      age: int.tryParse(ageController.text) ?? 0,
+                      healthStatus: selectedHealth ?? 'Healthy',
+                      isNeutered: isNeutered,
+                      description: descriptionController.text,
+                      traits: traits,
+                      ownerGender: selectedOwnerGender ?? 'Female',
+                      imagePaths: imagePaths,
+                      isAvailableForAdoption: isAvailableForAdoption,
+                      isOwner: true,
+                      ownerId:
+                          Hive.box<String>('userBox').get('currentUserId') ??
+                          '',
+                    );
                     dogsBox.add(newDog);
                     widget.onDogAdded(newDog);
-                    debugPrint('DogDetailsPage - New dog added: Name=${newDog.name}, OwnerId=${newDog.ownerId}');
-                    debugPrint('DogDetailsPage - Total dogs in Hive: ${dogsBox.values.length}');
+                    debugPrint(
+                      'DogDetailsPage - New dog added: Name=${newDog.name}, OwnerId=${newDog.ownerId}',
+                    );
+                    debugPrint(
+                      'DogDetailsPage - Total dogs in Hive: ${dogsBox.values.length}',
+                    );
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.pink,
                   ),
-                  child: Text(widget.dog == null ? l10n.dogDetailsAddButton : l10n.dogDetailsUpdateButton),
+                  child: Text(
+                    widget.dog == null
+                        ? l10n.dogDetailsAddButton
+                        : l10n.dogDetailsUpdateButton,
+                  ),
                 ),
               ],
             ),

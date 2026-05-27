@@ -40,165 +40,140 @@ class _BusinessChatPageState extends State<BusinessChatPage> {
     super.dispose();
   }
 
-Future<void> _openQuickReplies() async {
-  final chatDoc = await FirebaseFirestore.instance
-      .collection('business_chats')
-      .doc(widget.chatId)
-      .get();
+  Future<void> _openQuickReplies() async {
+    final chatDoc = await FirebaseFirestore.instance
+        .collection('business_chats')
+        .doc(widget.chatId)
+        .get();
 
-  final businessId =
-      chatDoc.data()?['businessId']?.toString();
+    final businessId = chatDoc.data()?['businessId']?.toString();
 
-  if (businessId == null || businessId.isEmpty) {
-    debugPrint('❌ BUSINESS ID NOT FOUND');
-    return;
-  }
+    if (businessId == null || businessId.isEmpty) {
+      debugPrint('❌ BUSINESS ID NOT FOUND');
+      return;
+    }
 
-  final repliesSnapshot = await FirebaseFirestore.instance
-      .collection('businesses')
-      .doc(businessId)
-      .collection('quickReplies')
-      .where('isActive', isEqualTo: true)
-      .get();
+    final repliesSnapshot = await FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(businessId)
+        .collection('quickReplies')
+        .where('isActive', isEqualTo: true)
+        .get();
 
-  final docs = repliesSnapshot.docs;
+    final docs = repliesSnapshot.docs;
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(28),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-    ),
-    builder: (context) {
-      if (docs.isEmpty) {
-        return const SizedBox(
-          height: 180,
-          child: Center(
-            child: Text(
-              'No quick replies found',
+      builder: (context) {
+        if (docs.isEmpty) {
+          return const SizedBox(
+            height: 180,
+            child: Center(child: Text('No quick replies found')),
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                const Text(
+                  'Quick Replies',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+
+                const SizedBox(height: 18),
+
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: docs.length,
+
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data();
+
+                      final title = data['title']?.toString() ?? '';
+
+                      final message = data['message']?.toString() ?? '';
+
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(18),
+
+                        onTap: () {
+                          Navigator.pop(context);
+
+                          _messageController.text = message;
+
+                          _messageController.selection =
+                              TextSelection.fromPosition(
+                                TextPosition(
+                                  offset: _messageController.text.length,
+                                ),
+                              );
+                        },
+
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F1F4),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              Text(
+                                message,
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         );
-      }
-
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              const Text(
-                'Quick Replies',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: docs.length,
-
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: 10),
-
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data();
-
-                    final title =
-                        data['title']?.toString() ?? '';
-
-                    final message =
-                        data['message']?.toString() ?? '';
-
-                    return InkWell(
-                      borderRadius:
-                          BorderRadius.circular(18),
-
-                      onTap: () {
-                        Navigator.pop(context);
-
-                        _messageController.text =
-                            message;
-
-                        _messageController.selection =
-                            TextSelection.fromPosition(
-                          TextPosition(
-                            offset: _messageController
-                                .text.length,
-                          ),
-                        );
-                      },
-
-                      child: Container(
-                        padding:
-                            const EdgeInsets.all(16),
-
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFFF8F1F4,
-                          ),
-                          borderRadius:
-                              BorderRadius.circular(
-                            18,
-                          ),
-                        ),
-
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontWeight:
-                                    FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-
-                            const SizedBox(height: 6),
-
-                            Text(
-                              message,
-                              style: TextStyle(
-                                color:
-                                    Colors.grey.shade700,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-}
+      },
+    );
+  }
 
   Future<void> _markAsSeen() async {
     try {
@@ -332,83 +307,79 @@ Future<void> _openQuickReplies() async {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               child: Row(
                 children: [
+                  if (widget.viewerRole == 'business') ...[
+                    GestureDetector(
+                      onTap: _openQuickReplies,
 
-  if (widget.viewerRole == 'business') ...[
-    GestureDetector(
-      onTap: _openQuickReplies,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        margin: const EdgeInsets.only(right: 10),
 
-      child: Container(
-        width: 52,
-        height: 52,
-        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
 
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-        ),
+                        child: const Icon(
+                          LucideIcons.reply,
+                          color: Color(0xFFE91E63),
+                        ),
+                      ),
+                    ),
+                  ],
 
-        child: const Icon(
-          LucideIcons.reply,
-          color: Color(0xFFE91E63),
-        ),
-      ),
-    ),
-  ],
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
 
-  Expanded(
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
+                      child: TextField(
+                        controller: _messageController,
+                        minLines: 1,
+                        maxLines: 5,
 
-      child: TextField(
-        controller: _messageController,
-        minLines: 1,
-        maxLines: 5,
+                        decoration: const InputDecoration(
+                          hintText: 'Type a message...',
+                          border: InputBorder.none,
 
-        decoration: const InputDecoration(
-          hintText: 'Type a message...',
-          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
 
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-      ),
-    ),
-  ),
+                  const SizedBox(width: 10),
 
-  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: _sending ? null : _sendMessage,
 
-  GestureDetector(
-    onTap: _sending ? null : _sendMessage,
+                    child: Container(
+                      width: 52,
+                      height: 52,
 
-    child: Container(
-      width: 52,
-      height: 52,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE91E63),
+                        shape: BoxShape.circle,
+                      ),
 
-      decoration: const BoxDecoration(
-        color: Color(0xFFE91E63),
-        shape: BoxShape.circle,
-      ),
-
-      child: _sending
-          ? const Padding(
-              padding: EdgeInsets.all(14),
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            )
-          : const Icon(
-              Icons.send,
-              color: Colors.white,
-            ),
-    ),
-  ),
-],
+                      child: _sending
+                          ? const Padding(
+                              padding: EdgeInsets.all(14),
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.send, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

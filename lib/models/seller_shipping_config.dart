@@ -7,14 +7,14 @@ class SellerShippingConfig {
   final List<String> activeCarrierCodes;
 
   // 💰 pricing
-  final String pricingModel; 
+  final String pricingModel;
   // fixed | carrier_based | free | conditional
 
   final double? fixedShippingFee;
 
   final double? freeShippingThreshold;
 
-  final String shippingPayer; 
+  final String shippingPayer;
   // buyer | seller | conditional
 
   // 📦 limits
@@ -56,25 +56,21 @@ class SellerShippingConfig {
   // =========================
   // 🔥 FROM JSON
   // =========================
-  factory SellerShippingConfig.fromJson(
-      String id, Map<String, dynamic> json) {
+  factory SellerShippingConfig.fromJson(String id, Map<String, dynamic> json) {
     return SellerShippingConfig(
       businessId: id,
-      activeCarrierCodes:
-          List<String>.from(json['activeCarrierCodes'] ?? []),
+      activeCarrierCodes: List<String>.from(json['activeCarrierCodes'] ?? []),
       pricingModel: json['pricingModel'] ?? 'fixed',
       shippingPayer: json['shippingPayer'] ?? 'buyer',
 
-      fixedShippingFee:
-          (json['fixedShippingFee'] as num?)?.toDouble(),
+      fixedShippingFee: (json['fixedShippingFee'] as num?)?.toDouble(),
 
-      freeShippingThreshold:
-          (json['freeShippingThreshold'] as num?)?.toDouble(),
+      freeShippingThreshold: (json['freeShippingThreshold'] as num?)
+          ?.toDouble(),
 
       maxDesi: (json['maxDesi'] as num?)?.toDouble(),
 
-      excludedCities:
-          List<String>.from(json['excludedCities'] ?? []),
+      excludedCities: List<String>.from(json['excludedCities'] ?? []),
 
       preparationDays: json['preparationDays'],
       maxDeliveryDays: json['maxDeliveryDays'],

@@ -56,21 +56,21 @@ class _PetshopCheckoutWebViewPageState
             debugPrint("❌ WEBVIEW ERROR: ${error.description}");
           },
           onNavigationRequest: (request) {
-  final url = request.url;
-  debugPrint("🌐 WEBVIEW NAV URL: $url");
+            final url = request.url;
+            debugPrint("🌐 WEBVIEW NAV URL: $url");
 
-  if (url.contains(widget.successUrlPrefix)) {
-    _finish("verify");
-    return NavigationDecision.prevent;
-  }
+            if (url.contains(widget.successUrlPrefix)) {
+              _finish("verify");
+              return NavigationDecision.prevent;
+            }
 
-  if (url.contains(widget.cancelUrlPrefix)) {
-    _finish("cancel");
-    return NavigationDecision.prevent;
-  }
+            if (url.contains(widget.cancelUrlPrefix)) {
+              _finish("cancel");
+              return NavigationDecision.prevent;
+            }
 
-  return NavigationDecision.navigate;
-},
+            return NavigationDecision.navigate;
+          },
         ),
       )
       ..loadRequest(Uri.parse(widget.checkoutUrl));
@@ -79,16 +79,11 @@ class _PetshopCheckoutWebViewPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Secure Payment'),
-      ),
+      appBar: AppBar(title: const Text('Secure Payment')),
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+          if (_isLoading) const Center(child: CircularProgressIndicator()),
         ],
       ),
     );

@@ -360,14 +360,14 @@ class VetDashboardServicesTab extends StatelessWidget {
                             debugPrint("✅ SAVE DONE");
 
                             if (sheetContext.mounted) {
-  FocusManager.instance.primaryFocus?.unfocus();
+                              FocusManager.instance.primaryFocus?.unfocus();
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (Navigator.canPop(sheetContext)) {
-      Navigator.of(sheetContext).pop();
-    }
-  });
-}
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (Navigator.canPop(sheetContext)) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                              });
+                            }
                           } catch (e) {
                             debugPrint("❌ SAVE ERROR: $e");
                           }

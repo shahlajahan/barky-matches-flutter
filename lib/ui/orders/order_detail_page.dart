@@ -680,12 +680,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-  backgroundColor: const Color(0xFFE91E63),
-  elevation: 0,
-  centerTitle: false,
-  iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: const Color(0xFFE91E63),
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.white),
 
-  title: StreamBuilder<DocumentSnapshot>(
+        title: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection("sellerOrders")
               .doc(widget.sellerOrderId)
@@ -693,13 +693,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           builder: (context, snapshot) {
             if (!snapshot.hasData || !snapshot.data!.exists) {
               return Text(
-  l10n.orderLabel,
-  style: const TextStyle(
-  color: Color(0xFFFFC107),
-    fontSize: 20,
-    fontWeight: FontWeight.w700,
-  ),
-);
+                l10n.orderLabel,
+                style: const TextStyle(
+                  color: Color(0xFFFFC107),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              );
             }
 
             final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -710,13 +710,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     .toString();
 
             return Text(
-  l10n.orderNumberLabel(label),
-  style: const TextStyle(
-  color: Color(0xFFFFC107),
-    fontSize: 20,
-    fontWeight: FontWeight.w700,
-  ),
-);
+              l10n.orderNumberLabel(label),
+              style: const TextStyle(
+                color: Color(0xFFFFC107),
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            );
           },
         ),
       ),

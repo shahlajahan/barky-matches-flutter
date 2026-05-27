@@ -32,12 +32,11 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
   _hotelBuyerDocs = {};
 
   final Map<String, QueryDocumentSnapshot<Map<String, dynamic>>>
-    _petTaxiUserDocs = {};
+  _petTaxiUserDocs = {};
 
-StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
-    _petTaxiUserSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _petTaxiUserSub;
 
-bool _petTaxiUserLoaded = false;
+  bool _petTaxiUserLoaded = false;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _userSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _buyerSub;
@@ -99,8 +98,8 @@ bool _petTaxiUserLoaded = false;
     );
 
     final petTaxiCollection = FirebaseFirestore.instance.collection(
-  'pet_taxi_bookings',
-);
+      'pet_taxi_bookings',
+    );
 
     _userSub = vetCollection
         .where('userId', isEqualTo: uid)
@@ -185,33 +184,33 @@ bool _petTaxiUserLoaded = false;
             });
           },
         );
-        _petTaxiUserSub = petTaxiCollection
-    .where('userId', isEqualTo: uid)
-    .snapshots()
-    .listen(
-      _handlePetTaxiUserSnapshot,
-      onError: (error) {
-        if (!mounted) return;
-        setState(() {
-          _errorText = error.toString();
-          _loading = false;
-        });
-      },
-    );
+    _petTaxiUserSub = petTaxiCollection
+        .where('userId', isEqualTo: uid)
+        .snapshots()
+        .listen(
+          _handlePetTaxiUserSnapshot,
+          onError: (error) {
+            if (!mounted) return;
+            setState(() {
+              _errorText = error.toString();
+              _loading = false;
+            });
+          },
+        );
   }
 
   void _handlePetTaxiUserSnapshot(
-  QuerySnapshot<Map<String, dynamic>> snapshot,
-) {
-  _petTaxiUserDocs
-    ..clear()
-    ..addEntries(snapshot.docs.map((doc) => MapEntry(_docKey(doc), doc)));
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    _petTaxiUserDocs
+      ..clear()
+      ..addEntries(snapshot.docs.map((doc) => MapEntry(_docKey(doc), doc)));
 
-  _petTaxiUserLoaded = true;
-  _errorText = null;
+    _petTaxiUserLoaded = true;
+    _errorText = null;
 
-  _rebuildAppointments();
-}
+    _rebuildAppointments();
+  }
 
   String _docKey(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     return '${doc.reference.parent.id}/${doc.id}';
@@ -275,13 +274,13 @@ bool _petTaxiUserLoaded = false;
 
   void _rebuildAppointments() {
     final merged = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{}
-  ..addAll(_userDocs)
-  ..addAll(_buyerDocs)
-  ..addAll(_groomyUserDocs)
-  ..addAll(_groomyBuyerDocs)
-  ..addAll(_hotelUserDocs)
-  ..addAll(_hotelBuyerDocs)
-  ..addAll(_petTaxiUserDocs);
+      ..addAll(_userDocs)
+      ..addAll(_buyerDocs)
+      ..addAll(_groomyUserDocs)
+      ..addAll(_groomyBuyerDocs)
+      ..addAll(_hotelUserDocs)
+      ..addAll(_hotelBuyerDocs)
+      ..addAll(_petTaxiUserDocs);
 
     final list = merged.values.toList()
       ..sort((a, b) => _compareAppointments(a, b));
@@ -291,13 +290,13 @@ bool _petTaxiUserLoaded = false;
     setState(() {
       _appointments = list;
       _loading =
-    !(_userLoaded &&
-        _buyerLoaded &&
-        _groomyUserLoaded &&
-        _groomyBuyerLoaded &&
-        _hotelUserLoaded &&
-        _hotelBuyerLoaded &&
-        _petTaxiUserLoaded);
+          !(_userLoaded &&
+              _buyerLoaded &&
+              _groomyUserLoaded &&
+              _groomyBuyerLoaded &&
+              _hotelUserLoaded &&
+              _hotelBuyerLoaded &&
+              _petTaxiUserLoaded);
     });
 
     if (_lastLoggedCount != list.length) {
@@ -339,57 +338,55 @@ bool _petTaxiUserLoaded = false;
     final appointmentId = doc.id;
     final isGroomy = collection == 'groomy_appointments';
     final isHotel = collection == 'hotel_bookings';
-final isPetTaxi = collection == 'pet_taxi_bookings';
+    final isPetTaxi = collection == 'pet_taxi_bookings';
     debugPrint("🩺 OPEN USER APPOINTMENT DETAIL → $collection/$appointmentId");
 
     await Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) {
-      if (isPetTaxi) {
-        return PetTaxiBookingDetailPage(
-          bookingId: appointmentId,
-        );
-      }
+      context,
+      MaterialPageRoute(
+        builder: (_) {
+          if (isPetTaxi) {
+            return PetTaxiBookingDetailPage(bookingId: appointmentId);
+          }
 
-      return AppointmentPaymentPage(
-        appointmentId: appointmentId,
-        appointmentCollection: collection,
-        appointmentType: isHotel
-            ? 'pet_hotel'
-            : isGroomy
-            ? 'grooming'
-            : 'veterinary',
-        updateStatusFunctionName: isHotel
-            ? 'updateHotelBookingStatus'
-            : isGroomy
-            ? 'updateGroomyAppointmentStatus'
-            : 'updateVetAppointmentStatus',
-        createOrderFunctionName: isHotel
-            ? 'createHotelBookingOrder'
-            : 'createAppointmentOrder',
-        verifyPaymentFunctionName: isHotel
-            ? 'verifyHotelBookingPayment'
-            : 'verifyPayment',
-        serviceFallbackName: isHotel
-            ? 'Hotel stay'
-            : isGroomy
-            ? 'Grooming service'
-            : 'Veterinary service',
-        businessFallbackName: isHotel
-            ? 'Pet hotel'
-            : isGroomy
-            ? 'Grooming studio'
-            : 'Vet clinic',
-        businessInfoLabel: isHotel
-            ? 'Hotel'
-            : isGroomy
-            ? 'Groomy'
-            : 'Clinic',
-      );
-    },
-  ),
-);
+          return AppointmentPaymentPage(
+            appointmentId: appointmentId,
+            appointmentCollection: collection,
+            appointmentType: isHotel
+                ? 'pet_hotel'
+                : isGroomy
+                ? 'grooming'
+                : 'veterinary',
+            updateStatusFunctionName: isHotel
+                ? 'updateHotelBookingStatus'
+                : isGroomy
+                ? 'updateGroomyAppointmentStatus'
+                : 'updateVetAppointmentStatus',
+            createOrderFunctionName: isHotel
+                ? 'createHotelBookingOrder'
+                : 'createAppointmentOrder',
+            verifyPaymentFunctionName: isHotel
+                ? 'verifyHotelBookingPayment'
+                : 'verifyPayment',
+            serviceFallbackName: isHotel
+                ? 'Hotel stay'
+                : isGroomy
+                ? 'Grooming service'
+                : 'Veterinary service',
+            businessFallbackName: isHotel
+                ? 'Pet hotel'
+                : isGroomy
+                ? 'Grooming studio'
+                : 'Vet clinic',
+            businessInfoLabel: isHotel
+                ? 'Hotel'
+                : isGroomy
+                ? 'Groomy'
+                : 'Clinic',
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _logLatestAppointmentSnapshot(
@@ -539,14 +536,12 @@ final isPetTaxi = collection == 'pet_taxi_bookings';
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid == null || uid.isEmpty) {
-  return Center(
-    child: Text(l10n.myAppointmentsLoginRequired),
-  );
-}
+      return Center(child: Text(l10n.myAppointmentsLoginRequired));
+    }
 
-return Container(
-  color: const Color(0xFFFDF2F5),
-  child: _loading
+    return Container(
+      color: const Color(0xFFFDF2F5),
+      child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _errorText != null
           ? Center(child: Text(l10n.errorOccurred(_errorText!)))
@@ -573,32 +568,32 @@ return Container(
                   final isHotel =
                       collection == 'hotel_bookings' ||
                       data['appointmentType'] == 'pet_hotel';
-                      final isPetTaxi =
-    collection == 'pet_taxi_bookings' ||
-    data['appointmentType'] == 'pet_taxi';
+                  final isPetTaxi =
+                      collection == 'pet_taxi_bookings' ||
+                      data['appointmentType'] == 'pet_taxi';
                   final status = (data['status'] ?? 'pending').toString();
                   final businessName = _displayName(
-  data['businessName']?.toString() ??
-      data['clinicName']?.toString() ??
-      data['vetName']?.toString(),
-  isPetTaxi
-      ? 'Pet Taxi'
-      : isHotel
-      ? 'Pet hotel'
-      : isGroomy
-      ? 'Grooming studio'
-      : l10n.veterinaryClinicFallback,
-);
+                    data['businessName']?.toString() ??
+                        data['clinicName']?.toString() ??
+                        data['vetName']?.toString(),
+                    isPetTaxi
+                        ? 'Pet Taxi'
+                        : isHotel
+                        ? 'Pet hotel'
+                        : isGroomy
+                        ? 'Grooming studio'
+                        : l10n.veterinaryClinicFallback,
+                  );
                   final serviceTitle = _displayName(
-  data['serviceTitle']?.toString(),
-  isPetTaxi
-      ? 'Pet transportation'
-      : isHotel
-      ? 'Hotel stay'
-      : isGroomy
-      ? 'Grooming service'
-      : l10n.veterinaryServiceFallback,
-);
+                    data['serviceTitle']?.toString(),
+                    isPetTaxi
+                        ? 'Pet transportation'
+                        : isHotel
+                        ? 'Hotel stay'
+                        : isGroomy
+                        ? 'Grooming service'
+                        : l10n.veterinaryServiceFallback,
+                  );
                   final petName = _displayName(
                     data['petName']?.toString() ?? data['dogName']?.toString(),
                     l10n.petFallback,

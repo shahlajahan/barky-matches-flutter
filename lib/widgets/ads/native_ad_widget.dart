@@ -1,18 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart'
-    hide AppState;
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
 import 'package:barky_matches_fixed/app_state.dart' as app;
 import 'package:provider/provider.dart';
 
 class NativeAdWidget extends StatefulWidget {
   final bool useTestAds;
 
-  const NativeAdWidget({
-    super.key,
-    this.useTestAds = true,
-  });
+  const NativeAdWidget({super.key, this.useTestAds = true});
 
   @override
   State<NativeAdWidget> createState() => _NativeAdWidgetState();
@@ -94,10 +90,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       height: 120,
       child: AdWidget(ad: _nativeAd!),
     );

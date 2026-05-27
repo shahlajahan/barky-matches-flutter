@@ -7,10 +7,7 @@ import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 class SellerOrdersPage extends StatefulWidget {
   final String businessId;
 
-  const SellerOrdersPage({
-    super.key,
-    required this.businessId,
-  });
+  const SellerOrdersPage({super.key, required this.businessId});
 
   @override
   State<SellerOrdersPage> createState() => _SellerOrdersPageState();
@@ -53,8 +50,9 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
       });
 
       final matchesSearch = q.isEmpty || orderIdMatch || itemNameMatch;
-      final matchesFilter =
-          _selectedFilter == "all" ? true : status == _selectedFilter;
+      final matchesFilter = _selectedFilter == "all"
+          ? true
+          : status == _selectedFilter;
 
       return matchesSearch && matchesFilter;
     }).toList();
@@ -82,9 +80,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
             ? const Color(0xFF9E1B4F).withOpacity(0.20)
             : Colors.black12,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(999),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
     );
   }
 
@@ -99,9 +95,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F7),
-      appBar: AppBar(
-        title: Text(l10n.ordersTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.ordersTitle)),
       body: Column(
         children: [
           Container(
@@ -155,10 +149,10 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-    .collection("sellerOrders") // 🔥 FIX
-    .where("shopId", isEqualTo: widget.businessId)
-    .orderBy("createdAt", descending: true)
-    .snapshots(),
+                  .collection("sellerOrders") // 🔥 FIX
+                  .where("shopId", isEqualTo: widget.businessId)
+                  .orderBy("createdAt", descending: true)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   debugPrint("❌ SELLER ORDERS ERROR: ${snapshot.error}");
@@ -168,30 +162,22 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 if (!snapshot.hasData || snapshot.data == null) {
-                  return Center(
-                    child: Text(l10n.noDataLabel),
-                  );
+                  return Center(child: Text(l10n.noDataLabel));
                 }
 
                 final docs = snapshot.data!.docs;
                 final filteredOrders = _applyClientFilters(docs);
 
                 if (docs.isEmpty) {
-                  return Center(
-                    child: Text(l10n.noOrdersYet),
-                  );
+                  return Center(child: Text(l10n.noOrdersYet));
                 }
 
                 if (filteredOrders.isEmpty) {
-                  return Center(
-                    child: Text(l10n.noMatchingOrders),
-                  );
+                  return Center(child: Text(l10n.noMatchingOrders));
                 }
 
                 return ListView.builder(
@@ -208,14 +194,13 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                         data: data,
                         onTap: () {
                           Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => OrderDetailPage(
-     
-      sellerOrderId: order.id,          // 👈 🔥 مهم‌ترین
-    ),
-  ),
-);
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OrderDetailPage(
+                                sellerOrderId: order.id, // 👈 🔥 مهم‌ترین
+                              ),
+                            ),
+                          );
                         },
                       ),
                     );

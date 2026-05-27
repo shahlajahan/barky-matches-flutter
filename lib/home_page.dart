@@ -532,159 +532,122 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  Future<void> _applyFiltersAsync({
-  Map<String, dynamic>? filters,
-}) async {
-
-  if (!mounted) return;
-
-  final appState = context.read<app.AppState>();
-
-  if (appState.isGuestUser) {
-    debugPrint('🚫 Guest → skip Firestore filters');
-
-    final allDogs = appState.allDogs;
-
+  Future<void> _applyFiltersAsync({Map<String, dynamic>? filters}) async {
     if (!mounted) return;
 
-    setState(() {
-      _filteredDogs = allDogs;
-    });
+    final appState = context.read<app.AppState>();
 
-    return;
-  }
+    if (appState.isGuestUser) {
+      debugPrint('🚫 Guest → skip Firestore filters');
 
-  if (filters != null) {
-    selectedBreed = filters['breed'] as String?;
-    selectedGender = filters['gender'] as String?;
-    ageRange = filters['ageRange'] as RangeValues?;
+      final allDogs = appState.allDogs;
 
-    _maxDistance =
-        (filters['maxDistance'] as double?)?.clamp(
-          1.0,
-          _isPremium ? 100.0 : 50.0,
-        ) ??
-        _maxDistance;
+      if (!mounted) return;
 
-    _userLatitude =
-        filters['userLatitude'] as double? ??
-        _userLatitude;
+      setState(() {
+        _filteredDogs = allDogs;
+      });
 
-    _userLongitude =
-        filters['userLongitude'] as double? ??
-        _userLongitude;
+      return;
+    }
 
-    selectedNeutered =
-        filters['neutered'] as bool?;
+    if (filters != null) {
+      selectedBreed = filters['breed'] as String?;
+      selectedGender = filters['gender'] as String?;
+      ageRange = filters['ageRange'] as RangeValues?;
 
-    selectedHealthStatus =
-        filters['healthStatus'] as String?;
-  } else {
-    _maxDistance =
-        _isPremium ? 100.0 : 50.0;
-  }
+      _maxDistance =
+          (filters['maxDistance'] as double?)?.clamp(
+            1.0,
+            _isPremium ? 100.0 : 50.0,
+          ) ??
+          _maxDistance;
 
-  /// 🐶 DOG DATA
-  final sourceDogs =
-      dogsBox.values.toList();
+      _userLatitude = filters['userLatitude'] as double? ?? _userLatitude;
 
-  final dogsData = sourceDogs
-      .map(
-        (dog) => {
-          'id': dog.id,
-          'name': dog.name,
-          'breed': dog.breed,
-          'age': dog.age,
-          'gender': dog.gender,
-          'healthStatus': dog.healthStatus,
-          'isNeutered': dog.isNeutered,
-          'description': dog.description,
-          'traits': dog.traits,
-          'ownerGender': dog.ownerGender,
-          'imagePaths': dog.imagePaths,
-          'isAvailableForAdoption':
-              dog.isAvailableForAdoption,
-          'isOwner': dog.isOwner,
-          'ownerId': dog.ownerId,
-          'latitude': dog.latitude,
-          'longitude': dog.longitude,
-        },
-      )
-      .toList();
+      _userLongitude = filters['userLongitude'] as double? ?? _userLongitude;
 
-  final uid = _currentUserId ?? '';
-  final normalizedSearch =
-      _normalizeSearchText(_searchQuery);
+      selectedNeutered = filters['neutered'] as bool?;
 
-  debugPrint("🔥 UID: $uid");
-  debugPrint("🔥 SEARCH: $_searchQuery");
-  debugPrint(
-    '🔍 NORMALIZED SEARCH: $normalizedSearch',
-  );
-  debugPrint(
-    "🔥 DOG COUNT: ${dogsData.length}",
-  );
+      selectedHealthStatus = filters['healthStatus'] as String?;
+    } else {
+      _maxDistance = _isPremium ? 100.0 : 50.0;
+    }
 
-  /// 🐶 FILTER DOGS (ISOLATE)
-  final filteredDogsData =
-      await compute(
-    _applyFiltersIsolate,
-    {
+    /// 🐶 DOG DATA
+    final sourceDogs = dogsBox.values.toList();
+
+    final dogsData = sourceDogs
+        .map(
+          (dog) => {
+            'id': dog.id,
+            'name': dog.name,
+            'breed': dog.breed,
+            'age': dog.age,
+            'gender': dog.gender,
+            'healthStatus': dog.healthStatus,
+            'isNeutered': dog.isNeutered,
+            'description': dog.description,
+            'traits': dog.traits,
+            'ownerGender': dog.ownerGender,
+            'imagePaths': dog.imagePaths,
+            'isAvailableForAdoption': dog.isAvailableForAdoption,
+            'isOwner': dog.isOwner,
+            'ownerId': dog.ownerId,
+            'latitude': dog.latitude,
+            'longitude': dog.longitude,
+          },
+        )
+        .toList();
+
+    final uid = _currentUserId ?? '';
+    final normalizedSearch = _normalizeSearchText(_searchQuery);
+
+    debugPrint("🔥 UID: $uid");
+    debugPrint("🔥 SEARCH: $_searchQuery");
+    debugPrint('🔍 NORMALIZED SEARCH: $normalizedSearch');
+    debugPrint("🔥 DOG COUNT: ${dogsData.length}");
+
+    /// 🐶 FILTER DOGS (ISOLATE)
+    final filteredDogsData = await compute(_applyFiltersIsolate, {
       'dogs': dogsData,
       'currentUserId': uid,
       'selectedBreed': selectedBreed,
       'selectedGender': selectedGender,
       'ageRange': ageRange != null
-          ? {
-              'start': ageRange!.start,
-              'end': ageRange!.end,
-            }
+          ? {'start': ageRange!.start, 'end': ageRange!.end}
           : null,
       'maxDistance': _maxDistance,
       'userLatitude': _userLatitude,
       'userLongitude': _userLongitude,
-      'selectedNeutered':
-          selectedNeutered,
-      'selectedHealthStatus':
-          selectedHealthStatus,
-      'searchQuery':
-          normalizedSearch,
-    },
-  );
+      'selectedNeutered': selectedNeutered,
+      'selectedHealthStatus': selectedHealthStatus,
+      'searchQuery': normalizedSearch,
+    });
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  /// 🏪 BUSINESS DATA
-  final snapshot =
-      await FirebaseFirestore.instance
-          .collection('businesses')
-          .get();
+    /// 🏪 BUSINESS DATA
+    final snapshot = await FirebaseFirestore.instance
+        .collection('businesses')
+        .get();
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  final firestoreBusinesses =
-      snapshot.docs.map((doc) {
-    final data = doc.data();
+    final firestoreBusinesses = snapshot.docs.map((doc) {
+      final data = doc.data();
 
-    return {
-      'id': doc.id,
-      ...data,
-    };
-  }).toList();
+      return {'id': doc.id, ...data};
+    }).toList();
 
-  String normalize(dynamic value) {
-    return value
-            ?.toString()
-            .toLowerCase()
-            .trim()
-            .replaceAll(
-              RegExp(r'\s+'),
-              ' ',
-            ) ??
-        '';
-  }
+    String normalize(dynamic value) {
+      return value?.toString().toLowerCase().trim().replaceAll(
+            RegExp(r'\s+'),
+            ' ',
+          ) ??
+          '';
+    }
 
- 
     String firstNormalized(List<dynamic> values) {
       for (final value in values) {
         final normalized = normalize(value);
@@ -1186,15 +1149,15 @@ class _HomePageState extends State<HomePage>
           ),
 
           _featureCard(
-  title: "Petplore",
-  subtitle: "Discover pet community",
-  imagePath: "assets/home/playdate.png",
-  icon: LucideIcons.image,
-  imageScale: 0.62,
-  onTap: () {
-    context.read<app.AppState>().setCurrentTab(NavTab.petplore);
-  },
-),
+            title: "Petplore",
+            subtitle: "Discover pet community",
+            imagePath: "assets/home/playdate.png",
+            icon: LucideIcons.image,
+            imageScale: 0.62,
+            onTap: () {
+              context.read<app.AppState>().setCurrentTab(NavTab.petplore);
+            },
+          ),
           _featureCard(
             title: l.adoptionTitle,
             subtitle: l.giveLove,
@@ -1834,9 +1797,9 @@ class _HomePageState extends State<HomePage>
 
                   const SizedBox(height: 16),
 
-const NativeAdWidget(),
+                  const NativeAdWidget(),
 
-const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
                   const SizedBox(height: _sectionGap),
 
@@ -1858,11 +1821,11 @@ const SizedBox(height: 16),
                     ),
                   ),
 
-                 const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-const BannerAdWidget(),
+                  const BannerAdWidget(),
 
-const SizedBox(height: 80),
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
@@ -1873,7 +1836,6 @@ const SizedBox(height: 80),
         ),
       ),
     );
-    
   }
 
   Widget _fixedSearchBar() {
@@ -2332,47 +2294,47 @@ const SizedBox(height: 80),
           childAspectRatio: 0.90,
         ),
         children: [
-  _safetyCard(
-    title: l.reportTitle,
-    subtitle: l.lostPetTitle,
-    imagePath: "assets/home/lost_dog.png",
-    onTap: () {
-      appState.setCurrentTab(NavTab.reportLost);
-    },
-  ),
+          _safetyCard(
+            title: l.reportTitle,
+            subtitle: l.lostPetTitle,
+            imagePath: "assets/home/lost_dog.png",
+            onTap: () {
+              appState.setCurrentTab(NavTab.reportLost);
+            },
+          ),
 
-  _safetyCard(
-    title: l.reportTitle,
-    subtitle: l.foundPetTitle,
-    imagePath: "assets/home/report_found_dog.png",
-    onTap: () {
-      appState.setCurrentTab(NavTab.reportFound);
-    },
-  ),
+          _safetyCard(
+            title: l.reportTitle,
+            subtitle: l.foundPetTitle,
+            imagePath: "assets/home/report_found_dog.png",
+            onTap: () {
+              appState.setCurrentTab(NavTab.reportFound);
+            },
+          ),
 
-  _safetyCard(
-    title: l.lostTitle,
-    subtitle: l.petsTitle,
-    imagePath: "assets/home/found_dog.png",
-    hasAlert: lostCount > 0,
-    count: lostCount,
-    onTap: () {
-      appState.setCurrentTab(NavTab.lostDogs);
-    },
-  ),
+          _safetyCard(
+            title: l.lostTitle,
+            subtitle: l.petsTitle,
+            imagePath: "assets/home/found_dog.png",
+            hasAlert: lostCount > 0,
+            count: lostCount,
+            onTap: () {
+              appState.setCurrentTab(NavTab.lostDogs);
+            },
+          ),
 
-  _safetyCard(
-    title: l.foundTitle,
-    subtitle: l.petsTitle,
-    imagePath: "assets/home/Good doggy-amico.png",
-    hasAlert: foundCount > 0,
-    count: foundCount,
-    onTap: () {
-      appState.closeFoundDogDetail();
-      appState.setCurrentTab(NavTab.foundDogs);
-    },
-  ),
-],
+          _safetyCard(
+            title: l.foundTitle,
+            subtitle: l.petsTitle,
+            imagePath: "assets/home/Good doggy-amico.png",
+            hasAlert: foundCount > 0,
+            count: foundCount,
+            onTap: () {
+              appState.closeFoundDogDetail();
+              appState.setCurrentTab(NavTab.foundDogs);
+            },
+          ),
+        ],
       ),
     );
   }

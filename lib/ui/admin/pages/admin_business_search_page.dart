@@ -7,11 +7,11 @@ class AdminBusinessSearchPage extends StatefulWidget {
   const AdminBusinessSearchPage({super.key});
 
   @override
-  State<AdminBusinessSearchPage> createState() => _AdminBusinessSearchPageState();
+  State<AdminBusinessSearchPage> createState() =>
+      _AdminBusinessSearchPageState();
 }
 
 class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
-
   String searchQuery = "";
   String statusFilter = "all";
 
@@ -24,7 +24,6 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
       ),
       body: Column(
         children: [
-
           // SEARCH
           Padding(
             padding: const EdgeInsets.all(12),
@@ -60,9 +59,7 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
                   statusFilter = value ?? "all";
                 });
               },
-              decoration: const InputDecoration(
-                labelText: "Filter by status",
-              ),
+              decoration: const InputDecoration(labelText: "Filter by status"),
             ),
           ),
 
@@ -76,7 +73,6 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
                   .limit(200)
                   .snapshots(),
               builder: (context, snapshot) {
-
                 if (snapshot.hasError) {
                   debugPrint(snapshot.error.toString());
                   return Center(child: Text(snapshot.error.toString()));
@@ -89,25 +85,24 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
                 final docs = snapshot.data!.docs;
 
                 final filtered = docs.where((doc) {
-
                   final data = doc.data() as Map<String, dynamic>;
 
                   final profile =
                       (data["profile"] as Map?)?.cast<String, dynamic>() ?? {};
 
-                  final name =
-                      (profile["displayName"] ?? "").toString().toLowerCase();
+                  final name = (profile["displayName"] ?? "")
+                      .toString()
+                      .toLowerCase();
 
-                  final status =
-                      (data["status"] ?? "").toString();
+                  final status = (data["status"] ?? "").toString();
 
                   final matchesSearch = name.contains(searchQuery);
 
-                  final matchesStatus =
-                      statusFilter == "all" ? true : status == statusFilter;
+                  final matchesStatus = statusFilter == "all"
+                      ? true
+                      : status == statusFilter;
 
                   return matchesSearch && matchesStatus;
-
                 }).toList();
 
                 if (filtered.isEmpty) {
@@ -117,15 +112,16 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
                 return ListView.builder(
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
-
                     final doc = filtered[index];
                     final data = doc.data() as Map<String, dynamic>;
 
                     final profile =
-                        (data["profile"] as Map?)?.cast<String, dynamic>() ?? {};
+                        (data["profile"] as Map?)?.cast<String, dynamic>() ??
+                        {};
 
                     final contact =
-                        (data["contact"] as Map?)?.cast<String, dynamic>() ?? {};
+                        (data["contact"] as Map?)?.cast<String, dynamic>() ??
+                        {};
 
                     final name = profile["displayName"] ?? "Unnamed";
 
@@ -149,9 +145,8 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => BusinessAdminDetailPage(
-                              businessId: doc.id,
-                            ),
+                            builder: (_) =>
+                                BusinessAdminDetailPage(businessId: doc.id),
                           ),
                         );
                       },
@@ -167,7 +162,6 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
   }
 
   Widget _statusBadge(String status) {
-
     Color color;
 
     switch (status) {

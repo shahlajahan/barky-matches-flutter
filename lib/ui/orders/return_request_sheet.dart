@@ -1,4 +1,3 @@
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -56,24 +55,29 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
   }
 
   List<Map<String, dynamic>> get _selectedItems {
-    return widget.items.where((item) {
-      final productId = (item['productId'] ?? '').toString();
-      return _selectedProductIds.contains(productId);
-    }).map((item) {
-      final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
-      final unitPrice = (item['unitPrice'] as num?)?.toDouble() ??
-          (item['price'] as num?)?.toDouble() ??
-          0;
-      return {
-        'productId': (item['productId'] ?? '').toString(),
-        'name': (item['name'] ?? '').toString(),
-        'quantity': quantity,
-        'unitPrice': unitPrice,
-        'lineTotal': (item['lineTotal'] as num?)?.toDouble() ??
-            (unitPrice * quantity),
-        'imageUrl': item['imageUrl'],
-      };
-    }).toList();
+    return widget.items
+        .where((item) {
+          final productId = (item['productId'] ?? '').toString();
+          return _selectedProductIds.contains(productId);
+        })
+        .map((item) {
+          final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
+          final unitPrice =
+              (item['unitPrice'] as num?)?.toDouble() ??
+              (item['price'] as num?)?.toDouble() ??
+              0;
+          return {
+            'productId': (item['productId'] ?? '').toString(),
+            'name': (item['name'] ?? '').toString(),
+            'quantity': quantity,
+            'unitPrice': unitPrice,
+            'lineTotal':
+                (item['lineTotal'] as num?)?.toDouble() ??
+                (unitPrice * quantity),
+            'imageUrl': item['imageUrl'],
+          };
+        })
+        .toList();
   }
 
   double get _estimatedRefundAmount {
@@ -122,22 +126,24 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
     if (!mounted) return;
     setState(() {});
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.returnImagesAdded)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.returnImagesAdded)));
   }
 
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
 
     if (_selectedItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.selectReturnItemsLabel)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.selectReturnItemsLabel)));
       return;
     }
 
-    final selectedReason = _reason.trim().isEmpty ? OrderReturnReason.other.value : _reason;
+    final selectedReason = _reason.trim().isEmpty
+        ? OrderReturnReason.other.value
+        : _reason;
     final description = _descriptionController.text.trim();
     final fallbackDescription =
         '${_reasonLabel(l10n, selectedReason)} return request';
@@ -174,9 +180,9 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
     } catch (e) {
       debugPrint('❌ return create failed: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.errorOccurred(e.toString()))));
     }
   }
 
@@ -200,10 +206,7 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      l10n.requestReturnButton,
-                      style: AppTheme.h2(),
-                    ),
+                    child: Text(l10n.requestReturnButton, style: AppTheme.h2()),
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(false),
@@ -265,7 +268,8 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
                 final selected = _selectedProductIds.contains(productId);
                 final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
                 final title = (item['name'] ?? '').toString();
-                final subtotal = (item['lineTotal'] as num?)?.toDouble() ??
+                final subtotal =
+                    (item['lineTotal'] as num?)?.toDouble() ??
                     ((item['unitPrice'] as num?)?.toDouble() ?? 0) * quantity;
 
                 return Card(
@@ -301,11 +305,7 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
                   spacing: 6,
                   runSpacing: 6,
                   children: _imageNames
-                      .map(
-                        (name) => Chip(
-                          label: Text(name),
-                        ),
-                      )
+                      .map((name) => Chip(label: Text(name)))
                       .toList(),
                 ),
               ],

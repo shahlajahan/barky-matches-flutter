@@ -7,10 +7,7 @@ import '../../app_state.dart';
 class SuggestClinicSheet extends StatelessWidget {
   final String vetName;
 
-  const SuggestClinicSheet({
-    super.key,
-    required this.vetName,
-  });
+  const SuggestClinicSheet({super.key, required this.vetName});
 
   Future<void> _share(BuildContext context) async {
     final box = context.findRenderObject() as RenderBox?;
@@ -22,8 +19,7 @@ class SuggestClinicSheet extends StatelessWidget {
       'PetSopu helps pet owners find and book veterinary appointments easily 🐶🐾\n\n'
       'We would love to see *$vetName* join PetSopu!\n\n'
       '👉 https://barkymatches.com',
-      sharePositionOrigin:
-          box.localToGlobal(Offset.zero) & box.size,
+      sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
     );
   }
 
@@ -38,9 +34,7 @@ class SuggestClinicSheet extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -55,21 +49,14 @@ class SuggestClinicSheet extends StatelessWidget {
             ),
           ),
 
-          const Icon(
-            Icons.pets,
-            size: 40,
-            color: Color(0xFFFFC107),
-          ),
+          const Icon(Icons.pets, size: 40, color: Color(0xFFFFC107)),
 
           const SizedBox(height: 16),
 
           const Text(
             'Help us grow PetSopu',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
 
           const SizedBox(height: 8),
@@ -77,10 +64,7 @@ class SuggestClinicSheet extends StatelessWidget {
           Text(
             'Suggest $vetName to join PetSopu and help pet owners book appointments more easily.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
           ),
 
           const SizedBox(height: 24),
@@ -105,12 +89,12 @@ class SuggestClinicSheet extends StatelessWidget {
                 await FirebaseFirestore.instance
                     .collection('clinic_suggestions')
                     .add({
-                  'vetName': vetName,
-                  'suggestedByUserId': userId,
-                  'suggestedByUsername': username,
-                  'channel': 'share',
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
+                      'vetName': vetName,
+                      'suggestedByUserId': userId,
+                      'suggestedByUsername': username,
+                      'channel': 'share',
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
 
                 // 2️⃣ Share (iPad-safe)
                 await _share(context);
@@ -119,10 +103,7 @@ class SuggestClinicSheet extends StatelessWidget {
               },
               child: const Text(
                 'Share Invitation',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),

@@ -8,112 +8,105 @@ import 'nav_tab.dart';
 class BarkyBottomNav extends StatelessWidget {
   final NavTab currentTab;
 
-  const BarkyBottomNav({
-    super.key,
-    required this.currentTab,
-  });
+  const BarkyBottomNav({super.key, required this.currentTab});
 
   @override
-Widget build(BuildContext context) {
-  final appState = context.watch<AppState>();
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
 
-  return AnimatedSlide(
-    duration: const Duration(milliseconds: 250),
-    offset: appState.showBottomNav
-        ? Offset.zero
-        : const Offset(0, 1.5),
-    curve: Curves.easeInOut,
-    child: AnimatedOpacity(
+    return AnimatedSlide(
       duration: const Duration(milliseconds: 250),
-      opacity: appState.showBottomNav ? 1 : 0,
-      child: SizedBox(
-        height: 65,
-        child: Stack(
-          alignment: Alignment.topCenter,
-          children: [
+      offset: appState.showBottomNav ? Offset.zero : const Offset(0, 1.5),
+      curve: Curves.easeInOut,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 250),
+        opacity: appState.showBottomNav ? 1 : 0,
+        child: SizedBox(
+          height: 65,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              // 🔲 Main Bar Background
+              Container(
+                height: 65,
+                color: Colors.pink,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildItem(
+                      context,
+                      icon: LucideIcons.home,
+                      label: 'Home',
+                      tab: NavTab.home,
+                    ),
 
-            // 🔲 Main Bar Background
-            Container(
-              height: 65,
-              color: Colors.pink,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
+                    _buildItem(
+                      context,
+                      icon: LucideIcons.heart,
+                      label: 'Favorites',
+                      tab: NavTab.favorites,
+                    ),
 
-                  _buildItem(
-                    context,
-                    icon: LucideIcons.home,
-                    label: 'Home',
-                    tab: NavTab.home,
-                  ),
+                    const SizedBox(width: 60),
 
-                  _buildItem(
-                    context,
-                    icon: LucideIcons.heart,
-                    label: 'Favorites',
-                    tab: NavTab.favorites,
-                  ),
+                    _buildItem(
+                      context,
+                      icon: LucideIcons.calendar,
+                      label: 'Schedule',
+                      tab: NavTab.playdateScheduling,
+                    ),
 
-                  const SizedBox(width: 60),
-
-                  _buildItem(
-                    context,
-                    icon: LucideIcons.calendar,
-                    label: 'Schedule',
-                    tab: NavTab.playdateScheduling,
-                  ),
-
-                  _buildItem(
-                    context,
-                    icon: LucideIcons.user,
-                    label: 'Profile',
-                    tab: NavTab.profile,
-                  ),
-                ],
+                    _buildItem(
+                      context,
+                      icon: LucideIcons.user,
+                      label: 'Profile',
+                      tab: NavTab.profile,
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            // ⭐ CENTER VET BUTTON
-            Positioned(
-              top: -10,
-              child: GestureDetector(
-                onTap: () {
-                  if (currentTab == NavTab.vet) return;
-                  appState.closeNotifications();
-                  appState.setCurrentTab(NavTab.vet);
-                },
-                child: Container(
-                  height: 64,
-                  width: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: currentTab == NavTab.vet
-                        ? const Color(0xFFFFC107)
-                        : Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    LucideIcons.stethoscope,
-                    color: currentTab == NavTab.vet
-                        ? Colors.black
-                        : Colors.pink,
-                    size: 30,
+              // ⭐ CENTER VET BUTTON
+              Positioned(
+                top: -10,
+                child: GestureDetector(
+                  onTap: () {
+                    if (currentTab == NavTab.vet) return;
+                    appState.closeNotifications();
+                    appState.setCurrentTab(NavTab.vet);
+                  },
+                  child: Container(
+                    height: 64,
+                    width: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: currentTab == NavTab.vet
+                          ? const Color(0xFFFFC107)
+                          : Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      LucideIcons.stethoscope,
+                      color: currentTab == NavTab.vet
+                          ? Colors.black
+                          : Colors.pink,
+                      size: 30,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildItem(
     BuildContext context, {
@@ -126,16 +119,15 @@ Widget build(BuildContext context) {
 
     return GestureDetector(
       onTap: () {
+        // 🔥 اجازه بده PROFILE دوباره tap شود
+        if (isActive && tab != NavTab.profile) {
+          return;
+        }
 
-  // 🔥 اجازه بده PROFILE دوباره tap شود
-  if (isActive && tab != NavTab.profile) {
-    return;
-  }
+        appState.closeNotifications();
 
-  appState.closeNotifications();
-
-  appState.setCurrentTab(tab);
-},
+        appState.setCurrentTab(tab);
+      },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -143,8 +135,8 @@ Widget build(BuildContext context) {
             icon,
             size: 22, // 👈 unify size
             color: isActive
-    ? const Color(0xFFFFC107)
-    : Colors.white.withOpacity(0.85),
+                ? const Color(0xFFFFC107)
+                : Colors.white.withOpacity(0.85),
           ),
           const SizedBox(height: 4),
           Text(
@@ -152,8 +144,8 @@ Widget build(BuildContext context) {
             style: TextStyle(
               fontSize: 12,
               color: isActive
-    ? const Color(0xFFFFC107)
-    : Colors.white.withOpacity(0.75),
+                  ? const Color(0xFFFFC107)
+                  : Colors.white.withOpacity(0.75),
             ),
           ),
         ],

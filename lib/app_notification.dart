@@ -48,9 +48,7 @@ class AppNotification {
       id: id,
       title: map['title'] as String? ?? '',
       body: map['body'] as String? ?? '',
-      timestamp: ts is Timestamp
-          ? ts.toDate()
-          : DateTime.now(),
+      timestamp: ts is Timestamp ? ts.toDate() : DateTime.now(),
       payload: payloadString,
       isRead: map['isRead'] as bool? ?? false,
     );

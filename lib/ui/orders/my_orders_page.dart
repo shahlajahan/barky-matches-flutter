@@ -13,9 +13,7 @@ class MyOrdersPage extends StatelessWidget {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) {
-      return Scaffold(
-        body: Center(child: Text(l10n.myOrdersLoginRequired)),
-      );
+      return Scaffold(body: Center(child: Text(l10n.myOrdersLoginRequired)));
     }
 
     debugPrint("👤 CURRENT USER ID: $userId");
@@ -27,8 +25,8 @@ class MyOrdersPage extends StatelessWidget {
         .snapshots();
 
     return Container(
-  color: const Color(0xFFFDF2F5),
-  child: StreamBuilder<QuerySnapshot>(
+      color: const Color(0xFFFDF2F5),
+      child: StreamBuilder<QuerySnapshot>(
         stream: ordersStream,
         builder: (context, snapshot) {
           /// DEBUG
@@ -84,7 +82,9 @@ class MyOrdersPage extends StatelessWidget {
               /// 🔥 SELLER ORDER IDS (کلیدی)
               final sellerOrderIds = data['sellerOrderIds'] as List?;
 
-              debugPrint("🧾 UI BUILD → ${doc.id} | total=$total | status=$status");
+              debugPrint(
+                "🧾 UI BUILD → ${doc.id} | total=$total | status=$status",
+              );
 
               return InkWell(
                 onTap: () {
@@ -98,9 +98,8 @@ class MyOrdersPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => OrderDetailPage(
-                        sellerOrderId: sellerOrderIds.first,
-                      ),
+                      builder: (_) =>
+                          OrderDetailPage(sellerOrderId: sellerOrderIds.first),
                     ),
                   );
                 },
@@ -269,9 +268,7 @@ class _OrderCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
         onTap: () {
           // 👉 بعداً می‌بریم به Order Detail Page
@@ -284,9 +281,7 @@ class _OrderCard extends StatelessWidget {
               /// 🧾 Order ID
               Text(
                 l10n.orderNumberLabel(orderId.substring(0, 6)),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 8),

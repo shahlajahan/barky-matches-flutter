@@ -10,8 +10,6 @@ import 'sector_overlays/adoption_overlay_content.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'pet_hotel/pet_hotel_details_page.dart';
 
-
-
 enum _BusinessTab { info, services, action, contact }
 
 class BusinessDetailOverlay extends StatefulWidget {
@@ -60,8 +58,8 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
     _tabs = [_BusinessTab.info, _BusinessTab.services];
 
     if (widget.data.type == BusinessType.vet ||
-    widget.data.type == BusinessType.adoptionCenter ||
-    widget.data.type == BusinessType.petHotel) {
+        widget.data.type == BusinessType.adoptionCenter ||
+        widget.data.type == BusinessType.petHotel) {
       _tabs.add(_BusinessTab.action);
     }
 
@@ -260,39 +258,39 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
           onWhatsApp: widget.onWhatsApp,
           onClose: widget.onClose,
         );
-        case BusinessType.petHotel:
-  return VetOverlayContent(
-  data: widget.data,
+      case BusinessType.petHotel:
+        return VetOverlayContent(
+          data: widget.data,
 
-  showInfo: info,
-  showServices: services,
-  showAction: action,
+          showInfo: info,
+          showServices: services,
+          showAction: action,
 
-  onOpenAppointment: widget.onOpenAppointment,
+          onOpenAppointment: widget.onOpenAppointment,
 
-  onOpenFullProfile: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => PetHotelDetailsPage(
-        data: widget.data,
+          onOpenFullProfile: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PetHotelDetailsPage(
+                  data: widget.data,
 
-        onCall: widget.onCall,
-        onWhatsApp: widget.onWhatsApp,
-        onDirections: widget.onDirections,
+                  onCall: widget.onCall,
+                  onWhatsApp: widget.onWhatsApp,
+                  onDirections: widget.onDirections,
 
-        onOpenBooking: (service) {
-          widget.onOpenAppointment?.call();
-        },
-      ),
-    ),
-  );
-},
+                  onOpenBooking: (service) {
+                    widget.onOpenAppointment?.call();
+                  },
+                ),
+              ),
+            );
+          },
 
-  onCall: widget.onCall,
-  onWhatsApp: widget.onWhatsApp,
-  onClose: widget.onClose,
-);
+          onCall: widget.onCall,
+          onWhatsApp: widget.onWhatsApp,
+          onClose: widget.onClose,
+        );
 
       default:
         return const SizedBox();

@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart'
-    hide AppState;
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
 import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart' as app;
@@ -10,10 +9,7 @@ import 'package:barky_matches_fixed/app_state.dart' as app;
 class BannerAdWidget extends StatefulWidget {
   final bool useTestAds;
 
-  const BannerAdWidget({
-    super.key,
-    this.useTestAds = true,
-  });
+  const BannerAdWidget({super.key, this.useTestAds = true});
 
   @override
   State<BannerAdWidget> createState() => _BannerAdWidgetState();

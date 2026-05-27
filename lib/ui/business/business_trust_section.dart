@@ -13,13 +13,10 @@ class BusinessTrustSection extends StatefulWidget {
   });
 
   @override
-  State<BusinessTrustSection> createState() =>
-      _BusinessTrustSectionState();
+  State<BusinessTrustSection> createState() => _BusinessTrustSectionState();
 }
 
-class _BusinessTrustSectionState
-    extends State<BusinessTrustSection> {
-
+class _BusinessTrustSectionState extends State<BusinessTrustSection> {
   late final TextEditingController _notesController;
 
   bool _isSaving = false;
@@ -28,8 +25,7 @@ class _BusinessTrustSectionState
   void initState() {
     super.initState();
 
-    final trust =
-        (widget.data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
+    final trust = (widget.data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
 
     _notesController = TextEditingController(
       text: trust['moderationNotes'] ?? "",
@@ -44,11 +40,9 @@ class _BusinessTrustSectionState
 
   @override
   Widget build(BuildContext context) {
-    final trust =
-        (widget.data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
+    final trust = (widget.data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
 
-    final riskFlags =
-        (trust['riskFlags'] as List?)?.cast<String>() ?? [];
+    final riskFlags = (trust['riskFlags'] as List?)?.cast<String>() ?? [];
 
     final reportCount = trust['reportCount'] ?? 0;
 
@@ -57,17 +51,12 @@ class _BusinessTrustSectionState
       child: AdminSection(
         title: "Trust & Risk",
         icon: Icons.security_outlined,
-        accentColor:
-            riskFlags.isNotEmpty ? Colors.red : null,
+        accentColor: riskFlags.isNotEmpty ? Colors.red : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             /// 🔷 REPORT COUNT
-            _MetricRow(
-              label: "Reports",
-              value: reportCount.toString(),
-            ),
+            _MetricRow(label: "Reports", value: reportCount.toString()),
 
             const SizedBox(height: 12),
 
@@ -75,22 +64,14 @@ class _BusinessTrustSectionState
             if (riskFlags.isNotEmpty) ...[
               const Text(
                 "Risk Flags",
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              ...riskFlags.map(
-                (flag) => _RiskFlagTile(flag: flag),
-              ),
+              ...riskFlags.map((flag) => _RiskFlagTile(flag: flag)),
             ] else
               const Text(
                 "No risk flags",
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.black54,
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.black54),
               ),
 
             const SizedBox(height: 18),
@@ -98,10 +79,7 @@ class _BusinessTrustSectionState
             /// 🔷 MODERATION NOTES
             const Text(
               "Admin Notes",
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
@@ -128,9 +106,7 @@ class _BusinessTrustSectionState
                   ? const SizedBox(
                       height: 24,
                       width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : TextButton(
                       onPressed: _saveNotes,
@@ -161,17 +137,15 @@ class _BusinessTrustSectionState
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Admin notes saved ✅"),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Admin notes saved ✅")));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Save failed: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Save failed: $e")));
       }
     } finally {
       if (mounted) {
@@ -188,26 +162,18 @@ class _RiskFlagTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final readable =
-        flag.replaceAll("_", " ").toUpperCase();
+    final readable = flag.replaceAll("_", " ").toUpperCase();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.warning_amber_rounded,
-            size: 16,
-            color: Colors.red,
-          ),
+          const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -229,30 +195,20 @@ class _MetricRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _MetricRow({
-    required this.label,
-    required this.value,
-  });
+  const _MetricRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment:
-          MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.black54,
-          ),
+          style: const TextStyle(fontSize: 13, color: Colors.black54),
         ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ],
     );

@@ -19,17 +19,17 @@ class PrivacyPolicyPage extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not open email app")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Could not open email app")));
     }
   }
 
   void _copyEmail(BuildContext context) {
     Clipboard.setData(ClipboardData(text: email));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Email copied")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Email copied")));
   }
 
   @override
@@ -48,10 +48,8 @@ class PrivacyPolicyPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               /// 📄 TEXT
-              Text(
-                """
+              Text("""
 PetSupo respects your privacy and is committed to protecting your personal data.
 
 1. Data We Collect
@@ -104,12 +102,7 @@ Users will be notified of significant changes.
 
 10. Contact
 If you have any questions about this Privacy Policy or your data, please contact us:
-""",
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  height: 1.6,
-                ),
-              ),
+""", style: GoogleFonts.poppins(fontSize: 14, height: 1.6)),
 
               const SizedBox(height: 24),
 
@@ -147,12 +140,8 @@ If you have any questions about this Privacy Policy or your data, please contact
                 ),
                 child: Row(
                   children: [
-
                     /// 📧 ICON
-                    const Icon(
-                      LucideIcons.mail,
-                      color: Color(0xFF9E1B4F),
-                    ),
+                    const Icon(LucideIcons.mail, color: Color(0xFF9E1B4F)),
 
                     const SizedBox(width: 10),
 

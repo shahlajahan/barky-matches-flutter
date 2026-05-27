@@ -8,10 +8,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/client_messages/qu
 class VetClientMessagesPage extends StatelessWidget {
   final String businessId;
 
-  const VetClientMessagesPage({
-    super.key,
-    required this.businessId,
-  });
+  const VetClientMessagesPage({super.key, required this.businessId});
 
   @override
   Widget build(BuildContext context) {
@@ -32,32 +29,28 @@ class VetClientMessagesPage extends StatelessWidget {
             title: 'Inbox',
             subtitle: 'View and reply to pet owner messages',
             onTap: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => VetInboxPage(
-        businessId: businessId,
-      ),
-    ),
-  );
-},
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VetInboxPage(businessId: businessId),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
           _MessageCard(
-  icon: LucideIcons.reply,
-  title: 'Quick replies',
-  subtitle: 'Manage saved responses for common questions',
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => VetQuickRepliesPage(
-          businessId: businessId,
-        ),
-      ),
-    );
-  },
-),
+            icon: LucideIcons.reply,
+            title: 'Quick replies',
+            subtitle: 'Manage saved responses for common questions',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VetQuickRepliesPage(businessId: businessId),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: 12),
           _MessageCard(
             icon: LucideIcons.bot,

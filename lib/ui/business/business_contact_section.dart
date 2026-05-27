@@ -4,15 +4,11 @@ import '../admin/admin_section.dart';
 class BusinessContactSection extends StatelessWidget {
   final Map<String, dynamic> data;
 
-  const BusinessContactSection({
-    super.key,
-    required this.data,
-  });
+  const BusinessContactSection({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final contact =
-        (data['contact'] as Map?)?.cast<String, dynamic>() ?? {};
+    final contact = (data['contact'] as Map?)?.cast<String, dynamic>() ?? {};
 
     final phone = contact['phone'];
     final whatsapp = contact['whatsapp'];
@@ -29,11 +25,14 @@ class BusinessContactSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           _InfoRow(icon: Icons.phone, label: "Phone", value: phone),
           _InfoRow(icon: Icons.chat, label: "WhatsApp", value: whatsapp),
           _InfoRow(icon: Icons.email_outlined, label: "Email", value: email),
-          _InfoRow(icon: Icons.camera_alt_outlined, label: "Instagram", value: instagram),
+          _InfoRow(
+            icon: Icons.camera_alt_outlined,
+            label: "Instagram",
+            value: instagram,
+          ),
           _InfoRow(icon: Icons.language, label: "Website", value: website),
 
           const SizedBox(height: 16),
@@ -48,16 +47,10 @@ class BusinessContactSection extends StatelessWidget {
             value: [
               district,
               city,
-            ]
-                .where((e) => e != null && e.toString().isNotEmpty)
-                .join(", "),
+            ].where((e) => e != null && e.toString().isNotEmpty).join(", "),
           ),
 
-          _InfoRow(
-            icon: Icons.home_outlined,
-            label: "Address",
-            value: address,
-          ),
+          _InfoRow(icon: Icons.home_outlined, label: "Address", value: address),
         ],
       ),
     );
@@ -95,10 +88,7 @@ class _InfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
                 const SizedBox(height: 2),
                 Text(

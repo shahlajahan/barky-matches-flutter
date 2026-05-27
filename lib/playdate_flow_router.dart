@@ -44,69 +44,65 @@ class _PlaydateFlowRouterState extends State<PlaydateFlowRouter> {
         .toList();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-  debugPrint('🚦 PlaydateFlowRouter started for park=$parkKey');
+      debugPrint('🚦 PlaydateFlowRouter started for park=$parkKey');
 
-  try {
-    // ✅ گزینه 1: اگر می‌خوای کلاً از DogPark مستقیم بره Scheduling
-    final bool skipPlaymateStep = true;
+      try {
+        // ✅ گزینه 1: اگر می‌خوای کلاً از DogPark مستقیم بره Scheduling
+        final bool skipPlaymateStep = true;
 
-    // ✅ گزینه 2: یا فقط وقتی انتخاب سگ قبلاً انجام شده، Playmate رو skip کن
-    final bool alreadyHasRequesterDog =
-        (appState.selectedRequesterDogId != null &&
-         appState.selectedRequesterDogId!.isNotEmpty);
+        // ✅ گزینه 2: یا فقط وقتی انتخاب سگ قبلاً انجام شده، Playmate رو skip کن
+        final bool alreadyHasRequesterDog =
+            (appState.selectedRequesterDogId != null &&
+            appState.selectedRequesterDogId!.isNotEmpty);
 
-    if (!skipPlaymateStep && !alreadyHasRequesterDog) {
-      final Dog? selectedDog = await Navigator.push<Dog>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
-            body: SafeArea(
-              child: PlaymatePage(
-                dogs: myDogs,
-                currentUserId: appState.currentUserId!,
-                favoriteDogs: appState.favoriteDogs,
-                onToggleFavorite: appState.onToggleFavorite,
-                mode: PlaymatePageMode.selectDogForPlaydate,
+        if (!skipPlaymateStep && !alreadyHasRequesterDog) {
+          final Dog? selectedDog = await Navigator.push<Dog>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => Scaffold(
+                body: SafeArea(
+                  child: PlaymatePage(
+                    dogs: myDogs,
+                    currentUserId: appState.currentUserId!,
+                    favoriteDogs: appState.favoriteDogs,
+                    onToggleFavorite: appState.onToggleFavorite,
+                    mode: PlaymatePageMode.selectDogForPlaydate,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      );
+          );
 
-      if (!mounted) return;
+          if (!mounted) return;
 
-      if (selectedDog == null) {
-        debugPrint('❌ PlaydateFlow cancelled');
+          if (selectedDog == null) {
+            debugPrint('❌ PlaydateFlow cancelled');
+            appState.clearPlaydateFlow();
+            return;
+          }
+
+          // اگر می‌خوای انتخاب سگ تو Scheduling هم sync بشه:
+          // appState.selectedRequesterDogId = selectedDog.id;  // فقط اگر این فیلد ست‌پذیره
+        }
+
+        // ✅ مستقیم برو Scheduling
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PlayDateSchedulingPage()),
+        );
+
+        if (!mounted) return;
+
+        debugPrint('✅ PlaydateFlow finished');
         appState.clearPlaydateFlow();
-        return;
+      } finally {
+        _running = false;
       }
-
-      // اگر می‌خوای انتخاب سگ تو Scheduling هم sync بشه:
-      // appState.selectedRequesterDogId = selectedDog.id;  // فقط اگر این فیلد ست‌پذیره
-    }
-
-    // ✅ مستقیم برو Scheduling
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const PlayDateSchedulingPage(),
-      ),
-    );
-
-    if (!mounted) return;
-
-    debugPrint('✅ PlaydateFlow finished');
-    appState.clearPlaydateFlow();
-  } finally {
-    _running = false;
+    });
   }
-});
-  }
+
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
-
 }

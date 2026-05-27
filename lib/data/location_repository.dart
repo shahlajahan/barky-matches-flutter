@@ -8,11 +8,9 @@ class LocationRepository {
   final FirebaseFirestore _db;
   final LocationCache _cache;
 
-  LocationRepository({
-    FirebaseFirestore? db,
-    required LocationCache cache,
-  })  : _db = db ?? FirebaseFirestore.instance,
-        _cache = cache;
+  LocationRepository({FirebaseFirestore? db, required LocationCache cache})
+    : _db = db ?? FirebaseFirestore.instance,
+      _cache = cache;
 
   // ---------------------------
   // In-memory cache
@@ -70,9 +68,7 @@ class LocationRepository {
       _countriesCache = list;
 
       // save to hive
-      await _cache.putTrCitiesRaw(
-        list.map((e) => e.toMap()).toList(),
-      );
+      await _cache.putTrCitiesRaw(list.map((e) => e.toMap()).toList());
 
       return list;
     } catch (e) {
@@ -86,25 +82,47 @@ class LocationRepository {
   // ADMIN1
   // ============================================================
   Future<List<Admin1>> getAdmin1(
-  String countryCode, {
-  bool onlyEnabled = true,
-  bool forceRefresh = false,
-}) async {
-  // memory
-  if (!forceRefresh && _admin1Cache[countryCode] != null) {
-    return _admin1Cache[countryCode]!;
-  }
+    String countryCode, {
+    bool onlyEnabled = true,
+    bool forceRefresh = false,
+  }) async {
+    // memory
+    if (!forceRefresh && _admin1Cache[countryCode] != null) {
+      return _admin1Cache[countryCode]!;
+    }
 
-  final hiveKey = 'admin1_$countryCode';
+    final hiveKey = 'admin1_$countryCode';
 
-  // hive fallback
-  if (!forceRefresh && _isCacheFresh) {
-    final raw = _cache.readRawList(hiveKey);
+    // hive fallback
+    if (!forceRefresh && _isCacheFresh) {
+      final raw = _cache.readRawList(hiveKey);
 
-    if (raw != null && raw.isNotEmpty) {
-      var list = raw
-          .map((e) => Admin1.fromMap(e['id'], e))
-          .toList();
+      if (raw != null && raw.isNotEmpty) {
+        var list = raw.map((e) => Admin1.fromMap(e['id'], e)).toList();
+
+        if (onlyEnabled) {
+          list = list.where((e) => e.enabled).toList();
+        }
+
+        list.sort((a, b) => a.sort.compareTo(b.sort));
+
+        _admin1Cache[countryCode] = list;
+        return list;
+      }
+    }
+
+    try {
+      debugPrint("🌍 COUNTRY => $countryCode");
+
+      final snap = await _db
+          .collection('countries')
+          .doc(countryCode)
+          .collection('admin1')
+          .get();
+
+      debugPrint("📂 ADMIN1 DOCS => ${snap.docs.length}");
+
+      var list = snap.docs.map((d) => Admin1.fromMap(d.id, d.data())).toList();
 
       if (onlyEnabled) {
         list = list.where((e) => e.enabled).toList();
@@ -113,81 +131,72 @@ class LocationRepository {
       list.sort((a, b) => a.sort.compareTo(b.sort));
 
       _admin1Cache[countryCode] = list;
+
+      await _cache.writeRawList(hiveKey, list.map((e) => e.toMap()).toList());
+
       return list;
+    } catch (e) {
+      debugPrint("❌ ADMIN1 ERROR => $e");
+
+      if (_admin1Cache[countryCode] != null) {
+        return _admin1Cache[countryCode]!;
+      }
+
+      return [];
     }
   }
-
-  try {
-    debugPrint("🌍 COUNTRY => $countryCode");
-
-    final snap = await _db
-        .collection('countries')
-        .doc(countryCode)
-        .collection('admin1')
-        .get();
-
-    debugPrint("📂 ADMIN1 DOCS => ${snap.docs.length}");
-
-    var list = snap.docs
-        .map(
-          (d) => Admin1.fromMap(
-            d.id,
-            d.data(),
-          ),
-        )
-        .toList();
-
-    if (onlyEnabled) {
-      list = list.where((e) => e.enabled).toList();
-    }
-
-    list.sort((a, b) => a.sort.compareTo(b.sort));
-
-    _admin1Cache[countryCode] = list;
-
-    await _cache.writeRawList(
-      hiveKey,
-      list.map((e) => e.toMap()).toList(),
-    );
-
-    return list;
-  } catch (e) {
-    debugPrint("❌ ADMIN1 ERROR => $e");
-
-    if (_admin1Cache[countryCode] != null) {
-      return _admin1Cache[countryCode]!;
-    }
-
-    return [];
-  }
-}
 
   // ============================================================
   // ADMIN2
   // ============================================================
   Future<List<Admin2>> getAdmin2(
-  String countryCode,
-  String admin1Id, {
-  bool onlyEnabled = true,
-  bool forceRefresh = false,
-}) async {
-  final key = '$countryCode|$admin1Id';
+    String countryCode,
+    String admin1Id, {
+    bool onlyEnabled = true,
+    bool forceRefresh = false,
+  }) async {
+    final key = '$countryCode|$admin1Id';
 
-  // memory cache
-  if (!forceRefresh && _admin2Cache[key] != null) {
-    return _admin2Cache[key]!;
-  }
+    // memory cache
+    if (!forceRefresh && _admin2Cache[key] != null) {
+      return _admin2Cache[key]!;
+    }
 
-  final hiveKey = 'admin2_$key';
+    final hiveKey = 'admin2_$key';
 
-  // hive cache
-  if (!forceRefresh && _isCacheFresh) {
-    final raw = _cache.readRawList(hiveKey);
+    // hive cache
+    if (!forceRefresh && _isCacheFresh) {
+      final raw = _cache.readRawList(hiveKey);
 
-    if (raw != null && raw.isNotEmpty) {
-      var list = raw
-          .map((e) => Admin2.fromMap(e['id'], e))
-          .toList();
+      if (raw != null && raw.isNotEmpty) {
+        var list = raw.map((e) => Admin2.fromMap(e['id'], e)).toList();
+
+        if (onlyEnabled) {
+          list = list.where((e) => e.enabled).toList();
+        }
+
+        list.sort((a, b) => a.sort.compareTo(b.sort));
+
+        _admin2Cache[key] = list;
+        return list;
+      }
+    }
+
+    try {
+      debugPrint("🌍 ADMIN2 COUNTRY => $countryCode");
+      debugPrint("🏙 ADMIN2 ADMIN1 => $admin1Id");
+
+      final snap = await _db
+          .collection('countries')
+          .doc(countryCode)
+          .collection('admin1')
+          .doc(admin1Id)
+          .collection('admin2')
+          .get();
+
+      debugPrint("📂 ADMIN2 DOCS => ${snap.docs.length}");
+
+      var list = snap.docs.map((d) => Admin2.fromMap(d.id, d.data())).toList();
 
       if (onlyEnabled) {
         list = list.where((e) => e.enabled).toList();
@@ -196,57 +205,21 @@ class LocationRepository {
       list.sort((a, b) => a.sort.compareTo(b.sort));
 
       _admin2Cache[key] = list;
+
+      await _cache.writeRawList(hiveKey, list.map((e) => e.toMap()).toList());
+
       return list;
+    } catch (e) {
+      debugPrint("❌ ADMIN2 ERROR => $e");
+
+      if (_admin2Cache[key] != null) {
+        return _admin2Cache[key]!;
+      }
+
+      return [];
     }
   }
 
-  try {
-    debugPrint("🌍 ADMIN2 COUNTRY => $countryCode");
-    debugPrint("🏙 ADMIN2 ADMIN1 => $admin1Id");
-
-    final snap = await _db
-        .collection('countries')
-        .doc(countryCode)
-        .collection('admin1')
-        .doc(admin1Id)
-        .collection('admin2')
-        .get();
-
-    debugPrint("📂 ADMIN2 DOCS => ${snap.docs.length}");
-
-    var list = snap.docs
-        .map(
-          (d) => Admin2.fromMap(
-            d.id,
-            d.data(),
-          ),
-        )
-        .toList();
-
-    if (onlyEnabled) {
-      list = list.where((e) => e.enabled).toList();
-    }
-
-    list.sort((a, b) => a.sort.compareTo(b.sort));
-
-    _admin2Cache[key] = list;
-
-    await _cache.writeRawList(
-      hiveKey,
-      list.map((e) => e.toMap()).toList(),
-    );
-
-    return list;
-  } catch (e) {
-    debugPrint("❌ ADMIN2 ERROR => $e");
-
-    if (_admin2Cache[key] != null) {
-      return _admin2Cache[key]!;
-    }
-
-    return [];
-  }
-}
   // ---------------------------
   // Clear memory only
   // ---------------------------

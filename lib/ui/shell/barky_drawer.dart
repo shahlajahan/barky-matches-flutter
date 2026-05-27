@@ -10,7 +10,6 @@ import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/welcome_page.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 
-
 import 'package:barky_matches_fixed/ui/support/about_us_page.dart';
 import 'package:barky_matches_fixed/ui/legal/privacy_policy_page.dart';
 import 'package:barky_matches_fixed/ui/legal/terms_page.dart';
@@ -38,7 +37,6 @@ class BarkyDrawer extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-
             /// 🔴 HEADER
             DrawerHeader(
               decoration: const BoxDecoration(
@@ -76,99 +74,83 @@ class BarkyDrawer extends StatelessWidget {
             /// 🟣 SUPPORT
             _sectionTitle("Support"),
 
-_tile(
-  context,
-  LucideIcons.messageSquare,
-  "Send Feedback",
-  onTap: () {
+            _tile(
+              context,
+              LucideIcons.messageSquare,
+              "Send Feedback",
+              onTap: () {
+                final appState = context.read<AppState>();
 
-    final appState =
-        context.read<AppState>();
+                appState.setCurrentTab(NavTab.profile);
 
-    appState.setCurrentTab(
-      NavTab.profile,
-    );
+                appState.openProfileSubPage(ProfileSubPage.feedback);
+              },
+            ),
 
-    appState.openProfileSubPage(
-      ProfileSubPage.feedback,
-    );
-  },
-),
+            _tile(
+              context,
+              LucideIcons.bug,
+              "Report Problem",
+              onTap: () {
+                final appState = context.read<AppState>();
 
-_tile(
-  context,
-  LucideIcons.bug,
-  "Report Problem",
-  onTap: () {
+                appState.setCurrentTab(NavTab.profile);
 
-    final appState =
-        context.read<AppState>();
+                appState.openProfileSubPage(ProfileSubPage.reportProblem);
+              },
+            ),
 
-    appState.setCurrentTab(
-      NavTab.profile,
-    );
+            _tile(
+              context,
+              LucideIcons.helpCircle,
+              "FAQ",
+              onTap: () {
+                final appState = context.read<AppState>();
 
-    appState.openProfileSubPage(
-      ProfileSubPage.reportProblem,
-    );
-  },
-),
+                appState.setCurrentTab(NavTab.profile);
 
-_tile(
-  context,
-  LucideIcons.helpCircle,
-  "FAQ",
-  onTap: () {
+                appState.openProfileSubPage(ProfileSubPage.faq);
+              },
+            ),
 
-    final appState =
-        context.read<AppState>();
+            const Divider(height: 32),
 
-    appState.setCurrentTab(
-      NavTab.profile,
-    );
+            _sectionTitle("Legal"),
 
-    appState.openProfileSubPage(
-      ProfileSubPage.faq,
-    );
-  },
-),
+            _tile(
+              context,
+              LucideIcons.shield,
+              "Privacy Policy",
+              onTap: () {
+                Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+                );
+              },
+            ),
 
-const Divider(height: 32),
+            _tile(
+              context,
+              LucideIcons.fileText,
+              "Terms of Service",
+              onTap: () {
+                Navigator.of(
+                  context,
+                  rootNavigator: true,
+                ).push(MaterialPageRoute(builder: (_) => const TermsPage()));
+              },
+            ),
 
-_sectionTitle("Legal"),
-
-_tile(
-  context,
-  LucideIcons.shield,
-  "Privacy Policy",
-  onTap: () {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
-    );
-  },
-),
-
-_tile(
-  context,
-  LucideIcons.fileText,
-  "Terms of Service",
-  onTap: () {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const TermsPage()),
-    );
-  },
-),
-
-_tile(
-  context,
-  LucideIcons.info,
-  "About Us",
-  onTap: () {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const AboutUsPage()),
-    );
-  },
-),
+            _tile(
+              context,
+              LucideIcons.info,
+              "About Us",
+              onTap: () {
+                Navigator.of(
+                  context,
+                  rootNavigator: true,
+                ).push(MaterialPageRoute(builder: (_) => const AboutUsPage()));
+              },
+            ),
 
             const Divider(height: 32),
 
@@ -251,31 +233,22 @@ _tile(
 }
 
 class _FaqCard extends StatefulWidget {
-
   final String question;
   final String answer;
 
-  const _FaqCard({
-    required this.question,
-    required this.answer,
-  });
+  const _FaqCard({required this.question, required this.answer});
 
   @override
-  State<_FaqCard> createState() =>
-      _FaqCardState();
+  State<_FaqCard> createState() => _FaqCardState();
 }
 
-class _FaqCardState
-    extends State<_FaqCard> {
-
+class _FaqCardState extends State<_FaqCard> {
   bool expanded = false;
 
   @override
   Widget build(BuildContext context) {
-
     return InkWell(
-      borderRadius:
-          BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(24),
 
       onTap: () {
         setState(() {
@@ -288,29 +261,21 @@ class _FaqCardState
 
         child: Column(
           children: [
-
             Row(
               children: [
-
                 Container(
                   width: 44,
                   height: 44,
 
                   decoration: BoxDecoration(
-                    color: const Color(
-                      0xFF9E1B4F,
-                    ).withOpacity(.10),
+                    color: const Color(0xFF9E1B4F).withOpacity(.10),
 
-                    borderRadius:
-                        BorderRadius.circular(
-                      14,
-                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
 
                   child: const Icon(
                     LucideIcons.helpCircle,
-                    color:
-                        Color(0xFF9E1B4F),
+                    color: Color(0xFF9E1B4F),
                     size: 22,
                   ),
                 ),
@@ -321,32 +286,23 @@ class _FaqCardState
                   child: Text(
                     widget.question,
 
-                    style:
-                        GoogleFonts.poppins(
+                    style: GoogleFonts.poppins(
                       fontSize: 15,
-                      fontWeight:
-                          FontWeight.w700,
+                      fontWeight: FontWeight.w700,
 
-                      color: const Color(
-                        0xFF9E1B4F,
-                      ),
+                      color: const Color(0xFF9E1B4F),
                     ),
                   ),
                 ),
 
                 AnimatedRotation(
-                  turns:
-                      expanded ? 0.5 : 0,
+                  turns: expanded ? 0.5 : 0,
 
-                  duration:
-                      const Duration(
-                    milliseconds: 220,
-                  ),
+                  duration: const Duration(milliseconds: 220),
 
                   child: const Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color:
-                        Color(0xFF9E1B4F),
+                    color: Color(0xFF9E1B4F),
                     size: 28,
                   ),
                 ),
@@ -354,20 +310,15 @@ class _FaqCardState
             ),
 
             AnimatedCrossFade(
-              firstChild:
-                  const SizedBox.shrink(),
+              firstChild: const SizedBox.shrink(),
 
               secondChild: Padding(
-                padding:
-                    const EdgeInsets.only(
-                  top: 18,
-                ),
+                padding: const EdgeInsets.only(top: 18),
 
                 child: Text(
                   widget.answer,
 
-                  style:
-                      GoogleFonts.poppins(
+                  style: GoogleFonts.poppins(
                     fontSize: 13,
                     color: Colors.black87,
                     height: 1.6,
@@ -379,9 +330,7 @@ class _FaqCardState
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,
 
-              duration: const Duration(
-                milliseconds: 220,
-              ),
+              duration: const Duration(milliseconds: 220),
             ),
           ],
         ),

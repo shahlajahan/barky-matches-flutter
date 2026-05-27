@@ -8,38 +8,41 @@ class SellerShippingService {
   // =========================
   // 📡 GET CONFIG
   // =========================
- Future<Map<String, dynamic>> getConfig(String businessId) async {
-  final ref = FirebaseFirestore.instance
-      .collection('shipping_configs')
-      .doc(businessId);
+  Future<Map<String, dynamic>> getConfig(String businessId) async {
+    final ref = FirebaseFirestore.instance
+        .collection('shipping_configs')
+        .doc(businessId);
 
-  final doc = await ref.get();
+    final doc = await ref.get();
 
-  if (doc.exists) {
-    debugPrint("✅ SHIPPING CONFIG FOUND");
-    return doc.data()!;
+    if (doc.exists) {
+      debugPrint("✅ SHIPPING CONFIG FOUND");
+      return doc.data()!;
+    }
+
+    debugPrint("⚠️ SHIPPING CONFIG NOT FOUND → CREATING...");
+
+    final defaultConfig = {
+      "basePrice": 50,
+      "pricePerKg": 10,
+      "freeShippingThreshold": 500,
+      "createdAt": FieldValue.serverTimestamp(),
+    };
+
+    await ref.set(defaultConfig);
+
+    debugPrint("✅ SHIPPING CONFIG CREATED");
+
+    return defaultConfig;
   }
 
-  debugPrint("⚠️ SHIPPING CONFIG NOT FOUND → CREATING...");
-
-  final defaultConfig = {
-    "basePrice": 50,
-    "pricePerKg": 10,
-    "freeShippingThreshold": 500,
-    "createdAt": FieldValue.serverTimestamp(),
-  };
-
-  await ref.set(defaultConfig);
-
-  debugPrint("✅ SHIPPING CONFIG CREATED");
-
-  return defaultConfig;
-}
   // =========================
   // 💾 SAVE CONFIG
   // =========================
   Future<void> saveConfig(
-      String businessId, SellerShippingConfig config) async {
+    String businessId,
+    SellerShippingConfig config,
+  ) async {
     try {
       await _db
           .collection("businesses")

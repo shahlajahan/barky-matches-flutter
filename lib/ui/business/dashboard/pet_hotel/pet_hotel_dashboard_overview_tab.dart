@@ -56,17 +56,19 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stream = FirebaseFirestore.instance
-    .collection('hotel_bookings')
-    .where('businessId', isEqualTo: businessId)
-    .orderBy('createdAt', descending: true)
-    .snapshots()
-    .handleError((e) {
-      debugPrint(
-        '🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e',
-      );
-    });
-    
-    debugPrint('🔥 LISTENING PATH => hotel_bookings where businessId == $businessId');
+        .collection('hotel_bookings')
+        .where('businessId', isEqualTo: businessId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .handleError((e) {
+          debugPrint(
+            '🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e',
+          );
+        });
+
+    debugPrint(
+      '🔥 LISTENING PATH => hotel_bookings where businessId == $businessId',
+    );
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: stream,
@@ -322,10 +324,8 @@ class _PendingBookingCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () => _update(
-  context,
-  _approvalTargetStatus(data),
-),
+                  onPressed: () =>
+                      _update(context, _approvalTargetStatus(data)),
                   child: const Text('Accept'),
                 ),
               ),
@@ -343,23 +343,20 @@ class _PendingBookingCard extends StatelessWidget {
       ),
     );
   }
+
   String _approvalTargetStatus(Map<String, dynamic> data) {
-  final rawPrice =
-      data['servicePrice'] ??
-      data['price'] ??
-      data['pricePerNight'];
+    final rawPrice =
+        data['servicePrice'] ?? data['price'] ?? data['pricePerNight'];
 
-  final double price = rawPrice is num
-      ? rawPrice.toDouble()
-      : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
+    final double price = rawPrice is num
+        ? rawPrice.toDouble()
+        : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
 
-  final requiresPayment =
-      data['serviceRequiresPayment'] == true ||
-      data['requiresPayment'] == true ||
-      price > 0;
+    final requiresPayment =
+        data['serviceRequiresPayment'] == true ||
+        data['requiresPayment'] == true ||
+        price > 0;
 
-  return requiresPayment
-      ? 'awaiting_payment'
-      : 'confirmed';
-}
+    return requiresPayment ? 'awaiting_payment' : 'confirmed';
+  }
 }

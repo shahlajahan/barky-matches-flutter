@@ -33,123 +33,127 @@ class _CheckoutButtonState extends State<CheckoutButton> {
   final _orderService = OrderService();
 
   Future<void> _startCheckout() async {
-  debugPrint("🔥 CHECKOUT BUTTON CLICKED");
-  if (_loading || widget.items.isEmpty) return;
+    debugPrint("🔥 CHECKOUT BUTTON CLICKED");
+    if (_loading || widget.items.isEmpty) return;
 
-  setState(() => _loading = true);
+    setState(() => _loading = true);
 
-  try {
-    debugPrint("🏪 ORDER BUSINESS: ${widget.items.first.shopId}");
+    try {
+      debugPrint("🏪 ORDER BUSINESS: ${widget.items.first.shopId}");
 
-    debugPrint("🟡 BEFORE createOrder");
-    final user = FirebaseAuth.instance.currentUser;
+      debugPrint("🟡 BEFORE createOrder");
+      final user = FirebaseAuth.instance.currentUser;
 
-final orderId = await _orderService
-    .createOrder(
-      items: widget.items.map((e) => e.toJson()).toList(),
-      subtotal: widget.items.fold<double>(
-        0,
-        (sum, item) => sum + (item.price * item.quantity),
-      ),
-      kdv: 0,
-      shippingTotal: 0,
-      grandTotal: widget.items.fold<double>(
-        0,
-        (sum, item) => sum + (item.price * item.quantity),
-      ),
-      currency: 'TRY',
-      businessId: widget.items.first.shopId,
-      address: widget.address ?? {},
-      billing: widget.billing ?? {},
-      legal: widget.legal ?? {},
-      buyerName: user?.displayName ?? '',
-      buyerPhone: user?.phoneNumber ?? '',
-      buyerEmail: user?.email ?? '',
-    )
-    .timeout(
-      const Duration(seconds: 15),
-      onTimeout: () {
-        throw Exception("createOrder TIMEOUT");
-      },
-    );
+      final orderId = await _orderService
+          .createOrder(
+            items: widget.items.map((e) => e.toJson()).toList(),
+            subtotal: widget.items.fold<double>(
+              0,
+              (sum, item) => sum + (item.price * item.quantity),
+            ),
+            kdv: 0,
+            shippingTotal: 0,
+            grandTotal: widget.items.fold<double>(
+              0,
+              (sum, item) => sum + (item.price * item.quantity),
+            ),
+            currency: 'TRY',
+            businessId: widget.items.first.shopId,
+            address: widget.address ?? {},
+            billing: widget.billing ?? {},
+            legal: widget.legal ?? {},
+            buyerName: user?.displayName ?? '',
+            buyerPhone: user?.phoneNumber ?? '',
+            buyerEmail: user?.email ?? '',
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              throw Exception("createOrder TIMEOUT");
+            },
+          );
 
-debugPrint("🟢 AFTER createOrder → orderId: $orderId");
+      debugPrint("🟢 AFTER createOrder → orderId: $orderId");
 
-    for (final item in widget.items) {
-      debugPrint("🔥 ITEM JSON → ${item.toJson()}");
-    }
+      for (final item in widget.items) {
+        debugPrint("🔥 ITEM JSON → ${item.toJson()}");
+      }
 
-    debugPrint("🚀 CALLING CHECKOUT SESSION...");
+      debugPrint("🚀 CALLING CHECKOUT SESSION...");
 
-final session = await _service.createCheckoutSession(
-      orderId: orderId,
-      items: widget.items.map((e) => e.toJson()).toList(),
-      currency: 'TRY',
-      successUrl: 'https://barkymatches.app/payment-success',
-      cancelUrl: 'https://barkymatches.app/payment-cancel',
-      note: 'Order: $orderId',
-      billingAddress: widget.billing ?? widget.address ?? {},
-      shippingAddress: widget.address ?? widget.billing ?? {},
-      carrier: (widget.address?['carrier'] ?? widget.billing?['carrier'] ?? '')
-          .toString(),
-      buyer: {
-        "uid": user?.uid,
-        "email": user?.email,
-      },
-    )
-    .timeout(
-      const Duration(seconds: 20),
-      onTimeout: () {
-        throw Exception("createCheckoutSession timeout");
-      },
-    );
-debugPrint("✅ SESSION RECEIVED: ${session.checkoutUrl}");
-    if (!mounted) return;
+      final session = await _service
+          .createCheckoutSession(
+            orderId: orderId,
+            items: widget.items.map((e) => e.toJson()).toList(),
+            currency: 'TRY',
+            successUrl: 'https://barkymatches.app/payment-success',
+            cancelUrl: 'https://barkymatches.app/payment-cancel',
+            note: 'Order: $orderId',
+            billingAddress: widget.billing ?? widget.address ?? {},
+            shippingAddress: widget.address ?? widget.billing ?? {},
+            carrier:
+                (widget.address?['carrier'] ?? widget.billing?['carrier'] ?? '')
+                    .toString(),
+            buyer: {"uid": user?.uid, "email": user?.email},
+          )
+          .timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              throw Exception("createCheckoutSession timeout");
+            },
+          );
+      debugPrint("✅ SESSION RECEIVED: ${session.checkoutUrl}");
+      if (!mounted) return;
 
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PetshopCheckoutWebViewPage(
-          checkoutUrl: session.checkoutUrl,
-          successUrlPrefix: 'https://barkymatches.app/payment-success',
-          cancelUrlPrefix: 'https://barkymatches.app/payment-cancel',
-          orderId: orderId,
-        ),
-      ),
-    );
-
-    if (!mounted) return;
-
-    if (result == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.checkoutPaymentCompletedSuccessfully,
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PetshopCheckoutWebViewPage(
+            checkoutUrl: session.checkoutUrl,
+            successUrlPrefix: 'https://barkymatches.app/payment-success',
+            cancelUrlPrefix: 'https://barkymatches.app/payment-cancel',
+            orderId: orderId,
           ),
         ),
       );
-    } else {
+
+      if (!mounted) return;
+
+      if (result == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(
+                context,
+              )!.checkoutPaymentCompletedSuccessfully,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(
+                context,
+              )!.checkoutPaymentCancelledOrIncomplete,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
+            AppLocalizations.of(context)!.checkoutFailed(e.toString()),
           ),
         ),
       );
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          AppLocalizations.of(context)!.checkoutFailed(e.toString()),
-        ),
-      ),
-    );
-  } finally {
-    if (mounted) setState(() => _loading = false);
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(

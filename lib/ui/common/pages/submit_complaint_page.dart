@@ -16,7 +16,6 @@ class SubmitComplaintPage extends StatefulWidget {
 }
 
 class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
-
   final _formKey = GlobalKey<FormState>();
 
   final _titleController = TextEditingController();
@@ -40,7 +39,6 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
   ];
 
   Future<void> _submitComplaint() async {
-
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -51,7 +49,8 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
         return AlertDialog(
           title: const Text("Submit Complaint"),
           content: const Text(
-              "Are you sure you want to submit this complaint?"),
+            "Are you sure you want to submit this complaint?",
+          ),
           actions: [
             TextButton(
               child: const Text("Cancel"),
@@ -73,9 +72,7 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
     });
 
     try {
-
-      final functions =
-          FirebaseFunctions.instanceFor(region: 'europe-west3');
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west3');
 
       final callable = functions.httpsCallable('createComplaint');
 
@@ -90,17 +87,11 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Complaint submitted successfully"),
-        ),
+        const SnackBar(content: Text("Complaint submitted successfully")),
       );
 
       Navigator.pop(context);
-
-    }
-
-    on FirebaseFunctionsException catch (e) {
-
+    } on FirebaseFunctionsException catch (e) {
       debugPrint("❌ Complaint error: ${e.code} ${e.message}");
 
       String message = "Failed to submit complaint";
@@ -118,25 +109,18 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
-
-    }
-
-    catch (e) {
-
+    } catch (e) {
       debugPrint("❌ Unknown complaint error: $e");
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Unexpected error"),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Unexpected error")));
       }
-
     }
 
     if (mounted) {
@@ -155,9 +139,7 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       appBar: AppBar(
         title: const Text("Submit Complaint"),
         backgroundColor: Colors.pink,
@@ -171,7 +153,6 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
 
           child: Column(
             children: [
-
               /// CATEGORY
               DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
@@ -180,12 +161,7 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
                   border: OutlineInputBorder(),
                 ),
                 items: _categories
-                    .map(
-                      (c) => DropdownMenuItem(
-                        value: c,
-                        child: Text(c),
-                      ),
-                    )
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
                 onChanged: (value) {
                   if (value != null) {
@@ -244,14 +220,11 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
                 width: double.infinity,
 
                 child: ElevatedButton(
-
                   onPressed: _loading ? null : _submitComplaint,
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.pink,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
 
                   child: _loading
@@ -269,7 +242,6 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
                         ),
                 ),
               ),
-
             ],
           ),
         ),

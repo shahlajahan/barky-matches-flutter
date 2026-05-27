@@ -18,27 +18,11 @@ enum ModerationCaseStatus {
   dismissed,
 }
 
-enum ModerationQueueStatus {
-  pendingReview,
-  inReview,
-  waitingAction,
-  closed,
-}
+enum ModerationQueueStatus { pendingReview, inReview, waitingAction, closed }
 
-enum ModerationEffectiveStatus {
-  clean,
-  flagged,
-  restricted,
-  hidden,
-  suspended,
-}
+enum ModerationEffectiveStatus { clean, flagged, restricted, hidden, suspended }
 
-enum ModerationPriority {
-  low,
-  medium,
-  high,
-  critical,
-}
+enum ModerationPriority { low, medium, high, critical }
 
 int priorityRank(ModerationPriority p) {
   switch (p) {

@@ -158,7 +158,9 @@ class _UpgradePageState extends State<UpgradePage> {
                               setState(() => isBusy = true);
 
                               try {
-                                debugPrint("🛒 PAYWALL BUY TAP → $selectedPlan");
+                                debugPrint(
+                                  "🛒 PAYWALL BUY TAP → $selectedPlan",
+                                );
                                 await IapService.instance.buySubscription(
                                   selectedProduct,
                                 );
@@ -222,7 +224,8 @@ class _UpgradePageState extends State<UpgradePage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       GestureDetector(
-                        onTap: () => _openUrl("https://petsupo.com/gizlilik-politikasi"),
+                        onTap: () =>
+                            _openUrl("https://petsupo.com/gizlilik-politikasi"),
                         child: Text(
                           l10n.privacyPolicyLabel,
                           style: TextStyle(
@@ -234,7 +237,8 @@ class _UpgradePageState extends State<UpgradePage> {
                       ),
                       const SizedBox(width: 18),
                       GestureDetector(
-                        onTap: () => _openUrl("https://petsupo.com/kullanim-kosullari"),
+                        onTap: () =>
+                            _openUrl("https://petsupo.com/kullanim-kosullari"),
                         child: Text(
                           l10n.termsOfUseLabel,
                           style: TextStyle(
@@ -299,7 +303,10 @@ class _UpgradePageState extends State<UpgradePage> {
             if (badge != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black,
                   borderRadius: BorderRadius.circular(999),
@@ -338,10 +345,7 @@ class _UpgradePageState extends State<UpgradePage> {
 
             Text(
               subtitle,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: subColor,
-              ),
+              style: GoogleFonts.poppins(fontSize: 12, color: subColor),
             ),
 
             const SizedBox(height: 12),
@@ -357,10 +361,7 @@ class _UpgradePageState extends State<UpgradePage> {
 
             Text(
               l10n.autoRenewableMonthlySubscription,
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: subColor,
-              ),
+              style: GoogleFonts.poppins(fontSize: 11, color: subColor),
             ),
 
             const SizedBox(height: 14),

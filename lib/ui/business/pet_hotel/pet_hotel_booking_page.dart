@@ -60,7 +60,9 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
         .orderBy('sortOrder')
         .snapshots()
         .handleError((e) {
-          debugPrint('🔥 FIRESTORE STREAM ERROR => businesses/${widget.hotel.id}/services :: $e');
+          debugPrint(
+            '🔥 FIRESTORE STREAM ERROR => businesses/${widget.hotel.id}/services :: $e',
+          );
         });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class AdminKpiCard extends StatelessWidget {
-
   final String title;
   final String value;
   final Color color;
@@ -17,7 +16,6 @@ class AdminKpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -27,7 +25,6 @@ class AdminKpiCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-
           Icon(icon, color: color, size: 26),
 
           const SizedBox(height: 8),
@@ -35,9 +32,7 @@ class AdminKpiCard extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
 
           const SizedBox(height: 6),
@@ -50,7 +45,6 @@ class AdminKpiCard extends StatelessWidget {
               color: color,
             ),
           ),
-
         ],
       ),
     );

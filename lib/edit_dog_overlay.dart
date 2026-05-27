@@ -20,11 +20,7 @@ class EditDogOverlay extends StatefulWidget {
   final Dog dog;
   final VoidCallback onClose;
 
-  const EditDogOverlay({
-    super.key,
-    required this.dog,
-    required this.onClose,
-  });
+  const EditDogOverlay({super.key, required this.dog, required this.onClose});
 
   @override
   State<EditDogOverlay> createState() => _EditDogOverlayState();
@@ -53,7 +49,9 @@ class _EditDogOverlayState extends State<EditDogOverlay>
 
     _nameController = TextEditingController(text: widget.dog.name);
     _ageController = TextEditingController(text: widget.dog.age.toString());
-    _descriptionController = TextEditingController(text: widget.dog.description);
+    _descriptionController = TextEditingController(
+      text: widget.dog.description,
+    );
 
     _selectedHealthStatus = _mapHealthStatus(widget.dog.healthStatus);
     _selectedOwnerGender = _mapOwnerGender(widget.dog.ownerGender);
@@ -76,91 +74,91 @@ class _EditDogOverlayState extends State<EditDogOverlay>
   // ✅ REAL PICK IMAGE (Gallery/Camera)
   // ─────────────────────────────
   Future<void> _pickImage() async {
-  final l10n = AppLocalizations.of(context)!;
-  final source = await showModalBottomSheet<ImageSource>(
-    context: context,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(Icons.photo_library),
-            title: Text(l10n.chooseFromGallery),
-            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_camera),
-            title: Text(l10n.takeAPhoto),
-            onTap: () => Navigator.pop(ctx, ImageSource.camera),
-          ),
-          const SizedBox(height: 8),
-        ],
+    final l10n = AppLocalizations.of(context)!;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-    ),
-  );
-
-  if (source == null) return;
-
-  try {
-    final XFile? file = await _picker.pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: 1400,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: Text(l10n.chooseFromGallery),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: Text(l10n.takeAPhoto),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
 
-    if (file == null) return;
+    if (source == null) return;
 
-    final localFile = File(file.path);
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1400,
+      );
 
-    final downloadUrl = await _uploadImageToStorage(localFile);
+      if (file == null) return;
 
-    debugPrint("🔥 DOWNLOAD URL: $downloadUrl");
+      final localFile = File(file.path);
 
-    if (!mounted) return;
+      final downloadUrl = await _uploadImageToStorage(localFile);
 
-    // مرحله ۱: آپدیت لیست عکس‌ها
-setState(() {
-  _imagePaths.add(downloadUrl); // ✅ فقط اضافه کن، نه replace
-});
+      debugPrint("🔥 DOWNLOAD URL: $downloadUrl");
 
-// مرحله ۲: مستقیم مدل سگ را آپدیت کن
-widget.dog.imagePaths = _imagePaths;
+      if (!mounted) return;
 
-// مرحله ۳: از AppState صدا بزن
-await context.read<AppState>().saveEditedDog(widget.dog);
-  } catch (e) {
-    debugPrint("Upload error: $e");
+      // مرحله ۱: آپدیت لیست عکس‌ها
+      setState(() {
+        _imagePaths.add(downloadUrl); // ✅ فقط اضافه کن، نه replace
+      });
+
+      // مرحله ۲: مستقیم مدل سگ را آپدیت کن
+      widget.dog.imagePaths = _imagePaths;
+
+      // مرحله ۳: از AppState صدا بزن
+      await context.read<AppState>().saveEditedDog(widget.dog);
+    } catch (e) {
+      debugPrint("Upload error: $e");
+    }
   }
-}
 
-Future<String> _uploadImageToStorage(File file) async {
-  final userId = widget.dog.ownerId;
-  if (userId == null) {
-    throw Exception("Owner ID is null");
+  Future<String> _uploadImageToStorage(File file) async {
+    final userId = widget.dog.ownerId;
+    if (userId == null) {
+      throw Exception("Owner ID is null");
+    }
+
+    final ext = file.path.split('.').last; // 👈 گرفتن پسوند واقعی
+
+    final fileName = "${DateTime.now().millisecondsSinceEpoch}.$ext";
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child("dogs")
+        .child(userId)
+        .child(fileName);
+
+    final uploadTask = await ref.putFile(file);
+
+    final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+    return downloadUrl;
   }
 
-  final ext = file.path.split('.').last; // 👈 گرفتن پسوند واقعی
-
-final fileName =
-  "${DateTime.now().millisecondsSinceEpoch}.$ext";
-
-  final ref = FirebaseStorage.instance
-      .ref()
-      .child("dogs")
-      .child(userId)
-      .child(fileName);
-
-  final uploadTask = await ref.putFile(file);
-
-  final downloadUrl = await uploadTask.ref.getDownloadURL();
-
-  return downloadUrl;
-}
   // ─────────────────────────────
   // ✅ SAVE (keys ثابت)
   // ─────────────────────────────
@@ -179,7 +177,8 @@ final fileName =
       breed: widget.dog.breed,
       age: age,
       gender: widget.dog.gender,
-      healthStatus: _selectedHealthStatus, // KEY: healthy/needsCare/underTreatment
+      healthStatus:
+          _selectedHealthStatus, // KEY: healthy/needsCare/underTreatment
       isNeutered: _isNeutered,
       description: _descriptionController.text.trim(),
       traits: _selectedTraits,
@@ -206,8 +205,6 @@ final fileName =
     final premiumPhysics = const BouncingScrollPhysics(
       parent: AlwaysScrollableScrollPhysics(),
     );
-
-   
 
     return Stack(
       children: [
@@ -258,112 +255,130 @@ final fileName =
                       const SizedBox(height: 8),
 
                       SizedBox(
-  height: 110,
-  child: Row(
-    children: [
+                        height: 110,
+                        child: Row(
+                          children: [
+                            /// ➕ ADD BUTTON
+                            GestureDetector(
+                              onTap: _pickImage,
 
-      /// ➕ ADD BUTTON
-      GestureDetector(
-        onTap: _pickImage,
-
-        child: Container(
-          width: 100,
-          margin: const EdgeInsets.only(right: 10),
-          decoration: BoxDecoration(
-            color: Colors.white24,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Center(
-            child: Icon(Icons.add, color: Colors.white, size: 28),
-          ),
-        ),
-      ),
-
-      /// 🎥 ADD VIDEO BUTTON
-GestureDetector(
-  onTap: _pickVideo,
-  child: Container(
-    width: 100,
-    margin: const EdgeInsets.only(right: 10),
-    decoration: BoxDecoration(
-      color: Colors.white24,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: const Center(
-      child: Icon(Icons.videocam, color: Colors.white, size: 26),
-    ),
-  ),
-),
-
-      /// 🎞 SLIDER
-      Expanded(
-        child: _imagePaths.isEmpty
-            ? Center(
-                child: Text(
-                  l10n.noMedia,
-                  style: TextStyle(color: Colors.white70),
-                ),
-              )
-            : PageView.builder(
-                itemCount: _imagePaths.length,
-                itemBuilder: (context, index) {
-                  final path = _imagePaths[index];
-final lower = path.toLowerCase(); // ✅ اینو اضافه کن
-final isVideo = lower.contains('.mp4');
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Stack(
-                      children: [
-
-                        /// 🖼 IMAGE
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: isVideo
-    ? Container(
-        color: Colors.black,
-        child: const Center(
-          child: Icon(Icons.play_circle_fill,
-              color: Colors.white, size: 30),
-        ),
-      )
-    : _buildDogImage(path),
-                        ),
-
-                        /// 🗑 DELETE BUTTON
-                        Positioned(
-                          top: 6,
-                          right: 6,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _imagePaths.removeAt(index);
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                size: 14,
-                                color: Colors.white,
+                              child: Container(
+                                width: 100,
+                                margin: const EdgeInsets.only(right: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white24,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.add,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
 
-                      ],
-                    ),
-                  );
-                },
-              ),
-      ),
-    ],
-  ),
-),
+                            /// 🎥 ADD VIDEO BUTTON
+                            GestureDetector(
+                              onTap: _pickVideo,
+                              child: Container(
+                                width: 100,
+                                margin: const EdgeInsets.only(right: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white24,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.videocam,
+                                    color: Colors.white,
+                                    size: 26,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            /// 🎞 SLIDER
+                            Expanded(
+                              child: _imagePaths.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        l10n.noMedia,
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                    )
+                                  : PageView.builder(
+                                      itemCount: _imagePaths.length,
+                                      itemBuilder: (context, index) {
+                                        final path = _imagePaths[index];
+                                        final lower = path
+                                            .toLowerCase(); // ✅ اینو اضافه کن
+                                        final isVideo = lower.contains('.mp4');
+
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          child: Stack(
+                                            children: [
+                                              /// 🖼 IMAGE
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                child: isVideo
+                                                    ? Container(
+                                                        color: Colors.black,
+                                                        child: const Center(
+                                                          child: Icon(
+                                                            Icons
+                                                                .play_circle_fill,
+                                                            color: Colors.white,
+                                                            size: 30,
+                                                          ),
+                                                        ),
+                                                      )
+                                                    : _buildDogImage(path),
+                                              ),
+
+                                              /// 🗑 DELETE BUTTON
+                                              Positioned(
+                                                top: 6,
+                                                right: 6,
+                                                child: GestureDetector(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _imagePaths.removeAt(
+                                                        index,
+                                                      );
+                                                    });
+                                                  },
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(6),
+                                                    decoration:
+                                                        const BoxDecoration(
+                                                          color: Colors.black54,
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                    child: const Icon(
+                                                      Icons.close,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 16),
 
                       // Name
@@ -416,14 +431,17 @@ final isVideo = lower.contains('.mp4');
                         dropdownColor: Colors.white,
                         items: [
                           DropdownMenuItem(
-                              value: "healthy",
-                              child: Text(l10n.editDogHealthHealthy)),
+                            value: "healthy",
+                            child: Text(l10n.editDogHealthHealthy),
+                          ),
                           DropdownMenuItem(
-                              value: "needsCare",
-                              child: Text(l10n.editDogHealthNeedsCare)),
+                            value: "needsCare",
+                            child: Text(l10n.editDogHealthNeedsCare),
+                          ),
                           DropdownMenuItem(
-                              value: "underTreatment",
-                              child: Text(l10n.editDogHealthUnderTreatment)),
+                            value: "underTreatment",
+                            child: Text(l10n.editDogHealthUnderTreatment),
+                          ),
                         ],
                         onChanged: (v) =>
                             setState(() => _selectedHealthStatus = v!),
@@ -448,22 +466,24 @@ final isVideo = lower.contains('.mp4');
                           Radio<bool>(
                             value: true,
                             groupValue: _isNeutered,
-                            onChanged: (v) =>
-                                setState(() => _isNeutered = v!),
+                            onChanged: (v) => setState(() => _isNeutered = v!),
                             activeColor: Colors.white,
                           ),
-                          Text(l10n.yes,
-                              style: GoogleFonts.poppins(color: Colors.white)),
+                          Text(
+                            l10n.yes,
+                            style: GoogleFonts.poppins(color: Colors.white),
+                          ),
                           const SizedBox(width: 12),
                           Radio<bool>(
                             value: false,
                             groupValue: _isNeutered,
-                            onChanged: (v) =>
-                                setState(() => _isNeutered = v!),
+                            onChanged: (v) => setState(() => _isNeutered = v!),
                             activeColor: Colors.white,
                           ),
-                          Text(l10n.no,
-                              style: GoogleFonts.poppins(color: Colors.white)),
+                          Text(
+                            l10n.no,
+                            style: GoogleFonts.poppins(color: Colors.white),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -480,10 +500,7 @@ final isVideo = lower.contains('.mp4');
                         ),
                       ),
                       const SizedBox(height: 6),
-                      _whiteField(
-                        _descriptionController,
-                        maxLines: 3,
-                      ),
+                      _whiteField(_descriptionController, maxLines: 3),
                       const SizedBox(height: 14),
 
                       // Traits (Animated selection + same size + ordered)
@@ -552,14 +569,17 @@ final isVideo = lower.contains('.mp4');
                         dropdownColor: Colors.white,
                         items: [
                           DropdownMenuItem(
-                              value: "male",
-                              child: Text(l10n.editDogOwnerGenderMale)),
+                            value: "male",
+                            child: Text(l10n.editDogOwnerGenderMale),
+                          ),
                           DropdownMenuItem(
-                              value: "female",
-                              child: Text(l10n.editDogOwnerGenderFemale)),
+                            value: "female",
+                            child: Text(l10n.editDogOwnerGenderFemale),
+                          ),
                           DropdownMenuItem(
-                              value: "other",
-                              child: Text(l10n.editDogOwnerGenderOther)),
+                            value: "other",
+                            child: Text(l10n.editDogOwnerGenderOther),
+                          ),
                         ],
                         onChanged: (v) =>
                             setState(() => _selectedOwnerGender = v!),
@@ -583,15 +603,15 @@ final isVideo = lower.contains('.mp4');
                         children: [
                           Checkbox(
                             value: _isAvailableForAdoption,
-                            onChanged: (v) => setState(() =>
-                                _isAvailableForAdoption = v ?? false),
+                            onChanged: (v) => setState(
+                              () => _isAvailableForAdoption = v ?? false,
+                            ),
                             activeColor: Colors.white,
                             checkColor: Colors.black,
                           ),
                           Text(
                             l10n.availableForAdoption,
-                            style:
-                                GoogleFonts.poppins(color: Colors.white),
+                            style: GoogleFonts.poppins(color: Colors.white),
                           ),
                         ],
                       ),
@@ -615,7 +635,8 @@ final isVideo = lower.contains('.mp4');
                                       height: 18,
                                       width: 18,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2),
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : Text(l10n.save),
                             ),
@@ -634,57 +655,55 @@ final isVideo = lower.contains('.mp4');
   }
 
   Future<void> _pickVideo() async {
-  try {
-    final XFile? file = await _picker.pickVideo(
-      source: ImageSource.gallery,
-    );
+    try {
+      final XFile? file = await _picker.pickVideo(source: ImageSource.gallery);
 
-    if (file == null) return;
+      if (file == null) return;
 
-    final localFile = File(file.path);
+      final localFile = File(file.path);
 
-    final downloadUrl = await _uploadImageToStorage(localFile); // همونو استفاده کن
+      final downloadUrl = await _uploadImageToStorage(
+        localFile,
+      ); // همونو استفاده کن
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _imagePaths.add(downloadUrl); // ✅ multi media
-    });
+      setState(() {
+        _imagePaths.add(downloadUrl); // ✅ multi media
+      });
 
-    widget.dog.imagePaths = _imagePaths;
-    await context.read<AppState>().saveEditedDog(widget.dog);
-
-  } catch (e) {
-    debugPrint("Video upload error: $e");
+      widget.dog.imagePaths = _imagePaths;
+      await context.read<AppState>().saveEditedDog(widget.dog);
+    } catch (e) {
+      debugPrint("Video upload error: $e");
+    }
   }
-}
 
   Widget _buildDogImage(String pathOrUrl) {
-  final isUrl =
-      pathOrUrl.startsWith('http://') ||
-      pathOrUrl.startsWith('https://');
+    final isUrl =
+        pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
 
-  if (isUrl) {
-    return SmartMedia(
-      url: pathOrUrl, // ✅ مهم
+    if (isUrl) {
+      return SmartMedia(
+        url: pathOrUrl, // ✅ مهم
+        width: 110,
+        height: 110,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallbackImageBox(),
+      );
+    }
+
+    final file = File(pathOrUrl);
+    if (!file.existsSync()) return _fallbackImageBox();
+
+    return Image.file(
+      file,
       width: 110,
       height: 110,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => _fallbackImageBox(),
     );
   }
-
-  final file = File(pathOrUrl);
-  if (!file.existsSync()) return _fallbackImageBox();
-
-  return Image.file(
-    file,
-    width: 110,
-    height: 110,
-    fit: BoxFit.cover,
-    errorBuilder: (_, __, ___) => _fallbackImageBox(),
-  );
-}
 
   Widget _fallbackImageBox() {
     return Container(
@@ -699,9 +718,7 @@ final isVideo = lower.contains('.mp4');
     return const InputDecoration(
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderSide: BorderSide.none,
-      ),
+      border: OutlineInputBorder(borderSide: BorderSide.none),
     );
   }
 
@@ -795,7 +812,7 @@ class _AnimatedTraitChip extends StatelessWidget {
                       color: Colors.black.withOpacity(0.18),
                       blurRadius: 10,
                       offset: const Offset(0, 6),
-                    )
+                    ),
                   ]
                 : const [],
           ),
@@ -874,9 +891,7 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
   void _openPlayer() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => FullScreenVideoPlayer(url: widget.url),
-      ),
+      MaterialPageRoute(builder: (_) => FullScreenVideoPlayer(url: widget.url)),
     );
   }
 
@@ -896,11 +911,7 @@ class _VideoPreviewWidgetState extends State<VideoPreviewWidget> {
           else
             Container(color: Colors.black),
 
-          const Icon(
-            Icons.play_circle_fill,
-            size: 40,
-            color: Colors.white,
-          ),
+          const Icon(Icons.play_circle_fill, size: 40, color: Colors.white),
         ],
       ),
     );
@@ -920,32 +931,23 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
   VideoPlayerController? _controller;
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  _controller = widget.url.startsWith('http')
+    _controller = widget.url.startsWith('http')
+        ? VideoPlayerController.networkUrl(Uri.parse(widget.url))
+        : VideoPlayerController.file(File(widget.url));
 
-      ? VideoPlayerController.networkUrl(
-          Uri.parse(widget.url),
-        )
+    _controller!
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      })
+      ..play()
+      ..setLooping(true);
+  }
 
-      : VideoPlayerController.file(
-          File(widget.url),
-        );
-
-  _controller!
-    ..initialize().then((_) {
-
-      if (mounted) {
-        setState(() {});
-      }
-
-    })
-
-    ..play()
-
-    ..setLooping(true);
-}
   @override
   void dispose() {
     _controller?.dispose();
@@ -958,10 +960,8 @@ void initState() {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-
           Center(
-            child: _controller != null &&
-                    _controller!.value.isInitialized
+            child: _controller != null && _controller!.value.isInitialized
                 ? AspectRatio(
                     aspectRatio: _controller!.value.aspectRatio,
                     child: VideoPlayer(_controller!),
@@ -975,8 +975,7 @@ void initState() {
             right: 20,
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
-              child: const Icon(Icons.close,
-                  color: Colors.white, size: 30),
+              child: const Icon(Icons.close, color: Colors.white, size: 30),
             ),
           ),
         ],

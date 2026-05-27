@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dog.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
-
 class DogViewPage extends StatefulWidget {
   final Dog dog;
   final List<Dog> favoriteDogs;
@@ -49,9 +48,9 @@ class _DogViewPageState extends State<DogViewPage> {
 
   void _startChat() {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.dogViewChatStarted)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.dogViewChatStarted)));
   }
 
   Future<void> _scheduleDate() async {
@@ -93,9 +92,9 @@ class _DogViewPageState extends State<DogViewPage> {
 
   void _adoptDog() {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.dogViewAdoptionRequest)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.dogViewAdoptionRequest)));
   }
 
   @override
@@ -136,7 +135,11 @@ class _DogViewPageState extends State<DogViewPage> {
                             width: double.infinity,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.pets, size: 250, color: Colors.white);
+                              return const Icon(
+                                Icons.pets,
+                                size: 250,
+                                color: Colors.white,
+                              );
                             },
                           );
                         } else {
@@ -146,7 +149,11 @@ class _DogViewPageState extends State<DogViewPage> {
                             width: double.infinity,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              return const Icon(Icons.pets, size: 250, color: Colors.white);
+                              return const Icon(
+                                Icons.pets,
+                                size: 250,
+                                color: Colors.white,
+                              );
                             },
                           );
                         }
@@ -157,7 +164,11 @@ class _DogViewPageState extends State<DogViewPage> {
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.pets, size: 250, color: Colors.white);
+                          return const Icon(
+                            Icons.pets,
+                            size: 250,
+                            color: Colors.white,
+                          );
                         },
                       );
                     }(),
@@ -177,54 +188,82 @@ class _DogViewPageState extends State<DogViewPage> {
                         Text(
                           '${l10n.dogViewNameLabel} ${widget.dog.name}',
                           style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewBreedLabel} ${widget.dog.breed}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewAgeLabel} ${widget.dog.age}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewGenderLabel} ${widget.dog.gender}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewHealthLabel} ${widget.dog.healthStatus}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewNeuteredLabel} ${widget.dog.isNeutered ? l10n.dogViewYes : l10n.dogViewNo}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewDescriptionLabel} ${widget.dog.description}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewTraitsLabel} ${widget.dog.traits.join(", ")}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewOwnerGenderLabel} ${widget.dog.ownerGender}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           '${l10n.dogViewAvailableLabel} ${widget.dog.isAvailableForAdoption ? l10n.dogViewYes : l10n.dogViewNo}',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
                         ),
                       ],
                     ),
@@ -246,7 +285,9 @@ class _DogViewPageState extends State<DogViewPage> {
                       ),
                       IconButton(
                         icon: Icon(
-                          _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                          _isDisliked
+                              ? Icons.thumb_down
+                              : Icons.thumb_down_outlined,
                           color: _isDisliked ? Colors.red : Colors.white,
                         ),
                         onPressed: _toggleDislike,

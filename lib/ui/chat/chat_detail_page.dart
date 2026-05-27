@@ -23,16 +23,13 @@ class ChatDetailPage extends StatefulWidget {
 }
 
 class _ChatDetailPageState extends State<ChatDetailPage> {
-  final TextEditingController _messageController =
-      TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
 
-  final ScrollController _scrollController =
-      ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   bool _isSending = false;
 
-  String get currentUserId =>
-      FirebaseAuth.instance.currentUser!.uid;
+  String get currentUserId => FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
@@ -53,73 +50,52 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Future<void> _sendMessage() async {
-  final text = _messageController.text.trim();
+    final text = _messageController.text.trim();
 
-  if (text.isEmpty) return;
+    if (text.isEmpty) return;
 
-  if (_isSending) return;
+    if (_isSending) return;
 
-  setState(() {
-    _isSending = true;
-  });
+    setState(() {
+      _isSending = true;
+    });
 
-  try {
+    try {
+      await ChatService.instance
+          .sendMessage(
+            chatId: widget.chatId,
+            senderId: currentUserId,
+            text: text,
+          )
+          .timeout(const Duration(seconds: 12));
 
-    await ChatService.instance
-        .sendMessage(
-          chatId: widget.chatId,
-          senderId: currentUserId,
-          text: text,
-        )
-        .timeout(
-          const Duration(seconds: 12),
-        );
+      _messageController.clear();
 
-    _messageController.clear();
+      await Future.delayed(const Duration(milliseconds: 100));
 
-    await Future.delayed(
-      const Duration(milliseconds: 100),
-    );
+      _scrollToBottom();
+    } on TimeoutException {
+      if (!mounted) return;
 
-    _scrollToBottom();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Message sending timed out')),
+      );
+    } catch (e) {
+      if (!mounted) return;
 
-  } on TimeoutException {
+      debugPrint('❌ SEND MESSAGE ERROR → $e');
 
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Message sending timed out',
-        ),
-      ),
-    );
-
-  } catch (e) {
-
-    if (!mounted) return;
-
-    debugPrint(
-      '❌ SEND MESSAGE ERROR → $e',
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Message failed: $e',
-        ),
-      ),
-    );
-
-  } finally {
-
-    if (mounted) {
-      setState(() {
-        _isSending = false;
-      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Message failed: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
   }
-}
 
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
@@ -131,49 +107,31 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     );
   }
 
-  Widget _buildMessageBubble({
-    required Map<String, dynamic> data,
-  }) {
+  Widget _buildMessageBubble({required Map<String, dynamic> data}) {
     final senderId = data['senderId'] ?? '';
     final text = data['text'] ?? '';
 
     final isMine = senderId == currentUserId;
 
     return Align(
-      alignment:
-          isMine ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: 280,
-        ),
-        margin: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 4,
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 10,
-        ),
+        constraints: const BoxConstraints(maxWidth: 280),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMine
-              ? const Color(0xFF9E1B4F)
-              : Colors.grey.shade200,
+          color: isMine ? const Color(0xFF9E1B4F) : Colors.grey.shade200,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(
-              isMine ? 18 : 4,
-            ),
-            bottomRight: Radius.circular(
-              isMine ? 4 : 18,
-            ),
+            bottomLeft: Radius.circular(isMine ? 18 : 4),
+            bottomRight: Radius.circular(isMine ? 4 : 18),
           ),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color:
-                isMine ? Colors.white : Colors.black87,
+            color: isMine ? Colors.white : Colors.black87,
             fontSize: 15,
             height: 1.3,
           ),
@@ -183,111 +141,73 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   }
 
   Widget _buildMessages() {
+    final chatDocFuture = FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chatId)
+        .get();
 
-  final chatDocFuture = FirebaseFirestore.instance
-      .collection('chats')
-      .doc(widget.chatId)
-      .get();
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: chatDocFuture,
 
-  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    future: chatDocFuture,
+      builder: (context, chatSnapshot) {
+        if (chatSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    builder: (context, chatSnapshot) {
+        if (!chatSnapshot.hasData || !chatSnapshot.data!.exists) {
+          return const Center(child: Text('Chat is creating...'));
+        }
 
-      if (chatSnapshot.connectionState ==
-          ConnectionState.waiting) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      }
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: ChatService.instance.getMessagesStream(chatId: widget.chatId),
 
-      if (!chatSnapshot.hasData ||
-          !chatSnapshot.data!.exists) {
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        return const Center(
-          child: Text('Chat is creating...'),
-        );
-      }
+            if (snapshot.hasError) {
+              debugPrint("❌ CHAT STREAM ERROR → ${snapshot.error}");
 
-      return StreamBuilder<
-          QuerySnapshot<Map<String, dynamic>>>(
-        stream: ChatService.instance.getMessagesStream(
-          chatId: widget.chatId,
-        ),
-
-        builder: (context, snapshot) {
-
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          if (snapshot.hasError) {
-
-            debugPrint(
-              "❌ CHAT STREAM ERROR → ${snapshot.error}",
-            );
-
-            return Center(
-              child: Text(
-                'Chat failed to load',
-                style: AppTheme.body(),
-              ),
-            );
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-
-          if (docs.isEmpty) {
-            return Center(
-              child: Text(
-                'Start chatting 👋',
-                style: AppTheme.body(),
-              ),
-            );
-          }
-
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) {
-
-            _scrollToBottom();
-            _markChatSeen();
-          });
-
-          return ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.only(
-              top: 12,
-              bottom: 12,
-            ),
-            itemCount: docs.length,
-            itemBuilder: (_, index) {
-
-              final data = docs[index].data();
-
-              return _buildMessageBubble(
-                data: data,
+              return Center(
+                child: Text('Chat failed to load', style: AppTheme.body()),
               );
-            },
-          );
-        },
-      );
-    },
-  );
-}
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+
+            if (docs.isEmpty) {
+              return Center(
+                child: Text('Start chatting 👋', style: AppTheme.body()),
+              );
+            }
+
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+              _markChatSeen();
+            });
+
+            return ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.only(top: 12, bottom: 12),
+              itemCount: docs.length,
+              itemBuilder: (_, index) {
+                final data = docs[index].data();
+
+                return _buildMessageBubble(data: data);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildInputBar() {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(
-          12,
-          8,
-          12,
-          10,
-        ),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
@@ -300,7 +220,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         ),
         child: Row(
           children: [
-
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -309,15 +228,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 ),
                 child: TextField(
                   controller: _messageController,
-                  textCapitalization:
-                      TextCapitalization.sentences,
+                  textCapitalization: TextCapitalization.sentences,
                   minLines: 1,
                   maxLines: 5,
                   decoration: const InputDecoration(
                     hintText: 'Write message...',
                     border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(
+                    contentPadding: EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),
@@ -329,9 +246,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             const SizedBox(width: 8),
 
             GestureDetector(
-              onTap: _isSending
-                  ? null
-                  : _sendMessage,
+              onTap: _isSending ? null : _sendMessage,
               child: Container(
                 width: 48,
                 height: 48,
@@ -347,10 +262,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(
-                        Icons.send,
-                        color: Colors.white,
-                      ),
+                    : const Icon(Icons.send, color: Colors.white),
               ),
             ),
           ],
@@ -377,18 +289,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         foregroundColor: Colors.white,
         title: Text(
           widget.otherUserName,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
 
       body: Column(
         children: [
-
-          Expanded(
-            child: _buildMessages(),
-          ),
+          Expanded(child: _buildMessages()),
 
           _buildInputBar(),
         ],

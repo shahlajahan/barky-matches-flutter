@@ -37,8 +37,7 @@ class _PetplorePageState extends State<PetplorePage>
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId =
-    FirebaseAuth.instance.currentUser?.uid;
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     return Container(
       color: Colors.black,
 
@@ -48,291 +47,257 @@ class _PetplorePageState extends State<PetplorePage>
           Column(
             children: [
               // ───────────────── HEADER ─────────────────
-Padding(
-  padding: const EdgeInsets.fromLTRB(22, 18, 22, 10),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 10),
 
-  child: Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
 
-    children: [
+                  children: [
+                    // PET ICON
+                    Container(
+                      height: 50,
+                      width: 50,
 
-      // PET ICON
-      Container(
-        height: 50,
-        width: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
 
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(18),
 
-          borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.04),
+                        ),
+                      ),
 
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.04),
-          ),
-        ),
+                      child: const Icon(
+                        LucideIcons.dog,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
 
-        child: const Icon(
-          LucideIcons.dog,
-          color: Colors.white,
-          size: 24,
-        ),
-      ),
+                    const SizedBox(width: 18),
 
-      const SizedBox(width: 18),
+                    // TITLE + STATS
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
 
-      // TITLE + STATS
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // TITLE
+                          ShaderMask(
+                            shaderCallback: (bounds) {
+                              return const LinearGradient(
+                                colors: [Color(0xFFFF4D8D), Color(0xFFFFA26B)],
+                              ).createShader(bounds);
+                            },
 
-          children: [
+                            child: const Text(
+                              'Petplore',
 
-            // TITLE
-            ShaderMask(
-              shaderCallback: (bounds) {
-                return const LinearGradient(
-                  colors: [
-                    Color(0xFFFF4D8D),
-                    Color(0xFFFFA26B),
+                              style: TextStyle(
+                                fontSize: 38,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1.6,
+                                color: Colors.white,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          // SUBTITLE
+                          Text(
+                            'Explore pet moments',
+
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.45),
+
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+
+                          // FOLLOW STATS
+                          if (currentUserId != null) ...[
+                            const SizedBox(height: 12),
+
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+
+                              children: [
+                                // FOLLOWERS
+                                StreamBuilder<int>(
+                                  stream: _followService.followersCountStream(
+                                    currentUserId,
+                                  ),
+
+                                  builder: (context, snapshot) {
+                                    final followers = snapshot.data ?? 0;
+
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.06,
+                                        ),
+
+                                        borderRadius: BorderRadius.circular(12),
+
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.04,
+                                          ),
+                                        ),
+                                      ),
+
+                                      child: Text(
+                                        '$followers Followers',
+
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.82,
+                                          ),
+
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                                // FOLLOWING
+                                StreamBuilder<int>(
+                                  stream: _followService.followingCountStream(
+                                    currentUserId,
+                                  ),
+
+                                  builder: (context, snapshot) {
+                                    final following = snapshot.data ?? 0;
+
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.06,
+                                        ),
+
+                                        borderRadius: BorderRadius.circular(12),
+
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.04,
+                                          ),
+                                        ),
+                                      ),
+
+                                      child: Text(
+                                        '$following Following',
+
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.82,
+                                          ),
+
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 14),
+
+                    // SEARCH
+                    Material(
+                      color: Colors.transparent,
+
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+
+                        onTap: () {
+                          showGeneralDialog(
+                            context: context,
+
+                            barrierDismissible: true,
+
+                            barrierLabel: 'PetploreSearch',
+
+                            barrierColor: Colors.black.withOpacity(0.45),
+
+                            transitionDuration: const Duration(
+                              milliseconds: 260,
+                            ),
+
+                            pageBuilder: (_, __, ___) {
+                              return const PetploreSearchOverlay();
+                            },
+
+                            transitionBuilder: (context, animation, _, child) {
+                              final curved = CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              );
+
+                              return FadeTransition(
+                                opacity: curved,
+
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0, 0.04),
+                                    end: Offset.zero,
+                                  ).animate(curved),
+
+                                  child: child,
+                                ),
+                              );
+                            },
+                          );
+                        },
+
+                        child: Container(
+                          height: 50,
+                          width: 50,
+
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+
+                            borderRadius: BorderRadius.circular(18),
+
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.04),
+                            ),
+                          ),
+
+                          child: const Icon(
+                            LucideIcons.search,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
-                ).createShader(bounds);
-              },
-
-              child: const Text(
-                'Petplore',
-
-                style: TextStyle(
-                  fontSize: 38,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1.6,
-                  color: Colors.white,
-                  height: 1,
                 ),
               ),
-            ),
-
-            const SizedBox(height: 6),
-
-            // SUBTITLE
-            Text(
-              'Explore pet moments',
-
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45),
-
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-
-            // FOLLOW STATS
-            if (currentUserId != null) ...[
-
-              const SizedBox(height: 12),
-
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-
-                children: [
-
-                  // FOLLOWERS
-                  StreamBuilder<int>(
-
-                    stream: _followService
-                        .followersCountStream(
-                      currentUserId,
-                    ),
-
-                    builder: (context, snapshot) {
-
-                      final followers =
-                          snapshot.data ?? 0;
-
-                      return Container(
-
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-
-                        decoration: BoxDecoration(
-
-                          color: Colors.white.withValues(
-                            alpha: 0.06,
-                          ),
-
-                          borderRadius:
-                              BorderRadius.circular(12),
-
-                          border: Border.all(
-                            color: Colors.white.withValues(
-                              alpha: 0.04,
-                            ),
-                          ),
-                        ),
-
-                        child: Text(
-                          '$followers Followers',
-
-                          style: TextStyle(
-                            color: Colors.white.withValues(
-                              alpha: 0.82,
-                            ),
-
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-
-                  // FOLLOWING
-                  StreamBuilder<int>(
-
-                    stream: _followService
-                        .followingCountStream(
-                      currentUserId,
-                    ),
-
-                    builder: (context, snapshot) {
-
-                      final following =
-                          snapshot.data ?? 0;
-
-                      return Container(
-
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-
-                        decoration: BoxDecoration(
-
-                          color: Colors.white.withValues(
-                            alpha: 0.06,
-                          ),
-
-                          borderRadius:
-                              BorderRadius.circular(12),
-
-                          border: Border.all(
-                            color: Colors.white.withValues(
-                              alpha: 0.04,
-                            ),
-                          ),
-                        ),
-
-                        child: Text(
-                          '$following Following',
-
-                          style: TextStyle(
-                            color: Colors.white.withValues(
-                              alpha: 0.82,
-                            ),
-
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-
-      const SizedBox(width: 14),
-
-      // SEARCH
-      Material(
-        color: Colors.transparent,
-
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-
-          onTap: () {
-
-  showGeneralDialog(
-
-    context: context,
-
-    barrierDismissible: true,
-
-    barrierLabel: 'PetploreSearch',
-
-    barrierColor:
-        Colors.black.withOpacity(0.45),
-
-    transitionDuration:
-        const Duration(milliseconds: 260),
-
-    pageBuilder: (_, __, ___) {
-
-      return const PetploreSearchOverlay();
-    },
-
-    transitionBuilder:
-        (context, animation, _, child) {
-
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-      );
-
-      return FadeTransition(
-        opacity: curved,
-
-        child: SlideTransition(
-
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.04),
-            end: Offset.zero,
-          ).animate(curved),
-
-          child: child,
-        ),
-      );
-    },
-  );
-},
-
-          child: Container(
-            height: 50,
-            width: 50,
-
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(
-                alpha: 0.06,
-              ),
-
-              borderRadius:
-                  BorderRadius.circular(18),
-
-              border: Border.all(
-                color: Colors.white.withValues(
-                  alpha: 0.04,
-                ),
-              ),
-            ),
-
-            child: const Icon(
-              LucideIcons.search,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-        ),
-      ),
-    ],
-  ),
-),
 
               // ───────────────── TABS ─────────────────
               Padding(

@@ -20,7 +20,6 @@ class RejectedBusinessesPage extends StatelessWidget {
             .orderBy("createdAt", descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-
           if (snapshot.hasError) {
             debugPrint(snapshot.error.toString());
             return Center(child: Text(snapshot.error.toString()));
@@ -33,15 +32,12 @@ class RejectedBusinessesPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text("No rejected businesses"),
-            );
+            return const Center(child: Text("No rejected businesses"));
           }
 
           return ListView.builder(
             itemCount: docs.length,
             itemBuilder: (context, index) {
-
               final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
 
@@ -73,9 +69,8 @@ class RejectedBusinessesPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => BusinessAdminDetailPage(
-                        businessId: doc.id,
-                      ),
+                      builder: (_) =>
+                          BusinessAdminDetailPage(businessId: doc.id),
                     ),
                   );
                 },

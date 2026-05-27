@@ -27,7 +27,7 @@ class _PetHotelPageState extends State<PetHotelPage>
   String _searchQuery = '';
   Timer? _searchDebounce;
   List<VetCardData> _hotels = [];
-List<VetCardData> _filteredHotels = [];
+  List<VetCardData> _filteredHotels = [];
 
   @override
   void initState() {
@@ -126,75 +126,63 @@ List<VetCardData> _filteredHotels = [];
         profile['reviewsCount'] ??
         root['reviewsCount'];
 
-   return VetCardData(
-    type: BusinessType.petHotel,
-  id: id,
+    return VetCardData(
+      type: BusinessType.petHotel,
+      id: id,
 
-  name: name.isNotEmpty
-      ? name
-      : 'Pet Hotel',
+      name: name.isNotEmpty ? name : 'Pet Hotel',
 
-  city: city,
-  district: district,
-  address: address,
+      city: city,
+      district: district,
+      address: address,
 
-  phone: contact['phone']?.toString(),
+      phone: contact['phone']?.toString(),
 
-  whatsapp:
-      contact['whatsapp']?.toString() ??
-      contact['phone']?.toString(),
+      whatsapp: contact['whatsapp']?.toString() ?? contact['phone']?.toString(),
 
-  specialties: serviceTitles.isNotEmpty
-      ? serviceTitles
-      : const ['Boarding'],
+      specialties: serviceTitles.isNotEmpty
+          ? serviceTitles
+          : const ['Boarding'],
 
-  services: serviceTitles,
+      services: serviceTitles,
 
-  distanceKm: null,
+      distanceKm: null,
 
-  rating: ratingRaw is num
-      ? ratingRaw.toDouble()
-      : null,
+      rating: ratingRaw is num ? ratingRaw.toDouble() : null,
 
-  reviewsCount:
-      reviewCountRaw is num
-          ? reviewCountRaw.toInt()
-          : 0,
+      reviewsCount: reviewCountRaw is num ? reviewCountRaw.toInt() : 0,
 
-  isPartner: true,
+      isPartner: true,
 
-  workingHours: _workingHours(hotel),
+      workingHours: _workingHours(hotel),
 
-  logoUrl: _firstText([
-    profile['logoUrl'],
-    profile['logo'],
-    profileContent['clinicLogoUrl'],
-    profileContent['logoUrl'],
-    hotel['logo'],
-    root['logoUrl'],
-  ]),
+      logoUrl: _firstText([
+        profile['logoUrl'],
+        profile['logo'],
+        profileContent['clinicLogoUrl'],
+        profileContent['logoUrl'],
+        hotel['logo'],
+        root['logoUrl'],
+      ]),
 
-  description: description,
+      description: description,
 
-  is24h: false,
-  isEmergency: false,
+      is24h: false,
+      isEmergency: false,
 
-  instagram:
-      contact['instagram']?.toString() ??
-      socialMedia['instagram']?.toString(),
+      instagram:
+          contact['instagram']?.toString() ??
+          socialMedia['instagram']?.toString(),
 
-  website:
-      contact['website']?.toString() ??
-      socialMedia['website']?.toString(),
+      website:
+          contact['website']?.toString() ?? socialMedia['website']?.toString(),
 
-  coverImageUrl: _firstText([
-    root['coverImageUrl'],
-  ]),
+      coverImageUrl: _firstText([root['coverImageUrl']]),
 
-  sectorData: sectorData,
+      sectorData: sectorData,
 
-  rawData: root,
-);
+      rawData: root,
+    );
   }
 
   bool _isHotelBusiness(Map<String, dynamic> data) {
@@ -384,7 +372,7 @@ List<VetCardData> _filteredHotels = [];
                     itemBuilder: (context, index) {
                       final hotel = _filteredHotels[index];
                       return VetCard(
-  data: hotel,
+                        data: hotel,
                         onTap: () {
                           debugPrint(
                             'OPEN PET HOTEL BUSINESS id=${hotel.id} name=${hotel.name}',
@@ -416,4 +404,3 @@ List<VetCardData> _filteredHotels = [];
     );
   }
 }
-

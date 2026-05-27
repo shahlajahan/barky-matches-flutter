@@ -45,19 +45,18 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
   static const _visibilityOptions = ['Public', 'Friends Only', 'Private'];
   static const _fallbackMemorialLocation = LatLng(41.0082, 28.9784);
 
- @override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadPets();
 
-    await _loadPets();
+      if (!mounted) return;
 
-    if (!mounted) return;
-
-    await _initializeCurrentLocation();
-  });
-}
+      await _initializeCurrentLocation();
+    });
+  }
 
   @override
   void dispose() {
@@ -445,97 +444,84 @@ void initState() {
               _SectionTitle('Memorial Location'),
 
               Container(
-  height: 320,
-  decoration: BoxDecoration(
-    borderRadius: BorderRadius.circular(
-      AppTheme.radiusCard,
-    ),
-    boxShadow: AppTheme.cardShadow(opacity: 0.06),
-  ),
-  child: ClipRRect(
-    borderRadius: BorderRadius.circular(
-      AppTheme.radiusCard,
-    ),
-    child: Stack(
-      children: [
-
-        GoogleMap(
-  onMapCreated: (controller) {
-    _mapController = controller;
-
-    final selectedPosition = _selectedPosition;
-
-    if (selectedPosition != null) {
-      _moveCameraToPosition(selectedPosition);
-    }
-  },
-
-  initialCameraPosition: CameraPosition(
-    target: _currentMapTarget,
-    zoom: 13,
-  ),
-
-  myLocationEnabled: _locationPermissionGranted,
-  myLocationButtonEnabled: true,
-
-  zoomControlsEnabled: true,
-  zoomGesturesEnabled: true,
-  scrollGesturesEnabled: true,
-  rotateGesturesEnabled: true,
-  tiltGesturesEnabled: true,
-
-  compassEnabled: true,
-
-  onTap: (LatLng pos) {
-    _setSelectedPosition(
-      _positionFromLatLng(pos),
-    );
-  },
-
-  markers: _selectedLocationMarkers,
-),
-
-        Positioned(
-          right: 14,
-          bottom: 14,
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            elevation: 4,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () async {
-
-                final pos =
-                    await _getCurrentPosition();
-
-                if (pos == null) return;
-
-                _setSelectedPosition(
-                  pos,
-                  moveCamera: true,
-                );
-              },
-              child: Container(
-                width: 52,
-                height: 52,
+                height: 320,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius:
-                      BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                  boxShadow: AppTheme.cardShadow(opacity: 0.06),
                 ),
-                child: const Icon(
-                  Icons.my_location,
-                  color: AppTheme.primary,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                  child: Stack(
+                    children: [
+                      GoogleMap(
+                        onMapCreated: (controller) {
+                          _mapController = controller;
+
+                          final selectedPosition = _selectedPosition;
+
+                          if (selectedPosition != null) {
+                            _moveCameraToPosition(selectedPosition);
+                          }
+                        },
+
+                        initialCameraPosition: CameraPosition(
+                          target: _currentMapTarget,
+                          zoom: 13,
+                        ),
+
+                        myLocationEnabled: _locationPermissionGranted,
+                        myLocationButtonEnabled: true,
+
+                        zoomControlsEnabled: true,
+                        zoomGesturesEnabled: true,
+                        scrollGesturesEnabled: true,
+                        rotateGesturesEnabled: true,
+                        tiltGesturesEnabled: true,
+
+                        compassEnabled: true,
+
+                        onTap: (LatLng pos) {
+                          _setSelectedPosition(_positionFromLatLng(pos));
+                        },
+
+                        markers: _selectedLocationMarkers,
+                      ),
+
+                      Positioned(
+                        right: 14,
+                        bottom: 14,
+                        child: Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          elevation: 4,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () async {
+                              final pos = await _getCurrentPosition();
+
+                              if (pos == null) return;
+
+                              _setSelectedPosition(pos, moveCamera: true);
+                            },
+                            child: Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.my_location,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  ),
-),
 
               OutlinedButton.icon(
                 onPressed: _pickLocation,

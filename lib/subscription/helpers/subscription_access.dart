@@ -66,8 +66,8 @@ class SubscriptionAccess {
   /// 🔐 MOST IMPORTANT RULE
   /// Only GOLD users with ACTIVE subscription
   bool get canRegisterBusiness {
-  return _isActive && _isGold;
-}
+    return _isActive && _isGold;
+  }
 
   bool get canAccessBusinessDashboard {
     return _isActive && _isGold;

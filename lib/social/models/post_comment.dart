@@ -40,10 +40,7 @@ class PostComment {
 
       text: data['text'] ?? '',
 
-      createdAt:
-          (data['createdAt'] as Timestamp?)
-              ?.toDate() ??
-          DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -54,8 +51,7 @@ class PostComment {
       'username': username,
       'userPhotoUrl': userPhotoUrl,
       'text': text,
-      'createdAt':
-          Timestamp.fromDate(createdAt),
+      'createdAt': Timestamp.fromDate(createdAt),
     };
   }
 }

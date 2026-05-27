@@ -43,14 +43,11 @@ class UserSubscription {
       return UserSubscription.normal();
     }
 
-    final plan =
-        SubscriptionPlan.fromString(data['plan'] as String?);
+    final plan = SubscriptionPlan.fromString(data['plan'] as String?);
 
-    final status =
-        SubscriptionStatus.fromString(data['status'] as String?);
+    final status = SubscriptionStatus.fromString(data['status'] as String?);
 
-    final source =
-        SubscriptionSource.fromString(data['source'] as String?);
+    final source = SubscriptionSource.fromString(data['source'] as String?);
 
     return UserSubscription(
       plan: plan,

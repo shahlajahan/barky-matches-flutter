@@ -52,10 +52,7 @@ class ShippingEstimator {
   }
 
   /// ⚖️ BILLABLE UNIT
-  static double effectiveUnit({
-    required double weight,
-    required double desi,
-  }) {
+  static double effectiveUnit({required double weight, required double desi}) {
     return weight > desi ? weight : desi;
   }
 
@@ -74,16 +71,9 @@ class ShippingEstimator {
   static ShippingEstimateResult calculate(ShippingEstimateInput input) {
     final desi = input.fixedDesi != null && input.fixedDesi! > 0
         ? input.fixedDesi!
-        : computeDesi(
-            input.lengthCm,
-            input.widthCm,
-            input.heightCm,
-          );
+        : computeDesi(input.lengthCm, input.widthCm, input.heightCm);
 
-    final unit = effectiveUnit(
-      weight: input.weightKg,
-      desi: desi,
-    );
+    final unit = effectiveUnit(weight: input.weightKg, desi: desi);
 
     final carrierTariff = tariffs[input.carrierCode] ?? tariffs["Yurtici"]!;
 

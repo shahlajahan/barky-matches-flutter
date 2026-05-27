@@ -4,7 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 class BusinessAdminActions extends StatefulWidget {
   final String businessId;
   final String requestId; // ممکن است برای برخی businessها null/خالی باشد
-  final String status;    // pending | approved | rejected | suspended
+  final String status; // pending | approved | rejected | suspended
 
   const BusinessAdminActions({
     super.key,
@@ -20,17 +20,17 @@ class BusinessAdminActions extends StatefulWidget {
 class _BusinessAdminActionsState extends State<BusinessAdminActions> {
   bool _isLoading = false;
 
-  HttpsCallable get _resolveCallable =>
-      FirebaseFunctions.instanceFor(region: "europe-west3")
-          .httpsCallable("resolveBusinessRequest");
+  HttpsCallable get _resolveCallable => FirebaseFunctions.instanceFor(
+    region: "europe-west3",
+  ).httpsCallable("resolveBusinessRequest");
 
-  HttpsCallable get _suspendCallable =>
-      FirebaseFunctions.instanceFor(region: "europe-west3")
-          .httpsCallable("suspendBusiness");
+  HttpsCallable get _suspendCallable => FirebaseFunctions.instanceFor(
+    region: "europe-west3",
+  ).httpsCallable("suspendBusiness");
 
-  HttpsCallable get _restoreCallable =>
-      FirebaseFunctions.instanceFor(region: "europe-west3")
-          .httpsCallable("restoreBusiness");
+  HttpsCallable get _restoreCallable => FirebaseFunctions.instanceFor(
+    region: "europe-west3",
+  ).httpsCallable("restoreBusiness");
 
   @override
   Widget build(BuildContext context) {
@@ -64,9 +64,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
           Expanded(
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleApprove,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               child: const Text("Approve"),
             ),
           ),
@@ -81,9 +79,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
           Expanded(
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleSuspend,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
               child: _isLoading
                   ? const SizedBox(
                       height: 16,
@@ -104,9 +100,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
           Expanded(
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleRestore,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
               child: _isLoading
                   ? const SizedBox(
                       height: 16,
@@ -138,9 +132,9 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Business approved")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Business approved")));
       }
     } catch (e) {
       _showError(e);
@@ -173,9 +167,9 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Business rejected")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Business rejected")));
       }
     } catch (e) {
       _showError(e);
@@ -207,9 +201,9 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Business suspended")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Business suspended")));
       }
     } catch (e) {
       _showError(e);
@@ -226,14 +220,12 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
     setState(() => _isLoading = true);
 
     try {
-      await _restoreCallable.call({
-        "businessId": widget.businessId,
-      });
+      await _restoreCallable.call({"businessId": widget.businessId});
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Business restored")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Business restored")));
       }
     } catch (e) {
       _showError(e);
@@ -270,11 +262,8 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
               child: const Text("Cancel"),
             ),
             ElevatedButton(
-              onPressed: () =>
-                  Navigator.pop(context, controller.text.trim()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: confirmColor,
-              ),
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              style: ElevatedButton.styleFrom(backgroundColor: confirmColor),
               child: Text(confirmText),
             ),
           ],
@@ -284,8 +273,8 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
   }
 
   void _showError(Object e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Action failed: $e")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text("Action failed: $e")));
   }
 }

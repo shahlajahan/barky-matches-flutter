@@ -1,13 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PatientService {
-  static final PatientService instance =
-      PatientService._();
+  static final PatientService instance = PatientService._();
 
   PatientService._();
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> ensurePatientExists({
     required String businessId,
@@ -20,7 +18,6 @@ class PatientService {
 
     String notes = '',
   }) async {
-
     final patientsRef = _firestore
         .collection('businesses')
         .doc(businessId)
@@ -33,13 +30,10 @@ class PatientService {
 
     // PATIENT EXISTS
     if (existing.docs.isNotEmpty) {
-
       await existing.docs.first.reference.update({
-        'lastVisitAt':
-            FieldValue.serverTimestamp(),
+        'lastVisitAt': FieldValue.serverTimestamp(),
 
-        'updatedAt':
-            FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       return;
@@ -61,14 +55,11 @@ class PatientService {
       'needsFollowUp': false,
       'isActive': true,
 
-      'createdAt':
-          FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
 
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
 
-      'lastVisitAt':
-          FieldValue.serverTimestamp(),
+      'lastVisitAt': FieldValue.serverTimestamp(),
     });
   }
 }

@@ -7,7 +7,6 @@ class AdminActivityFeed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     debugPrint("📜 AdminActivityFeed BUILD");
 
     final stream = FirebaseFirestore.instance
@@ -19,7 +18,6 @@ class AdminActivityFeed extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: stream,
       builder: (context, snapshot) {
-
         debugPrint("📡 AdminActivity snapshot:");
         debugPrint("hasData: ${snapshot.hasData}");
         debugPrint("hasError: ${snapshot.hasError}");
@@ -27,7 +25,6 @@ class AdminActivityFeed extends StatelessWidget {
 
         /// ERROR
         if (snapshot.hasError) {
-
           debugPrint("❌ AdminActivity ERROR → ${snapshot.error}");
 
           return Center(
@@ -40,12 +37,9 @@ class AdminActivityFeed extends StatelessWidget {
 
         /// LOADING
         if (!snapshot.hasData) {
-
           debugPrint("⏳ waiting for admin logs...");
 
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         final docs = snapshot.data!.docs;
@@ -54,10 +48,7 @@ class AdminActivityFeed extends StatelessWidget {
 
         /// EMPTY
         if (docs.isEmpty) {
-
-          return const Center(
-            child: Text("No admin activity yet"),
-          );
+          return const Center(child: Text("No admin activity yet"));
         }
 
         return ListView.builder(
@@ -65,25 +56,15 @@ class AdminActivityFeed extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: docs.length,
           itemBuilder: (context, index) {
-
-            final data = docs[index].data() as Map<String,dynamic>;
+            final data = docs[index].data() as Map<String, dynamic>;
 
             /// ---- FLEXIBLE FIELD SUPPORT ----
             final action =
-                data["action"] ??
-                data["type"] ??
-                data["event"] ??
-                "activity";
+                data["action"] ?? data["type"] ?? data["event"] ?? "activity";
 
-            final entity =
-                data["entityType"] ??
-                data["targetType"] ??
-                "";
+            final entity = data["entityType"] ?? data["targetType"] ?? "";
 
-            final id =
-                data["entityId"] ??
-                data["targetId"] ??
-                "";
+            final id = data["entityId"] ?? data["targetId"] ?? "";
 
             final Timestamp? ts = data["createdAt"];
             final DateTime? time = ts?.toDate();
@@ -102,20 +83,13 @@ class AdminActivityFeed extends StatelessWidget {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   if (id.isNotEmpty)
-                    Text(
-                      id,
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    Text(id, style: const TextStyle(fontSize: 12)),
 
                   if (time != null)
                     Text(
                       DateFormat("MMM d • HH:mm").format(time),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                 ],
               ),
@@ -130,63 +104,59 @@ class AdminActivityFeed extends StatelessWidget {
   /// FORMAT ACTION TEXT
   /// ------------------------------------------------
   String _formatAction(String action, String entity) {
+    switch (action) {
+      case "approved":
+        return "Business approved";
 
-  switch (action) {
+      case "rejected":
+        return "Business rejected";
 
-    case "approved":
-      return "Business approved";
+      case "business_suspend":
+        return "Business suspended";
 
-    case "rejected":
-      return "Business rejected";
+      case "business_restore":
+        return "Business restored";
 
-    case "business_suspend":
-      return "Business suspended";
+      case "suspended":
+        return "Business suspended";
 
-    case "business_restore":
-      return "Business restored";
+      case "report":
+        return "Content reported";
 
-    case "suspended":
-      return "Business suspended";
+      case "fraud_flag":
+        return "Fraud alert";
 
-    case "report":
-      return "Content reported";
-
-    case "fraud_flag":
-      return "Fraud alert";
-
-    default:
-      return "$action $entity".trim();
+      default:
+        return "$action $entity".trim();
+    }
   }
-}
 
   /// ------------------------------------------------
   /// ICON SELECTOR
   /// ------------------------------------------------
   IconData _iconForAction(String action) {
+    switch (action) {
+      case "approved":
+        return Icons.check_circle;
 
-  switch (action) {
+      case "rejected":
+        return Icons.cancel;
 
-    case "approved":
-      return Icons.check_circle;
+      case "business_suspend":
+      case "suspended":
+        return Icons.block;
 
-    case "rejected":
-      return Icons.cancel;
+      case "business_restore":
+        return Icons.restore;
 
-    case "business_suspend":
-    case "suspended":
-      return Icons.block;
+      case "report":
+        return Icons.flag;
 
-    case "business_restore":
-      return Icons.restore;
+      case "fraud_flag":
+        return Icons.warning;
 
-    case "report":
-      return Icons.flag;
-
-    case "fraud_flag":
-      return Icons.warning;
-
-    default:
-      return Icons.history;
+      default:
+        return Icons.history;
+    }
   }
-}
 }

@@ -5,7 +5,7 @@ class AdminSearchService {
   final FirebaseFirestore _firestore;
 
   AdminSearchService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _indexRef =>
       _firestore.collection('admin_search_index');
@@ -55,8 +55,9 @@ class AdminSearchService {
     AdminSearchEntityType? type,
     int limit = 20,
   }) async {
-    Query<Map<String, dynamic>> ref =
-        _indexRef.orderBy('updatedAt', descending: true).limit(limit);
+    Query<Map<String, dynamic>> ref = _indexRef
+        .orderBy('updatedAt', descending: true)
+        .limit(limit);
 
     if (type != null) {
       ref = ref.where(
@@ -66,8 +67,6 @@ class AdminSearchService {
     }
 
     final snapshot = await ref.get();
-    return snapshot.docs
-        .map((doc) => AdminSearchItem.fromDoc(doc))
-        .toList();
+    return snapshot.docs.map((doc) => AdminSearchItem.fromDoc(doc)).toList();
   }
 }

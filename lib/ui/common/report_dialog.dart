@@ -5,11 +5,7 @@ class ReportDialog extends StatefulWidget {
   final String type;
   final String targetId;
 
-  const ReportDialog({
-    super.key,
-    required this.type,
-    required this.targetId,
-  });
+  const ReportDialog({super.key, required this.type, required this.targetId});
 
   @override
   State<ReportDialog> createState() => _ReportDialogState();
@@ -20,13 +16,7 @@ class _ReportDialogState extends State<ReportDialog> {
   final TextEditingController _messageController = TextEditingController();
   bool _loading = false;
 
-  final reasons = [
-    "spam",
-    "scam",
-    "abuse",
-    "fake",
-    "other",
-  ];
+  final reasons = ["spam", "scam", "abuse", "fake", "other"];
 
   Future<void> _submit() async {
     setState(() {
@@ -43,9 +33,9 @@ class _ReportDialogState extends State<ReportDialog> {
     if (mounted) {
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Report submitted")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Report submitted")));
     }
   }
 
@@ -56,14 +46,10 @@ class _ReportDialogState extends State<ReportDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-
           DropdownButtonFormField<String>(
             initialValue: _reason,
             items: reasons
-                .map((r) => DropdownMenuItem(
-                      value: r,
-                      child: Text(r),
-                    ))
+                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
                 .toList(),
             onChanged: (v) {
               if (v != null) {
@@ -79,14 +65,11 @@ class _ReportDialogState extends State<ReportDialog> {
           TextField(
             controller: _messageController,
             maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: "Optional description",
-            ),
+            decoration: const InputDecoration(hintText: "Optional description"),
           ),
         ],
       ),
       actions: [
-
         TextButton(
           onPressed: () {
             Navigator.pop(context);

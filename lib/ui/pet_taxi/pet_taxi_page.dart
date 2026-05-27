@@ -207,7 +207,6 @@ class _PetTaxiPageState extends State<PetTaxiPage>
                 _emptyState()
               else
                 ..._filtered.map((business) => _businessCard(business)),
-              
             ],
           ),
         ),
@@ -294,8 +293,6 @@ class _PetTaxiPageState extends State<PetTaxiPage>
       ),
     );
   }
-
-  
 
   DateTime? _date(dynamic value) {
     if (value is Timestamp) return value.toDate();

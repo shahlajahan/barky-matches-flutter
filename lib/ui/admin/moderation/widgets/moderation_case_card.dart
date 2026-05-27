@@ -5,11 +5,7 @@ class ModerationCaseCard extends StatelessWidget {
   final ModerationCase c;
   final VoidCallback onTap;
 
-  const ModerationCaseCard({
-    super.key,
-    required this.c,
-    required this.onTap,
-  });
+  const ModerationCaseCard({super.key, required this.c, required this.onTap});
 
   Color _riskColor() {
     if (c.riskScore >= 25) return Colors.red;
@@ -36,15 +32,9 @@ class ModerationCaseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
-        leading: Icon(
-          _icon(),
-          color: _riskColor(),
-        ),
+        leading: Icon(_icon(), color: _riskColor()),
         title: Text("${c.type} • ${c.targetId}"),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

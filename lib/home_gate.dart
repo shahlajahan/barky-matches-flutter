@@ -192,10 +192,8 @@ class _HomeBodyState extends State<_HomeBody> {
       case NavTab.playdate:
         return const _PlaydateTab(key: PageStorageKey('playdate'));
 
-        case NavTab.petplore:
-  return const PetplorePage(
-    key: PageStorageKey('petplore'),
-  );
+      case NavTab.petplore:
+        return const PetplorePage(key: PageStorageKey('petplore'));
 
       case NavTab.playmates:
         return PlaymatePage(
@@ -483,8 +481,8 @@ int _tabToIndex(NavTab tab) {
 
     case NavTab.greenMemorial:
       return 15;
-      case NavTab.petplore:
-  return _tabToIndex(NavTab.home);
+    case NavTab.petplore:
+      return _tabToIndex(NavTab.home);
   }
 }
 

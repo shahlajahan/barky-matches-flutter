@@ -5,17 +5,14 @@ import '../../dog_card.dart';
 class PreviewDogsSection extends StatelessWidget {
   final List<Dog> previewDogs;
 
-  const PreviewDogsSection({
-    super.key,
-    required this.previewDogs,
-  });
+  const PreviewDogsSection({super.key, required this.previewDogs});
 
   @override
   Widget build(BuildContext context) {
     if (previewDogs.isEmpty) {
       return const Text(
         "No dogs yet — add yours and start matching! 🐾",
-        style: TextStyle(color: Color(0xFF9E1B4F),),
+        style: TextStyle(color: Color(0xFF9E1B4F)),
       );
     }
 
@@ -35,9 +32,7 @@ class PreviewDogsSection extends StatelessWidget {
             // 🔥 فقط اینو نگه دار
             onCardTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Create profile to connect 🐾"),
-                ),
+                const SnackBar(content: Text("Create profile to connect 🐾")),
               );
             },
           ),

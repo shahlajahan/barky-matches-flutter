@@ -4,16 +4,12 @@ import 'package:provider/provider.dart';
 import '../../app_state.dart';
 import '../../ui/shell/nav_tab.dart';
 
-class PetploreSearchDelegate
-    extends SearchDelegate {
+class PetploreSearchDelegate extends SearchDelegate {
+  @override
+  String get searchFieldLabel => 'Search pets or users';
 
   @override
-  String get searchFieldLabel =>
-      'Search pets or users';
-
-  @override
-  List<Widget>? buildActions(
-      BuildContext context) {
+  List<Widget>? buildActions(BuildContext context) {
     return [
       IconButton(
         icon: const Icon(Icons.clear),
@@ -26,8 +22,7 @@ class PetploreSearchDelegate
   }
 
   @override
-  Widget? buildLeading(
-      BuildContext context) {
+  Widget? buildLeading(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.arrow_back),
 
@@ -38,92 +33,56 @@ class PetploreSearchDelegate
   }
 
   @override
-  Widget buildResults(
-      BuildContext context) {
-
+  Widget buildResults(BuildContext context) {
     if (query.trim().isEmpty) {
       return const SizedBox.shrink();
     }
 
     return StreamBuilder<QuerySnapshot>(
-
       stream: FirebaseFirestore.instance
-    .collection('users')
-    .where(
-      'username',
-      isGreaterThanOrEqualTo:
-          query.toLowerCase(),
-    )
-    .where(
-      'username',
-      isLessThan:
-          '${query.toLowerCase()}\uf8ff',
-    )
-    .limit(20)
-    .snapshots(),
+          .collection('users')
+          .where('username', isGreaterThanOrEqualTo: query.toLowerCase())
+          .where('username', isLessThan: '${query.toLowerCase()}\uf8ff')
+          .limit(20)
+          .snapshots(),
 
       builder: (context, snapshot) {
-
         if (!snapshot.hasData) {
-          return const Center(
-            child:
-                CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
-        final docs =
-            snapshot.data!.docs;
+        final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return const Center(
-            child: Text('No results'),
-          );
+          return const Center(child: Text('No results'));
         }
 
         return ListView.builder(
           itemCount: docs.length,
 
           itemBuilder: (context, index) {
-
-            final data =
-                docs[index].data()
-                    as Map<String, dynamic>;
+            final data = docs[index].data() as Map<String, dynamic>;
 
             return ListTile(
-
               leading: CircleAvatar(
-                backgroundImage:
-                    data['photoUrl'] != null
-                    ? NetworkImage(
-                        data['photoUrl'],
-                      )
+                backgroundImage: data['photoUrl'] != null
+                    ? NetworkImage(data['photoUrl'])
                     : null,
               ),
 
-              title: Text(
-                data['username'] ??
-                    'Unknown',
-              ),
+              title: Text(data['username'] ?? 'Unknown'),
 
               onTap: () {
+                final appState = context.read<AppState>();
 
-  final appState =
-      context.read<AppState>();
+                final userId = docs[index].id;
 
-  final userId =
-      docs[index].id;
+                appState.setPlaymateProfile(userId, appState.allDogs);
 
-  appState.setPlaymateProfile(
-    userId,
-    appState.allDogs,
-  );
+                appState.setCurrentTab(NavTab.playmates);
 
-  appState.setCurrentTab(
-    NavTab.playmates,
-  );
-
-  close(context, null);
-},
+                close(context, null);
+              },
             );
           },
         );
@@ -132,13 +91,7 @@ class PetploreSearchDelegate
   }
 
   @override
-  Widget buildSuggestions(
-      BuildContext context) {
-
-    return const Center(
-      child: Text(
-        'Search users...',
-      ),
-    );
+  Widget buildSuggestions(BuildContext context) {
+    return const Center(child: Text('Search users...'));
   }
 }

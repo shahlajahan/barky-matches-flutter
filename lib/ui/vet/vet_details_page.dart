@@ -439,8 +439,9 @@ class _VetDetailsPageState extends State<VetDetailsPage>
                                 onPressed: () async {
                                   final noServicesText =
                                       l10n.noServicesAvailable;
-                                  final messenger =
-                                      ScaffoldMessenger.of(context);
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
                                   final snapshot = await FirebaseFirestore
                                       .instance
                                       .collection('businesses')

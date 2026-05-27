@@ -44,12 +44,21 @@ class LocationCache {
     if (v != LocationCacheKeys.schemaVersion) {
       // schema changed → wipe cache to avoid mismatches
       await _box.clear();
-      await _box.put(LocationCacheKeys.metaSchemaVersion, LocationCacheKeys.schemaVersion);
+      await _box.put(
+        LocationCacheKeys.metaSchemaVersion,
+        LocationCacheKeys.schemaVersion,
+      );
       await _box.put(LocationCacheKeys.metaUpdatedAtMillis, 0);
     } else {
       // ensure keys exist
-      _box.put(LocationCacheKeys.metaSchemaVersion, LocationCacheKeys.schemaVersion);
-      _box.put(LocationCacheKeys.metaUpdatedAtMillis, _box.get(LocationCacheKeys.metaUpdatedAtMillis) ?? 0);
+      _box.put(
+        LocationCacheKeys.metaSchemaVersion,
+        LocationCacheKeys.schemaVersion,
+      );
+      _box.put(
+        LocationCacheKeys.metaUpdatedAtMillis,
+        _box.get(LocationCacheKeys.metaUpdatedAtMillis) ?? 0,
+      );
     }
   }
 
@@ -86,7 +95,10 @@ class LocationCache {
     return null;
   }
 
-  Future<void> _writeListOfMaps(String key, List<Map<String, dynamic>> items) async {
+  Future<void> _writeListOfMaps(
+    String key,
+    List<Map<String, dynamic>> items,
+  ) async {
     await _box.put(key, items);
     await touchNow();
   }
@@ -109,7 +121,10 @@ class LocationCache {
     return _readListOfMaps(LocationCacheKeys.trDistrictsForCity(cityId));
   }
 
-  Future<void> putTrDistrictsRaw(String cityId, List<Map<String, dynamic>> items) async {
+  Future<void> putTrDistrictsRaw(
+    String cityId,
+    List<Map<String, dynamic>> items,
+  ) async {
     await _writeListOfMaps(LocationCacheKeys.trDistrictsForCity(cityId), items);
   }
 
@@ -118,7 +133,10 @@ class LocationCache {
   // ---------------------------
   Future<void> clearAll() async {
     await _box.clear();
-    await _box.put(LocationCacheKeys.metaSchemaVersion, LocationCacheKeys.schemaVersion);
+    await _box.put(
+      LocationCacheKeys.metaSchemaVersion,
+      LocationCacheKeys.schemaVersion,
+    );
     await _box.put(LocationCacheKeys.metaUpdatedAtMillis, 0);
   }
 
@@ -128,19 +146,22 @@ class LocationCache {
   }
 
   // ---------------------------
-// Generic read/write (public)
-// ---------------------------
+  // Generic read/write (public)
+  // ---------------------------
 
-List<Map<String, dynamic>>? readRawList(String key) {
-  final v = _box.get(key);
-  if (v is List) {
-    return v.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  List<Map<String, dynamic>>? readRawList(String key) {
+    final v = _box.get(key);
+    if (v is List) {
+      return v.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return null;
   }
-  return null;
-}
 
-Future<void> writeRawList(String key, List<Map<String, dynamic>> items) async {
-  await _box.put(key, items);
-  await touchNow();
-}
+  Future<void> writeRawList(
+    String key,
+    List<Map<String, dynamic>> items,
+  ) async {
+    await _box.put(key, items);
+    await touchNow();
+  }
 }

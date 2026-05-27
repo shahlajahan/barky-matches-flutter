@@ -19,7 +19,6 @@ class AdminReportsPage extends StatelessWidget {
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -27,9 +26,7 @@ class AdminReportsPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text("No reports"),
-            );
+            return const Center(child: Text("No reports"));
           }
 
           return ListView.builder(
@@ -45,16 +42,12 @@ class AdminReportsPage extends StatelessWidget {
               final reporter = data['reportedBy'] ?? '';
 
               return Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
                   title: Text("Type: $type"),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       Text("Reason: $reason"),
                       Text("Target: $targetId"),
                       Text("Reporter: $reporter"),
@@ -64,22 +57,21 @@ class AdminReportsPage extends StatelessWidget {
 
                       Row(
                         children: [
+                          ElevatedButton(
+                            onPressed: () {
+                              _updateStatus(reportId, "approved");
+                            },
+                            child: const Text("Approve"),
+                          ),
 
                           ElevatedButton(
-  onPressed: () {
-    _updateStatus(reportId, "approved");
-  },
-  child: const Text("Approve"),
-),
-
-ElevatedButton(
-  onPressed: () {
-    _updateStatus(reportId, "rejected");
-  },
-  child: const Text("Reject"),
-),
+                            onPressed: () {
+                              _updateStatus(reportId, "rejected");
+                            },
+                            child: const Text("Reject"),
+                          ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 ),
@@ -92,21 +84,14 @@ ElevatedButton(
   }
 
   Future<void> _updateStatus(String reportId, String action) async {
-  try {
+    try {
+      final functions = FirebaseFunctions.instanceFor(region: 'europe-west3');
 
-    final functions = FirebaseFunctions.instanceFor(
-      region: 'europe-west3',
-    );
+      final callable = functions.httpsCallable('reviewReport');
 
-    final callable = functions.httpsCallable('reviewReport');
-
-    await callable.call({
-      "reportId": reportId,
-      "action": action,
-    });
-
-  } catch (e) {
-    debugPrint("Admin review error: $e");
+      await callable.call({"reportId": reportId, "action": action});
+    } catch (e) {
+      debugPrint("Admin review error: $e");
+    }
   }
-}
 }

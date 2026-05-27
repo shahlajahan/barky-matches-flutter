@@ -9,7 +9,6 @@ import 'widgets/target_risk_summary_card.dart';
 import 'widgets/moderation_audit_timeline.dart';
 
 class InvestigationPage extends StatelessWidget {
-
   final String reportId;
   final String targetId;
   final String type;
@@ -23,7 +22,6 @@ class InvestigationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final reportDoc = FirebaseFirestore.instance
         .collection("reports")
         .doc(reportId);
@@ -37,22 +35,17 @@ class InvestigationPage extends StatelessWidget {
       body: FutureBuilder<DocumentSnapshot>(
         future: reportDoc.get(),
         builder: (context, snapshot) {
-
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
-          final report =
-              ModerationReport.fromSnapshot(snapshot.data!);
+          final report = ModerationReport.fromSnapshot(snapshot.data!);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 /// HEADER
                 Text(
                   "Reported ${report.type}",
@@ -88,27 +81,20 @@ class InvestigationPage extends StatelessWidget {
                 /// CREATED
                 Text(
                   "Created: ${report.createdAt}",
-                  style: const TextStyle(
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(color: Colors.grey),
                 ),
 
                 const SizedBox(height: 30),
 
                 /// RISK SUMMARY
-                TargetRiskSummaryCard(
-                  targetId: targetId,
-                  type: type,
-                ),
+                TargetRiskSummaryCard(targetId: targetId, type: type),
 
                 const SizedBox(height: 30),
 
                 /// ADMIN ACTIONS
                 const Text(
                   "Admin Actions",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 20),
@@ -118,11 +104,9 @@ class InvestigationPage extends StatelessWidget {
                     backgroundColor: Colors.green,
                   ),
                   onPressed: () async {
-
                     await _reviewReport("approved");
 
                     Navigator.pop(context);
-
                   },
                   child: const Text("Approve Report"),
                 ),
@@ -134,11 +118,9 @@ class InvestigationPage extends StatelessWidget {
                     backgroundColor: Colors.orange,
                   ),
                   onPressed: () async {
-
                     await _reviewReport("rejected");
 
                     Navigator.pop(context);
-
                   },
                   child: const Text("Reject Report"),
                 ),
@@ -148,37 +130,23 @@ class InvestigationPage extends StatelessWidget {
                 /// AUDIT
                 const Text(
                   "Audit Timeline",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 10),
 
-                ModerationAuditTimeline(
-                  targetId: targetId,
-                  type: type,
-                ),
-
+                ModerationAuditTimeline(targetId: targetId, type: type),
               ],
             ),
           );
-
         },
       ),
     );
   }
 
   Future<void> _reviewReport(String action) async {
-
-    await FirebaseFunctions.instanceFor(
-  region: "europe-west3",
-).httpsCallable("reviewReport")
-        .call({
-      "reportId": reportId,
-      "action": action,
-    });
-
+    await FirebaseFunctions.instanceFor(region: "europe-west3")
+        .httpsCallable("reviewReport")
+        .call({"reportId": reportId, "action": action});
   }
-
 }

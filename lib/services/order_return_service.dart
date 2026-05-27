@@ -45,15 +45,13 @@ class OrderReturnService {
     }
 
     return query.snapshots().map(
-          (snapshot) => snapshot.docs
-              .map(OrderReturnRecord.fromDoc)
-              .toList()
-            ..sort((a, b) {
-              final aTime = a.requestedAt?.millisecondsSinceEpoch ?? 0;
-              final bTime = b.requestedAt?.millisecondsSinceEpoch ?? 0;
-              return bTime.compareTo(aTime);
-            }),
-        );
+      (snapshot) =>
+          snapshot.docs.map(OrderReturnRecord.fromDoc).toList()..sort((a, b) {
+            final aTime = a.requestedAt?.millisecondsSinceEpoch ?? 0;
+            final bTime = b.requestedAt?.millisecondsSinceEpoch ?? 0;
+            return bTime.compareTo(aTime);
+          }),
+    );
   }
 
   Stream<List<OrderReturnRecord>> watchSellerReturns({
@@ -64,9 +62,9 @@ class OrderReturnService {
         .where('businessId', isEqualTo: businessId)
         .orderBy('requestedAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map(OrderReturnRecord.fromDoc)
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs.map(OrderReturnRecord.fromDoc).toList(),
+        );
   }
 
   Stream<List<OrderReturnRecord>> watchSellerOrderReturns({
@@ -76,14 +74,15 @@ class OrderReturnService {
         .collection('order_returns')
         .where('sellerOrderId', isEqualTo: sellerOrderId)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map(OrderReturnRecord.fromDoc)
-            .toList()
-          ..sort((a, b) {
-            final aTime = a.requestedAt?.millisecondsSinceEpoch ?? 0;
-            final bTime = b.requestedAt?.millisecondsSinceEpoch ?? 0;
-            return bTime.compareTo(aTime);
-          }));
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(OrderReturnRecord.fromDoc).toList()
+                ..sort((a, b) {
+                  final aTime = a.requestedAt?.millisecondsSinceEpoch ?? 0;
+                  final bTime = b.requestedAt?.millisecondsSinceEpoch ?? 0;
+                  return bTime.compareTo(aTime);
+                }),
+        );
   }
 
   Future<String> createReturnRequest({
@@ -115,8 +114,9 @@ class OrderReturnService {
       final bytes = imageBytes[i];
       images.add({
         'name': i < imageNames.length ? imageNames[i] : 'image_$i.jpg',
-        'contentType':
-            i < imageContentTypes.length ? imageContentTypes[i] : 'image/jpeg',
+        'contentType': i < imageContentTypes.length
+            ? imageContentTypes[i]
+            : 'image/jpeg',
         'base64': base64Encode(bytes),
       });
     }
@@ -171,10 +171,7 @@ class OrderReturnService {
     });
   }
 
-  Future<void> cancelReturn({
-    required String returnId,
-    String? notes,
-  }) async {
+  Future<void> cancelReturn({required String returnId, String? notes}) async {
     debugPrint('🔔 buyer return action=cancel returnId=$returnId');
     await _callCallable('cancelOrderReturnRequest', {
       'returnId': returnId,
@@ -204,11 +201,14 @@ class OrderReturnService {
     required String rootOrderId,
   }) async {
     try {
-      final sellerSnap =
-          await _db.collection('sellerOrders').doc(sellerOrderId).get();
+      final sellerSnap = await _db
+          .collection('sellerOrders')
+          .doc(sellerOrderId)
+          .get();
       if (sellerSnap.exists) {
-        final sellerCarrier =
-            (sellerSnap.data()?['shipping']?['carrier'] ?? '').toString().trim();
+        final sellerCarrier = (sellerSnap.data()?['shipping']?['carrier'] ?? '')
+            .toString()
+            .trim();
         if (sellerCarrier.isNotEmpty) {
           debugPrint(
             '🚚 resolveOriginalCarrierForReturn sellerOrder hit sellerOrderId=$sellerOrderId carrier=$sellerCarrier',
@@ -220,8 +220,9 @@ class OrderReturnService {
       if (rootOrderId.isNotEmpty) {
         final rootSnap = await _db.collection('orders').doc(rootOrderId).get();
         if (rootSnap.exists) {
-          final rootCarrier =
-              (rootSnap.data()?['shipping']?['carrier'] ?? '').toString().trim();
+          final rootCarrier = (rootSnap.data()?['shipping']?['carrier'] ?? '')
+              .toString()
+              .trim();
           if (rootCarrier.isNotEmpty) {
             debugPrint(
               '🚚 resolveOriginalCarrierForReturn rootOrder hit rootOrderId=$rootOrderId carrier=$rootCarrier',
@@ -236,10 +237,7 @@ class OrderReturnService {
     return null;
   }
 
-  Future<void> markReceived({
-    required String returnId,
-    String? notes,
-  }) async {
+  Future<void> markReceived({required String returnId, String? notes}) async {
     debugPrint('🔔 seller return action=received_by_seller returnId=$returnId');
     await _callCallable('markOrderReturnReceived', {
       'returnId': returnId,
@@ -254,7 +252,9 @@ class OrderReturnService {
     required String paymentId,
     String? notes,
   }) async {
-    debugPrint('🔔 seller return action=refund returnId=$returnId amount=$refundAmount');
+    debugPrint(
+      '🔔 seller return action=refund returnId=$returnId amount=$refundAmount',
+    );
     await _callCallable('triggerOrderReturnRefund', {
       'returnId': returnId,
       'refundAmount': refundAmount,
@@ -264,10 +264,11 @@ class OrderReturnService {
     });
   }
 
-  Future<String?> resolvePaymentIdForReturn({
-    required String returnId,
-  }) async {
-    final returnSnap = await _db.collection('order_returns').doc(returnId).get();
+  Future<String?> resolvePaymentIdForReturn({required String returnId}) async {
+    final returnSnap = await _db
+        .collection('order_returns')
+        .doc(returnId)
+        .get();
     final returnData = returnSnap.data() ?? {};
 
     String? pickPaymentId(Map<String, dynamic> source) {
@@ -290,30 +291,44 @@ class OrderReturnService {
 
     final sellerOrderId = (returnData['sellerOrderId'] ?? '').toString().trim();
     if (sellerOrderId.isNotEmpty) {
-      final sellerSnap = await _db.collection('sellerOrders').doc(sellerOrderId).get();
+      final sellerSnap = await _db
+          .collection('sellerOrders')
+          .doc(sellerOrderId)
+          .get();
       if (sellerSnap.exists) {
         final sellerData = sellerSnap.data() ?? {};
         final sellerPayment = sellerData['payment'];
         if (sellerPayment is Map) {
-          final sellerPaymentId = (sellerPayment['paymentId'] ?? '').toString().trim();
+          final sellerPaymentId = (sellerPayment['paymentId'] ?? '')
+              .toString()
+              .trim();
           if (sellerPaymentId.isNotEmpty) {
-            debugPrint('🧾 resolvePaymentIdForReturn sellerOrder hit returnId=$returnId sellerOrderId=$sellerOrderId');
+            debugPrint(
+              '🧾 resolvePaymentIdForReturn sellerOrder hit returnId=$returnId sellerOrderId=$sellerOrderId',
+            );
             return sellerPaymentId;
           }
         }
       }
     }
 
-    final rootOrderId = (returnData['rootOrderId'] ?? returnData['orderId'] ?? '').toString().trim();
+    final rootOrderId =
+        (returnData['rootOrderId'] ?? returnData['orderId'] ?? '')
+            .toString()
+            .trim();
     if (rootOrderId.isNotEmpty) {
       final rootSnap = await _db.collection('orders').doc(rootOrderId).get();
       if (rootSnap.exists) {
         final rootData = rootSnap.data() ?? {};
         final rootPayment = rootData['payment'];
         if (rootPayment is Map) {
-          final rootPaymentId = (rootPayment['paymentId'] ?? '').toString().trim();
+          final rootPaymentId = (rootPayment['paymentId'] ?? '')
+              .toString()
+              .trim();
           if (rootPaymentId.isNotEmpty) {
-            debugPrint('🧾 resolvePaymentIdForReturn rootOrder hit returnId=$returnId rootOrderId=$rootOrderId');
+            debugPrint(
+              '🧾 resolvePaymentIdForReturn rootOrder hit returnId=$returnId rootOrderId=$rootOrderId',
+            );
             return rootPaymentId;
           }
         }

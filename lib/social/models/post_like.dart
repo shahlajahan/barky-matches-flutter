@@ -19,18 +19,13 @@ class PostLike {
     };
   }
 
-  factory PostLike.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
+  factory PostLike.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
 
     return PostLike(
       userId: data['userId'] ?? '',
       postId: data['postId'] ?? '',
-      createdAt:
-          (data['createdAt'] as Timestamp?)
-              ?.toDate() ??
-          DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 }

@@ -15,7 +15,6 @@ class ModerationAuditTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final stream = FirebaseFirestore.instance
         .collection("admin_logs")
         .where("entityId", isEqualTo: targetId)
@@ -25,7 +24,6 @@ class ModerationAuditTimeline extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: stream,
       builder: (context, snapshot) {
-
         if (!snapshot.hasData) {
           return const SizedBox();
         }
@@ -34,22 +32,18 @@ class ModerationAuditTimeline extends StatelessWidget {
 
         return Column(
           children: docs.map((d) {
-
             final data = d.data() as Map<String, dynamic>;
 
             final action = data["action"] ?? "";
-            final reason =
-                (data["metadata"]?["reason"] ?? "").toString();
+            final reason = (data["metadata"]?["reason"] ?? "").toString();
 
             return ListTile(
               leading: const Icon(Icons.history),
               title: Text(action),
               subtitle: Text(reason),
             );
-
           }).toList(),
         );
-
       },
     );
   }

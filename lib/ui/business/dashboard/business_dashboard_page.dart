@@ -79,7 +79,6 @@ class BusinessDashboardPage extends StatelessWidget {
     List<String> sectors,
     Map<String, dynamic> data,
   ) {
-    
     final l10n = AppLocalizations.of(context)!;
     final sectorData =
         (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -89,59 +88,55 @@ class BusinessDashboardPage extends StatelessWidget {
     };
 
     final hasPetShop =
-    normalizedSectors.contains('pet_shop') ||
-    normalizedSectors.contains('petshop');
+        normalizedSectors.contains('pet_shop') ||
+        normalizedSectors.contains('petshop');
 
-final hasGrooming =
-    normalizedSectors.contains('grooming') ||
-    normalizedSectors.contains('groomer') ||
-    ((data['sectorData']?['petshop']?['shopTypes'] as List?)
-            ?.contains('Grooming') ??
-        false);
+    final hasGrooming =
+        normalizedSectors.contains('grooming') ||
+        normalizedSectors.contains('groomer') ||
+        ((data['sectorData']?['petshop']?['shopTypes'] as List?)?.contains(
+              'Grooming',
+            ) ??
+            false);
 
     /// 🐶 VET
     if (normalizedSectors.contains('veterinary')) {
       return VetDashboardPage(businessId: businessId, businessData: data);
     }
 
-    
+    if (hasPetShop && hasGrooming) {
+      return DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            const TabBar(
+              isScrollable: true,
+              tabs: [
+                Tab(text: 'Pet Shop'),
+                Tab(text: 'Groomy'),
+              ],
+            ),
 
-   if (hasPetShop && hasGrooming) {
-  return DefaultTabController(
-    length: 2,
-    child: Column(
-      children: [
-        const TabBar(
-          isScrollable: true,
-          tabs: [
-            Tab(text: 'Pet Shop'),
-            Tab(text: 'Groomy'),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  const PetShopDashboardPage(),
+
+                  GroomyDashboardPage(
+                    businessId: businessId,
+                    businessData: data,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+      );
+    }
 
-        Expanded(
-  child: TabBarView(
-    children: [
-      const PetShopDashboardPage(),
-
-      GroomyDashboardPage(
-        businessId: businessId,
-        businessData: data,
-      ),
-    ],
-  ),
-),
-      ],
-    ),
-  );
-}
-
-if (hasGrooming) {
-  return GroomyDashboardPage(
-    businessId: businessId,
-    businessData: data,
-  );
-}
+    if (hasGrooming) {
+      return GroomyDashboardPage(businessId: businessId, businessData: data);
+    }
 
     if (normalizedSectors.contains('adoption_center') ||
         normalizedSectors.contains('adoption') ||

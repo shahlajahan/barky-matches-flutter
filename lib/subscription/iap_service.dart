@@ -14,10 +14,7 @@ class IapService {
   static const String premiumMonthlyId = 'barky_premium_monthly';
   static const String goldMonthlyId = 'barky_gold_monthly';
 
-  static const Set<String> _productIds = {
-    premiumMonthlyId,
-    goldMonthlyId,
-  };
+  static const Set<String> _productIds = {premiumMonthlyId, goldMonthlyId};
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   Future<void> Function()? _onSubscriptionActivated;
@@ -45,7 +42,9 @@ class IapService {
 
     final response = await _iap.queryProductDetails(_productIds);
 
-    debugPrint('✅ products: ${response.productDetails.map((e) => e.id).toList()}');
+    debugPrint(
+      '✅ products: ${response.productDetails.map((e) => e.id).toList()}',
+    );
 
     products = response.productDetails;
 
@@ -81,10 +80,7 @@ class IapService {
 
     final purchaseParam = PurchaseParam(productDetails: product);
 
-    await _iap.buyConsumable(
-      purchaseParam: purchaseParam,
-      autoConsume: true,
-    );
+    await _iap.buyConsumable(purchaseParam: purchaseParam, autoConsume: true);
   }
 
   // ─────────────────────────────
@@ -104,8 +100,7 @@ class IapService {
       debugPrint('🧾 product: ${purchase.productID}');
       debugPrint('🧾 date: ${purchase.transactionDate}');
 
-      if (_activeProductId != null &&
-          purchase.productID != _activeProductId) {
+      if (_activeProductId != null && purchase.productID != _activeProductId) {
         debugPrint('🛑 ignored other product');
         continue;
       }
@@ -129,13 +124,11 @@ class IapService {
           debugPrint("🔥 FORCING APPSTATE SUBSCRIPTION RELOAD");
           await _refreshSubscriptionState();
           if (_onSubscriptionActivated != null) {
-  await _onSubscriptionActivated!();
-}
-          await Future.delayed(
-  const Duration(seconds: 1),
-);
+            await _onSubscriptionActivated!();
+          }
+          await Future.delayed(const Duration(seconds: 1));
 
-debugPrint('🔥 POST PURCHASE DELAY FINISHED');
+          debugPrint('🔥 POST PURCHASE DELAY FINISHED');
 
           if (purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
@@ -181,41 +174,31 @@ debugPrint('🔥 POST PURCHASE DELAY FINISHED');
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    String plan = purchase.productID == goldMonthlyId
-        ? "gold"
-        : "premium";
+    String plan = purchase.productID == goldMonthlyId ? "gold" : "premium";
 
     try {
       final callable = FirebaseFunctions.instanceFor(
-  region: 'europe-west3',
-).httpsCallable('activateSubscription');
-     for (int i = 0; i < 3; i++) {
-  try {
-    await callable.call({
-      "plan": plan,
-      "productId": purchase.productID,
-    });
-    break;
-  } catch (e) {
-    debugPrint("⚠️ retry $i → $e");
-    await Future.delayed(const Duration(seconds: 2));
-  }
-}
+        region: 'europe-west3',
+      ).httpsCallable('activateSubscription');
+      for (int i = 0; i < 3; i++) {
+        try {
+          await callable.call({"plan": plan, "productId": purchase.productID});
+          break;
+        } catch (e) {
+          debugPrint("⚠️ retry $i → $e");
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
 
       debugPrint("✅ subscription activated");
       await FirebaseAuth.instance.currentUser?.reload();
 
-await Future.delayed(
-  const Duration(milliseconds: 800),
-);
-      await FirebaseFirestore.instance
-    .collection('users')
-    .doc(user.uid)
-    .set({
-  'isPremium': true,
-  'subscriptionPlan': plan,
-  'subscriptionStatus': 'active',
-}, SetOptions(merge: true));
+      await Future.delayed(const Duration(milliseconds: 800));
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'isPremium': true,
+        'subscriptionPlan': plan,
+        'subscriptionStatus': 'active',
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint("❌ cloud error: $e");
     }

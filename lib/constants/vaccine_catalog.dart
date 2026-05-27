@@ -15,8 +15,6 @@ class VaccineCatalogItem {
 
   final bool isActive;
 
-  
-
   const VaccineCatalogItem({
     required this.id,
     required this.name,
@@ -28,29 +26,19 @@ class VaccineCatalogItem {
   });
 
   String localizedName(String langCode) {
-    return name[langCode] ??
-        name['en'] ??
-        name.values.first;
+    return name[langCode] ?? name['en'] ?? name.values.first;
   }
 }
 
 class VaccineCatalog {
-  static const List<VaccineCatalogItem>
-  all = [
-
+  static const List<VaccineCatalogItem> all = [
     // =========================
     // 🐶 DOG
     // =========================
-
     VaccineCatalogItem(
       id: 'dog_rabies',
 
-      name: {
-        'tr': 'Kuduz',
-        'en': 'Rabies',
-        'fa': 'هاری',
-        'ru': 'Бешенство',
-      },
+      name: {'tr': 'Kuduz', 'en': 'Rabies', 'fa': 'هاری', 'ru': 'Бешенство'},
 
       petTypes: ['dog'],
 
@@ -140,16 +128,10 @@ class VaccineCatalog {
     // =========================
     // 🐱 CAT
     // =========================
-
     VaccineCatalogItem(
       id: 'cat_rabies',
 
-      name: {
-        'tr': 'Kuduz',
-        'en': 'Rabies',
-        'fa': 'هاری',
-        'ru': 'Бешенство',
-      },
+      name: {'tr': 'Kuduz', 'en': 'Rabies', 'fa': 'هاری', 'ru': 'Бешенство'},
 
       petTypes: ['cat'],
 
@@ -163,12 +145,7 @@ class VaccineCatalog {
     VaccineCatalogItem(
       id: 'cat_fvrcp',
 
-      name: {
-        'tr': 'FVRCP',
-        'en': 'FVRCP',
-        'fa': 'واکسن FVRCP',
-        'ru': 'FVRCP',
-      },
+      name: {'tr': 'FVRCP', 'en': 'FVRCP', 'fa': 'واکسن FVRCP', 'ru': 'FVRCP'},
 
       petTypes: ['cat'],
 
@@ -239,7 +216,6 @@ class VaccineCatalog {
     // =========================
     // 🐦 BIRD
     // =========================
-
     VaccineCatalogItem(
       id: 'bird_polyoma',
 
@@ -262,7 +238,6 @@ class VaccineCatalog {
     // =========================
     // 🐰 RABBIT
     // =========================
-
     VaccineCatalogItem(
       id: 'rabbit_myxo',
 
@@ -287,23 +262,15 @@ class VaccineCatalog {
   // HELPERS
   // =========================
 
-  static List<VaccineCatalogItem>
-  byPetType(String petType) {
+  static List<VaccineCatalogItem> byPetType(String petType) {
     return all
-        .where(
-          (v) => v.petTypes.contains(
-            petType.toLowerCase(),
-          ),
-        )
+        .where((v) => v.petTypes.contains(petType.toLowerCase()))
         .toList();
   }
 
-  static VaccineCatalogItem?
-  byId(String id) {
+  static VaccineCatalogItem? byId(String id) {
     try {
-      return all.firstWhere(
-        (v) => v.id == id,
-      );
+      return all.firstWhere((v) => v.id == id);
     } catch (_) {
       return null;
     }

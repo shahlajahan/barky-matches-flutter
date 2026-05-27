@@ -10,15 +10,10 @@ class MedicalRecordsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userId =
-        FirebaseAuth.instance.currentUser?.uid;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text('Not signed in'),
-        ),
-      );
+      return const Scaffold(body: Center(child: Text('Not signed in')));
     }
 
     return Scaffold(
@@ -37,17 +32,13 @@ class MedicalRecordsPage extends StatelessWidget {
 
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text('No pets found'),
-            );
+            return const Center(child: Text('No pets found'));
           }
 
           return ListView.builder(
@@ -56,143 +47,96 @@ class MedicalRecordsPage extends StatelessWidget {
             itemCount: docs.length,
 
             itemBuilder: (context, index) {
-              final data =
-                  docs[index].data()
-                      as Map<String, dynamic>;
+              final data = docs[index].data() as Map<String, dynamic>;
 
-             final dog = Dog(
-  id: docs[index].id,
+              final dog = Dog(
+                id: docs[index].id,
 
-  name: data['name'] ?? '',
+                name: data['name'] ?? '',
 
-  breed: data['breed'] ?? '',
+                breed: data['breed'] ?? '',
 
-  age: data['age'] ?? 0,
+                age: data['age'] ?? 0,
 
-  gender: data['gender'] ?? '',
+                gender: data['gender'] ?? '',
 
-  healthStatus:
-      data['healthStatus'] ??
-      'healthy',
+                healthStatus: data['healthStatus'] ?? 'healthy',
 
-  isNeutered:
-      data['isNeutered'] ?? false,
+                isNeutered: data['isNeutered'] ?? false,
 
-  traits: List<String>.from(
-    data['traits'] ?? [],
-  ),
+                traits: List<String>.from(data['traits'] ?? []),
 
-  imagePaths:
-      List<String>.from(
-        data['imagePaths'] ?? [],
-      ),
+                imagePaths: List<String>.from(data['imagePaths'] ?? []),
 
-  isAvailableForAdoption:
-      data['isAvailableForAdoption'] ??
-      false,
+                isAvailableForAdoption: data['isAvailableForAdoption'] ?? false,
 
-  isOwner:
-      data['isOwner'] ?? false,
+                isOwner: data['isOwner'] ?? false,
 
-  ownerId: data['ownerId'],
+                ownerId: data['ownerId'],
 
-  description:
-      data['description'],
+                description: data['description'],
 
-  ownerGender:
-      data['ownerGender'],
+                ownerGender: data['ownerGender'],
 
-  latitude:
-      (data['latitude'] as num?)
-          ?.toDouble(),
+                latitude: (data['latitude'] as num?)?.toDouble(),
 
-  longitude:
-      (data['longitude'] as num?)
-          ?.toDouble(),
+                longitude: (data['longitude'] as num?)?.toDouble(),
 
-  reportCount:
-      data['reportCount'] ?? 0,
+                reportCount: data['reportCount'] ?? 0,
 
-  isHidden:
-      data['isHidden'] ?? false,
+                isHidden: data['isHidden'] ?? false,
 
-  moderationStatus:
-      data['moderationStatus'] ??
-      'active',
+                moderationStatus: data['moderationStatus'] ?? 'active',
 
-  ownerProfileVisible:
-      data['ownerProfileVisible'] ??
-      true,
+                ownerProfileVisible: data['ownerProfileVisible'] ?? true,
 
-  dogProfileVisible:
-      data['dogProfileVisible'] ??
-      true,
+                dogProfileVisible: data['dogProfileVisible'] ?? true,
 
-  isPremium:
-      data['isPremium'] ?? false,
+                isPremium: data['isPremium'] ?? false,
 
-  isSponsored:
-      data['isSponsored'] ?? false,
+                isSponsored: data['isSponsored'] ?? false,
 
-  boostScore:
-      data['boostScore'] ?? 0,
+                boostScore: data['boostScore'] ?? 0,
 
-  sponsorshipType:
-      data['sponsorshipType'] ?? '',
+                sponsorshipType: data['sponsorshipType'] ?? '',
 
-  petType:
-      data['petType'] ?? 'dog',
-);
+                petType: data['petType'] ?? 'dog',
+              );
 
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
-  context,
+                    context,
 
-  MaterialPageRoute(
-    builder: (_) => VetPatientDetailPage(
-      businessId:
-          'owner_medical_record',
+                    MaterialPageRoute(
+                      builder: (_) => VetPatientDetailPage(
+                        businessId: 'owner_medical_record',
 
-      patientId:
-          docs[index].id,
+                        patientId: docs[index].id,
 
-      patientData: data,
-    ),
-  ),
-);
+                        patientData: data,
+                      ),
+                    ),
+                  );
                 },
 
                 child: Container(
-                  margin:
-                      const EdgeInsets.only(
-                        bottom: 16,
-                      ),
+                  margin: const EdgeInsets.only(bottom: 16),
 
-                  padding:
-                      const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(18),
 
                   decoration: BoxDecoration(
                     color: Colors.white,
 
-                    borderRadius:
-                        BorderRadius.circular(
-                          22,
-                        ),
+                    borderRadius: BorderRadius.circular(22),
 
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black
-                            .withOpacity(
-                              0.05,
-                            ),
+                        color: Colors.black.withOpacity(0.05),
 
                         blurRadius: 12,
 
-                        offset: const Offset(
-                          0,
-                          6,
-                        ),
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
@@ -202,60 +146,39 @@ class MedicalRecordsPage extends StatelessWidget {
                       CircleAvatar(
                         radius: 30,
 
-                        backgroundImage:
-                            dog.imagePaths
-                                    .isNotEmpty
-                                ? NetworkImage(
-                                    dog.imagePaths
-                                        .first,
-                                  )
-                                : null,
+                        backgroundImage: dog.imagePaths.isNotEmpty
+                            ? NetworkImage(dog.imagePaths.first)
+                            : null,
                       ),
 
                       const SizedBox(width: 16),
 
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
 
                           children: [
                             Text(
                               dog.name,
 
-                              style:
-                                  const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight:
-                                        FontWeight
-                                            .w800,
-                                  ),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
 
-                            const SizedBox(
-                              height: 6,
-                            ),
+                            const SizedBox(height: 6),
 
                             Text(
                               dog.breed,
 
-                              style:
-                                  const TextStyle(
-                                    color:
-                                        Colors
-                                            .black54,
-                                  ),
+                              style: const TextStyle(color: Colors.black54),
                             ),
                           ],
                         ),
                       ),
 
-                      const Icon(
-                        Icons
-                            .arrow_forward_ios_rounded,
-                        size: 18,
-                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 18),
                     ],
                   ),
                 ),

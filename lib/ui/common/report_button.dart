@@ -14,7 +14,6 @@ class ReportButton extends StatelessWidget {
   });
 
   Future<void> _openReportDialog(BuildContext context) async {
-
     String? selectedReason;
     final messageController = TextEditingController();
 
@@ -24,23 +23,20 @@ class ReportButton extends StatelessWidget {
       "scam": "Scam",
       "fake_profile": "Fake Profile",
       "animal_safety": "Animal Safety",
-      "other": "Other"
+      "other": "Other",
     };
 
     await showDialog(
       context: context,
       builder: (context) {
-
         return AlertDialog(
           title: const Text("Report"),
 
           content: StatefulBuilder(
             builder: (context, setState) {
-
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-
                   DropdownButtonFormField<String>(
                     hint: const Text("Select reason"),
                     initialValue: selectedReason,
@@ -67,14 +63,12 @@ class ReportButton extends StatelessWidget {
                       border: OutlineInputBorder(),
                     ),
                   ),
-
                 ],
               );
             },
           ),
 
           actions: [
-
             TextButton(
               child: const Text("Cancel"),
               onPressed: () {
@@ -85,12 +79,9 @@ class ReportButton extends StatelessWidget {
             ElevatedButton(
               child: const Text("Submit"),
               onPressed: () async {
-
                 if (selectedReason == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Please select a reason"),
-                    ),
+                    const SnackBar(content: Text("Please select a reason")),
                   );
                   return;
                 }
@@ -104,7 +95,6 @@ class ReportButton extends StatelessWidget {
                 );
               },
             ),
-
           ],
         );
       },
@@ -112,85 +102,59 @@ class ReportButton extends StatelessWidget {
   }
 
   Future<void> _submitReport(
-  BuildContext context,
-  String reasonCode,
-  String message,
-) async {
+    BuildContext context,
+    String reasonCode,
+    String message,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
 
-  final messenger = ScaffoldMessenger.of(context);
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('createReport');
 
-  try {
+      await callable.call({
+        "type": type,
+        "targetId": targetId,
+        "targetOwnerId": targetOwnerId,
+        "reasonCode": reasonCode,
+        "reasonText": reasonCode,
+        "message": message,
+      });
 
-    final callable = FirebaseFunctions.instanceFor(
-      region: 'europe-west3',
-    ).httpsCallable('createReport');
+      messenger.showSnackBar(const SnackBar(content: Text("Report submitted")));
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == "already-exists") {
+        messenger.showSnackBar(
+          const SnackBar(content: Text("You already reported this item")),
+        );
+        return;
+      }
 
-    await callable.call({
+      if (e.code == "resource-exhausted") {
+        messenger.showSnackBar(
+          const SnackBar(content: Text("Too many reports. Try again later.")),
+        );
+        return;
+      }
 
-      "type": type,
-      "targetId": targetId,
-      "targetOwnerId": targetOwnerId,
-      "reasonCode": reasonCode,
-      "reasonText": reasonCode,
-      "message": message,
+      if (e.code == "unauthenticated") {
+        messenger.showSnackBar(
+          const SnackBar(content: Text("Please login first")),
+        );
+        return;
+      }
 
-    });
-
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text("Report submitted"),
-      ),
-    );
-
-  } on FirebaseFunctionsException catch (e) {
-
-    if (e.code == "already-exists") {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text("You already reported this item"),
-        ),
+        SnackBar(content: Text("Report failed: ${e.message}")),
       );
-      return;
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text("Unexpected error")));
     }
-
-    if (e.code == "resource-exhausted") {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text("Too many reports. Try again later."),
-        ),
-      );
-      return;
-    }
-
-    if (e.code == "unauthenticated") {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text("Please login first"),
-        ),
-      );
-      return;
-    }
-
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text("Report failed: ${e.message}"),
-      ),
-    );
-
-  } catch (_) {
-
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text("Unexpected error"),
-      ),
-    );
-
   }
-}
 
   @override
   Widget build(BuildContext context) {
-
     return IconButton(
       icon: const Icon(Icons.flag_outlined),
       tooltip: "Report",

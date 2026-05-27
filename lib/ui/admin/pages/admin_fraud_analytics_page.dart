@@ -7,7 +7,6 @@ class AdminFraudAnalyticsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final moderationStream = FirebaseFirestore.instance
         .collection("admin_stats")
         .doc("moderation")
@@ -21,12 +20,9 @@ class AdminFraudAnalyticsPage extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: moderationStream,
         builder: (context, snapshot) {
-
           // loading
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           // error
@@ -46,12 +42,11 @@ class AdminFraudAnalyticsPage extends StatelessWidget {
           final reportsRejected = data["reportsRejected"] ?? 0;
           final reportsApproved = data["reportsApproved"] ?? 0;
           final suspiciousClusters = data["suspiciousReportClusters"] ?? 0;
-final massAttacks = data["massReportingAttacks"] ?? 0;
+          final massAttacks = data["massReportingAttacks"] ?? 0;
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-
               const _SectionTitle("MODERATION METRICS"),
 
               _StatCard(
@@ -79,16 +74,16 @@ final massAttacks = data["massReportingAttacks"] ?? 0;
               ),
 
               _StatCard(
-  icon: Icons.warning_amber,
-  title: "Suspicious Report Clusters",
-  value: suspiciousClusters.toString(),
-),
+                icon: Icons.warning_amber,
+                title: "Suspicious Report Clusters",
+                value: suspiciousClusters.toString(),
+              ),
 
-_StatCard(
-  icon: Icons.security,
-  title: "Mass Reporting Attacks",
-  value: massAttacks.toString(),
-),
+              _StatCard(
+                icon: Icons.security,
+                title: "Mass Reporting Attacks",
+                value: massAttacks.toString(),
+              ),
 
               const SizedBox(height: 24),
 
@@ -104,15 +99,13 @@ _StatCard(
               const _RiskCard(
                 icon: Icons.person_off_outlined,
                 title: "Abusive Reporter Detection",
-                description:
-                    "Users submitting too many false reports.",
+                description: "Users submitting too many false reports.",
               ),
 
               const _RiskCard(
                 icon: Icons.group_outlined,
                 title: "Suspicious User Clusters",
-                description:
-                    "Multiple accounts reporting the same entity.",
+                description: "Multiple accounts reporting the same entity.",
               ),
             ],
           );
@@ -123,14 +116,12 @@ _StatCard(
 }
 
 class _SectionTitle extends StatelessWidget {
-
   final String text;
 
   const _SectionTitle(this.text);
 
   @override
   Widget build(BuildContext context) {
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
@@ -146,7 +137,6 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-
   final IconData icon;
   final String title;
   final String value;
@@ -159,7 +149,6 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -167,10 +156,7 @@ class _StatCard extends StatelessWidget {
         title: Text(title),
         trailing: Text(
           value,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -178,7 +164,6 @@ class _StatCard extends StatelessWidget {
 }
 
 class _RiskCard extends StatelessWidget {
-
   final IconData icon;
   final String title;
   final String description;
@@ -191,7 +176,6 @@ class _RiskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(

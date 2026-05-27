@@ -44,10 +44,7 @@ class BusinessMapper {
 
       workingHours: {},
 
-      emergency: Emergency(
-        available: false,
-        type: "none",
-      ),
+      emergency: Emergency(available: false, type: "none"),
 
       animalTypes: ["dog", "cat"],
 
@@ -84,10 +81,7 @@ class BusinessMapper {
       isVerified: false,
       isActive: true,
 
-      moderation: Moderation(
-        status: "active",
-        reportCount: 0,
-      ),
+      moderation: Moderation(status: "active", reportCount: 0),
 
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),

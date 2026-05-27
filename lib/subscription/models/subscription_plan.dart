@@ -30,8 +30,7 @@ enum SubscriptionPlan {
 
   /// Is paid plan
   bool get isPaid {
-    return this == SubscriptionPlan.premium ||
-        this == SubscriptionPlan.gold;
+    return this == SubscriptionPlan.premium || this == SubscriptionPlan.gold;
   }
 
   /// Is premium

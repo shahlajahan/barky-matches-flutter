@@ -42,19 +42,13 @@ class AdminSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           /// 🔷 HEADER ROW
           Row(
             children: [
               if (icon != null)
-                Icon(
-                  icon,
-                  size: 18,
-                  color: accentColor ?? Colors.black87,
-                ),
+                Icon(icon, size: 18, color: accentColor ?? Colors.black87),
 
-              if (icon != null)
-                const SizedBox(width: 8),
+              if (icon != null) const SizedBox(width: 8),
 
               Expanded(
                 child: Text(

@@ -80,12 +80,14 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                )),
+            Text(
+              title,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
             const SizedBox(height: 6),
             Text(
               "₺${value.toStringAsFixed(2)}",
@@ -249,19 +251,17 @@ class _AdminPayoutCardState extends State<_AdminPayoutCard> {
         region: "europe-west3",
       ).httpsCallable("markSellerPayoutReady");
 
-      await callable.call({
-        "sellerOrderId": widget.sellerOrderId,
-      });
+      await callable.call({"sellerOrderId": widget.sellerOrderId});
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payout marked as ready")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Payout marked as ready")));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -334,14 +334,14 @@ class _AdminPayoutCardState extends State<_AdminPayoutCard> {
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payout marked as paid")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Payout marked as paid")));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -363,11 +363,16 @@ class _AdminPayoutCardState extends State<_AdminPayoutCard> {
     final reference = payout["reference"]?.toString();
 
     final orderNumber =
-        (data["sellerOrderNumber"] ?? data["rootOrderNumber"] ?? widget.sellerOrderId)
+        (data["sellerOrderNumber"] ??
+                data["rootOrderNumber"] ??
+                widget.sellerOrderId)
             .toString();
 
     final sellerName =
-        (seller["businessName"] ?? seller["name"] ?? data["shopId"] ?? "Unknown")
+        (seller["businessName"] ??
+                seller["name"] ??
+                data["shopId"] ??
+                "Unknown")
             .toString();
 
     final buyerName = (billing["contactName"] ?? data["buyerName"] ?? "-")
@@ -451,10 +456,7 @@ class _AdminPayoutCardState extends State<_AdminPayoutCard> {
             const SizedBox(height: 10),
             Text(
               "Ref: $reference",
-              style: const TextStyle(
-                color: Colors.black54,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.black54, fontSize: 12),
             ),
           ],
 
@@ -508,18 +510,12 @@ class _AdminPayoutCardState extends State<_AdminPayoutCard> {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black54,
-            ),
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
           ),
           const SizedBox(height: 4),
           Text(
             "₺${value.toStringAsFixed(2)}",
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
           ),
         ],
       ),

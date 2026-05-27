@@ -15,12 +15,10 @@ class LocationPickerSheet<T> extends StatefulWidget {
   final void Function(T) onSelected;
 
   @override
-  State<LocationPickerSheet<T>> createState() =>
-      _LocationPickerSheetState<T>();
+  State<LocationPickerSheet<T>> createState() => _LocationPickerSheetState<T>();
 }
 
-class _LocationPickerSheetState<T>
-    extends State<LocationPickerSheet<T>> {
+class _LocationPickerSheetState<T> extends State<LocationPickerSheet<T>> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = "";
 
@@ -39,10 +37,7 @@ class _LocationPickerSheetState<T>
           children: [
             Text(
               widget.title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -70,7 +65,7 @@ class _LocationPickerSheetState<T>
                   );
                 },
               ),
-            )
+            ),
           ],
         ),
       ),

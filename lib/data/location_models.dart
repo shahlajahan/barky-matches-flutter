@@ -87,13 +87,6 @@ class Country {
   int get hashCode => code.hashCode;
 }
 
-
-
-
-
-
-
-
 class Admin1 {
   final String id;
   final String name;
@@ -152,20 +145,11 @@ class Admin1 {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Admin1 &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is Admin1 && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
 }
-
-
-
-
-
-
-
 
 class Admin2 {
   final String id;
@@ -225,14 +209,10 @@ class Admin2 {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Admin2 &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is Admin2 && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
-
-  
 }
 
 // ==============================
@@ -286,11 +266,6 @@ extension Admin2ListX on List<Admin2> {
     return where((c) => c.enabled).toList();
   }
 }
-
-
-
-
-
 
 // ==============================
 // Search Utility (Turkish Safe)

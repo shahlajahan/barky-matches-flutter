@@ -36,12 +36,11 @@ class AuditLogsPage extends StatelessWidget {
 
   String _shortId(String id) {
     if (id.length < 10) return id;
-    return "${id.substring(0,6)}...${id.substring(id.length-4)}";
+    return "${id.substring(0, 6)}...${id.substring(id.length - 4)}";
   }
 
   @override
   Widget build(BuildContext context) {
-
     final stream = FirebaseFirestore.instance
         .collection("admin_logs")
         .orderBy("createdAt", descending: true)
@@ -49,17 +48,12 @@ class AuditLogsPage extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Audit Logs"),
-      ),
+      appBar: AppBar(title: const Text("Audit Logs")),
       body: StreamBuilder<QuerySnapshot>(
         stream: stream,
         builder: (context, snapshot) {
-
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final docs = snapshot.data!.docs;
@@ -67,9 +61,7 @@ class AuditLogsPage extends StatelessWidget {
           return ListView.builder(
             itemCount: docs.length,
             itemBuilder: (context, index) {
-
-              final data =
-                  docs[index].data() as Map<String, dynamic>;
+              final data = docs[index].data() as Map<String, dynamic>;
 
               final action = data["action"] ?? "";
               final entityType = data["entityType"] ?? "";
@@ -79,8 +71,7 @@ class AuditLogsPage extends StatelessWidget {
                 return const SizedBox();
               }
 
-              final reason =
-                  data["metadata"]?["reason"] ?? "";
+              final reason = data["metadata"]?["reason"] ?? "";
 
               final ts = data["createdAt"] as Timestamp?;
               final time = ts?.toDate();
@@ -96,21 +87,15 @@ class AuditLogsPage extends StatelessWidget {
 
                 title: Text(
                   "$action $entityType",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
 
                 subtitle: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     Text(
                       _shortId(entityId),
-                      style: const TextStyle(
-                        fontSize: 12,
-                      ),
+                      style: const TextStyle(fontSize: 12),
                     ),
 
                     if (reason.isNotEmpty)
@@ -128,7 +113,7 @@ class AuditLogsPage extends StatelessWidget {
                   time == null
                       ? ""
                       : "${time.day}/${time.month} "
-                        "${time.hour}:${time.minute}",
+                            "${time.hour}:${time.minute}",
                   style: const TextStyle(fontSize: 12),
                 ),
               );

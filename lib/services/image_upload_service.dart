@@ -28,11 +28,9 @@ class ImageUploadService {
   }) async {
     final compressedBytes = await _compressImage(file);
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child(
-          'business_gallery/$businessId/${DateTime.now().millisecondsSinceEpoch}.jpg',
-        );
+    final ref = FirebaseStorage.instance.ref().child(
+      'business_gallery/$businessId/${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
 
     final uploadTask = ref.putData(compressedBytes);
 

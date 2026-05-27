@@ -4,41 +4,40 @@ class BusinessDraft {
   final BusinessProfileDraft profile;
   final BusinessContactDraft contact;
   final BusinessLegalDraft legal;
-  
 
   final Map<String, dynamic> sectorData; // 🔥 NEW
 
   const BusinessDraft({
-  required this.sectors,
-  required this.profile,
-  required this.contact,
-  required this.legal,
-  required this.sectorData,
-});
+    required this.sectors,
+    required this.profile,
+    required this.contact,
+    required this.legal,
+    required this.sectorData,
+  });
 
-BusinessDraft copyWith({
-  List<String>? sectors,
-  BusinessProfileDraft? profile,
-  BusinessContactDraft? contact,
-  BusinessLegalDraft? legal,
-  Map<String, dynamic>? sectorData,
-}) {
-  return BusinessDraft(
-    sectors: sectors ?? this.sectors,
-    profile: profile ?? this.profile,
-    contact: contact ?? this.contact,
-    legal: legal ?? this.legal,
-    sectorData: sectorData ?? this.sectorData,
-  );
-}
+  BusinessDraft copyWith({
+    List<String>? sectors,
+    BusinessProfileDraft? profile,
+    BusinessContactDraft? contact,
+    BusinessLegalDraft? legal,
+    Map<String, dynamic>? sectorData,
+  }) {
+    return BusinessDraft(
+      sectors: sectors ?? this.sectors,
+      profile: profile ?? this.profile,
+      contact: contact ?? this.contact,
+      legal: legal ?? this.legal,
+      sectorData: sectorData ?? this.sectorData,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
-  "sectors": sectors,
-        "profile": profile.toJson(),
-        "contact": contact.toJson(),
-        "legal": legal.toJson(),
-        "sectorData": sectorData,
-      };
+    "sectors": sectors,
+    "profile": profile.toJson(),
+    "contact": contact.toJson(),
+    "legal": legal.toJson(),
+    "sectorData": sectorData,
+  };
 }
 
 class BusinessProfileDraft {
@@ -55,14 +54,12 @@ class BusinessProfileDraft {
   });
 
   Map<String, dynamic> toJson() => {
-        "displayName": displayName.trim(),
-        "description": description.trim(),
-        "logoUrl": logoUrl,
-        "coverUrl": coverUrl,
-      };
+    "displayName": displayName.trim(),
+    "description": description.trim(),
+    "logoUrl": logoUrl,
+    "coverUrl": coverUrl,
+  };
 }
-
-
 
 class BusinessContactDraft {
   final String phone;
@@ -86,16 +83,16 @@ class BusinessContactDraft {
   });
 
   Map<String, dynamic> toJson() => {
-        "phone": phone.trim(),
-        "whatsapp": whatsapp.trim(),
-        "email": email.trim(),
-        "instagram": instagram.trim(),
-        "website": website.trim(),
-        "city": city.trim(),
-        "district": district.trim(),
-        "addressLine": addressLine.trim(),
-        "location": null, // بعداً GeoPoint
-      };
+    "phone": phone.trim(),
+    "whatsapp": whatsapp.trim(),
+    "email": email.trim(),
+    "instagram": instagram.trim(),
+    "website": website.trim(),
+    "city": city.trim(),
+    "district": district.trim(),
+    "addressLine": addressLine.trim(),
+    "location": null, // بعداً GeoPoint
+  };
 }
 
 class BusinessLegalDraft {
@@ -114,11 +111,11 @@ class BusinessLegalDraft {
   });
 
   Map<String, dynamic> toJson() => {
-        "taxNumber": taxNumber.trim(),
-        "mersisNumber": mersisNumber.trim(),
-        "documents": [],
-        "disclaimerAccepted": disclaimerAccepted,
-        "disclaimerVersion": disclaimerVersion,
-        "disclaimerAcceptedAt": disclaimerAcceptedAt,
-      };
+    "taxNumber": taxNumber.trim(),
+    "mersisNumber": mersisNumber.trim(),
+    "documents": [],
+    "disclaimerAccepted": disclaimerAccepted,
+    "disclaimerVersion": disclaimerVersion,
+    "disclaimerAcceptedAt": disclaimerAcceptedAt,
+  };
 }

@@ -20,8 +20,7 @@ class OffersManager {
   static bool _offersInitialized = false;
 
   static int get offerCount => _offers.length;
-  static final ValueNotifier<int> offersVersion =
-    ValueNotifier<int>(0);
+  static final ValueNotifier<int> offersVersion = ValueNotifier<int>(0);
   static Future<void> loadOffersOnce({
     bool startupReady = true,
     bool forceRefresh = false,

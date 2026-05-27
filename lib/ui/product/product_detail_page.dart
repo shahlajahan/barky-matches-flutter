@@ -20,7 +20,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Widget build(BuildContext context) {
     final product = widget.product;
 
-    final hasDiscount = product.salePrice != null &&
+    final hasDiscount =
+        product.salePrice != null &&
         product.salePrice! > 0 &&
         product.salePrice! < product.price;
 
@@ -94,9 +95,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         const SizedBox(width: 6),
                         Text(
                           product.businessName ?? "Seller",
-                          style: AppTheme.body(
-                            weight: FontWeight.w700,
-                          ),
+                          style: AppTheme.body(weight: FontWeight.w700),
                         ),
                         const Spacer(),
                         const Icon(Icons.chevron_right),
@@ -111,9 +110,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   // =========================
                   Text(
                     product.name,
-                    style: AppTheme.h2(
-                      weight: FontWeight.w900,
-                    ),
+                    style: AppTheme.h2(weight: FontWeight.w900),
                   ),
 
                   const SizedBox(height: 10),
@@ -123,14 +120,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   // =========================
                   Row(
                     children: [
-                      const Icon(Icons.star_rounded,
-                          size: 18, color: Color(0xFFFF9800)),
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 18,
+                        color: Color(0xFFFF9800),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         "4.5",
-                        style: AppTheme.body(
-                          weight: FontWeight.w700,
-                        ),
+                        style: AppTheme.body(weight: FontWeight.w700),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -169,7 +167,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       if (hasDiscount)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 5),
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE53935),
                             borderRadius: BorderRadius.circular(8),
@@ -204,10 +204,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       style: AppTheme.h3(weight: FontWeight.w900),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      product.description,
-                      style: AppTheme.body(),
-                    ),
+                    Text(product.description, style: AppTheme.body()),
                     const SizedBox(height: 24),
                   ],
 
@@ -271,9 +268,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               product.shippingMode == "free_shipping"
                   ? "Free Shipping"
                   : "Shipping calculated at checkout",
-              style: AppTheme.body(
-                weight: FontWeight.w600,
-              ),
+              style: AppTheme.body(weight: FontWeight.w600),
             ),
           ),
         ],
@@ -289,15 +284,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Text(
-            title,
-            style: AppTheme.caption(color: AppTheme.muted),
-          ),
+          Text(title, style: AppTheme.caption(color: AppTheme.muted)),
           const Spacer(),
-          Text(
-            value,
-            style: AppTheme.body(weight: FontWeight.w700),
-          ),
+          Text(value, style: AppTheme.body(weight: FontWeight.w700)),
         ],
       ),
     );
@@ -311,9 +300,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         children: [
@@ -332,9 +319,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 ),
                 child: const Text(
                   "Add to Basket",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ),

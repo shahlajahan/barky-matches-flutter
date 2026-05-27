@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-
 class BlockedUsersPage extends StatefulWidget {
   const BlockedUsersPage({super.key});
 
@@ -132,20 +131,16 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("$blockedName has been unblocked"),
-        ),
+        SnackBar(content: Text("$blockedName has been unblocked")),
       );
     } catch (e) {
       debugPrint("Unblock error: $e");
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Failed to unblock user"),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Failed to unblock user")));
     }
   }
 
@@ -169,9 +164,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         ),
       ),
       body: uid == null
-          ? const Center(
-              child: Text("You must be signed in"),
-            )
+          ? const Center(child: Text("You must be signed in"))
           : StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("users")
@@ -182,16 +175,13 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return _ErrorState(
-                    message:
-                        "Failed to load blocked users.\n${snapshot.error}",
+                    message: "Failed to load blocked users.\n${snapshot.error}",
                   );
                 }
 
                 if (!snapshot.hasData) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF9E1B4F),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFF9E1B4F)),
                   );
                 }
 
@@ -207,16 +197,12 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                     _HeaderCard(count: docs.length),
                     const SizedBox(height: 22),
                     ...docs.map((doc) {
-                      final data =
-                          doc.data() as Map<String, dynamic>? ?? {};
+                      final data = doc.data() as Map<String, dynamic>? ?? {};
 
                       final blockedUserId = doc.id;
-                      final name =
-                          (data["name"] ?? "Unknown User").toString();
-                      final username =
-                          (data["username"] ?? "").toString();
-                      final photoUrl =
-                          (data["photoUrl"] ?? "").toString();
+                      final name = (data["name"] ?? "Unknown User").toString();
+                      final username = (data["username"] ?? "").toString();
+                      final photoUrl = (data["photoUrl"] ?? "").toString();
 
                       final Timestamp? blockedAtTs = data["blockedAt"];
                       final DateTime? blockedAt = blockedAtTs?.toDate();
@@ -256,10 +242,7 @@ class _HeaderCard extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF9E1B4F),
-            Color(0xFFE91E63),
-          ],
+          colors: [Color(0xFF9E1B4F), Color(0xFFE91E63)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -451,13 +434,11 @@ class _BlockedUserCard extends StatelessWidget {
           CircleAvatar(
             radius: 30,
             backgroundColor: const Color(0xFF9E1B4F).withOpacity(.10),
-            backgroundImage:
-                photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+            backgroundImage: photoUrl.isNotEmpty
+                ? NetworkImage(photoUrl)
+                : null,
             child: photoUrl.isEmpty
-                ? const Icon(
-                    LucideIcons.user,
-                    color: Color(0xFF9E1B4F),
-                  )
+                ? const Icon(LucideIcons.user, color: Color(0xFF9E1B4F))
                 : null,
           ),
           const SizedBox(width: 14),
@@ -511,17 +492,11 @@ class _BlockedUserCard extends StatelessWidget {
           const SizedBox(width: 10),
           TextButton.icon(
             onPressed: onUnblock,
-            icon: const Icon(
-              LucideIcons.userCheck,
-              size: 16,
-            ),
+            icon: const Icon(LucideIcons.userCheck, size: 16),
             label: const Text("Unblock"),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF9E1B4F),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),

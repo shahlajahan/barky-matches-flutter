@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 
-
 class SavedParksPage extends StatelessWidget {
   const SavedParksPage({super.key});
 
@@ -65,39 +64,38 @@ class SavedParksPage extends StatelessWidget {
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: savedParks.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: 12),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final park = savedParks[index];
 
-                      final String parkName =
-                          park['name'] ?? 'Unknown park';
-                      final bool premiumOnly =
-                          park['premiumOnly'] == true;
-                      final bool canSchedule =
-                          isGoldOrPremium || !premiumOnly;
+                      final String parkName = park['name'] ?? 'Unknown park';
+                      final bool premiumOnly = park['premiumOnly'] == true;
+                      final bool canSchedule = isGoldOrPremium || !premiumOnly;
 
                       return InkWell(
-  borderRadius: BorderRadius.circular(16),
-  onTap: canSchedule
-    ? () {
-      debugPrint('🟢 SavedPark tapped: ${park['name']}');
-        final appState = context.read<AppState>();
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: canSchedule
+                            ? () {
+                                debugPrint(
+                                  '🟢 SavedPark tapped: ${park['name']}',
+                                );
+                                final appState = context.read<AppState>();
 
-        // 1️⃣ فقط state
-        appState.startPlaydateAtPark(park);
+                                // 1️⃣ فقط state
+                                appState.startPlaydateAtPark(park);
 
-        // 2️⃣ فقط tab (نه Navigator)
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-           debugPrint('🟡 Switching tab to PLAYDATE');
-          if (!context.mounted) return;
+                                // 2️⃣ فقط tab (نه Navigator)
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  debugPrint('🟡 Switching tab to PLAYDATE');
+                                  if (!context.mounted) return;
 
-          appState.closeProfileSubPage();
-          appState.setCurrentTab(NavTab.playdate);
-        });
-      }
-    : null,
-
+                                  appState.closeProfileSubPage();
+                                  appState.setCurrentTab(NavTab.playdate);
+                                });
+                              }
+                            : null,
 
                         child: Container(
                           padding: const EdgeInsets.all(16),
@@ -122,8 +120,7 @@ class SavedParksPage extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       parkName,

@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 
-class AddAdoptionPetDetailPage
-    extends StatelessWidget {
-
+class AddAdoptionPetDetailPage extends StatelessWidget {
   final String businessId;
 
   final String petTitle;
 
   final String? petId;
 
-  final Map<String, dynamic>?
-      existingData;
+  final Map<String, dynamic>? existingData;
 
   const AddAdoptionPetDetailPage({
     super.key,
@@ -22,22 +19,12 @@ class AddAdoptionPetDetailPage
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       appBar: AppBar(
-        title: Text(
-          petId == null
-              ? 'Add Adoption Pet'
-              : 'Edit Adoption Pet',
-        ),
+        title: Text(petId == null ? 'Add Adoption Pet' : 'Edit Adoption Pet'),
       ),
 
-      body: Center(
-        child: Text(
-          petTitle,
-        ),
-      ),
+      body: Center(child: Text(petTitle)),
     );
   }
 }

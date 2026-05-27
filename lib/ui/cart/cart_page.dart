@@ -16,9 +16,7 @@ class CartPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.cartTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.cartTitle)),
       body: items.isEmpty
           ? Center(child: Text(l10n.cartIsEmpty))
           : Column(
@@ -69,7 +67,10 @@ class _CartItemTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    item.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Text("${item.price} ₺"),
 
                   Row(
@@ -78,7 +79,9 @@ class _CartItemTile extends StatelessWidget {
                         onPressed: () {
                           if (item.quantity > 1) {
                             appState.updateCartQuantity(
-                                item.productId, item.quantity - 1);
+                              item.productId,
+                              item.quantity - 1,
+                            );
                           }
                         },
                         icon: const Icon(Icons.remove),
@@ -89,7 +92,9 @@ class _CartItemTile extends StatelessWidget {
                       IconButton(
                         onPressed: () {
                           appState.updateCartQuantity(
-                              item.productId, item.quantity + 1);
+                            item.productId,
+                            item.quantity + 1,
+                          );
                         },
                         icon: const Icon(Icons.add),
                       ),
@@ -104,7 +109,7 @@ class _CartItemTile extends StatelessWidget {
                 appState.removeFromCart(item.productId);
               },
               icon: const Icon(Icons.delete, color: Colors.red),
-            )
+            ),
           ],
         ),
       ),
@@ -139,20 +144,18 @@ class _CartSummary extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-  final appState = context.read<AppState>();
+                final appState = context.read<AppState>();
 
-  Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => CheckoutPage(
-      items: appState.cartItems,
-    ),
-  ),
-);
-},
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CheckoutPage(items: appState.cartItems),
+                  ),
+                );
+              },
               child: Text(l10n.checkoutButton),
             ),
-          )
+          ),
         ],
       ),
     );

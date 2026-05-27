@@ -5,8 +5,6 @@ import 'dog.dart';
 
 part 'play_date_request.g.dart';
 
-
-
 @HiveType(typeId: 2)
 class PlayDateRequest {
   @HiveField(0)
@@ -43,32 +41,30 @@ class PlayDateRequest {
   final String? location;
 
   @HiveField(11)
-final String requesterDogId;
+  final String requesterDogId;
 
-@HiveField(12)
-final String requestedDogId;
-
+  @HiveField(12)
+  final String requestedDogId;
 
   PlayDateRequest({
-  required this.requestId,
-  required this.requesterUserId,
-  this.requestedUserId,
+    required this.requestId,
+    required this.requesterUserId,
+    this.requestedUserId,
 
-  required this.requesterDog,
-  required this.requestedDog,
+    required this.requesterDog,
+    required this.requestedDog,
 
-  required this.status,
-  this.requestDate,
-  this.scheduledDateTime,
-  this.requesterName,
-  this.message,
-  this.location,
+    required this.status,
+    this.requestDate,
+    this.scheduledDateTime,
+    this.requesterName,
+    this.message,
+    this.location,
 
-  // ⭐️ آخر
-  required this.requesterDogId,
-  required this.requestedDogId,
-});
-
+    // ⭐️ آخر
+    required this.requesterDogId,
+    required this.requestedDogId,
+  });
 
   // 🔒 فقط برای جلوگیری از کرش Map → String
   static String? _safeString(dynamic value) {
@@ -78,79 +74,71 @@ final String requestedDogId;
     return value.toString();
   }
 
-  static Map<String, dynamic> _safeDogMap(
-    dynamic raw,
-    String fallbackId,
-  ) {
+  static Map<String, dynamic> _safeDogMap(dynamic raw, String fallbackId) {
     if (raw is! Map) {
-  return {
-    'id': fallbackId,
-    // ⛔️ اسم اینجا ست نمی‌شه
-    // اسم باید از dogs collection بیاد
-    'name': null,
-    'ownerId': null,
-  };
-}
-
+      return {
+        'id': fallbackId,
+        // ⛔️ اسم اینجا ست نمی‌شه
+        // اسم باید از dogs collection بیاد
+        'name': null,
+        'ownerId': null,
+      };
+    }
 
     final map = Map<String, dynamic>.from(raw);
 
     return {
-  'id': map['id'] ?? fallbackId,
-  // ⛔️ حتی اگه اسم بود، اینجا استفاده نکن
-  'name': null,
-  'ownerId': map['ownerId'],
-};
-
+      'id': map['id'] ?? fallbackId,
+      // ⛔️ حتی اگه اسم بود، اینجا استفاده نکن
+      'name': null,
+      'ownerId': map['ownerId'],
+    };
   }
 
-  factory PlayDateRequest.fromFirestore(
-  String id,
-  Map<String, dynamic> data,
-) {
-  final requesterDogIdSafe =
-      data['requesterDogId']?.toString() ?? 'unknown_requester';
+  factory PlayDateRequest.fromFirestore(String id, Map<String, dynamic> data) {
+    final requesterDogIdSafe =
+        data['requesterDogId']?.toString() ?? 'unknown_requester';
 
-  final requestedDogIdSafe =
-      data['requestedDogId']?.toString() ?? 'unknown_requested';
+    final requestedDogIdSafe =
+        data['requestedDogId']?.toString() ?? 'unknown_requested';
 
-  final requesterDogSafe =
-      _safeDogMap(data['requesterDog'], requesterDogIdSafe);
+    final requesterDogSafe = _safeDogMap(
+      data['requesterDog'],
+      requesterDogIdSafe,
+    );
 
-  final requestedDogSafe =
-      _safeDogMap(data['requestedDog'], requestedDogIdSafe);
+    final requestedDogSafe = _safeDogMap(
+      data['requestedDog'],
+      requestedDogIdSafe,
+    );
 
-  return PlayDateRequest(
-    requestId: id,
+    return PlayDateRequest(
+      requestId: id,
 
-    requesterUserId: data['requesterUserId']?.toString() ?? '',
-    requestedUserId: data['requestedUserId']?.toString(),
+      requesterUserId: data['requesterUserId']?.toString() ?? '',
+      requestedUserId: data['requestedUserId']?.toString(),
 
-    // ✅ null-safe
-    requesterDogId: requesterDogIdSafe,
-    requestedDogId: requestedDogIdSafe,
+      // ✅ null-safe
+      requesterDogId: requesterDogIdSafe,
+      requestedDogId: requestedDogIdSafe,
 
-    requesterDog:
-        Dog.fromMap(requesterDogSafe, requesterDogIdSafe),
+      requesterDog: Dog.fromMap(requesterDogSafe, requesterDogIdSafe),
 
-    requestedDog:
-        Dog.fromMap(requestedDogSafe, requestedDogIdSafe),
+      requestedDog: Dog.fromMap(requestedDogSafe, requestedDogIdSafe),
 
-    status: data['status']?.toString() ?? 'pending',
+      status: data['status']?.toString() ?? 'pending',
 
-    requestDate:
-        (data['requestDate'] as Timestamp?)?.toDate(),
+      requestDate: (data['requestDate'] as Timestamp?)?.toDate(),
 
-    scheduledDateTime:
-        (data['scheduledDateTime'] as Timestamp?)?.toDate(),
+      scheduledDateTime: (data['scheduledDateTime'] as Timestamp?)?.toDate(),
 
-    requesterName: _safeString(data['requesterName']),
-    message: _safeString(data['message']),
-    location: _safeString(data['location']),
-  );
-}
+      requesterName: _safeString(data['requesterName']),
+      message: _safeString(data['message']),
+      location: _safeString(data['location']),
+    );
+  }
 
-    /// 🧨 وقتی notification میاد ولی doc از Firestore حذف شده
+  /// 🧨 وقتی notification میاد ولی doc از Firestore حذف شده
   factory PlayDateRequest.deleted(String requestId) {
     return PlayDateRequest(
       requestId: requestId,
@@ -161,14 +149,16 @@ final String requestedDogId;
       requesterDogId: 'deleted',
       requestedDogId: 'deleted',
 
-      requesterDog: Dog.fromMap(
-        {'id': 'deleted', 'name': null, 'ownerId': null},
-        'deleted',
-      ),
-      requestedDog: Dog.fromMap(
-        {'id': 'deleted', 'name': null, 'ownerId': null},
-        'deleted',
-      ),
+      requesterDog: Dog.fromMap({
+        'id': 'deleted',
+        'name': null,
+        'ownerId': null,
+      }, 'deleted'),
+      requestedDog: Dog.fromMap({
+        'id': 'deleted',
+        'name': null,
+        'ownerId': null,
+      }, 'deleted'),
 
       status: 'deleted',
       requestDate: null,
@@ -179,7 +169,6 @@ final String requestedDogId;
     );
   }
 
-
   Map<String, dynamic> toMap() {
     return {
       'requestId': requestId,
@@ -188,8 +177,9 @@ final String requestedDogId;
       'requesterDog': requesterDog.toMap(),
       'requestedDog': requestedDog.toMap(),
       'status': status,
-      'requestDate':
-          requestDate != null ? Timestamp.fromDate(requestDate!) : null,
+      'requestDate': requestDate != null
+          ? Timestamp.fromDate(requestDate!)
+          : null,
       'scheduledDateTime': scheduledDateTime != null
           ? Timestamp.fromDate(scheduledDateTime!)
           : null,
@@ -203,7 +193,6 @@ final String requestedDogId;
   String toString() {
     return 'PlayDateRequest{requestId: $requestId, requesterUserId: $requesterUserId, requestedUserId: $requestedUserId, requesterDog: $requesterDog, requestedDog: $requestedDog, status: $status, requestDate: $requestDate, scheduledDateTime: $scheduledDateTime, requesterName: $requesterName, message: $message, location: $location}';
   }
-
 
   // پدینگ برای حفظ تعداد خطوط (177 خط)
   // خط 20

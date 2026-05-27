@@ -3,14 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/social_post.dart';
 import 'social_feed_page.dart';
 
-class SocialPostDetailPage
-    extends StatelessWidget {
+class SocialPostDetailPage extends StatelessWidget {
   final SocialPost post;
 
-  const SocialPostDetailPage({
-    super.key,
-    required this.post,
-  });
+  const SocialPostDetailPage({super.key, required this.post});
 
   @override
   Widget build(BuildContext context) {
@@ -20,9 +16,7 @@ class SocialPostDetailPage
       body: SafeArea(
         child: Stack(
           children: [
-            SocialFeedSinglePost(
-              post: post,
-            ),
+            SocialFeedSinglePost(post: post),
 
             Positioned(
               top: 10,
@@ -33,10 +27,7 @@ class SocialPostDetailPage
                   Navigator.pop(context);
                 },
 
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
               ),
             ),
           ],

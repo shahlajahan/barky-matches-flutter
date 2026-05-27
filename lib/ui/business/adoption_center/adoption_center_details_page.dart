@@ -12,18 +12,14 @@ import '../../../models/business_draft.dart';
 class AdoptionCenterDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
 
-  const AdoptionCenterDetailsPage({
-    super.key,
-    required this.baseDraft,
-  });
+  const AdoptionCenterDetailsPage({super.key, required this.baseDraft});
 
   @override
   State<AdoptionCenterDetailsPage> createState() =>
       _AdoptionCenterDetailsPageState();
 }
 
-class _AdoptionCenterDetailsPageState
-    extends State<AdoptionCenterDetailsPage> {
+class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
 
@@ -33,17 +29,13 @@ class _AdoptionCenterDetailsPageState
   // SECTION 1 — BASIC INFO
   // =========================
 
-  final TextEditingController _centerName =
-      TextEditingController();
+  final TextEditingController _centerName = TextEditingController();
 
-  final TextEditingController _phone =
-      TextEditingController();
+  final TextEditingController _phone = TextEditingController();
 
-  final TextEditingController _whatsapp =
-      TextEditingController();
+  final TextEditingController _whatsapp = TextEditingController();
 
-  final TextEditingController _instagram =
-      TextEditingController();
+  final TextEditingController _instagram = TextEditingController();
 
   // =========================
   // SECTION 2 — SERVICES
@@ -67,13 +59,7 @@ class _AdoptionCenterDetailsPageState
   // SECTION 3 — PET TYPES
   // =========================
 
-  final List<String> _petTypes = [
-    "Dog",
-    "Cat",
-    "Bird",
-    "Rabbit",
-    "Other",
-  ];
+  final List<String> _petTypes = ["Dog", "Cat", "Bird", "Rabbit", "Other"];
 
   final List<String> _selectedPetTypes = [];
 
@@ -81,8 +67,7 @@ class _AdoptionCenterDetailsPageState
   // SECTION 4 — WORKING HOURS
   // =========================
 
-  final TextEditingController _workingHours =
-      TextEditingController();
+  final TextEditingController _workingHours = TextEditingController();
 
   final List<String> _days = [
     "Monday",
@@ -120,14 +105,9 @@ class _AdoptionCenterDetailsPageState
   // HELPERS
   // =========================
 
-  void _toggle(
-    List<String> list,
-    String value,
-  ) {
+  void _toggle(List<String> list, String value) {
     setState(() {
-      list.contains(value)
-          ? list.remove(value)
-          : list.add(value);
+      list.contains(value) ? list.remove(value) : list.add(value);
     });
   }
 
@@ -158,20 +138,14 @@ class _AdoptionCenterDetailsPageState
     _whatsapp.text = contact.whatsapp;
   }
 
-  Future<String> _uploadFile(
-    File file,
-    String folder,
-  ) async {
-    final user =
-        FirebaseAuth.instance.currentUser;
+  Future<String> _uploadFile(File file, String folder) async {
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       throw Exception("User not logged in");
     }
 
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child(
+    final ref = FirebaseStorage.instance.ref().child(
       "business_sector_docs/${user.uid}/adoption_center/$folder/${DateTime.now().millisecondsSinceEpoch}.jpg",
     );
 
@@ -181,9 +155,7 @@ class _AdoptionCenterDetailsPageState
   }
 
   Future<void> _pickLogo() async {
-    final xf = await _picker.pickImage(
-      source: ImageSource.gallery,
-    );
+    final xf = await _picker.pickImage(source: ImageSource.gallery);
 
     if (xf == null) return;
 
@@ -192,10 +164,7 @@ class _AdoptionCenterDetailsPageState
     setState(() => _loading = true);
 
     try {
-      final url = await _uploadFile(
-        File(xf.path),
-        "logo",
-      );
+      final url = await _uploadFile(File(xf.path), "logo");
 
       if (!mounted) return;
 
@@ -210,9 +179,7 @@ class _AdoptionCenterDetailsPageState
   }
 
   Future<void> _pickPhoto() async {
-    final xf = await _picker.pickImage(
-      source: ImageSource.gallery,
-    );
+    final xf = await _picker.pickImage(source: ImageSource.gallery);
 
     if (xf == null) return;
 
@@ -221,10 +188,7 @@ class _AdoptionCenterDetailsPageState
     setState(() => _loading = true);
 
     try {
-      final url = await _uploadFile(
-        File(xf.path),
-        "photos",
-      );
+      final url = await _uploadFile(File(xf.path), "photos");
 
       if (!mounted) return;
 
@@ -244,68 +208,47 @@ class _AdoptionCenterDetailsPageState
 
   Map<String, dynamic> _buildData() {
     final weekendOpen =
-        _selectedDays.contains("Saturday") ||
-            _selectedDays.contains("Sunday");
+        _selectedDays.contains("Saturday") || _selectedDays.contains("Sunday");
 
     return {
-      "displayName":
-          _centerName.text.trim(),
+      "displayName": _centerName.text.trim(),
 
-      "description":
-          widget.baseDraft.profile.description,
+      "description": widget.baseDraft.profile.description,
 
       "logo": _logoUrl,
 
-      "coverImage":
-          _photos.isNotEmpty
-              ? _photos.first
-              : null,
+      "coverImage": _photos.isNotEmpty ? _photos.first : null,
 
-      "specialties":
-          _selectedServices,
+      "specialties": _selectedServices,
 
-      "petTypes":
-          _selectedPetTypes,
+      "petTypes": _selectedPetTypes,
 
       "contact": {
-        "phone":
-            _phone.text.trim(),
+        "phone": _phone.text.trim(),
 
-        "whatsapp":
-            _whatsapp.text.trim(),
+        "whatsapp": _whatsapp.text.trim(),
 
-        "instagram":
-            _instagram.text.trim(),
+        "instagram": _instagram.text.trim(),
       },
 
-      "services": {
-        "offeredServices":
-            _selectedServices,
-      },
+      "services": {"offeredServices": _selectedServices},
 
       "workingHours": {
-        "workingDays":
-            _selectedDays,
+        "workingDays": _selectedDays,
 
-        "workingHours":
-            _workingHours.text.trim(),
+        "workingHours": _workingHours.text.trim(),
 
-        "weekendOpen":
-            weekendOpen,
+        "weekendOpen": weekendOpen,
       },
 
       "operationalDetails": {
-        "vetCheckIncluded":
-            _vetCheckIncluded,
+        "vetCheckIncluded": _vetCheckIncluded,
 
-        "homeVisitAvailable":
-            _homeVisitAvailable,
+        "homeVisitAvailable": _homeVisitAvailable,
 
-        "transportSupport":
-            _transportSupport,
+        "transportSupport": _transportSupport,
 
-        "fosterSupport":
-            _fosterSupport,
+        "fosterSupport": _fosterSupport,
       },
 
       "profileContent": {
@@ -314,11 +257,9 @@ class _AdoptionCenterDetailsPageState
         "photoUrls": _photos,
 
         "socialMedia": {
-          "whatsapp":
-              _whatsapp.text.trim(),
+          "whatsapp": _whatsapp.text.trim(),
 
-          "instagram":
-              _instagram.text.trim(),
+          "instagram": _instagram.text.trim(),
         },
       },
     };
@@ -336,23 +277,17 @@ class _AdoptionCenterDetailsPageState
     }
 
     if (_selectedServices.isEmpty) {
-      _snack(
-        "Select at least one service",
-      );
+      _snack("Select at least one service");
       return;
     }
 
     if (_selectedPetTypes.isEmpty) {
-      _snack(
-        "Select at least one pet type",
-      );
+      _snack("Select at least one pet type");
       return;
     }
 
     if (_selectedDays.isEmpty) {
-      _snack(
-        "Select working days",
-      );
+      _snack("Select working days");
       return;
     }
 
@@ -361,19 +296,15 @@ class _AdoptionCenterDetailsPageState
     var shouldResetLoading = true;
 
     try {
-      final adoptionData =
-          _buildData();
+      final adoptionData = _buildData();
 
-      final updatedDraft =
-          widget.baseDraft.copyWith(
+      final updatedDraft = widget.baseDraft.copyWith(
         sectorData: {
           ...widget.baseDraft.sectorData,
 
-          "adoptionCenter":
-              adoptionData,
+          "adoptionCenter": adoptionData,
 
-          "adoption_center":
-              adoptionData,
+          "adoption_center": adoptionData,
         },
       );
 
@@ -381,48 +312,31 @@ class _AdoptionCenterDetailsPageState
 
       shouldResetLoading = false;
 
-      Navigator.of(context)
-          .pop(updatedDraft);
+      Navigator.of(context).pop(updatedDraft);
     } catch (e, st) {
-      debugPrint(
-        "❌ ADOPTION CENTER ERROR => $e",
-      );
+      debugPrint("❌ ADOPTION CENTER ERROR => $e");
 
-      debugPrintStack(
-        stackTrace: st,
-      );
+      debugPrintStack(stackTrace: st);
 
       _snack(e.toString());
     } finally {
-      if (shouldResetLoading &&
-          mounted) {
-        setState(
-          () => _loading = false,
-        );
+      if (shouldResetLoading && mounted) {
+        setState(() => _loading = false);
       }
     }
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(msg),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   // =========================
   // UI HELPERS
   // =========================
 
-  Widget _field(
-    TextEditingController c,
-    String label,
-  ) {
+  Widget _field(TextEditingController c, String label) {
     return Padding(
-      padding:
-          const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: c,
         validator: (v) {
@@ -432,17 +346,12 @@ class _AdoptionCenterDetailsPageState
 
           return null;
         },
-        decoration: InputDecoration(
-          labelText: label,
-        ),
+        decoration: InputDecoration(labelText: label),
       ),
     );
   }
 
-  Widget _chips(
-    List<String> items,
-    List<String> selected,
-  ) {
+  Widget _chips(List<String> items, List<String> selected) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -450,11 +359,9 @@ class _AdoptionCenterDetailsPageState
         return FilterChip(
           label: Text(e),
 
-          selected:
-              selected.contains(e),
+          selected: selected.contains(e),
 
-          onSelected: (_) =>
-              _toggle(selected, e),
+          onSelected: (_) => _toggle(selected, e),
         );
       }).toList(),
     );
@@ -467,126 +374,81 @@ class _AdoptionCenterDetailsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Adoption Center Details",
-        ),
-      ),
+      appBar: AppBar(title: const Text("Adoption Center Details")),
 
       body: Form(
         key: _formKey,
 
         child: ListView(
-          padding:
-              const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
 
           children: [
             // =========================
             // BASIC INFO
             // =========================
+            _field(_centerName, "Center Name"),
 
-            _field(
-              _centerName,
-              "Center Name",
-            ),
+            _field(_phone, "Phone"),
 
-            _field(
-              _phone,
-              "Phone",
-            ),
+            _field(_whatsapp, "WhatsApp"),
 
-            _field(
-              _whatsapp,
-              "WhatsApp",
-            ),
-
-            _field(
-              _instagram,
-              "Instagram",
-            ),
+            _field(_instagram, "Instagram"),
 
             const SizedBox(height: 20),
 
             // =========================
             // SERVICES
             // =========================
-
             const Text(
               "Adoption Services",
-              style: TextStyle(
-                fontWeight:
-                    FontWeight.w600,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
 
-            _chips(
-              _allServices,
-              _selectedServices,
-            ),
+            _chips(_allServices, _selectedServices),
 
             const SizedBox(height: 24),
 
             // =========================
             // PET TYPES
             // =========================
-
             const Text(
               "Pet Types",
-              style: TextStyle(
-                fontWeight:
-                    FontWeight.w600,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
 
-            _chips(
-              _petTypes,
-              _selectedPetTypes,
-            ),
+            _chips(_petTypes, _selectedPetTypes),
 
             const SizedBox(height: 24),
 
             // =========================
             // WORKING DAYS
             // =========================
-
             const Text(
               "Working Days",
-              style: TextStyle(
-                fontWeight:
-                    FontWeight.w600,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
 
-            _chips(
-              _days,
-              _selectedDays,
-            ),
+            _chips(_days, _selectedDays),
 
             const SizedBox(height: 12),
 
-            _field(
-              _workingHours,
-              "Working Hours (09:00 - 18:00)",
-            ),
+            _field(_workingHours, "Working Hours (09:00 - 18:00)"),
 
             const SizedBox(height: 20),
 
             // =========================
             // FEATURES
             // =========================
-
             SwitchListTile(
-              contentPadding:
-                  EdgeInsets.zero,
+              contentPadding: EdgeInsets.zero,
 
-              value:
-                  _vetCheckIncluded,
+              value: _vetCheckIncluded,
 
               onChanged: (v) {
                 setState(() {
@@ -594,17 +456,13 @@ class _AdoptionCenterDetailsPageState
                 });
               },
 
-              title: const Text(
-                "Vet Check Included",
-              ),
+              title: const Text("Vet Check Included"),
             ),
 
             SwitchListTile(
-              contentPadding:
-                  EdgeInsets.zero,
+              contentPadding: EdgeInsets.zero,
 
-              value:
-                  _homeVisitAvailable,
+              value: _homeVisitAvailable,
 
               onChanged: (v) {
                 setState(() {
@@ -612,17 +470,13 @@ class _AdoptionCenterDetailsPageState
                 });
               },
 
-              title: const Text(
-                "Home Visit Available",
-              ),
+              title: const Text("Home Visit Available"),
             ),
 
             SwitchListTile(
-              contentPadding:
-                  EdgeInsets.zero,
+              contentPadding: EdgeInsets.zero,
 
-              value:
-                  _transportSupport,
+              value: _transportSupport,
 
               onChanged: (v) {
                 setState(() {
@@ -630,14 +484,11 @@ class _AdoptionCenterDetailsPageState
                 });
               },
 
-              title: const Text(
-                "Transport Support",
-              ),
+              title: const Text("Transport Support"),
             ),
 
             SwitchListTile(
-              contentPadding:
-                  EdgeInsets.zero,
+              contentPadding: EdgeInsets.zero,
 
               value: _fosterSupport,
 
@@ -647,9 +498,7 @@ class _AdoptionCenterDetailsPageState
                 });
               },
 
-              title: const Text(
-                "Foster Support",
-              ),
+              title: const Text("Foster Support"),
             ),
 
             const SizedBox(height: 24),
@@ -657,56 +506,31 @@ class _AdoptionCenterDetailsPageState
             // =========================
             // MEDIA
             // =========================
-
-            const Text(
-              "Media",
-              style: TextStyle(
-                fontWeight:
-                    FontWeight.w600,
-              ),
-            ),
+            const Text("Media", style: TextStyle(fontWeight: FontWeight.w600)),
 
             const SizedBox(height: 10),
 
             Row(
               children: [
                 Expanded(
-                  child:
-                      ElevatedButton.icon(
-                    onPressed: _loading
-                        ? null
-                        : _pickLogo,
+                  child: ElevatedButton.icon(
+                    onPressed: _loading ? null : _pickLogo,
 
-                    icon:
-                        const Icon(
-                      Icons.image,
-                    ),
+                    icon: const Icon(Icons.image),
 
-                    label:
-                        const Text(
-                      "Logo",
-                    ),
+                    label: const Text("Logo"),
                   ),
                 ),
 
                 const SizedBox(width: 10),
 
                 Expanded(
-                  child:
-                      ElevatedButton.icon(
-                    onPressed: _loading
-                        ? null
-                        : _pickPhoto,
+                  child: ElevatedButton.icon(
+                    onPressed: _loading ? null : _pickPhoto,
 
-                    icon:
-                        const Icon(
-                      Icons.photo_library,
-                    ),
+                    icon: const Icon(Icons.photo_library),
 
-                    label:
-                        const Text(
-                      "Photos",
-                    ),
+                    label: const Text("Photos"),
                   ),
                 ),
               ],
@@ -716,10 +540,7 @@ class _AdoptionCenterDetailsPageState
               const SizedBox(height: 16),
 
               ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(
-                  14,
-                ),
+                borderRadius: BorderRadius.circular(14),
 
                 child: Image.network(
                   _logoUrl!,
@@ -737,31 +558,19 @@ class _AdoptionCenterDetailsPageState
                 height: 90,
 
                 child: ListView.builder(
-                  scrollDirection:
-                      Axis.horizontal,
+                  scrollDirection: Axis.horizontal,
 
-                  itemCount:
-                      _photos.length,
+                  itemCount: _photos.length,
 
-                  itemBuilder:
-                      (context, index) {
+                  itemBuilder: (context, index) {
                     return Container(
                       width: 90,
-                      margin:
-                          const EdgeInsets.only(
-                        right: 10,
-                      ),
+                      margin: const EdgeInsets.only(right: 10),
 
                       child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(
-                          12,
-                        ),
+                        borderRadius: BorderRadius.circular(12),
 
-                        child: Image.network(
-                          _photos[index],
-                          fit: BoxFit.cover,
-                        ),
+                        child: Image.network(_photos[index], fit: BoxFit.cover),
                       ),
                     );
                   },
@@ -774,27 +583,16 @@ class _AdoptionCenterDetailsPageState
             // =========================
             // SUBMIT
             // =========================
-
             ElevatedButton(
-              style:
-                  ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(
-                  vertical: 16,
-                ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
 
-              onPressed:
-                  _loading ? null : _submit,
+              onPressed: _loading ? null : _submit,
 
               child: _loading
-                  ? const CircularProgressIndicator(
-                      color:
-                          Colors.white,
-                    )
-                  : const Text(
-                      "Continue",
-                    ),
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Continue"),
             ),
 
             const SizedBox(height: 20),

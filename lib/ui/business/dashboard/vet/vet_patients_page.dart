@@ -72,13 +72,12 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
             }
 
             final patients = (snapshot.data?.docs ?? [])
-                .map((doc) => _PatientRecord.fromDoc(
-  doc.id,
-  {
-    ...doc.data(),
-    'businessId': widget.businessId,
-  },
-))
+                .map(
+                  (doc) => _PatientRecord.fromDoc(doc.id, {
+                    ...doc.data(),
+                    'businessId': widget.businessId,
+                  }),
+                )
                 .toList();
 
             patients.sort((a, b) {
@@ -171,14 +170,13 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
           },
         ),
       ),
-      
     );
   }
 }
 
 class _PatientRecord {
   final String id;
-final String businessId;
+  final String businessId;
   final String petName;
   final String breed;
   final String ownerName;
@@ -206,11 +204,7 @@ final String businessId;
         'dogName',
         'patientName',
       ], 'Unnamed pet'),
-      businessId: _readString(
-  data,
-  const ['businessId'],
-  '',
-),
+      businessId: _readString(data, const ['businessId'], ''),
       breed: _readString(data, const [
         'breed',
         'petBreed',
@@ -367,181 +361,162 @@ class _PatientCard extends StatelessWidget {
   const _PatientCard({required this.patient});
 
   @override
-Widget build(BuildContext context) {
-  return InkWell(
-    borderRadius: BorderRadius.circular(18),
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
 
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VetPatientDetailPage(
-            businessId: patient.businessId,
-            patientId: patient.id,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VetPatientDetailPage(
+              businessId: patient.businessId,
+              patientId: patient.id,
+            ),
           ),
+        );
+      },
+
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: AppTheme.cardShadow(opacity: 0.07),
         ),
-      );
-    },
 
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
 
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: AppTheme.cardShadow(opacity: 0.07),
-      ),
+          children: [
+            // PET ICON
+            Container(
+              width: 48,
+              height: 48,
 
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+              decoration: BoxDecoration(
+                color: AppTheme.card.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
 
-        children: [
-
-          // PET ICON
-          Container(
-            width: 48,
-            height: 48,
-
-            decoration: BoxDecoration(
-              color: AppTheme.card.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
+              child: const Icon(LucideIcons.heartPulse, color: AppTheme.card),
             ),
 
-            child: const Icon(
-              LucideIcons.heartPulse,
-              color: AppTheme.card,
-            ),
-          ),
+            const SizedBox(width: 12),
 
-          const SizedBox(width: 12),
+            // CONTENT
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
 
-          // CONTENT
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                children: [
+                  // TOP ROW
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          patient.petName,
 
-              children: [
+                          style: AppTheme.h3(),
 
-                // TOP ROW
-                Row(
-                  children: [
-
-                    Expanded(
-                      child: Text(
-                        patient.petName,
-
-                        style: AppTheme.h3(),
-
-                        maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
 
-                    if (patient.needsFollowUp)
+                      if (patient.needsFollowUp) const SizedBox(width: 8),
+
+                      if (patient.needsFollowUp)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 5,
+                          ),
+
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.12),
+
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+
+                          child: Text(
+                            'Follow-up',
+
+                            style: AppTheme.caption(
+                              color: Colors.orange.shade800,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+
                       const SizedBox(width: 8),
 
-                    if (patient.needsFollowUp)
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 5,
-                        ),
+                      const Icon(
+                        LucideIcons.chevronRight,
+                        size: 18,
+                        color: Colors.black38,
+                      ),
+                    ],
+                  ),
 
-                        decoration: BoxDecoration(
-                          color: Colors.orange
-                              .withValues(alpha: 0.12),
+                  const SizedBox(height: 4),
 
-                          borderRadius:
-                              BorderRadius.circular(
-                            999,
-                          ),
-                        ),
+                  // BREED + OWNER
+                  Text(
+                    '${patient.breed} • ${patient.ownerName}',
 
+                    style: AppTheme.caption(),
+
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // NOTES
+                  Text(
+                    patient.notes,
+
+                    style: AppTheme.body(size: 13),
+
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // LAST VISIT
+                  Row(
+                    children: [
+                      const Icon(
+                        LucideIcons.clock3,
+                        size: 14,
+                        color: Colors.black54,
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      Expanded(
                         child: Text(
-                          'Follow-up',
+                          patient.lastVisitAt == null
+                              ? 'Last visit not recorded'
+                              : 'Last visit: ${_formatDate(patient.lastVisitAt!)}',
 
-                          style: AppTheme.caption(
-                            color:
-                                Colors.orange.shade800,
-                            weight:
-                                FontWeight.w700,
-                          ),
+                          style: AppTheme.caption(color: Colors.black87),
                         ),
                       ),
-
-                    const SizedBox(width: 8),
-
-                    const Icon(
-                      LucideIcons.chevronRight,
-                      size: 18,
-                      color: Colors.black38,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 4),
-
-                // BREED + OWNER
-                Text(
-                  '${patient.breed} • ${patient.ownerName}',
-
-                  style: AppTheme.caption(),
-
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-                const SizedBox(height: 8),
-
-                // NOTES
-                Text(
-                  patient.notes,
-
-                  style: AppTheme.body(size: 13),
-
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-                const SizedBox(height: 10),
-
-                // LAST VISIT
-                Row(
-                  children: [
-
-                    const Icon(
-                      LucideIcons.clock3,
-                      size: 14,
-                      color: Colors.black54,
-                    ),
-
-                    const SizedBox(width: 6),
-
-                    Expanded(
-                      child: Text(
-                        patient.lastVisitAt == null
-                            ? 'Last visit not recorded'
-                            : 'Last visit: ${_formatDate(patient.lastVisitAt!)}',
-
-                        style: AppTheme.caption(
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _CenteredMessage extends StatelessWidget {

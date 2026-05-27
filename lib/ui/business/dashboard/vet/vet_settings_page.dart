@@ -219,20 +219,21 @@ class _VetSettingsPageState extends State<VetSettingsPage> {
                   },
                 ),
                 _ActionTile(
-  icon: LucideIcons.messageCircle,
-  title: 'Client messages',
-  subtitle: 'Inbox, quick replies, auto messages, and emergency communication',
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => VetClientMessagesPage(
-          businessId: widget.businessId,
-        ),
-      ),
-    );
-  },
-),
+                  icon: LucideIcons.messageCircle,
+                  title: 'Client messages',
+                  subtitle:
+                      'Inbox, quick replies, auto messages, and emergency communication',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VetClientMessagesPage(
+                          businessId: widget.businessId,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 14),

@@ -3,7 +3,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ModerationReport {
-
   final String id;
   final String type;
   final String targetId;
@@ -26,13 +25,10 @@ class ModerationReport {
     required this.createdAt,
   });
 
-  factory ModerationReport.fromSnapshot(
-      DocumentSnapshot snap) {
-
+  factory ModerationReport.fromSnapshot(DocumentSnapshot snap) {
     final data = snap.data() as Map<String, dynamic>;
 
     return ModerationReport(
-
       id: snap.id,
 
       type: data["type"] ?? "",
@@ -49,9 +45,7 @@ class ModerationReport {
 
       status: data["status"] ?? "",
 
-      createdAt:
-          (data["createdAt"] as Timestamp?)?.toDate(),
+      createdAt: (data["createdAt"] as Timestamp?)?.toDate(),
     );
   }
-
 }

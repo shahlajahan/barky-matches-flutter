@@ -23,7 +23,6 @@ class ModerationActionBar extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
             const Text(
               "Admin Actions",
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -50,7 +49,6 @@ class ModerationActionBar extends StatelessWidget {
               onPressed: () => _reviewCase("restore"),
               child: const Text("Restore"),
             ),
-
           ],
         ),
       ),
@@ -58,15 +56,10 @@ class ModerationActionBar extends StatelessWidget {
   }
 
   Future<void> _reviewCase(String action) async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'europe-west3',
+    ).httpsCallable("reviewModerationCase");
 
-    final callable =
-        FirebaseFunctions.instanceFor(region: 'europe-west3')
-            .httpsCallable("reviewModerationCase");
-
-    await callable.call({
-      "caseId": caseId,
-      "action": action,
-      "reason": "",
-    });
+    await callable.call({"caseId": caseId, "action": action, "reason": ""});
   }
 }

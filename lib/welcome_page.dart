@@ -34,8 +34,6 @@ class _WelcomePageState extends State<WelcomePage>
   AnimationController? _pulseController;
   Animation<double>? _pulseAnimation;
 
-
-
   @override
   void initState() {
     super.initState();
@@ -105,26 +103,20 @@ Future<void> debugFirestoreRestOffers() async {
     }
 
     unawaited(() async {
-  debugPrint('OFFERS EARLY SKIPPED');
+      debugPrint('OFFERS EARLY SKIPPED');
 
-  if (OffersManager.offerCount == 0) {
-    debugPrint(
-      '🌐 OFFERS EMPTY → waiting for async Firestore load',
-    );
+      if (OffersManager.offerCount == 0) {
+        debugPrint('🌐 OFFERS EMPTY → waiting for async Firestore load');
 
-    await Future.delayed(
-      const Duration(milliseconds: 4500),
-    );
-  }
+        await Future.delayed(const Duration(milliseconds: 4500));
+      }
 
-  if (!mounted) return;
+      if (!mounted) return;
 
-  debugPrint(
-    '🌐 OFFERS REBUILD → count=${OffersManager.offerCount}',
-  );
+      debugPrint('🌐 OFFERS REBUILD → count=${OffersManager.offerCount}');
 
-  setState(() {});
-}());
+      setState(() {});
+    }());
   }
 
   Widget _buildQuickAction({
@@ -424,16 +416,16 @@ Future<void> debugFirestoreRestOffers() async {
                                         fit: StackFit.expand,
                                         children: [
                                           Positioned.fill(
-                                            child:
-                                                ValueListenableBuilder<int>(
-  valueListenable: OffersManager.offersVersion,
-  builder: (context, _, __) {
-    return OffersManager.buildOffersSection(
-      context,
-      null,
-    );
-  },
-),
+                                            child: ValueListenableBuilder<int>(
+                                              valueListenable:
+                                                  OffersManager.offersVersion,
+                                              builder: (context, _, __) {
+                                                return OffersManager.buildOffersSection(
+                                                  context,
+                                                  null,
+                                                );
+                                              },
+                                            ),
                                           ),
                                         ],
                                       ),

@@ -7,8 +7,6 @@ import 'app_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
-
-
 class SectionsManager {
   static Widget buildPlaymateSection(
     BuildContext context,
@@ -35,18 +33,22 @@ class SectionsManager {
               final dog = filteredDogs[index];
               if (kDebugMode) {
                 debugPrint(
-                    'SectionsManager - Displaying dog at index $index: Name=${dog.name}, Breed=${dog.breed}, Age=${dog.age}, Gender=${dog.gender}');
+                  'SectionsManager - Displaying dog at index $index: Name=${dog.name}, Breed=${dog.breed}, Age=${dog.age}, Gender=${dog.gender}',
+                );
               }
               return RepaintBoundary(
                 child: DogCard(
-                  key: ValueKey('${dog.ownerId ?? 'unknown'}_${dog.name.trim()}'),
+                  key: ValueKey(
+                    '${dog.ownerId ?? 'unknown'}_${dog.name.trim()}',
+                  ),
                   dog: dog,
                   allDogs: filteredDogs, // اضافه کردن allDogs
                   currentUserId: currentUserId,
                   favoriteDogs: AppState.of(context).favoriteDogs ?? [],
                   onToggleFavorite: onToggleFavorite,
                   onDogUpdated: (updatedDog) {},
-                  likers: dogLikes['${dog.name}_${dog.ownerId ?? 'unknown'}'] ?? [],
+                  likers:
+                      dogLikes['${dog.name}_${dog.ownerId ?? 'unknown'}'] ?? [],
                 ),
               );
             },
@@ -103,9 +105,13 @@ class SectionsManager {
     final localizations = AppLocalizations.of(context)!;
     final favoriteDogs = favoritesBox.values.toList();
     if (kDebugMode) {
-      debugPrint('SectionsManager - Favorite dogs count: ${favoriteDogs.length}');
+      debugPrint(
+        'SectionsManager - Favorite dogs count: ${favoriteDogs.length}',
+      );
       for (var dog in favoriteDogs) {
-        debugPrint('SectionsManager - Favorite dog: ${dog.name}, ownerId: ${dog.ownerId}');
+        debugPrint(
+          'SectionsManager - Favorite dog: ${dog.name}, ownerId: ${dog.ownerId}',
+        );
       }
     }
     return favoriteDogs.isEmpty
@@ -124,14 +130,17 @@ class SectionsManager {
               final dog = favoriteDogs[index];
               return RepaintBoundary(
                 child: DogCard(
-                  key: ValueKey('${dog.ownerId ?? 'unknown'}_${dog.name.trim()}'),
+                  key: ValueKey(
+                    '${dog.ownerId ?? 'unknown'}_${dog.name.trim()}',
+                  ),
                   dog: dog,
                   allDogs: favoriteDogs, // اضافه کردن allDogs
                   currentUserId: currentUserId,
                   favoriteDogs: favoriteDogs,
                   onToggleFavorite: onToggleFavorite,
                   onDogUpdated: (updatedDog) {},
-                  likers: dogLikes['${dog.name}_${dog.ownerId ?? 'unknown'}'] ?? [],
+                  likers:
+                      dogLikes['${dog.name}_${dog.ownerId ?? 'unknown'}'] ?? [],
                 ),
               );
             },

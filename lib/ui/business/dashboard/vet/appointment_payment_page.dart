@@ -145,48 +145,39 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
           if (!mounted) return;
           final data = snap.data();
           if (data == null) return;
-          final profile = Map<String, dynamic>.from(
-  data['profile'] ?? {},
-);
+          final profile = Map<String, dynamic>.from(data['profile'] ?? {});
 
-final sectorData = Map<String, dynamic>.from(
-  data['sectorData'] ?? {},
-);
+          final sectorData = Map<String, dynamic>.from(
+            data['sectorData'] ?? {},
+          );
 
-final sectorKey =
-    widget.appointmentType == 'pet_hotel'
-        ? 'hotel'
-        : widget.appointmentType == 'grooming'
-        ? 'groomy'
-        : 'veterinary';
+          final sectorKey = widget.appointmentType == 'pet_hotel'
+              ? 'hotel'
+              : widget.appointmentType == 'grooming'
+              ? 'groomy'
+              : 'veterinary';
 
-final sector = Map<String, dynamic>.from(
-  sectorData[sectorKey] ?? {},
-);
+          final sector = Map<String, dynamic>.from(sectorData[sectorKey] ?? {});
 
-final services = Map<String, dynamic>.from(
-  sector['services'] ?? {},
-);
+          final services = Map<String, dynamic>.from(sector['services'] ?? {});
 
-final offeredServices = services['offeredServices'];
+          final offeredServices = services['offeredServices'];
 
-final serviceCount =
-    offeredServices is List
-        ? offeredServices.length
-        : 0;
+          final serviceCount = offeredServices is List
+              ? offeredServices.length
+              : 0;
 
-debugPrint(
-  '🩺 BUSINESS MAP → '
-  'source=AppointmentPayment '
-  'businessId=$businessId '
-  'displayName=${profile['displayName']} '
-  'serviceCount=$serviceCount '
-  'selectedPricingSource='
-  'businesses/$businessId/sectorData.$sectorKey.services',
-);
+          debugPrint(
+            '🩺 BUSINESS MAP → '
+            'source=AppointmentPayment '
+            'businessId=$businessId '
+            'displayName=${profile['displayName']} '
+            'serviceCount=$serviceCount '
+            'selectedPricingSource='
+            'businesses/$businessId/sectorData.$sectorKey.services',
+          );
 
-setState(() => _businessData = data);
-          
+          setState(() => _businessData = data);
         });
   }
 

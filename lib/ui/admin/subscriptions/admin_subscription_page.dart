@@ -6,64 +6,48 @@ class AdminSubscriptionPage extends StatefulWidget {
   const AdminSubscriptionPage({super.key});
 
   @override
-  State<AdminSubscriptionPage> createState() =>
-      _AdminSubscriptionPageState();
+  State<AdminSubscriptionPage> createState() => _AdminSubscriptionPageState();
 }
 
-class _AdminSubscriptionPageState
-    extends State<AdminSubscriptionPage> {
-
+class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
   String search = "";
 
   @override
   Widget build(BuildContext context) {
-
     final stream = FirebaseFirestore.instance
         .collection("users")
         .limit(50)
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Subscription Management"),
-      ),
+      appBar: AppBar(title: const Text("Subscription Management")),
 
       body: StreamBuilder<QuerySnapshot>(
         stream: stream,
         builder: (context, snapshot) {
-
           if (snapshot.hasError) {
-            return Center(
-              child: Text("Error: ${snapshot.error}"),
-            );
+            return Center(child: Text("Error: ${snapshot.error}"));
           }
 
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text("No users found"),
-            );
+            return const Center(child: Text("No users found"));
           }
 
           /// 🔎 Filter
           final filtered = docs.where((doc) {
-
             final userId = doc.id.toLowerCase();
 
             return userId.contains(search);
-
           }).toList();
 
           return Column(
             children: [
-
               /// 🔎 Search
               Padding(
                 padding: const EdgeInsets.all(12),
@@ -85,7 +69,6 @@ class _AdminSubscriptionPageState
                 child: ListView.builder(
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
-
                     final doc = filtered[index];
                     final userId = doc.id;
 
@@ -97,11 +80,9 @@ class _AdminSubscriptionPageState
                           .get(),
 
                       builder: (context, subSnap) {
-
                         /// loading state
                         if (subSnap.connectionState ==
                             ConnectionState.waiting) {
-
                           return const ListTile(
                             leading: CircularProgressIndicator(),
                             title: Text("Loading subscription..."),
@@ -113,9 +94,7 @@ class _AdminSubscriptionPageState
                         double price = 0;
 
                         /// subscription exists
-                        if (subSnap.hasData &&
-                            subSnap.data!.docs.isNotEmpty) {
-
+                        if (subSnap.hasData && subSnap.data!.docs.isNotEmpty) {
                           final subData =
                               subSnap.data!.docs.first.data()
                                   as Map<String, dynamic>;
@@ -124,9 +103,7 @@ class _AdminSubscriptionPageState
                           status = subData["status"] ?? "active";
 
                           /// 🔥 SAFE PRICE PARSING
-                          price = (subData["price"] as num?)
-                                  ?.toDouble() ??
-                              0.0;
+                          price = (subData["price"] as num?)?.toDouble() ?? 0.0;
                         }
 
                         /// icon logic
@@ -154,18 +131,15 @@ class _AdminSubscriptionPageState
                             "$plan • $status • \$${price.toStringAsFixed(2)}",
                           ),
 
-                          trailing:
-                              const Icon(Icons.chevron_right),
+                          trailing: const Icon(Icons.chevron_right),
 
                           onTap: () {
-
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    AdminSubscriptionDetailsPage(
-                                      subscriptionId: userId,
-                                    ),
+                                builder: (_) => AdminSubscriptionDetailsPage(
+                                  subscriptionId: userId,
+                                ),
                               ),
                             );
                           },

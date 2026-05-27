@@ -6,8 +6,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 class OrderService {
   final _db = FirebaseFirestore.instance;
 
-  final FirebaseFunctions _functions =
-      FirebaseFunctions.instanceFor(region: 'europe-west3');
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'europe-west3',
+  );
 
   /// 🟢 NEW SYSTEM (MAIN)
   Future<Map<String, dynamic>> createMarketplaceOrderV2({
@@ -31,7 +32,7 @@ class OrderService {
       "payment": payment,
       //"pricing": pricing,
       "items": items,
-        "carrier": carrier,
+      "carrier": carrier,
       "legal": legal,
     });
 

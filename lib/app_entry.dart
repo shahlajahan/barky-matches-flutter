@@ -21,9 +21,7 @@ class AppEntry extends StatelessWidget {
     }
 
     if (!appState.isUserProfileReady) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return const HomeGate();

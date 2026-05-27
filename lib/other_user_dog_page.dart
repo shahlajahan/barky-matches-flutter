@@ -25,8 +25,9 @@ class OtherUserDogPage extends StatelessWidget {
     final appState = context.watch<AppState>();
     final localizations = AppLocalizations.of(context)!;
 
-    final userDogs =
-        dogsList.where((dog) => dog.ownerId == targetUserId).toList();
+    final userDogs = dogsList
+        .where((dog) => dog.ownerId == targetUserId)
+        .toList();
 
     // ─────────────────────────
     // 🧱 Empty State
@@ -45,11 +46,8 @@ class OtherUserDogPage extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                localizations.noDogsForUser ??
-                    'No dogs found for this user.',
-                style: AppTheme.h2(
-                  color: AppTheme.muted,
-                ),
+                localizations.noDogsForUser ?? 'No dogs found for this user.',
+                style: AppTheme.h2(color: AppTheme.muted),
               ),
             ],
           ),
@@ -70,23 +68,19 @@ class OtherUserDogPage extends StatelessWidget {
 
             // 🔙 Header (Vet style spacing)
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     color: AppTheme.primary,
                     onPressed: () {
-                      context
-                          .read<AppState>()
-                          .closePlaymateProfile();
+                      context.read<AppState>().closePlaymateProfile();
                     },
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    localizations.dogsOfThisUser ??
-                        "Dogs of this User",
+                    localizations.dogsOfThisUser ?? "Dogs of this User",
                     style: AppTheme.h1(),
                   ),
                 ],
@@ -97,8 +91,7 @@ class OtherUserDogPage extends StatelessWidget {
 
             Expanded(
               child: ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
                 ),
@@ -107,21 +100,17 @@ class OtherUserDogPage extends StatelessWidget {
                   final dog = userDogs[index];
 
                   return Padding(
-                    padding:
-                        const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: DogCard(
                       key: ValueKey(dog.id),
                       dog: dog,
                       mode: DogCardMode.normal,
                       allDogs: dogsList,
-                      currentUserId:
-                          appState.currentUserId ?? '',
+                      currentUserId: appState.currentUserId ?? '',
                       favoriteDogs: favoriteDogs,
                       onToggleFavorite:
-                          onToggleFavorite ??
-                              appState.toggleFavorite,
-                      likers:
-                          appState.dogLikes[dog.id] ?? [],
+                          onToggleFavorite ?? appState.toggleFavorite,
+                      likers: appState.dogLikes[dog.id] ?? [],
                     ),
                   );
                 },

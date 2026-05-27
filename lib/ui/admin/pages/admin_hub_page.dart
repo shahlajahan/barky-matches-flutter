@@ -32,7 +32,7 @@ class AdminHubPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 10),
         children: [
-           _SectionTitle("BUSINESS"),
+          _SectionTitle("BUSINESS"),
           _AdminItem(
             icon: Icons.verified_outlined,
             title: "Business Approvals",
@@ -42,18 +42,18 @@ class AdminHubPage extends StatelessWidget {
 
           // بقیه آیتم‌ها فعلاً Placeholder (بعداً وصل می‌کنیم)
           _AdminItem(
-  icon: Icons.verified,
-  title: "Approved Businesses",
-  subtitle: "Manage active businesses",
-  pageBuilder: () => const ApprovedBusinessesPage(),
-),
+            icon: Icons.verified,
+            title: "Approved Businesses",
+            subtitle: "Manage active businesses",
+            pageBuilder: () => const ApprovedBusinessesPage(),
+          ),
 
-_AdminItem(
-  icon: Icons.cancel_outlined,
-  title: "Rejected Businesses",
-  subtitle: "Review rejected registrations",
-  pageBuilder: () =>  RejectedBusinessesPage(),
-),
+          _AdminItem(
+            icon: Icons.cancel_outlined,
+            title: "Rejected Businesses",
+            subtitle: "Review rejected registrations",
+            pageBuilder: () => RejectedBusinessesPage(),
+          ),
 
           _AdminItem(
             icon: Icons.block_outlined,
@@ -62,102 +62,102 @@ _AdminItem(
             pageBuilder: () => const SuspendedBusinessesPage(),
           ),
           _AdminItem(
-  icon: Icons.credit_card_outlined,
-  title: "Subscription Management",
-  subtitle: "Plans & billing status",
-  pageBuilder: () => const AdminSubscriptionPage(),
-),
+            icon: Icons.credit_card_outlined,
+            title: "Subscription Management",
+            subtitle: "Plans & billing status",
+            pageBuilder: () => const AdminSubscriptionPage(),
+          ),
 
           const SizedBox(height: 18),
           const _SectionTitle("TRUST & SAFETY"),
           _AdminItem(
-  icon: Icons.report_outlined,
-  title: "Reports",
-  subtitle: "Reported dogs, users, chats, businesses",
-  pageBuilder: () => const AdminReportsPage(),
-),
+            icon: Icons.report_outlined,
+            title: "Reports",
+            subtitle: "Reported dogs, users, chats, businesses",
+            pageBuilder: () => const AdminReportsPage(),
+          ),
 
-_AdminItem(
-  icon: Icons.gavel_outlined,
-  title: "Moderation Queue",
-  subtitle: "Cases waiting for review",
-  pageBuilder: () => const ModerationQueuePage(),
-),
-
-_AdminItem(
-  icon: Icons.shield_outlined,
-  title: "Fraud Analytics",
-  subtitle: "Risk flags & fraud detection",
-  pageBuilder: () => const AdminFraudAnalyticsPage(),
-),
           _AdminItem(
-  icon: Icons.warning_amber_outlined,
-  title: "Complaint Center",
-  subtitle: "User complaints & disputes",
-  pageBuilder: () => const AdminComplaintCenterPage(),
-),
+            icon: Icons.gavel_outlined,
+            title: "Moderation Queue",
+            subtitle: "Cases waiting for review",
+            pageBuilder: () => const ModerationQueuePage(),
+          ),
+
+          _AdminItem(
+            icon: Icons.shield_outlined,
+            title: "Fraud Analytics",
+            subtitle: "Risk flags & fraud detection",
+            pageBuilder: () => const AdminFraudAnalyticsPage(),
+          ),
+          _AdminItem(
+            icon: Icons.warning_amber_outlined,
+            title: "Complaint Center",
+            subtitle: "User complaints & disputes",
+            pageBuilder: () => const AdminComplaintCenterPage(),
+          ),
 
           const SizedBox(height: 18),
           const _SectionTitle("ANALYTICS"),
 
-_AdminItem(
-  icon: Icons.account_balance_wallet_outlined,
-  title: "Payout Management",
-  subtitle: "Seller payments & transfers",
-  pageBuilder: () => const AdminPayoutsPage(),
-),
+          _AdminItem(
+            icon: Icons.account_balance_wallet_outlined,
+            title: "Payout Management",
+            subtitle: "Seller payments & transfers",
+            pageBuilder: () => const AdminPayoutsPage(),
+          ),
 
-                 _AdminItem(
-  icon: Icons.dashboard_outlined,
-  title: "Admin Dashboard",
-  subtitle: "Platform overview",
-  pageBuilder: () => const AdminDashboardPage(),
-),
-_AdminItem(
-  icon: Icons.map,
-  title: "Platform Map",
-  subtitle: "Live system monitoring",
-  pageBuilder: () => const AdminMapMonitorPage(),
-),
-                   _AdminItem(
-  icon: Icons.bar_chart,
-  title: "Platform Metrics",
-  subtitle: "Platform KPI dashboard",
-  pageBuilder: () => const AdminMetricsPage(),
-),
           _AdminItem(
-  icon: Icons.payments_outlined,
-  title: "Revenue",
-  subtitle: "Financial performance",
-  pageBuilder: () => const AdminRevenuePage(),
-),
+            icon: Icons.dashboard_outlined,
+            title: "Admin Dashboard",
+            subtitle: "Platform overview",
+            pageBuilder: () => const AdminDashboardPage(),
+          ),
           _AdminItem(
-  icon: Icons.star_border,
-  title: "User Satisfaction",
-  subtitle: "Ratings & feedback overview",
-  pageBuilder: () => const AdminUserSatisfactionPage(),
-),
+            icon: Icons.map,
+            title: "Platform Map",
+            subtitle: "Live system monitoring",
+            pageBuilder: () => const AdminMapMonitorPage(),
+          ),
           _AdminItem(
-  icon: Icons.analytics,
-  title: "Business Metrics",
-  subtitle: "Platform business statistics",
-  pageBuilder: () => const AdminBusinessMetricsPage(),
-),
+            icon: Icons.bar_chart,
+            title: "Platform Metrics",
+            subtitle: "Platform KPI dashboard",
+            pageBuilder: () => const AdminMetricsPage(),
+          ),
+          _AdminItem(
+            icon: Icons.payments_outlined,
+            title: "Revenue",
+            subtitle: "Financial performance",
+            pageBuilder: () => const AdminRevenuePage(),
+          ),
+          _AdminItem(
+            icon: Icons.star_border,
+            title: "User Satisfaction",
+            subtitle: "Ratings & feedback overview",
+            pageBuilder: () => const AdminUserSatisfactionPage(),
+          ),
+          _AdminItem(
+            icon: Icons.analytics,
+            title: "Business Metrics",
+            subtitle: "Platform business statistics",
+            pageBuilder: () => const AdminBusinessMetricsPage(),
+          ),
 
           const SizedBox(height: 18),
           const _SectionTitle("SYSTEM"),
           _AdminItem(
-  icon: Icons.search,
-  title: "Global Business Search",
-  subtitle: "Search all businesses",
-  pageBuilder: () => const AdminBusinessSearchPage(),
-),
+            icon: Icons.search,
+            title: "Global Business Search",
+            subtitle: "Search all businesses",
+            pageBuilder: () => const AdminBusinessSearchPage(),
+          ),
           _AdminItem(
-  icon: Icons.history,
-  title: "Audit Logs",
-  subtitle: "Admin action history",
-  pageBuilder: () => const AuditLogsPage(),
-),
+            icon: Icons.history,
+            title: "Audit Logs",
+            subtitle: "Admin action history",
+            pageBuilder: () => const AuditLogsPage(),
+          ),
           _AdminItem(
             icon: Icons.search,
             title: "Global Admin Search",
@@ -228,10 +228,7 @@ class _PlaceholderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: Colors.pink,
-      ),
+      appBar: AppBar(title: Text(title), backgroundColor: Colors.pink),
       body: const Center(child: Text("Coming soon...")),
     );
   }

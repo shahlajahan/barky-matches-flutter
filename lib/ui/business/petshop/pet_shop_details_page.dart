@@ -4,10 +4,7 @@ import '../../../models/business_draft.dart';
 class PetShopDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
 
-  const PetShopDetailsPage({
-    super.key,
-    required this.baseDraft,
-  });
+  const PetShopDetailsPage({super.key, required this.baseDraft});
 
   @override
   State<PetShopDetailsPage> createState() => _PetShopDetailsPageState();
@@ -84,9 +81,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
       'categories': _selectedCategories,
       'brands': _brands.text.trim(),
 
-      'pricing': {
-        'level': _priceLevel,
-      },
+      'pricing': {'level': _priceLevel},
 
       'sales': {
         'delivery': _hasDelivery,
@@ -96,14 +91,12 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
 
       'workingHours': _workingHours.text.trim(),
 
-      'profile': {
-        'bio': _bio.text.trim(),
-      },
+      'profile': {'bio': _bio.text.trim()},
 
       'promotion': {
         'hasOffers': _hasOffers,
         'details': _offerDetails.text.trim(),
-      }
+      },
     };
   }
 
@@ -126,15 +119,11 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
 
     try {
       final updatedDraft = widget.baseDraft.copyWith(
-        sectorData: {
-          ...widget.baseDraft.sectorData,
-          'petshop': _buildData(),
-        },
+        sectorData: {...widget.baseDraft.sectorData, 'petshop': _buildData()},
       );
 
       // 🔥 فعلاً فقط برگردون
       Navigator.pop(context, updatedDraft);
-
     } catch (e) {
       _snack('Error: $e');
     } finally {
@@ -143,8 +132,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Widget _chips(List<String> items, List<String> selected) {
@@ -165,8 +153,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: c,
-        validator: (v) =>
-            (v == null || v.isEmpty) ? 'Required' : null,
+        validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
         decoration: InputDecoration(labelText: label),
       ),
     );
@@ -181,7 +168,6 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-
             _field(_shopName, 'Shop Name'),
             _field(_ownerName, 'Owner Name'),
 
@@ -211,8 +197,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
             const Text("Delivery"),
             SwitchListTile(
               value: _hasDelivery == 'yes',
-              onChanged: (v) =>
-                  setState(() => _hasDelivery = v ? 'yes' : 'no'),
+              onChanged: (v) => setState(() => _hasDelivery = v ? 'yes' : 'no'),
               title: const Text("Has Delivery"),
             ),
 
@@ -224,13 +209,11 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
             const Text("Offers"),
             SwitchListTile(
               value: _hasOffers == 'yes',
-              onChanged: (v) =>
-                  setState(() => _hasOffers = v ? 'yes' : 'no'),
+              onChanged: (v) => setState(() => _hasOffers = v ? 'yes' : 'no'),
               title: const Text("Has Offers"),
             ),
 
-            if (_hasOffers == 'yes')
-              _field(_offerDetails, 'Offer Details'),
+            if (_hasOffers == 'yes') _field(_offerDetails, 'Offer Details'),
 
             const SizedBox(height: 30),
 
@@ -239,7 +222,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
               child: _loading
                   ? const CircularProgressIndicator()
                   : const Text("Submit"),
-            )
+            ),
           ],
         ),
       ),

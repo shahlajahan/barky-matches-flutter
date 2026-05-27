@@ -1,21 +1,8 @@
 // lib/core/business_enums.dart
 
-enum BusinessType {
-  vet,
-  adoptionCenter,
-  petShop,
-  groomer,
-  petHotel,
-  trainer,
-}
+enum BusinessType { vet, adoptionCenter, petShop, groomer, petHotel, trainer }
 
-enum BusinessStatus {
-  none,
-  pending,
-  approved,
-  rejected,
-  suspended,
-}
+enum BusinessStatus { none, pending, approved, rejected, suspended }
 
 extension BusinessTypeX on BusinessType {
   String get firestoreValue {
@@ -61,9 +48,7 @@ extension BusinessTypeX on BusinessType {
         return BusinessType.trainer;
 
       default:
-        throw Exception(
-          'Unknown BusinessType: $value',
-        );
+        throw Exception('Unknown BusinessType: $value');
     }
   }
 }
@@ -73,9 +58,7 @@ extension BusinessStatusX on BusinessStatus {
     return name;
   }
 
-  static BusinessStatus fromFirestore(
-    String value,
-  ) {
+  static BusinessStatus fromFirestore(String value) {
     return BusinessStatus.values.firstWhere(
       (e) => e.name == value,
       orElse: () => BusinessStatus.none,

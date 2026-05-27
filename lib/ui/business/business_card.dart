@@ -81,282 +81,239 @@ class BusinessCard extends StatelessWidget {
   }
 
   @override
-Widget build(BuildContext context) {
-  final todayHours = _getTodayHours();
+  Widget build(BuildContext context) {
+    final todayHours = _getTodayHours();
 
-  return GestureDetector(
-    onTap: onTap,
+    return GestureDetector(
+      onTap: onTap,
 
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
 
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-        boxShadow: AppTheme.cardShadow(),
-      ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+          boxShadow: AppTheme.cardShadow(),
+        ),
 
-      padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(14),
 
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
 
-        children: [
+          children: [
+            // 🔥 TOP SECTION
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
 
-          // 🔥 TOP SECTION
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    data.name,
 
-            children: [
-              Expanded(
-                child: Text(
-                  data.name,
-
-                  style: AppTheme.h2().copyWith(
-                    fontWeight: FontWeight.w700,
-                    height: 1.1,
-                    color: const Color(0xFF9E1B4F),
+                    style: AppTheme.h2().copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                      color: const Color(0xFF9E1B4F),
+                    ),
                   ),
                 ),
-              ),
 
-              if (_buildStatusBadge() != null) ...[
-                const SizedBox(width: 6),
-                _buildStatusBadge()!,
+                if (_buildStatusBadge() != null) ...[
+                  const SizedBox(width: 6),
+                  _buildStatusBadge()!,
+                ],
+
+                if (data.is24h) _Badge(text: '24/7', color: AppTheme.success),
+
+                if (data.isEmergency) ...[
+                  const SizedBox(width: 6),
+
+                  _Badge(text: 'Emergency', color: AppTheme.danger),
+                ],
+
+                // 🔥 TODAY HOURS
+                if (todayHours.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+
+                  _Badge(text: todayHours, color: Colors.black87),
+                ],
               ],
-
-              if (data.is24h)
-                _Badge(
-                  text: '24/7',
-                  color: AppTheme.success,
-                ),
-
-              if (data.isEmergency) ...[
-                const SizedBox(width: 6),
-
-                _Badge(
-                  text: 'Emergency',
-                  color: AppTheme.danger,
-                ),
-              ],
-
-              // 🔥 TODAY HOURS
-              if (todayHours.isNotEmpty) ...[
-                const SizedBox(width: 6),
-
-                _Badge(
-                  text: todayHours,
-                  color: Colors.black87,
-                ),
-              ],
-            ],
-          ),
-
-          const SizedBox(height: 6),
-
-          // 🔥 ADDRESS
-          Text(
-            _addressLine(),
-
-            style: AppTheme.caption().copyWith(
-              color: Colors.grey.shade700,
             ),
-          ),
 
-          const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
-          // 🔥 SPECIALTIES
-          if (data.specialties.isNotEmpty)
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+            // 🔥 ADDRESS
+            Text(
+              _addressLine(),
 
-              children: data.specialties
-                  .take(3)
-                  .map<Widget>(
-                    (s) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+              style: AppTheme.caption().copyWith(color: Colors.grey.shade700),
+            ),
 
-                      decoration: BoxDecoration(
-                        color: const Color(
-                          0xFF9E1B4F,
-                        ).withOpacity(0.1),
+            const SizedBox(height: 8),
 
-                        borderRadius:
-                            BorderRadius.circular(8),
-                      ),
+            // 🔥 SPECIALTIES
+            if (data.specialties.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
 
-                      child: Text(
-                        s,
+                children: data.specialties
+                    .take(3)
+                    .map<Widget>(
+                      (s) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
 
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF9E1B4F),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9E1B4F).withOpacity(0.1),
+
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+
+                        child: Text(
+                          s,
+
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF9E1B4F),
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                  .toList(),
-            ),
+                    )
+                    .toList(),
+              ),
 
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
 
-          // 🔥 CTA + LOGO SECTION
-          Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.center,
+            // 🔥 CTA + LOGO SECTION
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
 
-            children: [
+              children: [
+                // 🔥 LEFT SIDE
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
 
-              // 🔥 LEFT SIDE
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
 
-                  physics:
-                      const BouncingScrollPhysics(),
-
-                  child: Row(
-                    children: [
-
-                      _CtaButton(
-                        icon: LucideIcons.phone,
-                        enabled:
-                            data.phone != null,
-                        onTap: onCallTap,
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      _CtaButton(
-                        icon:
-                            LucideIcons.messageCircle,
-                        enabled:
-                            data.whatsapp != null,
-                        onTap: onWhatsAppTap,
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      _CtaButton(
-                        icon:
-                            LucideIcons.messageSquare,
-                        enabled:
-                            onMessageTap != null,
-                        onTap: onMessageTap,
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      _CtaButton(
-                        icon:
-                            LucideIcons.navigation,
-                        enabled: true,
-                        onTap: onDirectionsTap,
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // 🔥 INSTAGRAM
-                      if (data.instagram != null) ...[
+                    child: Row(
+                      children: [
                         _CtaButton(
-                          icon:
-                              LucideIcons.instagram,
-                          enabled: true,
-
-                          onTap: () {
-                            launchUrl(
-                              Uri.parse(
-                                "https://instagram.com/${data.instagram}",
-                              ),
-
-                              mode: LaunchMode
-                                  .externalApplication,
-                            );
-                          },
+                          icon: LucideIcons.phone,
+                          enabled: data.phone != null,
+                          onTap: onCallTap,
                         ),
 
                         const SizedBox(width: 8),
-                      ],
 
-                      // 🔥 WEBSITE
-                      if (data.website != null)
                         _CtaButton(
-                          icon: LucideIcons.globe,
+                          icon: LucideIcons.messageCircle,
+                          enabled: data.whatsapp != null,
+                          onTap: onWhatsAppTap,
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        _CtaButton(
+                          icon: LucideIcons.messageSquare,
+                          enabled: onMessageTap != null,
+                          onTap: onMessageTap,
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        _CtaButton(
+                          icon: LucideIcons.navigation,
                           enabled: true,
-
-                          onTap: () {
-                            final url =
-                                data.website!
-                                        .startsWith(
-                                          'http',
-                                        )
-                                    ? data.website!
-                                    : 'https://${data.website!}';
-
-                            launchUrl(
-                              Uri.parse(url),
-
-                              mode: LaunchMode
-                                  .externalApplication,
-                            );
-                          },
+                          onTap: onDirectionsTap,
                         ),
-                    ],
+
+                        const SizedBox(width: 8),
+
+                        // 🔥 INSTAGRAM
+                        if (data.instagram != null) ...[
+                          _CtaButton(
+                            icon: LucideIcons.instagram,
+                            enabled: true,
+
+                            onTap: () {
+                              launchUrl(
+                                Uri.parse(
+                                  "https://instagram.com/${data.instagram}",
+                                ),
+
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                          ),
+
+                          const SizedBox(width: 8),
+                        ],
+
+                        // 🔥 WEBSITE
+                        if (data.website != null)
+                          _CtaButton(
+                            icon: LucideIcons.globe,
+                            enabled: true,
+
+                            onTap: () {
+                              final url = data.website!.startsWith('http')
+                                  ? data.website!
+                                  : 'https://${data.website!}';
+
+                              launchUrl(
+                                Uri.parse(url),
+
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-              // 🔥 LOGO
-              if (data.logoUrl != null &&
-                  data.logoUrl!.isNotEmpty) ...[
-                const SizedBox(width: 12),
+                // 🔥 LOGO
+                if (data.logoUrl != null && data.logoUrl!.isNotEmpty) ...[
+                  const SizedBox(width: 12),
 
-                Container(
-                  width: 64,
-                  height: 64,
+                  Container(
+                    width: 64,
+                    height: 64,
 
-                  padding:
-                      const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(6),
 
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
 
-                    borderRadius:
-                        BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14),
 
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black
-                            .withOpacity(0.06),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
 
-                        blurRadius: 8,
+                          blurRadius: 8,
 
-                        offset: const Offset(
-                          0,
-                          3,
+                          offset: const Offset(0, 3),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
 
-                  child: SmartMedia(
-                    url: data.logoUrl!,
-                    fit: BoxFit.contain,
+                    child: SmartMedia(url: data.logoUrl!, fit: BoxFit.contain),
                   ),
-                ),
+                ],
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _addressLine() {
     if (data.distanceKm == null) {

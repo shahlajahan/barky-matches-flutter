@@ -308,7 +308,8 @@ class OrderReturnRecord {
           ? null
           : data['sellerNotes'].toString(),
       refundDetails: refundDetails,
-      paymentId: (data['paymentId'] ?? refundDetails['paymentId'] ?? '')
+      paymentId:
+          (data['paymentId'] ?? refundDetails['paymentId'] ?? '')
               .toString()
               .isEmpty
           ? null

@@ -6,11 +6,7 @@ class SmartVideoPreview extends StatefulWidget {
   final String videoUrl;
   final String? thumbnail;
 
-  const SmartVideoPreview({
-    super.key,
-    required this.videoUrl,
-    this.thumbnail,
-  });
+  const SmartVideoPreview({super.key, required this.videoUrl, this.thumbnail});
 
   @override
   State<SmartVideoPreview> createState() => _SmartVideoPreviewState();
@@ -25,8 +21,9 @@ class _SmartVideoPreviewState extends State<SmartVideoPreview> {
     if (_controller != null) return;
 
     try {
-      final controller =
-          VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.videoUrl),
+      );
 
       _controller = controller;
 
@@ -92,26 +89,16 @@ class _SmartVideoPreviewState extends State<SmartVideoPreview> {
               aspectRatio: _controller!.value.aspectRatio,
               child: VideoPlayer(_controller!),
             )
-
           // 🖼 THUMBNAIL
-          else if (widget.thumbnail != null &&
-              widget.thumbnail!.isNotEmpty)
-            Image.network(
-              widget.thumbnail!,
-              fit: BoxFit.cover,
-            )
-
+          else if (widget.thumbnail != null && widget.thumbnail!.isNotEmpty)
+            Image.network(widget.thumbnail!, fit: BoxFit.cover)
           // fallback
           else
             Container(color: Colors.black87),
 
           // ▶ overlay
           const Positioned(
-            child: Icon(
-              Icons.volume_off,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: Icon(Icons.volume_off, color: Colors.white, size: 20),
           ),
         ],
       ),

@@ -1,12 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum AdminSearchEntityType {
-  user,
-  dog,
-  business,
-  report,
-  complaint,
-}
+enum AdminSearchEntityType { user, dog, business, report, complaint }
 
 AdminSearchEntityType adminSearchEntityTypeFromString(String value) {
   switch (value) {

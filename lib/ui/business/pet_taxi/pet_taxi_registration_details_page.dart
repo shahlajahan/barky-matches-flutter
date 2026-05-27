@@ -404,113 +404,111 @@ class _PetTaxiRegistrationDetailsPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Pet Taxi Details')),
-      
+
       body: GestureDetector(
-  behavior: HitTestBehavior.translucent,
-  onTap: () {
-    FocusScope.of(context).unfocus();
-  },
-  child: Form(
-    key: _formKey,
-    child: ListView(
-      keyboardDismissBehavior:
-          ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(16),
-      children: [
-         
-            _basicInfoCard(),
-            const SizedBox(height: 12),
-            _sectionTile(
-              title: 'Required Documents',
-              subtitle: 'Legal documents required for manual admin review',
-              initiallyExpanded: true,
-              children: _requiredDocs.map(_docTile).toList(),
-            ),
-            const SizedBox(height: 12),
-            _sectionTile(
-              title: 'Optional / Conditional Documents',
-              subtitle: 'Upload these if they apply to your service',
-              children: _optionalDocs.map(_docTile).toList(),
-            ),
-            const SizedBox(height: 12),
-            _sectionTile(
-              title: 'Compliance & Legal Confirmations',
-              subtitle: 'Required confirmations before submitting',
-              children: [
-                const Text(
-                  'Your Pet Taxi application will not be published until documents are manually reviewed and approved.',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF9E1B4F),
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(16),
+            children: [
+              _basicInfoCard(),
+              const SizedBox(height: 12),
+              _sectionTile(
+                title: 'Required Documents',
+                subtitle: 'Legal documents required for manual admin review',
+                initiallyExpanded: true,
+                children: _requiredDocs.map(_docTile).toList(),
+              ),
+              const SizedBox(height: 12),
+              _sectionTile(
+                title: 'Optional / Conditional Documents',
+                subtitle: 'Upload these if they apply to your service',
+                children: _optionalDocs.map(_docTile).toList(),
+              ),
+              const SizedBox(height: 12),
+              _sectionTile(
+                title: 'Compliance & Legal Confirmations',
+                subtitle: 'Required confirmations before submitting',
+                children: [
+                  const Text(
+                    'Your Pet Taxi application will not be published until documents are manually reviewed and approved.',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF9E1B4F),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Transportation laws may vary by city/country. Businesses are responsible for complying with local transportation, insurance, and tax regulations.',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Legal documents are stored for business owner and admin review only. They are not shown to public users.',
-                ),
-                const SizedBox(height: 12),
-                _check(
-                  value: _petSafetyConfirmed,
-                  onChanged: (value) =>
-                      setState(() => _petSafetyConfirmed = value),
-                  title: 'Pet safety equipment is available in the vehicle.',
-                ),
-                _check(
-                  value: _hygieneConfirmed,
-                  onChanged: (value) =>
-                      setState(() => _hygieneConfirmed = value),
-                  title: 'Hygiene and sanitation requirements are confirmed.',
-                ),
-                _check(
-                  value: _driverLicenseValidConfirmed,
-                  onChanged: (value) =>
-                      setState(() => _driverLicenseValidConfirmed = value),
-                  title: 'I confirm driver license is valid.',
-                ),
-                _check(
-                  value: _vehicleRegistrationConfirmed,
-                  onChanged: (value) =>
-                      setState(() => _vehicleRegistrationConfirmed = value),
-                  title:
-                      'I confirm vehicle registration belongs to the service vehicle.',
-                ),
-                _check(
-                  value: _trafficInsuranceConfirmed,
-                  onChanged: (value) =>
-                      setState(() => _trafficInsuranceConfirmed = value),
-                  title: 'I confirm traffic insurance is active.',
-                ),
-                _check(
-                  value: _taxResponsibilityConfirmed,
-                  onChanged: (value) =>
-                      setState(() => _taxResponsibilityConfirmed = value),
-                  title:
-                      'I confirm tax obligations and invoice/receipt responsibilities belong to my business.',
-                ),
-                _check(
-                  value: _transportRulesConfirmed,
-                  onChanged: (value) =>
-                      setState(() => _transportRulesConfirmed = value),
-                  title:
-                      'I confirm I comply with city/country transportation rules.',
-                ),
-                _field(
-                  _notes,
-                  'Compliance notes for admin review',
-                  required: false,
-                  maxLines: 3,
-                ),
-              ],
-            ),
-            const SizedBox(height: 96),
-          ],
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Transportation laws may vary by city/country. Businesses are responsible for complying with local transportation, insurance, and tax regulations.',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Legal documents are stored for business owner and admin review only. They are not shown to public users.',
+                  ),
+                  const SizedBox(height: 12),
+                  _check(
+                    value: _petSafetyConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _petSafetyConfirmed = value),
+                    title: 'Pet safety equipment is available in the vehicle.',
+                  ),
+                  _check(
+                    value: _hygieneConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _hygieneConfirmed = value),
+                    title: 'Hygiene and sanitation requirements are confirmed.',
+                  ),
+                  _check(
+                    value: _driverLicenseValidConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _driverLicenseValidConfirmed = value),
+                    title: 'I confirm driver license is valid.',
+                  ),
+                  _check(
+                    value: _vehicleRegistrationConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _vehicleRegistrationConfirmed = value),
+                    title:
+                        'I confirm vehicle registration belongs to the service vehicle.',
+                  ),
+                  _check(
+                    value: _trafficInsuranceConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _trafficInsuranceConfirmed = value),
+                    title: 'I confirm traffic insurance is active.',
+                  ),
+                  _check(
+                    value: _taxResponsibilityConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _taxResponsibilityConfirmed = value),
+                    title:
+                        'I confirm tax obligations and invoice/receipt responsibilities belong to my business.',
+                  ),
+                  _check(
+                    value: _transportRulesConfirmed,
+                    onChanged: (value) =>
+                        setState(() => _transportRulesConfirmed = value),
+                    title:
+                        'I confirm I comply with city/country transportation rules.',
+                  ),
+                  _field(
+                    _notes,
+                    'Compliance notes for admin review',
+                    required: false,
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 96),
+            ],
+          ),
         ),
-      ),
       ),
       bottomNavigationBar: SafeArea(
         top: false,

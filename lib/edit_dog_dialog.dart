@@ -12,11 +12,7 @@ class EditDogPage extends StatefulWidget {
   final Dog dog;
   final EditDogCallback? onEditDog;
 
-  const EditDogPage({
-    super.key,
-    required this.dog,
-    this.onEditDog,
-  });
+  const EditDogPage({super.key, required this.dog, this.onEditDog});
 
   @override
   _EditDogPageState createState() => _EditDogPageState();
@@ -48,15 +44,21 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
   @override
   void initState() {
     super.initState();
-    debugPrint('EditDogPage - Initializing for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+    debugPrint(
+      'EditDogPage - Initializing for dog: ${widget.dog.name}, ID: ${widget.dog.id}',
+    );
     _nameController = TextEditingController(text: widget.dog.name);
     _ageController = TextEditingController(text: widget.dog.age.toString());
-    _descriptionController = TextEditingController(text: widget.dog.description);
+    _descriptionController = TextEditingController(
+      text: widget.dog.description,
+    );
     _selectedOwnerGender = _mapOwnerGender(widget.dog.ownerGender);
     _isNeutered = widget.dog.isNeutered;
     _selectedTraits = List.from(widget.dog.traits ?? []);
     _imagePaths = List.from(widget.dog.imagePaths ?? []);
-    _selectedHealthStatus = widget.dog.healthStatus.isNotEmpty && _healthStatusOptions.contains(widget.dog.healthStatus)
+    _selectedHealthStatus =
+        widget.dog.healthStatus.isNotEmpty &&
+            _healthStatusOptions.contains(widget.dog.healthStatus)
         ? widget.dog.healthStatus
         : _healthStatusOptions[0];
     _isAvailableForAdoption = widget.dog.isAvailableForAdoption;
@@ -71,24 +73,28 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
 
   @override
   void dispose() {
-    debugPrint('EditDogPage - Disposing for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+    debugPrint(
+      'EditDogPage - Disposing for dog: ${widget.dog.name}, ID: ${widget.dog.id}',
+    );
     _nameController.dispose();
     _ageController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
- Future<void> _saveDog() async {
+  Future<void> _saveDog() async {
     if (_isSaving) {
-      debugPrint('EditDogPage - Save already in progress for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+      debugPrint(
+        'EditDogPage - Save already in progress for dog: ${widget.dog.name}, ID: ${widget.dog.id}',
+      );
       return;
     }
 
-   
-
     setState(() {
       _isSaving = true;
-      debugPrint('EditDogPage - Saving dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+      debugPrint(
+        'EditDogPage - Saving dog: ${widget.dog.name}, ID: ${widget.dog.id}',
+      );
     });
 
     final name = _nameController.text.trim();
@@ -96,7 +102,9 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
     final description = _descriptionController.text.trim();
 
     if (name.isEmpty) {
-      debugPrint('EditDogPage - Name is empty for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+      debugPrint(
+        'EditDogPage - Name is empty for dog: ${widget.dog.name}, ID: ${widget.dog.id}',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.editDogEnterName)),
       );
@@ -108,9 +116,13 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
 
     final int? age = int.tryParse(ageText);
     if (age == null || age <= 0) {
-      debugPrint('EditDogPage - Invalid age for dog: ${widget.dog.name}, ID: ${widget.dog.id}, age: $ageText');
+      debugPrint(
+        'EditDogPage - Invalid age for dog: ${widget.dog.name}, ID: ${widget.dog.id}, age: $ageText',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.editDogEnterValidAge)),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.editDogEnterValidAge),
+        ),
       );
       setState(() {
         _isSaving = false;
@@ -118,7 +130,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
       return;
     }
 
-/*
+    /*
     final localizations = AppLocalizations.of(context)!;
     final healthStatus = _selectedHealthStatus == 'editDogHealthHealthy' ? localizations.editDogHealthHealthy :
                         _selectedHealthStatus == 'editDogHealthNeedsCare' ? localizations.editDogHealthNeedsCare :
@@ -150,26 +162,30 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
       longitude: widget.dog.longitude,
     );
 
-    debugPrint('EditDogPage - Dog updated: ${updatedDog.name}, ID: ${updatedDog.id}, calling onEditDog');
-   try {
-  await context.read<AppState>().saveEditedDog(updatedDog);
+    debugPrint(
+      'EditDogPage - Dog updated: ${updatedDog.name}, ID: ${updatedDog.id}, calling onEditDog',
+    );
+    try {
+      await context.read<AppState>().saveEditedDog(updatedDog);
 
-  if (!mounted) return;
+      if (!mounted) return;
 
-  Navigator.of(context, rootNavigator: true).pop();
-} finally {
-  if (mounted) {
-    setState(() {
-      _isSaving = false;
-    });
-  }
-}
+      Navigator.of(context, rootNavigator: true).pop();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
-    debugPrint('EditDogPage - Building UI for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+    debugPrint(
+      'EditDogPage - Building UI for dog: ${widget.dog.name}, ID: ${widget.dog.id}',
+    );
     return AlertDialog(
       backgroundColor: Colors.transparent,
       contentPadding: EdgeInsets.zero,
@@ -187,11 +203,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.pets,
-                color: Colors.white,
-                size: 40,
-              ),
+              const Icon(Icons.pets, color: Colors.white, size: 40),
               const SizedBox(height: 16),
               Text(
                 localizations.editDog,
@@ -252,9 +264,11 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                   return DropdownMenuItem<String>(
                     value: status,
                     child: Text(
-                      status == 'editDogHealthHealthy' ? localizations.editDogHealthHealthy :
-                      status == 'editDogHealthNeedsCare' ? localizations.editDogHealthNeedsCare :
-                      localizations.editDogHealthUnderTreatment,
+                      status == 'editDogHealthHealthy'
+                          ? localizations.editDogHealthHealthy
+                          : status == 'editDogHealthNeedsCare'
+                          ? localizations.editDogHealthNeedsCare
+                          : localizations.editDogHealthUnderTreatment,
                       style: GoogleFonts.poppins(color: Colors.black),
                     ),
                   );
@@ -262,7 +276,9 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                 onChanged: (value) {
                   setState(() {
                     _selectedHealthStatus = value;
-                    debugPrint('EditDogPage - Health status changed to: $value');
+                    debugPrint(
+                      'EditDogPage - Health status changed to: $value',
+                    );
                   });
                 },
               ),
@@ -286,7 +302,9 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                         onChanged: (value) {
                           setState(() {
                             _isNeutered = value!;
-                            debugPrint('EditDogPage - Neutered changed to: true');
+                            debugPrint(
+                              'EditDogPage - Neutered changed to: true',
+                            );
                           });
                         },
                         activeColor: Colors.white,
@@ -305,7 +323,9 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                         onChanged: (value) {
                           setState(() {
                             _isNeutered = value!;
-                            debugPrint('EditDogPage - Neutered changed to: false');
+                            debugPrint(
+                              'EditDogPage - Neutered changed to: false',
+                            );
                           });
                         },
                         activeColor: Colors.white,
@@ -347,7 +367,8 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
               Wrap(
                 spacing: 8,
                 runSpacing: 4.0,
-                children: getDogTraits(context).map((trait) { // استفاده مستقیم از متد mixin
+                children: getDogTraits(context).map((trait) {
+                  // استفاده مستقیم از متد mixin
                   final isSelected = _selectedTraits.contains(trait);
                   return FilterChip(
                     label: Text(
@@ -394,9 +415,11 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                   return DropdownMenuItem<String>(
                     value: gender,
                     child: Text(
-                      gender == 'editDogOwnerGenderMale' ? localizations.editDogOwnerGenderMale :
-                      gender == 'editDogOwnerGenderFemale' ? localizations.editDogOwnerGenderFemale :
-                      localizations.editDogOwnerGenderOther,
+                      gender == 'editDogOwnerGenderMale'
+                          ? localizations.editDogOwnerGenderMale
+                          : gender == 'editDogOwnerGenderFemale'
+                          ? localizations.editDogOwnerGenderFemale
+                          : localizations.editDogOwnerGenderOther,
                       style: GoogleFonts.poppins(color: Colors.black),
                     ),
                   );
@@ -416,7 +439,9 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                     onChanged: (value) {
                       setState(() {
                         _isAvailableForAdoption = value ?? false;
-                        debugPrint('EditDogPage - Available for adoption changed to: $_isAvailableForAdoption');
+                        debugPrint(
+                          'EditDogPage - Available for adoption changed to: $_isAvailableForAdoption',
+                        );
                       });
                     },
                     checkColor: Colors.white,
@@ -438,7 +463,9 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                 children: [
                   ElevatedButton(
                     onPressed: () {
-                      debugPrint('EditDogPage - Cancel button pressed for dog: ${widget.dog.name}, ID: ${widget.dog.id}');
+                      debugPrint(
+                        'EditDogPage - Cancel button pressed for dog: ${widget.dog.name}, ID: ${widget.dog.id}',
+                      );
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -469,9 +496,7 @@ class _EditDogPageState extends State<EditDogPage> with LocalizationUtils {
                       ),
                     ),
                     child: _isSaving
-                        ? const CircularProgressIndicator(
-                            color: Colors.pink,
-                          )
+                        ? const CircularProgressIndicator(color: Colors.pink)
                         : Text(
                             localizations.save,
                             style: GoogleFonts.poppins(
@@ -495,18 +520,11 @@ class EditDogDialog extends StatelessWidget {
   final Dog dog;
   final EditDogCallback? onEditDog;
 
-  const EditDogDialog({
-    super.key,
-    required this.dog,
-    this.onEditDog,
-  });
+  const EditDogDialog({super.key, required this.dog, this.onEditDog});
 
   @override
   Widget build(BuildContext context) {
     debugPrint('EditDogDialog - Building for dog: ${dog.name}, ID: ${dog.id}');
-    return EditDogPage(
-      dog: dog,
-      onEditDog: onEditDog,
-    );
+    return EditDogPage(dog: dog, onEditDog: onEditDog);
   }
 }

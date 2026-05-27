@@ -9,7 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:barky_matches_fixed/home_gate.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
- // اضافه کردن برای محلی‌سازی
+// اضافه کردن برای محلی‌سازی
 
 class Greeting extends StatefulWidget {
   final String username;
@@ -47,17 +47,16 @@ class _GreetingState extends State<Greeting> {
 
   void _continueAsGuest() {
     Navigator.pushReplacement(
-  context,
-  MaterialPageRoute(
-    builder: (context) => const HomeGate(),
-  ),
-);
-
+      context,
+      MaterialPageRoute(builder: (context) => const HomeGate()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!; // دسترسی به متن‌های محلی‌سازی‌شده
+    final l10n = AppLocalizations.of(
+      context,
+    )!; // دسترسی به متن‌های محلی‌سازی‌شده
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -85,7 +84,11 @@ class _GreetingState extends State<Greeting> {
               children: [
                 const SizedBox(height: 20),
                 Text(
-                  widget.username.isEmpty ? 'Welcome to PetSupo' : l10n.welcomeBack(widget.username), // به جای 'Welcome to Playful Dogs!' و 'Welcome, ${widget.username}!'
+                  widget.username.isEmpty
+                      ? 'Welcome to PetSupo'
+                      : l10n.welcomeBack(
+                          widget.username,
+                        ), // به جای 'Welcome to Playful Dogs!' و 'Welcome, ${widget.username}!'
                   style: GoogleFonts.dancingScript(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
@@ -117,26 +120,27 @@ class _GreetingState extends State<Greeting> {
                         title: l10n.playmateService, // به جای 'Playmate'
                         onTap: () {
                           Navigator.pushReplacement(
-  context,
-  MaterialPageRoute(
-    builder: (context) => const HomeGate(),
-  ),
-);
-
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HomeGate(),
+                            ),
+                          );
                         },
                       ),
                       _buildServiceCard(
-  context,
-  icon: Icons.local_hospital,
-  title: l10n.vetServices,
-  onTap: () {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Vet services available after login'),
-      ),
-    );
-  },
-),
+                        context,
+                        icon: Icons.local_hospital,
+                        title: l10n.vetServices,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Vet services available after login',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
 
                       _buildServiceCard(
                         context,
@@ -161,7 +165,9 @@ class _GreetingState extends State<Greeting> {
                         title: l10n.dogTrainingService, // به جای 'Dog Training'
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l10n.dogTrainingComingSoon)), // به جای 'Dog Training Coming Soon!'
+                            SnackBar(
+                              content: Text(l10n.dogTrainingComingSoon),
+                            ), // به جای 'Dog Training Coming Soon!'
                           );
                         },
                       ),
@@ -191,7 +197,7 @@ class _GreetingState extends State<Greeting> {
                         builder: (context) => AuthPage(
                           isLogin: true,
                           onDogAdded: widget.onDogAdded,
-                         // dogsList: widget.dogsList,
+                          // dogsList: widget.dogsList,
                           favoriteDogs: widget.favoriteDogs,
                           onToggleFavorite: widget.onToggleFavorite,
                         ),
@@ -261,7 +267,12 @@ class _GreetingState extends State<Greeting> {
     );
   }
 
-  Widget _buildServiceCard(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
+  Widget _buildServiceCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Card(
@@ -270,11 +281,7 @@ class _GreetingState extends State<Greeting> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 40,
-              color: Colors.pinkAccent,
-            ),
+            Icon(icon, size: 40, color: Colors.pinkAccent),
             const SizedBox(height: 8),
             Text(
               title,

@@ -2,19 +2,14 @@ import 'package:flutter/material.dart';
 import '../admin/admin_section.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
-
 class BusinessDocumentsSection extends StatelessWidget {
   final Map<String, dynamic> data;
 
-  const BusinessDocumentsSection({
-    super.key,
-    required this.data,
-  });
+  const BusinessDocumentsSection({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final legal =
-        (data['legal'] as Map?)?.cast<String, dynamic>() ?? {};
+    final legal = (data['legal'] as Map?)?.cast<String, dynamic>() ?? {};
 
     final documents =
         (legal['documents'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -27,9 +22,7 @@ class BusinessDocumentsSection extends StatelessWidget {
       title: "Legal Documents",
       icon: Icons.description_outlined,
       child: Column(
-        children: documents
-            .map((doc) => _DocumentCard(document: doc))
-            .toList(),
+        children: documents.map((doc) => _DocumentCard(document: doc)).toList(),
       ),
     );
   }
@@ -56,35 +49,33 @@ class _DocumentCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-
           /// Thumbnail
           GestureDetector(
             onTap: () {
               if (url != null) {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        _FullScreenImageViewer(imageUrl: url),
+                    builder: (_) => _FullScreenImageViewer(imageUrl: url),
                   ),
                 );
               }
             },
             child: ClipRRect(
-  borderRadius: BorderRadius.circular(10),
-  child: (url != null && url.isNotEmpty)
-      ? SmartMedia(
-          url: url,
-          width: 60,
-          height: 60,
-          fit: BoxFit.cover,
-        )
-      : Container(
-          width: 60,
-          height: 60,
-          color: Colors.grey.shade200,
-          child: const Icon(Icons.image_not_supported),
-        ),
-),
+              borderRadius: BorderRadius.circular(10),
+              child: (url != null && url.isNotEmpty)
+                  ? SmartMedia(
+                      url: url,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.image_not_supported),
+                    ),
+            ),
           ),
 
           const SizedBox(width: 14),
@@ -94,7 +85,6 @@ class _DocumentCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 _DocumentTypeBadge(type: type),
 
                 const SizedBox(height: 6),
@@ -102,10 +92,7 @@ class _DocumentCard extends StatelessWidget {
                 if (uploadedAt != null)
                   Text(
                     "Uploaded: ${uploadedAt.toDate()}",
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
                   ),
               ],
             ),
@@ -126,10 +113,7 @@ class _DocumentTypeBadge extends StatelessWidget {
     final label = type.replaceAll("_", " ").toUpperCase();
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFE3F2FD),
         borderRadius: BorderRadius.circular(20),
@@ -158,11 +142,7 @@ class _FullScreenImageViewer extends StatelessWidget {
       body: GestureDetector(
         onTap: () => Navigator.pop(context),
         child: Center(
-          child: InteractiveViewer(
-            child: SmartMedia(
-  url: imageUrl,
-),
-          ),
+          child: InteractiveViewer(child: SmartMedia(url: imageUrl)),
         ),
       ),
     );

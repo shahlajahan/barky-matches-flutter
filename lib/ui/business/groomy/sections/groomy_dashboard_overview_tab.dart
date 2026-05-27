@@ -205,16 +205,15 @@ class GroomyDashboardOverviewTab extends StatelessWidget {
                 children: [
                   Expanded(child: Text('Salon Profile', style: AppTheme.h2())),
                   ElevatedButton.icon(
-                   onPressed: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => EditGroomyProfilePage(
-        businessId: businessId,
-      ),
-    ),
-  );
-},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              EditGroomyProfilePage(businessId: businessId),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.edit),
                     label: const Text('Edit Profile'),
                   ),

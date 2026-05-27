@@ -11,36 +11,24 @@ class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key});
 
   @override
-  State<DeleteAccountPage> createState() =>
-      _DeleteAccountPageState();
+  State<DeleteAccountPage> createState() => _DeleteAccountPageState();
 }
 
-class _DeleteAccountPageState
-    extends State<DeleteAccountPage> {
-
-  final TextEditingController _confirmController =
-      TextEditingController();
+class _DeleteAccountPageState extends State<DeleteAccountPage> {
+  final TextEditingController _confirmController = TextEditingController();
 
   bool _isLoading = false;
 
   bool get _canDelete =>
-      _confirmController.text
-          .trim()
-          .toLowerCase() ==
-      "delete";
+      _confirmController.text.trim().toLowerCase() == "delete";
 
   Future<void> _deleteAccount() async {
-
     setState(() => _isLoading = true);
 
     try {
-
-      final callable =
-          FirebaseFunctions.instanceFor(
+      final callable = FirebaseFunctions.instanceFor(
         region: 'europe-west3',
-      ).httpsCallable(
-        'deleteUserAccount',
-      );
+      ).httpsCallable('deleteUserAccount');
 
       await callable.call();
 
@@ -49,26 +37,18 @@ class _DeleteAccountPageState
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => const WelcomePage(),
-        ),
+        MaterialPageRoute(builder: (_) => const WelcomePage()),
         (route) => false,
       );
-
     } catch (e) {
-
       debugPrint("❌ delete error: $e");
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Failed to delete account. Please try again.",
-          ),
+          content: Text("Failed to delete account. Please try again."),
         ),
       );
-
     } finally {
-
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -76,18 +56,15 @@ class _DeleteAccountPageState
   }
 
   void _confirmDelete() {
-
     showDialog(
       context: context,
 
       builder: (_) {
-
         return Dialog(
           backgroundColor: Colors.white,
 
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(28),
           ),
 
           child: Padding(
@@ -97,14 +74,12 @@ class _DeleteAccountPageState
               mainAxisSize: MainAxisSize.min,
 
               children: [
-
                 Container(
                   width: 80,
                   height: 80,
 
                   decoration: BoxDecoration(
-                    color:
-                        Colors.red.withOpacity(.10),
+                    color: Colors.red.withOpacity(.10),
 
                     shape: BoxShape.circle,
                   ),
@@ -144,40 +119,28 @@ class _DeleteAccountPageState
 
                 Row(
                   children: [
-
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
                           Navigator.pop(context);
                         },
 
-                        style:
-                            OutlinedButton.styleFrom(
-                          foregroundColor:
-                              Colors.black87,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black87,
 
-                          side: BorderSide(
-                            color:
-                                Colors.grey.shade300,
-                          ),
+                          side: BorderSide(color: Colors.grey.shade300),
 
-                          minimumSize:
-                              const Size(0, 52),
+                          minimumSize: const Size(0, 52),
 
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
 
                         child: Text(
                           "Cancel",
-                          style:
-                              GoogleFonts.poppins(
-                            fontWeight:
-                                FontWeight.w600,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -192,33 +155,24 @@ class _DeleteAccountPageState
                           _deleteAccount();
                         },
 
-                        style:
-                            ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.red,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
 
-                          foregroundColor:
-                              Colors.white,
+                          foregroundColor: Colors.white,
 
                           elevation: 0,
 
-                          minimumSize:
-                              const Size(0, 52),
+                          minimumSize: const Size(0, 52),
 
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
 
                         child: Text(
                           "Delete",
-                          style:
-                              GoogleFonts.poppins(
-                            fontWeight:
-                                FontWeight.w700,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -235,16 +189,13 @@ class _DeleteAccountPageState
 
   @override
   void dispose() {
-
     _confirmController.dispose();
 
     super.dispose();
   }
 
   InputDecoration _inputDecoration() {
-
     return InputDecoration(
-
       hintText: 'DELETE',
 
       labelText: 'Type DELETE to confirm',
@@ -254,59 +205,38 @@ class _DeleteAccountPageState
       filled: true,
       fillColor: Colors.white,
 
-      prefixIcon: const Icon(
-        LucideIcons.shieldAlert,
-        color: Colors.red,
-      ),
+      prefixIcon: const Icon(LucideIcons.shieldAlert, color: Colors.red),
 
-      contentPadding:
-          const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 18,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
 
       border: OutlineInputBorder(
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide.none,
       ),
 
       enabledBorder: OutlineInputBorder(
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide.none,
       ),
 
       focusedBorder: OutlineInputBorder(
-        borderRadius:
-            BorderRadius.circular(18),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.5,
-        ),
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
 
-      errorText:
-          _confirmController.text.isNotEmpty &&
-                  !_canDelete
-              ? 'Please type DELETE exactly'
-              : null,
+      errorText: _confirmController.text.isNotEmpty && !_canDelete
+          ? 'Please type DELETE exactly'
+          : null,
     );
   }
 
   Widget _buildDangerItem(String text) {
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
 
       child: Row(
         children: [
-
-          const Icon(
-            LucideIcons.alertTriangle,
-            color: Colors.red,
-            size: 18,
-          ),
+          const Icon(LucideIcons.alertTriangle, color: Colors.red, size: 18),
 
           const SizedBox(width: 12),
 
@@ -327,67 +257,48 @@ class _DeleteAccountPageState
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       color: const Color(0xFFFDF2F5),
 
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            120,
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
 
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-
               // 🔴 HEADER
               Container(
                 width: double.infinity,
 
-                padding:
-                    const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(24),
 
                 decoration: BoxDecoration(
-                  gradient:
-                      const LinearGradient(
-                    colors: [
-                      Color(0xFF8B0000),
-                      Color(0xFFD32F2F),
-                    ],
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B0000), Color(0xFFD32F2F)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
 
-                  borderRadius:
-                      BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(28),
 
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.red
-                          .withOpacity(.18),
+                      color: Colors.red.withOpacity(.18),
                       blurRadius: 18,
-                      offset:
-                          const Offset(0, 8),
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
 
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-
                     const Icon(
                       LucideIcons.shieldAlert,
-                      color:
-                          Color(0xFFFFC107),
+                      color: Color(0xFFFFC107),
                       size: 36,
                     ),
 
@@ -395,14 +306,10 @@ class _DeleteAccountPageState
 
                     Text(
                       "Delete Account",
-                      style:
-                          GoogleFonts.poppins(
-                        color:
-                            const Color(
-                                0xFFFFC107),
+                      style: GoogleFonts.poppins(
+                        color: const Color(0xFFFFC107),
                         fontSize: 26,
-                        fontWeight:
-                            FontWeight.w800,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
 
@@ -410,10 +317,8 @@ class _DeleteAccountPageState
 
                     Text(
                       "This action is permanent and cannot be undone.",
-                      style:
-                          GoogleFonts.poppins(
-                        color: Colors.white
-                            .withOpacity(.92),
+                      style: GoogleFonts.poppins(
+                        color: Colors.white.withOpacity(.92),
                         fontSize: 14,
                         height: 1.5,
                       ),
@@ -428,36 +333,28 @@ class _DeleteAccountPageState
               Container(
                 width: double.infinity,
 
-                padding:
-                    const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(22),
 
                 decoration: BoxDecoration(
                   color: Colors.white,
 
-                  borderRadius:
-                      BorderRadius.circular(
-                          24),
+                  borderRadius: BorderRadius.circular(24),
 
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black
-                          .withOpacity(.04),
+                      color: Colors.black.withOpacity(.04),
                       blurRadius: 12,
-                      offset:
-                          const Offset(0, 5),
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
 
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-
                     Row(
                       children: [
-
                         const Icon(
                           LucideIcons.alertOctagon,
                           color: Colors.red,
@@ -468,13 +365,10 @@ class _DeleteAccountPageState
 
                         Text(
                           "What will be deleted",
-                          style:
-                              GoogleFonts.poppins(
+                          style: GoogleFonts.poppins(
                             fontSize: 18,
-                            fontWeight:
-                                FontWeight.w700,
-                            color:
-                                Colors.red,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.red,
                           ),
                         ),
                       ],
@@ -482,21 +376,13 @@ class _DeleteAccountPageState
 
                     const SizedBox(height: 22),
 
-                    _buildDangerItem(
-                      "Your profile and account information",
-                    ),
+                    _buildDangerItem("Your profile and account information"),
 
-                    _buildDangerItem(
-                      "All your dogs and pet profiles",
-                    ),
+                    _buildDangerItem("All your dogs and pet profiles"),
 
-                    _buildDangerItem(
-                      "Messages, chats, and favorites",
-                    ),
+                    _buildDangerItem("Messages, chats, and favorites"),
 
-                    _buildDangerItem(
-                      "Appointments, activity, and saved data",
-                    ),
+                    _buildDangerItem("Appointments, activity, and saved data"),
                   ],
                 ),
               ),
@@ -518,8 +404,7 @@ class _DeleteAccountPageState
               TextField(
                 controller: _confirmController,
 
-                textCapitalization:
-                    TextCapitalization.characters,
+                textCapitalization: TextCapitalization.characters,
 
                 onChanged: (_) {
                   setState(() {});
@@ -536,30 +421,19 @@ class _DeleteAccountPageState
                 height: 58,
 
                 child: ElevatedButton(
-                  onPressed:
-                      _canDelete &&
-                              !_isLoading
-                          ? _confirmDelete
-                          : null,
+                  onPressed: _canDelete && !_isLoading ? _confirmDelete : null,
 
-                  style: ElevatedButton
-                      .styleFrom(
-                    backgroundColor:
-                        Colors.red,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
 
-                    foregroundColor:
-                        Colors.white,
+                    foregroundColor: Colors.white,
 
-                    disabledBackgroundColor:
-                        Colors.grey.shade300,
+                    disabledBackgroundColor: Colors.grey.shade300,
 
                     elevation: 0,
 
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                              18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
 
@@ -567,31 +441,23 @@ class _DeleteAccountPageState
                       ? const SizedBox(
                           width: 24,
                           height: 24,
-                          child:
-                              CircularProgressIndicator(
+                          child: CircularProgressIndicator(
                             color: Colors.white,
                             strokeWidth: 2,
                           ),
                         )
                       : Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-
-                            const Icon(
-                              LucideIcons.trash2,
-                              size: 18,
-                            ),
+                            const Icon(LucideIcons.trash2, size: 18),
 
                             const SizedBox(width: 10),
 
                             Text(
                               "Delete Account",
-                              style:
-                                  GoogleFonts.poppins(
+                              style: GoogleFonts.poppins(
                                 fontSize: 16,
-                                fontWeight:
-                                    FontWeight.w700,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],

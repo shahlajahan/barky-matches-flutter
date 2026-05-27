@@ -64,8 +64,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '188282684447',
     projectId: 'barkymatches-new',
     storageBucket: 'barkymatches-new.firebasestorage.app',
-    androidClientId: '188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com',
-    iosClientId: '188282684447-p21o2aijk2h39d84hot9trip42hsa0g5.apps.googleusercontent.com',
+    androidClientId:
+        '188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com',
+    iosClientId:
+        '188282684447-p21o2aijk2h39d84hot9trip42hsa0g5.apps.googleusercontent.com',
     iosBundleId: 'com.shahlajahan.barkymatches.dev',
   );
 
@@ -75,8 +77,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '188282684447',
     projectId: 'barkymatches-new',
     storageBucket: 'barkymatches-new.firebasestorage.app',
-    androidClientId: '188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com',
-    iosClientId: '188282684447-9jk0ajkuch7471e17lsod6miu1lfqlna.apps.googleusercontent.com',
+    androidClientId:
+        '188282684447-ftf6jlcfg84lnghkkm9653grujvh42un.apps.googleusercontent.com',
+    iosClientId:
+        '188282684447-9jk0ajkuch7471e17lsod6miu1lfqlna.apps.googleusercontent.com',
     iosBundleId: 'com.example.barkyMatchesFixed',
   );
 
@@ -89,5 +93,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'barkymatches-new.firebasestorage.app',
     measurementId: 'G-DHPZ7HLBSS',
   );
-
 }

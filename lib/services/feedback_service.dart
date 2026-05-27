@@ -1,7 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
 class FeedbackService {
-
   static Future<void> submitFeedback({
     required int rating,
     required String category,
@@ -10,9 +9,9 @@ class FeedbackService {
     required String platform,
     required String appVersion,
   }) async {
-
-    final callable = FirebaseFunctions.instance
-        .httpsCallable('submitUserFeedback');
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'submitUserFeedback',
+    );
 
     await callable.call({
       "rating": rating,
@@ -22,7 +21,5 @@ class FeedbackService {
       "platform": platform,
       "appVersion": appVersion,
     });
-
   }
-
 }

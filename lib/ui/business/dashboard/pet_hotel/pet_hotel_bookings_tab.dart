@@ -17,9 +17,13 @@ class PetHotelBookingsTab extends StatelessWidget {
         .where('businessId', isEqualTo: businessId)
         .snapshots()
         .handleError((e) {
-          debugPrint('🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e');
+          debugPrint(
+            '🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e',
+          );
         });
-    debugPrint('🔥 LISTENING PATH => hotel_bookings where businessId == $businessId');
+    debugPrint(
+      '🔥 LISTENING PATH => hotel_bookings where businessId == $businessId',
+    );
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: stream,

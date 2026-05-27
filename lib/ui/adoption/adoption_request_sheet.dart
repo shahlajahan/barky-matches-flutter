@@ -112,42 +112,43 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
   }
 
   Widget _whiteField(
-  TextEditingController controller, {
-  TextInputType? keyboardType,
-  int maxLines = 1,
-  String? hint,
-  String? label,
-  String? Function(String?)? validator,
-  void Function(String)? onChanged,
-  bool enabled = true,
-}) {
-  final isLastField = false; // اگر خواستی بعداً برای هر فیلد کنترل کنیم
+    TextEditingController controller, {
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? hint,
+    String? label,
+    String? Function(String?)? validator,
+    void Function(String)? onChanged,
+    bool enabled = true,
+  }) {
+    final isLastField = false; // اگر خواستی بعداً برای هر فیلد کنترل کنیم
 
-  return SizedBox(
-    height: maxLines == 1 ? 56 : null,
-    child: TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      validator: validator,
-      onChanged: onChanged,
-      enabled: enabled,
+    return SizedBox(
+      height: maxLines == 1 ? 56 : null,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        validator: validator,
+        onChanged: onChanged,
+        enabled: enabled,
 
-      textInputAction:
-          maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
+        textInputAction: maxLines > 1
+            ? TextInputAction.newline
+            : TextInputAction.next,
 
-      onEditingComplete: () {
-        if (maxLines > 1) {
-          FocusScope.of(context).unfocus();
-        } else {
-          FocusScope.of(context).nextFocus();
-        }
-      },
+        onEditingComplete: () {
+          if (maxLines > 1) {
+            FocusScope.of(context).unfocus();
+          } else {
+            FocusScope.of(context).nextFocus();
+          }
+        },
 
-      decoration: _whiteDecoration(hint: hint, label: label),
-    ),
-  );
-}
+        decoration: _whiteDecoration(hint: hint, label: label),
+      ),
+    );
+  }
 
   // ─────────────────────────────────────────────
   // ✅ Upload helpers (REAL upload to Firebase Storage)
@@ -174,7 +175,10 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
 
   Future<void> _pickHousePhotos() async {
     try {
-      final files = await _picker.pickMultiImage(imageQuality: 85, maxWidth: 1800);
+      final files = await _picker.pickMultiImage(
+        imageQuality: 85,
+        maxWidth: 1800,
+      );
       if (files.isEmpty) return;
 
       setState(() => _loading = true);
@@ -308,11 +312,11 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
 
     setState(() => _loading = true);
 
-final user = FirebaseAuth.instance.currentUser;
-if (user == null) throw Exception("Not logged in");
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception("Not logged in");
 
-final requesterId = user.uid;
-final requesterName = _fullName.text.trim();
+    final requesterId = user.uid;
+    final requesterName = _fullName.text.trim();
 
     try {
       // Build structured form payload (PRO)
@@ -326,9 +330,13 @@ final requesterName = _fullName.text.trim();
         "housing": {
           "housingType": _housingType,
           "ownership": _ownership, // Owned/Rented
-          "landlordPermission": _ownership == "Rented" ? _landlordPermission : null,
+          "landlordPermission": _ownership == "Rented"
+              ? _landlordPermission
+              : null,
           "hasGarden": _hasGarden,
-          "fenceHeightCm": _hasGarden ? int.tryParse(_fenceHeight.text.trim()) : null,
+          "fenceHeightCm": _hasGarden
+              ? int.tryParse(_fenceHeight.text.trim())
+              : null,
         },
         "experience": {
           "years": int.tryParse(_experienceYears.text.trim()) ?? 0,
@@ -352,20 +360,20 @@ final requesterName = _fullName.text.trim();
 
       // Documents array (for your service signature)
       final documents = <String>[
-  ..._housePhotoUrls,
-  ?_idPhotoUrl,
-  ?_incomeProofUrl,
-];
+        ..._housePhotoUrls,
+        ?_idPhotoUrl,
+        ?_incomeProofUrl,
+      ];
 
       await AdoptionRequestService.createRequest(
-  targetType: widget.targetType,
-  targetId: widget.targetId,
-  targetOwnerId: widget.targetOwnerId,
-  form: form,
-  documents: documents,
-  //requesterId: requesterId,
-  //requesterName: requesterName,
-);
+        targetType: widget.targetType,
+        targetId: widget.targetId,
+        targetOwnerId: widget.targetOwnerId,
+        form: form,
+        documents: documents,
+        //requesterId: requesterId,
+        //requesterName: requesterName,
+      );
 
       if (!mounted) return;
       Navigator.pop(context);
@@ -382,81 +390,82 @@ final requesterName = _fullName.text.trim();
   // ✅ Build
   // ─────────────────────────────────────────────
   @override
-Widget build(BuildContext context) {
-  final premiumPhysics = const BouncingScrollPhysics(
-    parent: AlwaysScrollableScrollPhysics(),
-  );
+  Widget build(BuildContext context) {
+    final premiumPhysics = const BouncingScrollPhysics(
+      parent: AlwaysScrollableScrollPhysics(),
+    );
 
-  return GestureDetector(
-    behavior: HitTestBehavior.translucent,
-    onTap: () {
-      // ✅ Dismiss keyboard when tapping anywhere
-      FocusScope.of(context).unfocus();
-    },
-    child: Material(
-      type: MaterialType.transparency,
-      child: SizedBox.expand(
-        child: Stack(
-          children: [
-            // Backdrop
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _loading
-                    ? null
-                    : () {
-                        FocusScope.of(context).unfocus();
-                        Navigator.pop(context);
-                      },
-                child: Container(color: Colors.black54),
-              ),
-            ),
-
-            // Panel (same style as EditDogOverlay)
-            Center(
-              child: Container(
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(20),
-                constraints: const BoxConstraints(maxWidth: 680),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF9E1B4F),
-                  borderRadius: BorderRadius.circular(20),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        // ✅ Dismiss keyboard when tapping anywhere
+        FocusScope.of(context).unfocus();
+      },
+      child: Material(
+        type: MaterialType.transparency,
+        child: SizedBox.expand(
+          child: Stack(
+            children: [
+              // Backdrop
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _loading
+                      ? null
+                      : () {
+                          FocusScope.of(context).unfocus();
+                          Navigator.pop(context);
+                        },
+                  child: Container(color: Colors.black54),
                 ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: ScrollConfiguration(
-                    behavior: _PremiumScrollBehavior(),
-                    child: SingleChildScrollView(
-                      physics: premiumPhysics,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildHeader(),
-                          const SizedBox(height: 14),
-                          _buildStepDots(),
-                          const SizedBox(height: 16),
+              ),
 
-                          // Step content
-                          if (_step == 0) _stepPersonal(),
-                          if (_step == 1) _stepHousing(),
-                          if (_step == 2) _stepExperience(),
-                          if (_step == 3) _stepFinancialAndUploads(),
+              // Panel (same style as EditDogOverlay)
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF9E1B4F),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: ScrollConfiguration(
+                      behavior: _PremiumScrollBehavior(),
+                      child: SingleChildScrollView(
+                        physics: premiumPhysics,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildHeader(),
+                            const SizedBox(height: 14),
+                            _buildStepDots(),
+                            const SizedBox(height: 16),
 
-                          const SizedBox(height: 18),
-                          _buildBottomBar(),
-                        ],
+                            // Step content
+                            if (_step == 0) _stepPersonal(),
+                            if (_step == 1) _stepHousing(),
+                            if (_step == 2) _stepExperience(),
+                            if (_step == 3) _stepFinancialAndUploads(),
+
+                            const SizedBox(height: 18),
+                            _buildBottomBar(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   // ─────────────────────────────────────────────
   // ✅ Header + Step dots
   // ─────────────────────────────────────────────
@@ -497,15 +506,15 @@ Widget build(BuildContext context) {
 
   Widget _buildStepDots() {
     Widget dot(bool active) => AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: active ? 26 : 10,
-          height: 10,
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          decoration: BoxDecoration(
-            color: active ? Colors.white : Colors.white24,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        );
+      duration: const Duration(milliseconds: 180),
+      width: active ? 26 : 10,
+      height: 10,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      decoration: BoxDecoration(
+        color: active ? Colors.white : Colors.white24,
+        borderRadius: BorderRadius.circular(999),
+      ),
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -581,10 +590,22 @@ Widget build(BuildContext context) {
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
             items: [
-              DropdownMenuItem(value: "0-2000", child: Text(l10n.adoptionIncomeRange0_2000)),
-              DropdownMenuItem(value: "2000-5000", child: Text(l10n.adoptionIncomeRange2000_5000)),
-              DropdownMenuItem(value: "5000-10000", child: Text(l10n.adoptionIncomeRange5000_10000)),
-              DropdownMenuItem(value: "10000+", child: Text(l10n.adoptionIncomeRange10000Plus)),
+              DropdownMenuItem(
+                value: "0-2000",
+                child: Text(l10n.adoptionIncomeRange0_2000),
+              ),
+              DropdownMenuItem(
+                value: "2000-5000",
+                child: Text(l10n.adoptionIncomeRange2000_5000),
+              ),
+              DropdownMenuItem(
+                value: "5000-10000",
+                child: Text(l10n.adoptionIncomeRange5000_10000),
+              ),
+              DropdownMenuItem(
+                value: "10000+",
+                child: Text(l10n.adoptionIncomeRange10000Plus),
+              ),
             ],
             onChanged: (v) => setState(() => _incomeRange = v),
             validator: (v) => v == null ? l10n.adoptionSelectIncomeRange : null,
@@ -614,9 +635,18 @@ Widget build(BuildContext context) {
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
             items: [
-              DropdownMenuItem(value: "Apartment", child: Text(l10n.adoptionHousingApartment)),
-              DropdownMenuItem(value: "House", child: Text(l10n.adoptionHousingHouse)),
-              DropdownMenuItem(value: "Villa", child: Text(l10n.adoptionHousingVilla)),
+              DropdownMenuItem(
+                value: "Apartment",
+                child: Text(l10n.adoptionHousingApartment),
+              ),
+              DropdownMenuItem(
+                value: "House",
+                child: Text(l10n.adoptionHousingHouse),
+              ),
+              DropdownMenuItem(
+                value: "Villa",
+                child: Text(l10n.adoptionHousingVilla),
+              ),
             ],
             onChanged: (v) => setState(() => _housingType = v ?? "Apartment"),
           ),
@@ -629,8 +659,14 @@ Widget build(BuildContext context) {
             dropdownColor: Colors.white,
             decoration: _whiteDecoration(),
             items: [
-              DropdownMenuItem(value: "Owned", child: Text(l10n.adoptionOwnershipOwned)),
-              DropdownMenuItem(value: "Rented", child: Text(l10n.adoptionOwnershipRented)),
+              DropdownMenuItem(
+                value: "Owned",
+                child: Text(l10n.adoptionOwnershipOwned),
+              ),
+              DropdownMenuItem(
+                value: "Rented",
+                child: Text(l10n.adoptionOwnershipRented),
+              ),
             ],
             onChanged: (v) {
               setState(() {
@@ -674,7 +710,8 @@ Widget build(BuildContext context) {
               validator: (v) {
                 if (!_hasGarden) return null;
                 final n = int.tryParse((v ?? "").trim());
-                if (n == null || n <= 0 || n > 400) return l10n.adoptionEnterValidFenceHeight;
+                if (n == null || n <= 0 || n > 400)
+                  return l10n.adoptionEnterValidFenceHeight;
                 return null;
               },
             ),
@@ -705,7 +742,8 @@ Widget build(BuildContext context) {
             hint: l10n.adoptionYearsOfExperienceHint,
             validator: (v) {
               final n = int.tryParse((v ?? "").trim());
-              if (n == null || n < 0 || n > 60) return l10n.adoptionEnterYearsOfExperience;
+              if (n == null || n < 0 || n > 60)
+                return l10n.adoptionEnterYearsOfExperience;
               return null;
             },
           ),
@@ -835,7 +873,9 @@ Widget build(BuildContext context) {
                 : l10n.adoptionUploadedCount(_housePhotoUrls.length),
             primaryText: l10n.adoptionUploadButton,
             onPrimary: _loading ? null : _pickHousePhotos,
-            secondaryText: _housePhotoUrls.isEmpty ? null : l10n.adoptionClearButton,
+            secondaryText: _housePhotoUrls.isEmpty
+                ? null
+                : l10n.adoptionClearButton,
             onSecondary: _loading
                 ? null
                 : () => setState(() => _housePhotoUrls.clear()),
@@ -844,10 +884,16 @@ Widget build(BuildContext context) {
 
           _uploadRow(
             title: l10n.adoptionIdPhotoRequiredTitle,
-            subtitle: _idPhotoUrl == null ? l10n.adoptionNotUploaded : l10n.adoptionUploaded,
-            primaryText: _idPhotoUrl == null ? l10n.adoptionUploadButton : l10n.adoptionReplaceButton,
+            subtitle: _idPhotoUrl == null
+                ? l10n.adoptionNotUploaded
+                : l10n.adoptionUploaded,
+            primaryText: _idPhotoUrl == null
+                ? l10n.adoptionUploadButton
+                : l10n.adoptionReplaceButton,
             onPrimary: _loading ? null : () => _pickSingleDoc(kind: "id"),
-            secondaryText: _idPhotoUrl == null ? null : l10n.adoptionRemoveButton,
+            secondaryText: _idPhotoUrl == null
+                ? null
+                : l10n.adoptionRemoveButton,
             onSecondary: _loading
                 ? null
                 : () => setState(() => _idPhotoUrl = null),
@@ -856,10 +902,16 @@ Widget build(BuildContext context) {
 
           _uploadRow(
             title: l10n.adoptionProofOfIncomeOptionalTitle,
-            subtitle: _incomeProofUrl == null ? l10n.adoptionOptionalLabel : l10n.adoptionUploaded,
-            primaryText: _incomeProofUrl == null ? l10n.adoptionUploadButton : l10n.adoptionReplaceButton,
+            subtitle: _incomeProofUrl == null
+                ? l10n.adoptionOptionalLabel
+                : l10n.adoptionUploaded,
+            primaryText: _incomeProofUrl == null
+                ? l10n.adoptionUploadButton
+                : l10n.adoptionReplaceButton,
             onPrimary: _loading ? null : () => _pickSingleDoc(kind: "income"),
-            secondaryText: _incomeProofUrl == null ? null : l10n.adoptionRemoveButton,
+            secondaryText: _incomeProofUrl == null
+                ? null
+                : l10n.adoptionRemoveButton,
             onSecondary: _loading
                 ? null
                 : () => setState(() => _incomeProofUrl = null),
@@ -916,7 +968,9 @@ Widget build(BuildContext context) {
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(isLast ? l10n.sendRequestButton : l10n.adoptionNextButton),
+                : Text(
+                    isLast ? l10n.sendRequestButton : l10n.adoptionNextButton,
+                  ),
           ),
         ),
       ],
@@ -990,16 +1044,10 @@ Widget build(BuildContext context) {
             ),
           ),
           const SizedBox(width: 10),
-          TextButton(
-            onPressed: onPrimary,
-            child: Text(primaryText),
-          ),
+          TextButton(onPressed: onPrimary, child: Text(primaryText)),
           if (secondaryText != null) ...[
             const SizedBox(width: 6),
-            TextButton(
-              onPressed: onSecondary,
-              child: Text(secondaryText),
-            ),
+            TextButton(onPressed: onSecondary, child: Text(secondaryText)),
           ],
         ],
       ),

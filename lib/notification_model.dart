@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppNotification {
-  final String? id; // id رو optional می‌کنیم چون Firestore خودش document ID می‌سازه
+  final String?
+  id; // id رو optional می‌کنیم چون Firestore خودش document ID می‌سازه
   final String? title; // تغییر به اختیاری
   final String? body; // تغییر به اختیاری
   final DateTime timestamp;
@@ -42,7 +43,8 @@ class AppNotification {
       body: map['body'] as String?, // اختیاری
       timestamp: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       payload: map['payload'] as String?,
-      isRead: map['isRead'] as bool? ?? false, // اضافه کردن isRead با مقدار پیش‌فرض
+      isRead:
+          map['isRead'] as bool? ?? false, // اضافه کردن isRead با مقدار پیش‌فرض
       type: map['type'] as String?, // اختیاری
       lostDogId: map['lostDogId'] as String?, // اختیاری
     );

@@ -5,10 +5,7 @@ import '../admin_section.dart';
 class BusinessAuditLogSection extends StatelessWidget {
   final String businessId;
 
-  const BusinessAuditLogSection({
-    super.key,
-    required this.businessId,
-  });
+  const BusinessAuditLogSection({super.key, required this.businessId});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +21,6 @@ class BusinessAuditLogSection extends StatelessWidget {
             .limit(10)
             .snapshots(),
         builder: (context, snapshot) {
-
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
@@ -43,8 +39,7 @@ class BusinessAuditLogSection extends StatelessWidget {
 
           return Column(
             children: docs.map((doc) {
-              final data =
-                  doc.data() as Map<String, dynamic>;
+              final data = doc.data() as Map<String, dynamic>;
 
               final action = data["action"] ?? "";
               final reason = data["reason"];
@@ -52,7 +47,8 @@ class BusinessAuditLogSection extends StatelessWidget {
 
               final date = ts != null
                   ? DateTime.fromMillisecondsSinceEpoch(
-                      ts.millisecondsSinceEpoch)
+                      ts.millisecondsSinceEpoch,
+                    )
                   : null;
 
               return Padding(
@@ -60,19 +56,13 @@ class BusinessAuditLogSection extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                    const Icon(
-                      Icons.circle,
-                      size: 8,
-                      color: Colors.grey,
-                    ),
+                    const Icon(Icons.circle, size: 8, color: Colors.grey),
 
                     const SizedBox(width: 8),
 
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             _formatAction(action),

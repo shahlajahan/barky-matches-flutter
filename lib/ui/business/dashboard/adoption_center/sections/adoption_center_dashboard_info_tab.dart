@@ -32,24 +32,32 @@ class _AdoptionCenterDashboardInfoTabState
   void initState() {
     super.initState();
 
-    final profile = Map<String, dynamic>.from(widget.businessData['profile'] ?? {});
-    final contact = Map<String, dynamic>.from(widget.businessData['contact'] ?? {});
+    final profile = Map<String, dynamic>.from(
+      widget.businessData['profile'] ?? {},
+    );
+    final contact = Map<String, dynamic>.from(
+      widget.businessData['contact'] ?? {},
+    );
 
     _nameController = TextEditingController(text: profile['displayName'] ?? '');
-    _descriptionController =
-        TextEditingController(text: profile['description'] ?? '');
+    _descriptionController = TextEditingController(
+      text: profile['description'] ?? '',
+    );
     _phoneController = TextEditingController(text: contact['phone'] ?? '');
-    _whatsappController =
-        TextEditingController(text: contact['whatsapp'] ?? '');
+    _whatsappController = TextEditingController(
+      text: contact['whatsapp'] ?? '',
+    );
     _cityController = TextEditingController(text: contact['city'] ?? '');
-    _districtController =
-        TextEditingController(text: contact['district'] ?? '');
-    _addressController =
-        TextEditingController(text: contact['addressLine'] ?? '');
-    _websiteController =
-        TextEditingController(text: contact['website'] ?? '');
-    _instagramController =
-        TextEditingController(text: contact['instagram'] ?? '');
+    _districtController = TextEditingController(
+      text: contact['district'] ?? '',
+    );
+    _addressController = TextEditingController(
+      text: contact['addressLine'] ?? '',
+    );
+    _websiteController = TextEditingController(text: contact['website'] ?? '');
+    _instagramController = TextEditingController(
+      text: contact['instagram'] ?? '',
+    );
   }
 
   @override
@@ -71,21 +79,21 @@ class _AdoptionCenterDashboardInfoTabState
         .collection('businesses')
         .doc(widget.businessId)
         .set({
-      'profile': {
-        'displayName': _nameController.text.trim(),
-        'description': _descriptionController.text.trim(),
-      },
-      'contact': {
-        'phone': _phoneController.text.trim(),
-        'whatsapp': _whatsappController.text.trim(),
-        'website': _websiteController.text.trim(),
-        'instagram': _instagramController.text.trim(),
-        'city': _cityController.text.trim(),
-        'district': _districtController.text.trim(),
-        'addressLine': _addressController.text.trim(),
-      },
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+          'profile': {
+            'displayName': _nameController.text.trim(),
+            'description': _descriptionController.text.trim(),
+          },
+          'contact': {
+            'phone': _phoneController.text.trim(),
+            'whatsapp': _whatsappController.text.trim(),
+            'website': _websiteController.text.trim(),
+            'instagram': _instagramController.text.trim(),
+            'city': _cityController.text.trim(),
+            'district': _districtController.text.trim(),
+            'addressLine': _addressController.text.trim(),
+          },
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   @override
@@ -96,10 +104,7 @@ class _AdoptionCenterDashboardInfoTabState
         children: [
           const Text(
             'Adoption Center Info',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 18),
           TextField(

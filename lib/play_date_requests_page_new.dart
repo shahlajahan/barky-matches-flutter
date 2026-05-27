@@ -24,7 +24,7 @@ class PlayDateRequestsPageNew extends StatefulWidget {
   final List<Dog> dogsList;
   final List<Dog> favoriteDogs;
   final Function(Dog) onToggleFavorite;
- 
+
   /// اگر از notification باز شده باشد
   final String? initialRequestId;
 
@@ -46,30 +46,26 @@ class PlayDateRequestsPageNew extends StatefulWidget {
 }
 
 class _PlayDateRequestsPageNewState extends State<PlayDateRequestsPageNew> {
+  final Map<String, GlobalKey> _itemKeys = {};
 
-   final Map<String, GlobalKey> _itemKeys = {};
+  bool _initialRequestConsumed = false;
 
-bool _initialRequestConsumed = false;
+  String _formatPlaydateDate(DateTime date) {
+    return DateFormat('EEEE, MMM d • HH:mm').format(date);
+  }
 
-String _formatPlaydateDate(DateTime date) {
-  return DateFormat('EEEE, MMM d • HH:mm').format(date);
-}
+  String? _notificationRequestId;
 
-String? _notificationRequestId;
+  StreamSubscription<QuerySnapshot>? _remindersSub;
+  final Set<String> _myReminders = {};
 
-StreamSubscription<QuerySnapshot>? _remindersSub;
-final Set<String> _myReminders = {};
-
-
-
-
-AppState? _appState;
+  AppState? _appState;
 
   Stream<List<PlayDateRequest>>? _requestsStream;
   String? currentUserId;
 
-final bool _isFirstSnapshot = true;
-//bool _isDirectFromNotification = false;
+  final bool _isFirstSnapshot = true;
+  //bool _isDirectFromNotification = false;
 
   bool _isUpdating = false;
   final Set<String> _lockedRequestIds = {};
@@ -82,152 +78,148 @@ final bool _isFirstSnapshot = true;
   //PlayDateRequest? _localRequest; // برای ذخیره وضعیت محلی در notification مستقیم
 
   @override
-void didChangeDependencies() {
-  super.didChangeDependencies();
-  _appState = Provider.of<AppState>(context, listen: false);
-}
-
- @override
-void initState() {
-  super.initState();
-
-  final appState = context.read<AppState>();
-
-  // 🚫 Guest → هیچ چیزی اجرا نشود
-  if (appState.isGuest) {
-    debugPrint('🚫 Guest → skip PlayDateRequestsPage init');
-    _requestsStream = const Stream.empty();
-    return;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _appState = Provider.of<AppState>(context, listen: false);
   }
 
-  // 🔐 Auth check
-  final user = FirebaseAuth.instance.currentUser;
+  @override
+  void initState() {
+    super.initState();
 
-  if (user == null) {
-    debugPrint('🚫 No user → skip PlayDateRequestsPage');
-    _requestsStream = const Stream.empty();
-    return;
-  }
+    final appState = context.read<AppState>();
 
-  currentUserId = user.uid;
+    // 🚫 Guest → هیچ چیزی اجرا نشود
+    if (appState.isGuest) {
+      debugPrint('🚫 Guest → skip PlayDateRequestsPage init');
+      _requestsStream = const Stream.empty();
+      return;
+    }
 
-  // ─────────────────────────────────────────
-  // 🔔 Reminders listener
-  // ─────────────────────────────────────────
-  if (currentUserId!.isNotEmpty) {
-    _remindersSub = FirebaseFirestore.instance
-        .collection('playdate_reminders')
-        .where('userId', isEqualTo: currentUserId)
-        .snapshots()
-        .listen((snap) {
-      if (!mounted) return;
+    // 🔐 Auth check
+    final user = FirebaseAuth.instance.currentUser;
 
-      setState(() {
-        _myReminders.clear();
-        for (final doc in snap.docs) {
-          _myReminders.add(
-            '${doc['requestId']}_${doc['minutesBefore']}',
-          );
-        }
-      });
-    });
-  }
+    if (user == null) {
+      debugPrint('🚫 No user → skip PlayDateRequestsPage');
+      _requestsStream = const Stream.empty();
+      return;
+    }
 
-  // ─────────────────────────────────────────
-  // 🔔 Notifications counter
-  // ─────────────────────────────────────────
-  if (currentUserId!.isNotEmpty) {
-    _notificationsSub = FirebaseFirestore.instance
-        .collection('notifications')
-        .where('recipientUserId', isEqualTo: currentUserId)
-        .where('isRead', isEqualTo: false)
-        .snapshots()
-        .listen((snap) {
-      if (!mounted) return;
-      if (FirebaseAuth.instance.currentUser == null) return;
+    currentUserId = user.uid;
 
-      setState(() {
-        _unreadNotificationsCount = snap.docs.length;
-      });
-    });
-  }
+    // ─────────────────────────────────────────
+    // 🔔 Reminders listener
+    // ─────────────────────────────────────────
+    if (currentUserId!.isNotEmpty) {
+      _remindersSub = FirebaseFirestore.instance
+          .collection('playdate_reminders')
+          .where('userId', isEqualTo: currentUserId)
+          .snapshots()
+          .listen((snap) {
+            if (!mounted) return;
 
-  // ─────────────────────────────────────────
-  // 📩 Notification mode (ONE SHOT)
-  // ─────────────────────────────────────────
-  _notificationRequestId ??= widget.initialRequestId;
+            setState(() {
+              _myReminders.clear();
+              for (final doc in snap.docs) {
+                _myReminders.add('${doc['requestId']}_${doc['minutesBefore']}');
+              }
+            });
+          });
+    }
 
-  final requestId = _notificationRequestId;
+    // ─────────────────────────────────────────
+    // 🔔 Notifications counter
+    // ─────────────────────────────────────────
+    if (currentUserId!.isNotEmpty) {
+      _notificationsSub = FirebaseFirestore.instance
+          .collection('notifications')
+          .where('recipientUserId', isEqualTo: currentUserId)
+          .where('isRead', isEqualTo: false)
+          .snapshots()
+          .listen((snap) {
+            if (!mounted) return;
+            if (FirebaseAuth.instance.currentUser == null) return;
 
-  if (requestId != null && requestId.isNotEmpty) {
-    debugPrint("🔥 initState: notification mode → requestId=$requestId");
+            setState(() {
+              _unreadNotificationsCount = snap.docs.length;
+            });
+          });
+    }
+
+    // ─────────────────────────────────────────
+    // 📩 Notification mode (ONE SHOT)
+    // ─────────────────────────────────────────
+    _notificationRequestId ??= widget.initialRequestId;
+
+    final requestId = _notificationRequestId;
+
+    if (requestId != null && requestId.isNotEmpty) {
+      debugPrint("🔥 initState: notification mode → requestId=$requestId");
+
+      _requestsStream = FirebaseFirestore.instance
+          .collection('playDateRequests')
+          .doc(requestId)
+          .snapshots()
+          .map((doc) {
+            if (!doc.exists || doc.data() == null) {
+              debugPrint("❌ Notification request not found: $requestId");
+              return <PlayDateRequest>[];
+            }
+
+            final request = PlayDateRequest.fromFirestore(
+              doc.id,
+              doc.data() as Map<String, dynamic>,
+            );
+
+            debugPrint(
+              "✅ Notification request loaded → status=${request.status}",
+            );
+
+            return [request];
+          });
+
+      return; // ⛔ مهم
+    }
+
+    // ─────────────────────────────────────────
+    // 📋 Normal pending mode
+    // ─────────────────────────────────────────
+    debugPrint("→ initState: normal pending mode");
 
     _requestsStream = FirebaseFirestore.instance
         .collection('playDateRequests')
-        .doc(requestId)
+        .where('requestedUserId', isEqualTo: currentUserId)
+        .where('status', isEqualTo: 'pending')
         .snapshots()
-        .map((doc) {
-      if (!doc.exists || doc.data() == null) {
-        debugPrint("❌ Notification request not found: $requestId");
-        return <PlayDateRequest>[];
-      }
+        .map((snap) {
+          final list = snap.docs.map((doc) {
+            return PlayDateRequest.fromFirestore(doc.id, doc.data());
+          }).toList();
 
-      final request = PlayDateRequest.fromFirestore(
-        doc.id,
-        doc.data() as Map<String, dynamic>,
-      );
-
-      debugPrint(
-        "✅ Notification request loaded → status=${request.status}",
-      );
-
-      return [request];
-    });
-
-    return; // ⛔ مهم
+          debugPrint("→ Loaded ${list.length} pending requests");
+          return list;
+        });
   }
 
-  // ─────────────────────────────────────────
-  // 📋 Normal pending mode
-  // ─────────────────────────────────────────
-  debugPrint("→ initState: normal pending mode");
-
-  _requestsStream = FirebaseFirestore.instance
-      .collection('playDateRequests')
-      .where('requestedUserId', isEqualTo: currentUserId)
-      .where('status', isEqualTo: 'pending')
-      .snapshots()
-      .map((snap) {
-    final list = snap.docs.map((doc) {
-      return PlayDateRequest.fromFirestore(
-        doc.id,
-        doc.data(),
-      );
-    }).toList();
-
-    debugPrint("→ Loaded ${list.length} pending requests");
-    return list;
-  });
-}
-
   @override
-void dispose() {
-  _notificationsSub?.cancel();
-  _remindersSub?.cancel();
-  super.dispose();
-}
-void _consumeAfterFrame() {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!mounted) return;
+  void dispose() {
+    _notificationsSub?.cancel();
+    _remindersSub?.cancel();
+    super.dispose();
+  }
 
-    Future.microtask(() {
+  void _consumeAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-     // widget.onConsumedInitialRequest?.call();
-    });
-  });
-}
 
-/*
+      Future.microtask(() {
+        if (!mounted) return;
+        // widget.onConsumedInitialRequest?.call();
+      });
+    });
+  }
+
+  /*
   Future<void> _loadRequestManually(String requestId) async {
   try {
     final doc = await FirebaseFirestore.instance
@@ -271,272 +263,252 @@ void _consumeAfterFrame() {
 }
 */
 
-@override
-void didUpdateWidget(covariant PlayDateRequestsPageNew oldWidget) {
-  super.didUpdateWidget(oldWidget);
+  @override
+  void didUpdateWidget(covariant PlayDateRequestsPageNew oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
-  final newId = widget.initialRequestId;
+    final newId = widget.initialRequestId;
 
-  // اگر requestId جدید آمد، برو notification mode (همون کاری که initState می‌کرد)
- if (newId != null && newId.isNotEmpty) {
-    debugPrint("🟣 didUpdateWidget: notification id received → $newId");
-    setState(() {
-      _notificationRequestId = newId;
+    // اگر requestId جدید آمد، برو notification mode (همون کاری که initState می‌کرد)
+    if (newId != null && newId.isNotEmpty) {
+      debugPrint("🟣 didUpdateWidget: notification id received → $newId");
+      setState(() {
+        _notificationRequestId = newId;
 
-      _requestsStream = FirebaseFirestore.instance
-          .collection('playDateRequests')
-          .doc(newId)
-          .snapshots()
-          .map((doc) {
-        if (!doc.exists || doc.data() == null) return <PlayDateRequest>[];
-        final req = PlayDateRequest.fromFirestore(
-          doc.id,
-          doc.data() as Map<String, dynamic>,
-        );
-        debugPrint("✅ Notification request loaded → status=${req.status}");
-        return [req];
+        _requestsStream = FirebaseFirestore.instance
+            .collection('playDateRequests')
+            .doc(newId)
+            .snapshots()
+            .map((doc) {
+              if (!doc.exists || doc.data() == null) return <PlayDateRequest>[];
+              final req = PlayDateRequest.fromFirestore(
+                doc.id,
+                doc.data() as Map<String, dynamic>,
+              );
+              debugPrint(
+                "✅ Notification request loaded → status=${req.status}",
+              );
+              return [req];
+            });
       });
-    });
-    return;
+      return;
+    }
+
+    // ✅ اصل فیکس: sticky notification mode
+    if ((newId == null || newId.isEmpty) &&
+        _notificationRequestId != null &&
+        _notificationRequestId!.isNotEmpty) {
+      debugPrint("🛑 didUpdateWidget: ignore null initialRequestId (sticky)");
+      return;
+    }
   }
 
-  // ✅ اصل فیکس: sticky notification mode
-  if ((newId == null || newId.isEmpty) &&
-      _notificationRequestId != null &&
-      _notificationRequestId!.isNotEmpty) {
-    debugPrint("🛑 didUpdateWidget: ignore null initialRequestId (sticky)");
-    return;
+  void _switchToPendingMode() {
+    if (currentUserId == null || currentUserId!.isEmpty) return;
+
+    // 🛑 اگر در حالت notification / reminder هستیم، سوییچ نکن
+    if (_notificationRequestId != null) {
+      debugPrint('🛑 Skip switching to pending mode (notification active)');
+      return;
+    }
+
+    debugPrint('🟣 Switching back to normal pending list mode');
+
+    _requestsStream = FirebaseFirestore.instance
+        .collection('playDateRequests')
+        .where('requestedUserId', isEqualTo: currentUserId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs.map((doc) {
+            return PlayDateRequest.fromFirestore(doc.id, doc.data());
+          }).toList();
+
+          debugPrint("→ Loaded ${list.length} pending requests");
+          return list;
+        });
   }
-}
-
-
-void _switchToPendingMode() {
-  if (currentUserId == null || currentUserId!.isEmpty) return;
-
-  // 🛑 اگر در حالت notification / reminder هستیم، سوییچ نکن
-  if (_notificationRequestId != null) {
-    debugPrint('🛑 Skip switching to pending mode (notification active)');
-    return;
-  }
-
-  debugPrint('🟣 Switching back to normal pending list mode');
-
-  _requestsStream = FirebaseFirestore.instance
-      .collection('playDateRequests')
-      .where('requestedUserId', isEqualTo: currentUserId)
-      .where('status', isEqualTo: 'pending')
-      .snapshots()
-      .map((snap) {
-    final list = snap.docs.map((doc) {
-      return PlayDateRequest.fromFirestore(
-        doc.id,
-        doc.data(),
-      );
-    }).toList();
-
-    debugPrint("→ Loaded ${list.length} pending requests");
-    return list;
-  });
-}
-
 
   // ─────────────────────────────────────────────
   // ACTION: accept / reject
   // ─────────────────────────────────────────────
 
   Future<void> _setRequestStatus({
-  required String requestId,
-  required String status,
-  required String requesterUserId,
-  required String requestedUserId,
-  required String requesterDogId,
-  required String requestedDogId,
-  required String requesterDogName,
-  required String requestedDogName,
-}) async {
-  if (_lockedRequestIds.contains(requestId)) return;
+    required String requestId,
+    required String status,
+    required String requesterUserId,
+    required String requestedUserId,
+    required String requesterDogId,
+    required String requestedDogId,
+    required String requesterDogName,
+    required String requestedDogName,
+  }) async {
+    if (_lockedRequestIds.contains(requestId)) return;
 
-  if (!_initialRequestConsumed &&
-      widget.initialRequestId == requestId) {
-    _initialRequestConsumed = true;
-  }
-
-  setState(() {
-    _isUpdating = true;
-    _lockedRequestIds.add(requestId);
-  });
-
-  final loc = AppLocalizations.of(context)!;
-
-  try {
-    debugPrint('🔥 START $status');
-
-    final user = FirebaseAuth.instance.currentUser;
-
-if (user == null) {
-  debugPrint('🚫 Guest → cannot update request');
-  return;
-}
-
-    await user.reload();
-    final idToken = await user.getIdToken();
-
-    final functionName =
-        status == 'accepted'
-            ? 'acceptPlayDateRequestHttp'
-            : 'rejectPlayDateRequestHttp';
-
-    final url = Uri.parse(
-      'https://europe-west3-barkymatches-new.cloudfunctions.net/$functionName',
-    );
-
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode({
-        'requestId': requestId,
-        'status': status,
-        'requesterUserId': requesterUserId,
-        'requestedUserId': requestedUserId,
-        'requesterDogId': requesterDogId,
-        'requestedDogId': requestedDogId,
-        'requesterDogName': requesterDogName,
-        'requestedDogName': requestedDogName,
-      }),
-    );
-
-    debugPrint('✅ HTTP ${response.statusCode}');
-    debugPrint('✅ BODY: ${response.body}');
-
-    if (response.statusCode != 200) {
-      throw Exception('Server error: ${response.body}');
+    if (!_initialRequestConsumed && widget.initialRequestId == requestId) {
+      _initialRequestConsumed = true;
     }
 
-    debugPrint('✅ $status Success');
+    setState(() {
+      _isUpdating = true;
+      _lockedRequestIds.add(requestId);
+    });
 
-    
-//if (widget.initialRequestId != null) {
-  //context.read<AppState>().clearInitialPlaydateRequest();
-//}
+    final loc = AppLocalizations.of(context)!;
 
-if (widget.initialRequestId != null &&
-    _notificationRequestId == null) {
-  context.read<AppState>().clearInitialPlaydateRequest();
-}
+    try {
+      debugPrint('🔥 START $status');
 
+      final user = FirebaseAuth.instance.currentUser;
 
-// ✅ اگر این کاربر REQUESTED است (یعنی گیرنده درخواست بوده)
-// بعد از accept/reject باید برگرده به لیست pending
-final bool iAmRequestedUser = (currentUserId == requestedUserId);
+      if (user == null) {
+        debugPrint('🚫 Guest → cannot update request');
+        return;
+      }
 
-if (iAmRequestedUser) {
-  setState(() {
-    _switchToPendingMode();
-  });
-} else {
-  // ✅ اگر REQUESTER هست (درخواست‌دهنده)
-  // همون notification mode بمونه تا Reminder card رو ببینه
-  setState(() {});
-}
+      await user.reload();
+      final idToken = await user.getIdToken();
 
+      final functionName = status == 'accepted'
+          ? 'acceptPlayDateRequestHttp'
+          : 'rejectPlayDateRequestHttp';
 
-    setState(() {});
-  } catch (e) {
-    debugPrint('❌ ERROR in _setRequestStatus: $e');
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            loc.errorRespondingToRequestUnexpected(e.toString()),
-          ),
-        ),
+      final url = Uri.parse(
+        'https://europe-west3-barkymatches-new.cloudfunctions.net/$functionName',
       );
-    }
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isUpdating = false;
-      });
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'requestId': requestId,
+          'status': status,
+          'requesterUserId': requesterUserId,
+          'requestedUserId': requestedUserId,
+          'requesterDogId': requesterDogId,
+          'requestedDogId': requestedDogId,
+          'requesterDogName': requesterDogName,
+          'requestedDogName': requestedDogName,
+        }),
+      );
+
+      debugPrint('✅ HTTP ${response.statusCode}');
+      debugPrint('✅ BODY: ${response.body}');
+
+      if (response.statusCode != 200) {
+        throw Exception('Server error: ${response.body}');
+      }
+
+      debugPrint('✅ $status Success');
+
+      //if (widget.initialRequestId != null) {
+      //context.read<AppState>().clearInitialPlaydateRequest();
+      //}
+
+      if (widget.initialRequestId != null && _notificationRequestId == null) {
+        context.read<AppState>().clearInitialPlaydateRequest();
+      }
+
+      // ✅ اگر این کاربر REQUESTED است (یعنی گیرنده درخواست بوده)
+      // بعد از accept/reject باید برگرده به لیست pending
+      final bool iAmRequestedUser = (currentUserId == requestedUserId);
+
+      if (iAmRequestedUser) {
+        setState(() {
+          _switchToPendingMode();
+        });
+      } else {
+        // ✅ اگر REQUESTER هست (درخواست‌دهنده)
+        // همون notification mode بمونه تا Reminder card رو ببینه
+        setState(() {});
+      }
+
+      setState(() {});
+    } catch (e) {
+      debugPrint('❌ ERROR in _setRequestStatus: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.errorRespondingToRequestUnexpected(e.toString())),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
     }
   }
-}
 
-// ─────────────────────────────────────────────
-// ACTION: create reminder
-// ─────────────────────────────────────────────
-Future<void> _createReminder(
-  String requestId,
-  int minutesBefore,
-) async {
-  final loc = AppLocalizations.of(context)!;
- final appState = context.read<AppState>();
+  // ─────────────────────────────────────────────
+  // ACTION: create reminder
+  // ─────────────────────────────────────────────
+  Future<void> _createReminder(String requestId, int minutesBefore) async {
+    final loc = AppLocalizations.of(context)!;
+    final appState = context.read<AppState>();
 
-  if (appState.isGuest || FirebaseAuth.instance.currentUser == null) {
-    debugPrint('🚫 Guest/no user → skip reminder creation');
+    if (appState.isGuest || FirebaseAuth.instance.currentUser == null) {
+      debugPrint('🚫 Guest/no user → skip reminder creation');
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(loc.pleaseLoginToSetReminders),
-      ),
-    );
-    return;
-  }
-
-  try {
-    debugPrint('⏰ Calling createPlaydateReminder');
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      debugPrint('🚫 User became null before reminder call');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(loc.pleaseLoginToSetReminders)));
       return;
     }
 
-    await user.reload();
+    try {
+      debugPrint('⏰ Calling createPlaydateReminder');
 
-    final callable = FirebaseFunctions.instanceFor(
-      region: 'europe-west3',
-    ).httpsCallable('createPlaydateReminder');
+      final user = FirebaseAuth.instance.currentUser;
 
-    final result = await callable.call({
-      'requestId': requestId,
-      'minutesBefore': minutesBefore,
-    });
+      if (user == null) {
+        debugPrint('🚫 User became null before reminder call');
+        return;
+      }
 
-    debugPrint('✅ Reminder created: ${result.data}');
+      await user.reload();
 
-    if (!mounted) return;
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('createPlaydateReminder');
 
-    setState(() {
-      _myReminders.add('${requestId}_$minutesBefore');
-    });
+      final result = await callable.call({
+        'requestId': requestId,
+        'minutesBefore': minutesBefore,
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          loc.reminderSetForMinutesBefore(minutesBefore.toString()),
+      debugPrint('✅ Reminder created: ${result.data}');
+
+      if (!mounted) return;
+
+      setState(() {
+        _myReminders.add('${requestId}_$minutesBefore');
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            loc.reminderSetForMinutesBefore(minutesBefore.toString()),
+          ),
         ),
-      ),
-    );
-  } catch (e) {
-    debugPrint('❌ Failed to create reminder: $e');
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to create reminder: $e');
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(loc.failedToSetReminder),
-      ),
-    );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(loc.failedToSetReminder)));
+    }
   }
-}
-
-
 
   Future<bool> _confirmRejectDialog() async {
     final loc = AppLocalizations.of(context)!;
@@ -572,99 +544,91 @@ Future<void> _createReminder(
   }
 
   Future<String> _loadDogName(String dogId) async {
-    final snap =
-        await FirebaseFirestore.instance.collection('dogs').doc(dogId).get();
+    final snap = await FirebaseFirestore.instance
+        .collection('dogs')
+        .doc(dogId)
+        .get();
     return snap.data()?['name'] ?? '';
   }
-
-
 
   // ─────────────────────────────────────────────
   // UI
   // ─────────────────────────────────────────────
 
   Widget _buildRequestCard(PlayDateRequest request) {
-
     final bool isRequester = currentUserId == request.requesterUserId;
-final bool isRequested = currentUserId == request.requestedUserId;
+    final bool isRequested = currentUserId == request.requestedUserId;
 
     final loc = AppLocalizations.of(context)!;
     final locationMap = _parseLocation(request.location);
 
     final isReceiver = currentUserId == request.requestedUserId;
     final canSeeReminder = request.status == 'accepted';
-    final isFromNotification = _notificationRequestId != null &&
-    _notificationRequestId!.isNotEmpty;
+    final isFromNotification =
+        _notificationRequestId != null && _notificationRequestId!.isNotEmpty;
 
+    if ((request.status == 'accepted' || request.status == 'rejected') &&
+        currentUserId == request.requesterUserId) {
+      // اگر از notification آمده و pending نیست، باز هم نمایش بده
+      //if (isFromNotification && request.status != 'pending') {
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        color: const Color(0xFF9E1B4F),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // 🔑 خیلی مهم
+            children: [
+              Icon(
+                request.status == 'accepted'
+                    ? Icons.favorite
+                    : Icons.heart_broken,
+                color: request.status == 'accepted'
+                    ? Colors.greenAccent
+                    : Colors.orangeAccent,
+                size: 42,
+              ),
+              const SizedBox(height: 12),
 
-    if ((request.status == 'accepted' || request.status == 'rejected') 
-    && currentUserId == request.requesterUserId) {
-    
-    // اگر از notification آمده و pending نیست، باز هم نمایش بده
-    //if (isFromNotification && request.status != 'pending') {
-  return Card(
-    margin: const EdgeInsets.symmetric(vertical: 16),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    color: const Color(0xFF9E1B4F),
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // 🔑 خیلی مهم
-        children: [
-          Icon(
-            request.status == 'accepted'
-                ? Icons.favorite
-                : Icons.heart_broken,
-            color: request.status == 'accepted'
-                ? Colors.greenAccent
-                : Colors.orangeAccent,
-            size: 42,
+              /// ───────────────── Tabs Section ─────────────────
+              const SizedBox(height: 16),
+
+              /// ───────────────── Status Text ─────────────────
+              Text(
+                request.status == 'accepted'
+                    ? loc.playdateAcceptedCardTitle
+                    : loc.playdateRejectedCardTitle,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                request.status == 'accepted'
+                    ? loc.playdateAcceptedCardBody(request.requestedDog.name)
+                    : loc.playdateRejectedCardBody(request.requestedDog.name),
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-
-          /// ───────────────── Tabs Section ─────────────────
-          
-
-          const SizedBox(height: 16),
-
-          /// ───────────────── Status Text ─────────────────
-          Text(
-            request.status == 'accepted'
-                ? loc.playdateAcceptedCardTitle
-                : loc.playdateRejectedCardTitle,
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            request.status == 'accepted'
-                ? loc.playdateAcceptedCardBody(request.requestedDog.name)
-                : loc.playdateRejectedCardBody(request.requestedDog.name),
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.white70,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    ),
-  );
-}
+        ),
+      );
+    }
 
     // در حالت normal فقط pending نمایش داده بشه
     //if (!isFromNotification && request.status != 'pending') {
-      //return const SizedBox.shrink();
+    //return const SizedBox.shrink();
     //}
 
     final scheduledText = request.scheduledDateTime != null
-        ? DateFormat('yyyy-MM-dd – HH:mm')
-  .format(request.scheduledDateTime!.toLocal())
-
+        ? DateFormat(
+            'yyyy-MM-dd – HH:mm',
+          ).format(request.scheduledDateTime!.toLocal())
         : loc.notScheduled;
 
     final isLocked =
@@ -700,10 +664,7 @@ final bool isRequested = currentUserId == request.requestedUserId;
                     }
 
                     return Text(
-                      loc.playdateRequestBody(
-                        snap1.data!,
-                        snap2.data!,
-                      ),
+                      loc.playdateRequestBody(snap1.data!, snap2.data!),
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 16,
@@ -717,42 +678,38 @@ final bool isRequested = currentUserId == request.requestedUserId;
             const SizedBox(height: 6),
             Text(
               '${loc.scheduledLabel} $scheduledText',
-              style: GoogleFonts.poppins(
-                color: Colors.white70,
-                fontSize: 13,
-              ),
+              style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
             ),
 
             if (canSeeReminder) ...[
-  const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-  DefaultTabController(
-    length: 2,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TabBar(
-          tabs: [
-            Tab(icon: Icon(Icons.pets), text: loc.dogTab),
-            Tab(icon: Icon(Icons.alarm), text: loc.reminderTab),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 260,
-          child: TabBarView(
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _buildDogTab(request),
-              _buildAlarmTab(request),
+              DefaultTabController(
+                length: 2,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TabBar(
+                      tabs: [
+                        Tab(icon: Icon(Icons.pets), text: loc.dogTab),
+                        Tab(icon: Icon(Icons.alarm), text: loc.reminderTab),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 260,
+                      child: TabBarView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _buildDogTab(request),
+                          _buildAlarmTab(request),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-          ),
-        ),
-      ],
-    ),
-  ),
-],
-
 
             if (locationMap != null) ...[
               const SizedBox(height: 8),
@@ -798,15 +755,15 @@ final bool isRequested = currentUserId == request.requestedUserId;
                       onPressed: isLocked
                           ? null
                           : () => _setRequestStatus(
-                                requestId: request.requestId,
-                                status: 'accepted',
-                                requesterUserId: request.requesterUserId,
-                                requestedUserId: request.requestedUserId ?? '',
-                                requesterDogId: request.requesterDogId,
-                                requestedDogId: request.requestedDogId,
-                                requesterDogName: request.requesterDog.name,
-                                requestedDogName: request.requestedDog.name,
-                              ),
+                              requestId: request.requestId,
+                              status: 'accepted',
+                              requesterUserId: request.requesterUserId,
+                              requestedUserId: request.requestedUserId ?? '',
+                              requesterDogId: request.requesterDogId,
+                              requestedDogId: request.requestedDogId,
+                              requesterDogName: request.requesterDog.name,
+                              requestedDogName: request.requestedDog.name,
+                            ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -861,247 +818,217 @@ final bool isRequested = currentUserId == request.requestedUserId;
   }
 
   Widget _buildPlaydateBody(BuildContext context) {
-  final loc = AppLocalizations.of(context)!;
+    final loc = AppLocalizations.of(context)!;
 
-  return Container(
-    color: const Color(0xFFFFF6F8),
-    child: StreamBuilder<List<PlayDateRequest>>(
-      stream: _requestsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
-          return const Center(
-              child: CircularProgressIndicator());
-        }
+    return Container(
+      color: const Color(0xFFFFF6F8),
+      child: StreamBuilder<List<PlayDateRequest>>(
+        stream: _requestsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              loc.errorLoadingRequestsStream(
-                snapshot.error.toString(),
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                loc.errorLoadingRequestsStream(snapshot.error.toString()),
+                style: GoogleFonts.poppins(),
               ),
-              style: GoogleFonts.poppins(),
-            ),
-          );
-        }
-
-        final requests = snapshot.data ?? [];
-
-        if (requests.isEmpty) {
-          return Center(
-            child: Text(
-              loc.noPlaydateRequests,
-              style: GoogleFonts.poppins(),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: requests.length,
-          itemBuilder: (_, i) {
-            final request = requests[i];
-
-            _itemKeys.putIfAbsent(
-              request.requestId,
-              () => GlobalKey(),
             );
+          }
 
-            if (request.requestId == _notificationRequestId) {
-              WidgetsBinding.instance
-                  .addPostFrameCallback((_) {
-                final ctx = _itemKeys[
-                        request.requestId]
-                    ?.currentContext;
+          final requests = snapshot.data ?? [];
 
-                if (ctx != null) {
-                  Scrollable.ensureVisible(
-                    ctx,
-                    duration: const Duration(
-                        milliseconds: 400),
-                  );
-                }
-              });
-            }
-
-            return Container(
-              key: _itemKeys[request.requestId],
-              child:
-                  _buildRequestCard(request),
+          if (requests.isEmpty) {
+            return Center(
+              child: Text(loc.noPlaydateRequests, style: GoogleFonts.poppins()),
             );
-          },
-        );
-      },
-    ),
-  );
-}
+          }
 
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: requests.length,
+            itemBuilder: (_, i) {
+              final request = requests[i];
 
- @override
-Widget build(BuildContext context) {
-  debugPrint("PlayDateRequestsPageNew build → notificationRequestId=$_notificationRequestId");
+              _itemKeys.putIfAbsent(request.requestId, () => GlobalKey());
 
-  final appState = context.watch<AppState>();
+              if (request.requestId == _notificationRequestId) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final ctx = _itemKeys[request.requestId]?.currentContext;
 
-  // 👇 Guest
-  if (appState.isGuest) {
-    return _buildGuestView();
-  }
+                  if (ctx != null) {
+                    Scrollable.ensureVisible(
+                      ctx,
+                      duration: const Duration(milliseconds: 400),
+                    );
+                  }
+                });
+              }
 
-  // 👇 loading
-  if (_requestsStream == null || currentUserId == null) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  // 👇 MAIN (این همون چیزی بود که نداشتی ❗)
-  return Scaffold(
-    body: _buildPlaydateBody(context),
-  );
-}
-Widget _buildGuestView() {
-  final loc = AppLocalizations.of(context)!;
-  return Scaffold(
-    body: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            loc.pleaseLoginToViewPlaydateRequests,
-            style: TextStyle(fontSize: 16),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-
-Widget _buildAlarmTab(PlayDateRequest request) {
-  final loc = AppLocalizations.of(context)!;
- final bool hasSchedule = request.scheduledDateTime != null;
-final bool reminder30Set =
-    _myReminders.contains('${request.requestId}_30');
-final bool reminder60Set =
-    _myReminders.contains('${request.requestId}_60');
-
-
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      // 📅 Playdate time info
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        margin: const EdgeInsets.only(bottom: 20),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-        ),
-      child: Text(
-        hasSchedule
-              ? '📅 ${_formatPlaydateDate(request.scheduledDateTime!)}'
-              : loc.playdateTimeNotScheduledYet,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-
-      // ⏰ 30 minutes before
-      ElevatedButton.icon(
-        onPressed: hasSchedule && !reminder30Set
-    ? () => _createReminder(request.requestId, 30)
-    : null,
-
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          minimumSize: const Size(220, 48),
-          disabledBackgroundColor: Colors.grey.shade400,
-        ),
-        icon: const Icon(Icons.alarm),
-        label: Text(
-  reminder30Set
-      ? loc.reminderSet
-      : loc.thirtyMinutesBefore,
-),
-
-      ),
-
-      const SizedBox(height: 12),
-
-      // ⏰ 1 hour before
-      ElevatedButton.icon(
-        onPressed: hasSchedule && !reminder60Set
-    ? () => _createReminder(request.requestId, 60)
-    : null,
-
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          minimumSize: const Size(220, 48),
-          disabledBackgroundColor: Colors.grey.shade400,
-        ),
-        icon: const Icon(Icons.alarm),
-        label: Text(
-  reminder60Set
-      ? loc.reminderSet
-      : loc.oneHourBefore,
-),
-
-      ),
-    ],
-  );
-}
-
-Widget _buildDogTab(PlayDateRequest request) {
-  // 1️⃣ resolve Dog واقعی از dogsList
-  final Dog? realDog = widget.dogsList.firstWhereOrNull(
-    (d) => d.id == request.requesterDogId,
-  );
-
-  // 2️⃣ اگر هنوز Dog لود نشده، loader نشون بده
-  if (realDog == null) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: CircularProgressIndicator(),
+              return Container(
+                key: _itemKeys[request.requestId],
+                child: _buildRequestCard(request),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  // 3️⃣ DogCard فقط با Dog واقعی
-  return ConstrainedBox(
-    constraints: const BoxConstraints(
-      maxHeight: 220, // 👈 200–230 هم می‌تونی تست کنی
-    ),
-    child: SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: DogCard(
-        dog: realDog, // ✅ مهم: NOT request.requesterDog
-        allDogs: widget.dogsList,
-        currentUserId: currentUserId!,
-        favoriteDogs: widget.favoriteDogs,
-        onToggleFavorite: widget.onToggleFavorite,
-        likers: const [],
+  @override
+  Widget build(BuildContext context) {
+    debugPrint(
+      "PlayDateRequestsPageNew build → notificationRequestId=$_notificationRequestId",
+    );
 
-        // 🔒 Playdate-only mode
-        showDogSelection: false,
-        enableChat: true,
-        enableLike: false,
-        enableNavigation: false,
-        enableEdit: false,
-        enablePlaydate: false,
-        mode: DogCardMode.playdate,
+    final appState = context.watch<AppState>();
+
+    // 👇 Guest
+    if (appState.isGuest) {
+      return _buildGuestView();
+    }
+
+    // 👇 loading
+    if (_requestsStream == null || currentUserId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // 👇 MAIN (این همون چیزی بود که نداشتی ❗)
+    return Scaffold(body: _buildPlaydateBody(context));
+  }
+
+  Widget _buildGuestView() {
+    final loc = AppLocalizations.of(context)!;
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              loc.pleaseLoginToViewPlaydateRequests,
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
+  Widget _buildAlarmTab(PlayDateRequest request) {
+    final loc = AppLocalizations.of(context)!;
+    final bool hasSchedule = request.scheduledDateTime != null;
+    final bool reminder30Set = _myReminders.contains('${request.requestId}_30');
+    final bool reminder60Set = _myReminders.contains('${request.requestId}_60');
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 📅 Playdate time info
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            hasSchedule
+                ? '📅 ${_formatPlaydateDate(request.scheduledDateTime!)}'
+                : loc.playdateTimeNotScheduledYet,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+
+        // ⏰ 30 minutes before
+        ElevatedButton.icon(
+          onPressed: hasSchedule && !reminder30Set
+              ? () => _createReminder(request.requestId, 30)
+              : null,
+
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.black,
+            minimumSize: const Size(220, 48),
+            disabledBackgroundColor: Colors.grey.shade400,
+          ),
+          icon: const Icon(Icons.alarm),
+          label: Text(
+            reminder30Set ? loc.reminderSet : loc.thirtyMinutesBefore,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // ⏰ 1 hour before
+        ElevatedButton.icon(
+          onPressed: hasSchedule && !reminder60Set
+              ? () => _createReminder(request.requestId, 60)
+              : null,
+
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.black,
+            minimumSize: const Size(220, 48),
+            disabledBackgroundColor: Colors.grey.shade400,
+          ),
+          icon: const Icon(Icons.alarm),
+          label: Text(reminder60Set ? loc.reminderSet : loc.oneHourBefore),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDogTab(PlayDateRequest request) {
+    // 1️⃣ resolve Dog واقعی از dogsList
+    final Dog? realDog = widget.dogsList.firstWhereOrNull(
+      (d) => d.id == request.requesterDogId,
+    );
+
+    // 2️⃣ اگر هنوز Dog لود نشده، loader نشون بده
+    if (realDog == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // 3️⃣ DogCard فقط با Dog واقعی
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxHeight: 220, // 👈 200–230 هم می‌تونی تست کنی
+      ),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: DogCard(
+          dog: realDog, // ✅ مهم: NOT request.requesterDog
+          allDogs: widget.dogsList,
+          currentUserId: currentUserId!,
+          favoriteDogs: widget.favoriteDogs,
+          onToggleFavorite: widget.onToggleFavorite,
+          likers: const [],
+
+          // 🔒 Playdate-only mode
+          showDogSelection: false,
+          enableChat: true,
+          enableLike: false,
+          enableNavigation: false,
+          enableEdit: false,
+          enablePlaydate: false,
+          mode: DogCardMode.playdate,
+        ),
+      ),
+    );
+  }
 }

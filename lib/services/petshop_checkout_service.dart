@@ -6,7 +6,7 @@ class CheckoutSessionResult {
   final String checkoutUrl;
   final String provider;
   final String? token;
-final Map<String, dynamic>? pricing; // 🔥 اضافه کن
+  final Map<String, dynamic>? pricing; // 🔥 اضافه کن
 
   const CheckoutSessionResult({
     required this.orderId,
@@ -22,99 +22,96 @@ final Map<String, dynamic>? pricing; // 🔥 اضافه کن
       checkoutUrl: (json['checkoutUrl'] ?? '') as String,
       provider: (json['provider'] ?? 'iyzico') as String,
       token: json['token'] as String?,
-pricing: json['pricing'] != null
-    ? Map<String, dynamic>.from(json['pricing'])
-    : null,
+      pricing: json['pricing'] != null
+          ? Map<String, dynamic>.from(json['pricing'])
+          : null,
     );
   }
 }
 
 class PetshopCheckoutService {
-  final FirebaseFunctions _functions =
-      FirebaseFunctions.instanceFor(region: 'europe-west3');
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'europe-west3',
+  );
 
   Future<CheckoutSessionResult> createCheckoutSession({
-  required String orderId, // ✅ درست
-  required List<Map<String, dynamic>> items,
-  required String currency,
-  required String successUrl,
-  required String cancelUrl,
-  required Map<String, dynamic> buyer,
-  required Map<String, dynamic> shippingAddress,
-  required Map<String, dynamic> billingAddress,
-  required String carrier,
-  String? note,
-}) async {
-  try {
-    if (items.isEmpty) {
-      throw Exception("Cart is empty");
+    required String orderId, // ✅ درست
+    required List<Map<String, dynamic>> items,
+    required String currency,
+    required String successUrl,
+    required String cancelUrl,
+    required Map<String, dynamic> buyer,
+    required Map<String, dynamic> shippingAddress,
+    required Map<String, dynamic> billingAddress,
+    required String carrier,
+    String? note,
+  }) async {
+    try {
+      if (items.isEmpty) {
+        throw Exception("Cart is empty");
+      }
+
+      debugPrint("🟡 createCheckoutSession START");
+      debugPrint("🟡 items count = ${items.length}");
+
+      final callable = _functions.httpsCallable(
+        'createCheckoutSession',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 20)),
+      );
+
+      final payload = {
+        "orderId": orderId, // ✅ مهم‌ترین خط
+        "note": note,
+
+        "items": items,
+        "currency": currency,
+        "carrier": carrier,
+
+        "buyer": buyer,
+        "shippingAddress": shippingAddress,
+        "billingAddress": billingAddress,
+
+        "successUrl": successUrl,
+        "cancelUrl": cancelUrl,
+      };
+
+      debugPrint("🌐 PAYLOAD = $payload");
+      debugPrint("🚨 CALLING createCheckoutSession...");
+
+      final response = await callable.call(payload);
+      debugPrint("✅ RESPONSE RECEIVED");
+      final raw = response.data;
+
+      if (raw == null) {
+        throw Exception("Checkout response is null");
+      }
+
+      if (raw is! Map) {
+        throw Exception("Checkout response is not a map");
+      }
+
+      final data = Map<String, dynamic>.from(raw);
+
+      debugPrint("🔥 CHECKOUT RESPONSE DATA: $data");
+
+      return CheckoutSessionResult.fromJson(data);
+    } catch (e, st) {
+      debugPrint("💥 createCheckoutSession ERROR: $e");
+      debugPrint("📍 STACK: $st");
+      rethrow;
     }
-
-    debugPrint("🟡 createCheckoutSession START");
-    debugPrint("🟡 items count = ${items.length}");
-
-    final callable = _functions.httpsCallable(
-      'createCheckoutSession',
-      options: HttpsCallableOptions(
-        timeout: const Duration(seconds: 20),
-      ),
-    );
-
-    final payload = {
-  "orderId": orderId, // ✅ مهم‌ترین خط
-  "note": note,
-
-  "items": items,
-  "currency": currency,
-  "carrier": carrier,
-
-  "buyer": buyer,
-  "shippingAddress": shippingAddress,
-  "billingAddress": billingAddress,
-
-  "successUrl": successUrl,
-  "cancelUrl": cancelUrl,
-};
-
-    debugPrint("🌐 PAYLOAD = $payload");
-    debugPrint("🚨 CALLING createCheckoutSession...");
-
-    final response = await callable.call(payload);
-debugPrint("✅ RESPONSE RECEIVED");
-    final raw = response.data;
-
-    if (raw == null) {
-      throw Exception("Checkout response is null");
-    }
-
-    if (raw is! Map) {
-      throw Exception("Checkout response is not a map");
-    }
-
-    final data = Map<String, dynamic>.from(raw);
-
-    debugPrint("🔥 CHECKOUT RESPONSE DATA: $data");
-
-    return CheckoutSessionResult.fromJson(data);
-  } catch (e, st) {
-    debugPrint("💥 createCheckoutSession ERROR: $e");
-    debugPrint("📍 STACK: $st");
-    rethrow;
   }
-}
-Future<Map<String, dynamic>> calculatePricing({
-  required List<Map<String, dynamic>> items,
-  required String carrier,
-}) async {
-  final callable = FirebaseFunctions.instanceFor(
-    region: 'europe-west3',
-  ).httpsCallable('calculatePricing');
 
-  final res = await callable.call({
-    "items": items,
-    "carrier": carrier,
-  });
+  Future<Map<String, dynamic>> calculatePricing({
+    required List<Map<String, dynamic>> items,
+    required String carrier,
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'europe-west3',
+    ).httpsCallable('calculatePricing');
 
-  return Map<String, dynamic>.from(res.data);
-}
+    final res = await callable.call({"items": items, "carrier": carrier});
+
+    return Map<String, dynamic>.from(res.data);
+  }
 }

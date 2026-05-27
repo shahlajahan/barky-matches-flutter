@@ -342,7 +342,9 @@ class _PetHotelDetailsOverlayState extends State<PetHotelDetailsOverlay> {
         .orderBy('sortOrder')
         .snapshots()
         .handleError((e) {
-          debugPrint('🔥 FIRESTORE STREAM ERROR => businesses/${widget.data.id}/services :: $e');
+          debugPrint(
+            '🔥 FIRESTORE STREAM ERROR => businesses/${widget.data.id}/services :: $e',
+          );
         });
     debugPrint('🔥 LISTENING PATH => businesses/${widget.data.id}/services');
 
@@ -433,10 +435,8 @@ class _PetHotelDetailsOverlayState extends State<PetHotelDetailsOverlay> {
   }
 
   Widget _reviews() {
-  return PetHotelReviewsTab(
-    businessId: widget.data.id,
-  );
-}
+    return PetHotelReviewsTab(businessId: widget.data.id);
+  }
 
   Widget _gallery() {
     final images = _galleryImages();

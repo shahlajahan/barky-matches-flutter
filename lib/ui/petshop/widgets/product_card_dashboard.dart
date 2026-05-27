@@ -45,8 +45,7 @@ class ProductCardDashboard extends StatelessWidget {
     final p = product;
     final strength = _calculateStrength(p);
 
-    final hasDiscount =
-        p.salePrice != null && p.salePrice! < p.price;
+    final hasDiscount = p.salePrice != null && p.salePrice! < p.price;
 
     final displayPrice = p.finalPrice;
 
@@ -60,15 +59,12 @@ class ProductCardDashboard extends StatelessWidget {
         color: strength >= 80
             ? const Color(0xFF9E1B4F).withOpacity(0.03)
             : Colors.white,
-        border: Border.all(
-          color: const Color(0xFF9E1B4F).withOpacity(0.2),
-        ),
+        border: Border.all(color: const Color(0xFF9E1B4F).withOpacity(0.2)),
         boxShadow: AppTheme.cardShadow(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // =====================
           // 📸 MEDIA
           // =====================
@@ -82,7 +78,6 @@ class ProductCardDashboard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               // NAME + META
               Expanded(
                 child: Column(
@@ -98,12 +93,10 @@ class ProductCardDashboard extends StatelessWidget {
                     const SizedBox(height: 4),
 
                     if (p.barcode != null && p.barcode!.isNotEmpty)
-                      Text("Barcode: ${p.barcode}",
-                          style: AppTheme.caption()),
+                      Text("Barcode: ${p.barcode}", style: AppTheme.caption()),
 
                     if (p.sku != null && p.sku!.isNotEmpty)
-                      Text("SKU: ${p.sku}",
-                          style: AppTheme.caption()),
+                      Text("SKU: ${p.sku}", style: AppTheme.caption()),
                   ],
                 ),
               ),
@@ -114,7 +107,6 @@ class ProductCardDashboard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-
                   if (hasDiscount)
                     Text(
                       "${p.price} ${p.currency}",
@@ -156,17 +148,14 @@ class ProductCardDashboard extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              if (strength >= 80)
-                _badge("🔥 Strong", Colors.green),
+              if (strength >= 80) _badge("🔥 Strong", Colors.green),
 
               if (p.stock > 0 && p.stock <= 3)
                 _badge("⚡ Low Stock", Colors.red),
 
-              if (hasDiscount)
-                _badge("💸 Deal", Colors.orange),
+              if (hasDiscount) _badge("💸 Deal", Colors.orange),
 
-              if (p.media.length >= 3)
-                _badge("📸 Rich", Colors.blue),
+              if (p.media.length >= 3) _badge("📸 Rich", Colors.blue),
             ],
           ),
 
@@ -191,8 +180,10 @@ class ProductCardDashboard extends StatelessWidget {
               if (p.stock > 0 && p.stock <= 3)
                 const Padding(
                   padding: EdgeInsets.only(left: 8),
-                  child: Text("⚠ Low",
-                      style: TextStyle(color: Colors.red, fontSize: 11)),
+                  child: Text(
+                    "⚠ Low",
+                    style: TextStyle(color: Colors.red, fontSize: 11),
+                  ),
                 ),
             ],
           ),
@@ -202,10 +193,7 @@ class ProductCardDashboard extends StatelessWidget {
           // =====================
           // 🧠 STRENGTH BAR
           // =====================
-          LinearProgressIndicator(
-            value: strength / 100,
-            minHeight: 6,
-          ),
+          LinearProgressIndicator(value: strength / 100, minHeight: 6),
 
           const SizedBox(height: 10),
 
@@ -245,151 +233,150 @@ class ProductCardDashboard extends StatelessWidget {
   // 📸 MEDIA
   // =====================
   Widget _buildMedia(BuildContext context, Product p) {
-  if (p.media.isEmpty) {
-    return Container(
+    if (p.media.isEmpty) {
+      return Container(
+        height: 110,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey.shade700,
+        ),
+        child: const Center(
+          child: Icon(Icons.image_not_supported, color: Colors.white70),
+        ),
+      );
+    }
+
+    return SizedBox(
       height: 110,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.grey.shade700,
-      ),
-      child: const Center(
-        child: Icon(Icons.image_not_supported, color: Colors.white70),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: p.media.length,
+        itemBuilder: (_, i) {
+          final m = p.media[i];
+          final isVideo = m.type == "video";
+
+          final hasPlayback =
+              m.playbackUrl != null && m.playbackUrl!.trim().isNotEmpty;
+
+          final hasThumb =
+              m.thumbnailUrl != null && m.thumbnailUrl!.trim().isNotEmpty;
+
+          final hasImage = m.originalUrl.trim().isNotEmpty;
+
+          return GestureDetector(
+            onTap: () {
+              final safeMedia = p.media.where((media) {
+                if (media.type == "video") {
+                  return media.playbackUrl != null &&
+                      media.playbackUrl!.trim().isNotEmpty;
+                }
+                return media.originalUrl.trim().isNotEmpty;
+              }).toList();
+
+              if (safeMedia.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Media not ready yet")),
+                );
+                return;
+              }
+
+              final initialIndex = safeMedia.indexWhere((media) {
+                if (media.type == "video" && isVideo) {
+                  return media.playbackUrl == m.playbackUrl;
+                }
+                return media.originalUrl == m.originalUrl;
+              });
+
+              final items = safeMedia.map((media) {
+                return MediaItem(
+                  url: media.type == "video"
+                      ? media.playbackUrl!
+                      : media.originalUrl,
+                  type: media.type == "video"
+                      ? MediaType.video
+                      : MediaType.image,
+                );
+              }).toList();
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GalleryViewerPage(
+                    items: items,
+                    initialIndex: initialIndex < 0 ? 0 : initialIndex,
+                  ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (isVideo)
+                      SizedBox(
+                        width: 110,
+                        height: 110,
+                        child: hasPlayback
+                            ? SmartVideoPreview(
+                                videoUrl: m.playbackUrl!,
+                                thumbnail: hasThumb ? m.thumbnailUrl : null,
+                              )
+                            : hasThumb
+                            ? CachedNetworkImage(
+                                imageUrl: m.thumbnailUrl!,
+                                width: 110,
+                                height: 110,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: 110,
+                                height: 110,
+                                color: Colors.black,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.videocam_off,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ),
+                      )
+                    else
+                      SizedBox(
+                        width: 110,
+                        height: 110,
+                        child: hasImage
+                            ? CachedNetworkImage(
+                                imageUrl: m.originalUrl,
+                                width: 110,
+                                height: 110,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                color: Colors.grey.shade300,
+                                child: const Center(
+                                  child: Icon(Icons.broken_image),
+                                ),
+                              ),
+                      ),
+
+                    if (isVideo)
+                      const Icon(
+                        Icons.play_circle_fill,
+                        color: Colors.white,
+                        size: 36,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
-
-  return SizedBox(
-    height: 110,
-    child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: p.media.length,
-      itemBuilder: (_, i) {
-        final m = p.media[i];
-        final isVideo = m.type == "video";
-
-        final hasPlayback =
-            m.playbackUrl != null && m.playbackUrl!.trim().isNotEmpty;
-
-        final hasThumb =
-            m.thumbnailUrl != null && m.thumbnailUrl!.trim().isNotEmpty;
-
-        final hasImage =
-            m.originalUrl.trim().isNotEmpty;
-
-        return GestureDetector(
-          onTap: () {
-            final safeMedia = p.media.where((media) {
-              if (media.type == "video") {
-                return media.playbackUrl != null &&
-                    media.playbackUrl!.trim().isNotEmpty;
-              }
-              return media.originalUrl.trim().isNotEmpty;
-            }).toList();
-
-            if (safeMedia.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Media not ready yet")),
-              );
-              return;
-            }
-
-            final initialIndex = safeMedia.indexWhere((media) {
-              if (media.type == "video" && isVideo) {
-                return media.playbackUrl == m.playbackUrl;
-              }
-              return media.originalUrl == m.originalUrl;
-            });
-
-            final items = safeMedia.map((media) {
-              return MediaItem(
-                url: media.type == "video"
-                    ? media.playbackUrl!
-                    : media.originalUrl,
-                type: media.type == "video"
-                    ? MediaType.video
-                    : MediaType.image,
-              );
-            }).toList();
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GalleryViewerPage(
-                  items: items,
-                  initialIndex: initialIndex < 0 ? 0 : initialIndex,
-                ),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (isVideo)
-                    SizedBox(
-                      width: 110,
-                      height: 110,
-                      child: hasPlayback
-                          ? SmartVideoPreview(
-                              videoUrl: m.playbackUrl!,
-                              thumbnail: hasThumb ? m.thumbnailUrl : null,
-                            )
-                          : hasThumb
-                              ? CachedNetworkImage(
-                                  imageUrl: m.thumbnailUrl!,
-                                  width: 110,
-                                  height: 110,
-                                  fit: BoxFit.cover,
-                                )
-                              : Container(
-                                  width: 110,
-                                  height: 110,
-                                  color: Colors.black,
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.videocam_off,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                ),
-                    )
-                  else
-                    SizedBox(
-                      width: 110,
-                      height: 110,
-                      child: hasImage
-                          ? CachedNetworkImage(
-                              imageUrl: m.originalUrl,
-                              width: 110,
-                              height: 110,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              color: Colors.grey.shade300,
-                              child: const Center(
-                                child: Icon(Icons.broken_image),
-                              ),
-                            ),
-                    ),
-
-                  if (isVideo)
-                    const Icon(
-                      Icons.play_circle_fill,
-                      color: Colors.white,
-                      size: 36,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    ),
-  );
-}
 
   // =====================
   // 🚚 SHIPPING
@@ -407,23 +394,23 @@ class ProductCardDashboard extends StatelessWidget {
       parts.add("Free over ₺${p.freeShippingThreshold}");
     }
 
-    if (p.preparationDays != null &&
-        p.maxDeliveryDays != null) {
+    if (p.preparationDays != null && p.maxDeliveryDays != null) {
       parts.add("${p.preparationDays}-${p.maxDeliveryDays} days");
     }
 
     return Wrap(
       spacing: 6,
       children: parts
-          .map((e) => Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(e, style: AppTheme.caption()),
-              ))
+          .map(
+            (e) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(e, style: AppTheme.caption()),
+            ),
+          )
           .toList(),
     );
   }

@@ -31,18 +31,9 @@ enum ComplaintCategory {
   other,
 }
 
-enum ComplaintSeverity {
-  low,
-  medium,
-  high,
-  critical,
-}
+enum ComplaintSeverity { low, medium, high, critical }
 
-enum ComplaintPriority {
-  normal,
-  urgent,
-  escalated,
-}
+enum ComplaintPriority { normal, urgent, escalated }
 
 enum ComplaintStatus {
   open,
@@ -206,7 +197,7 @@ class ComplaintModel {
   final String title;
   final String description;
 
-final String? screenshotUrl;
+  final String? screenshotUrl;
   final ComplaintStatus status;
 
   final String? assignedAdminId;
@@ -242,9 +233,9 @@ final String? screenshotUrl;
     required this.priority,
     required this.title,
     required this.description,
-required this.status,
+    required this.status,
 
-this.screenshotUrl,
+    this.screenshotUrl,
     required this.assignedAdminId,
     required this.assignedAt,
     required this.reporterSnapshot,
@@ -279,9 +270,9 @@ this.screenshotUrl,
       title: '',
       description: '',
 
-screenshotUrl: null,
+      screenshotUrl: null,
 
-status: ComplaintStatus.open,
+      status: ComplaintStatus.open,
       assignedAdminId: null,
       assignedAt: null,
       reporterSnapshot: null,
@@ -303,16 +294,15 @@ status: ComplaintStatus.open,
   /// Firestore
   /// ------------------------------------------------------------
 
-  factory ComplaintModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory ComplaintModel.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data() ?? <String, dynamic>{};
 
     return ComplaintModel.fromMap(data, docId: doc.id);
   }
 
-  factory ComplaintModel.fromMap(
-    Map<String, dynamic> map, {
-    String? docId,
-  }) {
+  factory ComplaintModel.fromMap(Map<String, dynamic> map, {String? docId}) {
     return ComplaintModel(
       id: docId ?? (map['complaintId'] ?? map['id'] ?? '').toString(),
       createdBy: (map['createdBy'] ?? '').toString(),
@@ -326,9 +316,9 @@ status: ComplaintStatus.open,
       title: (map['title'] ?? '').toString(),
       description: (map['description'] ?? '').toString(),
 
-screenshotUrl: map['screenshotUrl']?.toString(),
+      screenshotUrl: map['screenshotUrl']?.toString(),
 
-status: _parseStatus(map['status']),
+      status: _parseStatus(map['status']),
       assignedAdminId: map['assignedAdminId']?.toString(),
       assignedAt: _readDateTime(map['assignedAt']),
       reporterSnapshot: map['reporterSnapshot'] is Map<String, dynamic>
@@ -356,9 +346,7 @@ status: _parseStatus(map['status']),
     );
   }
 
-  Map<String, dynamic> toMap({
-    bool includeId = false,
-  }) {
+  Map<String, dynamic> toMap({bool includeId = false}) {
     final data = <String, dynamic>{
       'createdBy': createdBy,
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
@@ -371,9 +359,9 @@ status: _parseStatus(map['status']),
       'title': title,
       'description': description,
 
-'screenshotUrl': screenshotUrl,
+      'screenshotUrl': screenshotUrl,
 
-'status': _statusToFirestore(status),
+      'status': _statusToFirestore(status),
       'assignedAdminId': assignedAdminId,
       'assignedAt': assignedAt == null ? null : Timestamp.fromDate(assignedAt!),
       'reporterSnapshot': reporterSnapshot?.toMap(),
@@ -417,7 +405,8 @@ status: _parseStatus(map['status']),
 
   bool get isDismissed => status == ComplaintStatus.dismissed;
 
-  bool get isAssigned => assignedAdminId != null && assignedAdminId!.trim().isNotEmpty;
+  bool get isAssigned =>
+      assignedAdminId != null && assignedAdminId!.trim().isNotEmpty;
 
   bool get isHighRisk =>
       severity == ComplaintSeverity.high ||
@@ -579,11 +568,9 @@ List<String> _readStringList(dynamic value) {
 }
 
 ComplaintTargetType _parseTargetType(dynamic value) {
-
   final raw = (value ?? '').toString().trim().toLowerCase();
 
   switch (raw) {
-
     case 'dog':
       return ComplaintTargetType.dog;
 
@@ -869,7 +856,7 @@ String _targetTypeLabel(ComplaintTargetType targetType) {
       return 'System';
     case ComplaintTargetType.unknown:
       return 'Unknown';
-      case ComplaintTargetType.app:
-  return 'App';
+    case ComplaintTargetType.app:
+      return 'App';
   }
 }

@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../../app_state.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 
-
 class ParkPlaydateEntryView extends StatelessWidget {
   final Map<String, dynamic> park;
   final VoidCallback onClose;
@@ -88,12 +87,12 @@ class ParkPlaydateEntryView extends StatelessWidget {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: () {
-  final appState = context.read<AppState>();
+                      final appState = context.read<AppState>();
 
-  appState.setCurrentTab(NavTab.playdateScheduling);
+                      appState.setCurrentTab(NavTab.playdateScheduling);
 
-  appState.closePlaydateParkStep(); // overlay بسته شود
-},
+                      appState.closePlaydateParkStep(); // overlay بسته شود
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
                       foregroundColor: Colors.black,

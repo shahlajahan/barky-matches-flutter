@@ -950,28 +950,28 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                     ),
 
                     Positioned(
-  bottom: 86,
-  left: 16,
-  right: 16,
+                      bottom: 86,
+                      left: 16,
+                      right: 16,
 
-  child: MedicalRecordFlowButton(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const MedicalRecordsPage(),
-        ),
-      );
-    },
-  ),
-),
+                      child: MedicalRecordFlowButton(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MedicalRecordsPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
 
-Positioned(
-  bottom: 0,
-  left: 0,
-  right: 0,
-  child: _buildEducationBox(),
-),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: _buildEducationBox(),
+                    ),
                   ],
                 ),
         ),

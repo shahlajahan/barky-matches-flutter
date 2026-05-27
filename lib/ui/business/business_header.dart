@@ -5,19 +5,13 @@ import '../admin/admin_risk_badge.dart';
 class BusinessHeader extends StatelessWidget {
   final Map<String, dynamic> data;
 
-  const BusinessHeader({
-    super.key,
-    required this.data,
-  });
+  const BusinessHeader({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final profile =
-        (data['profile'] as Map?)?.cast<String, dynamic>() ?? {};
-    final contact =
-        (data['contact'] as Map?)?.cast<String, dynamic>() ?? {};
-    final trust =
-        (data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
+    final profile = (data['profile'] as Map?)?.cast<String, dynamic>() ?? {};
+    final contact = (data['contact'] as Map?)?.cast<String, dynamic>() ?? {};
+    final trust = (data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
     final verification =
         (data['verification'] as Map?)?.cast<String, dynamic>() ?? {};
 
@@ -28,15 +22,13 @@ class BusinessHeader extends StatelessWidget {
     final city = contact['city'] ?? "";
     final district = contact['district'] ?? "";
 
-    final riskFlags =
-        (trust['riskFlags'] as List?)?.cast<String>() ?? [];
+    final riskFlags = (trust['riskFlags'] as List?)?.cast<String>() ?? [];
 
     final isVerified = verification['isVerified'] == true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
         /// 🔷 TITLE ROW
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,13 +72,8 @@ class BusinessHeader extends StatelessWidget {
             const Icon(Icons.location_on_outlined, size: 16),
             const SizedBox(width: 4),
             Text(
-              [district, city]
-                  .where((e) => e.toString().isNotEmpty)
-                  .join(", "),
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black54,
-              ),
+              [district, city].where((e) => e.toString().isNotEmpty).join(", "),
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
             ),
           ],
         ),
@@ -103,10 +90,7 @@ class _BusinessTypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFE3F2FD),
         borderRadius: BorderRadius.circular(30),
@@ -132,10 +116,7 @@ class _VerificationBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isVerified) {
       return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: const Color(0xFFF3E5F5),
           borderRadius: BorderRadius.circular(30),
@@ -152,10 +133,7 @@ class _VerificationBadge extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFE8F5E9),
         borderRadius: BorderRadius.circular(30),

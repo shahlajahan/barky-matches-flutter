@@ -4,17 +4,12 @@ import '../admin/admin_section.dart';
 class BusinessLegalSection extends StatelessWidget {
   final Map<String, dynamic> data;
 
-  const BusinessLegalSection({
-    super.key,
-    required this.data,
-  });
+  const BusinessLegalSection({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final legal =
-        (data['legal'] as Map?)?.cast<String, dynamic>() ?? {};
-    final trust =
-        (data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
+    final legal = (data['legal'] as Map?)?.cast<String, dynamic>() ?? {};
+    final trust = (data['trust'] as Map?)?.cast<String, dynamic>() ?? {};
     final verification =
         (data['verification'] as Map?)?.cast<String, dynamic>() ?? {};
 
@@ -27,19 +22,15 @@ class BusinessLegalSection extends StatelessWidget {
     final extractedTax = ocrData['extractedTaxNumber']?.toString();
     final extractedMersis = ocrData['extractedMersisNumber']?.toString();
 
-    final riskFlags =
-        (trust['riskFlags'] as List?)?.cast<String>() ?? [];
+    final riskFlags = (trust['riskFlags'] as List?)?.cast<String>() ?? [];
 
     return AdminSection(
       title: "Legal Information",
       icon: Icons.gavel_outlined,
-      accentColor: riskFlags.isNotEmpty
-          ? Colors.orange
-          : null,
+      accentColor: riskFlags.isNotEmpty ? Colors.orange : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           /// 🔷 TAX NUMBER
           _ComparisonRow(
             label: "Tax Number",
@@ -63,10 +54,7 @@ class BusinessLegalSection extends StatelessWidget {
               children: const [
                 Icon(Icons.check_circle, size: 16, color: Colors.green),
                 SizedBox(width: 6),
-                Text(
-                  "Disclaimer accepted",
-                  style: TextStyle(fontSize: 13),
-                ),
+                Text("Disclaimer accepted", style: TextStyle(fontSize: 13)),
               ],
             ),
         ],
@@ -89,32 +77,23 @@ class _ComparisonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMatch =
-        submitted != null &&
-        extracted != null &&
-        submitted == extracted;
+        submitted != null && extracted != null && submitted == extracted;
 
     final hasMismatch =
-        submitted != null &&
-        extracted != null &&
-        submitted != extracted;
+        submitted != null && extracted != null && submitted != extracted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.black54,
-          ),
+          style: const TextStyle(fontSize: 13, color: Colors.black54),
         ),
 
         const SizedBox(height: 6),
 
         Row(
           children: [
-
             /// Submitted
             Expanded(
               child: _ValueBox(
@@ -134,8 +113,8 @@ class _ComparisonRow extends StatelessWidget {
                 color: isMatch
                     ? Colors.green.shade50
                     : hasMismatch
-                        ? Colors.red.shade50
-                        : Colors.grey.shade100,
+                    ? Colors.red.shade50
+                    : Colors.grey.shade100,
               ),
             ),
           ],
@@ -181,18 +160,12 @@ class _ValueBox extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black54,
-            ),
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
           ),
           const SizedBox(height: 4),
           Text(
             value ?? "—",
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ],
       ),

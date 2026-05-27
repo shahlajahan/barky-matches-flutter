@@ -97,11 +97,9 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
 
     final serviceTitle = data['serviceTitle'] ?? '';
 
-    final rawPrice =
-    data['price'] ??
-    data['servicePrice'];
+    final rawPrice = data['price'] ?? data['servicePrice'];
 
-final price = rawPrice?.toString() ?? '0';
+    final price = rawPrice?.toString() ?? '0';
 
     final notes = data['notes'] ?? '';
 
@@ -280,25 +278,22 @@ final price = rawPrice?.toString() ?? '0';
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-  final rawPrice =
-      data['price'] ??
-      data['servicePrice'];
+                      final rawPrice = data['price'] ?? data['servicePrice'];
 
-  final numericPrice = rawPrice is num
-      ? rawPrice.toDouble()
-      : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
+                      final numericPrice = rawPrice is num
+                          ? rawPrice.toDouble()
+                          : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
 
-  final nextStatus =
-      numericPrice > 0
-          ? 'awaiting_payment'
-          : 'confirmed';
+                      final nextStatus = numericPrice > 0
+                          ? 'awaiting_payment'
+                          : 'confirmed';
 
-  _updateAppointmentStatus(
-    context,
-    appointmentId,
-    nextStatus,
-  );
-},
+                      _updateAppointmentStatus(
+                        context,
+                        appointmentId,
+                        nextStatus,
+                      );
+                    },
 
                     child: const Text("Accept"),
                   ),
@@ -349,44 +344,29 @@ final price = rawPrice?.toString() ?? '0';
   }
 
   Future<void> _updateAppointmentStatus(
-  BuildContext context,
-  String appointmentId,
-  String newStatus,
-) async {
-  try {
-    await FirebaseFunctions.instanceFor(
-  region: 'europe-west3',
-).httpsCallable(
-  'updateGroomyAppointmentStatus',
-).call({
-  'appointmentId': appointmentId,
-  'newStatus': newStatus,
-});
-    if (!context.mounted) return;
+    BuildContext context,
+    String appointmentId,
+    String newStatus,
+  ) async {
+    try {
+      await FirebaseFunctions.instanceFor(region: 'europe-west3')
+          .httpsCallable('updateGroomyAppointmentStatus')
+          .call({'appointmentId': appointmentId, 'newStatus': newStatus});
+      if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Appointment updated: $newStatus",
-        ),
-      ),
-    );
-  } catch (e) {
-    debugPrint(
-      "❌ GROOMY UPDATE ERROR: $e",
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Appointment updated: $newStatus")),
+      );
+    } catch (e) {
+      debugPrint("❌ GROOMY UPDATE ERROR: $e");
 
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Update failed: $e",
-        ),
-      ),
-    );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Update failed: $e")));
+    }
   }
-}
 
   Widget _centerText(String text) {
     return Center(

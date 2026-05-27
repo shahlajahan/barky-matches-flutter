@@ -2,23 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminFeedbackDetailPage extends StatelessWidget {
-
   final DocumentSnapshot doc;
 
-  const AdminFeedbackDetailPage({
-    super.key,
-    required this.doc,
-  });
+  const AdminFeedbackDetailPage({super.key, required this.doc});
 
   @override
   Widget build(BuildContext context) {
-
     final data = doc.data() as Map<String, dynamic>;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Feedback Detail"),
-      ),
+      appBar: AppBar(title: const Text("Feedback Detail")),
 
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -26,7 +19,6 @@ class AdminFeedbackDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             Text("Rating: ${data["rating"]}"),
             const SizedBox(height: 10),
 
@@ -43,8 +35,7 @@ class AdminFeedbackDetailPage extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            Text("Status: ${data["status"]}")
-
+            Text("Status: ${data["status"]}"),
           ],
         ),
       ),

@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
@@ -24,7 +22,6 @@ import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 enum DogCardMode {
   normal,
   playdate,
@@ -32,7 +29,6 @@ enum DogCardMode {
   adoption,
   profile, // 🔥 NEW
 }
-
 
 class DogCard extends StatefulWidget {
   final DogCardMode mode;
@@ -54,34 +50,32 @@ class DogCard extends StatefulWidget {
   final bool enableEdit;
   final bool enablePlaydate;
   final bool disableTap;
-  
-  
 
-  final VoidCallback? onCardTap;   // ✅ اینجا
+  final VoidCallback? onCardTap; // ✅ اینجا
 
   const DogCard({
-  super.key,
-  required this.dog,
-  required this.allDogs,
-  required this.currentUserId,
-  this.favoriteDogs,
-  this.selectedRequesterDogId,
-  this.onRequesterDogChanged,
-  this.onToggleFavorite,
-  this.onDogUpdated,
-  this.onAdopt,
-  this.getSelectedDog,
-  this.showDogSelection = true,
-  required this.likers,
-  this.enableChat = true,
-  this.enableLike = true,
-  this.enableNavigation = true,
-  this.enableEdit = true,
-  this.enablePlaydate = true,
-  this.mode = DogCardMode.normal,
-  this.onCardTap, // ✅ اینجا
-  this.disableTap = false,
-});
+    super.key,
+    required this.dog,
+    required this.allDogs,
+    required this.currentUserId,
+    this.favoriteDogs,
+    this.selectedRequesterDogId,
+    this.onRequesterDogChanged,
+    this.onToggleFavorite,
+    this.onDogUpdated,
+    this.onAdopt,
+    this.getSelectedDog,
+    this.showDogSelection = true,
+    required this.likers,
+    this.enableChat = true,
+    this.enableLike = true,
+    this.enableNavigation = true,
+    this.enableEdit = true,
+    this.enablePlaydate = true,
+    this.mode = DogCardMode.normal,
+    this.onCardTap, // ✅ اینجا
+    this.disableTap = false,
+  });
 
   @override
   _DogCardState createState() => _DogCardState();
@@ -89,19 +83,18 @@ class DogCard extends StatefulWidget {
 
 class _DogCardState extends State<DogCard>
     with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
-
   late AppLocalizations localizations;
-final bool _showHeart = false;
-final double _heartScale = 0.5;
+  final bool _showHeart = false;
+  final double _heartScale = 0.5;
   bool _isEditing = false;
   bool _isDialogOpen = false;
   final double _dragX = 0;
-bool get _enableHero => widget.mode == DogCardMode.normal;
+  bool get _enableHero => widget.mode == DogCardMode.normal;
   late ScaffoldMessengerState _scaffoldMessenger;
 
   int _vaccineCount = 0;
 
-bool _vaccinesLoading = true;
+  bool _vaccinesLoading = true;
 
   int _likeCount = 0;
   bool _isDisliked = false;
@@ -109,661 +102,606 @@ bool _vaccinesLoading = true;
   bool get isOwner => widget.dog.ownerId == widget.currentUserId;
 
   late AnimationController _pulseController;
-Animation<double>? _pulseAnimation;
+  Animation<double>? _pulseAnimation;
 
-int _currentIndex = 0;
-final PageController _pageController = PageController();
+  int _currentIndex = 0;
+  final PageController _pageController = PageController();
 
-Future<void> _loadVaccines() async {
-  try {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('dogs')
-            .doc(widget.dog.id)
-            .collection('vaccines')
-            .get();
+  Future<void> _loadVaccines() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('dogs')
+          .doc(widget.dog.id)
+          .collection('vaccines')
+          .get();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _vaccineCount =
-          snapshot.docs.length;
+      setState(() {
+        _vaccineCount = snapshot.docs.length;
 
-      _vaccinesLoading = false;
-    });
+        _vaccinesLoading = false;
+      });
 
-    debugPrint(
-      '🐶 OWNER DOG VACCINES → ${snapshot.docs.length}',
-    );
-  } catch (e) {
-    debugPrint(
-      '❌ OWNER VACCINES ERROR: $e',
-    );
+      debugPrint('🐶 OWNER DOG VACCINES → ${snapshot.docs.length}');
+    } catch (e) {
+      debugPrint('❌ OWNER VACCINES ERROR: $e');
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _vaccinesLoading = false;
-    });
+      setState(() {
+        _vaccinesLoading = false;
+      });
+    }
   }
-}
 
   @override
   bool get wantKeepAlive => true;
-Widget _buildImageWrapper(String? imagePath) {
-  return RepaintBoundary(
-    child: imagePath != null
-        ? _enableHero
-            ? Hero(
-                tag: "dog_${widget.dog.id}",
-                child: _buildExpandedDogImage(imagePath),
-              )
-            : _buildExpandedDogImage(imagePath)
-        : _fallbackImage(),
-  );
-}
-  
-Widget _buildActionButtons({
-  required bool isOwner,
-  required bool isFavorite,
-  Color? iconColor,
-}) {
-  final color = iconColor ?? AppTheme.primary;
-
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-    children: [
-
-      // ❤️ Like
-      if (!isOwner && widget.enableLike)
-        IconButton(
-          icon: Icon(
-            isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: isFavorite ? AppTheme.primary : AppTheme.muted,
-          ),
-          onPressed: () =>
-              widget.onToggleFavorite?.call(widget.dog),
-        ),
-
-      // 📅 Playdate
-      if (!isOwner &&
-          widget.enablePlaydate &&
-          !widget.dog.isAvailableForAdoption)
-        IconButton(
-          icon: const Icon(Icons.calendar_today),
-          color: color,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PlayDateSchedulingPage(
-                  selectedDog: widget.dog,
-                  allDogs: widget.allDogs,
-                ),
-              ),
-            );
-          },
-        ),
-
-      // 💬 Chat
-if (!isOwner && widget.enableChat)
-  IconButton(
-    icon: const Icon(Icons.chat_bubble_outline),
-    color: color,
-    onPressed: () async {
-
-      try {
-
-        final currentUserId = widget.currentUserId;
-        debugPrint("💬 widget.currentUserId = ${widget.currentUserId}");
-debugPrint("💬 FirebaseAuth uid = ${FirebaseAuth.instance.currentUser?.uid}");
-        final otherUserId = widget.dog.ownerId;
-
-        if (otherUserId == null || otherUserId.isEmpty) {
-          return;
-        }
-
-        debugPrint("💬 BEFORE GET OR CREATE CHAT");
-
-final chatId =
-    await ChatService.instance.getOrCreateChat(
-  currentUserId: currentUserId,
-  otherUserId: otherUserId,
-
-  currentUserName: 'You',
-  otherUserName: widget.dog.name,
-
-  currentUserPhoto: null,
-  otherUserPhoto: widget.dog.imagePaths.isNotEmpty
-      ? widget.dog.imagePaths.first
-      : null,
-);
-
-        if (!mounted) return;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ChatDetailPage(
-              chatId: chatId,
-              otherUserId: otherUserId,
-              otherUserName: widget.dog.name,
-            ),
-          ),
-        );
-
-      } catch (e) {
-
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Chat error: $e',
-            ),
-          ),
-        );
-      }
-    },
-  ),
-
-    ],
-  );
-}
-
-Widget _buildCompactDogCard(BuildContext context) {
-  final isOwner = widget.dog.ownerId == widget.currentUserId;
-final isHighlighted = widget.dog.isSponsored;
-  return GestureDetector(
-  onTap: widget.disableTap
-    ? null
-    : () {
-        widget.onCardTap?.call();
-      },
-  child: Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: isHighlighted ? Colors.white : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-     boxShadow: widget.dog.isSponsored
-    ? [
-        BoxShadow(
-          color: const Color(0xFF9E1B4F).withOpacity(0.25),
-          blurRadius: 20,
-          offset: const Offset(0, 6),
-        ),
-      ]
-    : AppTheme.cardShadow(),
-
-border: widget.dog.isSponsored
-    ? Border.all(
-        color: const Color(0xFF9E1B4F),
-        width: 1.5,
-      )
-    : null,
-    ),
-    child: Row(
-      children: [
-
-        // 🖼 IMAGE
-       Stack(
-  children: [
-    SizedBox(
-      width: 70,
-      height: 70,
-      child: _buildCompactImage(context),
-    ),
-
-    // 🔥 BOOST BADGE
-    if (widget.dog.isSponsored)
-      Positioned(
-        top: 2,
-        left: 2,
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF9E1B4F),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Icon(
-            Icons.bolt,
-            color: Colors.white,
-            size: 12,
-          ),
-        ),
-      ),
-  ],
-),
-
-        const SizedBox(width: 12),
-
-        // 📄 INFO
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-
-              Text(
-                widget.dog.name,
-                style: AppTheme.h2(),
-              ),
-
-              const SizedBox(height: 4),
-
-              Text(
-                translateBreed(widget.dog.breed),
-                style: AppTheme.caption(),
-              ),
-
-const SizedBox(height: 4),
-
-Text(
-  localizations.distanceUnknown,
-  style: AppTheme.caption(),
-),
-              const SizedBox(height: 6),
-
-              Row(
-                children: [
-                  _buildTag(translateGender(widget.dog.gender)),
-                  const SizedBox(width: 6),
-                  _buildTag(translateHealthStatus(widget.dog.healthStatus)),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        Icon(
-  Icons.chevron_right,
-  color: Colors.grey.shade400,
-),
-      ],
-    ),
-  ),
-  );
-}
-
-  Widget _buildCompactImage(BuildContext context) {
-  final paths = widget.dog.imagePaths;
-
-  if (paths.isEmpty) {
-    return _fallbackImage();
+  Widget _buildImageWrapper(String? imagePath) {
+    return RepaintBoundary(
+      child: imagePath != null
+          ? _enableHero
+                ? Hero(
+                    tag: "dog_${widget.dog.id}",
+                    child: _buildExpandedDogImage(imagePath),
+                  )
+                : _buildExpandedDogImage(imagePath)
+          : _fallbackImage(),
+    );
   }
 
-  final path = paths.first;
-  final isVideo = path.toLowerCase().contains('.mp4');
+  Widget _buildActionButtons({
+    required bool isOwner,
+    required bool isFavorite,
+    Color? iconColor,
+  }) {
+    final color = iconColor ?? AppTheme.primary;
 
-  return GestureDetector(
-  behavior: HitTestBehavior.opaque, // 🔥 مهم
-  onTap: () {
-    debugPrint("IMAGE TAP WORKED"); // تست
-    _openFullScreenViewer(0);
-  },
-  child: ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Stack(
-        children: [
-
-          // 🖼 IMAGE / VIDEO PREVIEW
-          AspectRatio(
-            aspectRatio: 1, // 👈 همه مربع (حل deform)
-            child: isVideo
-                ? Container(
-                    color: Colors.black,
-                    child: const Center(
-                      child: Icon(Icons.play_circle_fill,
-                          color: Colors.white, size: 30),
-                    ),
-                  )
-                : Image.network(
-  path,
-
-  fit: BoxFit.cover,
-
-  gaplessPlayback: true,
-
-  filterQuality: FilterQuality.medium,
-
-  errorBuilder: (
-    context,
-    error,
-    stackTrace,
-  ) {
-
-    return Container(
-      color: Colors.grey.shade200,
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.pets,
-        color: Colors.grey,
-        size: 28,
-      ),
-    );
-  },
-
-  loadingBuilder: (
-    context,
-    child,
-    progress,
-  ) {
-
-    if (progress == null) {
-      return child;
-    }
-
-    return Container(
-      color: Colors.grey.shade100,
-      alignment: Alignment.center,
-      child: const SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-        ),
-      ),
-    );
-  },
-),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // ❤️ Like
+        if (!isOwner && widget.enableLike)
+          IconButton(
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? AppTheme.primary : AppTheme.muted,
+            ),
+            onPressed: () => widget.onToggleFavorite?.call(widget.dog),
           ),
 
-          // 🔢 MULTI MEDIA COUNT
-          if (paths.length > 1)
-            Positioned(
-              bottom: 4,
-              right: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '+${paths.length - 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
+        // 📅 Playdate
+        if (!isOwner &&
+            widget.enablePlaydate &&
+            !widget.dog.isAvailableForAdoption)
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            color: color,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PlayDateSchedulingPage(
+                    selectedDog: widget.dog,
+                    allDogs: widget.allDogs,
                   ),
                 ),
-              ),
+              );
+            },
+          ),
+
+        // 💬 Chat
+        if (!isOwner && widget.enableChat)
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            color: color,
+            onPressed: () async {
+              try {
+                final currentUserId = widget.currentUserId;
+                debugPrint("💬 widget.currentUserId = ${widget.currentUserId}");
+                debugPrint(
+                  "💬 FirebaseAuth uid = ${FirebaseAuth.instance.currentUser?.uid}",
+                );
+                final otherUserId = widget.dog.ownerId;
+
+                if (otherUserId == null || otherUserId.isEmpty) {
+                  return;
+                }
+
+                debugPrint("💬 BEFORE GET OR CREATE CHAT");
+
+                final chatId = await ChatService.instance.getOrCreateChat(
+                  currentUserId: currentUserId,
+                  otherUserId: otherUserId,
+
+                  currentUserName: 'You',
+                  otherUserName: widget.dog.name,
+
+                  currentUserPhoto: null,
+                  otherUserPhoto: widget.dog.imagePaths.isNotEmpty
+                      ? widget.dog.imagePaths.first
+                      : null,
+                );
+
+                if (!mounted) return;
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatDetailPage(
+                      chatId: chatId,
+                      otherUserId: otherUserId,
+                      otherUserName: widget.dog.name,
+                    ),
+                  ),
+                );
+              } catch (e) {
+                if (!mounted) return;
+
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Chat error: $e')));
+              }
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCompactDogCard(BuildContext context) {
+    final isOwner = widget.dog.ownerId == widget.currentUserId;
+    final isHighlighted = widget.dog.isSponsored;
+    return GestureDetector(
+      onTap: widget.disableTap
+          ? null
+          : () {
+              widget.onCardTap?.call();
+            },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isHighlighted ? Colors.white : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: widget.dog.isSponsored
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF9E1B4F).withOpacity(0.25),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : AppTheme.cardShadow(),
+
+          border: widget.dog.isSponsored
+              ? Border.all(color: const Color(0xFF9E1B4F), width: 1.5)
+              : null,
+        ),
+        child: Row(
+          children: [
+            // 🖼 IMAGE
+            Stack(
+              children: [
+                SizedBox(
+                  width: 70,
+                  height: 70,
+                  child: _buildCompactImage(context),
+                ),
+
+                // 🔥 BOOST BADGE
+                if (widget.dog.isSponsored)
+                  Positioned(
+                    top: 2,
+                    left: 2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF9E1B4F),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(
+                        Icons.bolt,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                    ),
+                  ),
+              ],
             ),
 
-          // 🎥 VIDEO ICON
-          if (isVideo)
-            Positioned(
-              top: 4,
-              left: 4,
-              child: Icon(
-                Icons.videocam,
-                color: Colors.white,
-                size: 14,
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
-}
+            const SizedBox(width: 12),
 
-void _showBoostSheet(BuildContext context, Dog dog) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (_) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            // 📄 INFO
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(LucideIcons.zap, color: Color(0xFF9E1B4F)),
-                  const SizedBox(width: 8),
+                  Text(widget.dog.name, style: AppTheme.h2()),
+
+                  const SizedBox(height: 4),
+
                   Text(
-                    localizations.boostDogTitle(dog.name),
-                    style: AppTheme.h2(),
+                    translateBreed(widget.dog.breed),
+                    style: AppTheme.caption(),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    localizations.distanceUnknown,
+                    style: AppTheme.caption(),
+                  ),
+                  const SizedBox(height: 6),
+
+                  Row(
+                    children: [
+                      _buildTag(translateGender(widget.dog.gender)),
+                      const SizedBox(width: 6),
+                      _buildTag(translateHealthStatus(widget.dog.healthStatus)),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                localizations.boostVisibilityDescription,
-                style: AppTheme.body(color: AppTheme.muted),
-              ),
-              const SizedBox(height: 16),
+            ),
 
-              _boostOption(
-                title: localizations.boost24HoursTitle,
-                subtitle: localizations.boostQuickVisibilitySubtitle,
-                price: localizations.boostPrice29,
-                onTap: () => _boostDog(
-                  dog,
-                  hours: 24,
-                  boostScore: 80,
-                  sponsorshipType: 'boost_24h',
-                ),
-              ),
-
-              _boostOption(
-                title: localizations.boost3DaysTitle,
-                subtitle: localizations.boostBetterExposureSubtitle,
-                price: localizations.boostPrice69,
-                onTap: () => _boostDog(
-                  dog,
-                  hours: 72,
-                  boostScore: 120,
-                  sponsorshipType: 'boost_3d',
-                ),
-              ),
-
-              _boostOption(
-                title: localizations.boost7DaysTitle,
-                subtitle: localizations.boostBestValueSubtitle,
-                price: localizations.boostPrice129,
-                onTap: () => _boostDog(
-                  dog,
-                  hours: 168,
-                  boostScore: 180,
-                  sponsorshipType: 'boost_7d',
-                ),
-              ),
-            ],
-          ),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400),
+          ],
         ),
-      );
-    },
-  );
-}
-
-Widget _boostOption({
-  required String title,
-  required String subtitle,
-  required String price,
-  required VoidCallback onTap,
-}) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: Colors.grey.shade100,
-        border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.rocket_launch, color: Color(0xFF9E1B4F)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTheme.body().copyWith(
-                    fontWeight: FontWeight.w700,
+    );
+  }
+
+  Widget _buildCompactImage(BuildContext context) {
+    final paths = widget.dog.imagePaths;
+
+    if (paths.isEmpty) {
+      return _fallbackImage();
+    }
+
+    final path = paths.first;
+    final isVideo = path.toLowerCase().contains('.mp4');
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque, // 🔥 مهم
+      onTap: () {
+        debugPrint("IMAGE TAP WORKED"); // تست
+        _openFullScreenViewer(0);
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          children: [
+            // 🖼 IMAGE / VIDEO PREVIEW
+            AspectRatio(
+              aspectRatio: 1, // 👈 همه مربع (حل deform)
+              child: isVideo
+                  ? Container(
+                      color: Colors.black,
+                      child: const Center(
+                        child: Icon(
+                          Icons.play_circle_fill,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                    )
+                  : Image.network(
+                      path,
+
+                      fit: BoxFit.cover,
+
+                      gaplessPlayback: true,
+
+                      filterQuality: FilterQuality.medium,
+
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey.shade200,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.pets,
+                            color: Colors.grey,
+                            size: 28,
+                          ),
+                        );
+                      },
+
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) {
+                          return child;
+                        }
+
+                        return Container(
+                          color: Colors.grey.shade100,
+                          alignment: Alignment.center,
+                          child: const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+
+            // 🔢 MULTI MEDIA COUNT
+            if (paths.length > 1)
+              Positioned(
+                bottom: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '+${paths.length - 1}',
+                    style: const TextStyle(color: Colors.white, fontSize: 10),
                   ),
                 ),
-                const SizedBox(height: 4),
+              ),
+
+            // 🎥 VIDEO ICON
+            if (isVideo)
+              Positioned(
+                top: 4,
+                left: 4,
+                child: Icon(Icons.videocam, color: Colors.white, size: 14),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBoostSheet(BuildContext context, Dog dog) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(LucideIcons.zap, color: Color(0xFF9E1B4F)),
+                    const SizedBox(width: 8),
+                    Text(
+                      localizations.boostDogTitle(dog.name),
+                      style: AppTheme.h2(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  subtitle,
-                 style: AppTheme.caption().copyWith(
-  color: const Color(0xFF9E1B4F).withOpacity(0.6),
-),
+                  localizations.boostVisibilityDescription,
+                  style: AppTheme.body(color: AppTheme.muted),
+                ),
+                const SizedBox(height: 16),
+
+                _boostOption(
+                  title: localizations.boost24HoursTitle,
+                  subtitle: localizations.boostQuickVisibilitySubtitle,
+                  price: localizations.boostPrice29,
+                  onTap: () => _boostDog(
+                    dog,
+                    hours: 24,
+                    boostScore: 80,
+                    sponsorshipType: 'boost_24h',
+                  ),
+                ),
+
+                _boostOption(
+                  title: localizations.boost3DaysTitle,
+                  subtitle: localizations.boostBetterExposureSubtitle,
+                  price: localizations.boostPrice69,
+                  onTap: () => _boostDog(
+                    dog,
+                    hours: 72,
+                    boostScore: 120,
+                    sponsorshipType: 'boost_3d',
+                  ),
+                ),
+
+                _boostOption(
+                  title: localizations.boost7DaysTitle,
+                  subtitle: localizations.boostBestValueSubtitle,
+                  price: localizations.boostPrice129,
+                  onTap: () => _boostDog(
+                    dog,
+                    hours: 168,
+                    boostScore: 180,
+                    sponsorshipType: 'boost_7d',
+                  ),
                 ),
               ],
             ),
           ),
-          Text(
-            price,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF9E1B4F),
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-Future<void> _boostDog(
-  Dog dog, {
-  required int hours,
-  required int boostScore,
-  required String sponsorshipType,
-}) async {
-  final expiresAt = Timestamp.fromDate(
-    DateTime.now().add(Duration(hours: hours)),
-  );
-
-  try {
-    await FirebaseFirestore.instance
-        .collection('dogs')
-        .doc(dog.id)
-        .update({
-      'isSponsored': true,
-      'boostScore': boostScore,
-      'boostExpiresAt': expiresAt,
-      'sponsorshipType': sponsorshipType,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    if (!mounted) return;
-
-    Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(localizations.boostActivated)),
-    );
-  } catch (e) {
-    if (!mounted) return;
-
-    Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(localizations.boostFailed(e.toString()))),
+        );
+      },
     );
   }
-}
 
-Widget _fallbackImage() {
-  return Container(
-    width: double.infinity,
-    height: 180,
-    color: const Color(0xFF9E1B4F).withOpacity(0.05),
-    child: Center(
-      child: Image.asset(
-        'assets/image/logo.png', // 🔴 مسیر لوگوی خودت
-        width: 70,
-        height: 70,
-        fit: BoxFit.contain,
-      ),
-    ),
-  );
-}
-
- Widget _buildExpandedDogImage(String imagePath) {
-  final isVideo = imagePath.toLowerCase().contains('.mp4');
-
-  // 🚨 اگر ویدیو بود → اصلاً image لود نکن
-  if (isVideo) {
-    return Container(
-      width: double.infinity,
-      height: 180,
-      color: Colors.black,
-      child: const Center(
-        child: Icon(
-          Icons.play_circle_fill,
-          color: Colors.white,
-          size: 50,
+  Widget _boostOption({
+    required String title,
+    required String subtitle,
+    required String price,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: Colors.grey.shade100,
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.rocket_launch, color: Color(0xFF9E1B4F)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTheme.body().copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: AppTheme.caption().copyWith(
+                      color: const Color(0xFF9E1B4F).withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              price,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF9E1B4F),
+                fontSize: 15,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ✅ IMAGE (فقط اگر واقعاً عکس بود)
-  if (imagePath.startsWith('http')) {
-    return CachedNetworkImage(
-      imageUrl: imagePath,
+  Future<void> _boostDog(
+    Dog dog, {
+    required int hours,
+    required int boostScore,
+    required String sponsorshipType,
+  }) async {
+    final expiresAt = Timestamp.fromDate(
+      DateTime.now().add(Duration(hours: hours)),
+    );
+
+    try {
+      await FirebaseFirestore.instance.collection('dogs').doc(dog.id).update({
+        'isSponsored': true,
+        'boostScore': boostScore,
+        'boostExpiresAt': expiresAt,
+        'sponsorshipType': sponsorshipType,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(localizations.boostActivated)));
+    } catch (e) {
+      if (!mounted) return;
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(localizations.boostFailed(e.toString()))),
+      );
+    }
+  }
+
+  Widget _fallbackImage() {
+    return Container(
       width: double.infinity,
       height: 180,
-      fit: BoxFit.contain,
-      placeholder: (context, url) =>
-          Container(color: Colors.grey.shade200),
-      errorWidget: (context, url, error) {
-        return _fallbackImage();
-      },
+      color: const Color(0xFF9E1B4F).withOpacity(0.05),
+      child: Center(
+        child: Image.asset(
+          'assets/image/logo.png', // 🔴 مسیر لوگوی خودت
+          width: 70,
+          height: 70,
+          fit: BoxFit.contain,
+        ),
+      ),
     );
   }
 
-  return Image.file(
-    File(imagePath),
-    width: double.infinity,
-    height: 180,
-    fit: BoxFit.contain,
-    errorBuilder: (_, __, ___) => _fallbackImage(),
-  );
-}
-  @override
-void initState() {
-  super.initState();
+  Widget _buildExpandedDogImage(String imagePath) {
+    final isVideo = imagePath.toLowerCase().contains('.mp4');
 
-  _loadVaccines();
+    // 🚨 اگر ویدیو بود → اصلاً image لود نکن
+    if (isVideo) {
+      return Container(
+        width: double.infinity,
+        height: 180,
+        color: Colors.black,
+        child: const Center(
+          child: Icon(Icons.play_circle_fill, color: Colors.white, size: 50),
+        ),
+      );
+    }
 
-  _pulseController = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 2),
-  );
+    // ✅ IMAGE (فقط اگر واقعاً عکس بود)
+    if (imagePath.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: imagePath,
+        width: double.infinity,
+        height: 180,
+        fit: BoxFit.contain,
+        placeholder: (context, url) => Container(color: Colors.grey.shade200),
+        errorWidget: (context, url, error) {
+          return _fallbackImage();
+        },
+      );
+    }
 
-  _pulseAnimation = Tween<double>(
-    begin: 0.2,
-    end: 0.5,
-  ).animate(
-    CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ),
-  );
-
-  if (widget.dog.isSponsored) {
-    _pulseController.repeat(reverse: true);
+    return Image.file(
+      File(imagePath),
+      width: double.infinity,
+      height: 180,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => _fallbackImage(),
+    );
   }
-}
 
-@override
-void dispose() {
-  _pulseController.dispose();
-  super.dispose();
-}
+  @override
+  void initState() {
+    super.initState();
+
+    _loadVaccines();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+
+    _pulseAnimation = Tween<double>(begin: 0.2, end: 0.5).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    if (widget.dog.isSponsored) {
+      _pulseController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   String translateGender(String gender) {
     if (gender.isEmpty) {
@@ -821,1210 +759,1212 @@ void dispose() {
     }
   }
 
-  
-
   void _updateLikesAndFavorites() {
-  final appState = Provider.of<AppState>(context, listen: false);
-  final userId = widget.currentUserId;
-  final dogKey = widget.dog.id;
-  final likes = appState.likesNotifier.value;
-  final userLikes = likes[userId] ?? [];
+    final appState = Provider.of<AppState>(context, listen: false);
+    final userId = widget.currentUserId;
+    final dogKey = widget.dog.id;
+    final likes = appState.likesNotifier.value;
+    final userLikes = likes[userId] ?? [];
 
-  final newIsDisliked = userLikes.contains('dislike_$dogKey');
+    final newIsDisliked = userLikes.contains('dislike_$dogKey');
 
-  final newLikeCount = likes.values.fold(
-    0,
-    (count, likesList) => count + (likesList.contains(dogKey) ? 1 : 0),
-  );
+    final newLikeCount = likes.values.fold(
+      0,
+      (count, likesList) => count + (likesList.contains(dogKey) ? 1 : 0),
+    );
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  // حالا مقایسه امن است
-  if (_likeCount != newLikeCount || _isDisliked != newIsDisliked) {
-    setState(() {
-      _likeCount = newLikeCount;
-      _isDisliked = newIsDisliked;
-    });
+    // حالا مقایسه امن است
+    if (_likeCount != newLikeCount || _isDisliked != newIsDisliked) {
+      setState(() {
+        _likeCount = newLikeCount;
+        _isDisliked = newIsDisliked;
+      });
+    }
   }
-}
 
   @override
-void didChangeDependencies() {
-  super.didChangeDependencies();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-  // 🌍 localization
-  localizations = AppLocalizations.of(context)!;
+    // 🌍 localization
+    localizations = AppLocalizations.of(context)!;
 
-  // 📣 scaffold messenger (safe)
-  _scaffoldMessenger = ScaffoldMessenger.of(context);
-
-  
-}
-
-// ===============================
-// ✏️ EDIT DOG
-// ===============================
-Future<void> _openEditDialog(
-  BuildContext context,
-) async {
-
-  if (widget.onDogUpdated == null) return;
-
-  // 🚫 جلوگیری از double open
-  if (_isEditing || _isDialogOpen) return;
-
-  setState(() {
-    _isEditing = true;
-    _isDialogOpen = true;
-  });
-
-  try {
-
-    if (kDebugMode && false) {
-      debugPrint(
-        "✏️ Opening edit dialog for ${widget.dog.name}",
-      );
-    }
-
-    context
-        .read<AppState>()
-        .openEditDog(widget.dog);
-
-  } catch (e, stack) {
-
-    if (kDebugMode && false) {
-
-      debugPrint(
-        "❌ Edit dialog error: $e",
-      );
-
-      debugPrint("$stack");
-    }
-
-    if (mounted) {
-
-      _scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            localizations.errorOpeningEdit,
-            style: AppTheme.body(),
-          ),
-        ),
-      );
-    }
-
-  } finally {
-
-    if (mounted) {
-
-      setState(() {
-
-        _isEditing = false;
-        _isDialogOpen = false;
-      });
-
-    } else {
-
-      _isEditing = false;
-      _isDialogOpen = false;
-    }
+    // 📣 scaffold messenger (safe)
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
   }
-}
-// ===============================
-// 🐶 ADOPTION CARD (CLEAN + FAST)
-// ===============================
-Widget _buildAdoptionDogCard(BuildContext context) {
-  final imagePath = widget.dog.imagePaths.isNotEmpty
-      ? widget.dog.imagePaths.first
-      : null;
-debugPrint("🐶 dog owner: ${widget.dog.ownerId}");
-debugPrint("👤 current user: ${widget.currentUserId}");
-  return RepaintBoundary(
-    child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-  color: Colors.white,
-  borderRadius: BorderRadius.circular(AppTheme.radiusCard),
 
-  // 🔥 GLOW
-  boxShadow: widget.dog.isSponsored
-      ? [
-          BoxShadow(
-            color: const Color(0xFF9E1B4F).withOpacity(0.25),
-            blurRadius: 20,
-            spreadRadius: 1,
-            offset: const Offset(0, 6),
-          ),
-        ]
-      : AppTheme.cardShadow(),
+  // ===============================
+  // ✏️ EDIT DOG
+  // ===============================
+  Future<void> _openEditDialog(BuildContext context) async {
+    if (widget.onDogUpdated == null) return;
 
-  // 🟣 BORDER
-  border: widget.dog.isSponsored
-      ? Border.all(
-          color: const Color(0xFF9E1B4F),
-          width: 1.2,
-        )
-      : null,
-),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    // 🚫 جلوگیری از double open
+    if (_isEditing || _isDialogOpen) return;
 
-            // ===============================
-            // 🖼 IMAGE (OPTIMIZED)
-            // ===============================
-          Stack(
-  children: [
-    AspectRatio(
-  aspectRatio: 1, // 👈 مربع (بهترین برای سگ)
-  child: _buildImageWrapper(imagePath),
-),
+    setState(() {
+      _isEditing = true;
+      _isDialogOpen = true;
+    });
 
-    // 🔥 Boosted badge
-    if (widget.dog.isSponsored)
-      Positioned(
-        top: 10,
-        left: 10,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF9E1B4F),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(LucideIcons.zap, size: 14, color: Colors.black),
-              const SizedBox(width: 4),
-              Text(
-                localizations.boostBadge,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    try {
+      if (kDebugMode && false) {
+        debugPrint("✏️ Opening edit dialog for ${widget.dog.name}");
+      }
 
-    // 🚀 Boost button فقط برای صاحب سگ
-    if (widget.dog.ownerId == widget.currentUserId)
-      Positioned(
-        top: 10,
-        right: 10,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () => _showBoostSheet(context, widget.dog),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF9E1B4F),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(LucideIcons.zap, color: Colors.white, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    localizations.boostButton,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
+      context.read<AppState>().openEditDog(widget.dog);
+    } catch (e, stack) {
+      if (kDebugMode && false) {
+        debugPrint("❌ Edit dialog error: $e");
+
+        debugPrint("$stack");
+      }
+
+      if (mounted) {
+        _scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              localizations.errorOpeningEdit,
+              style: AppTheme.body(),
             ),
           ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isEditing = false;
+          _isDialogOpen = false;
+        });
+      } else {
+        _isEditing = false;
+        _isDialogOpen = false;
+      }
+    }
+  }
+
+  // ===============================
+  // 🐶 ADOPTION CARD (CLEAN + FAST)
+  // ===============================
+  Widget _buildAdoptionDogCard(BuildContext context) {
+    final imagePath = widget.dog.imagePaths.isNotEmpty
+        ? widget.dog.imagePaths.first
+        : null;
+    debugPrint("🐶 dog owner: ${widget.dog.ownerId}");
+    debugPrint("👤 current user: ${widget.currentUserId}");
+    return RepaintBoundary(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+
+          // 🔥 GLOW
+          boxShadow: widget.dog.isSponsored
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF9E1B4F).withOpacity(0.25),
+                    blurRadius: 20,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : AppTheme.cardShadow(),
+
+          // 🟣 BORDER
+          border: widget.dog.isSponsored
+              ? Border.all(color: const Color(0xFF9E1B4F), width: 1.2)
+              : null,
         ),
-      ),
-  ],
-),
-
-            // ===============================
-            // 📄 CONTENT
-            // ===============================
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ===============================
+              // 🖼 IMAGE (OPTIMIZED)
+              // ===============================
+              Stack(
                 children: [
-
-                  // 🐶 NAME
-                  Text(
-  widget.dog.name,
-  style: AppTheme.h1().copyWith(
-    color: const Color(0xFF9E1B4F),
-  ),
-),
-
-                  const SizedBox(height: 4),
-
-                  // 🎂 AGE + BREED
-                  Text(
-                    '${widget.dog.age}y • ${translateBreed(widget.dog.breed)}',
-                    style: AppTheme.body(color: AppTheme.muted),
+                  AspectRatio(
+                    aspectRatio: 1, // 👈 مربع (بهترین برای سگ)
+                    child: _buildImageWrapper(imagePath),
                   ),
 
-                  const SizedBox(height: 12),
-
-                  // 🏷 TAGS
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      _buildTag(translateGender(widget.dog.gender)),
-                      _buildTag(translateHealthStatus(widget.dog.healthStatus)),
-
-                      if (widget.dog.isNeutered)
-                        _buildTag(localizations.neutered),
-                    ],
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // ===============================
-                  // 🟡 CTA BUTTON
-                  // ===============================
-                  if (widget.onAdopt != null)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
+                  // 🔥 Boosted badge
+                  if (widget.dog.isSponsored)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
                         ),
-                        onPressed: () {
-                          if (kDebugMode && false) {
-                            debugPrint("🐶 Adoption tapped → ${widget.dog.id}");
-                          }
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9E1B4F),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              LucideIcons.zap,
+                              size: 14,
+                              color: Colors.black,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              localizations.boostBadge,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
-                          widget.onAdopt?.call();
-                        },
-                        child: Text(
-                          localizations.sendAdoptionRequest,
-                          style: AppTheme.body(color: Colors.white),
+                  // 🚀 Boost button فقط برای صاحب سگ
+                  if (widget.dog.ownerId == widget.currentUserId)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: () => _showBoostSheet(context, widget.dog),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF9E1B4F),
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.12),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  LucideIcons.zap,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  localizations.boostButton,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-  
-@override
-Widget build(BuildContext context) {
-  super.build(context); 
-  // 🔥 STEP 1 — Compact mode handler
-  if (widget.mode == DogCardMode.compact) {
-    return _buildCompactDogCard(context);
-  }
 
-  if (widget.mode == DogCardMode.playdate) {
-    return _buildPlaydateDogCard(context);
-  }
-
-  if (widget.mode == DogCardMode.adoption) {
-    return _buildAdoptionDogCard(context);
-  }
-if (widget.mode == DogCardMode.profile) {
-  return _buildProfileDogCard(context);
-}
-
-  final appState = context.read<AppState>();
-  final isOwner = widget.dog.ownerId == widget.currentUserId;
-  final isFavorite = widget.favoriteDogs
-    ?.any((d) => d.id == widget.dog.id) ?? false;
-
-  final imagePath =
-      widget.dog.imagePaths.isNotEmpty ? widget.dog.imagePaths.first : null;
-
-  return RepaintBoundary(
-  child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: Material(
-      color: const Color(0xFFFFFBFC),
-      borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primary.withOpacity(0.08),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ─────────────────────────
-              // 🖼 Image
-              // ─────────────────────────
-              AspectRatio(
-  aspectRatio: 1, // 👈 مربع (بهترین برای سگ)
-  child: _buildImageWrapper(imagePath),
-),
-
+              // ===============================
+              // 📄 CONTENT
+              // ===============================
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ─────────────────────────
-                    // 🐶 Name + Age
-                    // ─────────────────────────
-                    Row(
-  children: [
-
-    // 🐶 NAME
-    Expanded(
-  child: Text(
-    widget.dog.name,
-    style: AppTheme.h1().copyWith(
-      color: const Color(0xFF9E1B4F),
-    ),
-  ),
-),
-
-    // ✏️ Edit
-    if (isOwner && widget.enableEdit)
-      IconButton(
-        icon: const Icon(Icons.edit),
-        color: AppTheme.primary,
-        onPressed: () {
-          _openEditDialog(context);
-        },
-      ),
-
-    // ⋮ MENU
-    if (!isOwner)
-      PopupMenuButton<String>(
-        icon: const Icon(Icons.more_horiz),
-        onSelected: (value) {
-          if (value == "report") {
-            showModalBottomSheet(
-              context: context,
-              builder: (_) => ReportButton(
-                type: "dog",
-                targetId: widget.dog.id,
-                targetOwnerId: widget.dog.ownerId ?? "",
-              ),
-            );
-          }
-
-          if (value == "complaint") {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SubmitComplaintPage(
-                  targetType: "dog",
-                  targetId: widget.dog.id,
-                ),
-              ),
-            );
-          }
-
-          if (value == "block") {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(localizations.blockComingSoon)),
-            );
-          }
-        },
-        itemBuilder: (context) => [
-          PopupMenuItem(
-            value: "report",
-            child: Text(localizations.reportTitle),
-          ),
-          PopupMenuItem(
-            value: "complaint",
-            child: Text(localizations.submitComplaintMenuItem),
-          ),
-          PopupMenuItem(
-            value: "block",
-            child: Text(localizations.blockMenuItem),
-          ),
-        ],
-      ),
-
-    // 🎂 AGE
-    Text(
-  '${widget.dog.age}y',
-  style: AppTheme.caption(
-    color: const Color(0xFF9E1B4F).withOpacity(0.6),
-  ),
-),
-  ],
-),
-                    const SizedBox(height: 6),
-
+                    // 🐶 NAME
                     Text(
-  translateBreed(widget.dog.breed),
-  style: AppTheme.body(
-    color: const Color(0xFF9E1B4F).withOpacity(0.7),
-  ),
-),
+                      widget.dog.name,
+                      style: AppTheme.h1().copyWith(
+                        color: const Color(0xFF9E1B4F),
+                      ),
+                    ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
 
-                    // ─────────────────────────
-                    // 🐶 Gender + Owner Gender
-                    // ─────────────────────────
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        _buildMiniInfoTag(
-                          icon: LucideIcons.dog,
-                          text: translateGender(widget.dog.gender),
-                        ),
-                        if (widget.dog.ownerGender != null &&
-                            widget.dog.ownerGender!.isNotEmpty)
-                          _buildMiniInfoTag(
-                            icon: Icons.person_outline,
-                            text: localizations.ownerPrefix(
-                              translateGender(widget.dog.ownerGender!),
-                            ),
-                          ),
-                      ],
+                    // 🎂 AGE + BREED
+                    Text(
+                      '${widget.dog.age}y • ${translateBreed(widget.dog.breed)}',
+                      style: AppTheme.body(color: AppTheme.muted),
                     ),
 
                     const SizedBox(height: 12),
 
-                    // ─────────────────────────
-                    // 🏷 Tags
-                    // ─────────────────────────
+                    // 🏷 TAGS
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
                       children: [
+                        _buildTag(translateGender(widget.dog.gender)),
                         _buildTag(
                           translateHealthStatus(widget.dog.healthStatus),
                         ),
-                        _buildTag(
-                          widget.dog.isNeutered
-                              ? localizations.neutered
-                              : localizations.notNeutered,
-                        ),
-                        if (widget.dog.isAvailableForAdoption)
-                          _buildTag(
-                            localizations.forAdoption,
-                            color: AppTheme.accent,
-                          ),
+
+                        if (widget.dog.isNeutered)
+                          _buildTag(localizations.neutered),
                       ],
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
-                    // ─────────────────────────
-                    // 🔘 Actions
-                    // ─────────────────────────
-                    _buildActionButtons(
-                      isOwner: isOwner,
-                      isFavorite: isFavorite,
-                    ),
-
-                    if (widget.dog.isAvailableForAdoption) ...[
-                      const SizedBox(height: 14),
+                    // ===============================
+                    // 🟡 CTA BUTTON
+                    // ===============================
+                    if (widget.onAdopt != null)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.accent,
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            elevation: 0,
                           ),
                           onPressed: () {
-                            if (widget.onAdopt != null) {
-                              widget.onAdopt!();
+                            if (kDebugMode && false) {
+                              debugPrint(
+                                "🐶 Adoption tapped → ${widget.dog.id}",
+                              );
                             }
+
+                            widget.onAdopt?.call();
                           },
                           child: Text(
-                            localizations.forAdoption,
+                            localizations.sendAdoptionRequest,
                             style: AppTheme.body(color: Colors.white),
                           ),
                         ),
                       ),
-                    ],
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    // 🔥 STEP 1 — Compact mode handler
+    if (widget.mode == DogCardMode.compact) {
+      return _buildCompactDogCard(context);
+    }
+
+    if (widget.mode == DogCardMode.playdate) {
+      return _buildPlaydateDogCard(context);
+    }
+
+    if (widget.mode == DogCardMode.adoption) {
+      return _buildAdoptionDogCard(context);
+    }
+    if (widget.mode == DogCardMode.profile) {
+      return _buildProfileDogCard(context);
+    }
+
+    final appState = context.read<AppState>();
+    final isOwner = widget.dog.ownerId == widget.currentUserId;
+    final isFavorite =
+        widget.favoriteDogs?.any((d) => d.id == widget.dog.id) ?? false;
+
+    final imagePath = widget.dog.imagePaths.isNotEmpty
+        ? widget.dog.imagePaths.first
+        : null;
+
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Material(
+          color: const Color(0xFFFFFBFC),
+          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ─────────────────────────
+                  // 🖼 Image
+                  // ─────────────────────────
+                  AspectRatio(
+                    aspectRatio: 1, // 👈 مربع (بهترین برای سگ)
+                    child: _buildImageWrapper(imagePath),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ─────────────────────────
+                        // 🐶 Name + Age
+                        // ─────────────────────────
+                        Row(
+                          children: [
+                            // 🐶 NAME
+                            Expanded(
+                              child: Text(
+                                widget.dog.name,
+                                style: AppTheme.h1().copyWith(
+                                  color: const Color(0xFF9E1B4F),
+                                ),
+                              ),
+                            ),
+
+                            // ✏️ Edit
+                            if (isOwner && widget.enableEdit)
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                color: AppTheme.primary,
+                                onPressed: () {
+                                  _openEditDialog(context);
+                                },
+                              ),
+
+                            // ⋮ MENU
+                            if (!isOwner)
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_horiz),
+                                onSelected: (value) {
+                                  if (value == "report") {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      builder: (_) => ReportButton(
+                                        type: "dog",
+                                        targetId: widget.dog.id,
+                                        targetOwnerId: widget.dog.ownerId ?? "",
+                                      ),
+                                    );
+                                  }
+
+                                  if (value == "complaint") {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SubmitComplaintPage(
+                                          targetType: "dog",
+                                          targetId: widget.dog.id,
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  if (value == "block") {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          localizations.blockComingSoon,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: "report",
+                                    child: Text(localizations.reportTitle),
+                                  ),
+                                  PopupMenuItem(
+                                    value: "complaint",
+                                    child: Text(
+                                      localizations.submitComplaintMenuItem,
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: "block",
+                                    child: Text(localizations.blockMenuItem),
+                                  ),
+                                ],
+                              ),
+
+                            // 🎂 AGE
+                            Text(
+                              '${widget.dog.age}y',
+                              style: AppTheme.caption(
+                                color: const Color(0xFF9E1B4F).withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+
+                        Text(
+                          translateBreed(widget.dog.breed),
+                          style: AppTheme.body(
+                            color: const Color(0xFF9E1B4F).withOpacity(0.7),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // ─────────────────────────
+                        // 🐶 Gender + Owner Gender
+                        // ─────────────────────────
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            _buildMiniInfoTag(
+                              icon: LucideIcons.dog,
+                              text: translateGender(widget.dog.gender),
+                            ),
+                            if (widget.dog.ownerGender != null &&
+                                widget.dog.ownerGender!.isNotEmpty)
+                              _buildMiniInfoTag(
+                                icon: Icons.person_outline,
+                                text: localizations.ownerPrefix(
+                                  translateGender(widget.dog.ownerGender!),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // ─────────────────────────
+                        // 🏷 Tags
+                        // ─────────────────────────
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            _buildTag(
+                              translateHealthStatus(widget.dog.healthStatus),
+                            ),
+                            _buildTag(
+                              widget.dog.isNeutered
+                                  ? localizations.neutered
+                                  : localizations.notNeutered,
+                            ),
+                            if (widget.dog.isAvailableForAdoption)
+                              _buildTag(
+                                localizations.forAdoption,
+                                color: AppTheme.accent,
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ─────────────────────────
+                        // 🔘 Actions
+                        // ─────────────────────────
+                        _buildActionButtons(
+                          isOwner: isOwner,
+                          isFavorite: isFavorite,
+                        ),
+
+                        if (widget.dog.isAvailableForAdoption) ...[
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.accent,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: () {
+                                if (widget.onAdopt != null) {
+                                  widget.onAdopt!();
+                                }
+                              },
+                              child: Text(
+                                localizations.forAdoption,
+                                style: AppTheme.body(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
-    ),
-  );
-  
-}
+    );
+  }
 
-Widget _buildProfileDogCard(BuildContext context) {
-  final imagePath =
-      widget.dog.imagePaths.isNotEmpty ? widget.dog.imagePaths.first : null;
+  Widget _buildProfileDogCard(BuildContext context) {
+    final imagePath = widget.dog.imagePaths.isNotEmpty
+        ? widget.dog.imagePaths.first
+        : null;
 
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.cardShadow(),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            // 🖼 IMAGE + BOOST
-            Stack(
-              children: [
-                AspectRatio(
-  aspectRatio: 1,
-  child: PageView.builder(   // ✅ درست
-    controller: _pageController,
-    itemCount: widget.dog.imagePaths.length,
-    onPageChanged: (index) {
-      setState(() {
-        _currentIndex = index;
-      });
-    },
-    itemBuilder: (context, index) {
-  final path = widget.dog.imagePaths[index];
-  final isVideo = path.toLowerCase().contains('.mp4');
-
-return GestureDetector(
-  onTap: () => _openFullScreenViewer(index),
-  child: Stack(
-    alignment: Alignment.center,
-    children: [
-
-      // 👇 مهم‌ترین بخش
-      if (!isVideo)
-        _buildImageWrapper(path)
-      else
-        Container(
-          color: Colors.black,
-        ),
-
-      if (isVideo)
-        const Icon(
-          Icons.play_circle_fill,
-          color: Colors.white,
-          size: 40,
-        ),
-    ],
-  ),
-);
-},
-),
-),
-
-// 🌙 BOTTOM GRADIENT برای اینکه dots و swipe hint دیده بشه
-if (widget.dog.imagePaths.length > 1)
-  Positioned(
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 46,
-    child: IgnorePointer(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [
-              Colors.black.withOpacity(0.35),
-              Colors.transparent,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppTheme.cardShadow(),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 🖼 IMAGE + BOOST
+              Stack(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: PageView.builder(
+                      // ✅ درست
+                      controller: _pageController,
+                      itemCount: widget.dog.imagePaths.length,
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentIndex = index;
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        final path = widget.dog.imagePaths[index];
+                        final isVideo = path.toLowerCase().contains('.mp4');
+
+                        return GestureDetector(
+                          onTap: () => _openFullScreenViewer(index),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // 👇 مهم‌ترین بخش
+                              if (!isVideo)
+                                _buildImageWrapper(path)
+                              else
+                                Container(color: Colors.black),
+
+                              if (isVideo)
+                                const Icon(
+                                  Icons.play_circle_fill,
+                                  color: Colors.white,
+                                  size: 40,
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // 🌙 BOTTOM GRADIENT برای اینکه dots و swipe hint دیده بشه
+                  if (widget.dog.imagePaths.length > 1)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 46,
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.35),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // 🔥 DOT INDICATOR 👇 اینجااااا
+                  if (widget.dog.imagePaths.length > 1)
+                    Positioned(
+                      bottom: 10,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          widget.dog.imagePaths.length,
+                          (index) => Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: _currentIndex == index ? 10 : 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: _currentIndex == index
+                                  ? Colors.white
+                                  : Colors.white54,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // 🔢 MEDIA COUNT مثل 1/3
+                  if (widget.dog.imagePaths.length > 1)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.55),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          '${_currentIndex + 1}/${widget.dog.imagePaths.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // 🔥 BOOST BUTTON
+                  Positioned(
+                    top: 46,
+                    right: 10,
+                    child: GestureDetector(
+                      onTap: () => _showBoostSheet(context, widget.dog),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9E1B4F),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.zap,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              localizations.boostButton,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ✏️ EDIT
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: GestureDetector(
+                      onTap: () => _openEditDialog(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: Color(0xFF9E1B4F),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // 📄 INFO
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.dog.name,
+                      style: AppTheme.h1().copyWith(
+                        color: const Color(0xFF9E1B4F),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    Text(
+                      '${widget.dog.age}y • ${translateBreed(widget.dog.breed)}',
+                      style: AppTheme.body(color: AppTheme.muted),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildTag(translateGender(widget.dog.gender)),
+
+                        _buildTag(
+                          translateHealthStatus(widget.dog.healthStatus),
+                        ),
+
+                        if (!_vaccinesLoading && _vaccineCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5E8EE),
+
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+
+                              children: [
+                                const Icon(
+                                  Icons.vaccines_rounded,
+
+                                  size: 14,
+
+                                  color: Color(0xFF9E1B4F),
+                                ),
+
+                                const SizedBox(width: 5),
+
+                                Text(
+                                  '$_vaccineCount vaccines',
+
+                                  style: const TextStyle(
+                                    color: Color(0xFF9E1B4F),
+
+                                    fontWeight: FontWeight.w600,
+
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ),
-    ),
-  ),
+    );
+  }
 
-// 🔥 DOT INDICATOR 👇 اینجااااا
-    if (widget.dog.imagePaths.length > 1)
-      Positioned(
-        bottom: 10,
-        left: 0,
-        right: 0,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            widget.dog.imagePaths.length,
-            (index) => Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: _currentIndex == index ? 10 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _currentIndex == index
-                    ? Colors.white
-                    : Colors.white54,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ),
+  List<MediaItem> _buildMediaItems() {
+    return widget.dog.imagePaths.map((path) {
+      final isVideo = path.toLowerCase().contains('.mp4');
+
+      return MediaItem(
+        url: path,
+        type: isVideo ? MediaType.video : MediaType.image,
+      );
+    }).toList();
+  }
+
+  void _openFullScreenViewer(int initialIndex) {
+    final items = _buildMediaItems();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            GalleryViewerPage(items: items, initialIndex: initialIndex),
       ),
+    );
+  }
 
-      // 🔢 MEDIA COUNT مثل 1/3
-if (widget.dog.imagePaths.length > 1)
-  Positioned(
-    top: 12,
-    right: 12,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  Widget _buildUnifiedTag({
+    required String text,
+    IconData? icon,
+    Color? color,
+  }) {
+    final tagColor = color ?? AppTheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
+        color: tagColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: tagColor),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            text,
+            style: AppTheme.caption().copyWith(
+              color: tagColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTag(String text, {Color? color}) {
+    final tagColor = color ?? AppTheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tagColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Text(
-        '${_currentIndex + 1}/${widget.dog.imagePaths.length}',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
+        text,
+        style: AppTheme.caption().copyWith(
+          color: tagColor,
           fontWeight: FontWeight.w600,
         ),
       ),
-    ),
-  ),
-                // 🔥 BOOST BUTTON
-                Positioned(
-                  top: 46,
-                  right: 10,
-                  child: GestureDetector(
-                    onTap: () => _showBoostSheet(context, widget.dog),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF9E1B4F),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(LucideIcons.zap, color: Colors.white, size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            localizations.boostButton,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                
-
-                // ✏️ EDIT
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: GestureDetector(
-                    onTap: () => _openEditDialog(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.edit,
-                        size: 16,
-                        color: Color(0xFF9E1B4F),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // 📄 INFO
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-  widget.dog.name,
-  style: AppTheme.h1().copyWith(
-    color: const Color(0xFF9E1B4F),
-  ),
-),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    '${widget.dog.age}y • ${translateBreed(widget.dog.breed)}',
-                    style: AppTheme.body(color: AppTheme.muted),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                 Wrap(
-  spacing: 8,
-  runSpacing: 8,
-  children: [
-
-    _buildTag(
-      translateGender(
-        widget.dog.gender,
-      ),
-    ),
-
-    _buildTag(
-      translateHealthStatus(
-        widget.dog.healthStatus,
-      ),
-    ),
-
-    if (
-      !_vaccinesLoading &&
-      _vaccineCount > 0
-    )
-      Container(
-        padding:
-            const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
-
-        decoration: BoxDecoration(
-          color: const Color(
-            0xFFF5E8EE,
-          ),
-
-          borderRadius:
-              BorderRadius.circular(
-                10,
-              ),
-        ),
-
-        child: Row(
-          mainAxisSize:
-              MainAxisSize.min,
-
-          children: [
-
-            const Icon(
-              Icons.vaccines_rounded,
-
-              size: 14,
-
-              color: Color(
-                0xFF9E1B4F,
-              ),
-            ),
-
-            const SizedBox(width: 5),
-
-            Text(
-              '$_vaccineCount vaccines',
-
-              style:
-                  const TextStyle(
-                    color: Color(
-                      0xFF9E1B4F,
-                    ),
-
-                    fontWeight:
-                        FontWeight.w600,
-
-                    fontSize: 12,
-                  ),
-            ),
-          ],
-        ),
-      ),
-  ],
-),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-List<MediaItem> _buildMediaItems() {
-  return widget.dog.imagePaths.map((path) {
-    final isVideo = path.toLowerCase().contains('.mp4');
-
-    return MediaItem(
-      url: path,
-      type: isVideo ? MediaType.video : MediaType.image,
     );
-  }).toList();
-}
+  }
 
+  Widget _buildPlaydateDogCard(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final isOwner = widget.dog.ownerId == widget.currentUserId;
 
-void _openFullScreenViewer(int initialIndex) {
-  final items = _buildMediaItems();
+    final imagePath = widget.dog.imagePaths.isNotEmpty
+        ? widget.dog.imagePaths.first
+        : null;
 
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => GalleryViewerPage(
-        items: items,
-        initialIndex: initialIndex,
-      ),
-    ),
-  );
-}
+    final isFavorite = (widget.favoriteDogs ?? appState.favoriteDogs).any(
+      (d) => d.id == widget.dog.id,
+    );
 
-Widget _buildUnifiedTag({
-  required String text,
-  IconData? icon,
-  Color? color,
-}) {
-  final tagColor = color ?? AppTheme.primary;
-
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: tagColor.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 12, color: tagColor),
-          const SizedBox(width: 4),
-        ],
-        Text(
-          text,
-          style: AppTheme.caption().copyWith(
-            color: tagColor,
-            fontWeight: FontWeight.w600,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {},
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8E1746), Color(0xFF9E1B4F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildTag(
-  String text, {
-  Color? color,
-}) {
-  final tagColor = color ?? AppTheme.primary;
-
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: tagColor.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Text(
-      text,
-      style: AppTheme.caption().copyWith(
-        color: tagColor,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-}
- Widget _buildPlaydateDogCard(BuildContext context) {
-  final appState = context.watch<AppState>();
-  final isOwner = widget.dog.ownerId == widget.currentUserId;
-
-  final imagePath =
-      widget.dog.imagePaths.isNotEmpty ? widget.dog.imagePaths.first : null;
-
-  final isFavorite = (widget.favoriteDogs ?? appState.favoriteDogs)
-      .any((d) => d.id == widget.dog.id);
-
-  return GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: () {},
-    child: Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF8E1746), Color(0xFF9E1B4F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-  height: 160,
-  width: double.infinity,
-  child: Stack(
-    children: [
-      Positioned.fill(
-        child: imagePath != null
-            ? _buildExpandedDogImage(imagePath)
-            : Container(
-                color: Colors.black12,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.pets,
-                  size: 48,
-                  color: Colors.white70,
-                ),
-              ),
-      ),
-      if (widget.dog.isSponsored)
-        Positioned(
-          top: 8,
-          left: 8,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.amber,
-              borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 10),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(LucideIcons.zap, size: 12, color: Colors.black),
-                const SizedBox(width: 4),
-                Text(
-                  localizations.boostBadge,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
-    ],
-  ),
-),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-
-                  // 🔥🔥🔥 HEADER (اسم + دات منو کنار هم)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          widget.dog.name,
-                          style: GoogleFonts.dancingScript(
-                            fontSize: 26,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_horiz, color: Colors.white),
-                        onSelected: (value) {
-                          if (value == "report") {
-                            showModalBottomSheet(
-                              context: context,
-                              builder: (_) => ReportButton(
-                                type: "dog",
-                                targetId: widget.dog.id,
-                                targetOwnerId: widget.dog.ownerId ?? "",
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 160,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: imagePath != null
+                          ? _buildExpandedDogImage(imagePath)
+                          : Container(
+                              color: Colors.black12,
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.pets,
+                                size: 48,
+                                color: Colors.white70,
                               ),
-                            );
-                          }
-
-                          if (value == "complaint") {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SubmitComplaintPage(
-                                  targetType: "dog",
-                                  targetId: widget.dog.id,
+                            ),
+                    ),
+                    if (widget.dog.isSponsored)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                LucideIcons.zap,
+                                size: 12,
+                                color: Colors.black,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                localizations.boostBadge,
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
                                 ),
                               ),
-                            );
-                          }
-
-                          if (value == "block") {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(localizations.blockComingSoon)),
-                            );
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(value: "report", child: Text(localizations.reportTitle)),
-                          PopupMenuItem(value: "complaint", child: Text(localizations.submitComplaintMenuItem)),
-                          PopupMenuItem(value: "block", child: Text(localizations.blockMenuItem)),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    '🎂 ${widget.dog.age} ${localizations.years} • ${translateBreed(widget.dog.breed)}',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _pillDark(icon: LucideIcons.dog, text: translateGender(widget.dog.gender)),
-                      if (widget.dog.ownerGender != null &&
-                          widget.dog.ownerGender!.trim().isNotEmpty)
-                        _pillDark(
-                          icon: Icons.person_outline,
-                          text: localizations.ownerPrefix(
-                            translateGender(widget.dog.ownerGender!),
+                            ],
                           ),
                         ),
-                      _pillDark(text: translateHealthStatus(widget.dog.healthStatus)),
-                      _pillDark(text: widget.dog.isNeutered ? localizations.neutered : localizations.notNeutered),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  _buildActionButtons(
-                    isOwner: isOwner,
-                    isFavorite: isFavorite,
-                    iconColor: Colors.white,
-                  ),
-                ],
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-// ✅ pill مخصوص کارت تیره (داخل DogCard class)
-Widget _pillDark({IconData? icon, required String text}) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-    decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.14),
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: Colors.white.withOpacity(0.18), width: 0.8),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 6),
-        ],
-        Text(
-          text,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // 🔥🔥🔥 HEADER (اسم + دات منو کنار هم)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.dog.name,
+                            style: GoogleFonts.dancingScript(
+                              fontSize: 26,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+
+                        PopupMenuButton<String>(
+                          icon: const Icon(
+                            Icons.more_horiz,
+                            color: Colors.white,
+                          ),
+                          onSelected: (value) {
+                            if (value == "report") {
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (_) => ReportButton(
+                                  type: "dog",
+                                  targetId: widget.dog.id,
+                                  targetOwnerId: widget.dog.ownerId ?? "",
+                                ),
+                              );
+                            }
+
+                            if (value == "complaint") {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SubmitComplaintPage(
+                                    targetType: "dog",
+                                    targetId: widget.dog.id,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (value == "block") {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(localizations.blockComingSoon),
+                                ),
+                              );
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: "report",
+                              child: Text(localizations.reportTitle),
+                            ),
+                            PopupMenuItem(
+                              value: "complaint",
+                              child: Text(
+                                localizations.submitComplaintMenuItem,
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: "block",
+                              child: Text(localizations.blockMenuItem),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      '🎂 ${widget.dog.age} ${localizations.years} • ${translateBreed(widget.dog.breed)}',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _pillDark(
+                          icon: LucideIcons.dog,
+                          text: translateGender(widget.dog.gender),
+                        ),
+                        if (widget.dog.ownerGender != null &&
+                            widget.dog.ownerGender!.trim().isNotEmpty)
+                          _pillDark(
+                            icon: Icons.person_outline,
+                            text: localizations.ownerPrefix(
+                              translateGender(widget.dog.ownerGender!),
+                            ),
+                          ),
+                        _pillDark(
+                          text: translateHealthStatus(widget.dog.healthStatus),
+                        ),
+                        _pillDark(
+                          text: widget.dog.isNeutered
+                              ? localizations.neutered
+                              : localizations.notNeutered,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    _buildActionButtons(
+                      isOwner: isOwner,
+                      isFavorite: isFavorite,
+                      iconColor: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ],
-    ),
-  );
-}
-Widget _buildMiniInfoTag({
-  required IconData icon,
-  required String text,
-}) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-          const Color(0xFF9E1B4F).withOpacity(0.12),
-          const Color(0xFF9E1B4F).withOpacity(0.05),
+      ),
+    );
+  }
+
+  // ✅ pill مخصوص کارت تیره (داخل DogCard class)
+  Widget _pillDark({IconData? icon, required String text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(0.18), width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: Colors.white),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 14,
-          color: const Color(0xFF9E1B4F),
+    );
+  }
+
+  Widget _buildMiniInfoTag({required IconData icon, required String text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF9E1B4F).withOpacity(0.12),
+            const Color(0xFF9E1B4F).withOpacity(0.05),
+          ],
         ),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: AppTheme.caption().copyWith(
-  color: const Color(0xFF9E1B4F).withOpacity(0.6),
-),
-        ),
-      ],
-    ),
-  );
-}
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF9E1B4F)),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: AppTheme.caption().copyWith(
+              color: const Color(0xFF9E1B4F).withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _OtherUserDogCard extends StatefulWidget {
@@ -2053,17 +1993,13 @@ class _OtherUserDogCardState extends State<_OtherUserDogCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // 🔥 MEDIA SLIDER
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(16),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: AspectRatio(
               aspectRatio: 1,
               child: Stack(
                 children: [
-
                   PageView.builder(
                     controller: _controller,
                     itemCount: paths.length,
@@ -2072,15 +2008,17 @@ class _OtherUserDogCardState extends State<_OtherUserDogCard> {
                     },
                     itemBuilder: (_, i) {
                       final path = paths[i];
-                      final isVideo =
-                          path.toLowerCase().contains('.mp4');
+                      final isVideo = path.toLowerCase().contains('.mp4');
 
                       return Container(
                         color: Colors.black,
                         child: Center(
                           child: isVideo
-                              ? const Icon(Icons.play_circle_fill,
-                                  color: Colors.white, size: 50)
+                              ? const Icon(
+                                  Icons.play_circle_fill,
+                                  color: Colors.white,
+                                  size: 50,
+                                )
                               : Image.network(
                                   path,
                                   fit: BoxFit.contain, // 👈 FIX deform
@@ -2097,7 +2035,9 @@ class _OtherUserDogCardState extends State<_OtherUserDogCard> {
                       right: 8,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(12),
@@ -2105,7 +2045,9 @@ class _OtherUserDogCardState extends State<_OtherUserDogCard> {
                         child: Text(
                           '${_index + 1}/${paths.length}',
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 12),
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -2117,21 +2059,18 @@ class _OtherUserDogCardState extends State<_OtherUserDogCard> {
                       left: 0,
                       right: 0,
                       child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
                           paths.length,
                           (i) => Container(
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 3),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
                             width: _index == i ? 10 : 6,
                             height: 6,
                             decoration: BoxDecoration(
                               color: _index == i
                                   ? Colors.white
                                   : Colors.white54,
-                              borderRadius:
-                                  BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
@@ -2148,8 +2087,7 @@ class _OtherUserDogCardState extends State<_OtherUserDogCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.dog.name,
-                    style: AppTheme.h2()),
+                Text(widget.dog.name, style: AppTheme.h2()),
                 const SizedBox(height: 4),
                 Text(widget.dog.breed ?? ''),
               ],

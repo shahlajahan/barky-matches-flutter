@@ -7,7 +7,6 @@ import 'app_notification.dart';
 import 'package:provider/provider.dart';
 import '../../app_state.dart'; // مسیر رو اگر فرق داره اصلاح کن
 
-
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
@@ -158,39 +157,31 @@ class _NotificationsPageState extends State<NotificationsPage>
                             });
                             break;
 
-                            
-
                           case 'lost_dog':
-case 'lost_pet':
+                          case 'lost_pet':
+                            widget.onNotificationSelected({
+                              // ✅ unified type
+                              'type': 'lost_pet',
 
-  widget.onNotificationSelected({
+                              // ✅ backward compatibility
+                              'lostPetId':
+                                  data['lostPetId'] ?? data['lostDogId'],
+                            });
 
-    // ✅ unified type
-    'type': 'lost_pet',
+                            break;
 
-    // ✅ backward compatibility
-    'lostPetId':
-        data['lostPetId'] ??
-        data['lostDogId'],
-  });
+                          case 'found_dog':
+                          case 'found_pet':
+                            widget.onNotificationSelected({
+                              // ✅ unified type
+                              'type': 'found_pet',
 
-  break;
+                              // ✅ backward compatibility
+                              'foundPetId':
+                                  data['foundPetId'] ?? data['foundDogId'],
+                            });
 
-case 'found_dog':
-case 'found_pet':
-
-  widget.onNotificationSelected({
-
-    // ✅ unified type
-    'type': 'found_pet',
-
-    // ✅ backward compatibility
-    'foundPetId':
-        data['foundPetId'] ??
-        data['foundDogId'],
-  });
-
-  break;
+                            break;
 
                           case 'vet_appointment_request':
                           case 'groomy_appointment_request':
@@ -307,98 +298,78 @@ case 'found_pet':
                             });
                             break;
 
-                            case 'story_reply':
+                          case 'story_reply':
+                            final senderId = data['senderId'];
 
- final senderId =
-    data['senderId'];
+                            final senderName =
+                                data['senderUsername'] ?? 'Pet User';
 
-final senderName =
-    data['senderUsername'] ??
-    'Pet User';
+                            if (senderId == null) return;
 
-  if (senderId == null) return;
+                            final chatsQuery = await FirebaseFirestore.instance
+                                .collection('chats')
+                                .where(
+                                  'participants',
+                                  arrayContains:
+                                      FirebaseAuth.instance.currentUser!.uid,
+                                )
+                                .get();
 
-  final chatsQuery =
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .where(
-            'participants',
-            arrayContains:
-                FirebaseAuth
-                    .instance
-                    .currentUser!
-                    .uid,
-          )
-          .get();
+                            String? existingChatId;
 
-  String? existingChatId;
+                            for (final doc in chatsQuery.docs) {
+                              final participants = List<String>.from(
+                                doc['participants'] ?? [],
+                              );
 
-  for (final doc in chatsQuery.docs) {
+                              if (participants.contains(senderId)) {
+                                existingChatId = doc.id;
+                                break;
+                              }
+                            }
 
-    final participants =
-        List<String>.from(
-      doc['participants'] ?? [],
-    );
+                            if (existingChatId == null) {
+                              final newChat = await FirebaseFirestore.instance
+                                  .collection('chats')
+                                  .add({
+                                    'participants': [
+                                      FirebaseAuth.instance.currentUser!.uid,
+                                      senderId,
+                                    ],
 
-    if (participants.contains(senderId)) {
+                                    'participantNames': {
+                                      FirebaseAuth.instance.currentUser!.uid:
+                                          'You',
 
-      existingChatId = doc.id;
-      break;
-    }
-  }
+                                      senderId: senderName,
+                                    },
 
-  if (existingChatId == null) {
+                                    'lastMessage': '',
 
-    final newChat =
-        await FirebaseFirestore
-            .instance
-            .collection('chats')
-            .add({
+                                    'lastMessageAt':
+                                        FieldValue.serverTimestamp(),
 
-      'participants': [
-        FirebaseAuth
-            .instance
-            .currentUser!
-            .uid,
-        senderId,
-      ],
+                                    'createdAt': FieldValue.serverTimestamp(),
+                                  });
 
-      'participantNames': {
-        FirebaseAuth
-            .instance
-            .currentUser!
-            .uid: 'You',
+                              existingChatId = newChat.id;
+                            }
 
-        senderId: senderName,
-      },
+                            if (!context.mounted) return;
 
-      'lastMessage': '',
+                            Navigator.push(
+                              context,
 
-      'lastMessageAt':
-          FieldValue.serverTimestamp(),
+                              MaterialPageRoute(
+                                builder: (_) => ChatDetailPage(
+                                  chatId: existingChatId!,
+                                  otherUserId: senderId,
+                                  otherUserName: senderName,
+                                ),
+                              ),
+                            );
 
-      'createdAt':
-          FieldValue.serverTimestamp(),
-    });
-
-    existingChatId = newChat.id;
-  }
-
-  if (!context.mounted) return;
-
-  Navigator.push(
-    context,
-
-    MaterialPageRoute(
-      builder: (_) => ChatDetailPage(
-        chatId: existingChatId!,
-        otherUserId: senderId,
-        otherUserName: senderName,
-      ),
-    ),
-  );
-
-  break;
+                            break;
 
                           default:
                             debugPrint(

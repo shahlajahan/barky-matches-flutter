@@ -47,9 +47,8 @@ import 'ui/business/dashboard/vet/appointment_payment_page.dart';
 
 import 'ui/orders/order_detail_page.dart';
 import 'ui/chat/chat_detail_page.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart'
-    hide AppState;
-    
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
+
 late Box<Dog> dogsBox;
 late Box<Dog> favoritesBox;
 late Box<String> currentUserBox;

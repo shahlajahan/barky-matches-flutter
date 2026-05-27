@@ -8,19 +8,16 @@ class ReportService {
     String? targetOwnerId,
     String? message,
   }) async {
+    final callable = FirebaseFunctions.instance.httpsCallable('createReport');
 
-    final callable =
-    FirebaseFunctions.instance.httpsCallable('createReport');
+    await callable.call({
+      "type": type,
+      "targetId": targetId,
+      "targetOwnerId": ?targetOwnerId,
 
-await callable.call({
-  "type": type,
-  "targetId": targetId,
-  "targetOwnerId": ?targetOwnerId,
-
-  "reasonCode": reason,
-  "reasonText": reason,
-  "message": message ?? "",
-});
-
+      "reasonCode": reason,
+      "reasonText": reason,
+      "message": message ?? "",
+    });
   }
 }

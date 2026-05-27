@@ -362,9 +362,9 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
     if (!context.mounted) return;
 
     if (originalCarrier == null || originalCarrier.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.carrierMissingFromOrder)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.carrierMissingFromOrder)));
       return;
     }
 
@@ -417,18 +417,18 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
 
     if (trackingNumber.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.trackingNumberRequired)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.trackingNumberRequired)));
       }
       return;
     }
 
     if (carrier.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.returnCarrierIsRequired)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.returnCarrierIsRequired)));
       }
       return;
     }
@@ -451,9 +451,9 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.returnShippedBackFailed)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.returnShippedBackFailed)));
       }
     } finally {
       if (mounted) {
@@ -543,10 +543,11 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
     );
 
     if (confirmed != true) return;
-    final paymentId = (widget.record.paymentId ??
-            widget.record.refundDetails['paymentId'] ??
-            '')
-        .toString();
+    final paymentId =
+        (widget.record.paymentId ??
+                widget.record.refundDetails['paymentId'] ??
+                '')
+            .toString();
     final resolvedPaymentId = paymentId.isNotEmpty
         ? paymentId
         : await OrderReturnService.instance.resolvePaymentIdForReturn(
@@ -603,7 +604,9 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
       debugPrint('🧾 currentStatus=${widget.record.status.value}');
       debugPrint('🧾 sellerUid=${widget.record.sellerUid}');
       debugPrint('🧾 businessId=${widget.record.businessId}');
-      await OrderReturnService.instance.markReceived(returnId: widget.record.returnId);
+      await OrderReturnService.instance.markReceived(
+        returnId: widget.record.returnId,
+      );
       widget.onChanged?.call();
 
       if (context.mounted) {
@@ -748,8 +751,12 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                   .toString()
                   .isNotEmpty) ...[
             const SizedBox(height: 10),
-            if ((widget.record.refundDetails['originalTrackingNumber'] ?? '').toString().isNotEmpty ||
-                (widget.record.refundDetails['originalCarrier'] ?? '').toString().isNotEmpty) ...[
+            if ((widget.record.refundDetails['originalTrackingNumber'] ?? '')
+                    .toString()
+                    .isNotEmpty ||
+                (widget.record.refundDetails['originalCarrier'] ?? '')
+                    .toString()
+                    .isNotEmpty) ...[
               Text(
                 l10n.originalShipmentTrackingLabel,
                 style: AppTheme.caption(
@@ -816,10 +823,7 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
               final note = (step['note'] ?? '').toString();
               final localizedStatus = status == 'shipped_back'
                   ? l10n.returnShippedBackTimelineLabel
-                  : _statusLabel(
-                      l10n,
-                      OrderReturnStatusX.fromString(status),
-                    );
+                  : _statusLabel(l10n, OrderReturnStatusX.fromString(status));
               return Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
@@ -877,15 +881,18 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                   (widget.record.status == OrderReturnStatus.approved ||
                       widget.record.status == OrderReturnStatus.shippedBack))
                 ElevatedButton(
-                  onPressed:
-                      _isProcessingReturn ? null : () => _markReceived(context),
+                  onPressed: _isProcessingReturn
+                      ? null
+                      : () => _markReceived(context),
                   child: Text(l10n.markReceivedButton),
                 ),
               if (widget.isSeller &&
                   (widget.record.status == OrderReturnStatus.receivedBySeller ||
                       widget.record.status == OrderReturnStatus.refundFailed))
                 ElevatedButton(
-                  onPressed: _refundLoading ? null : () => _showRefundDialog(context),
+                  onPressed: _refundLoading
+                      ? null
+                      : () => _showRefundDialog(context),
                   child: Text(l10n.triggerRefundButton),
                 ),
             ],

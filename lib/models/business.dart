@@ -277,10 +277,7 @@ class Emergency {
   final bool available;
   final String type;
 
-  Emergency({
-    required this.available,
-    required this.type,
-  });
+  Emergency({required this.available, required this.type});
 
   factory Emergency.fromMap(Map<String, dynamic> map) {
     return Emergency(
@@ -290,10 +287,7 @@ class Emergency {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      "available": available,
-      "type": type,
-    };
+    return {"available": available, "type": type};
   }
 }
 
@@ -345,11 +339,7 @@ class Partnership {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      "model": model,
-      "status": status,
-      "featured": featured,
-    };
+    return {"model": model, "status": status, "featured": featured};
   }
 }
 
@@ -413,10 +403,7 @@ class Moderation {
   final String status;
   final int reportCount;
 
-  Moderation({
-    required this.status,
-    required this.reportCount,
-  });
+  Moderation({required this.status, required this.reportCount});
 
   factory Moderation.fromMap(Map<String, dynamic> map) {
     return Moderation(
@@ -426,10 +413,6 @@ class Moderation {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      "status": status,
-      "reportCount": reportCount,
-    };
+    return {"status": status, "reportCount": reportCount};
   }
 }
-

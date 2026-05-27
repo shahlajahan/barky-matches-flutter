@@ -266,23 +266,22 @@ class VetDashboardOverviewTab extends StatelessWidget {
 
             const SizedBox(width: 10),
 
-Expanded(
-  child: _ActionBtn(
-    "Gallery",
-    LucideIcons.image,
+            Expanded(
+              child: _ActionBtn(
+                "Gallery",
+                LucideIcons.image,
 
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VetGalleryManagementPage(
-            businessId: businessId,
-          ),
-        ),
-      );
-    },
-  ),
-),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          VetGalleryManagementPage(businessId: businessId),
+                    ),
+                  );
+                },
+              ),
+            ),
 
             const SizedBox(width: 10),
 
@@ -1030,26 +1029,24 @@ class _ActionBtn extends StatelessWidget {
   const _ActionBtn(this.text, this.icon, {this.onTap});
 
   @override
-
-Widget build(BuildContext context) {
-  return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: const Color(0xFF9E1B4F)),
-              const SizedBox(height: 6),
-              Text(text),
-            ],
-          ),
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.black12),
         ),
-     
+        child: Column(
+          children: [
+            Icon(icon, color: const Color(0xFF9E1B4F)),
+            const SizedBox(height: 6),
+            Text(text),
+          ],
+        ),
+      ),
     );
   }
 }

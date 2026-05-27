@@ -17,18 +17,16 @@ class UserBlockService {
         .collection("blockedUsers")
         .doc(targetUserId)
         .set({
-      "blockedUserId": targetUserId,
-      "name": name,
-      "username": username,
-      "photoUrl": photoUrl,
-      "blockedAt": FieldValue.serverTimestamp(),
-      "isActive": true,
-    }, SetOptions(merge: true));
+          "blockedUserId": targetUserId,
+          "name": name,
+          "username": username,
+          "photoUrl": photoUrl,
+          "blockedAt": FieldValue.serverTimestamp(),
+          "isActive": true,
+        }, SetOptions(merge: true));
   }
 
-  static Future<void> unblockUser({
-    required String targetUserId,
-  }) async {
+  static Future<void> unblockUser({required String targetUserId}) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 

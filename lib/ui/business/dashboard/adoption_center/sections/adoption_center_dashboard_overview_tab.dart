@@ -7,13 +7,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
-class AdoptionCenterDashboardOverviewTab
-    extends StatelessWidget {
-
+class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
   final String businessId;
 
-  final Map<String, dynamic>
-      businessData;
+  final Map<String, dynamic> businessData;
 
   const AdoptionCenterDashboardOverviewTab({
     super.key,
@@ -23,395 +20,197 @@ class AdoptionCenterDashboardOverviewTab
 
   @override
   Widget build(BuildContext context) {
+    final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
 
-    final profile =
-        Map<String, dynamic>.from(
-      businessData['profile'] ?? {},
-    );
-
-    final contact =
-        Map<String, dynamic>.from(
-      businessData['contact'] ?? {},
-    );
+    final contact = Map<String, dynamic>.from(businessData['contact'] ?? {});
 
     return ListView(
-
-      padding:
-          const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
 
       children: [
-
         /// ================= PROFILE =================
+        _SectionTitle("Adoption Center Profile"),
 
-        _SectionTitle(
-          "Adoption Center Profile",
-        ),
+        const SizedBox(height: 10),
 
-        const SizedBox(
-          height: 10,
-        ),
+        _profileCard(context, profile, contact),
 
-        _profileCard(
-          context,
-          profile,
-          contact,
-        ),
-
-        const SizedBox(
-          height: 20,
-        ),
+        const SizedBox(height: 20),
 
         /// ================= REQUESTS =================
+        _SectionTitle("Recent Adoption Requests"),
 
-        _SectionTitle(
-          "Recent Adoption Requests",
-        ),
-
-        const SizedBox(
-          height: 10,
-        ),
+        const SizedBox(height: 10),
 
         StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('adoption_center_requests')
+              .where('businessId', isEqualTo: businessId)
+              .snapshots(),
 
-          stream:
-              FirebaseFirestore
-                  .instance
-                  .collection(
-                    'adoption_center_requests',
-                  )
-                  .where(
-                    'businessId',
-                    isEqualTo:
-                        businessId,
-                  )
-                  
-                  .snapshots(),
+          builder: (context, snapshot) {
+            debugPrint("🐾 ADOPTION REQUEST STREAM");
 
-          builder: (
-            context,
-            snapshot,
-          ) {
-
-            debugPrint(
-              "🐾 ADOPTION REQUEST STREAM",
-            );
-
-            debugPrint(
-              "🐾 businessId = $businessId",
-            );
+            debugPrint("🐾 businessId = $businessId");
 
             if (snapshot.hasError) {
-
-              return _emptyBox(
-                "Request error: ${snapshot.error}",
-              );
+              return _emptyBox("Request error: ${snapshot.error}");
             }
 
-            if (snapshot.connectionState ==
-                ConnectionState.waiting) {
-
-              return _emptyBox(
-                "Loading requests...",
-              );
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _emptyBox("Loading requests...");
             }
 
             if (!snapshot.hasData) {
-
-              return _emptyBox(
-                "No request data",
-              );
+              return _emptyBox("No request data");
             }
 
-            final docs =
-                snapshot.data!.docs
-                    .toList();
+            final docs = snapshot.data!.docs.toList();
 
             if (docs.isEmpty) {
-
-              return _emptyBox(
-                "No adoption requests yet",
-              );
+              return _emptyBox("No adoption requests yet");
             }
 
             docs.sort((a, b) {
+              final aData = a.data() as Map<String, dynamic>;
 
-              final aData =
-                  a.data()
-                      as Map<
-                        String,
-                        dynamic
-                      >;
+              final bData = b.data() as Map<String, dynamic>;
 
-              final bData =
-                  b.data()
-                      as Map<
-                        String,
-                        dynamic
-                      >;
+              final aStatus = aData['status'] ?? '';
 
-              final aStatus =
-                  aData['status'] ??
-                      '';
+              final bStatus = bData['status'] ?? '';
 
-              final bStatus =
-                  bData['status'] ??
-                      '';
-
-              if (aStatus ==
-                      'pending' &&
-                  bStatus !=
-                      'pending') {
-
+              if (aStatus == 'pending' && bStatus != 'pending') {
                 return -1;
               }
 
-              if (aStatus !=
-                      'pending' &&
-                  bStatus ==
-                      'pending') {
-
+              if (aStatus != 'pending' && bStatus == 'pending') {
                 return 1;
               }
 
-              final aTs =
-                  aData['createdAt'];
+              final aTs = aData['createdAt'];
 
-              final bTs =
-                  bData['createdAt'];
+              final bTs = bData['createdAt'];
 
-              final aTime =
-                  aTs is Timestamp
-                  ? aTs.toDate()
-                  : null;
+              final aTime = aTs is Timestamp ? aTs.toDate() : null;
 
-              final bTime =
-                  bTs is Timestamp
-                  ? bTs.toDate()
-                  : null;
+              final bTime = bTs is Timestamp ? bTs.toDate() : null;
 
-              if (aTime == null ||
-                  bTime == null) {
-
+              if (aTime == null || bTime == null) {
                 return 0;
               }
 
-              return bTime.compareTo(
-                aTime,
-              );
+              return bTime.compareTo(aTime);
             });
 
-            final pending =
-                docs
-                    .where((d) {
+            final pending = docs
+                .where((d) {
+                  final data = d.data() as Map<String, dynamic>;
 
-                      final data =
-                          d.data()
-                              as Map<
-                                String,
-                                dynamic
-                              >;
+                  return data['status'] == 'pending';
+                })
+                .take(3)
+                .toList();
 
-                      return data['status'] ==
-                          'pending';
-                    })
-                    .take(3)
-                    .toList();
+            final total = docs.length;
 
-            final total =
-                docs.length;
+            final pendingCount = docs.where((d) {
+              final data = d.data() as Map<String, dynamic>;
 
-            final pendingCount =
-                docs.where((d) {
+              return data['status'] == 'pending';
+            }).length;
 
-                  final data =
-                      d.data()
-                          as Map<
-                            String,
-                            dynamic
-                          >;
+            final approvedCount = docs.where((d) {
+              final data = d.data() as Map<String, dynamic>;
 
-                  return data['status'] ==
-                      'pending';
-                }).length;
+              return data['status'] == 'approved';
+            }).length;
 
-            final approvedCount =
-                docs.where((d) {
+            final completedCount = docs.where((d) {
+              final data = d.data() as Map<String, dynamic>;
 
-                  final data =
-                      d.data()
-                          as Map<
-                            String,
-                            dynamic
-                          >;
-
-                  return data['status'] ==
-                      'approved';
-                }).length;
-
-            final completedCount =
-                docs.where((d) {
-
-                  final data =
-                      d.data()
-                          as Map<
-                            String,
-                            dynamic
-                          >;
-
-                  return data['status'] ==
-                      'completed';
-                }).length;
+              return data['status'] == 'completed';
+            }).length;
 
             return Column(
-
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+              crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-
                 Row(
                   children: [
-
                     _KpiCard(
-                      title:
-                          "Total",
-                      value:
-                          "$total",
-                      icon:
-                          LucideIcons
-                              .heartHandshake,
+                      title: "Total",
+                      value: "$total",
+                      icon: LucideIcons.heartHandshake,
                     ),
 
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    const SizedBox(width: 10),
 
                     _KpiCard(
-                      title:
-                          "Pending",
-                      value:
-                          "$pendingCount",
-                      icon:
-                          LucideIcons
-                              .clock,
+                      title: "Pending",
+                      value: "$pendingCount",
+                      icon: LucideIcons.clock,
                     ),
                   ],
                 ),
 
-                const SizedBox(
-                  height: 10,
-                ),
+                const SizedBox(height: 10),
 
                 Row(
                   children: [
-
                     _KpiCard(
-                      title:
-                          "Approved",
-                      value:
-                          "$approvedCount",
-                      icon:
-                          LucideIcons
-                              .checkCircle,
+                      title: "Approved",
+                      value: "$approvedCount",
+                      icon: LucideIcons.checkCircle,
                     ),
 
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    const SizedBox(width: 10),
 
                     _KpiCard(
-                      title:
-                          "Completed",
-                      value:
-                          "$completedCount",
-                      icon:
-                          LucideIcons
-                              .check,
+                      title: "Completed",
+                      value: "$completedCount",
+                      icon: LucideIcons.check,
                     ),
                   ],
                 ),
 
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
 
-                _SectionTitle(
-                  "Pending Adoption Requests",
-                ),
+                _SectionTitle("Pending Adoption Requests"),
 
-                const SizedBox(
-                  height: 8,
-                ),
+                const SizedBox(height: 8),
 
                 if (pending.isEmpty)
-
-                  _emptyBox(
-                    "No pending adoption requests",
-                  )
-
+                  _emptyBox("No pending adoption requests")
                 else
-
                   ...pending.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
 
-                    final data =
-                        doc.data()
-                            as Map<
-                              String,
-                              dynamic
-                            >;
-
-                    return _requestItem(
-                      context,
-                      doc.id,
-                      data,
-                    );
+                    return _requestItem(context, doc.id, data);
                   }),
               ],
             );
           },
         ),
 
-        const SizedBox(
-          height: 24,
-        ),
+        const SizedBox(height: 24),
 
         /// ================= QUICK ACTIONS =================
+        _SectionTitle("Quick Actions"),
 
-        _SectionTitle(
-          "Quick Actions",
-        ),
-
-        const SizedBox(
-          height: 10,
-        ),
+        const SizedBox(height: 10),
 
         Row(
           children: [
+            _actionBtn("Add Pet", Icons.pets),
 
-            _actionBtn(
-              "Add Pet",
-              Icons.pets,
-            ),
+            const SizedBox(width: 10),
 
-            const SizedBox(
-              width: 10,
-            ),
+            _actionBtn("Requests", LucideIcons.heartHandshake),
 
-            _actionBtn(
-              "Requests",
-              LucideIcons
-                  .heartHandshake,
-            ),
+            const SizedBox(width: 10),
 
-            const SizedBox(
-              width: 10,
-            ),
-
-            _actionBtn(
-              "Settings",
-              LucideIcons.settings,
-            ),
+            _actionBtn("Settings", LucideIcons.settings),
           ],
         ),
       ],
@@ -423,177 +222,102 @@ class AdoptionCenterDashboardOverviewTab
     String id,
     Map<String, dynamic> data,
   ) {
+    final status = data['status'] ?? 'pending';
 
-    final status =
-        data['status'] ??
-            'pending';
+    final petName = data['petName'] ?? '';
 
-    final petName =
-        data['petName'] ??
-            '';
+    final breed = data['petBreed'] ?? '-';
 
-    final breed =
-        data['petBreed'] ??
-            '-';
+    final requesterName = data['requesterName'] ?? 'User';
 
-    final requesterName =
-        data['requesterName'] ??
-            'User';
+    final ts = data['createdAt'];
 
-    final ts =
-        data['createdAt'];
-
-    final dt =
-        ts is Timestamp
-        ? ts.toDate()
-        : null;
+    final dt = ts is Timestamp ? ts.toDate() : null;
 
     String dateText = '';
 
     if (dt != null) {
-
-      dateText =
-          "${dt.year}-${dt.month}-${dt.day}";
+      dateText = "${dt.year}-${dt.month}-${dt.day}";
     }
 
     Color statusColor;
 
     switch (status) {
-
       case 'approved':
-        statusColor =
-            Colors.green;
+        statusColor = Colors.green;
         break;
 
       case 'rejected':
-        statusColor =
-            Colors.red;
+        statusColor = Colors.red;
         break;
 
       case 'completed':
-        statusColor =
-            Colors.blue;
+        statusColor = Colors.blue;
         break;
 
       default:
-        statusColor =
-            Colors.orange;
+        statusColor = Colors.orange;
     }
 
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
 
-      margin:
-          const EdgeInsets.only(
-        bottom: 12,
-      ),
+      padding: const EdgeInsets.all(14),
 
-      padding:
-          const EdgeInsets.all(
-        14,
-      ),
-
-      decoration:
-          _cardDecoration(),
+      decoration: _cardDecoration(),
 
       child: Column(
-
-        crossAxisAlignment:
-            CrossAxisAlignment
-                .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+            crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-
               Expanded(
                 child: Column(
-
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-
                     Text(
                       petName,
 
-                      style:
-                          AppTheme
-                              .bodyMedium()
-                              .copyWith(
-                                fontWeight:
-                                    FontWeight
-                                        .w600,
-                              ),
+                      style: AppTheme.bodyMedium().copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
 
-                    const SizedBox(
-                      height: 4,
-                    ),
+                    const SizedBox(height: 4),
 
-                    Text(
-                      "Breed: $breed",
+                    Text("Breed: $breed", style: AppTheme.caption()),
 
-                      style:
-                          AppTheme
-                              .caption(),
-                    ),
-
-                    const SizedBox(
-                      height: 4,
-                    ),
+                    const SizedBox(height: 4),
 
                     Text(
                       "Requester: $requesterName",
 
-                      style:
-                          AppTheme
-                              .caption(),
+                      style: AppTheme.caption(),
                     ),
                   ],
                 ),
               ),
 
               Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
 
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
 
-                decoration:
-                    BoxDecoration(
-
-                  color: statusColor
-                      .withOpacity(
-                    0.12,
-                  ),
-
-                  borderRadius:
-                      BorderRadius.circular(
-                    8,
-                  ),
+                  borderRadius: BorderRadius.circular(8),
                 ),
 
                 child: Text(
-
-                  status
-                      .toUpperCase(),
+                  status.toUpperCase(),
 
                   style: TextStyle(
+                    color: statusColor,
 
-                    color:
-                        statusColor,
-
-                    fontWeight:
-                        FontWeight
-                            .w600,
+                    fontWeight: FontWeight.w600,
 
                     fontSize: 11,
                   ),
@@ -602,66 +326,34 @@ class AdoptionCenterDashboardOverviewTab
             ],
           ),
 
-          const SizedBox(
-            height: 8,
-          ),
+          const SizedBox(height: 8),
 
-          Text(
-            dateText,
-            style:
-                AppTheme.caption(),
-          ),
+          Text(dateText, style: AppTheme.caption()),
 
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 10),
 
           if (status == 'pending')
-
             Row(
               children: [
-
                 Expanded(
-                  child:
-                      ElevatedButton(
-
+                  child: ElevatedButton(
                     onPressed: () {
-
-                      _updateRequestStatus(
-                        context,
-                        id,
-                        'approved',
-                      );
+                      _updateRequestStatus(context, id, 'approved');
                     },
 
-                    child:
-                        const Text(
-                      "Approve",
-                    ),
+                    child: const Text("Approve"),
                   ),
                 ),
 
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
 
                 Expanded(
-                  child:
-                      ElevatedButton(
-
+                  child: ElevatedButton(
                     onPressed: () {
-
-                      _updateRequestStatus(
-                        context,
-                        id,
-                        'rejected',
-                      );
+                      _updateRequestStatus(context, id, 'rejected');
                     },
 
-                    child:
-                        const Text(
-                      "Reject",
-                    ),
+                    child: const Text("Reject"),
                   ),
                 ),
               ],
@@ -671,31 +363,15 @@ class AdoptionCenterDashboardOverviewTab
     );
   }
 
-  Future<void>
-  _updateRequestStatus(
+  Future<void> _updateRequestStatus(
     BuildContext context,
     String requestId,
     String newStatus,
   ) async {
-
     try {
-
-      await FirebaseFunctions
-          .instanceFor(
-            region:
-                'europe-west3',
-          )
-          .httpsCallable(
-            'updateAdoptionCenterRequestStatus',
-          )
-          .call({
-
-            'requestId':
-                requestId,
-
-            'newStatus':
-                newStatus,
-          });
+      await FirebaseFunctions.instanceFor(region: 'europe-west3')
+          .httpsCallable('updateAdoptionCenterRequestStatus')
+          .call({'requestId': requestId, 'newStatus': newStatus});
 
       if (!context.mounted) {
         return;
@@ -703,19 +379,9 @@ class AdoptionCenterDashboardOverviewTab
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(
-        SnackBar(
-
-          content: Text(
-            "Request updated: $newStatus",
-          ),
-        ),
-      );
+      ).showSnackBar(SnackBar(content: Text("Request updated: $newStatus")));
     } catch (e) {
-
-      debugPrint(
-        "❌ ADOPTION UPDATE ERROR: $e",
-      );
+      debugPrint("❌ ADOPTION UPDATE ERROR: $e");
 
       if (!context.mounted) {
         return;
@@ -723,14 +389,7 @@ class AdoptionCenterDashboardOverviewTab
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(
-        SnackBar(
-
-          content: Text(
-            "Update failed: $e",
-          ),
-        ),
-      );
+      ).showSnackBar(SnackBar(content: Text("Update failed: $e")));
     }
   }
 
@@ -739,90 +398,44 @@ class AdoptionCenterDashboardOverviewTab
     Map<String, dynamic> profile,
     Map<String, dynamic> contact,
   ) {
+    final name = profile['displayName'] ?? 'Adoption Center';
 
-    final name =
-        profile['displayName'] ??
-            'Adoption Center';
-
-    final description =
-        profile['description'] ??
-            "No description yet";
+    final description = profile['description'] ?? "No description yet";
 
     return Container(
+      padding: const EdgeInsets.all(16),
 
-      padding:
-          const EdgeInsets.all(
-        16,
-      ),
-
-      decoration:
-          _cardDecoration(),
+      decoration: _cardDecoration(),
 
       child: Column(
-
-        crossAxisAlignment:
-            CrossAxisAlignment
-                .start,
+        crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-
           Row(
             children: [
-
               Expanded(
-                child: Text(
-
-                  name,
-
-                  style:
-                      AppTheme
-                          .h3(
-                            weight:
-                                FontWeight
-                                    .w800,
-                          ),
-                ),
+                child: Text(name, style: AppTheme.h3(weight: FontWeight.w800)),
               ),
             ],
           ),
 
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 10),
 
-          Text(
+          Text(description, style: AppTheme.body(color: AppTheme.muted)),
 
-            description,
-
-            style: AppTheme.body(
-              color:
-                  AppTheme.muted,
-            ),
-          ),
-
-          const SizedBox(
-            height: 12,
-          ),
+          const SizedBox(height: 12),
 
           Wrap(
-
             spacing: 8,
 
             runSpacing: 8,
 
             children: [
+              _chip("📞 ${contact['phone'] ?? '-'}"),
 
-              _chip(
-                "📞 ${contact['phone'] ?? '-'}",
-              ),
+              _chip("📍 ${contact['city'] ?? '-'}"),
 
-              _chip(
-                "📍 ${contact['city'] ?? '-'}",
-              ),
-
-              _chip(
-                "📍 ${contact['district'] ?? '-'}",
-              ),
+              _chip("📍 ${contact['district'] ?? '-'}"),
             ],
           ),
         ],
@@ -830,119 +443,59 @@ class AdoptionCenterDashboardOverviewTab
     );
   }
 
-  BoxDecoration
-  _cardDecoration() {
-
+  BoxDecoration _cardDecoration() {
     return BoxDecoration(
-
       color: Colors.white,
 
-      borderRadius:
-          BorderRadius.circular(
-        16,
-      ),
+      borderRadius: BorderRadius.circular(16),
 
-      border: Border.all(
-        color: Colors.black12,
-      ),
+      border: Border.all(color: Colors.black12),
 
-      boxShadow:
-          AppTheme.cardShadow(
-        opacity: 0.06,
-      ),
+      boxShadow: AppTheme.cardShadow(opacity: 0.06),
     );
   }
 
-  Widget _emptyBox(
-    String text,
-  ) {
-
+  Widget _emptyBox(String text) {
     return Container(
+      padding: const EdgeInsets.all(14),
 
-      padding:
-          const EdgeInsets.all(
-        14,
-      ),
+      decoration: _cardDecoration(),
 
-      decoration:
-          _cardDecoration(),
-
-      child: Text(
-
-        text,
-
-        style: AppTheme.body(
-          color:
-              AppTheme.muted,
-        ),
-      ),
+      child: Text(text, style: AppTheme.body(color: AppTheme.muted)),
     );
   }
 
-  Widget _chip(
-    String text,
-  ) {
-
+  Widget _chip(String text) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
 
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF9E1B4F).withOpacity(0.08),
 
-      decoration:
-          BoxDecoration(
-
-        color: const Color(
-          0xFF9E1B4F,
-        ).withOpacity(0.08),
-
-        borderRadius:
-            BorderRadius.circular(
-          10,
-        ),
+        borderRadius: BorderRadius.circular(10),
       ),
 
       child: Text(
-
         text,
 
-        style:
-            AppTheme.caption(
-          color: const Color(
-            0xFF9E1B4F,
-          ),
-        ),
+        style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
       ),
     );
   }
 }
 
-class _SectionTitle
-    extends StatelessWidget {
-
+class _SectionTitle extends StatelessWidget {
   final String title;
 
-  const _SectionTitle(
-    this.title,
-  );
+  const _SectionTitle(this.title);
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-
-    return Text(
-      title,
-      style: AppTheme.h2(),
-    );
+  Widget build(BuildContext context) {
+    return Text(title, style: AppTheme.h2());
   }
 }
 
-class _KpiCard
-    extends StatelessWidget {
-
+class _KpiCard extends StatelessWidget {
   final String title;
 
   final String value;
@@ -956,76 +509,30 @@ class _KpiCard
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-
+  Widget build(BuildContext context) {
     return Expanded(
       child: Container(
+        padding: const EdgeInsets.all(14),
 
-        padding:
-            const EdgeInsets.all(
-          14,
-        ),
-
-        decoration:
-            BoxDecoration(
-
+        decoration: BoxDecoration(
           color: Colors.white,
 
-          borderRadius:
-              BorderRadius.circular(
-            16,
-          ),
+          borderRadius: BorderRadius.circular(16),
 
-          border: Border.all(
-            color: const Color(
-              0xFF9E1B4F,
-            ).withOpacity(
-              0.15,
-            ),
-          ),
+          border: Border.all(color: const Color(0xFF9E1B4F).withOpacity(0.15)),
         ),
 
         child: Column(
-
-          crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
+          crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
+            Icon(icon, size: 18, color: const Color(0xFF9E1B4F)),
 
-            Icon(
-              icon,
+            const SizedBox(height: 8),
 
-              size: 18,
+            Text(value, style: AppTheme.h2(weight: FontWeight.w800)),
 
-              color: const Color(
-                0xFF9E1B4F,
-              ),
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            Text(
-
-              value,
-
-              style:
-                  AppTheme.h2(
-                    weight:
-                        FontWeight
-                            .w800,
-                  ),
-            ),
-
-            Text(
-              title,
-              style:
-                  AppTheme.caption(),
-            ),
+            Text(title, style: AppTheme.caption()),
           ],
         ),
       ),
@@ -1033,60 +540,32 @@ class _KpiCard
   }
 }
 
-class _actionBtn
-    extends StatelessWidget {
-
+class _actionBtn extends StatelessWidget {
   final String text;
 
   final IconData icon;
 
-  const _actionBtn(
-    this.text,
-    this.icon,
-  );
+  const _actionBtn(this.text, this.icon);
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-
+  Widget build(BuildContext context) {
     return Expanded(
       child: Container(
+        padding: const EdgeInsets.all(12),
 
-        padding:
-            const EdgeInsets.all(
-          12,
-        ),
-
-        decoration:
-            BoxDecoration(
-
+        decoration: BoxDecoration(
           color: Colors.white,
 
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
+          borderRadius: BorderRadius.circular(14),
 
-          border: Border.all(
-            color: Colors.black12,
-          ),
+          border: Border.all(color: Colors.black12),
         ),
 
         child: Column(
           children: [
+            Icon(icon, color: const Color(0xFF9E1B4F)),
 
-            Icon(
-              icon,
-
-              color: const Color(
-                0xFF9E1B4F,
-              ),
-            ),
-
-            const SizedBox(
-              height: 6,
-            ),
+            const SizedBox(height: 6),
 
             Text(text),
           ],

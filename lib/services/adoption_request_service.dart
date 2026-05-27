@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AdoptionRequestService {
-
   /* =====================================================
    * CREATE REQUEST
    * ===================================================== */
@@ -15,7 +14,6 @@ class AdoptionRequestService {
     required List<String> documents,
     String? dogName,
   }) async {
-
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw Exception("UNAUTHENTICATED");
@@ -44,26 +42,26 @@ class AdoptionRequestService {
     final ref = await FirebaseFirestore.instance
         .collection('adoption_requests')
         .add({
-      "targetType": targetType,
-      "targetId": targetId,
-      "targetOwnerId": targetOwnerId,
+          "targetType": targetType,
+          "targetId": targetId,
+          "targetOwnerId": targetOwnerId,
 
-      "requesterId": uid,
-      "requesterName": user.displayName ?? "User",
+          "requesterId": uid,
+          "requesterName": user.displayName ?? "User",
 
-      "dogName": dogName,
-      "form": form,
-      "documents": documents,
+          "dogName": dogName,
+          "form": form,
+          "documents": documents,
 
-      "status": "pending",
-      "createdAt": FieldValue.serverTimestamp(),
+          "status": "pending",
+          "createdAt": FieldValue.serverTimestamp(),
 
-      "decidedAt": null,
-      "decidedBy": null,
-      "adoptedAt": null,
-      "closedAt": null,
-      "closedReason": null,
-    });
+          "decidedAt": null,
+          "decidedBy": null,
+          "adoptedAt": null,
+          "closedAt": null,
+          "closedReason": null,
+        });
 
     return ref.id;
   }
@@ -76,7 +74,6 @@ class AdoptionRequestService {
     required String requestId,
     required String status, // approved | rejected
   }) async {
-
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception("UNAUTHENTICATED");
 
@@ -84,11 +81,11 @@ class AdoptionRequestService {
       throw Exception("INVALID_STATUS");
     }
 
-    final ref =
-        FirebaseFirestore.instance.collection('adoption_requests').doc(requestId);
+    final ref = FirebaseFirestore.instance
+        .collection('adoption_requests')
+        .doc(requestId);
 
     await FirebaseFirestore.instance.runTransaction((tx) async {
-
       final snap = await tx.get(ref);
       if (!snap.exists) throw Exception("REQUEST_NOT_FOUND");
 
@@ -115,7 +112,6 @@ class AdoptionRequestService {
     required String dogId,
     required String adoptedByRequestId,
   }) async {
-
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw Exception("UNAUTHENTICATED");
 
@@ -125,7 +121,6 @@ class AdoptionRequestService {
     final reqRef = db.collection('adoption_requests').doc(adoptedByRequestId);
 
     await db.runTransaction((tx) async {
-
       final reqSnap = await tx.get(reqRef);
       if (!reqSnap.exists) throw Exception("REQUEST_NOT_FOUND");
 

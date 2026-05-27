@@ -22,23 +22,18 @@ class MedicalRecordPetCard extends StatelessWidget {
       onTap: onTap,
 
       child: Container(
-        margin: const EdgeInsets.only(
-          bottom: 16,
-        ),
+        margin: const EdgeInsets.only(bottom: 16),
 
         padding: const EdgeInsets.all(18),
 
         decoration: BoxDecoration(
           color: Colors.white,
 
-          borderRadius:
-              BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(22),
 
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(
-                0.05,
-              ),
+              color: Colors.black.withOpacity(0.05),
 
               blurRadius: 12,
 
@@ -52,22 +47,14 @@ class MedicalRecordPetCard extends StatelessWidget {
             CircleAvatar(
               radius: 32,
 
-              backgroundColor:
-                  const Color(0xFFFFF1F6),
+              backgroundColor: const Color(0xFFFFF1F6),
 
-              backgroundImage:
-                  dog.imagePaths.isNotEmpty
-                  ? NetworkImage(
-                      dog.imagePaths.first,
-                    )
+              backgroundImage: dog.imagePaths.isNotEmpty
+                  ? NetworkImage(dog.imagePaths.first)
                   : null,
 
               child: dog.imagePaths.isEmpty
-                  ? const Icon(
-                      Icons.pets_rounded,
-                      color:
-                          Color(0xFF9E1B4F),
-                    )
+                  ? const Icon(Icons.pets_rounded, color: Color(0xFF9E1B4F))
                   : null,
             ),
 
@@ -75,8 +62,7 @@ class MedicalRecordPetCard extends StatelessWidget {
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
 
                 children: [
                   Text(
@@ -84,8 +70,7 @@ class MedicalRecordPetCard extends StatelessWidget {
 
                     style: const TextStyle(
                       fontSize: 20,
-                      fontWeight:
-                          FontWeight.w800,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
 
@@ -94,9 +79,7 @@ class MedicalRecordPetCard extends StatelessWidget {
                   Text(
                     dog.breed,
 
-                    style: const TextStyle(
-                      color: Colors.black54,
-                    ),
+                    style: const TextStyle(color: Colors.black54),
                   ),
 
                   const SizedBox(height: 12),
@@ -106,19 +89,13 @@ class MedicalRecordPetCard extends StatelessWidget {
                     runSpacing: 8,
 
                     children: [
-                      _chip(
-                        '${dog.age}y',
-                      ),
+                      _chip('${dog.age}y'),
 
-                      _chip(
-                        dog.gender,
-                      ),
+                      _chip(dog.gender),
 
                       _chip(
                         '$vaccineCount vaccines',
-                        icon:
-                            Icons
-                                .vaccines_rounded,
+                        icon: Icons.vaccines_rounded,
                       ),
                     ],
                   ),
@@ -139,21 +116,14 @@ class MedicalRecordPetCard extends StatelessWidget {
     );
   }
 
-  Widget _chip(
-    String text, {
-    IconData? icon,
-  }) {
+  Widget _chip(String text, {IconData? icon}) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
 
       decoration: BoxDecoration(
         color: const Color(0xFFFFF1F6),
 
-        borderRadius:
-            BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12),
       ),
 
       child: Row(
@@ -161,11 +131,7 @@ class MedicalRecordPetCard extends StatelessWidget {
 
         children: [
           if (icon != null) ...[
-            Icon(
-              icon,
-              size: 14,
-              color: const Color(0xFF9E1B4F),
-            ),
+            Icon(icon, size: 14, color: const Color(0xFF9E1B4F)),
 
             const SizedBox(width: 4),
           ],

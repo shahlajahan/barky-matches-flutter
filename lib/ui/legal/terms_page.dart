@@ -23,9 +23,9 @@ class TermsPage extends StatelessWidget {
 
   void _copyEmail(BuildContext context) {
     Clipboard.setData(ClipboardData(text: email));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Email copied")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Email copied")));
   }
 
   Widget _section(String title, String body) {
@@ -71,7 +71,6 @@ class TermsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               /// INTRO
               Text(
                 "By using PetSupo, you agree to the following terms:",
@@ -133,10 +132,7 @@ class TermsPage extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      LucideIcons.mail,
-                      color: Color(0xFF9E1B4F),
-                    ),
+                    const Icon(LucideIcons.mail, color: Color(0xFF9E1B4F)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: GestureDetector(

@@ -1,5 +1,3 @@
-
-
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -15,27 +13,18 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 
-
-
-
 class DogParkPage extends StatefulWidget {
   final String? initialParkName;
   final Dog? requestedDog;
 
-  const DogParkPage({
-    super.key,
-    this.initialParkName,
-    this.requestedDog,
-  });
+  const DogParkPage({super.key, this.initialParkName, this.requestedDog});
 
   @override
   State<DogParkPage> createState() => _DogParkPageState();
 }
 
-
 class _DogParkPageState extends State<DogParkPage>
     with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
-
   GoogleMapController? _mapController;
   Position? _currentPosition;
   final Set<Marker> _markers = {};
@@ -136,7 +125,6 @@ class _DogParkPageState extends State<DogParkPage>
   @override
   bool get wantKeepAlive => true;
 
-
   @override
   void initState() {
     super.initState();
@@ -153,101 +141,100 @@ class _DogParkPageState extends State<DogParkPage>
     Future.microtask(() async {
       await _loadMapStyle();
       await _loadCustomMarker();
-     // await _resolveLocation();
+      // await _resolveLocation();
     });
   }
-Future<void> requestLocationFromUser() async {
-  final appState = context.read<AppState>();
 
-  if (appState.isGuestUser) {
-    debugPrint('🚫 Guest → no location');
-    return;
+  Future<void> requestLocationFromUser() async {
+    final appState = context.read<AppState>();
+
+    if (appState.isGuestUser) {
+      debugPrint('🚫 Guest → no location');
+      return;
+    }
+
+    await _resolveLocation();
   }
 
-  await _resolveLocation();
-}
   // --------------------------------------------------
   // LOCATION
   // --------------------------------------------------
   Future<void> _resolveLocation() async {
     debugPrint('📍 resolveLocation START mounted=$mounted hash=$hashCode');
 
-  try {
-    if (!await Geolocator.isLocationServiceEnabled()) {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context)!; // ✅ بعد از mounted
+        _useFallback(l10n.dogParkLocationServicesDisabled);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
       if (!mounted) return;
-      final l10n = AppLocalizations.of(context)!; // ✅ بعد از mounted
-      _useFallback(l10n.dogParkLocationServicesDisabled);
-      return;
-    }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (!mounted) return;
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (!mounted) return;
+      }
 
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context)!;
+        _useFallback(l10n.dogParkPermissionDenied);
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 8),
+      );
+
       if (!mounted) return;
-    }
 
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+      setState(() {
+        _currentPosition = pos;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+
+      _animationController.forward();
+      await _addParkMarkers();
+
+      debugPrint('📍 after permission mounted=$mounted');
+      debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
+    } catch (e) {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
-      _useFallback(l10n.dogParkPermissionDenied);
-      return;
+      _useFallback(l10n.dogParkLocationError(e.toString()));
     }
-
-    final pos = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.low,
-      timeLimit: const Duration(seconds: 8),
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _currentPosition = pos;
-      _isLoading = false;
-      _errorMessage = null;
-    });
-
-    _animationController.forward();
-    await _addParkMarkers();
-
-debugPrint('📍 after permission mounted=$mounted');
-debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
-
-
-  } catch (e) {
-    if (!mounted) return;
-    final l10n = AppLocalizations.of(context)!;
-    _useFallback(l10n.dogParkLocationError(e.toString()));
   }
-}
-
 
   void _useFallback(String message) {
-  if (!mounted) return; // ✅ حیاتی
+    if (!mounted) return; // ✅ حیاتی
 
-  setState(() {
-    _currentPosition = Position(
-      latitude: _fallbackLatLng.latitude,
-      longitude: _fallbackLatLng.longitude,
-      timestamp: DateTime.now(),
-      accuracy: 0,
-      altitude: 0,
-      heading: 0,
-      speed: 0,
-      speedAccuracy: 0,
-      altitudeAccuracy: 0,
-      headingAccuracy: 0,
-    );
-    _errorMessage = message;
-    _isLoading = false;
-  });
+    setState(() {
+      _currentPosition = Position(
+        latitude: _fallbackLatLng.latitude,
+        longitude: _fallbackLatLng.longitude,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
+      _errorMessage = message;
+      _isLoading = false;
+    });
 
-  if (!mounted) return;
-  _animationController.forward();
-  _addParkMarkers();
-}
+    if (!mounted) return;
+    _animationController.forward();
+    _addParkMarkers();
+  }
 
   // --------------------------------------------------
   // MAP SETUP
@@ -269,43 +256,45 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
         targetHeight: 32,
       );
       final frame = await codec.getNextFrame();
-      final bytes = await frame.image.toByteData(format: ui.ImageByteFormat.png);
-      _customMarker = BitmapDescriptor.fromBytes(
-        bytes!.buffer.asUint8List(),
+      final bytes = await frame.image.toByteData(
+        format: ui.ImageByteFormat.png,
       );
+      _customMarker = BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
     } catch (_) {
-      _customMarker = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+      _customMarker = BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueRed,
+      );
     }
   }
 
   Future<void> _addParkMarkers() async {
-  if (!mounted) return;
+    if (!mounted) return;
 
-  final markers = <Marker>{};
+    final markers = <Marker>{};
 
-  for (final park in _dogParks) {
-    markers.add(
-      Marker(
-        markerId: MarkerId(park['name']),
-        position: LatLng(park['lat'], park['lng']),
-        icon: _customMarker ??
-            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        onTap: () => _openParkBottomSheet(park),
-      ),
-    );
+    for (final park in _dogParks) {
+      markers.add(
+        Marker(
+          markerId: MarkerId(park['name']),
+          position: LatLng(park['lat'], park['lng']),
+          icon:
+              _customMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          onTap: () => _openParkBottomSheet(park),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _markers
+        ..clear()
+        ..addAll(markers);
+    });
+
+    _moveCameraToFitAllMarkers();
   }
-
-  if (!mounted) return;
-
-  setState(() {
-    _markers
-      ..clear()
-      ..addAll(markers);
-  });
-
-  _moveCameraToFitAllMarkers();
-}
-
 
   // ⭐ مهم‌ترین اصلاح UX
   void _moveCameraToFitAllMarkers() {
@@ -316,17 +305,12 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
       southwest: LatLng(lats.reduce(min), lngs.reduce(min)),
       northeast: LatLng(lats.reduce(max), lngs.reduce(max)),
     );
-    _mapController!.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, 80),
-    );
+    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
   }
 
   void _focusParkOnMap(Map<String, dynamic> park) {
     _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(park['lat'], park['lng']),
-        15,
-      ),
+      CameraUpdate.newLatLngZoom(LatLng(park['lat'], park['lng']), 15),
     );
   }
 
@@ -346,8 +330,9 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
       builder: (sheetContext) {
         return Consumer<AppState>(
           builder: (_, appState, __) {
-            final bool isFavorite =
-                appState.isParkFavorite(park['name'] as String);
+            final bool isFavorite = appState.isParkFavorite(
+              park['name'] as String,
+            );
             final bool isPremiumUser = appState.isPremium;
             final l10n = AppLocalizations.of(sheetContext)!;
 
@@ -355,9 +340,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -455,9 +438,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                         style: GoogleFonts.poppins(),
                       ),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                          color: Color(0xFFFFC107),
-                        ),
+                        side: const BorderSide(color: Color(0xFFFFC107)),
                       ),
                       onPressed: () {
                         appState.toggleFavoritePark(park);
@@ -475,9 +456,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFC107),
                           foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
                     ),
@@ -485,41 +464,46 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
 
                     // ───── Schedule Playdate here (اصلاح‌شده) ─────
                     SizedBox(
-  width: double.infinity,
-  child: ElevatedButton(
-    onPressed: () {
-  Navigator.pop(sheetContext);
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
 
-  final appState = context.read<AppState>();
-  final uid = appState.currentUserId;
+                          final appState = context.read<AppState>();
+                          final uid = appState.currentUserId;
 
-  if (uid == null || uid.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.dogParkUserNotReadyYet)),
-    );
-    return;
-  }
+                          if (uid == null || uid.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(l10n.dogParkUserNotReadyYet),
+                              ),
+                            );
+                            return;
+                          }
 
-  final myDogs = appState.allDogs.where((d) => d.ownerId == uid).toList();
-  if (myDogs.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.dogParkNeedToAddDogFirst)),
-    );
-    return;
-  }
+                          final myDogs = appState.allDogs
+                              .where((d) => d.ownerId == uid)
+                              .toList();
+                          if (myDogs.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(l10n.dogParkNeedToAddDogFirst),
+                              ),
+                            );
+                            return;
+                          }
 
-  appState.startPlaydateAtPark(park);
+                          appState.startPlaydateAtPark(park);
 
-  appState.setCurrentTab(NavTab.playdateScheduling);
-},
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFFFFC107),
-      foregroundColor: Colors.black,
-    ),
-    child: Text(l10n.dogParkSchedulePlaydateHere),
-  ),
-),
-
+                          appState.setCurrentTab(NavTab.playdateScheduling);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFC107),
+                          foregroundColor: Colors.black,
+                        ),
+                        child: Text(l10n.dogParkSchedulePlaydateHere),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -538,7 +522,6 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
     final appState = Provider.of<AppState>(context, listen: false);
     final savedNames = appState.favoriteParkNames; // ✅ Set<String>
     final l10n = AppLocalizations.of(context)!;
-
 
     showModalBottomSheet(
       context: context,
@@ -628,14 +611,13 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
-  Navigator.pop(sheetContext);
+                        Navigator.pop(sheetContext);
 
-  Future.microtask(() {
-    _focusParkOnMap(park);
-    _openParkBottomSheet(park);
-  });
-},
-
+                        Future.microtask(() {
+                          _focusParkOnMap(park);
+                          _openParkBottomSheet(park);
+                        });
+                      },
                     ),
                   );
                 }),
@@ -689,15 +671,9 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
     );
 
     if (await canLaunchUrl(googleMapsUrl)) {
-      await launchUrl(
-        googleMapsUrl,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
     } else {
-      await launchUrl(
-        appleMapsUrl,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(appleMapsUrl, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -711,10 +687,7 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
       ),
       child: Text(
         text,
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
+        style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -722,16 +695,15 @@ debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
   // --------------------------------------------------
   // UI
   // --------------------------------------------------
- 
- @override
-@override
-Widget build(BuildContext context) {
-  super.build(context);
-  return _buildBody(context);
-}
 
+  @override
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return _buildBody(context);
+  }
 
-/*
+  /*
   if (pendingPark != null && !_playdateFlowPushed) {
     _playdateFlowPushed = true;
 
@@ -756,7 +728,7 @@ Widget build(BuildContext context) {
   }
 */
 
-/*
+  /*
   return Scaffold(
     backgroundColor: _bgSoftPink,
     appBar: AppBar(
@@ -788,51 +760,48 @@ Widget build(BuildContext context) {
     return Container(
       color: _bgSoftPink,
       child: Column(
-       children: [
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+            child: Row(
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    context.read<AppState>().setCurrentTab(NavTab.home);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.arrow_back,
+                      size: 28,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
 
-  Padding(
-    padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-    child: Row(
-      children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            context.read<AppState>().setCurrentTab(NavTab.home);
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(6),
-            child: Icon(
-              Icons.arrow_back,
-              size: 28,
-              color: Colors.black,
+                const SizedBox(width: 10),
+
+                Text(
+                  "Dog Parks",
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
 
-        const SizedBox(width: 10),
-
-        Text(
-          "Dog Parks",
-          style: GoogleFonts.poppins(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
-        ),
-      ],
-    ),
-  ),
-
-  // Date Label
+          // Date Label
           Padding(
             padding: const EdgeInsets.all(8),
             child: Text(
               l10n.dogParkDateLabel(
                 DateFormat('EEEE, MMMM dd, yyyy').format(DateTime.now()),
               ),
-              style: GoogleFonts.poppins(
-                color: const Color(0xFFFFC107),
-              ),
+              style: GoogleFonts.poppins(color: const Color(0xFFFFC107)),
             ),
           ),
 
@@ -860,67 +829,66 @@ Widget build(BuildContext context) {
           ),
           const SizedBox(height: 6),
 
-    Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 12),
-  child: SizedBox(
-    width: double.infinity,
-    child: ElevatedButton.icon(
-      icon: Icon(Icons.my_location),
-      label: Text(l10n.dogParkFindNearbyParks),
-      onPressed: () {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: Text(l10n.dogParkLocationNeededTitle),
-            content: Text(
-              l10n.dogParkUseYourLocationToShowNearbyDogParks,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(l10n.cancel),
-              ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await requestLocationFromUser();
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.my_location),
+                label: Text(l10n.dogParkFindNearbyParks),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: Text(l10n.dogParkLocationNeededTitle),
+                      content: Text(
+                        l10n.dogParkUseYourLocationToShowNearbyDogParks,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(l10n.cancel),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            await requestLocationFromUser();
+                          },
+                          child: Text(l10n.allowButton),
+                        ),
+                      ],
+                    ),
+                  );
                 },
-                child: Text(l10n.allowButton),
               ),
-            ],
+            ),
           ),
-        );
-      },
-    ),
-  ),
-),
 
           // ───────── Map ─────────
           Expanded(
             child: GoogleMap(
-  style: _mapStyle,
+              style: _mapStyle,
 
-  initialCameraPosition: const CameraPosition(
-    target: _fallbackLatLng,
-    zoom: 11,
-  ),
+              initialCameraPosition: const CameraPosition(
+                target: _fallbackLatLng,
+                zoom: 11,
+              ),
 
-  markers: _markers,
+              markers: _markers,
 
-  myLocationEnabled: true,
-  myLocationButtonEnabled: true,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
 
-  compassEnabled: false,
-  buildingsEnabled: false,
-  trafficEnabled: false,
+              compassEnabled: false,
+              buildingsEnabled: false,
+              trafficEnabled: false,
 
-  onMapCreated: (controller) {
+              onMapCreated: (controller) {
+                _mapController = controller;
 
-    _mapController = controller;
-
-    _moveCameraToFitAllMarkers();
-  },
-),
+                _moveCameraToFitAllMarkers();
+              },
+            ),
           ),
 
           // ───────── Error Message ─────────

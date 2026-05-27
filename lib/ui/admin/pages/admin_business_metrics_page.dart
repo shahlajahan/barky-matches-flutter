@@ -12,11 +12,8 @@ class AdminBusinessMetricsPage extends StatelessWidget {
         backgroundColor: Colors.pink,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection("businesses")
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection("businesses").snapshots(),
         builder: (context, snapshot) {
-
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -31,7 +28,6 @@ class AdminBusinessMetricsPage extends StatelessWidget {
           int risk = 0;
 
           for (var doc in docs) {
-
             final data = doc.data() as Map<String, dynamic>;
 
             final status = data["status"];
@@ -53,8 +49,7 @@ class AdminBusinessMetricsPage extends StatelessWidget {
             if (flags.isNotEmpty) risk++;
           }
 
-          double verificationRate =
-              total == 0 ? 0 : (verified / total) * 100;
+          double verificationRate = total == 0 ? 0 : (verified / total) * 100;
 
           return Padding(
             padding: const EdgeInsets.all(16),
@@ -64,7 +59,6 @@ class AdminBusinessMetricsPage extends StatelessWidget {
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               children: [
-
                 _metricCard("Total Businesses", total, Colors.blue),
 
                 _metricCard("Approved", approved, Colors.green),
@@ -80,7 +74,6 @@ class AdminBusinessMetricsPage extends StatelessWidget {
                 ),
 
                 _metricCard("Risk Flags", risk, Colors.deepOrange),
-
               ],
             ),
           );
@@ -99,7 +92,6 @@ class AdminBusinessMetricsPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-
           Text(
             title,
             textAlign: TextAlign.center,

@@ -33,7 +33,6 @@ class OfferDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // 🔥 DISCOUNT BIG
             Text(
               "${discount ?? 0}%",
@@ -85,10 +84,7 @@ class OfferDetailsPage extends StatelessWidget {
               children: [
                 Text(
                   "Use code:",
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: Colors.black,
-                  ),
+                  style: GoogleFonts.poppins(fontSize: 16, color: Colors.black),
                 ),
                 const SizedBox(width: 8),
                 Text(

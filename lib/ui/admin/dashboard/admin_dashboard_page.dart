@@ -5,28 +5,22 @@ import 'widgets/admin_kpi_card.dart';
 import 'widgets/admin_activity_feed.dart';
 
 class AdminDashboardPage extends StatelessWidget {
-
   const AdminDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-
     debugPrint("📊 AdminDashboardPage BUILD");
 
     return Scaffold(
-
       appBar: AppBar(
         title: const Text("Admin Dashboard"),
         backgroundColor: Colors.pink,
       ),
 
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection("businesses")
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection("businesses").snapshots(),
 
         builder: (context, businessSnap) {
-
           /// -------------------------------
           /// DEBUG SNAPSHOT STATE
           /// -------------------------------
@@ -39,7 +33,6 @@ class AdminDashboardPage extends StatelessWidget {
           /// ERROR HANDLING
           /// -------------------------------
           if (businessSnap.hasError) {
-
             debugPrint("❌ Firestore ERROR:");
             debugPrint(businessSnap.error.toString());
 
@@ -55,12 +48,9 @@ class AdminDashboardPage extends StatelessWidget {
           /// LOADING STATE
           /// -------------------------------
           if (!businessSnap.hasData) {
-
             debugPrint("⏳ Waiting for businesses snapshot...");
 
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final businesses = businessSnap.data!.docs;
@@ -76,8 +66,7 @@ class AdminDashboardPage extends StatelessWidget {
           /// KPI CALCULATION
           /// -------------------------------
           for (var doc in businesses) {
-
-            final data = doc.data() as Map<String,dynamic>;
+            final data = doc.data() as Map<String, dynamic>;
 
             final status = data["status"];
 
@@ -86,14 +75,13 @@ class AdminDashboardPage extends StatelessWidget {
             if (status == "suspended") suspended++;
 
             final trust =
-                (data["trust"] as Map?)?.cast<String,dynamic>() ?? {};
+                (data["trust"] as Map?)?.cast<String, dynamic>() ?? {};
 
             final flags = trust["riskFlags"] as List?;
 
             if (flags != null && flags.isNotEmpty) {
               risk++;
             }
-
           }
 
           debugPrint("📊 KPI Stats:");
@@ -106,19 +94,14 @@ class AdminDashboardPage extends StatelessWidget {
           /// UI
           /// -------------------------------
           return SingleChildScrollView(
-
             padding: const EdgeInsets.all(16),
 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 const Text(
                   "Platform Overview",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 12),
@@ -131,7 +114,6 @@ class AdminDashboardPage extends StatelessWidget {
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                   children: [
-
                     AdminKpiCard(
                       title: "Businesses",
                       value: businesses.length.toString(),
@@ -166,7 +148,6 @@ class AdminDashboardPage extends StatelessWidget {
                       color: Colors.deepOrange,
                       icon: Icons.warning,
                     ),
-
                   ],
                 ),
 
@@ -174,10 +155,7 @@ class AdminDashboardPage extends StatelessWidget {
 
                 const Text(
                   "Admin Activity",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 10),
@@ -186,7 +164,6 @@ class AdminDashboardPage extends StatelessWidget {
                 /// ACTIVITY FEED
                 /// -------------------------------
                 const AdminActivityFeed(),
-
               ],
             ),
           );

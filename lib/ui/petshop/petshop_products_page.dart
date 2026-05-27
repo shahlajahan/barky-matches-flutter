@@ -11,37 +11,30 @@ import 'package:barky_matches_fixed/ui/checkout/checkout_page.dart';
 class PetShopProductsPage extends StatefulWidget {
   final String shopId;
 
-  const PetShopProductsPage({
-    super.key,
-    required this.shopId,
-  });
+  const PetShopProductsPage({super.key, required this.shopId});
 
   @override
-  State<PetShopProductsPage> createState() =>
-      _PetShopProductsPageState();
+  State<PetShopProductsPage> createState() => _PetShopProductsPageState();
 }
 
 class _PetShopProductsPageState extends State<PetShopProductsPage> {
   final List<CartItem> _cart = [];
 
   String getMediaUrl(ProductMedia m) {
-  if (m.type == 'video') {
-    return m.thumbnailUrl ?? m.playbackUrl ?? m.originalUrl;
+    if (m.type == 'video') {
+      return m.thumbnailUrl ?? m.playbackUrl ?? m.originalUrl;
+    }
+    return m.originalUrl;
   }
-  return m.originalUrl;
-}
 
   void _addToCart(Product product) {
-    final index =
-        _cart.indexWhere((e) => e.productId == product.id);
+    final index = _cart.indexWhere((e) => e.productId == product.id);
 
     setState(() {
       if (index != -1) {
         final old = _cart[index];
 
-        _cart[index] = old.copyWith(
-          quantity: old.quantity + 1,
-        );
+        _cart[index] = old.copyWith(quantity: old.quantity + 1);
       } else {
         _cart.add(
           CartItem(
@@ -51,8 +44,8 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
             price: product.price,
             quantity: 1,
             imageUrl: product.media.isNotEmpty
-    ? getMediaUrl(product.media.first)
-    : null,
+                ? getMediaUrl(product.media.first)
+                : null,
             product: product,
           ),
         );
@@ -73,43 +66,37 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
     );
   }
 
-
   @override
-Widget build(BuildContext context) {
-  final l10n = AppLocalizations.of(context)!;
-  debugPrint("🔥 OPEN SHOP ID: ${widget.shopId}");
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    debugPrint("🔥 OPEN SHOP ID: ${widget.shopId}");
 
-  return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.petShopTitle),
-      ),
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.petShopTitle)),
       body: Column(
         children: [
           /// 🔥 REAL PRODUCTS FROM FIRESTORE
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-    .collection('businesses')
-    .doc(widget.shopId)
-    .collection('products')
-    .where('isActive', isEqualTo: true)
-    .snapshots(),
+                  .collection('businesses')
+                  .doc(widget.shopId)
+                  .collection('products')
+                  .where('isActive', isEqualTo: true)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Center(
-                      child: Text(l10n.somethingWentWrong));
+                  return Center(child: Text(l10n.somethingWentWrong));
                 }
 
                 if (!snapshot.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data!.docs;
 
                 if (docs.isEmpty) {
-                  return Center(
-                      child: Text(l10n.noProductsFound));
+                  return Center(child: Text(l10n.noProductsFound));
                 }
 
                 return ListView.builder(
@@ -117,28 +104,23 @@ Widget build(BuildContext context) {
                   itemCount: docs.length,
                   itemBuilder: (_, index) {
                     final doc = docs[index];
-                    final data =
-                        doc.data() as Map<String, dynamic>;
+                    final data = doc.data() as Map<String, dynamic>;
 
-                    final product =
-                        Product.fromJson(doc.id, data);
+                    final product = Product.fromJson(doc.id, data);
 
                     return Card(
-                      margin:
-                          const EdgeInsets.only(bottom: 14),
+                      margin: const EdgeInsets.only(bottom: 14),
                       child: Padding(
-                        padding:
-                            const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
                             /// IMAGE
                             ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(10),
                               child: Image.network(
-  product.media.isNotEmpty
-    ? getMediaUrl(product.media.first)
-    : 'https://via.placeholder.com/70',
+                                product.media.isNotEmpty
+                                    ? getMediaUrl(product.media.first)
+                                    : 'https://via.placeholder.com/70',
 
                                 width: 70,
                                 height: 70,
@@ -151,29 +133,24 @@ Widget build(BuildContext context) {
                             /// INFO
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     product.name,
-                                    style:
-                                        const TextStyle(
-                                      fontWeight:
-                                          FontWeight.bold,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  Text(
-                                      "${product.price} ₺"),
+                                  Text("${product.price} ₺"),
                                 ],
                               ),
                             ),
 
                             /// ADD BUTTON
                             ElevatedButton(
-                              onPressed: () =>
-                                  _addToCart(product),
+                              onPressed: () => _addToCart(product),
                               child: Text(l10n.addToCartButton),
                             ),
                           ],
@@ -192,31 +169,21 @@ Widget build(BuildContext context) {
               padding: const EdgeInsets.all(14),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 10,
-                    color: Colors.black12,
-                  )
-                ],
+                boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black12)],
               ),
               child: Column(
                 children: [
                   /// TOTAL
                   Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         l10n.totalLabel,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
                         "${_totalPrice.toStringAsFixed(2)} ₺",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -225,23 +192,23 @@ Widget build(BuildContext context) {
 
                   /// CHECKOUT
                   SizedBox(
-  width: double.infinity,
-    child: ElevatedButton(
-    onPressed: _cart.isEmpty
-    ? null
-    : () {
-        Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-            builder: (_) => CheckoutPage(items: _cart),
-          ),
-        );
-      },
-    style: ElevatedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-    ),
-    child: Text(l10n.checkoutButton),
-  ),
-),
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _cart.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(context, rootNavigator: true).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CheckoutPage(items: _cart),
+                                ),
+                              );
+                            },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: Text(l10n.checkoutButton),
+                    ),
+                  ),
                 ],
               ),
             ),

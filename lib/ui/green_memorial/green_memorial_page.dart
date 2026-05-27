@@ -61,16 +61,13 @@ class GreenMemorialPage extends StatelessWidget {
             const _SectionTitle('My Memorials'),
             _MyMemorials(ownerId: ownerId),
             const SizedBox(height: 18),
-const _SectionTitle('Community Memorials'),
-const SizedBox(height: 8),
-_CommunityMemorials(),
-const SizedBox(height: 18),
+            const _SectionTitle('Community Memorials'),
+            const SizedBox(height: 8),
+            _CommunityMemorials(),
+            const SizedBox(height: 18),
             const _SectionTitle('Memorial Map'),
-const SizedBox(height: 8),
-SizedBox(
-  height: 320,
-  child: _MemorialMap(),
-),
+            const SizedBox(height: 8),
+            SizedBox(height: 320, child: _MemorialMap()),
           ],
         ),
       ),
@@ -272,12 +269,12 @@ class _MemorialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = (data['title'] ?? '').toString();
-final petName = (data['petName'] ?? '').toString();
-final ownerName = (data['ownerName'] ?? '').toString();
-final story = (data['story'] ?? '').toString();
-final treeType = (data['treeType'] ?? '').toString();
-final petPhoto = (data['petPhoto'] ?? '').toString();
-final createdAt = _timestampToDate(data['createdAt']);
+    final petName = (data['petName'] ?? '').toString();
+    final ownerName = (data['ownerName'] ?? '').toString();
+    final story = (data['story'] ?? '').toString();
+    final treeType = (data['treeType'] ?? '').toString();
+    final petPhoto = (data['petPhoto'] ?? '').toString();
+    final createdAt = _timestampToDate(data['createdAt']);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -304,26 +301,26 @@ final createdAt = _timestampToDate(data['createdAt']);
                   style: AppTheme.h3(),
                 ),
                 if (petName.isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.only(top: 2),
-    child: Text(
-      'In memory of $petName 🌱',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: AppTheme.caption(
-        size: 12,
-        color: AppTheme.success,
-      ),
-    ),
-  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'In memory of $petName 🌱',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.caption(
+                        size: 12,
+                        color: AppTheme.success,
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 4),
                 Text(
-  [
-    if (treeType.isNotEmpty) '🌳 $treeType',
-    _formatDate(createdAt),
-  ].join(' - '),
-  style: AppTheme.caption(size: 12),
-),
+                  [
+                    if (treeType.isNotEmpty) '🌳 $treeType',
+                    _formatDate(createdAt),
+                  ].join(' - '),
+                  style: AppTheme.caption(size: 12),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   story,
@@ -332,14 +329,14 @@ final createdAt = _timestampToDate(data['createdAt']);
                   style: AppTheme.body(size: 13, color: AppTheme.muted),
                 ),
                 if (ownerName.isNotEmpty) ...[
-  const SizedBox(height: 6),
-  Text(
-    'By $ownerName',
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    style: AppTheme.caption(size: 11),
-  ),
-],
+                  const SizedBox(height: 6),
+                  Text(
+                    'By $ownerName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.caption(size: 11),
+                  ),
+                ],
               ],
             ),
           ),
@@ -413,17 +410,11 @@ class _MemorialMap extends StatefulWidget {
 class _MemorialMapState extends State<_MemorialMap> {
   GoogleMapController? _mapController;
 
-  static const LatLng _fallback = LatLng(
-    41.0082,
-    28.9784,
-  );
+  static const LatLng _fallback = LatLng(41.0082, 28.9784);
 
-  final Set<Factory<OneSequenceGestureRecognizer>>
-    _gestureRecognizers = {
-  Factory<OneSequenceGestureRecognizer>(
-    () => EagerGestureRecognizer(),
-  ),
-};
+  final Set<Factory<OneSequenceGestureRecognizer>> _gestureRecognizers = {
+    Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -433,15 +424,12 @@ class _MemorialMapState extends State<_MemorialMap> {
           .where('visibility', isEqualTo: 'Public')
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const _LoadingPanel();
         }
 
         if (snapshot.hasError) {
-          return const _EmptyState(
-            text: 'Could not load memorial map.',
-          );
+          return const _EmptyState(text: 'Could not load memorial map.');
         }
 
         final docs = snapshot.data?.docs ?? [];
@@ -458,19 +446,14 @@ class _MemorialMapState extends State<_MemorialMap> {
             continue;
           }
 
-          final petName =
-              (data['petName'] ?? '').toString();
+          final petName = (data['petName'] ?? '').toString();
 
-          final title =
-              (data['title'] ?? '').toString();
+          final title = (data['title'] ?? '').toString();
 
           markers.add(
             Marker(
               markerId: MarkerId(doc.id),
-              position: LatLng(
-                lat.toDouble(),
-                lng.toDouble(),
-              ),
+              position: LatLng(lat.toDouble(), lng.toDouble()),
               infoWindow: InfoWindow(
                 title: petName.isEmpty
                     ? 'Green Memorial'
@@ -482,65 +465,57 @@ class _MemorialMapState extends State<_MemorialMap> {
         }
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(
-            AppTheme.radiusCard,
-          ),
-        child: GoogleMap(
-  initialCameraPosition: const CameraPosition(
-    target: _fallback,
-    zoom: 11,
-  ),
-
-  markers: markers,
-
-  mapType: MapType.normal,
-
-  gestureRecognizers: _gestureRecognizers,
-
-  zoomControlsEnabled: true,
-  zoomGesturesEnabled: true,
-  scrollGesturesEnabled: true,
-  rotateGesturesEnabled: true,
-  tiltGesturesEnabled: true,
-
-  myLocationEnabled: true,
-  myLocationButtonEnabled: true,
-
-  compassEnabled: true,
-  buildingsEnabled: true,
-  trafficEnabled: false,
-
-  onMapCreated: (controller) async {
-    _mapController = controller;
-
-    if (markers.isNotEmpty) {
-      final first = markers.first.position;
-
-      await controller.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: first,
-            zoom: 13,
-          ),
-        ),
-      );
-    } else {
-      final pos = await Geolocator.getCurrentPosition();
-
-      await controller.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(
-              pos.latitude,
-              pos.longitude,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+          child: GoogleMap(
+            initialCameraPosition: const CameraPosition(
+              target: _fallback,
+              zoom: 11,
             ),
-            zoom: 13,
+
+            markers: markers,
+
+            mapType: MapType.normal,
+
+            gestureRecognizers: _gestureRecognizers,
+
+            zoomControlsEnabled: true,
+            zoomGesturesEnabled: true,
+            scrollGesturesEnabled: true,
+            rotateGesturesEnabled: true,
+            tiltGesturesEnabled: true,
+
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+
+            compassEnabled: true,
+            buildingsEnabled: true,
+            trafficEnabled: false,
+
+            onMapCreated: (controller) async {
+              _mapController = controller;
+
+              if (markers.isNotEmpty) {
+                final first = markers.first.position;
+
+                await controller.animateCamera(
+                  CameraUpdate.newCameraPosition(
+                    CameraPosition(target: first, zoom: 13),
+                  ),
+                );
+              } else {
+                final pos = await Geolocator.getCurrentPosition();
+
+                await controller.animateCamera(
+                  CameraUpdate.newCameraPosition(
+                    CameraPosition(
+                      target: LatLng(pos.latitude, pos.longitude),
+                      zoom: 13,
+                    ),
+                  ),
+                );
+              }
+            },
           ),
-        ),
-      );
-    }
-  },
-),
         );
       },
     );
@@ -585,29 +560,26 @@ String _formatDate(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
   return '${date.year}-$month-$day';
 }
+
 class _CommunityMemorials extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-    .collection('green_memorials')
-    .where('visibility', isEqualTo: 'Public')
-    .orderBy('createdAt', descending: true)
-    .snapshots(),
+          .collection('green_memorials')
+          .where('visibility', isEqualTo: 'Public')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _LoadingPanel();
         }
 
         if (snapshot.hasError) {
-  debugPrint(
-    '❌ COMMUNITY MEMORIAL ERROR: ${snapshot.error}',
-  );
+          debugPrint('❌ COMMUNITY MEMORIAL ERROR: ${snapshot.error}');
 
-  return _EmptyState(
-    text: '${snapshot.error}',
-  );
-}
+          return _EmptyState(text: '${snapshot.error}');
+        }
         final docs = snapshot.data?.docs.toList() ?? [];
 
         docs.sort((a, b) {

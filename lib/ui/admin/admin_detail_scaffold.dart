@@ -19,7 +19,6 @@ class AdminDetailScaffold extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-
             /// 🔙 TOP BAR (Back Button)
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
@@ -92,9 +91,7 @@ class _HeaderContainer extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
             blurRadius: 12,

@@ -7,14 +7,11 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 enum _GroomyDetailsTab { overview, services, reviews, gallery }
-enum ReviewSortType {
-  mostRelevant,
-  newest,
-}
+
+enum ReviewSortType { mostRelevant, newest }
 
 class GroomyDetailsOverlay extends StatefulWidget {
   final BusinessCardData data;
@@ -40,21 +37,17 @@ class GroomyDetailsOverlay extends StatefulWidget {
 
 class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay> {
   _GroomyDetailsTab _activeTab = _GroomyDetailsTab.overview;
-ReviewSortType _sortType =
-    ReviewSortType.mostRelevant;
+  ReviewSortType _sortType = ReviewSortType.mostRelevant;
 
-final Map<String, int>
-    _optimisticLikes = {};
+  final Map<String, int> _optimisticLikes = {};
 
-final Map<String, bool>
-    _optimisticIsLiked = {};
+  final Map<String, bool> _optimisticIsLiked = {};
 
-final Set<String>
-    _likeBusy = {};
+  final Set<String> _likeBusy = {};
 
-double? _liveRating;
+  double? _liveRating;
 
-int _liveReviewCount = 0;
+  int _liveReviewCount = 0;
   List<Map<String, dynamic>> _fallbackServices() {
     final rawData = widget.data.rawData ?? widget.data.data ?? {};
     final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
@@ -62,8 +55,6 @@ int _liveReviewCount = 0;
       sectorData['grooming'] ?? sectorData['groomer'] ?? {},
     );
     final servicesData = groomingData['services'];
-
-    
 
     List<String> titles = [];
     if (servicesData is Map && servicesData['offeredServices'] is List) {
@@ -129,26 +120,24 @@ int _liveReviewCount = 0;
     return int.tryParse(raw?.toString() ?? '') ?? 60;
   }
 
-Future<void> _openWriteReviewSheet({
-  bool isDismissible = true,
-  bool enableDrag = true,
-  Color? backgroundColor,
-}) async {
-  if (!mounted) return;
+  Future<void> _openWriteReviewSheet({
+    bool isDismissible = true,
+    bool enableDrag = true,
+    Color? backgroundColor,
+  }) async {
+    if (!mounted) return;
 
-  FocusManager.instance.primaryFocus?.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
 
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    isDismissible: isDismissible,
-    enableDrag: enableDrag,
-    backgroundColor: backgroundColor,
-    builder: (_) => _WriteReviewSheet(
-      businessId: widget.data.id,
-    ),
-  );
-}
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: isDismissible,
+      enableDrag: enableDrag,
+      backgroundColor: backgroundColor,
+      builder: (_) => _WriteReviewSheet(businessId: widget.data.id),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -191,14 +180,11 @@ Future<void> _openWriteReviewSheet({
     );
   }
 
-   Stream<QuerySnapshot> _getReviewsStream() {
+  Stream<QuerySnapshot> _getReviewsStream() {
     final collection = FirebaseFirestore.instance
         .collection('reviews')
         .where('businessId', isEqualTo: widget.data.id)
-.where(
-  'businessType',
-  isEqualTo: 'groomy',
-);
+        .where('businessType', isEqualTo: 'groomy');
 
     if (_sortType == ReviewSortType.newest) {
       return collection.orderBy('createdAt', descending: true).snapshots();
@@ -793,7 +779,7 @@ Future<void> _openWriteReviewSheet({
       case _GroomyDetailsTab.services:
         return 'Services';
       case _GroomyDetailsTab.reviews:
-  return 'Reviews';
+        return 'Reviews';
       case _GroomyDetailsTab.gallery:
         return 'Gallery';
     }
@@ -941,37 +927,29 @@ Future<void> _openWriteReviewSheet({
     );
   }
 
-  Widget _sectionCard({
-  required String title,
-  required Widget child,
-}) {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: Colors.grey.shade200,
+  Widget _sectionCard({required String title, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-    ),
-    child: Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: AppTheme.body().copyWith(
-            fontWeight: FontWeight.w700,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTheme.body().copyWith(fontWeight: FontWeight.w700),
           ),
-        ),
 
-        const SizedBox(height: 10),
+          const SizedBox(height: 10),
 
-        child,
-      ],
-    ),
-  );
-}
+          child,
+        ],
+      ),
+    );
+  }
 
   Widget _gallery() {
     final images = _galleryImages();
@@ -1021,12 +999,11 @@ Future<void> _openWriteReviewSheet({
     );
   }
 }
+
 class _WriteReviewSheet extends StatefulWidget {
   final String businessId;
 
-  const _WriteReviewSheet({
-  required this.businessId,
-});
+  const _WriteReviewSheet({required this.businessId});
 
   @override
   State<_WriteReviewSheet> createState() => _WriteReviewSheetState();
@@ -1078,19 +1055,12 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
         return;
       }
 
-      final businessId =
-    widget.businessId;
+      final businessId = widget.businessId;
 
       final existing = await FirebaseFirestore.instance
           .collection('reviews')
-          .where(
-  'businessId',
-  isEqualTo: businessId,
-)
-.where(
-  'businessType',
-  isEqualTo: 'groomy',
-)
+          .where('businessId', isEqualTo: businessId)
+          .where('businessType', isEqualTo: 'groomy')
           .where('userId', isEqualTo: currentUser.uid)
           .get();
 
@@ -1122,7 +1092,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
 
       await FirebaseFirestore.instance.collection('reviews').add({
         'businessId': businessId,
-'businessType': 'groomy',
+        'businessType': 'groomy',
         'userId': currentUser.uid,
         'userName': userName,
         'userPhoto': userPhoto,

@@ -6,31 +6,21 @@ import '../services/post_comment_service.dart';
 class CommentsBottomSheet extends StatefulWidget {
   final SocialPost post;
 
-  const CommentsBottomSheet({
-    super.key,
-    required this.post,
-  });
+  const CommentsBottomSheet({super.key, required this.post});
 
   @override
-  State<CommentsBottomSheet> createState() =>
-      _CommentsBottomSheetState();
+  State<CommentsBottomSheet> createState() => _CommentsBottomSheetState();
 }
 
-class _CommentsBottomSheetState
-    extends State<CommentsBottomSheet> {
-  final PostCommentService
-  _commentService =
-      PostCommentService();
+class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
+  final PostCommentService _commentService = PostCommentService();
 
-  final TextEditingController
-  _controller =
-      TextEditingController();
+  final TextEditingController _controller = TextEditingController();
 
   bool _sending = false;
 
   Future<void> _sendComment() async {
-    final text =
-        _controller.text.trim();
+    final text = _controller.text.trim();
 
     if (text.isEmpty) return;
 
@@ -39,16 +29,11 @@ class _CommentsBottomSheetState
     });
 
     try {
-      await _commentService.addComment(
-        postId: widget.post.id,
-        text: text,
-      );
+      await _commentService.addComment(postId: widget.post.id, text: text);
 
       _controller.clear();
     } catch (e) {
-      debugPrint(
-        'COMMENT ERROR: $e',
-      );
+      debugPrint('COMMENT ERROR: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -61,17 +46,12 @@ class _CommentsBottomSheetState
   @override
   Widget build(BuildContext context) {
     return Container(
-      height:
-          MediaQuery.of(context).size.height *
-          0.82,
+      height: MediaQuery.of(context).size.height * 0.82,
 
       decoration: const BoxDecoration(
         color: Colors.black,
 
-        borderRadius:
-            BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
 
       child: Column(
@@ -85,8 +65,7 @@ class _CommentsBottomSheetState
             decoration: BoxDecoration(
               color: Colors.grey[700],
 
-              borderRadius:
-                  BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20),
             ),
           ),
 
@@ -105,44 +84,30 @@ class _CommentsBottomSheetState
 
           Expanded(
             child: StreamBuilder(
-              stream: _commentService
-                  .streamComments(
-                    widget.post.id,
-                  ),
+              stream: _commentService.streamComments(widget.post.id),
 
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-  debugPrint(
-    '🔥 COMMENTS ERROR: ${snapshot.error}',
-  );
+                  debugPrint('🔥 COMMENTS ERROR: ${snapshot.error}');
 
-  return Center(
-    child: Text(
-      'Comments error: ${snapshot.error}',
-      style: const TextStyle(
-        color: Colors.white,
-      ),
-    ),
-  );
-}
-                if (!snapshot.hasData) {
-                  return const Center(
-                    child:
-                        CircularProgressIndicator(),
+                  return Center(
+                    child: Text(
+                      'Comments error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   );
                 }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                final comments =
-                    snapshot.data ?? [];
+                final comments = snapshot.data ?? [];
 
                 if (comments.isEmpty) {
                   return const Center(
                     child: Text(
                       'No comments yet',
-                      style: TextStyle(
-                        color:
-                            Colors.white70,
-                      ),
+                      style: TextStyle(color: Colors.white70),
                     ),
                   );
                 }
@@ -150,60 +115,35 @@ class _CommentsBottomSheetState
                 return ListView.builder(
                   itemCount: comments.length,
 
-                  itemBuilder: (
-                    context,
-                    index,
-                  ) {
-                    final comment =
-                        comments[index];
+                  itemBuilder: (context, index) {
+                    final comment = comments[index];
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor:
-                            Colors.grey[800],
+                        backgroundColor: Colors.grey[800],
 
-                        backgroundImage:
-                            comment.userPhotoUrl !=
-                                    null
-                                ? NetworkImage(
-                                    comment
-                                        .userPhotoUrl!,
-                                  )
-                                : null,
+                        backgroundImage: comment.userPhotoUrl != null
+                            ? NetworkImage(comment.userPhotoUrl!)
+                            : null,
 
-                        child:
-                            comment.userPhotoUrl ==
-                                    null
-                                ? const Icon(
-                                    Icons.person,
-                                    color:
-                                        Colors
-                                            .white,
-                                  )
-                                : null,
+                        child: comment.userPhotoUrl == null
+                            ? const Icon(Icons.person, color: Colors.white)
+                            : null,
                       ),
 
                       title: Text(
                         comment.username,
 
-                        style:
-                            const TextStyle(
-                              color:
-                                  Colors.white,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                            ),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
 
                       subtitle: Text(
                         comment.text,
 
-                        style:
-                            const TextStyle(
-                              color:
-                                  Colors.white70,
-                            ),
+                        style: const TextStyle(color: Colors.white70),
                       ),
                     );
                   },
@@ -214,79 +154,47 @@ class _CommentsBottomSheetState
 
           SafeArea(
             child: Padding(
-              padding:
-                  const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
 
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      controller:
-                          _controller,
+                      controller: _controller,
 
-                      style:
-                          const TextStyle(
-                            color:
-                                Colors.white,
-                          ),
+                      style: const TextStyle(color: Colors.white),
 
-                      decoration:
-                          InputDecoration(
-                            hintText:
-                                'Write a comment...',
+                      decoration: InputDecoration(
+                        hintText: 'Write a comment...',
 
-                            hintStyle:
-                                TextStyle(
-                                  color:
-                                      Colors
-                                          .grey[500],
-                                ),
+                        hintStyle: TextStyle(color: Colors.grey[500]),
 
-                            filled: true,
+                        filled: true,
 
-                            fillColor:
-                                Colors.grey[900],
+                        fillColor: Colors.grey[900],
 
-                            border:
-                                OutlineInputBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(
-                                        18,
-                                      ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
 
-                                  borderSide:
-                                      BorderSide
-                                          .none,
-                                ),
-                          ),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
                   ),
 
                   const SizedBox(width: 10),
 
                   IconButton(
-                    onPressed:
-                        _sending
-                        ? null
-                        : _sendComment,
+                    onPressed: _sending ? null : _sendComment,
 
-                    icon:
-                        _sending
+                    icon: _sending
                         ? const SizedBox(
                             width: 20,
                             height: 20,
 
-                            child:
-                                CircularProgressIndicator(
-                                  strokeWidth:
-                                      2,
-                                ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(
-                            Icons.send,
-                            color:
-                                Colors.white,
-                          ),
+                        : const Icon(Icons.send, color: Colors.white),
                   ),
                 ],
               ),

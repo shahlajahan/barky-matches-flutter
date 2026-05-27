@@ -493,69 +493,72 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Expanded(
-      child: Text(
-        AppLocalizations.of(
-          context,
-        )!.businessRegisterPlatformLegalAgreement,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    ),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.businessRegisterPlatformLegalAgreement,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
 
-    const SizedBox(width: 10),
+                        const SizedBox(width: 10),
 
-    Flexible(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ToggleButtons(
-            constraints: const BoxConstraints(
-              minHeight: 36,
-              minWidth: 42,
-            ),
-            isSelected: [
-              _legalLang == "TR",
-              _legalLang == "EN",
-            ],
-            onPressed: (i) {
-              setModalState(() {
-                _legalLang = i == 0 ? "TR" : "EN";
-              });
-            },
-            children: const [
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text("TR"),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text("EN"),
-              ),
-            ],
-          ),
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ToggleButtons(
+                                constraints: const BoxConstraints(
+                                  minHeight: 36,
+                                  minWidth: 42,
+                                ),
+                                isSelected: [
+                                  _legalLang == "TR",
+                                  _legalLang == "EN",
+                                ],
+                                onPressed: (i) {
+                                  setModalState(() {
+                                    _legalLang = i == 0 ? "TR" : "EN";
+                                  });
+                                },
+                                children: const [
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text("TR"),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text("EN"),
+                                  ),
+                                ],
+                              ),
 
-          const SizedBox(width: 4),
+                              const SizedBox(width: 4),
 
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            icon: const Icon(Icons.close),
-            onPressed: () =>
-                Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    ),
-  ],
-),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.close),
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
                   const Divider(),

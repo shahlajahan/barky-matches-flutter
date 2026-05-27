@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-
 class AppTheme {
   // ─────────────────────────────
   // 🎨 Brand Colors
@@ -28,23 +27,19 @@ class AppTheme {
   // 🌫 Shadow
   // ─────────────────────────────
   static List<BoxShadow> cardShadow({double opacity = 0.15}) => [
-        BoxShadow(
-          color: Colors.black.withOpacity(opacity),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: Colors.black.withOpacity(opacity),
+      blurRadius: 10,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   // ─────────────────────────────
   // 🔤 Typography System (UPGRADED SAFE)
   // ─────────────────────────────
 
   /// 🔥 H1 → main headers
-  static TextStyle h1({
-    Color? color,
-    FontWeight? weight,
-    double? size,
-  }) =>
+  static TextStyle h1({Color? color, FontWeight? weight, double? size}) =>
       GoogleFonts.poppins(
         fontSize: size ?? 22,
         fontWeight: weight ?? FontWeight.w700,
@@ -52,11 +47,7 @@ class AppTheme {
       );
 
   /// 🔥 H2 → section titles
-  static TextStyle h2({
-    Color? color,
-    FontWeight? weight,
-    double? size,
-  }) =>
+  static TextStyle h2({Color? color, FontWeight? weight, double? size}) =>
       GoogleFonts.poppins(
         fontSize: size ?? 18,
         fontWeight: weight ?? FontWeight.w600,
@@ -64,11 +55,7 @@ class AppTheme {
       );
 
   /// 🔥 H3 → small titles / cards
-  static TextStyle h3({
-    Color? color,
-    FontWeight? weight,
-    double? size,
-  }) =>
+  static TextStyle h3({Color? color, FontWeight? weight, double? size}) =>
       GoogleFonts.poppins(
         fontSize: size ?? 16,
         fontWeight: weight ?? FontWeight.w600,
@@ -76,11 +63,7 @@ class AppTheme {
       );
 
   /// 🔥 BODY → normal text
-  static TextStyle body({
-    Color? color,
-    FontWeight? weight,
-    double? size,
-  }) =>
+  static TextStyle body({Color? color, FontWeight? weight, double? size}) =>
       GoogleFonts.poppins(
         fontSize: size ?? 14,
         fontWeight: weight ?? FontWeight.w400,
@@ -88,11 +71,7 @@ class AppTheme {
       );
 
   /// 🔥 CAPTION → small text
-  static TextStyle caption({
-    Color? color,
-    FontWeight? weight,
-    double? size,
-  }) =>
+  static TextStyle caption({Color? color, FontWeight? weight, double? size}) =>
       GoogleFonts.poppins(
         fontSize: size ?? 12,
         fontWeight: weight ?? FontWeight.w400,
@@ -100,46 +79,37 @@ class AppTheme {
       );
 
   /// 🆕 BADGE → discounts / labels
-  static TextStyle badge({
-    Color? color,
-  }) =>
-      GoogleFonts.poppins(
-        fontSize: 13,
-        fontWeight: FontWeight.w800,
-        color: color ?? textDark,
-        letterSpacing: 0.3,
-      );
+  static TextStyle badge({Color? color}) => GoogleFonts.poppins(
+    fontSize: 13,
+    fontWeight: FontWeight.w800,
+    color: color ?? textDark,
+    letterSpacing: 0.3,
+  );
 
   /// 🆕 BUTTON → CTA text
-  static TextStyle button({
-    Color? color,
-  }) =>
-      GoogleFonts.poppins(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        color: color ?? Colors.black,
-      );
+  static TextStyle button({Color? color}) => GoogleFonts.poppins(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    color: color ?? Colors.black,
+  );
 
   /// 🆕 OVERLINE → tiny labels (optional)
-  static TextStyle overline({
-    Color? color,
-  }) =>
-      GoogleFonts.poppins(
-        fontSize: 10,
-        fontWeight: FontWeight.w500,
-        color: color ?? muted,
-        letterSpacing: 1.0,
-      );
-
-
-static TextStyle bodyMedium({Color? color}) {
-  return TextStyle(
-    fontSize: 14,
+  static TextStyle overline({Color? color}) => GoogleFonts.poppins(
+    fontSize: 10,
     fontWeight: FontWeight.w500,
-    color: color ?? Colors.black,
-    height: 1.4,
+    color: color ?? muted,
+    letterSpacing: 1.0,
   );
-}
+
+  static TextStyle bodyMedium({Color? color}) {
+    return TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      color: color ?? Colors.black,
+      height: 1.4,
+    );
+  }
+
   // ─────────────────────────────
   // 🎯 ThemeData
   // ─────────────────────────────
@@ -157,9 +127,7 @@ static TextStyle bodyMedium({Color? color}) {
         error: danger,
       ),
 
-      textTheme: isFa
-          ? const TextTheme()
-          : GoogleFonts.poppinsTextTheme(),
+      textTheme: isFa ? const TextTheme() : GoogleFonts.poppinsTextTheme(),
 
       // ─────────────────────────
       // 🔝 AppBar
@@ -213,8 +181,10 @@ static TextStyle bodyMedium({Color? color}) {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white.withOpacity(0.95),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radius),
           borderSide: BorderSide(color: Colors.black.withOpacity(0.08)),

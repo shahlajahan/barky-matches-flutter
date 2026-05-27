@@ -5,10 +5,7 @@ import 'package:barky_matches_fixed/models/product.dart';
 class SellerOffersPage extends StatelessWidget {
   final Product product;
 
-  const SellerOffersPage({
-    super.key,
-    required this.product,
-  });
+  const SellerOffersPage({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
@@ -26,31 +23,23 @@ class SellerOffersPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Sellers"),
-      ),
+      appBar: AppBar(title: const Text("Sellers")),
       body: StreamBuilder<QuerySnapshot>(
         stream: query.snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-  debugPrint("🔥 SELLER QUERY ERROR: ${snapshot.error}");
-  return Center(
-    child: Text("Error: ${snapshot.error}"),
-  );
-}
+            debugPrint("🔥 SELLER QUERY ERROR: ${snapshot.error}");
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
 
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text("No sellers found"),
-            );
+            return const Center(child: Text("No sellers found"));
           }
 
           final items = docs.map((doc) {
@@ -72,16 +61,11 @@ class SellerOffersPage extends StatelessWidget {
                   title: Text(p.businessName ?? "Seller"),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(p.name),
-                      Text("Stock: ${p.stock}"),
-                    ],
+                    children: [Text(p.name), Text("Stock: ${p.stock}")],
                   ),
                   trailing: Text(
                     "${p.finalPrice} ${p.currency}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               );

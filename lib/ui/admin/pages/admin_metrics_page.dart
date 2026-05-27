@@ -6,34 +6,25 @@ class AdminMetricsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final doc = FirebaseFirestore.instance
         .collection("admin_stats")
         .doc("metrics")
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Platform Metrics"),
-      ),
+      appBar: AppBar(title: const Text("Platform Metrics")),
 
       body: StreamBuilder<DocumentSnapshot>(
         stream: doc,
         builder: (context, snapshot) {
-
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
-          final data =
-              snapshot.data!.data() as Map<String, dynamic>?;
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
 
           if (data == null) {
-            return const Center(
-              child: Text("No metrics data"),
-            );
+            return const Center(child: Text("No metrics data"));
           }
 
           final updatedAt = data["updatedAt"] as Timestamp?;
@@ -42,7 +33,6 @@ class AdminMetricsPage extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 2,
@@ -50,7 +40,6 @@ class AdminMetricsPage extends StatelessWidget {
                     crossAxisSpacing: 14,
                     childAspectRatio: 1.4,
                     children: [
-
                       _MetricCard(
                         title: "Total Users",
                         value: data["totalUsers"] ?? 0,
@@ -98,7 +87,6 @@ class AdminMetricsPage extends StatelessWidget {
                         value: data["playDatesToday"] ?? 0,
                         icon: Icons.calendar_today,
                       ),
-
                     ],
                   ),
                 ),
@@ -108,13 +96,9 @@ class AdminMetricsPage extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 10),
                     child: Text(
                       "Last updated: ${updatedAt.toDate()}",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ),
-
               ],
             ),
           );
@@ -125,7 +109,6 @@ class AdminMetricsPage extends StatelessWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-
   final String title;
   final dynamic value;
   final IconData icon;
@@ -138,7 +121,6 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       padding: const EdgeInsets.all(16),
 
@@ -146,10 +128,7 @@ class _MetricCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            blurRadius: 6,
-            color: Colors.black.withOpacity(.08),
-          )
+          BoxShadow(blurRadius: 6, color: Colors.black.withOpacity(.08)),
         ],
       ),
 
@@ -158,17 +137,11 @@ class _MetricCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
         children: [
-
-          Icon(
-            icon,
-            size: 28,
-            color: Colors.pink,
-          ),
+          Icon(icon, size: 28, color: Colors.pink),
 
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Text(
                 "$value",
                 style: const TextStyle(
@@ -179,10 +152,7 @@ class _MetricCard extends StatelessWidget {
 
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ],
           ),

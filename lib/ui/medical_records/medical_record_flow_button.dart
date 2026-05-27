@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class MedicalRecordFlowButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const MedicalRecordFlowButton({
-    super.key,
-    required this.onTap,
-  });
+  const MedicalRecordFlowButton({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -50,17 +47,13 @@ class MedicalRecordFlowButton extends StatelessWidget {
 
             const Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
 
                 children: [
                   Text(
                     'Medical Records',
 
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
 
                   SizedBox(height: 4),
@@ -68,10 +61,7 @@ class MedicalRecordFlowButton extends StatelessWidget {
                   Text(
                     'Vaccines, visits and treatments',
 
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.black54,
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
                   ),
                 ],
               ),

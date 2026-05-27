@@ -9,13 +9,10 @@ class PrivacySettingsPage extends StatefulWidget {
   const PrivacySettingsPage({super.key});
 
   @override
-  State<PrivacySettingsPage> createState() =>
-      _PrivacySettingsPageState();
+  State<PrivacySettingsPage> createState() => _PrivacySettingsPageState();
 }
 
-class _PrivacySettingsPageState
-    extends State<PrivacySettingsPage> {
-
+class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
   bool profileVisible = true;
   bool locationSharing = true;
   bool dogProfileVisible = true;
@@ -43,14 +40,11 @@ class _PrivacySettingsPageState
       final data = doc.data();
 
       if (data != null) {
-        profileVisible =
-            data["profileVisible"] ?? true;
+        profileVisible = data["profileVisible"] ?? true;
 
-        locationSharing =
-            data["locationSharing"] ?? true;
+        locationSharing = data["locationSharing"] ?? true;
 
-        dogProfileVisible =
-            data["dogProfileVisible"] ?? true;
+        dogProfileVisible = data["dogProfileVisible"] ?? true;
       }
     } catch (e) {
       debugPrint("Privacy load error: $e");
@@ -65,9 +59,7 @@ class _PrivacySettingsPageState
 
   /// SAVE SETTINGS
   Future<void> _savePrivacySettings() async {
-
-    final uid =
-        FirebaseAuth.instance.currentUser?.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid == null) return;
 
@@ -95,48 +87,34 @@ class _PrivacySettingsPageState
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Privacy settings updated"),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Privacy settings updated")));
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       color: const Color(0xFFFDF2F5),
 
       child: Stack(
         children: [
-
           ListView(
-            padding: const EdgeInsets.fromLTRB(
-              18,
-              18,
-              18,
-              120,
-            ),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
 
             children: [
-
               // 🟣 HEADER
               Container(
                 padding: const EdgeInsets.all(22),
 
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF9E1B4F),
-                      Color(0xFFE91E63),
-                    ],
+                    colors: [Color(0xFF9E1B4F), Color(0xFFE91E63)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
 
-                  borderRadius:
-                      BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(28),
 
                   boxShadow: [
                     BoxShadow(
@@ -148,10 +126,8 @@ class _PrivacySettingsPageState
                 ),
 
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     const Icon(
                       LucideIcons.shield,
                       color: Color(0xFFFFC107),
@@ -163,8 +139,7 @@ class _PrivacySettingsPageState
                     Text(
                       "Privacy & Security",
                       style: GoogleFonts.poppins(
-                        color:
-                            const Color(0xFFFFC107),
+                        color: const Color(0xFFFFC107),
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                       ),
@@ -175,8 +150,7 @@ class _PrivacySettingsPageState
                     Text(
                       "Control your visibility, data sharing, and account privacy settings.",
                       style: GoogleFonts.poppins(
-                        color:
-                            Colors.white.withOpacity(.9),
+                        color: Colors.white.withOpacity(.9),
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -187,10 +161,7 @@ class _PrivacySettingsPageState
 
               const SizedBox(height: 28),
 
-              _SectionTitle(
-                title: "Profile",
-                icon: LucideIcons.user,
-              ),
+              _SectionTitle(title: "Profile", icon: LucideIcons.user),
 
               const SizedBox(height: 12),
 
@@ -238,10 +209,7 @@ class _PrivacySettingsPageState
 
               const SizedBox(height: 28),
 
-              _SectionTitle(
-                title: "Dogs",
-                icon: LucideIcons.dog,
-              ),
+              _SectionTitle(title: "Dogs", icon: LucideIcons.dog),
 
               const SizedBox(height: 12),
 
@@ -267,10 +235,7 @@ class _PrivacySettingsPageState
 
               const SizedBox(height: 28),
 
-              _SectionTitle(
-                title: "Account",
-                icon: LucideIcons.settings,
-              ),
+              _SectionTitle(title: "Account", icon: LucideIcons.settings),
 
               const SizedBox(height: 12),
 
@@ -282,10 +247,7 @@ class _PrivacySettingsPageState
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          const BlockedUsersPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const BlockedUsersPage()),
                   );
                 },
               ),
@@ -298,12 +260,9 @@ class _PrivacySettingsPageState
                 icon: LucideIcons.download,
 
                 onTap: () {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        "Data export request submitted",
-                      ),
+                      content: Text("Data export request submitted"),
                     ),
                   );
                 },
@@ -330,9 +289,7 @@ class _PrivacySettingsPageState
               color: Colors.black26,
 
               child: const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF9E1B4F),
-                ),
+                child: CircularProgressIndicator(color: Color(0xFF9E1B4F)),
               ),
             ),
         ],
@@ -341,18 +298,15 @@ class _PrivacySettingsPageState
   }
 
   void _showDeleteDialog() {
-
     showDialog(
       context: context,
 
       builder: (_) {
-
         return Dialog(
           backgroundColor: Colors.white,
 
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(24),
           ),
 
           child: Padding(
@@ -362,14 +316,12 @@ class _PrivacySettingsPageState
               mainAxisSize: MainAxisSize.min,
 
               children: [
-
                 Container(
                   width: 72,
                   height: 72,
 
                   decoration: BoxDecoration(
-                    color:
-                        Colors.red.withOpacity(.12),
+                    color: Colors.red.withOpacity(.12),
 
                     shape: BoxShape.circle,
                   ),
@@ -409,25 +361,17 @@ class _PrivacySettingsPageState
 
                 Row(
                   children: [
-
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor:
-                              Colors.black87,
+                          foregroundColor: Colors.black87,
 
-                          side: BorderSide(
-                            color: Colors.grey.shade300,
-                          ),
+                          side: BorderSide(color: Colors.grey.shade300),
 
-                          minimumSize:
-                              const Size(0, 52),
+                          minimumSize: const Size(0, 52),
 
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
 
@@ -437,10 +381,8 @@ class _PrivacySettingsPageState
 
                         child: Text(
                           "Cancel",
-                          style:
-                              GoogleFonts.poppins(
-                            fontWeight:
-                                FontWeight.w600,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -450,24 +392,17 @@ class _PrivacySettingsPageState
 
                     Expanded(
                       child: ElevatedButton(
-                        style: ElevatedButton
-                            .styleFrom(
-                          backgroundColor:
-                              Colors.red,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
 
-                          foregroundColor:
-                              Colors.white,
+                          foregroundColor: Colors.white,
 
                           elevation: 0,
 
-                          minimumSize:
-                              const Size(0, 52),
+                          minimumSize: const Size(0, 52),
 
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
 
@@ -477,10 +412,8 @@ class _PrivacySettingsPageState
 
                         child: Text(
                           "Delete",
-                          style:
-                              GoogleFonts.poppins(
-                            fontWeight:
-                                FontWeight.w700,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -497,26 +430,16 @@ class _PrivacySettingsPageState
 }
 
 class _SectionTitle extends StatelessWidget {
-
   final String title;
   final IconData icon;
 
-  const _SectionTitle({
-    required this.title,
-    required this.icon,
-  });
+  const _SectionTitle({required this.title, required this.icon});
 
   @override
   Widget build(BuildContext context) {
-
     return Row(
       children: [
-
-        Icon(
-          icon,
-          size: 20,
-          color: const Color(0xFF9E1B4F),
-        ),
+        Icon(icon, size: 20, color: const Color(0xFF9E1B4F)),
 
         const SizedBox(width: 10),
 
@@ -534,7 +457,6 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _ToggleTile extends StatelessWidget {
-
   final String title;
   final String subtitle;
   final bool value;
@@ -551,7 +473,6 @@ class _ToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       padding: const EdgeInsets.all(18),
 
@@ -571,34 +492,26 @@ class _ToggleTile extends StatelessWidget {
 
       child: Row(
         children: [
-
           Container(
             width: 52,
             height: 52,
 
             decoration: BoxDecoration(
-              color: const Color(0xFF9E1B4F)
-                  .withOpacity(.1),
+              color: const Color(0xFF9E1B4F).withOpacity(.1),
 
-              borderRadius:
-                  BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16),
             ),
 
-            child: Icon(
-              icon,
-              color: const Color(0xFF9E1B4F),
-            ),
+            child: Icon(icon, color: const Color(0xFF9E1B4F)),
           ),
 
           const SizedBox(width: 16),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-
                 Text(
                   title,
                   style: GoogleFonts.poppins(
@@ -624,11 +537,9 @@ class _ToggleTile extends StatelessWidget {
           Switch(
             value: value,
 
-            activeThumbColor:
-                const Color(0xFFFFC107),
+            activeThumbColor: const Color(0xFFFFC107),
 
-            activeTrackColor:
-                const Color(0xFF9E1B4F),
+            activeTrackColor: const Color(0xFF9E1B4F),
 
             onChanged: onChanged,
           ),
@@ -639,7 +550,6 @@ class _ToggleTile extends StatelessWidget {
 }
 
 class _ActionTile extends StatelessWidget {
-
   final String title;
   final IconData icon;
   final VoidCallback onTap;
@@ -654,7 +564,6 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return GestureDetector(
       onTap: onTap,
 
@@ -664,8 +573,7 @@ class _ActionTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
 
-          borderRadius:
-              BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(24),
 
           boxShadow: [
             BoxShadow(
@@ -678,7 +586,6 @@ class _ActionTile extends StatelessWidget {
 
         child: Row(
           children: [
-
             Container(
               width: 52,
               height: 52,
@@ -686,18 +593,14 @@ class _ActionTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: danger
                     ? Colors.red.withOpacity(.1)
-                    : const Color(0xFF9E1B4F)
-                        .withOpacity(.1),
+                    : const Color(0xFF9E1B4F).withOpacity(.1),
 
-                borderRadius:
-                    BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16),
               ),
 
               child: Icon(
                 icon,
-                color: danger
-                    ? Colors.red
-                    : const Color(0xFF9E1B4F),
+                color: danger ? Colors.red : const Color(0xFF9E1B4F),
               ),
             ),
 
@@ -709,9 +612,7 @@ class _ActionTile extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: danger
-                      ? Colors.red
-                      : Colors.black87,
+                  color: danger ? Colors.red : Colors.black87,
                 ),
               ),
             ),

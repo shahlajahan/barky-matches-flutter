@@ -5,10 +5,7 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 class EditPetShopProfilePage extends StatefulWidget {
   final String businessId;
 
-  const EditPetShopProfilePage({
-    super.key,
-    required this.businessId,
-  });
+  const EditPetShopProfilePage({super.key, required this.businessId});
 
   @override
   State<EditPetShopProfilePage> createState() => _EditPetShopProfilePageState();
@@ -73,13 +70,13 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
       _websiteController.text = (contact['website'] ?? '').toString();
       _cityController.text = (contact['city'] ?? '').toString();
       _districtController.text = (contact['district'] ?? '').toString();
-      _workingHoursController.text =
-          (petshopData['workingHours'] ?? '').toString();
+      _workingHoursController.text = (petshopData['workingHours'] ?? '')
+          .toString();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Load error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Load error: $e')));
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -98,34 +95,32 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
           .collection('businesses')
           .doc(widget.businessId)
           .set({
-        'profile': {
-          'displayName': _shopNameController.text.trim(),
-          'businessName': _shopNameController.text.trim(),
-          'bio': _bioController.text.trim(),
-          'description': _bioController.text.trim(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        'contact': {
-          'phone': _phoneController.text.trim(),
-          'whatsapp': _whatsappController.text.trim(),
-          'email': _emailController.text.trim(),
-          'website': _websiteController.text.trim(),
-          'city': _cityController.text.trim(),
-          'district': _districtController.text.trim(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        'sectorData': {
-          'petshop': {
-            'shopName': _shopNameController.text.trim(),
-            'workingHours': _workingHoursController.text.trim(),
             'profile': {
+              'displayName': _shopNameController.text.trim(),
+              'businessName': _shopNameController.text.trim(),
               'bio': _bioController.text.trim(),
+              'description': _bioController.text.trim(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            'contact': {
+              'phone': _phoneController.text.trim(),
+              'whatsapp': _whatsappController.text.trim(),
+              'email': _emailController.text.trim(),
+              'website': _websiteController.text.trim(),
+              'city': _cityController.text.trim(),
+              'district': _districtController.text.trim(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            'sectorData': {
+              'petshop': {
+                'shopName': _shopNameController.text.trim(),
+                'workingHours': _workingHoursController.text.trim(),
+                'profile': {'bio': _bioController.text.trim()},
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
             },
             'updatedAt': FieldValue.serverTimestamp(),
-          },
-        },
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+          }, SetOptions(merge: true));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,9 +129,9 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save error: $e')));
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -160,9 +155,7 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
           labelText: label,
           filled: true,
           fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
     );
@@ -186,9 +179,7 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(
-        title: const Text('Edit PetShop Profile'),
-      ),
+      appBar: AppBar(title: const Text('Edit PetShop Profile')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
@@ -206,11 +197,7 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
                       return null;
                     },
                   ),
-                  _field(
-                    _bioController,
-                    'About / Bio',
-                    maxLines: 4,
-                  ),
+                  _field(_bioController, 'About / Bio', maxLines: 4),
                   _field(_phoneController, 'Phone'),
                   _field(_whatsappController, 'WhatsApp'),
                   _field(_emailController, 'Email'),

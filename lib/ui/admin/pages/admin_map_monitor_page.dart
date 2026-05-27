@@ -10,7 +10,6 @@ class AdminMapMonitorPage extends StatefulWidget {
 }
 
 class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
-
   GoogleMapController? mapController;
 
   final Set<Marker> _markers = {};
@@ -33,28 +32,25 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
   }
 
   Future<void> _loadIcons() async {
-
     businessIcon = BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueBlue);
+      BitmapDescriptor.hueBlue,
+    );
 
-    dogIcon = BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueGreen);
+    dogIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
 
-    lostIcon = BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueRed);
+    lostIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
 
     reportIcon = BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueOrange);
+      BitmapDescriptor.hueOrange,
+    );
   }
 
   Future<void> _loadMarkers() async {
-
     debugPrint("🗺 Loading markers...");
 
     final markers = <Marker>{};
 
     if (showBusinesses) {
-
       debugPrint("📡 Query businesses collection");
 
       final snapshot = await FirebaseFirestore.instance
@@ -64,7 +60,6 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
       debugPrint("📦 Businesses fetched: ${snapshot.docs.length}");
 
       for (var doc in snapshot.docs) {
-
         final data = doc.data();
 
         debugPrint("-----");
@@ -78,11 +73,9 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
           location = Map<String, dynamic>.from(data["location"]);
           debugPrint("📍 location found at root");
         }
-
         /// CURRENT STRUCTURE
         else if (data["contact"]?["location"] != null) {
-          location = Map<String, dynamic>.from(
-              data["contact"]["location"]);
+          location = Map<String, dynamic>.from(data["contact"]["location"]);
           debugPrint("📍 location found at contact.location");
         }
 
@@ -132,9 +125,7 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
   }
 
   void _toggle(String type) {
-
     setState(() {
-
       if (type == "business") {
         showBusinesses = !showBusinesses;
       }
@@ -150,7 +141,6 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
       if (type == "reports") {
         showReports = !showReports;
       }
-
     });
 
     _loadMarkers();
@@ -158,7 +148,6 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Admin Map Monitor"),
@@ -167,7 +156,6 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
 
       body: Stack(
         children: [
-
           GoogleMap(
             initialCameraPosition: const CameraPosition(
               target: LatLng(41.015137, 28.979530),
@@ -179,19 +167,13 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
             },
           ),
 
-          Positioned(
-            top: 10,
-            left: 10,
-            right: 10,
-            child: _filterPanel(),
-          )
+          Positioned(top: 10, left: 10, right: 10, child: _filterPanel()),
         ],
       ),
     );
   }
 
   Widget _filterPanel() {
-
     return Card(
       elevation: 4,
       child: Padding(
@@ -201,7 +183,6 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
           spacing: 8,
 
           children: [
-
             FilterChip(
               label: const Text("Businesses"),
               selected: showBusinesses,
