@@ -17,6 +17,7 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/medical_records/medical_record_flow_button.dart';
 import 'package:barky_matches_fixed/ui/medical_records/medical_records_page.dart';
 import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
