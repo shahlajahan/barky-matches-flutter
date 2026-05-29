@@ -406,72 +406,115 @@ if (nextVaccineTip != null) {
   try {
 
     final uid =
-FirebaseAuth
-    .instance
-    .currentUser
-    ?.uid;
-    if (uid == null) return null;
-debugPrint(
-'CURRENT UID = $uid',
-);
-    final snap =
-await FirebaseFirestore.instance
-.collection('users')
-.doc(uid)
-.collection('vaccines')
-.limit(5)
-.get();
+        FirebaseAuth
+            .instance
+            .currentUser
+            ?.uid;
 
-debugPrint(
-'VACCINE DOC COUNT = ${snap.docs.length}',
-);
+    if (uid == null) return null;
+
+    final appState =
+        context.read<app.AppState>();
+
+    final myDogs =
+        appState.myDogs
+            .where(
+              (d) => d.ownerId == uid,
+            )
+            .toList();
+
+    debugPrint(
+      'MY DOG COUNT = ${myDogs.length}',
+    );
+
     DateTime? nearest;
 
-    for (final doc in snap.docs) {
+    for (final dog in myDogs) {
 
-      final data = doc.data();
+      debugPrint(
+        'CHECK DOG = ${dog.id}',
+      );
 
-      final ts =
-          data['nextVaccinationAt'];
+      final snap =
+          await FirebaseFirestore.instance
+              .collection('dogs')
+              .doc(dog.id)
+              .collection('vaccines')
+              .get();
 
-      DateTime? date;
+      debugPrint(
+        'DOG ${dog.id} vaccines=${snap.docs.length}',
+      );
 
-      if (ts is Timestamp) {
-        date = ts.toDate();
-      }
+      for (final doc in snap.docs) {
 
-      if (date == null) continue;
+        final data = doc.data();
 
-      if (nearest == null ||
-          date.isBefore(nearest)) {
+        debugPrint(
+    'VACCINE DATA = $data',
+  );
 
-        nearest = date;
+        final ts =
+    data['nextDueDate'];
+
+        DateTime? date;
+
+        if (ts is Timestamp) {
+          date = ts.toDate();
+        }
+
+        if (date == null) continue;
+
+        if (nearest == null ||
+            date.isBefore(nearest)) {
+
+          nearest = date;
+
+        }
 
       }
 
     }
 
     if (nearest == null) {
-
-      return
-          "💉 Add vaccination records";
-
+      return "💉 Add vaccination records";
     }
 
     final now =
         DateTime.now();
 
-    if (nearest.isBefore(now)) {
+    final today =
+    DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
 
-      final diff =
-          now
-              .difference(nearest)
-              .inDays;
+final dueDate =
+    DateTime(
+      nearest.year,
+      nearest.month,
+      nearest.day,
+    );
 
-      return
-          "⚠️ Vaccination overdue by $diff days";
+if (dueDate.isBefore(today)) {
 
-    }
+  final diff =
+      today
+          .difference(dueDate)
+          .inDays;
+
+  return
+      "⚠️ Vaccination overdue by $diff days";
+
+}
+
+if (dueDate == today) {
+
+  return
+      "💉Vaccination due today • Tap medical records";
+
+}
 
     return
         "💉 Next vaccination at "
@@ -482,7 +525,7 @@ debugPrint(
   } catch (e) {
 
     debugPrint(
-      "vaccine tip error $e",
+      'vaccine tip error $e',
     );
 
     return null;
