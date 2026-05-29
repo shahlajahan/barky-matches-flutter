@@ -8,6 +8,8 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/edit_visit_page.dart';
 import 'package:barky_matches_fixed/constants/vaccine_catalog.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/edit_medical_profile_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/owner_profile_snapshot.dart';
+import 'edit_owner_profile_page.dart';
 
 class PetVaccineRecord {
   final String id;
@@ -80,12 +82,14 @@ class PetVaccineRecord {
 class VetPatientDetailPage extends StatefulWidget {
   final String businessId;
   final String patientId;
+  final String? petId;
   final Map<String, dynamic>? patientData;
 
   const VetPatientDetailPage({
     super.key,
     required this.businessId,
     required this.patientId,
+    this.petId,
     this.patientData,
   });
 
@@ -99,6 +103,10 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
   List<PetVaccineRecord> _vaccines = [];
 
   bool _loadingVaccines = false;
+  bool _ownerInfoExpanded = false;
+  Map<String, dynamic> _userOwnerProfileFallback = {};
+  Map<String, dynamic> _cachedOwnerProfile = {};
+  String? _loadedOwnerUserId;
 
   final _vaccineNameController = TextEditingController();
 
@@ -109,6 +117,10 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
   bool _vaccineReminderEnabled = true;
 
   bool get _isOwnerView => widget.businessId == 'owner_medical_record';
+
+  bool get _isOwnerMedicalRecord => widget.businessId == 'owner_medical_record';
+
+  String get _ownerMedicalDogId => widget.petId ?? widget.patientId;
 
   // TODO: medications should be stored in patients/{patientId}/medications
   // TODO: lab results should be stored in patients/{patientId}/lab_results
@@ -128,6 +140,21 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
         setState(() {});
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant VetPatientDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.patientId != widget.patientId) {
+      _cachedOwnerProfile = {};
+
+      _userOwnerProfileFallback = {};
+
+      _loadedOwnerUserId = null;
+
+      debugPrint('OWNER CACHE RESET');
+    }
   }
 
   Future<void> _openAddVaccineDialog() async {
@@ -415,6 +442,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
           .collection('patients')
           .doc(widget.patientId);
       final patientData = await _loadPatientMirrorData(patientRef);
+      final petId =
+          _stringOrNull(patientData['petId']) ?? _stringOrNull(widget.petId);
+      final ownerId = _stringOrNull(patientData['ownerId']);
       final vaccineRef = patientRef.collection('vaccines').doc();
       final vaccineData = {
         'name':
@@ -433,8 +463,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
         'status': 'upcoming',
         'completedAt': null,
         'businessId': widget.businessId,
+        'petId': petId,
         'patientId': widget.patientId,
-        'ownerId': patientData['ownerId'],
+        'ownerId': ownerId,
         'createdByBusinessId': widget.businessId,
         'createdByVetId': _currentVetId,
         'createdAt': FieldValue.serverTimestamp(),
@@ -502,10 +533,10 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
   }
 
   DocumentReference<Map<String, dynamic>> get _patientRef {
-    if (widget.businessId == 'owner_medical_record') {
+    if (_isOwnerMedicalRecord) {
       return FirebaseFirestore.instance
           .collection('dogs')
-          .doc(widget.patientId);
+          .doc(_ownerMedicalDogId);
     }
 
     return FirebaseFirestore.instance
@@ -513,6 +544,273 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
         .doc(widget.businessId)
         .collection('patients')
         .doc(widget.patientId);
+  }
+
+  Map<String, dynamic> _resolveOwnerProfile(Map<String, dynamic> data) {
+    final resolved = <String, dynamic>{};
+
+    void mergeValue(String key, dynamic value) {
+      final text = ownerSnapshotString(value);
+      if (text == null) return;
+
+      final existing = resolved[key]?.toString().trim();
+      if (existing != null && existing.isNotEmpty) return;
+
+      resolved[key] = text;
+    }
+
+    void mergeOwnerShape(dynamic source) {
+      if (source is! Map) return;
+      final map = Map<String, dynamic>.from(source);
+
+      mergeValue(
+        'ownerName',
+        map['ownerName'] ??
+            map['ownerDisplayName'] ??
+            map['displayName'] ??
+            map['name'] ??
+            map['fullName'],
+      );
+      mergeValue(
+        'ownerPhone',
+        map['ownerPhone'] ?? map['phone'] ?? map['phoneNumber'],
+      );
+      mergeValue('emergencyContact', map['emergencyContact']);
+      mergeValue('emergencyPhone', map['emergencyPhone']);
+      mergeValue('city', map['city']);
+      mergeValue('district', map['district']);
+      mergeValue('address', map['address']);
+    }
+
+    mergeOwnerShape(data['ownerProfile']);
+
+    mergeValue('ownerName', data['ownerName'] ?? data['ownerDisplayName']);
+    mergeValue(
+      'ownerPhone',
+      data['ownerPhone'] ?? data['phone'] ?? data['phoneNumber'],
+    );
+    mergeValue('emergencyContact', data['emergencyContact']);
+    mergeValue('emergencyPhone', data['emergencyPhone']);
+    mergeValue('city', data['city']);
+    mergeValue('district', data['district']);
+    mergeValue('address', data['address']);
+
+    mergeOwnerShape(data['owner']);
+    mergeOwnerShape(data['user']);
+    mergeOwnerShape(data['client']);
+
+    return resolved;
+  }
+
+  Map<String, dynamic> _mergeOwnerProfileFallback(
+    Map<String, dynamic> profile,
+  ) {
+    final merged = Map<String, dynamic>.from(profile);
+
+    for (final entry in _userOwnerProfileFallback.entries) {
+      final fallbackText = ownerSnapshotString(entry.value);
+      if (fallbackText == null) continue;
+
+      final existingText = merged[entry.key]?.toString().trim();
+      if (existingText != null && existingText.isNotEmpty) continue;
+
+      merged[entry.key] = fallbackText;
+    }
+
+    return merged;
+  }
+
+  bool _hasMeaningfulOwnerData(Map<String, dynamic> profile) {
+    const keys = [
+      'ownerName',
+      'ownerPhone',
+      'emergencyContact',
+      'emergencyPhone',
+      'city',
+      'district',
+      'address',
+    ];
+
+    return keys.any((key) {
+      final value = profile[key]?.toString().trim();
+      return value != null && value.isNotEmpty;
+    });
+  }
+
+  void _mergeIntoCachedOwnerProfile(Map<String, dynamic> profile) {
+    if (!_hasMeaningfulOwnerData(profile)) {
+      return;
+    }
+
+    final cleaned = <String, dynamic>{};
+
+    for (final entry in profile.entries) {
+      final value = ownerSnapshotString(entry.value);
+
+      if (value == null) {
+        continue;
+      }
+
+      cleaned[entry.key] = value;
+    }
+
+    _cachedOwnerProfile = cleaned;
+  }
+
+  String _profileValue(Map<String, dynamic> profile, String key) {
+    return ownerSnapshotString(profile[key]) ?? '';
+  }
+
+  void _loadOwnerUserFallbackIfNeeded(
+    Map<String, dynamic> data,
+    Map<String, dynamic> ownerProfile,
+  ) {
+    final ownerName = _profileValue(ownerProfile, 'ownerName');
+    final ownerPhone = _profileValue(ownerProfile, 'ownerPhone');
+
+    final hasMeaningfulOwnerName =
+        ownerName.isNotEmpty && ownerName.toLowerCase() != 'owner';
+
+    final hasMeaningfulPhone = ownerPhone.isNotEmpty;
+
+    final city = _profileValue(ownerProfile, 'city');
+
+    final district = _profileValue(ownerProfile, 'district');
+
+    final address = _profileValue(ownerProfile, 'address');
+
+    final hasMeaningfulAddress =
+        city.isNotEmpty || district.isNotEmpty || address.isNotEmpty;
+
+    // ONLY skip fallback if:
+    // owner identity exists
+    // AND address data also exists
+    if (hasMeaningfulOwnerName && hasMeaningfulPhone && hasMeaningfulAddress) {
+      return;
+    }
+
+    if (_isOwnerMedicalRecord) {
+      if (_userOwnerProfileFallback.isNotEmpty) {
+        return;
+      }
+
+      final dogOwnerId =
+          ownerSnapshotString(data['ownerUid']) ??
+          ownerSnapshotString(data['ownerId']) ??
+          ownerSnapshotString(data['userId']);
+
+      debugPrint(
+        'OWNER ID FALLBACK: '
+        '$dogOwnerId',
+      );
+
+      if (dogOwnerId == null) {
+        return;
+      }
+
+      _loadedOwnerUserId = dogOwnerId;
+
+      _loadOwnerUserFallback(dogOwnerId);
+
+      return;
+    }
+
+    final blockedOwnerIds = {
+      _stringOrNull(widget.businessId),
+      _stringOrNull(data['businessId']),
+      _stringOrNull(data['vetId']),
+      _stringOrNull(data['businessOwnerUid']),
+      _stringOrNull(data['createdByBusinessId']),
+      _stringOrNull(data['createdByVetId']),
+    };
+    String? ownerId;
+    for (final uid in [
+      _stringOrNull(data['petOwnerUid']),
+      _stringOrNull(data['petOwnerId']),
+      _stringOrNull(data['dogOwnerId']),
+      _stringOrNull(data['requesterUserId']),
+      _stringOrNull(data['requesterUid']),
+      _stringOrNull(data['ownerId']),
+      _stringOrNull(data['userId']),
+      _stringOrNull(data['clientUserId']),
+    ].whereType<String>()) {
+      if (!blockedOwnerIds.contains(uid)) {
+        ownerId = uid;
+        break;
+      }
+    }
+
+    debugPrint('OWNER USER ID USED FOR FALLBACK: $ownerId');
+
+    debugPrint(
+      'CURRENT DOG OWNER UID: '
+      '${data['ownerUid']}',
+    );
+
+    debugPrint(
+      'CURRENT DOG OWNER ID: '
+      '${data['ownerId']}',
+    );
+
+    debugPrint(
+      'CURRENT DOG USER ID: '
+      '${data['userId']}',
+    );
+
+    if (ownerId == null || ownerId == _loadedOwnerUserId) return;
+
+    _loadedOwnerUserId = ownerId;
+    _loadOwnerUserFallback(ownerId);
+  }
+
+  Future<void> _loadOwnerUserFallback(String ownerId) async {
+    if (_loadedOwnerUserId == ownerId && _userOwnerProfileFallback.isNotEmpty) {
+      return;
+    }
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(ownerId)
+          .get();
+      final data = snapshot.data();
+      if (data == null) return;
+
+      final fallback = <String, dynamic>{
+        'ownerName':
+            ownerSnapshotString(data['displayName']) ??
+            ownerSnapshotString(data['name']) ??
+            ownerSnapshotString(data['fullName']) ??
+            ownerSnapshotString(data['username']),
+
+        'ownerPhone':
+            ownerSnapshotString(data['phone']) ??
+            ownerSnapshotString(data['phoneNumber']),
+
+        'city': ownerSnapshotString(data['city']),
+
+        'district': ownerSnapshotString(data['district']),
+
+        'address': ownerSnapshotString(data['address']),
+
+        'emergencyContact': ownerSnapshotString(data['emergencyContact']),
+
+        'emergencyPhone': ownerSnapshotString(data['emergencyPhone']),
+      };
+
+      debugPrint('USER OWNER FALLBACK LOADED: $fallback');
+
+      if (!mounted) return;
+      setState(() {
+        _userOwnerProfileFallback = {};
+
+        _userOwnerProfileFallback = fallback;
+
+        _mergeIntoCachedOwnerProfile(fallback);
+      });
+    } catch (e) {
+      debugPrint('USER OWNER FALLBACK LOAD ERROR: $e');
+    }
   }
 
   Future<void> _openEditVisit({
@@ -568,7 +866,33 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
 
           final breed = data['breed'] ?? 'Breed not set';
 
-          final ownerName = data['ownerName'] ?? 'Owner';
+          final baseOwnerProfile = _resolveOwnerProfile(data);
+
+          final resolvedProfile = _mergeOwnerProfileFallback(baseOwnerProfile);
+
+          if (_hasMeaningfulOwnerData(resolvedProfile)) {
+            _mergeIntoCachedOwnerProfile(resolvedProfile);
+
+            debugPrint(
+              'OWNER PROFILE CACHED: '
+              '$_cachedOwnerProfile',
+            );
+          }
+
+          final effectiveOwnerProfile = _hasMeaningfulOwnerData(resolvedProfile)
+              ? resolvedProfile
+              : _cachedOwnerProfile;
+
+          if (!_hasMeaningfulOwnerData(resolvedProfile) &&
+              _hasMeaningfulOwnerData(effectiveOwnerProfile)) {}
+
+          _loadOwnerUserFallbackIfNeeded(data, effectiveOwnerProfile);
+
+          final ownerName = _profileValue(effectiveOwnerProfile, 'ownerName');
+          final subtitleParts = [
+            breed.toString().trim(),
+            if (ownerName.isNotEmpty) ownerName,
+          ];
 
           final notes = data['notes'] ?? '';
 
@@ -593,7 +917,6 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                           onTap: () {
                             Navigator.pop(context);
                           },
-
                           child: const Icon(
                             LucideIcons.arrowLeft,
                             color: Colors.white,
@@ -602,52 +925,306 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
 
                         const Spacer(),
 
-                        if (!_isOwnerView)
-                          GestureDetector(
-                            onTap: () async {
-                              // BASIC TAB
-                              if (_tabController.index == 0) {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EditMedicalProfilePage(
-                                      businessId: widget.businessId,
-                                      patientId: widget.patientId,
-                                      initialData: data,
+                        GestureDetector(
+                          onTap: () async {
+                            // OWNER RESTRICTIONS
+                            if (_isOwnerView) {
+                              // ONLY BASIC TAB ALLOWED
+                              if (_tabController.index != 0) {
+                                return;
+                              }
+                            }
+                            // BASIC TAB
+                            if (_tabController.index == 0) {
+                              // OWNER SIDE
+                              if (_isOwnerView) {
+                                await showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: Colors.white,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(28),
                                     ),
                                   ),
+
+                                  builder: (_) {
+                                    return SafeArea(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(20),
+
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+
+                                          children: [
+                                            ListTile(
+                                              leading: const Icon(
+                                                LucideIcons.user,
+                                                color: AppTheme.card,
+                                              ),
+
+                                              title: const Text(
+                                                'Edit Owner Profile',
+                                              ),
+
+                                              subtitle: const Text(
+                                                'Owner and emergency contact details',
+                                              ),
+
+                                              onTap: () async {
+                                                Navigator.pop(context);
+
+                                                final ownerEditData = {
+                                                  ...data,
+
+                                                  'effectiveOwnerProfile':
+                                                      effectiveOwnerProfile,
+
+                                                  // FLAT FALLBACKS
+                                                  'ownerName': _profileValue(
+                                                    effectiveOwnerProfile,
+                                                    'ownerName',
+                                                  ),
+
+                                                  'ownerPhone': _profileValue(
+                                                    effectiveOwnerProfile,
+                                                    'ownerPhone',
+                                                  ),
+
+                                                  'city': _profileValue(
+                                                    effectiveOwnerProfile,
+                                                    'city',
+                                                  ),
+
+                                                  'district': _profileValue(
+                                                    effectiveOwnerProfile,
+                                                    'district',
+                                                  ),
+
+                                                  'address': _profileValue(
+                                                    effectiveOwnerProfile,
+                                                    'address',
+                                                  ),
+
+                                                  'emergencyContact':
+                                                      _profileValue(
+                                                        effectiveOwnerProfile,
+                                                        'emergencyContact',
+                                                      ),
+
+                                                  'emergencyPhone':
+                                                      _profileValue(
+                                                        effectiveOwnerProfile,
+                                                        'emergencyPhone',
+                                                      ),
+                                                };
+
+                                                await Navigator.push(
+                                                  context,
+
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        EditOwnerProfilePage(
+                                                          businessId:
+                                                              widget.businessId,
+
+                                                          patientId:
+                                                              widget.patientId,
+
+                                                          initialData:
+                                                              ownerEditData,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 );
 
                                 return;
                               }
 
-                              // VISITS TAB
-                              if (_tabController.index == 1) {
-                                await _openEditVisit();
+                              // VET SIDE
+                              await showModalBottomSheet(
+                                context: context,
+                                backgroundColor: Colors.white,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(28),
+                                  ),
+                                ),
+
+                                builder: (_) {
+                                  return SafeArea(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(20),
+
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+
+                                        children: [
+                                          // MEDICAL PROFILE
+                                          ListTile(
+                                            leading: const Icon(
+                                              LucideIcons.heartPulse,
+                                              color: AppTheme.card,
+                                            ),
+
+                                            title: const Text(
+                                              'Edit Medical Profile',
+                                            ),
+
+                                            subtitle: const Text(
+                                              'Clinical and veterinary information',
+                                            ),
+
+                                            onTap: () async {
+                                              Navigator.pop(context);
+
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      EditMedicalProfilePage(
+                                                        businessId:
+                                                            widget.businessId,
+                                                        patientId:
+                                                            widget.patientId,
+                                                        initialData: data,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+
+                                          const SizedBox(height: 10),
+
+                                          // OWNER PROFILE
+                                          ListTile(
+                                            leading: const Icon(
+                                              LucideIcons.user,
+                                              color: AppTheme.card,
+                                            ),
+
+                                            title: const Text(
+                                              'Edit Owner Profile',
+                                            ),
+
+                                            subtitle: const Text(
+                                              'Owner and emergency contact details',
+                                            ),
+
+                                            onTap: () async {
+                                              Navigator.pop(context);
+
+                                              final ownerEditData = {
+                                                ...data,
+
+                                                'effectiveOwnerProfile':
+                                                    effectiveOwnerProfile,
+
+                                                // FLAT FALLBACKS
+                                                'ownerName': _profileValue(
+                                                  effectiveOwnerProfile,
+                                                  'ownerName',
+                                                ),
+
+                                                'ownerPhone': _profileValue(
+                                                  effectiveOwnerProfile,
+                                                  'ownerPhone',
+                                                ),
+
+                                                'city': _profileValue(
+                                                  effectiveOwnerProfile,
+                                                  'city',
+                                                ),
+
+                                                'district': _profileValue(
+                                                  effectiveOwnerProfile,
+                                                  'district',
+                                                ),
+
+                                                'address': _profileValue(
+                                                  effectiveOwnerProfile,
+                                                  'address',
+                                                ),
+
+                                                'emergencyContact':
+                                                    _profileValue(
+                                                      effectiveOwnerProfile,
+                                                      'emergencyContact',
+                                                    ),
+
+                                                'emergencyPhone': _profileValue(
+                                                  effectiveOwnerProfile,
+                                                  'emergencyPhone',
+                                                ),
+                                              };
+
+                                              await Navigator.push(
+                                                context,
+
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      EditOwnerProfilePage(
+                                                        businessId:
+                                                            widget.businessId,
+
+                                                        patientId:
+                                                            widget.patientId,
+
+                                                        initialData:
+                                                            ownerEditData,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+
+                              return;
+                            }
+
+                            // VISITS TAB
+                            if (_tabController.index == 1) {
+                              await _openEditVisit();
+                              return;
+                            }
+
+                            // VACCINES TAB
+                            if (_tabController.index == 2) {
+                              await _openAddVaccineDialog();
+                              return;
+                            }
+
+                            // NOTES TAB
+                            if (_tabController.index == 3) {
+                              // OWNER CANNOT EDIT MEDICAL NOTES
+                              if (_isOwnerView) {
                                 return;
                               }
 
-                              // VACCINES TAB
-                              if (_tabController.index == 2) {
-                                await _openAddVaccineDialog();
-                                return;
-                              }
+                              await _openEditMedicalNotesDialog(
+                                currentNotes: notes,
+                              );
 
-                              // NOTES TAB
-                              if (_tabController.index == 3) {
-                                await _openEditMedicalNotesDialog(
-                                  currentNotes: notes,
-                                );
+                              return;
+                            }
+                          },
 
-                                return;
-                              }
-                            },
-
-                            child: const Icon(
-                              LucideIcons.edit2,
-                              color: Colors.white,
-                            ),
+                          child: const Icon(
+                            LucideIcons.edit2,
+                            color: Colors.white,
                           ),
+                        ),
                       ],
                     ),
 
@@ -677,7 +1254,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                     const SizedBox(height: 6),
 
                     Text(
-                      '$breed • $ownerName',
+                      subtitleParts.join(' • '),
                       style: AppTheme.caption(
                         color: Colors.white.withValues(alpha: 0.82),
                       ),
@@ -718,6 +1295,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                   ],
                 ),
               ),
+              const SizedBox(height: 10),
 
               Expanded(
                 child: TabBarView(
@@ -726,7 +1304,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                   children: [
                     // BASIC
                     ListView(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
 
                       children: [
                         _InfoCard(
@@ -776,8 +1354,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                               value: data['chronicDiseases'] ?? '-',
                             ),
 
-                            _InfoRow(label: 'Owner', value: ownerName),
-
+                            // _InfoRow(label: 'Owner', value: ownerName),
                             _InfoRow(
                               label: 'Last Medical Update',
                               value: _formatTimestamp(
@@ -785,6 +1362,139 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(22),
+                            boxShadow: AppTheme.cardShadow(opacity: 0.06),
+                          ),
+
+                          child: Column(
+                            children: [
+                              InkWell(
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(22),
+                                  bottom: Radius.circular(22),
+                                ),
+
+                                onTap: () {
+                                  setState(() {
+                                    _ownerInfoExpanded = !_ownerInfoExpanded;
+                                  });
+                                },
+
+                                child: Padding(
+                                  padding: const EdgeInsets.all(18),
+
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Owner Information',
+                                          style: AppTheme.h3(),
+                                        ),
+                                      ),
+
+                                      AnimatedRotation(
+                                        turns: _ownerInfoExpanded ? 0.5 : 0,
+
+                                        duration: const Duration(
+                                          milliseconds: 220,
+                                        ),
+
+                                        child: const Icon(
+                                          LucideIcons.chevronDown,
+                                          color: AppTheme.card,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              AnimatedCrossFade(
+                                duration: const Duration(milliseconds: 220),
+
+                                crossFadeState: _ownerInfoExpanded
+                                    ? CrossFadeState.showSecond
+                                    : CrossFadeState.showFirst,
+
+                                firstChild: const SizedBox.shrink(),
+
+                                secondChild: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    18,
+                                    0,
+                                    18,
+                                    18,
+                                  ),
+
+                                  child: Column(
+                                    children: [
+                                      _InfoRow(
+                                        label: 'Owner Name',
+                                        value: _profileValue(
+                                          effectiveOwnerProfile,
+                                          'ownerName',
+                                        ),
+                                      ),
+
+                                      _InfoRow(
+                                        label: 'Owner Phone',
+                                        value: _profileValue(
+                                          effectiveOwnerProfile,
+                                          'ownerPhone',
+                                        ),
+                                      ),
+
+                                      _InfoRow(
+                                        label: 'Emergency Contact',
+                                        value: _profileValue(
+                                          effectiveOwnerProfile,
+                                          'emergencyContact',
+                                        ),
+                                      ),
+
+                                      _InfoRow(
+                                        label: 'Emergency Phone',
+                                        value: _profileValue(
+                                          effectiveOwnerProfile,
+                                          'emergencyPhone',
+                                        ),
+                                      ),
+
+                                      _InfoRow(
+                                        label: 'City',
+                                        value: _profileValue(
+                                          effectiveOwnerProfile,
+                                          'city',
+                                        ),
+                                      ),
+
+                                      _InfoRow(
+                                        label: 'District',
+                                        value: _profileValue(
+                                          effectiveOwnerProfile,
+                                          'district',
+                                        ),
+                                      ),
+
+                                      _InfoRow(
+                                        label: 'Address',
+                                        value: _profileValue(
+                                          effectiveOwnerProfile,
+                                          'address',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -797,6 +1507,21 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                           .snapshots(),
 
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          if (snapshot.hasError) {
+                            debugPrint(
+                              'VISITS ERROR: '
+                              '${snapshot.error}',
+                            );
+
+                            return Center(child: Text('Visits unavailable'));
+                          }
+
+                          return Center(
+                            child: Text('Visits error: ${snapshot.error}'),
+                          );
+                        }
+
                         if (!snapshot.hasData) {
                           return const Center(
                             child: CircularProgressIndicator(),
@@ -1441,8 +2166,10 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
       'status': 'upcoming',
       'completedAt': null,
       'businessId': widget.businessId,
+      'petId':
+          _stringOrNull(patientData['petId']) ?? _stringOrNull(widget.petId),
       'patientId': widget.patientId,
-      'ownerId': patientData['ownerId'],
+      'ownerId': _stringOrNull(patientData['ownerId']),
       'createdByBusinessId': widget.businessId,
       'createdByVetId': _currentVetId,
       'autoCreatedFromVaccineId': vaccineId,
@@ -1689,13 +2416,38 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
           .collection('patients')
           .doc(widget.patientId);
       final patientData = await _loadPatientMirrorData(patientRef);
-      final updateData = {
+      final vaccineRef = patientRef.collection('vaccines').doc(vaccineId);
+      final vaccineSnap = await vaccineRef.get();
+      final existingData = vaccineSnap.data() ?? {};
+      final existingStatus = existingData['status']?.toString().trim();
+      final existingOwnerId = _stringOrNull(existingData['ownerId']);
+      final existingRecurrenceDays =
+          existingData['recurrenceDays'] ?? existingData['intervalDays'];
+      final statusUpdates = <String, dynamic>{};
+      if (existingStatus != null && existingStatus.isNotEmpty) {
+        statusUpdates['status'] = existingStatus;
+      }
+
+      final ownerUpdates = <String, dynamic>{};
+      if (existingOwnerId != null) {
+        ownerUpdates['ownerId'] = existingOwnerId;
+      }
+
+      final updateData = <String, dynamic>{
         'name': _vaccineNameController.text.trim(),
         'notes': _vaccineNotesController.text.trim(),
+        'nextDueDate': _nextDueDate != null
+            ? Timestamp.fromDate(_nextDueDate!)
+            : null,
+        'reminderEnabled': existingData['reminderEnabled'] != false,
+        'recurrenceDays': existingRecurrenceDays,
+        'intervalDays': existingRecurrenceDays,
         'updatedAt': FieldValue.serverTimestamp(),
+        ...statusUpdates,
+        ...ownerUpdates,
       };
 
-      await patientRef.collection('vaccines').doc(vaccineId).update(updateData);
+      await vaccineRef.set(updateData, SetOptions(merge: true));
 
       await _mirrorDogVaccineUpdate(
         patientData: patientData,
@@ -1720,17 +2472,22 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
     final patientSnap = await patientRef.get();
     final data = patientSnap.data() ?? {};
     final ownerId =
-        _stringOrNull(data['ownerId']) ??
-        _stringOrNull(data['userId']) ??
-        _stringOrNull(data['clientUserId']);
+        ownerSnapshotString(data['petOwnerUid']) ??
+        ownerSnapshotString(data['petOwnerId']) ??
+        ownerSnapshotString(data['requesterUserId']) ??
+        ownerSnapshotString(data['ownerId']) ??
+        ownerSnapshotString(data['userId']) ??
+        ownerSnapshotString(data['clientUserId']);
 
-    return {...data, 'petId': _stringOrNull(data['petId']), 'ownerId': ownerId};
+    return {
+      ...data,
+      'petId': ownerSnapshotString(data['petId']),
+      'ownerId': ownerId,
+    };
   }
 
   String? _stringOrNull(dynamic value) {
-    final text = value?.toString().trim();
-    if (text == null || text.isEmpty) return null;
-    return text;
+    return ownerSnapshotString(value);
   }
 
   DocumentReference<Map<String, dynamic>>? _dogVaccineRef({
@@ -1754,6 +2511,8 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
   Map<String, dynamic> _dogMirrorMetadata(Map<String, dynamic> patientData) {
     return {
       'businessId': widget.businessId,
+      'petId':
+          _stringOrNull(patientData['petId']) ?? _stringOrNull(widget.petId),
       'patientId': widget.patientId,
       'ownerId': patientData['ownerId'],
       'createdByBusinessId': widget.businessId,

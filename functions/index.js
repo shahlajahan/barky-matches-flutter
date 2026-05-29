@@ -954,6 +954,210 @@ async function safeMessagingSend(message, context = {}) {
   }
 }
 
+function nonEmptyString(value) {
+  const text = value === undefined || value === null
+    ? ""
+    : String(value).trim();
+  return text || null;
+}
+
+function hasMeaningfulOwnerSnapshot(profile = {}) {
+  return [
+    "ownerName",
+    "ownerPhone",
+    "emergencyContact",
+    "emergencyPhone",
+    "city",
+    "district",
+    "address",
+    "email",
+  ].some((key) => !!nonEmptyString(profile[key]));
+}
+
+function completeOwnerProfileSnapshot(profile = {}) {
+  return {
+    ownerName: nonEmptyString(profile.ownerName) || "",
+    ownerPhone: nonEmptyString(profile.ownerPhone) || "",
+    emergencyContact: nonEmptyString(profile.emergencyContact) || "",
+    emergencyPhone: nonEmptyString(profile.emergencyPhone) || "",
+    city: nonEmptyString(profile.city) || "",
+    district: nonEmptyString(profile.district) || "",
+    address: nonEmptyString(profile.address) || "",
+    email: nonEmptyString(profile.email) || "",
+  };
+}
+
+function normalizeOwnerProfileSnapshot(...sources) {
+  const profile = {};
+
+  const mergeValue = (key, value) => {
+    const text = nonEmptyString(value);
+    if (!text || nonEmptyString(profile[key])) return;
+    profile[key] = text;
+  };
+
+  const mergeSource = (source) => {
+    if (!source || typeof source !== "object") return;
+
+    if (source.ownerProfile && typeof source.ownerProfile === "object") {
+      mergeSource(source.ownerProfile);
+    }
+
+    ["owner", "user", "client"].forEach((key) => {
+      if (source[key] && typeof source[key] === "object") {
+        mergeSource(source[key]);
+      }
+    });
+
+    mergeValue(
+      "ownerName",
+      source.ownerName ||
+      source.ownerDisplayName ||
+      source.displayName ||
+      source.name ||
+      source.fullName ||
+      source.userName ||
+      source.username
+    );
+    mergeValue(
+      "ownerPhone",
+      source.ownerPhone ||
+      source.phone ||
+      source.phoneNumber ||
+      source.userPhone
+    );
+    mergeValue("emergencyContact", source.emergencyContact);
+    mergeValue(
+      "emergencyPhone",
+      source.emergencyPhone || source.emergencyContactNumber
+    );
+    mergeValue("city", source.city);
+    mergeValue("district", source.district);
+    mergeValue("address", source.address || source.registrationAddress);
+    mergeValue("email", source.email || source.ownerEmail || source.userEmail);
+  };
+
+  sources.forEach(mergeSource);
+  return completeOwnerProfileSnapshot(profile);
+}
+
+function mergeOwnerProfileSnapshots(existing = {}, incoming = {}) {
+  const merged = { ...(existing || {}) };
+
+  Object.entries(incoming || {}).forEach(([key, value]) => {
+    const text = nonEmptyString(value);
+    if (!text || nonEmptyString(merged[key])) return;
+    merged[key] = text;
+  });
+
+  return completeOwnerProfileSnapshot(merged);
+}
+
+async function buildOwnerProfileSnapshot({
+  db,
+  ownerId,
+  petId,
+  appointmentData = {},
+  patientData = {},
+}) {
+  let userData = {};
+  let dogData = {};
+  const resolvedPetId =
+    nonEmptyString(petId) ||
+    nonEmptyString(appointmentData.petId) ||
+    nonEmptyString(appointmentData.dogId) ||
+    nonEmptyString(patientData.petId) ||
+    null;
+
+  if (resolvedPetId) {
+    try {
+      const dogSnap = await db.collection("dogs").doc(resolvedPetId).get();
+      dogData = dogSnap.data() || {};
+    } catch (error) {
+      logger.warn("PATIENT OWNER SNAPSHOT DOG LOOKUP FAILED", {
+        petId: resolvedPetId,
+        message: error?.message || String(error),
+      });
+    }
+  }
+
+  const resolvedOwnerId = resolvePetOwnerUidFromData({
+    explicitOwnerId: ownerId,
+    appointmentData,
+    patientData,
+    dogData,
+  });
+
+  logger.info("PATIENT OWNER UID", {
+    resolvedOwnerId,
+    explicitOwnerId: nonEmptyString(ownerId),
+    appointmentUserUid: nonEmptyString(appointmentData.userId),
+    appointmentRequesterUid: nonEmptyString(appointmentData.requesterUserId),
+    businessOwnerUid: nonEmptyString(appointmentData.businessOwnerUid),
+    businessId: nonEmptyString(appointmentData.businessId),
+    dogOwnerUid: nonEmptyString(dogData.ownerId),
+  });
+
+  if (resolvedOwnerId) {
+    try {
+      const userSnap = await db.collection("users").doc(resolvedOwnerId).get();
+      userData = userSnap.data() || {};
+    } catch (error) {
+      logger.warn("PATIENT OWNER SNAPSHOT USER LOOKUP FAILED", {
+        ownerId: resolvedOwnerId,
+        message: error?.message || String(error),
+      });
+    }
+  }
+
+  return normalizeOwnerProfileSnapshot(
+    appointmentData,
+    patientData,
+    dogData,
+    userData
+  );
+}
+
+function resolvePetOwnerUidFromData({
+  explicitOwnerId,
+  appointmentData = {},
+  patientData = {},
+  dogData = {},
+}) {
+  const blocked = new Set([
+    nonEmptyString(appointmentData.businessId),
+    nonEmptyString(appointmentData.vetId),
+    nonEmptyString(appointmentData.businessOwnerUid),
+    nonEmptyString(appointmentData.createdByBusinessId),
+    nonEmptyString(appointmentData.createdByVetId),
+    nonEmptyString(patientData.businessId),
+    nonEmptyString(patientData.vetId),
+    nonEmptyString(patientData.businessOwnerUid),
+    nonEmptyString(patientData.createdByBusinessId),
+    nonEmptyString(patientData.createdByVetId),
+  ].filter(Boolean));
+
+  const candidates = [
+    nonEmptyString(appointmentData.petOwnerUid),
+    nonEmptyString(appointmentData.petOwnerId),
+    nonEmptyString(patientData.petOwnerUid),
+    nonEmptyString(patientData.petOwnerId),
+    nonEmptyString(dogData.ownerId),
+    nonEmptyString(dogData.userId),
+    nonEmptyString(appointmentData.requesterUserId),
+    nonEmptyString(appointmentData.requesterUid),
+    nonEmptyString(explicitOwnerId),
+    nonEmptyString(appointmentData.ownerId),
+    nonEmptyString(appointmentData.userId),
+    nonEmptyString(appointmentData.clientUserId),
+    nonEmptyString(patientData.ownerId),
+    nonEmptyString(patientData.userId),
+    nonEmptyString(patientData.clientUserId),
+  ];
+
+  return candidates.find((uid) => uid && !blocked.has(uid)) || null;
+}
+
 async function syncVetPatientVisitAfterPaid({
   db,
   appointmentId,
@@ -961,17 +1165,39 @@ async function syncVetPatientVisitAfterPaid({
 }) {
   try {
     const businessId = appointmentData.businessId || null;
-    const ownerId =
-      appointmentData.userId ||
-      appointmentData.ownerId ||
-      null;
     const petId = appointmentData.petId || null;
+    const dogDataForOwner = petId
+      ? (await db.collection("dogs").doc(String(petId)).get()).data() || {}
+      : {};
+    const ownerId = resolvePetOwnerUidFromData({
+      appointmentData,
+      dogData: dogDataForOwner,
+    });
+
+    logger.info("APPOINTMENT USER UID", {
+      appointmentId,
+      userId: nonEmptyString(appointmentData.userId),
+      requesterUserId: nonEmptyString(appointmentData.requesterUserId),
+      petOwnerUid: nonEmptyString(appointmentData.petOwnerUid),
+    });
+    logger.info("BUSINESS OWNER UID", {
+      appointmentId,
+      businessId: nonEmptyString(appointmentData.businessId),
+      businessOwnerUid: nonEmptyString(appointmentData.businessOwnerUid),
+      vetId: nonEmptyString(appointmentData.vetId),
+    });
+    logger.info("DOG OWNER UID", {
+      appointmentId,
+      petId,
+      dogOwnerUid: nonEmptyString(dogDataForOwner.ownerId),
+    });
 
     if (!businessId || !ownerId || !petId) {
       logger.warn("⚠️ VET PATIENT VISIT SYNC SKIPPED", {
         appointmentId,
         businessId,
         ownerId,
+        petOwnerUid: ownerId,
         petId,
       });
       return;
@@ -1006,17 +1232,45 @@ async function syncVetPatientVisitAfterPaid({
     if (!existingPatient.empty) {
       patientRef = existingPatient.docs[0].ref;
       patientId = existingPatient.docs[0].id;
+      const existingPatientData = existingPatient.docs[0].data() || {};
+      const ownerProfileSnapshot = await buildOwnerProfileSnapshot({
+        db,
+        ownerId,
+        petId,
+        appointmentData,
+        patientData: existingPatientData,
+      });
+      const mergedOwnerProfile = mergeOwnerProfileSnapshots(
+        existingPatientData.ownerProfile || {},
+        ownerProfileSnapshot
+      );
 
       await patientRef.set({
         businessId,
         ownerId,
+        petOwnerUid: ownerId,
         petId,
         petName,
         breed,
         ownerName,
+        ...(hasMeaningfulOwnerSnapshot(mergedOwnerProfile)
+          ? {
+            ownerProfile: mergedOwnerProfile,
+            ownerProfileUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          }
+          : {}),
         lastVisitAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
+
+      if (hasMeaningfulOwnerSnapshot(mergedOwnerProfile)) {
+        logger.info("PATIENT OWNER SNAPSHOT MERGED", {
+          appointmentId,
+          patientId,
+          petId,
+          businessId,
+        });
+      }
 
       logger.info("🩺 PATIENT RECORD UPDATED", {
         appointmentId,
@@ -1027,6 +1281,12 @@ async function syncVetPatientVisitAfterPaid({
     } else {
       patientRef = patientsRef.doc();
       patientId = patientRef.id;
+      const ownerProfileSnapshot = await buildOwnerProfileSnapshot({
+        db,
+        ownerId,
+        petId,
+        appointmentData,
+      });
 
       await patientRef.set({
         businessId,
@@ -1035,6 +1295,12 @@ async function syncVetPatientVisitAfterPaid({
         petName,
         breed,
         ownerName,
+        ...(hasMeaningfulOwnerSnapshot(ownerProfileSnapshot)
+          ? {
+            ownerProfile: ownerProfileSnapshot,
+            ownerProfileUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          }
+          : {}),
         notes: "",
         needsFollowUp: false,
         isActive: true,
@@ -1042,6 +1308,15 @@ async function syncVetPatientVisitAfterPaid({
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         lastVisitAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+      if (hasMeaningfulOwnerSnapshot(ownerProfileSnapshot)) {
+        logger.info("PATIENT OWNER SNAPSHOT SAVED", {
+          appointmentId,
+          patientId,
+          petId,
+          businessId,
+        });
+      }
 
       logger.info("🩺 PATIENT RECORD UPDATED", {
         appointmentId,
@@ -10179,6 +10454,653 @@ exports.reminderAppointments = onSchedule(
   }
 );
 
+function readFirestoreDate(value) {
+  if (!value) return null;
+
+  if (typeof value.toDate === "function") {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateKeyInTimeZone(date, timeZone = "Europe/Istanbul") {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) return null;
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToDateKey(dateKey, days) {
+  if (!dateKey) return null;
+
+  const parsed = new Date(`${dateKey}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function normalizeReminderString(value) {
+  return String(value || "").trim();
+}
+
+function isReminderProcessingStale(value, staleAfterMinutes = 30) {
+  const date = readFirestoreDate(value);
+  if (!date) return false;
+
+  const ageMs = Date.now() - date.getTime();
+  return ageMs > staleAfterMinutes * 60 * 1000;
+}
+
+function buildVaccineReminderId({
+  ownerId,
+  businessId,
+  patientId,
+  vaccineId,
+  dueDateKey,
+}) {
+  return [
+    "vaccine_reminder",
+    ownerId,
+    businessId || "unknown_business",
+    patientId || "unknown_patient",
+    vaccineId,
+    dueDateKey,
+  ]
+    .map((part) => normalizeReminderString(part).replace(/[^a-zA-Z0-9_-]/g, "_"))
+    .join("_");
+}
+
+async function loadVaccineReminderContext(doc, parentCache) {
+  const data = doc.data() || {};
+  const parentRef = doc.ref.parent?.parent || null;
+  const parentCollectionRef = parentRef?.parent || null;
+  const businessRef = parentCollectionRef?.parent || null;
+  const sourcePath = doc.ref.path;
+
+  logger.info("VACCINE REMINDER RAW DOC", {
+    sourcePath,
+    docId: doc.id,
+    keys: Object.keys(data),
+    ownerId: data.ownerId || null,
+  });
+  logger.info("NON EMPTY STRING TEST", {
+    input: data.ownerId,
+    output: nonEmptyString(data.ownerId),
+  });
+
+  let parentData = null;
+  if (parentRef) {
+    const cached = parentCache.get(parentRef.path);
+    if (cached) {
+      parentData = cached;
+    } else {
+      const parentSnap = await parentRef.get();
+      parentData = parentSnap.data() || {};
+      parentCache.set(parentRef.path, parentData);
+    }
+  }
+
+  const ownerId =
+    nonEmptyString(data.ownerId) ||
+    nonEmptyString(data.ownerUid) ||
+    nonEmptyString(data.userId) ||
+    nonEmptyString(data.clientUserId) ||
+    nonEmptyString(data.petOwnerUid) ||
+    nonEmptyString(data.petOwnerId) ||
+    nonEmptyString(parentData?.ownerId) ||
+    nonEmptyString(parentData?.ownerUid) ||
+    nonEmptyString(parentData?.userId) ||
+    nonEmptyString(parentData?.clientUserId);
+
+  logger.info("OWNER RESOLUTION DEBUG", {
+    sourcePath,
+    keys: Object.keys(data),
+    ownerId: data.ownerId || null,
+    resolvedOwnerId: ownerId || null,
+  });
+
+  logger.info("VACCINE OWNER RESOLUTION", {
+    sourcePath,
+    vaccineOwnerId: nonEmptyString(data.ownerId) || null,
+    parentOwnerId: nonEmptyString(parentData?.ownerId) || null,
+    parentOwnerUid: nonEmptyString(parentData?.ownerUid) || null,
+    resolvedOwnerId: ownerId || null,
+    patientPath: parentRef?.path || null,
+  });
+
+  const patientId =
+    nonEmptyString(data.patientId) ||
+    (parentRef?.parent?.id === "patients" ? parentRef.id : null) ||
+    nonEmptyString(parentData?.patientId);
+
+  const petId =
+    nonEmptyString(data.petId) ||
+    (parentRef?.parent?.id === "dogs" ? parentRef.id : null) ||
+    nonEmptyString(parentData?.petId);
+
+  const vaccineId = doc.id;
+  const vaccineName =
+    nonEmptyString(data.name) || nonEmptyString(data.vaccineName) || "Vaccine";
+  const nextDueDate = readFirestoreDate(data.nextDueDate);
+  const status = normalizeLower(data.status);
+  const reminderEnabled = data.reminderEnabled === true;
+  const businessId =
+    nonEmptyString(data.businessId) ||
+    nonEmptyString(parentData?.businessId) ||
+    nonEmptyString(businessRef?.id);
+  const isAuthoritativeSource =
+    parentCollectionRef?.id === "patients" &&
+    businessRef?.parent?.id === "businesses";
+
+  return {
+    data,
+    ownerId,
+    patientId,
+    petId,
+    vaccineId,
+    vaccineName,
+    nextDueDate,
+    status,
+    reminderEnabled,
+    businessId,
+    isAuthoritativeSource,
+    sourcePath: doc.ref.path,
+  };
+}
+
+async function sendVaccineReminderNotification({
+  context,
+  dueDateKey,
+  dueDateLabel,
+}) {
+  const {
+    data,
+    ownerId,
+    patientId,
+    petId,
+    vaccineId,
+    vaccineName,
+    nextDueDate,
+    businessId,
+    sourcePath,
+  } = context;
+
+  if (!ownerId || !vaccineId || !nextDueDate || !dueDateKey) {
+    return { skipped: true, reason: "missing-required-fields" };
+  }
+
+  const reminderId = buildVaccineReminderId({
+    ownerId,
+    businessId: businessId || data.businessId || null,
+    patientId,
+    vaccineId,
+    dueDateKey,
+  });
+  const notificationRef = db.collection("notifications").doc(reminderId);
+  const claimNow = admin.firestore.FieldValue.serverTimestamp();
+  const title = "Vaccination Reminder";
+  const petLabel = normalizeReminderString(data.petName) ||
+    normalizeReminderString(data.dogName) ||
+    "Your pet";
+  const body = `${petLabel} has ${vaccineName} due on ${dueDateLabel}.`;
+  const claimResult = await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(notificationRef);
+
+    if (snap.exists) {
+      const existing = snap.data() || {};
+
+      if (existing.pushSentAt) {
+        return { status: "already-pushed" };
+      }
+
+      if (existing.processingStartedAt) {
+        const processingStartedAt = readFirestoreDate(existing.processingStartedAt);
+        const processingIsStale = processingStartedAt
+          ? isReminderProcessingStale(processingStartedAt, 5)
+          : true;
+
+        if (!processingIsStale) {
+          return { status: "processing" };
+        }
+      }
+
+      transaction.set(
+        notificationRef,
+        {
+          processingStartedAt: claimNow,
+          processingBy: "reminderVaccines",
+          processingSourcePath: sourcePath,
+          processingUpdatedAt: claimNow,
+          businessId: businessId || data.businessId || null,
+          updatedAt: claimNow,
+        },
+        { merge: true }
+      );
+      return { status: "claimed", created: false };
+    }
+
+    transaction.set(notificationRef, {
+      recipientUserId: ownerId,
+      userId: ownerId,
+      ownerId,
+      type: "vaccine_reminder",
+      title,
+      body,
+      businessId: businessId || data.businessId || null,
+      patientId: patientId || data.patientId || null,
+      petId: petId || data.petId || null,
+      vaccineId,
+      vaccineName,
+      nextDueDate: admin.firestore.Timestamp.fromDate(nextDueDate),
+      reminderKey: reminderId,
+      sourcePath,
+      isRead: false,
+      read: false,
+      createdAt: claimNow,
+      processingStartedAt: claimNow,
+      processingBy: "reminderVaccines",
+      processingSourcePath: sourcePath,
+      processingUpdatedAt: claimNow,
+      pushSentAt: null,
+      pushFailedAt: null,
+      pushError: null,
+    });
+    return { status: "claimed", created: true };
+  });
+
+  if (claimResult?.status === "already-pushed") {
+    logger.info("💉 VACCINE REMINDER ALREADY PUSHED", {
+      reminderId,
+      ownerId,
+      vaccineId,
+      dueDateKey,
+    });
+    return { skipped: true, reason: "already-pushed", reminderId };
+  }
+
+  if (claimResult?.status === "processing") {
+    logger.info("💉 VACCINE REMINDER PROCESSING SKIPPED", {
+      reminderId,
+      ownerId,
+      vaccineId,
+      dueDateKey,
+    });
+    return { skipped: true, reason: "already-processing", reminderId };
+  }
+
+  logger.info("💉 VACCINE REMINDER DOC CLAIMED", {
+    reminderId,
+    ownerId,
+    patientId: patientId || data.patientId || null,
+    petId: petId || data.petId || null,
+    vaccineId,
+    dueDateKey,
+  });
+  logger.info("REMINDER SEND START", {
+    ownerId: context.ownerId,
+    vaccineId: context.vaccineId,
+    dueDateKey,
+  })
+
+  const userSnap = await db.collection("users").doc(ownerId).get();
+  logger.info("REMINDER USER LOOKUP", {
+    ownerId: context.ownerId,
+    userExists: !!userSnap.exists,
+  })
+
+  logger.info("REMINDER SEND RESULT", {
+    success: true
+  })
+  const fcmToken = userSnap.data()?.fcmToken || null;
+  logger.info("REMINDER TOKEN RESULT", {
+    tokenCount: fcmToken ? 1 : 0,
+  })
+
+  const pushPayload = {
+    notification: {
+      title,
+      body,
+    },
+    data: {
+      type: "vaccine_reminder",
+      ownerId: String(ownerId),
+      userId: String(ownerId),
+      businessId: String(businessId || data.businessId || ""),
+      patientId: String(patientId || data.patientId || ""),
+      petId: String(petId || data.petId || ""),
+      vaccineId: String(vaccineId),
+      vaccineName: String(vaccineName),
+      nextDueDate: nextDueDate.toISOString(),
+      reminderId: String(reminderId),
+      title,
+      body,
+    },
+    android: {
+      priority: "high",
+      notification: {
+        sound: "default",
+        channelId: "high_importance_channel",
+      },
+    },
+  };
+
+  if (fcmToken) {
+    const sent = await safeSendPush({
+      token: fcmToken,
+      userId: ownerId,
+      payload: pushPayload,
+    });
+
+    if (sent) {
+      await notificationRef.set(
+        {
+          processingStartedAt: admin.firestore.FieldValue.delete(),
+          processingBy: admin.firestore.FieldValue.delete(),
+          processingSourcePath: admin.firestore.FieldValue.delete(),
+          processingUpdatedAt: admin.firestore.FieldValue.delete(),
+          pushSentAt: admin.firestore.FieldValue.serverTimestamp(),
+          pushFailedAt: admin.firestore.FieldValue.delete(),
+          pushError: admin.firestore.FieldValue.delete(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      logger.info("💉 VACCINE REMINDER PUSH SENT", {
+        reminderId,
+        ownerId,
+        vaccineId,
+        dueDateKey,
+      });
+    } else {
+      await notificationRef.set(
+        {
+          processingStartedAt: admin.firestore.FieldValue.delete(),
+          processingBy: admin.firestore.FieldValue.delete(),
+          processingSourcePath: admin.firestore.FieldValue.delete(),
+          processingUpdatedAt: admin.firestore.FieldValue.delete(),
+          pushFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+          pushError: "push-send-failed",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      logger.warn("⚠️ VACCINE REMINDER PUSH FAILED", {
+        reminderId,
+        ownerId,
+        vaccineId,
+        dueDateKey,
+      });
+    }
+  } else {
+    await notificationRef.set(
+      {
+        processingStartedAt: admin.firestore.FieldValue.delete(),
+        processingBy: admin.firestore.FieldValue.delete(),
+        processingSourcePath: admin.firestore.FieldValue.delete(),
+        processingUpdatedAt: admin.firestore.FieldValue.delete(),
+        pushFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+        pushError: "missing-fcm-token",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    logger.warn("⚠️ VACCINE REMINDER TOKEN MISSING", {
+      reminderId,
+      ownerId,
+      vaccineId,
+      dueDateKey,
+    });
+  }
+
+  return { skipped: false, reminderId };
+}
+
+exports.reminderVaccines = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 6 hours",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => {
+    const tz = "Europe/Istanbul";
+    const now = new Date();
+    const todayKey = formatDateKeyInTimeZone(now, tz);
+    const windowEndKey = addDaysToDateKey(todayKey, 3);
+
+    logger.info("💉 VACCINE REMINDER JOB START", {
+      timeZone: tz,
+      todayKey,
+      windowEndKey,
+      reminderWindowDays: 3,
+    });
+
+    if (!todayKey || !windowEndKey) {
+      logger.error("❌ VACCINE REMINDER JOB ABORTED", {
+        reason: "failed-to-compute-date-window",
+      });
+      return;
+    }
+    logger.info("BEFORE PATIENT QUERY");
+    const patientSnap = await db
+      .collectionGroup("patients")
+      .get();
+
+    logger.info("AFTER PATIENT QUERY", {
+      count: patientSnap.size,
+      empty: patientSnap.empty,
+    });
+
+    const seenReminderIds = new Set();
+    let scanned = 0;
+    let matched = 0;
+    let created = 0;
+    let sent = 0;
+    let skipped = 0;
+
+    for (const patientDoc of patientSnap.docs) {
+      const patientData = patientDoc.data() || {};
+      const businessId = nonEmptyString(patientData.businessId);
+      const patientId = nonEmptyString(patientData.patientId) || patientDoc.id;
+
+      if (!businessId || !patientId) {
+        continue;
+      }
+
+      const parentCache = new Map([[patientDoc.ref.path, patientData]]);
+      const vaccineSnap = await patientDoc.ref
+        .collection("vaccines")
+        .where("reminderEnabled", "==", true)
+        .get();
+
+      for (const doc of vaccineSnap.docs) {
+        scanned++;
+        const context = await loadVaccineReminderContext(doc, parentCache);
+
+        if (!context.isAuthoritativeSource) {
+          logger.info("VACCINE SKIP ownerId", {
+            sourcePath: context.sourcePath,
+            vaccineId: context.vaccineId,
+            patientId: context.patientId,
+            ownerIdResolved: context.ownerId,
+            nextDueDate: context.nextDueDate,
+          });
+          skipped++;
+          continue;
+        }
+
+        const dueDate = context.nextDueDate;
+        if (!dueDate) {
+          logger.info("SKIP MISSING DATA", {
+            sourcePath: context.sourcePath,
+            vaccineId: context.vaccineId,
+            patientId: context.patientId,
+            dueDateExists: !!dueDate,
+            nextDueDate: context.nextDueDate,
+            ownerId: context.ownerId,
+            status: context.status,
+          });
+          logger.info("SKIP NO DUE DATE", {
+            sourcePath: context.sourcePath,
+            ownerId: context.ownerId,
+            nextDueDate: context.nextDueDate,
+          })
+          skipped++;
+          continue;
+        }
+
+        if (!context.ownerId) {
+          logger.info("SKIP MISSING DATA", {
+            sourcePath: context.sourcePath,
+            vaccineId: context.vaccineId,
+            patientId: context.patientId,
+            dueDateExists: !!dueDate,
+            nextDueDate: context.nextDueDate,
+            ownerId: context.ownerId,
+            status: context.status,
+          });
+          logger.info("SKIP NO OWNER", {
+            sourcePath: context.sourcePath,
+            ownerId: context.ownerId,
+            nextDueDate: context.nextDueDate,
+          })
+          skipped++;
+          continue;
+        }
+
+        logger.info("STATUS CHECK", {
+          sourcePath: context.sourcePath,
+          vaccineId: context.vaccineId,
+          status: context.status,
+        });
+        if (context.status === "completed") {
+          logger.info("VACCINE SKIP completed", {
+            sourcePath: context.sourcePath,
+            vaccineId: context.vaccineId,
+            status: context.status,
+          });
+          skipped++;
+          continue;
+        }
+
+        const dueDateKey = formatDateKeyInTimeZone(dueDate, tz);
+        if (!dueDateKey) {
+          logger.info("VACCINE SKIP dueDate", {
+            sourcePath: context.sourcePath,
+            vaccineId: context.vaccineId,
+            nextDueDate: context.nextDueDate,
+          });
+          skipped++;
+          continue;
+        }
+        logger.info("DATE WINDOW CHECK", {
+          sourcePath: context.sourcePath,
+          vaccineId: context.vaccineId,
+          dueDateKey,
+          todayKey,
+          windowEndKey,
+          ownerId: context.ownerId,
+          status: context.status,
+        })
+        if (dueDateKey < todayKey || dueDateKey > windowEndKey) {
+          logger.info("VACCINE SKIP window", {
+            sourcePath: context.sourcePath,
+            vaccineId: context.vaccineId,
+            dueDateKey,
+            todayKey,
+            windowEndKey,
+          });
+          skipped++;
+          continue;
+        }
+
+        const dueDateLabel = dueDate.toLocaleDateString("tr-TR", {
+          timeZone: tz,
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+        const reminderId = buildVaccineReminderId({
+          ownerId: context.ownerId,
+          businessId,
+          patientId,
+          vaccineId: context.vaccineId,
+          dueDateKey,
+        });
+
+        if (seenReminderIds.has(reminderId)) {
+          logger.info("💉 VACCINE REMINDER DUPLICATE SKIPPED", {
+            reminderId,
+            sourcePath: context.sourcePath,
+            ownerId: context.ownerId,
+            vaccineId: context.vaccineId,
+            dueDateKey,
+          });
+          skipped++;
+          continue;
+        }
+
+        logger.info("VACCINE MATCHED", {
+          sourcePath: context.sourcePath,
+          vaccineId: context.vaccineId,
+          ownerId: context.ownerId,
+          dueDateKey,
+        });
+
+        logger.info("OWNER RESOLUTION RESULT", {
+          sourcePath: context.sourcePath,
+          vaccineId: context.vaccineId,
+          resolvedOwnerId: context.ownerId,
+        });
+
+        seenReminderIds.add(reminderId);
+        matched++;
+
+        const result = await sendVaccineReminderNotification({
+          context,
+          dueDateKey,
+          dueDateLabel,
+        });
+
+        if (result.skipped) {
+          skipped++;
+        } else {
+          created++;
+          sent++;
+        }
+      }
+    }
+
+    logger.info("💉 VACCINE REMINDER JOB DONE", {
+      scanned,
+      matched,
+      created,
+      sent,
+      skipped,
+      todayKey,
+      windowEndKey,
+    });
+  }
+);
+
 exports.createSubMerchant = onCall(
   { region: "europe-west3" },
   async (request) => {
@@ -14937,13 +15859,43 @@ exports.updateVetAppointmentStatus = onCall(
         const businessId =
           appointmentData.businessId || null;
 
-        const ownerId =
-          appointmentData.userId ||
-          appointmentData.ownerId ||
-          null;
-
         const petId =
           appointmentData.petId || null;
+        const dogDataForOwner = petId
+          ? (await db.collection("dogs").doc(String(petId)).get()).data() || {}
+          : {};
+        const ownerId = resolvePetOwnerUidFromData({
+          appointmentData,
+          dogData: dogDataForOwner,
+        });
+
+        logger.info("APPOINTMENT USER UID", {
+          appointmentId:
+            result.appointmentId,
+          userId:
+            nonEmptyString(appointmentData.userId),
+          requesterUserId:
+            nonEmptyString(appointmentData.requesterUserId),
+          petOwnerUid:
+            nonEmptyString(appointmentData.petOwnerUid),
+        });
+        logger.info("BUSINESS OWNER UID", {
+          appointmentId:
+            result.appointmentId,
+          businessId:
+            nonEmptyString(appointmentData.businessId),
+          businessOwnerUid:
+            nonEmptyString(appointmentData.businessOwnerUid),
+          vetId:
+            nonEmptyString(appointmentData.vetId),
+        });
+        logger.info("DOG OWNER UID", {
+          appointmentId:
+            result.appointmentId,
+          petId,
+          dogOwnerUid:
+            nonEmptyString(dogDataForOwner.ownerId),
+        });
 
         const petName =
           appointmentData.petName ||
@@ -14982,20 +15934,51 @@ exports.updateVetAppointmentStatus = onCall(
           // =========================
 
           if (!existingPatient.empty) {
+            const patientDoc = existingPatient.docs[0];
+            const existingPatientData = patientDoc.data() || {};
+            const ownerProfileSnapshot = await buildOwnerProfileSnapshot({
+              db,
+              ownerId,
+              petId,
+              appointmentData,
+              patientData: existingPatientData,
+            });
+            const mergedOwnerProfile = mergeOwnerProfileSnapshots(
+              existingPatientData.ownerProfile || {},
+              ownerProfileSnapshot
+            );
 
-            await existingPatient
-              .docs[0]
-              .ref
-              .update({
+            await patientDoc.ref.set({
+              ownerId,
+              petOwnerUid: ownerId,
 
-                lastVisitAt:
-                  admin.firestore.FieldValue
-                    .serverTimestamp(),
+              lastVisitAt:
+                admin.firestore.FieldValue
+                  .serverTimestamp(),
 
-                updatedAt:
-                  admin.firestore.FieldValue
-                    .serverTimestamp(),
-              });
+              updatedAt:
+                admin.firestore.FieldValue
+                  .serverTimestamp(),
+
+              ...(hasMeaningfulOwnerSnapshot(mergedOwnerProfile)
+                ? {
+                  ownerProfile: mergedOwnerProfile,
+                  ownerProfileUpdatedAt:
+                    admin.firestore.FieldValue
+                      .serverTimestamp(),
+                }
+                : {}),
+            }, { merge: true });
+
+            if (hasMeaningfulOwnerSnapshot(mergedOwnerProfile)) {
+              logger.info(
+                "PATIENT OWNER SNAPSHOT MERGED",
+                {
+                  petId,
+                  businessId,
+                }
+              );
+            }
 
             logger.info(
               "♻️ PATIENT UPDATED",
@@ -15011,17 +15994,33 @@ exports.updateVetAppointmentStatus = onCall(
           // =========================
 
           else {
+            const ownerProfileSnapshot = await buildOwnerProfileSnapshot({
+              db,
+              ownerId,
+              petId,
+              appointmentData,
+            });
 
             await patientsRef.add({
 
               businessId,
 
               ownerId,
+              petOwnerUid: ownerId,
               petId,
 
               petName,
               breed,
               ownerName,
+
+              ...(hasMeaningfulOwnerSnapshot(ownerProfileSnapshot)
+                ? {
+                  ownerProfile: ownerProfileSnapshot,
+                  ownerProfileUpdatedAt:
+                    admin.firestore.FieldValue
+                      .serverTimestamp(),
+                }
+                : {}),
 
               notes: "",
 
@@ -15040,6 +16039,17 @@ exports.updateVetAppointmentStatus = onCall(
                 admin.firestore.FieldValue
                   .serverTimestamp(),
             });
+
+            if (hasMeaningfulOwnerSnapshot(ownerProfileSnapshot)) {
+              logger.info(
+                "PATIENT OWNER SNAPSHOT SAVED",
+                {
+                  petId,
+                  petName,
+                  businessId,
+                }
+              );
+            }
 
             logger.info(
               "🐾 PATIENT AUTO CREATED",
@@ -15159,8 +16169,58 @@ exports.updateVetAppointmentStatus = onCall(
             // =========================
             // ♻️ UPDATE PATIENT
             // =========================
+            const dogDataForOwner = petId
+              ? (await db.collection("dogs").doc(String(petId)).get()).data() || {}
+              : {};
+            const ownerId = resolvePetOwnerUidFromData({
+              appointmentData,
+              patientData: patientDoc.data() || {},
+              dogData: dogDataForOwner,
+            });
 
-            await patientRef.update({
+            logger.info("APPOINTMENT USER UID", {
+              appointmentId:
+                result.appointmentId,
+              userId:
+                nonEmptyString(appointmentData.userId),
+              requesterUserId:
+                nonEmptyString(appointmentData.requesterUserId),
+              petOwnerUid:
+                nonEmptyString(appointmentData.petOwnerUid),
+            });
+            logger.info("BUSINESS OWNER UID", {
+              appointmentId:
+                result.appointmentId,
+              businessId:
+                nonEmptyString(appointmentData.businessId),
+              businessOwnerUid:
+                nonEmptyString(appointmentData.businessOwnerUid),
+              vetId:
+                nonEmptyString(appointmentData.vetId),
+            });
+            logger.info("DOG OWNER UID", {
+              appointmentId:
+                result.appointmentId,
+              petId,
+              dogOwnerUid:
+                nonEmptyString(dogDataForOwner.ownerId),
+            });
+
+            const ownerProfileSnapshot = await buildOwnerProfileSnapshot({
+              db,
+              ownerId,
+              petId,
+              appointmentData,
+              patientData: patientDoc.data() || {},
+            });
+            const mergedOwnerProfile = mergeOwnerProfileSnapshots(
+              (patientDoc.data() || {}).ownerProfile || {},
+              ownerProfileSnapshot
+            );
+
+            await patientRef.set({
+              ownerId,
+              petOwnerUid: ownerId,
 
               lastVisitAt:
                 admin.firestore.FieldValue
@@ -15169,7 +16229,28 @@ exports.updateVetAppointmentStatus = onCall(
               updatedAt:
                 admin.firestore.FieldValue
                   .serverTimestamp(),
-            });
+
+              ...(hasMeaningfulOwnerSnapshot(mergedOwnerProfile)
+                ? {
+                  ownerProfile: mergedOwnerProfile,
+                  ownerProfileUpdatedAt:
+                    admin.firestore.FieldValue
+                      .serverTimestamp(),
+                }
+                : {}),
+            }, { merge: true });
+
+            if (hasMeaningfulOwnerSnapshot(mergedOwnerProfile)) {
+              logger.info(
+                "PATIENT OWNER SNAPSHOT MERGED",
+                {
+                  patientId:
+                    patientDoc.id,
+
+                  petId,
+                }
+              );
+            }
 
             logger.info(
               "🩺 VISIT AUTO CREATED",
@@ -16308,8 +17389,62 @@ exports.createVetAppointment = onCall(
       // =========================
       // CREATE APPOINTMENT
       // =========================
+      const dogOwnerSnap = await db.collection("dogs").doc(String(finalPetId)).get();
+      const dogOwnerData = dogOwnerSnap.data() || {};
+      const petOwnerUid =
+        nonEmptyString(request.data.petOwnerUid) ||
+        nonEmptyString(dogOwnerData.ownerId) ||
+        uid;
+      let businessOwnerUid = null;
+      try {
+        const businessOwnerSnap = await db.collection("businesses").doc(String(businessId)).get();
+        const businessOwnerData = businessOwnerSnap.data() || {};
+        businessOwnerUid =
+          nonEmptyString(businessOwnerData.ownerUid) ||
+          nonEmptyString(businessOwnerData.uid);
+      } catch (error) {
+        logger.warn("BUSINESS OWNER UID LOOKUP FAILED", {
+          businessId,
+          message: error?.message || String(error),
+        });
+      }
+
+      logger.info("APPOINTMENT USER UID", {
+        requesterUserId: uid,
+        petOwnerUid,
+      });
+      logger.info("BUSINESS OWNER UID", {
+        businessId,
+        businessOwnerUid,
+      });
+      logger.info("DOG OWNER UID", {
+        petId: finalPetId,
+        dogOwnerUid: nonEmptyString(dogOwnerData.ownerId),
+      });
+
+      const ownerProfileSnapshot = await buildOwnerProfileSnapshot({
+        db,
+        ownerId: petOwnerUid,
+        petId: finalPetId,
+        appointmentData: {
+          ...(request.data || {}),
+          userId: uid,
+          requesterUserId: uid,
+          ownerId: petOwnerUid,
+          petOwnerUid,
+          businessOwnerUid,
+        },
+      });
+
       const docRef = await col.add({
         userId: uid,
+        requesterUserId: uid,
+        ownerId: petOwnerUid,
+        petOwnerUid,
+        businessOwnerUid,
+        ...(hasMeaningfulOwnerSnapshot(ownerProfileSnapshot)
+          ? { ownerProfile: ownerProfileSnapshot }
+          : {}),
 
         // 🐾 PET
         petId: finalPetId,

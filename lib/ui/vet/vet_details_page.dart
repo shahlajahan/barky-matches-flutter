@@ -36,8 +36,12 @@ class _VetDetailsPageState extends State<VetDetailsPage>
   final Map<String, int> _optimisticLikes = {};
   final Map<String, bool> _optimisticIsLiked = {};
   final Set<String> _likeBusy = {};
-  double? _liveRating;
-  int _liveReviewCount = 0;
+  final ValueNotifier<double?> _liveRating =
+    ValueNotifier(null);
+
+final ValueNotifier<int> _liveReviewCount =
+    ValueNotifier(0);
+  bool _openingAppointment = false;
 
   Map<String, dynamic>? get _workingHoursMap {
     final businessData = widget.vet.rawData ?? {};
@@ -797,10 +801,16 @@ class _VetDetailsPageState extends State<VetDetailsPage>
         : '';
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(vet.id)
-          .snapshots(),
+      stream:
+ FirebaseFirestore.instance
+   .collection('businesses')
+   .doc(vet.id)
+   .snapshots()
+   .distinct(
+     (prev,next) =>
+       prev.data().toString() ==
+       next.data().toString(),
+   ),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};
         final rawProfile = data['sectorData']?['veterinary']?['profileContent'];
@@ -884,24 +894,67 @@ class _VetDetailsPageState extends State<VetDetailsPage>
 
                   // ⭐ Rating
                   Row(
-                    children: [
-                      const Icon(
-                        LucideIcons.star,
-                        size: 16,
-                        color: Colors.amber,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        (_liveRating ?? vet.rating)?.toStringAsFixed(1) ?? '-',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '(${l10n.reviewsCountLabel(_liveReviewCount != 0 ? _liveReviewCount : (vet.reviewsCount ?? 0))})',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  ),
+  children: [
+
+    const Icon(
+      LucideIcons.star,
+      size: 16,
+      color: Colors.amber,
+    ),
+
+    const SizedBox(width: 6),
+
+    ValueListenableBuilder<double?>(
+      valueListenable: _liveRating,
+
+      builder: (context, rating, _) {
+
+        return Text(
+
+          (rating ?? vet.rating)
+                  ?.toStringAsFixed(1) ??
+              '-',
+
+          style: const TextStyle(
+            color: Colors.white,
+          ),
+
+        );
+
+      },
+
+    ),
+
+    const SizedBox(width: 6),
+
+    ValueListenableBuilder<int>(
+
+      valueListenable: _liveReviewCount,
+
+      builder: (context, count, _) {
+
+        return Text(
+
+          '(${l10n.reviewsCountLabel(
+
+            count != 0
+                ? count
+                : (vet.reviewsCount ?? 0),
+
+          )})',
+
+          style: const TextStyle(
+            color: Colors.white70,
+          ),
+
+        );
+
+      },
+
+    ),
+
+  ],
+),
 
                   const SizedBox(height: 10),
 
@@ -1028,7 +1081,18 @@ class _VetDetailsPageState extends State<VetDetailsPage>
           .doc(widget.vet.id)
           .collection('services')
           .where('isActive', isEqualTo: true)
-          .snapshots(),
+         .snapshots()
+.distinct(
+ (prev,next) {
+
+   if (prev.docs.length != next.docs.length) {
+     return false;
+   }
+
+   return true;
+
+ },
+),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -1073,10 +1137,8 @@ class _VetDetailsPageState extends State<VetDetailsPage>
 
             return GestureDetector(
               onTap: () {
-                debugPrint("🔥 OPEN APPOINTMENT WITH: $service");
-
-                _openAppointmentPage(service);
-              },
+  _openAppointmentPage(service);
+},
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -1259,10 +1321,8 @@ class _VetDetailsPageState extends State<VetDetailsPage>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted &&
               (_liveRating != avg || _liveReviewCount != reviews.length)) {
-            setState(() {
-              _liveRating = avg;
-              _liveReviewCount = reviews.length;
-            });
+           _liveRating.value = avg;
+_liveReviewCount.value = reviews.length;
           }
         });
 

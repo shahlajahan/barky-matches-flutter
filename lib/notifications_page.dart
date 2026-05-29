@@ -27,9 +27,25 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage>
     with WidgetsBindingObserver {
-  bool _handlingTap = false;
-
   static const Color _cardColor = Color(0xFF9E1B4F);
+  static const Color _vaccineReminderColor = Color(0xFF5A9E9B);
+  final Map<String, String> _notificationTypes = {};
+
+  IconData _iconForType(String rawType) {
+    if (rawType == 'vaccine_reminder') {
+      return Icons.medical_services_outlined;
+    }
+
+    return Icons.notifications_active;
+  }
+
+  Color _iconColorForType(String rawType) {
+    if (rawType == 'vaccine_reminder') {
+      return _vaccineReminderColor;
+    }
+
+    return Colors.amber;
+  }
 
   @override
   void initState() {
@@ -83,6 +99,8 @@ class _NotificationsPageState extends State<NotificationsPage>
 
           final docs = snapshot.data!.docs;
 
+          _notificationTypes.clear();
+
           if (docs.isEmpty) {
             return Center(
               child: Text(
@@ -95,6 +113,13 @@ class _NotificationsPageState extends State<NotificationsPage>
           final notifications = docs
               .map((doc) {
                 final data = doc.data() as Map<String, dynamic>;
+                final rawType = (data['type'] ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .trim();
+                if (rawType.isNotEmpty) {
+                  _notificationTypes[doc.id] = rawType;
+                }
                 return AppNotification.fromMap(doc.id, data);
               })
               .whereType<AppNotification>()
@@ -105,6 +130,8 @@ class _NotificationsPageState extends State<NotificationsPage>
             itemCount: notifications.length,
             itemBuilder: (context, index) {
               final notification = notifications[index];
+              final appState = Provider.of<AppState>(context, listen: false);
+              final navigator = Navigator.of(context);
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 14),
@@ -257,11 +284,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                           case 'order_update':
                           case 'order_created':
                           case 'new_paid_order':
-
-                            // بعد از switch
                             Future.microtask(() {
                               if (mounted) {
-                                context.read<AppState>().closeNotifications();
+                                appState.closeNotifications();
                               }
                             });
 
@@ -279,6 +304,26 @@ class _NotificationsPageState extends State<NotificationsPage>
                             widget.onNotificationSelected({
                               'type': 'playdate_reminder',
                               'requestId': data['requestId'],
+                            });
+                            break;
+
+                          case 'vaccine_reminder':
+                            widget.onNotificationSelected({
+                              'type': 'vaccine_reminder',
+                              'petId': data['petId'],
+                              'patientId': data['patientId'],
+                              'vaccineId': data['vaccineId'],
+                              'businessId': data['businessId'],
+                            });
+                            break;
+
+                          case 'vaccine_completed':
+                            widget.onNotificationSelected({
+                              'type': 'vaccine_completed',
+                              'petId': data['petId'],
+                              'patientId': data['patientId'],
+                              'vaccineId': data['vaccineId'],
+                              'businessId': data['businessId'],
                             });
                             break;
 
@@ -355,11 +400,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                               existingChatId = newChat.id;
                             }
 
-                            if (!context.mounted) return;
+                            if (!mounted) return;
 
-                            Navigator.push(
-                              context,
-
+                            navigator.push(
                               MaterialPageRoute(
                                 builder: (_) => ChatDetailPage(
                                   chatId: existingChatId!,
@@ -372,15 +415,13 @@ class _NotificationsPageState extends State<NotificationsPage>
                             break;
 
                           default:
-                            debugPrint(
-                              '⚠️ Unknown notification type: $rawType',
-                            );
+                            if (rawType != 'vaccine_reminder') {
+                              debugPrint(
+                                '⚠️ Unknown notification type: $rawType',
+                              );
+                            }
                         }
-                      } finally {
-                        if (mounted) {
-                          _handlingTap = false;
-                        }
-                      }
+                      } finally {}
                     },
                     child: Padding(
                       padding: const EdgeInsets.all(14),
@@ -390,8 +431,13 @@ class _NotificationsPageState extends State<NotificationsPage>
                           Icon(
                             notification.isRead
                                 ? Icons.notifications_none
-                                : Icons.notifications_active,
-                            color: Colors.amber,
+                                : _iconForType(
+                                    _notificationTypes[notification.id ?? ''] ??
+                                        '',
+                                  ),
+                            color: _iconColorForType(
+                              _notificationTypes[notification.id ?? ''] ?? '',
+                            ),
                             size: 26,
                           ),
 
@@ -423,7 +469,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                                 const SizedBox(height: 6),
 
                                 Text(
-                                  notification.timestamp.toString() ?? '',
+                                  notification.timestamp.toString(),
                                   style: GoogleFonts.poppins(
                                     color: Colors.white38,
                                     fontSize: 11,

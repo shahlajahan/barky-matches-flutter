@@ -48,6 +48,26 @@ class MedicalRecordsPage extends StatelessWidget {
 
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
+              final age = (data['age'] as num?)?.toInt() ?? 0;
+              final reportCount = (data['reportCount'] as num?)?.toInt() ?? 0;
+              final boostScore = (data['boostScore'] as num?)?.toInt() ?? 0;
+              final latitude = (data['latitude'] as num?)?.toDouble();
+              final longitude = (data['longitude'] as num?)?.toDouble();
+
+              debugPrint(
+                'FIELD TYPE: age=${data['age']?.runtimeType} '
+                'reportCount=${data['reportCount']?.runtimeType} '
+                'boostScore=${data['boostScore']?.runtimeType} '
+                'latitude=${data['latitude']?.runtimeType} '
+                'longitude=${data['longitude']?.runtimeType}',
+              );
+              debugPrint(
+                'FIELD VALUE: age=${data['age']} '
+                'reportCount=${data['reportCount']} '
+                'boostScore=${data['boostScore']} '
+                'latitude=${data['latitude']} '
+                'longitude=${data['longitude']}',
+              );
 
               final dog = Dog(
                 id: docs[index].id,
@@ -56,7 +76,7 @@ class MedicalRecordsPage extends StatelessWidget {
 
                 breed: data['breed'] ?? '',
 
-                age: data['age'] ?? 0,
+                age: age,
 
                 gender: data['gender'] ?? '',
 
@@ -78,11 +98,11 @@ class MedicalRecordsPage extends StatelessWidget {
 
                 ownerGender: data['ownerGender'],
 
-                latitude: (data['latitude'] as num?)?.toDouble(),
+                latitude: latitude,
 
-                longitude: (data['longitude'] as num?)?.toDouble(),
+                longitude: longitude,
 
-                reportCount: data['reportCount'] ?? 0,
+                reportCount: reportCount,
 
                 isHidden: data['isHidden'] ?? false,
 
@@ -96,7 +116,7 @@ class MedicalRecordsPage extends StatelessWidget {
 
                 isSponsored: data['isSponsored'] ?? false,
 
-                boostScore: data['boostScore'] ?? 0,
+                boostScore: boostScore,
 
                 sponsorshipType: data['sponsorshipType'] ?? '',
 
@@ -132,7 +152,7 @@ class MedicalRecordsPage extends StatelessWidget {
 
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
 
                         blurRadius: 12,
 

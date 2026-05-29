@@ -36,6 +36,31 @@ class AllNotificationsPage extends StatefulWidget {
 
 class _AllNotificationsPageState extends State<AllNotificationsPage> {
   late Future<List<AppNotification>> _notificationsFuture;
+  final Map<String, String> _notificationTypes = {};
+
+  IconData _iconForType(String rawType) {
+    if (rawType == 'vaccine_reminder') {
+      return Icons.medical_services_outlined;
+    }
+
+    return Icons.notifications_none;
+  }
+
+  Color _iconColorForType(String rawType) {
+    if (rawType == 'vaccine_reminder') {
+      return Colors.pink[700]!;
+    }
+
+    return Colors.pink[500]!;
+  }
+
+  Color _cardColorForType(String rawType) {
+    if (rawType == 'vaccine_reminder') {
+      return Colors.pink[100]!;
+    }
+
+    return Colors.pink[50]!;
+  }
 
   @override
   void initState() {
@@ -45,6 +70,7 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
 
   Future<List<AppNotification>> _loadNotifications() async {
     try {
+      _notificationTypes.clear();
       final userId = widget.currentUserId.trim();
 
       if (userId.isEmpty || userId == 'guest') {
@@ -66,14 +92,18 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
           .limit(20)
           .get();
 
-      final allNotifications = [
-        ...personalSnapshot.docs.map(
-          (doc) => AppNotification.fromMap(doc.id, doc.data()),
-        ),
-        ...publicSnapshot.docs.map(
-          (doc) => AppNotification.fromMap(doc.id, doc.data()),
-        ),
-      ];
+      final allNotifications = <AppNotification>[];
+
+      for (final doc in [...personalSnapshot.docs, ...publicSnapshot.docs]) {
+        final data = doc.data();
+        final notification = AppNotification.fromMap(doc.id, data);
+        allNotifications.add(notification);
+
+        final rawType = (data['type'] ?? '').toString().toLowerCase().trim();
+        if (rawType.isNotEmpty) {
+          _notificationTypes[doc.id] = rawType;
+        }
+      }
 
       final unique = <String, AppNotification>{};
       for (final n in allNotifications) {
@@ -190,13 +220,23 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
                   debugPrint('Notification payload parse error: $e');
                 }
 
+                final rawType =
+                    (payload['type']?.toString().toLowerCase() ??
+                            _notificationTypes[notification.id] ??
+                            '')
+                        .trim();
+
                 return Card(
-                  color: Colors.pink[50],
+                  color: _cardColorForType(rawType),
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ListTile(
+                    leading: Icon(
+                      _iconForType(rawType),
+                      color: _iconColorForType(rawType),
+                    ),
                     title: Text(
                       notification.title ?? '',
                       style: TextStyle(
@@ -247,8 +287,6 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
                           .doc(notification.id)
                           .update({'isRead': true});
 
-                      final rawType =
-                          payload['type']?.toString().toLowerCase() ?? '';
                       final title = notification.title?.toLowerCase() ?? '';
                       final body = notification.body?.toLowerCase() ?? '';
 
@@ -335,6 +373,10 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
                             );
                           }
                         }
+                        return;
+                      }
+
+                      if (rawType == 'vaccine_reminder') {
                         return;
                       }
 

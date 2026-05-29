@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -71,6 +72,13 @@ class _EditVisitPageState extends State<EditVisitPage> {
       .doc(widget.patientId)
       .collection('visits');
 
+  DocumentReference<Map<String, dynamic>> get _patientRef => FirebaseFirestore
+      .instance
+      .collection('businesses')
+      .doc(widget.businessId)
+      .collection('patients')
+      .doc(widget.patientId);
+
   Future<void> _pickFollowUpDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -106,17 +114,31 @@ class _EditVisitPageState extends State<EditVisitPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
+      final patientData = await _loadPatientMirrorData();
+
       if (_isEditing) {
-        await _visitsRef
-            .doc(widget.visitId)
-            .set(payload, SetOptions(merge: true));
+        final visitId = widget.visitId!;
+        await _visitsRef.doc(visitId).set(payload, SetOptions(merge: true));
+        await _mirrorDogVisitUpdate(
+          patientData: patientData,
+          visitId: visitId,
+          data: payload,
+        );
         debugPrint('🩺 VISIT UPDATED');
       } else {
-        await _visitsRef.add({
+        final visitRef = _visitsRef.doc();
+        final createPayload = {
           ...payload,
           'visitDate': FieldValue.serverTimestamp(),
           'createdAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        await visitRef.set(createPayload);
+        await _mirrorDogVisitSet(
+          patientData: patientData,
+          visitId: visitRef.id,
+          data: createPayload,
+        );
         debugPrint('🩺 VISIT CREATED');
       }
 
@@ -135,6 +157,158 @@ class _EditVisitPageState extends State<EditVisitPage> {
     }
   }
 
+  Future<void> _deleteVisit() async {
+    if (!_isEditing || _saving) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Visit'),
+          content: const Text('Delete this visit from the medical record?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _saving = true);
+
+    try {
+      final patientData = await _loadPatientMirrorData();
+      await _visitsRef.doc(widget.visitId).delete();
+      await _mirrorDogVisitDelete(
+        patientData: patientData,
+        visitId: widget.visitId!,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint('🩺 VISIT DELETE ERROR: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not delete visit: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<Map<String, dynamic>> _loadPatientMirrorData() async {
+    final patientSnap = await _patientRef.get();
+    final data = patientSnap.data() ?? {};
+    final ownerId =
+        _stringOrNull(data['petOwnerUid']) ??
+        _stringOrNull(data['petOwnerId']) ??
+        _stringOrNull(data['requesterUserId']) ??
+        _stringOrNull(data['ownerId']) ??
+        _stringOrNull(data['userId']) ??
+        _stringOrNull(data['clientUserId']);
+
+    return {...data, 'petId': _stringOrNull(data['petId']), 'ownerId': ownerId};
+  }
+
+  String? _stringOrNull(dynamic value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
+  }
+
+  DocumentReference<Map<String, dynamic>>? _dogVisitRef({
+    required Map<String, dynamic> patientData,
+    required String visitId,
+  }) {
+    final petId = _stringOrNull(patientData['petId']);
+
+    if (petId == null) {
+      debugPrint('🩺 DOG VISIT MIRROR SKIPPED → missing petId');
+      return null;
+    }
+
+    return FirebaseFirestore.instance
+        .collection('dogs')
+        .doc(petId)
+        .collection('visits')
+        .doc(visitId);
+  }
+
+  Map<String, dynamic> _dogVisitMirrorMetadata(
+    Map<String, dynamic> patientData,
+  ) {
+    return {
+      'businessId': widget.businessId,
+      'patientId': widget.patientId,
+      'ownerId': patientData['ownerId'],
+      'createdByBusinessId': widget.businessId,
+      'createdByVetId': FirebaseAuth.instance.currentUser?.uid,
+    };
+  }
+
+  Future<void> _mirrorDogVisitSet({
+    required Map<String, dynamic> patientData,
+    required String visitId,
+    required Map<String, dynamic> data,
+  }) async {
+    final mirrorRef = _dogVisitRef(patientData: patientData, visitId: visitId);
+    if (mirrorRef == null) return;
+
+    try {
+      await mirrorRef.set({
+        ...data,
+        ..._dogVisitMirrorMetadata(patientData),
+      }, SetOptions(merge: true));
+      debugPrint('🩺 DOG VISIT MIRROR CREATED');
+    } catch (e) {
+      debugPrint('❌ DOG VISIT MIRROR ERROR: $e');
+    }
+  }
+
+  Future<void> _mirrorDogVisitUpdate({
+    required Map<String, dynamic> patientData,
+    required String visitId,
+    required Map<String, dynamic> data,
+  }) async {
+    final mirrorRef = _dogVisitRef(patientData: patientData, visitId: visitId);
+    if (mirrorRef == null) return;
+
+    try {
+      await mirrorRef.set({
+        ...data,
+        ..._dogVisitMirrorMetadata(patientData),
+      }, SetOptions(merge: true));
+      debugPrint('🩺 DOG VISIT MIRROR UPDATED');
+    } catch (e) {
+      debugPrint('❌ DOG VISIT MIRROR ERROR: $e');
+    }
+  }
+
+  Future<void> _mirrorDogVisitDelete({
+    required Map<String, dynamic> patientData,
+    required String visitId,
+  }) async {
+    final mirrorRef = _dogVisitRef(patientData: patientData, visitId: visitId);
+    if (mirrorRef == null) return;
+
+    try {
+      await mirrorRef.delete();
+      debugPrint('🩺 DOG VISIT MIRROR DELETED');
+    } catch (e) {
+      debugPrint('❌ DOG VISIT MIRROR ERROR: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,6 +318,14 @@ class _EditVisitPageState extends State<EditVisitPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(_isEditing ? 'Edit Visit' : 'New Visit'),
+        actions: [
+          if (_isEditing)
+            IconButton(
+              tooltip: 'Delete visit',
+              onPressed: _saving ? null : _deleteVisit,
+              icon: const Icon(LucideIcons.trash2),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Form(

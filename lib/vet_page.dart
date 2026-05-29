@@ -16,6 +16,7 @@ import 'ui/vet/vet_details_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/medical_records/medical_record_flow_button.dart';
 import 'package:barky_matches_fixed/ui/medical_records/medical_records_page.dart';
+import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
@@ -29,6 +30,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
   bool get wantKeepAlive => true;
 
   bool _loading = true;
+  bool _openingActiveVaccine = false;
   Position? _position;
 
   static Future<Position?>? _cachedResolveFuture;
@@ -76,9 +78,19 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
     _promoTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (!mounted || _dynamicTips.isEmpty) return;
 
-      setState(() {
-        _tipIndex = (_tipIndex + 1) % _dynamicTips.length;
-      });
+      final appState =
+    context.read<app.AppState>();
+
+if (appState.businessSubPage ==
+    app.BusinessSubPage.appointment) {
+  return;
+}
+
+setState(() {
+  _tipIndex =
+      (_tipIndex + 1)
+      % _dynamicTips.length;
+});
     });
 
     _loadVetsFromFirestore();
@@ -143,7 +155,27 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
   }
 
   Future<void> _generateSmartTips([Position? pos]) async {
-    final position = pos ?? await Geolocator.getCurrentPosition();
+    final position =
+    pos ??
+    _position ??
+    _cachedPosition;
+    if (position == null) {
+
+  setState(() {
+
+    _dynamicTips = [
+
+      "💉 Regular vet checkups are essential",
+
+      "🐾 Healthy pets need prevention",
+
+    ];
+
+  });
+
+  return;
+
+}
     if (!mounted) return;
     final now = DateTime.now();
     final hour = now.hour;
@@ -168,8 +200,29 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
 
     debugPrint("🌡 TEMP USED: $safeTemp");
 
-    final tips = _buildAITips(temp: safeTemp, hour: hour, dogSize: "small");
+final nextVaccineTip =
+    await _buildNextVaccinationTip();
 
+if (!mounted) return;
+
+    final tips = _buildAITips(temp: safeTemp, hour: hour, dogSize: "small");
+if (nextVaccineTip != null) {
+
+  tips.add(
+
+    SmartTip(
+
+      text: nextVaccineTip,
+
+      priority: 200,
+
+      type: "vaccine",
+
+    ),
+
+  );
+
+}
     /// ⏰ TIME
     if (hour >= 7 && hour <= 10) {
       tips.add(
@@ -346,6 +399,96 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
 
     return tips;
   }
+
+  Future<String?> _buildNextVaccinationTip() async {
+
+  try {
+
+    final uid =
+FirebaseAuth
+    .instance
+    .currentUser
+    ?.uid;
+    if (uid == null) return null;
+debugPrint(
+'CURRENT UID = $uid',
+);
+    final snap =
+await FirebaseFirestore.instance
+.collection('users')
+.doc(uid)
+.collection('vaccines')
+.limit(5)
+.get();
+
+debugPrint(
+'VACCINE DOC COUNT = ${snap.docs.length}',
+);
+    DateTime? nearest;
+
+    for (final doc in snap.docs) {
+
+      final data = doc.data();
+
+      final ts =
+          data['nextVaccinationAt'];
+
+      DateTime? date;
+
+      if (ts is Timestamp) {
+        date = ts.toDate();
+      }
+
+      if (date == null) continue;
+
+      if (nearest == null ||
+          date.isBefore(nearest)) {
+
+        nearest = date;
+
+      }
+
+    }
+
+    if (nearest == null) {
+
+      return
+          "💉 Add vaccination records";
+
+    }
+
+    final now =
+        DateTime.now();
+
+    if (nearest.isBefore(now)) {
+
+      final diff =
+          now
+              .difference(nearest)
+              .inDays;
+
+      return
+          "⚠️ Vaccination overdue by $diff days";
+
+    }
+
+    return
+        "💉 Next vaccination at "
+        "${nearest.day.toString().padLeft(2,'0')}."
+        "${nearest.month.toString().padLeft(2,'0')}."
+        "${nearest.year}";
+
+  } catch (e) {
+
+    debugPrint(
+      "vaccine tip error $e",
+    );
+
+    return null;
+
+  }
+
+}
 
   Future<void> _loadTips() async {
     try {
@@ -805,14 +948,100 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
   Widget build(BuildContext context) {
     super.build(context);
 
-    final appState = context.watch<app.AppState>();
-    final currentUserId = appState.currentUserId;
-    final selectedVet = appState.selectedVet;
+    final appState =
+    context.read<app.AppState>();
+
+final businessSubPage =
+    context.select<
+        app.AppState,
+        app.BusinessSubPage>(
+      (s) => s.businessSubPage,
+    );
+
+final businessAppointment =
+    context.select<
+        app.AppState,
+        BusinessCardData?>(
+      (s) => s.businessAppointment,
+    );
+
+final appointmentService =
+    context.select<
+        app.AppState,
+        Map<String,dynamic>?>(
+      (s) => s.appointmentService,
+    );
+
+final currentUserId =
+    context.select<
+        app.AppState,
+        String?>(
+      (s) => s.currentUserId,
+    );
+
+final selectedVet =
+    context.select<
+        app.AppState,
+        BusinessCardData?>(
+      (s) => s.selectedVet,
+    );
+
+final activeVaccineId =
+    context.select<
+        app.AppState,
+        String?>(
+      (s) => s.activeVaccineId,
+    );
+
+/// APPOINTMENT FIRST
+
+if (businessSubPage ==
+    app.BusinessSubPage.appointment &&
+    businessAppointment != null) {
+
+  return VetAppointmentPage(
+    vet: businessAppointment,
+selectedService:
+    appointmentService,
+  );
+}
+
+
+/// THEN VACCINE PAGE
+
+if (activeVaccineId != null &&
+    activeVaccineId.isNotEmpty) {
+
+  return WillPopScope(
+
+    onWillPop: () async {
+
+      appState.closeVaccineNotification();
+
+      return true;
+    },
+
+    child: VaccineNotificationPage(
+
+      businessId:
+          appState.activeVaccineBusinessId!,
+
+      patientId:
+          appState.activeVaccinePatientId!,
+
+      vaccineId:
+          activeVaccineId,
+
+      petId:
+          appState.activeVaccinePetId,
+    ),
+  );
+}
 
     if (currentUserId == null) {
       return const Center(child: CircularProgressIndicator());
     }
-
+/*
     /// ✅ اول appointment
     if (appState.businessSubPage == app.BusinessSubPage.appointment &&
         appState.businessAppointment != null) {
@@ -821,7 +1050,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
         selectedService: appState.appointmentService,
       );
     }
-
+*/
     return Stack(
       children: [
         Container(

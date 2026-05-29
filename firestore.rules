@@ -246,36 +246,75 @@ match /adoption_center_requests/{requestId} {
     }
 
     match /dogs/{dogId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+
+      allow read:
+        if isSignedIn();
+
+      allow create:
+        if isSignedIn() &&
+        request.resource.data.ownerId == request.auth.uid;
+
+      allow update:
+        if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          resource.data.ownerId == request.auth.uid &&
+
+          request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+              'ownerProfile',
+              'ownerProfileUpdatedAt',
+              'updatedAt',
+            ])
+        );
+
+      allow delete:
+        if isAdmin() ||
+        (
+          isSignedIn() &&
+          resource.data.ownerId == request.auth.uid
+        );
     }
+
 match /dogs/{dogId}/vaccines/{vaccineId} {
 
-  allow read: if isSignedIn();
+  allow read:
+    if isSignedIn();
 
-  allow create: if isAdmin() || (
-    isSignedIn() &&
+  allow create:
+    if isAdmin() ||
     (
-      get(
-        /databases/$(database)/documents/dogs/$(dogId)
-      ).data.ownerId == request.auth.uid ||
-
-      (
-        request.resource.data.businessId is string &&
-        isBusinessOwner(
-          request.resource.data.businessId
-        )
+      isSignedIn() &&
+      request.resource.data.businessId is string &&
+      isBusinessOwner(
+        request.resource.data.businessId
       )
-    )
-  );
+    );
 
-  allow update, delete: if isAdmin() || (
+  allow update, delete:
+    if isAdmin() ||
+    (
+    isSignedIn() &&
+      resource.data.businessId is string &&
+      isBusinessOwner(
+        resource.data.businessId
+      )
+    );
+}
+
+match /dogs/{dogId}/visits/{visitId} {
+
+  allow read: if isAdmin() || (
     isSignedIn() &&
     (
       get(
         /databases/$(database)/documents/dogs/$(dogId)
       ).data.ownerId == request.auth.uid ||
+
+      resource.data.ownerId == request.auth.uid ||
 
       (
         resource.data.businessId is string &&
@@ -283,6 +322,22 @@ match /dogs/{dogId}/vaccines/{vaccineId} {
           resource.data.businessId
         )
       )
+    )
+  );
+
+  allow create: if isAdmin() || (
+    isSignedIn() &&
+    request.resource.data.businessId is string &&
+    isBusinessOwner(
+      request.resource.data.businessId
+    )
+  );
+
+  allow update, delete: if isAdmin() || (
+    isSignedIn() &&
+    resource.data.businessId is string &&
+    isBusinessOwner(
+      resource.data.businessId
     )
   );
 }
@@ -297,9 +352,6 @@ match /dogs/{dogId}/vaccines/{vaccineId} {
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
     }
-    
-   
-
    match /businesses/{businessId} {
   allow read: if isSignedIn();
   allow create: if isAdmin() || (

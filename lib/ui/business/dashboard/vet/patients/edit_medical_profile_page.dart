@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/owner_profile_snapshot.dart';
 
 class EditMedicalProfilePage extends StatefulWidget {
   final String businessId;
@@ -36,6 +37,8 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
   String _bloodType = 'Unknown';
   bool _loading = true;
   bool _saving = false;
+  String _microchipVerificationStatus = 'not_verified';
+  String _passportVerificationStatus = 'not_verified';
 
   bool get _isOwnerView => widget.businessId == 'owner_medical_record';
 
@@ -65,6 +68,13 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
       text: _readFirst(['chronicDiseases']),
     );
     _bloodType = _resolveBloodType();
+    _microchipVerificationStatus = _readFirst([
+      'microchipVerificationStatus',
+    ], fallback: 'not_verified');
+
+    _passportVerificationStatus = _readFirst([
+      'passportVerificationStatus',
+    ], fallback: 'not_verified');
     _loadRecordData();
   }
 
@@ -172,7 +182,80 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
     return value.isEmpty ? fallback : value;
   }
 
-  String _species() => _display(['petType', 'species', 'type']);
+  String _species() {
+    final direct = _readFirst([
+      'petType',
+      'species',
+      'type',
+    ]).trim().toLowerCase();
+
+    if (direct.isNotEmpty) {
+      if (direct.contains('dog') || direct.contains('köpek')) {
+        return 'Dog';
+      }
+
+      if (direct.contains('cat') || direct.contains('kedi')) {
+        return 'Cat';
+      }
+    }
+
+    final breed = _readFirst(['breed']).toLowerCase();
+
+    debugPrint('🐶 BREED RAW => "$breed"');
+
+    const dogBreeds = [
+      'retriever',
+      'afghan',
+      'husky',
+      'pitbull',
+      'shepherd',
+      'poodle',
+      'rottweiler',
+      'doberman',
+      'bulldog',
+      'chihuahua',
+      'terrier',
+      'beagle',
+      'corgi',
+      'akita',
+      'samoyed',
+    ];
+
+    const catBreeds = [
+      'persian',
+      'siamese',
+      'maine',
+      'ragdoll',
+      'british',
+      'scottish',
+      'sphynx',
+      'bengal',
+    ];
+
+    for (final item in dogBreeds) {
+      if (breed.contains(item)) {
+        return 'Dog';
+      }
+    }
+
+    for (final item in catBreeds) {
+      if (breed.contains(item)) {
+        return 'Cat';
+      }
+    }
+
+    return 'Not recorded';
+  }
+
+  String _breed() {
+    final raw = _display(['breed']);
+
+    if (raw.startsWith('breed')) {
+      return raw.replaceFirst('breed', '');
+    }
+
+    return raw;
+  }
 
   String _gender() => _display(['gender', 'sex']);
 
@@ -214,24 +297,33 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
   }
 
   List<String> get _bloodTypeOptions {
-    final species = _readFirst(['petType', 'species', 'type']).toLowerCase();
-    final base = switch (species) {
-      'dog' => <String>[
-        'DEA 1+',
-        'DEA 1-',
+    final species = _species();
+
+    debugPrint('🩸 BLOOD TYPE SPECIES => $species');
+
+    List<String> base;
+
+    if (species == 'Dog') {
+      base = [
+        'DEA 1.1+',
+        'DEA 1.1-',
+        'DEA 1.2',
         'DEA 3',
         'DEA 4',
         'DEA 5',
         'DEA 7',
         'Unknown',
-      ],
-      'cat' => <String>['A', 'B', 'AB', 'Unknown'],
-      _ => <String>['Unknown'],
-    };
+      ];
+    } else if (species == 'Cat') {
+      base = ['A', 'B', 'AB', 'Unknown'];
+    } else {
+      base = ['Unknown'];
+    }
 
-    final saved = _readFirst(['bloodType']);
+    final saved = _readFirst(['bloodType']).trim();
+
     if (saved.isNotEmpty && !base.contains(saved)) {
-      return [saved, ...base];
+      base.insert(0, saved);
     }
 
     return base;
@@ -242,14 +334,47 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
     return saved.isEmpty ? 'Unknown' : saved;
   }
 
+  bool _isValidTurkeyMicrochip(String value) {
+    final text = value.trim();
+
+    if (text.isEmpty) return true;
+
+    return RegExp(r'^\d{15}$').hasMatch(text);
+  }
+
+  bool _isValidTurkeyPassportNumber(String value) {
+    final text = value.trim();
+
+    if (text.isEmpty) return true;
+
+    return RegExp(r'^[A-Z0-9\-\/]{3,40}$').hasMatch(text);
+  }
+
   Future<void> _saveMedicalProfile() async {
     if (_isOwnerView) return;
     if (!_formKey.currentState!.validate()) return;
 
     final microchip = _microchipController.text.trim();
-    if (microchip.isNotEmpty && microchip.length != 15) {
+    final passportNumber = _passportController.text.trim().toUpperCase();
+
+    if (!_isValidTurkeyMicrochip(microchip)) {
       final confirmed = await _confirmMicrochipOverride(microchip);
+
       if (!confirmed) return;
+    }
+
+    if (!mounted) return;
+
+    if (!_isValidTurkeyPassportNumber(passportNumber)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Passport number must contain only uppercase letters, numbers, - or /',
+          ),
+        ),
+      );
+
+      return;
     }
 
     debugPrint('🩺 MEDICAL PROFILE SAVE START');
@@ -272,10 +397,19 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
         'name': petName,
         'weight': weightText.isEmpty ? null : double.parse(weightText),
         'microchipNumber': microchip,
+        'microchipStandard': microchip.isEmpty ? null : 'ISO_11784_11785',
+
+        'microchipCountrySystem': microchip.isEmpty ? null : 'TR_PETVET',
+
+        'microchipVerificationStatus': _microchipVerificationStatus,
         'bloodType': _bloodType,
         'allergies': _allergiesController.text.trim(),
         'chronicDiseases': _chronicDiseasesController.text.trim(),
-        'passportNumber': _passportController.text.trim(),
+        'passportNumber': passportNumber,
+
+        'passportCountrySystem': passportNumber.isEmpty ? null : 'TR_PETVET',
+
+        'passportVerificationStatus': _passportVerificationStatus,
         'medicalProfileUpdatedAt': FieldValue.serverTimestamp(),
         'medicalProfileUpdatedBy': FirebaseAuth.instance.currentUser?.uid,
         'medicalProfileUpdatedByName': FirebaseAuth
@@ -290,13 +424,48 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
       debugPrint('🩺 MEDICAL PROFILE UPDATED IN PATIENT');
 
       final patientSnap = await patientRef.get();
-      final petId = _stringOrNull(patientSnap.data()?['petId']);
+      final patientData = patientSnap.data() ?? {};
+      final petId = _stringOrNull(patientData['petId']);
+      final ownerSnapshot = await buildOwnerProfileSnapshot(
+        firestore: FirebaseFirestore.instance,
+        ownerId:
+            _stringOrNull(patientData['petOwnerUid']) ??
+            _stringOrNull(patientData['petOwnerId']) ??
+            _stringOrNull(patientData['requesterUserId']) ??
+            _stringOrNull(patientData['ownerId']) ??
+            _stringOrNull(patientData['userId']) ??
+            _stringOrNull(patientData['clientUserId']),
+        petId: petId,
+        baseData: {...widget.initialData, ..._patientData, ...patientData},
+      );
+
+      if (hasMeaningfulOwnerProfile(ownerSnapshot)) {
+        final existingOwnerProfile = patientData['ownerProfile'] is Map
+            ? Map<String, dynamic>.from(patientData['ownerProfile'] as Map)
+            : <String, dynamic>{};
+        final mergedOwnerProfile = mergeOwnerProfileSnapshots(
+          existing: existingOwnerProfile,
+          incoming: ownerSnapshot,
+        );
+
+        await patientRef.set({
+          'ownerProfile': mergedOwnerProfile,
+          'ownerProfileUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        debugPrint('PATIENT OWNER SNAPSHOT MERGED');
+      }
 
       if (petId != null) {
+        final dogUpdate = <String, dynamic>{...updateData};
+        if (hasMeaningfulOwnerProfile(ownerSnapshot)) {
+          dogUpdate['ownerProfile'] = ownerSnapshot;
+          dogUpdate['ownerProfileUpdatedAt'] = FieldValue.serverTimestamp();
+        }
+
         await FirebaseFirestore.instance
             .collection('dogs')
             .doc(petId)
-            .update(updateData);
+            .update(dogUpdate);
         debugPrint('🩺 DOG MEDICAL PROFILE MIRROR UPDATED');
       }
 
@@ -522,6 +691,60 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
     );
   }
 
+  Widget _verificationHint({
+    required String label,
+    required String value,
+    required String status,
+  }) {
+    final isVerified = status == 'verified';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isVerified
+            ? Colors.green.withValues(alpha: 0.08)
+            : Colors.orange.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isVerified
+              ? Colors.green.withValues(alpha: 0.25)
+              : Colors.orange.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isVerified ? Icons.verified_outlined : Icons.info_outline,
+            size: 16,
+            color: isVerified ? Colors.green.shade700 : Colors.orange.shade800,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label: $value',
+              style: AppTheme.caption(
+                color: isVerified
+                    ? Colors.green.shade700
+                    : Colors.orange.shade800,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            isVerified ? 'Verified' : 'Manual',
+            style: AppTheme.caption(
+              color: isVerified
+                  ? Colors.green.shade700
+                  : Colors.orange.shade800,
+              weight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _auditRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 11),
@@ -625,7 +848,7 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
                               _identityPill(
                                 icon: Icons.badge_outlined,
                                 label: 'Breed',
-                                value: _display(['breed']),
+                                value: _breed(),
                               ),
                               _identityPill(
                                 icon: Icons.wc_outlined,
@@ -648,25 +871,69 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
                           _editableField(
                             controller: _microchipController,
                             label: 'Microchip Number',
-                            hintText: 'ISO 11784/11785',
+                            hintText: '15 digit PETVET / ISO microchip',
                             keyboardType: TextInputType.number,
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(15),
                             ],
                             validator: (value) {
                               final text = value?.trim() ?? '';
+
                               if (text.isEmpty) return null;
-                              if (!RegExp(r'^\d+$').hasMatch(text)) {
-                                return 'Microchip number must contain digits only';
+
+                              if (!RegExp(r'^\d{15}$').hasMatch(text)) {
+                                return 'Microchip must be exactly 15 digits';
                               }
+
                               return null;
                             },
+                          ),
+                          const SizedBox(height: 8),
+                          _verificationHint(
+                            label: 'Turkey system',
+                            value: 'PETVET / ISO 11784-11785',
+                            status: _microchipVerificationStatus,
                           ),
                           const SizedBox(height: 12),
                           _editableField(
                             controller: _passportController,
-                            label: 'Passport / Import ID',
+                            label: 'Passport Number',
+                            hintText: 'PETVET passport number',
                             maxLength: 40,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z0-9\-\/]'),
+                              ),
+                              TextInputFormatter.withFunction((
+                                oldValue,
+                                newValue,
+                              ) {
+                                return newValue.copyWith(
+                                  text: newValue.text.toUpperCase(),
+                                  selection: newValue.selection,
+                                );
+                              }),
+                            ],
+                            validator: (value) {
+                              final text = value?.trim() ?? '';
+
+                              if (text.isEmpty) return null;
+
+                              if (!RegExp(
+                                r'^[A-Z0-9\-\/]{3,40}$',
+                              ).hasMatch(text)) {
+                                return 'Invalid passport number format';
+                              }
+
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          _verificationHint(
+                            label: 'Turkey system',
+                            value: 'PETVET passport record',
+                            status: _passportVerificationStatus,
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(

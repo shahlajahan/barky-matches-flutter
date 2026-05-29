@@ -1,0 +1,115 @@
+graph LR
+
+    %% Shared Architecture Core
+    CORE[Shared Dashboard Patterns]
+
+    CORE --> C1[Overview Tab]
+    CORE --> C2[Appointments / Bookings]
+    CORE --> C3[Gallery Management]
+    CORE --> C4[Service Management]
+    CORE --> C5[Working Hours]
+    CORE --> C6[Schedule]
+    CORE --> C7[Client Messages]
+    CORE --> C8[Business Settings]
+    CORE --> C9[Reviews & Ratings]
+
+    %% Veterinary Dashboard
+    subgraph Veterinary Dashboard
+        V0[lib/ui/business/dashboard/vet/]
+
+        V0 --> V1[Overview]
+        V0 --> V2[Appointments]
+        V0 --> V3[Patients]
+        V0 --> V4[Medical Records]
+        V0 --> V5[Client Messages]
+        V0 --> V6[Quick Replies]
+        V0 --> V7[Gallery]
+        V0 --> V8[Services]
+        V0 --> V9[Working Hours]
+        V0 --> V10[Schedule]
+        V0 --> V11[Settings]
+    end
+
+    %% Groomy Dashboard
+    subgraph Groomy Dashboard
+        G0[lib/ui/business/groomy/]
+
+        G0 --> G1[Overview]
+        G0 --> G2[Bookings]
+        G0 --> G3[Gallery]
+        G0 --> G4[Services]
+        G0 --> G5[Working Hours]
+        G0 --> G6[Client Messages]
+        G0 --> G7[Settings]
+    end
+
+    %% Pet Hotel Dashboard
+    subgraph Pet Hotel Dashboard
+        H0[lib/ui/business/dashboard/pet_hotel/]
+
+        H0 --> H1[Overview]
+        H0 --> H2[Bookings]
+        H0 --> H3[Availability]
+        H0 --> H4[Gallery]
+        H0 --> H5[Client Messages]
+        H0 --> H6[Settings]
+    end
+
+    %% Petshop Dashboard
+    subgraph Petshop Dashboard
+        P0[lib/ui/business/petshop/]
+
+        P0 --> P1[Overview]
+        P0 --> P2[Products]
+        P0 --> P3[Orders]
+        P0 --> P4[Returns]
+        P0 --> P5[Offers]
+        P0 --> P6[Seller Dashboard]
+        P0 --> P7[Settings]
+    end
+
+    %% Adoption Dashboard
+    subgraph Adoption Center Dashboard
+        A0[lib/ui/business/dashboard/adoption_center/]
+
+        A0 --> A1[Overview]
+        A0 --> A2[Adoption Listings]
+        A0 --> A3[Adoption Requests]
+        A0 --> A4[Applicant Review]
+        A0 --> A5[Gallery]
+        A0 --> A6[Client Messages]
+        A0 --> A7[Settings]
+    end
+
+    %% Shared Pattern Relationships
+    CORE -. shared .-> V0
+    CORE -. shared .-> G0
+    CORE -. shared .-> H0
+    CORE -. shared .-> P0
+    CORE -. shared .-> A0
+
+    %% Shared Client Messaging
+    MSG[Shared Messaging Infrastructure]
+
+    MSG --> M1[lib/services/business_chat_service.dart]
+    MSG --> M2[vet_inbox_page.dart]
+    MSG --> M3[user_inbox_page.dart]
+
+    MSG -. reused .-> V0
+    MSG -. reused .-> G0
+    MSG -. reused .-> H0
+    MSG -. reused .-> P0
+    MSG -. reused .-> A0
+
+    %% Shared Business Overlay Layer
+    OVL[Shared Business Overlay Architecture]
+
+    OVL --> O1[business_detail_overlay.dart]
+    OVL --> O2[sector_overlays/]
+    OVL --> O3[business_card.dart]
+
+    OVL -. reused .-> V0
+    OVL -. reused .-> G0
+    OVL -. reused .-> H0
+    OVL -. reused .-> P0
+    OVL -. reused .-> A0

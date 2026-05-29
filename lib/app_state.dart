@@ -268,6 +268,10 @@ class AppState with ChangeNotifier {
 
   bool _ignoreNextClose = false;
   String? activeLostDogId;
+  String? activeVaccineBusinessId;
+  String? activeVaccinePatientId;
+  String? activeVaccineId;
+  String? activeVaccinePetId;
   StreamSubscription<DocumentSnapshot>? _userDocSub;
 
   // ─────────────────────────────
@@ -439,6 +443,21 @@ class AppState with ChangeNotifier {
     _businessSubPage = BusinessSubPage.appointment;
     notifyListeners();
   }
+
+ void closeVaccineNotification() {
+
+  activeVaccineBusinessId = null;
+
+  activeVaccinePatientId = null;
+
+  activeVaccineId = null;
+
+  activeVaccinePetId = null;
+
+  closeVetDetails(); // 👈 add this
+
+  notifyListeners();
+}
 
   void closeBusinessAppointment() {
     _businessAppointment = null;
@@ -2840,6 +2859,27 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
+  void openDedicatedVaccinePage({
+    required String businessId,
+    required String patientId,
+    required String vaccineId,
+    String? petId,
+  }) {
+    activeVaccineBusinessId = businessId;
+    activeVaccinePatientId = patientId;
+    activeVaccineId = vaccineId;
+    activeVaccinePetId = petId;
+    notifyListeners();
+  }
+
+  void clearActiveVaccine() {
+    activeVaccineBusinessId = null;
+    activeVaccinePatientId = null;
+    activeVaccineId = null;
+    activeVaccinePetId = null;
+    notifyListeners();
+  }
+
   String? _initialAdoptionRequestId;
   String? get initialAdoptionRequestId => _initialAdoptionRequestId;
 
@@ -3221,6 +3261,53 @@ class AppState with ChangeNotifier {
       return;
     }
 
+    // ───────────────── VACCINE FLOW 💉 ─────────────────
+
+    if (type == 'vaccine_reminder' || type == 'vaccine_completed') {
+      final patientId = payload['patientId']?.toString();
+      final vaccineId = payload['vaccineId']?.toString();
+      final businessId = payload['businessId']?.toString();
+      final petId = payload['petId']?.toString();
+
+      debugPrint(
+        "💉 VACCINE TAP → business=$businessId patient=$patientId vaccine=$vaccineId type=$type",
+      );
+
+      if (patientId == null || patientId.isEmpty) {
+        debugPrint("❌ vaccine notification missing patientId");
+        return;
+      }
+
+      if (businessId == null || businessId.isEmpty) {
+        debugPrint("❌ vaccine notification missing businessId");
+        return;
+      }
+
+      if (vaccineId == null || vaccineId.isEmpty) {
+        debugPrint("❌ vaccine notification missing vaccineId");
+        return;
+      }
+
+      closeNotifications();
+
+      _ignoreNextNotificationTap = true;
+
+      ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
+
+      setCurrentTab(NavTab.vet);
+
+openVaccineDetail(
+  vaccineId: vaccineId,
+  patientId: patientId,
+  businessId: businessId,
+  petId: petId,
+);
+
+
+
+      return;
+    }
+
     // ───────────────── ORDER FLOW 🔥 ─────────────────
 
     const orderTypes = [
@@ -3298,6 +3385,30 @@ class AppState with ChangeNotifier {
 
     debugPrint('⚠️ Unknown notification type: $rawType');
   }
+
+
+void openVaccineDetail({
+  required String vaccineId,
+  required String patientId,
+  required String businessId,
+  String? petId,
+}) {
+  activeVaccineId = vaccineId;
+  activeVaccinePatientId = patientId;
+  activeVaccineBusinessId = businessId;
+  activeVaccinePetId = petId;
+
+  notifyListeners();
+}
+
+void closeVaccineDetail() {
+  activeVaccineId = null;
+  activeVaccinePatientId = null;
+  activeVaccineBusinessId = null;
+  activeVaccinePetId = null;
+
+  notifyListeners();
+}
 
   void applyPlaymateFilters(Map<String, dynamic> filters) {
     playmateFilters = filters;
@@ -3397,6 +3508,22 @@ class AppState with ChangeNotifier {
       activeLostDogId = null;
       activeFoundDogId = null;
     }
+
+    // 💉 اگر داریم از vaccine notification خارج میشیم
+
+if (
+
+    _currentTab == NavTab.vet &&
+
+    tab != NavTab.vet &&
+
+    activeVaccineId != null
+
+) {
+
+  closeVaccineNotification();
+
+}
 
     // هر بار tab عوض میشه overlay بسته بشه
     _homeOverlay = HomeOverlay.none;

@@ -50,7 +50,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       _selectedTime != null &&
       _selectedServiceLocal != null; // 🔥 این خط جدید
 
-  late final Stream<QuerySnapshot> _servicesStream;
+  late final Future<QuerySnapshot<Map<String, dynamic>>> _servicesFuture;
 
   @override
   void dispose() {
@@ -71,12 +71,12 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
         .doc(widget.vet.id)
         .get();
 
-    _servicesStream = FirebaseFirestore.instance
-        .collection('businesses')
-        .doc(widget.vet.id)
-        .collection('services')
-        .where('isActive', isEqualTo: true)
-        .snapshots();
+   _servicesFuture = FirebaseFirestore.instance
+    .collection('businesses')
+    .doc(widget.vet.id)
+    .collection('services')
+    .where('isActive', isEqualTo: true)
+    .get();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -84,14 +84,10 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _refreshDogsOnce('didChangeDependencies');
-    });
-  }
+ @override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+}
 
   Future<void> _refreshDogsOnce(String source) async {
     final appState = context.read<AppState>();
@@ -99,9 +95,8 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
         FirebaseAuth.instance.currentUser?.uid ?? appState.currentUserId ?? '';
 
     debugPrint(
-      '🩺 VetAppointmentPage lifecycle → $source authUid=$authUid appStateUid=${appState.currentUserId ?? "NULL"} '
-      'ready=${appState.isUserProfileReady} myDogs=${appState.myDogs.length}',
-    );
+ '🩺 VetAppointmentPage lifecycle → $source',
+);
 
     if (authUid.isEmpty) {
       debugPrint(
@@ -119,18 +114,17 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       '🩺 VetAppointmentPage dog refresh requested → source=AppState.loadMyDogs uid=$authUid',
     );
 
-    try {
-      await appState.loadMyDogs();
-    } catch (e) {
-      debugPrint('🩺 VetAppointmentPage dog refresh failed → $e');
-    }
+    debugPrint(
+  '🩺 VetAppointmentPage using cached dogs',
+);
   }
 
   Widget _serviceSelector() {
     final l10n = AppLocalizations.of(context)!;
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: _servicesStream,
+    return RepaintBoundary(
+  child: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+  future: _servicesFuture,
       builder: (context, snapshot) {
         /// ─────────────────────────────
         /// LOADING
@@ -153,14 +147,16 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
 
           services.addAll(
             docs.map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
+              final data = doc.data();
 
               return {...data, 'id': doc.id};
             }),
           );
         }
 
-        debugPrint("📦 APPOINTMENT SERVICES COUNT: ${services.length}");
+       debugPrint("📦 APPOINTMENT SERVICES COUNT: ${services.length}");
+
+_autoSelectService(services);
 
         /// ─────────────────────────────
         /// EMPTY
@@ -175,115 +171,188 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
           );
         }
 
-        /// ─────────────────────────────
-        /// AUTO SELECT FIRST
-        /// ─────────────────────────────
-        _selectedServiceLocal ??= services.first;
+        
 
         /// ─────────────────────────────
         /// UI
         /// ─────────────────────────────
-        return SizedBox(
-          height: 70,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            itemCount: services.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final service = services[index];
+        return Column(
+  children: services.map((service) {
 
-              final isSelected = _selectedServiceLocal?['id'] == service['id'];
+    final isSelected =
+        _selectedServiceLocal?['id'] ==
+        service['id'];
 
-              return GestureDetector(
-                onTap: () {
-                  if (isSelected) return;
+    return GestureDetector(
+      onTap: () {
 
-                  setState(() {
-                    _selectedServiceLocal = service;
-                    _clearPreVisitAnswers();
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.amber : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: isSelected ? Colors.amber : Colors.grey.shade300,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: Colors.amber.withOpacity(0.25),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        service['title'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
+        if (isSelected) return;
 
-                      const SizedBox(width: 6),
+        setState(() {
+          _selectedServiceLocal = service;
+          _clearPreVisitAnswers();
+        });
 
-                      Text(
-                        l10n.durationMinutesShort(service['durationMin'] ?? 30),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isSelected ? Colors.black87 : Colors.grey,
-                        ),
-                      ),
-
-                      if (service['price'] != null && service['price'] > 0) ...[
-                        const SizedBox(width: 6),
-
-                        Text(
-                          "${service['price']}₺",
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
       },
-    );
-  }
 
+      child: AnimatedContainer(
+
+        duration:
+            const Duration(milliseconds:180),
+
+        margin:
+            const EdgeInsets.only(bottom:12),
+
+        padding:
+            const EdgeInsets.all(16),
+
+        decoration: BoxDecoration(
+
+          color:
+              isSelected
+                  ? Colors.amber
+                  : Colors.white,
+
+          borderRadius:
+              BorderRadius.circular(20),
+
+          border: Border.all(
+
+            color:
+                isSelected
+                    ? Colors.amber
+                    : Colors.grey.shade300,
+
+          ),
+
+        ),
+
+        child: Row(
+
+          children:[
+
+            Expanded(
+
+              child: Column(
+
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                children:[
+
+                  Text(
+
+                    service['title'] ?? '',
+
+                    style: const TextStyle(
+
+                      fontSize:16,
+                      fontWeight: FontWeight.w700,
+
+                    ),
+
+                  ),
+
+                  const SizedBox(height:6),
+
+                  Text(
+
+                    "${_safeNum(service['durationMin'])} min",
+
+                    style: TextStyle(
+
+                      color: Colors.grey.shade600,
+
+                    ),
+
+                  ),
+
+                ],
+
+              ),
+
+            ),
+
+            Text(
+
+              "${_safeNum(service['price'])}₺",
+
+              style: const TextStyle(
+
+                fontSize:18,
+                fontWeight: FontWeight.bold,
+
+              ),
+
+            ),
+
+          ],
+
+        ),
+
+      ),
+
+    );
+
+  }).toList(),
+);
+            },
+    ),
+  );
+}
+void _autoSelectService(
+  List<Map<String, dynamic>> services,
+) {
+
+  if (_selectedServiceLocal != null) return;
+
+  final vaccineService =
+      services.where((s) {
+
+        final id =
+            (s['id'] ?? '')
+            .toString()
+            .toLowerCase();
+
+        final title =
+            (s['title'] ?? '')
+            .toString()
+            .toLowerCase();
+
+        return
+            id.contains('vaccine') ||
+            id.contains('vaccination') ||
+
+            title.contains('vaccine') ||
+
+            title.contains('vaccination') ||
+
+            title.contains('parvo') ||
+
+            title.contains('rabies');
+
+      }).firstOrNull;
+
+  if (!mounted) return;
+
+  _selectedServiceLocal =
+      vaccineService ??
+      services.first;
+
+}
   // ─────────────────────────────
   // UI
   // ─────────────────────────────
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final appState = context.watch<AppState>();
+   final appState = context.read<AppState>();
     final authUid =
         FirebaseAuth.instance.currentUser?.uid ?? appState.currentUserId ?? '';
 
     debugPrint(
-      '🩺 VetAppointmentPage build → authUid=$authUid appStateUid=${appState.currentUserId ?? "NULL"} '
-      'ready=${appState.isUserProfileReady} myDogs=${appState.myDogs.length}',
-    );
+ '🩺 VetAppointmentPage build'
+);
 
     if (!appState.isUserProfileReady) {
       debugPrint('🩺 VetAppointmentPage waiting for appState readiness');
@@ -371,7 +440,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
 
   Widget _dogSelector() {
     final l10n = AppLocalizations.of(context)!;
-    final appState = context.watch<AppState>();
+    final appState = context.read<AppState>();
     final authUid =
         FirebaseAuth.instance.currentUser?.uid ?? appState.currentUserId ?? '';
     final dogs = appState.myDogs
@@ -379,13 +448,8 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
         .toList();
 
     debugPrint(
-      '🩺 VetAppointmentPage dog selector → authUid=$authUid source=AppState.myDogs filteredCount=${dogs.length}',
-    );
-    for (final dog in dogs.take(3)) {
-      debugPrint(
-        '🩺 VetAppointmentPage dog ownerId → dogId=${dog.id} ownerId=${dog.ownerId} name=${dog.name}',
-      );
-    }
+ '🩺 Dog selector loaded → count=${dogs.length}',
+);
 
     if (dogs.isEmpty) {
       debugPrint(
@@ -407,7 +471,9 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: selected ? Colors.amber.withOpacity(0.15) : Colors.white,
+              color: selected
+                  ? Colors.amber.withValues(alpha: 0.15)
+                  : Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: selected ? Colors.amber : Colors.grey.shade300,
@@ -734,6 +800,22 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
         _selectedTime!.minute,
       );
 
+      if (scheduledDateTime.isBefore(DateTime.now())) {
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text(
+        'Please select a future date and time.',
+      ),
+    ),
+  );
+
+  setState(() => _submitting = false);
+
+  return;
+}
+
       final businessSnap = await FirebaseFirestore.instance
           .collection('businesses')
           .doc(widget.vet.id)
@@ -759,10 +841,9 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
           : widget.vet.name;
 
       debugPrint(
-        '🩺 VET BUSINESS MAP → source=VetAppointmentPage businessId=${widget.vet.id} '
-        'displayName=$liveBusinessName serviceId=${selectedService?['id']} '
-        'selectedPricingSource=businesses/${widget.vet.id}/services/${selectedService?['id']}',
-      );
+ '🩺 Appointment submit started',
+);
+     
 
       final appointmentPayload = {
         'petId': _selectedDog!.id,
@@ -770,6 +851,8 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
         'petType': _selectedDog!.petType,
         'petBreed': _selectedDog!.breed,
         'petAge': _selectedDog!.age,
+        'petOwnerUid': _selectedDog!.ownerId,
+        'requesterUserId': userId,
         'businessId': widget.vet.id,
         'businessName': liveBusinessName,
         'serviceId': selectedService?['id'],
@@ -834,9 +917,13 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
+            ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
+
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
     }
   }
 
@@ -1034,6 +1121,22 @@ List<String> _stringList(Object? value) {
 
 String _normalizeServiceId(String value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+}
+
+num _safeNum(dynamic value) {
+
+  if (value == null) {
+    return 0;
+  }
+
+  if (value is num) {
+    return value;
+  }
+
+  return num.tryParse(
+        value.toString(),
+      ) ??
+      0;
 }
 
 String _normalizeQuestionType(String value) {
