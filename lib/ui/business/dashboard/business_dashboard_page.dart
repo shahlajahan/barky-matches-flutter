@@ -12,21 +12,63 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_dashboard_page
 import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/adoption_center_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
 
-class BusinessDashboardPage extends StatelessWidget {
+class BusinessDashboardPage extends StatefulWidget {
   final String businessId;
 
   const BusinessDashboardPage({super.key, required this.businessId});
 
   @override
+  State<BusinessDashboardPage> createState() => _BusinessDashboardPageState();
+}
+
+class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
+  late final Stream<DocumentSnapshot> _businessStream;
+
+  @override
+  void initState() {
+    super.initState();
+    //debugPrint('🏢 BusinessDashboardPage initState ${identityHashCode(this)}');
+    _businessStream = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(widget.businessId)
+        .snapshots();
+  }
+
+  @override
+  void didUpdateWidget(covariant BusinessDashboardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint(
+      '🏢 BusinessDashboardPage didUpdateWidget ${identityHashCode(this)} '
+      'oldBusinessId=${oldWidget.businessId} newBusinessId=${widget.businessId}',
+    );
+  }
+
+  @override
+  void deactivate() {
+    debugPrint('🏢 BusinessDashboardPage deactivate ${identityHashCode(this)}');
+    super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    debugPrint('🏢 BusinessDashboardPage activate ${identityHashCode(this)}');
+  }
+
+  @override
+  void dispose() {
+    debugPrint('🏢 BusinessDashboardPage dispose ${identityHashCode(this)}');
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    //debugPrint('📍 Dashboard parent build ${identityHashCode(this)}');
     final l10n = AppLocalizations.of(context)!;
     return Container(
       color: AppTheme.bg,
       child: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('businesses')
-            .doc(businessId)
-            .snapshots(),
+        stream: _businessStream,
         builder: (context, snapshot) {
           /// =============================
           /// ⏳ LOADING
@@ -65,7 +107,21 @@ class BusinessDashboardPage extends StatelessWidget {
           /// =============================
           /// 🐾 ROUTING BY SECTOR
           /// =============================
-          return _buildDashboardBySector(context, sectors, data);
+          final routeKey = _routeKeyFor(sectors, data);
+          /*
+          debugPrint(
+            '🧭 Dashboard routeKey=$routeKey businessId=${widget.businessId}',
+          );
+          */
+          return IndexedStack(
+            index: 0,
+            children: [
+              KeyedSubtree(
+                key: ValueKey(routeKey),
+                child: _buildDashboardBySector(context, sectors, data),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -101,7 +157,13 @@ class BusinessDashboardPage extends StatelessWidget {
 
     /// 🐶 VET
     if (normalizedSectors.contains('veterinary')) {
-      return VetDashboardPage(businessId: businessId, businessData: data);
+      return KeyedSubtree(
+        key: ValueKey(widget.businessId),
+        child: VetDashboardPage(
+          businessId: widget.businessId,
+          businessData: data,
+        ),
+      );
     }
 
     if (hasPetShop && hasGrooming) {
@@ -123,7 +185,7 @@ class BusinessDashboardPage extends StatelessWidget {
                   const PetShopDashboardPage(),
 
                   GroomyDashboardPage(
-                    businessId: businessId,
+                    businessId: widget.businessId,
                     businessData: data,
                   ),
                 ],
@@ -135,14 +197,17 @@ class BusinessDashboardPage extends StatelessWidget {
     }
 
     if (hasGrooming) {
-      return GroomyDashboardPage(businessId: businessId, businessData: data);
+      return GroomyDashboardPage(
+        businessId: widget.businessId,
+        businessData: data,
+      );
     }
 
     if (normalizedSectors.contains('adoption_center') ||
         normalizedSectors.contains('adoption') ||
         normalizedSectors.contains('adoptioncenter')) {
       return AdoptionCenterDashboardPage(
-        businessId: businessId,
+        businessId: widget.businessId,
         businessData: data,
       );
     }
@@ -150,19 +215,66 @@ class BusinessDashboardPage extends StatelessWidget {
     if (normalizedSectors.contains('pet_hotel') ||
         normalizedSectors.contains('hotel') ||
         normalizedSectors.contains('pet hotel')) {
-      return PetHotelDashboardPage(businessId: businessId, businessData: data);
+      return PetHotelDashboardPage(
+        businessId: widget.businessId,
+        businessData: data,
+      );
     }
 
     if (normalizedSectors.contains('pet_taxi') ||
         normalizedSectors.contains('pet taxi') ||
         normalizedSectors.contains('taxi')) {
-      return PetTaxiDashboardPage(businessId: businessId, businessData: data);
+      return PetTaxiDashboardPage(
+        businessId: widget.businessId,
+        businessData: data,
+      );
     }
 
     return _EmptyView(
       message: l10n.sectorDashboardNotImplementedYet,
       onBack: () => context.read<AppState>().closeProfileSubPage(),
     );
+  }
+
+  String _routeKeyFor(List<String> sectors, Map<String, dynamic> data) {
+    final sectorData =
+        (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
+    final normalizedSectors = {
+      ...sectors.map((sector) => sector.toLowerCase()),
+      ...sectorData.keys.map((sector) => sector.toLowerCase()),
+    };
+
+    if (normalizedSectors.contains('veterinary')) return 'veterinary';
+    if ((normalizedSectors.contains('pet_shop') ||
+            normalizedSectors.contains('petshop')) &&
+        (normalizedSectors.contains('grooming') ||
+            normalizedSectors.contains('groomer') ||
+            ((data['sectorData']?['petshop']?['shopTypes'] as List?)?.contains(
+                  'Grooming',
+                ) ??
+                false))) {
+      return 'pet_shop_grooming';
+    }
+    if (normalizedSectors.contains('grooming') ||
+        normalizedSectors.contains('groomer')) {
+      return 'grooming';
+    }
+    if (normalizedSectors.contains('adoption_center') ||
+        normalizedSectors.contains('adoption') ||
+        normalizedSectors.contains('adoptioncenter')) {
+      return 'adoption_center';
+    }
+    if (normalizedSectors.contains('pet_hotel') ||
+        normalizedSectors.contains('hotel') ||
+        normalizedSectors.contains('pet hotel')) {
+      return 'pet_hotel';
+    }
+    if (normalizedSectors.contains('pet_taxi') ||
+        normalizedSectors.contains('pet taxi') ||
+        normalizedSectors.contains('taxi')) {
+      return 'pet_taxi';
+    }
+    return 'empty';
   }
 }
 

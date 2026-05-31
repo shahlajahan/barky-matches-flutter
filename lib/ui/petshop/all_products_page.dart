@@ -16,6 +16,9 @@ import 'package:barky_matches_fixed/ui/checkout/checkout_page.dart';
 import 'package:barky_matches_fixed/ui/product/product_detail_page.dart';
 import 'package:barky_matches_fixed/ui/product/seller_profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:barky_matches_fixed/services/product_favorite_service.dart';
+import 'package:barky_matches_fixed/ui/product/favorite_products_page.dart';
+
 
 class AllProductsPage extends StatefulWidget {
   final String? initialSellerId;
@@ -555,40 +558,195 @@ class _AllProductsPageState extends State<AllProductsPage> {
       appBar: AppBar(
         title: Text(title),
         actions: [
-          IconButton(
-            onPressed: _cart.isEmpty ? null : _openBasket,
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(LucideIcons.shoppingBag),
-                if (_cartCount > 0)
-                  Positioned(
-                    right: -6,
-                    top: -6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFC107),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        _cartCount.toString(),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.black,
-                        ),
-                      ),
+
+  /// FAVORITES
+
+  StreamBuilder<QuerySnapshot>(
+
+    stream:
+
+        FirebaseAuth.instance.currentUser == null
+
+            ? null
+
+            : FirebaseFirestore
+                .instance
+                .collection('users')
+                .doc(
+                  FirebaseAuth
+                      .instance
+                      .currentUser!
+                      .uid,
+                )
+                .collection(
+                  'favoriteProducts',
+                )
+                .snapshots(),
+
+    builder:(context,snapshot){
+
+      final count =
+          snapshot.data
+              ?.docs
+              .length ??
+          0;
+
+      return IconButton(
+
+        onPressed:(){
+
+          Navigator.push(
+
+            context,
+
+            MaterialPageRoute(
+
+              builder:(_)=>
+                  const FavoriteProductsPage(),
+            ),
+          );
+        },
+
+        icon: Stack(
+
+          clipBehavior:
+              Clip.none,
+
+          children:[
+
+            const Icon(
+              Icons.favorite_border,
+            ),
+
+            if(count>0)
+
+              Positioned(
+
+                right:-6,
+                top:-6,
+
+                child: Container(
+
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal:5,
+                    vertical:2,
+                  ),
+
+                  decoration:
+                      BoxDecoration(
+
+                    color:
+                        Colors.red,
+
+                    borderRadius:
+                        BorderRadius.circular(
+                      100,
                     ),
                   ),
-              ],
+
+                  child: Text(
+
+                    count.toString(),
+
+                    style:
+                        const TextStyle(
+
+                      color:
+                          Colors.white,
+
+                      fontSize:10,
+
+                      fontWeight:
+                          FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  ),
+
+  /// BASKET
+
+  IconButton(
+
+    onPressed:
+        _cart.isEmpty
+            ? null
+            : _openBasket,
+
+    icon: Stack(
+
+      clipBehavior:
+          Clip.none,
+
+      children:[
+
+        const Icon(
+
+  LucideIcons.shoppingBag,
+
+  color: Colors.white,
+
+),
+
+        if(_cartCount>0)
+
+          Positioned(
+
+            right:-6,
+            top:-6,
+
+            child: Container(
+
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal:5,
+                vertical:2,
+              ),
+
+              decoration:
+                  BoxDecoration(
+
+                color:
+                    const Color(
+                      0xFFFFC107,
+                    ),
+
+                borderRadius:
+                    BorderRadius.circular(
+                  100,
+                ),
+              ),
+
+              child: Text(
+
+                _cartCount.toString(),
+
+                style:
+                    const TextStyle(
+
+                  fontSize:10,
+
+                  fontWeight:
+                      FontWeight.w800,
+
+                  color:
+                      Colors.black,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 6),
-        ],
+      ],
+    ),
+  ),
+
+  const SizedBox(width:6),
+
+],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -1031,6 +1189,7 @@ class _CompactProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteService = ProductFavoriteService();
     final l10n = AppLocalizations.of(context)!;
     final hasDiscount =
         product.salePrice != null &&
@@ -1060,67 +1219,88 @@ class _CompactProductCard extends StatelessWidget {
           // =====================
           // IMAGE
           // =====================
-          GestureDetector(
-            onTap: () => _openGallery(context),
+          SizedBox(
+            height: 100,
+
             child: Stack(
+              clipBehavior: Clip.none,
+
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
-                  ),
-                  child: Container(
-                    height: 100,
-                    width: double.infinity,
-                    color: Colors.white,
-                    child: _isUsableUrl(firstMedia)
-                        ? CachedNetworkImage(
-                            imageUrl: firstMedia!,
-                            fit: BoxFit.contain,
-                          )
-                        : const Center(
-                            child: Icon(Icons.image_not_supported_outlined),
-                          ),
+                /// IMAGE TAP ONLY
+                GestureDetector(
+                  onTap: () => _openGallery(context),
+
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(18),
+                    ),
+
+                    child: Container(
+                      height: 100,
+                      width: double.infinity,
+                      color: Colors.white,
+
+                      child: _isUsableUrl(firstMedia)
+                          ? CachedNetworkImage(
+                              imageUrl: firstMedia!,
+                              fit: BoxFit.contain,
+                            )
+                          : const Center(
+                              child: Icon(Icons.image_not_supported_outlined),
+                            ),
+                    ),
                   ),
                 ),
-                if (hasDiscount)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE53935),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        "-${product.discountPercent}%",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
+
+                /// DISCOUNT BADGE
+                Positioned(
+                  top: 6,
+                  left: 6,
+
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE53935),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+
+                    child: Text(
+                      "-${product.discountPercent}%",
+
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
+                ),
+
+                /// OUT OF STOCK
                 if (product.stock <= 0)
                   Positioned(
                     top: 6,
                     right: 6,
+
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 3,
                       ),
+
                       decoration: BoxDecoration(
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(6),
                       ),
+
                       child: Text(
                         l10n.outOfStockLabel,
-                        style: TextStyle(
+
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -1128,6 +1308,48 @@ class _CompactProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                /// FAVORITE
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      await favoriteService.toggleFavorite(
+                        productId: product.id,
+                        shopId: product.businessId,
+                        name: product.name,
+                        imageUrl: product.media.isNotEmpty
+                            ? product.media.first.originalUrl
+                            : null,
+                        price: product.finalPrice,
+                      );
+
+                      (context as Element).markNeedsBuild();
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: FutureBuilder<bool>(
+                        future: favoriteService.isFavorite(product.id).first,
+                        builder: (context, snapshot) {
+                          final isFavorite = snapshot.data ?? false;
+                          return Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            size: 20,
+                            color: isFavorite ? Colors.red : Colors.black54,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

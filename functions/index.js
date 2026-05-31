@@ -37,6 +37,9 @@ const IYZICO_SECRET_KEY = defineSecret("IYZICO_SECRET_KEY");
 const { Resend } = require("resend");
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
+const ORDER_EXTERNAL_NOTIFICATIONS_ENABLED = defineSecret(
+  "ORDER_EXTERNAL_NOTIFICATIONS_ENABLED"
+);
 
 
 
@@ -382,6 +385,833 @@ async function createNotification(db, payload) {
       message: error?.message || String(error),
       stack: error?.stack || null,
     });
+  }
+}
+
+function readBoolEnv(name, defaultValue = false) {
+  const value = String(process.env[name] || "").trim().toLowerCase();
+  if (!value) return defaultValue;
+  return ["1", "true", "yes", "on"].includes(value);
+}
+
+function readStringEnv(name, defaultValue = "") {
+  const value = String(process.env[name] || "").trim();
+  return value || defaultValue;
+}
+
+function normalizeExternalNotificationPreference(raw) {
+  const value = String(raw || "").trim().toLowerCase();
+
+  if (value === "email" || value === "sms" || value === "both") {
+    return value;
+  }
+
+  return "email";
+}
+
+function resolveExternalNotificationDefaultChannel() {
+  const configured = readStringEnv(
+    "ORDER_EXTERNAL_NOTIFICATION_DEFAULT_CHANNEL",
+    "email"
+  ).toLowerCase();
+
+  if (configured === "email") {
+    return "email";
+  }
+
+  return "email";
+}
+
+function resolveExternalNotificationPreference(orderData) {
+  const preference =
+    orderData?.legal?.notificationPreference ||
+    orderData?.notificationPreference ||
+    orderData?.orderAddress?.notificationPreference ||
+    orderData?.billing?.invoiceDeliveryPreference;
+
+  if (preference) {
+    return normalizeExternalNotificationPreference(preference);
+  }
+
+  return resolveExternalNotificationDefaultChannel();
+}
+
+function formatOrderMoney(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+
+  const numeric = Number(text);
+  if (Number.isFinite(numeric)) {
+    return `${numeric.toFixed(2)} TL`;
+  }
+
+  return text;
+}
+
+function resolveOrderBuyerName(orderData, userData = {}) {
+  return firstNonEmptyValue(
+    orderData?.buyerName,
+    orderData?.buyer?.name,
+    orderData?.delivery?.fullName,
+    userData?.displayName,
+    userData?.name
+  );
+}
+
+function resolveOrderBuyerEmail(orderData, userData = {}) {
+  return firstNonEmptyValue(
+    orderData?.buyerEmail,
+    orderData?.email,
+    orderData?.buyer?.email,
+    userData?.email
+  );
+}
+
+function resolveOrderBuyerPhone(orderData, userData = {}) {
+  return firstNonEmptyValue(
+    orderData?.buyerPhone,
+    orderData?.buyer?.phone,
+    orderData?.delivery?.phone,
+    userData?.phoneNumber,
+    userData?.phone
+  );
+}
+
+function resolveOrderNumber(orderId, orderData = {}) {
+  return firstNonEmptyValue(
+    orderData?.orderNumber,
+    orderData?.rootOrderNumber,
+    orderData?.sellerOrderNumber,
+    orderId
+  );
+}
+
+function resolveOrderTotalText(orderData = {}) {
+  return formatOrderMoney(
+    firstNonEmptyValue(
+      orderData?.pricing?.grandTotal,
+      orderData?.payment?.paidPrice,
+      orderData?.payment?.price,
+      orderData?.total
+    )
+  );
+}
+
+function buildExternalNotificationChannels(preference) {
+  const normalized = normalizeExternalNotificationPreference(preference);
+
+  return {
+    email: normalized === "email" || normalized === "both",
+    sms: normalized === "sms" || normalized === "both",
+    preference: normalized,
+  };
+}
+
+async function claimExternalNotificationDispatch({
+  dispatchRef,
+  orderId,
+  source,
+  paymentId,
+  preference,
+  version,
+}) {
+  const processingStaleAfterMs = 10 * 60 * 1000;
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(dispatchRef);
+    const existing = snap.exists ? snap.data() || {} : null;
+    const now = Date.now();
+    const updatedAtMs = toMillisSafe(existing?.updatedAt);
+
+    if (Number(existing?.version || 0) === version && existing?.state === "sent") {
+      return {
+        shouldSend: false,
+        reason: "already_sent",
+        existing,
+      };
+    }
+
+    if (
+      existing?.state === "processing" &&
+      updatedAtMs &&
+      now - updatedAtMs < processingStaleAfterMs
+    ) {
+      return {
+        shouldSend: false,
+        reason: "processing_recent",
+        existing,
+      };
+    }
+
+    const nextAttemptCount = Number(existing?.attemptCount || 0) + 1;
+
+    tx.set(
+      dispatchRef,
+      {
+        orderId,
+        type: "payment_success",
+        version,
+        state: "processing",
+        source,
+        paymentId: paymentId || null,
+        preference,
+        attemptCount: nextAttemptCount,
+        channels: {
+          email: {
+            status: "pending",
+            sentAt: null,
+            messageId: null,
+            error: null,
+          },
+          sms: {
+            status: "pending",
+            sentAt: null,
+            providerSid: null,
+            error: null,
+            skippedReason: null,
+          },
+        },
+        createdAt:
+          existing?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      shouldSend: true,
+      reason: "claimed",
+      existing,
+    };
+  });
+}
+
+async function markExternalNotificationDispatch(dispatchRef, patch) {
+  await dispatchRef.set(
+    {
+      ...patch,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function sendOrderPaymentSuccessEmail({
+  resend,
+  to,
+  buyerName,
+  orderId,
+  orderNumber,
+  totalText,
+}) {
+  if (!to) {
+    return {
+      status: "skipped",
+      skippedReason: "missing_email",
+      messageId: null,
+      error: null,
+    };
+  }
+
+  try {
+    const greetingName = buyerName || "Değerli müşterimiz";
+    const subject = "PetSupo siparişiniz alındı";
+    const bodyLines = [
+      `Merhaba ${greetingName},`,
+      "",
+      "Siparişiniz başarıyla alındı.",
+      orderNumber ? `Sipariş No: ${orderNumber}` : null,
+      totalText ? `Toplam Tutar: ${totalText}` : null,
+      "",
+      "Teşekkür ederiz.",
+      "PetSupo",
+    ].filter(Boolean);
+
+    const html = `
+      <div style="margin:0;padding:0;background:#f4f6fb;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f4f6fb;margin:0;padding:0;width:100%;">
+          <tr>
+            <td align="center" style="padding:24px 12px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e8ebf2;border-radius:20px;overflow:hidden;">
+                <tr>
+                  <td style="padding:28px 28px 20px 28px;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+                    <div style="font-size:28px;line-height:34px;font-weight:700;letter-spacing:-0.02em;color:#111827;">PetSupo</div>
+                    <div style="margin-top:6px;font-size:15px;line-height:22px;color:#6b7280;font-weight:600;">Sipariş Onayı</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 28px 24px 28px;font-family:Arial,Helvetica,sans-serif;">
+                    <div style="background:#ecfdf3;border:1px solid #bbf7d0;border-radius:16px;padding:18px 16px;text-align:left;">
+                      <div style="font-size:18px;line-height:26px;font-weight:700;color:#166534;">✅ Ödeme Başarıyla Alındı</div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 28px 24px 28px;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+                    <div style="font-size:16px;line-height:24px;color:#111827;margin:0 0 16px 0;">Merhaba ${greetingName},</div>
+                    <div style="font-size:15px;line-height:22px;color:#374151;margin:0 0 20px 0;">Siparişiniz başarıyla alındı. Aşağıda özet bilgileri bulabilirsiniz.</div>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;background:#f9fafb;border:1px solid #e5e7eb;border-radius:16px;">
+                      <tr>
+                        <td style="padding:18px 18px 8px 18px;font-family:Arial,Helvetica,sans-serif;">
+                          <div style="font-size:13px;line-height:18px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px 0;">Sipariş Bilgileri</div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0 18px 18px 18px;font-family:Arial,Helvetica,sans-serif;">
+                          <div style="font-size:15px;line-height:22px;color:#111827;margin:0 0 10px 0;"><strong>Sipariş No:</strong> ${orderNumber || "-"}</div>
+                          <div style="font-size:15px;line-height:22px;color:#111827;margin:0 0 10px 0;"><strong>Toplam Tutar:</strong> ${totalText || "-"}</div>
+                          <div style="font-size:15px;line-height:22px;color:#111827;margin:0 0 10px 0;"><strong>Ödeme Durumu:</strong> Ödeme Başarılı</div>
+                          <div style="font-size:15px;line-height:22px;color:#111827;margin:0;"><strong>Kargo Firması:</strong> Hazırlanıyor</div>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div style="height:24px;line-height:24px;font-size:24px;">&nbsp;</div>
+
+                    <div style="font-size:18px;line-height:26px;font-weight:700;color:#111827;margin:0 0 12px 0;">Bundan sonra ne olacak?</div>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;">
+                      <tr>
+                        <td style="padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:22px;color:#374151;">✓ Sipariş satıcıya iletildi</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:22px;color:#374151;">✓ Hazırlık başlayacak</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:22px;color:#374151;">✓ Güncellemeler paylaşılacak</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 28px 28px 28px;font-family:Arial,Helvetica,sans-serif;">
+                    <div style="border-top:1px solid #e5e7eb;padding-top:18px;font-size:14px;line-height:22px;color:#6b7280;">
+                      <div style="font-weight:700;color:#111827;">PetSupo Team</div>
+                      <div>support@petsupo.com</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+
+    const text = bodyLines.join("\n");
+    const result = await resend.emails.send({
+      from: "PetSupo 🐾 <no-reply@petsupo.com>",
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    return {
+      status: "sent",
+      skippedReason: null,
+      messageId: result?.data?.id || result?.id || null,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      skippedReason: null,
+      messageId: null,
+      error: error?.message || String(error),
+    };
+  }
+}
+
+async function sendOrderPaymentSuccessSms({
+  to,
+  buyerName,
+  orderNumber,
+  totalText,
+}) {
+  const smsEnabled = readBoolEnv("ORDER_SMS_ENABLED", false);
+  const smsProvider = readStringEnv("ORDER_SMS_PROVIDER", "none").toLowerCase();
+
+  if (!smsEnabled || smsProvider === "none") {
+    return {
+      status: "skipped",
+      skippedReason: "sms_not_configured",
+      providerSid: null,
+      error: null,
+    };
+  }
+
+  if (!to) {
+    return {
+      status: "skipped",
+      skippedReason: "missing_phone",
+      providerSid: null,
+      error: null,
+    };
+  }
+
+  return {
+    status: "skipped",
+    skippedReason: "sms_provider_not_implemented",
+    providerSid: null,
+    error: null,
+  };
+}
+
+async function sendExternalOrderNotifications({
+  orderId,
+  orderData,
+  source,
+  paymentId,
+  userId,
+}) {
+  const externalEnabled = (() => {
+    const value = String(
+      ORDER_EXTERNAL_NOTIFICATIONS_ENABLED?.value?.() || ""
+    )
+      .trim()
+      .toLowerCase();
+    return ["true", "1", "yes", "on"].includes(value);
+  })();
+  const preference = resolveExternalNotificationPreference(orderData);
+  const channels = buildExternalNotificationChannels(preference);
+  const dispatchId = `order_${orderId}_payment_success_v1`;
+  const dispatchRef = db.collection("external_notification_dispatches").doc(dispatchId);
+  const userSnap = userId
+    ? await db.collection("users").doc(String(userId)).get()
+    : null;
+  const userData = userSnap?.exists ? userSnap.data() || {} : {};
+  const buyerName = resolveOrderBuyerName(orderData, userData);
+  const buyerEmail = resolveOrderBuyerEmail(orderData, userData);
+  const buyerPhone = resolveOrderBuyerPhone(orderData, userData);
+  const orderNumber = resolveOrderNumber(orderId, orderData);
+  const totalText = resolveOrderTotalText(orderData);
+  const claim = await claimExternalNotificationDispatch({
+    dispatchRef,
+    orderId,
+    source,
+    paymentId,
+    preference,
+    version: 1,
+  });
+
+  if (!claim.shouldSend) {
+    if (claim.reason === "already_sent") {
+      console.log("ledger already sent", { orderId, source });
+    } else if (claim.reason === "processing_recent") {
+      console.log("ledger processing recent", { orderId, source });
+    } else {
+      console.log("external notification dispatch skipped", {
+        orderId,
+        source,
+        reason: claim.reason,
+      });
+    }
+    return;
+  }
+
+  if (!externalEnabled) {
+    console.log("external notifications disabled", { orderId, source });
+    await markExternalNotificationDispatch(dispatchRef, {
+      orderId,
+      type: "payment_success",
+      version: 1,
+      state: "skipped",
+      source,
+      paymentId: paymentId || null,
+      preference,
+      attemptCount: Number(claim.existing?.attemptCount || 0) + 1,
+      channels: {
+        email: {
+          status: channels.email ? "skipped" : "skipped",
+          sentAt: null,
+          messageId: null,
+          error: null,
+          skippedReason: "external_notifications_disabled",
+        },
+        sms: {
+          status: channels.sms ? "skipped" : "skipped",
+          sentAt: null,
+          providerSid: null,
+          error: null,
+          skippedReason: "external_notifications_disabled",
+        },
+      },
+    });
+    return;
+  }
+
+  const resend = new Resend(resendApiKey.value());
+  let emailResult = {
+    status: "skipped",
+    skippedReason: "preference_not_requested",
+    messageId: null,
+    error: null,
+  };
+  let smsResult = {
+    status: "skipped",
+    skippedReason: "preference_not_requested",
+    providerSid: null,
+    error: null,
+  };
+
+  if (channels.email) {
+    emailResult = await sendOrderPaymentSuccessEmail({
+      resend,
+      to: buyerEmail,
+      buyerName,
+      orderId,
+      orderNumber,
+      totalText,
+    });
+
+    if (emailResult.status === "sent") {
+      console.log("email sent", {
+        orderId,
+        source,
+        messageId: emailResult.messageId || null,
+      });
+    } else if (emailResult.status === "failed") {
+      console.error("email failed", {
+        orderId,
+        source,
+        error: emailResult.error || null,
+      });
+    } else {
+      console.log("email skipped", {
+        orderId,
+        source,
+        reason: emailResult.skippedReason || "unknown",
+      });
+    }
+  } else {
+    console.log("email skipped", {
+      orderId,
+      source,
+      reason: "preference_not_requested",
+    });
+  }
+
+  if (channels.sms) {
+    smsResult = await sendOrderPaymentSuccessSms({
+      to: buyerPhone,
+      buyerName,
+      orderId,
+      orderNumber,
+      totalText,
+    });
+
+    if (smsResult.status === "sent") {
+      console.log("sms sent", {
+        orderId,
+        source,
+        providerSid: smsResult.providerSid || null,
+      });
+    } else if (smsResult.status === "failed") {
+      console.error("sms failed", {
+        orderId,
+        source,
+        error: smsResult.error || null,
+      });
+    } else {
+      console.log("sms skipped", {
+        orderId,
+        source,
+        reason: smsResult.skippedReason || "unknown",
+      });
+    }
+  } else {
+    console.log("sms skipped", {
+      orderId,
+      source,
+      reason: "preference_not_requested",
+    });
+  }
+
+  const requestedChannels = Number(channels.email) + Number(channels.sms);
+  const sentChannels = Number(emailResult.status === "sent") + Number(smsResult.status === "sent");
+  const failedChannels =
+    Number(emailResult.status === "failed") + Number(smsResult.status === "failed");
+
+  let finalState = "skipped";
+  if (sentChannels > 0 && failedChannels > 0) {
+    finalState = "partial";
+  } else if (sentChannels > 0 && requestedChannels === sentChannels && failedChannels === 0) {
+    finalState = "sent";
+  } else if (sentChannels > 0) {
+    finalState = "partial";
+  } else if (failedChannels > 0) {
+    finalState = "failed";
+  }
+
+  await markExternalNotificationDispatch(dispatchRef, {
+    orderId,
+    type: "payment_success",
+    version: 1,
+    state: finalState,
+    source,
+    paymentId: paymentId || null,
+    preference,
+    attemptCount: Number(claim.existing?.attemptCount || 0) + 1,
+    channels: {
+      email: {
+        status: emailResult.status,
+        sentAt: emailResult.status === "sent" ? admin.firestore.FieldValue.serverTimestamp() : null,
+        messageId: emailResult.messageId || null,
+        error: emailResult.error || null,
+        skippedReason: emailResult.skippedReason || null,
+      },
+      sms: {
+        status: smsResult.status,
+        sentAt: smsResult.status === "sent" ? admin.firestore.FieldValue.serverTimestamp() : null,
+        providerSid: smsResult.providerSid || null,
+        error: smsResult.error || null,
+        skippedReason: smsResult.skippedReason || null,
+      },
+    },
+  });
+
+  if (finalState === "partial") {
+    console.error("external notification partial failure", {
+      orderId,
+      source,
+      emailStatus: emailResult.status,
+      smsStatus: smsResult.status,
+    });
+  } else if (finalState === "failed") {
+    console.error("external notification failed", {
+      orderId,
+      source,
+      emailStatus: emailResult.status,
+      smsStatus: smsResult.status,
+    });
+  }
+}
+
+function isInvoiceReadyStatus(value) {
+  const status = normalizeLower(value);
+  return (
+    status === "uploaded_valid" ||
+    status === "uploaded_with_issues" ||
+    status === "approved" ||
+    status === "ready"
+  );
+}
+
+function isInvoiceReadyTransition(beforeData = {}, afterData = {}) {
+  const beforeStatus = normalizeLower(beforeData?.invoice?.status);
+  const afterStatus = normalizeLower(afterData?.invoice?.status);
+
+  return !isInvoiceReadyStatus(beforeStatus) && isInvoiceReadyStatus(afterStatus);
+}
+
+function resolveInvoiceBuyerEmail(orderData = {}, rootOrderData = {}, userData = {}) {
+  return firstNonEmptyValue(
+    orderData?.buyerEmail,
+    orderData?.email,
+    orderData?.buyer?.email,
+    rootOrderData?.buyerEmail,
+    rootOrderData?.email,
+    rootOrderData?.buyer?.email,
+    userData?.email
+  );
+}
+
+function resolveInvoiceBuyerName(orderData = {}, rootOrderData = {}, userData = {}) {
+  const fullName = firstNonEmptyValue(
+    orderData?.buyerName,
+    orderData?.buyer?.name,
+    orderData?.delivery?.fullName,
+    rootOrderData?.buyerName,
+    rootOrderData?.buyer?.name,
+    rootOrderData?.delivery?.fullName,
+    userData?.displayName,
+    userData?.name
+  );
+
+  if (fullName) {
+    return fullName;
+  }
+
+  const name = firstNonEmptyValue(
+    orderData?.buyer?.firstName,
+    rootOrderData?.buyer?.firstName,
+    userData?.firstName
+  );
+  const surname = firstNonEmptyValue(
+    orderData?.buyer?.lastName,
+    rootOrderData?.buyer?.lastName,
+    userData?.lastName
+  );
+
+  return firstNonEmptyValue(`${name} ${surname}`.trim());
+}
+
+function resolveInvoiceOrderNumber(orderData = {}, rootOrderData = {}, sellerOrderId = "") {
+  return firstNonEmptyValue(
+    orderData?.rootOrderNumber,
+    rootOrderData?.orderNumber,
+    orderData?.orderNumber,
+    orderData?.sellerOrderNumber,
+    sellerOrderId
+  );
+}
+
+function resolveInvoiceCarrierCompany(orderData = {}, rootOrderData = {}) {
+  return firstNonEmptyValue(
+    orderData?.shipping?.carrier,
+    orderData?.shippingCarrier,
+    rootOrderData?.shipping?.carrier,
+    rootOrderData?.shippingCarrier,
+    "Hazırlanıyor"
+  );
+}
+
+async function claimInvoiceEmailDispatch({
+  dispatchRef,
+  sellerOrderId,
+  version,
+}) {
+  const processingStaleAfterMs = 10 * 60 * 1000;
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(dispatchRef);
+    const existing = snap.exists ? snap.data() || {} : null;
+    const now = Date.now();
+    const updatedAtMs = toMillisSafe(existing?.updatedAt);
+
+    if (Number(existing?.version || 0) === version && existing?.state === "sent") {
+      return {
+        shouldSend: false,
+        reason: "already_sent",
+        existing,
+      };
+    }
+
+    if (
+      existing?.state === "processing" &&
+      updatedAtMs &&
+      now - updatedAtMs < processingStaleAfterMs
+    ) {
+      return {
+        shouldSend: false,
+        reason: "processing_recent",
+        existing,
+      };
+    }
+
+    const nextAttemptCount = Number(existing?.attemptCount || 0) + 1;
+
+    tx.set(
+      dispatchRef,
+      {
+        sellerOrderId,
+        type: "invoice_ready",
+        version,
+        state: "processing",
+        attemptCount: nextAttemptCount,
+        channels: {
+          email: {
+            status: "pending",
+            sentAt: null,
+            messageId: null,
+            error: null,
+          },
+        },
+        createdAt:
+          existing?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      shouldSend: true,
+      reason: "claimed",
+      existing,
+    };
+  });
+}
+
+async function markInvoiceEmailDispatch(dispatchRef, patch) {
+  await dispatchRef.set(
+    {
+      ...patch,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function sendInvoiceReadyEmail({
+  resend,
+  to,
+  buyerName,
+  orderNumber,
+  carrierCompany,
+}) {
+  if (!to) {
+    return {
+      status: "skipped",
+      skippedReason: "missing_email",
+      messageId: null,
+      error: null,
+    };
+  }
+
+  try {
+    const greetingName = buyerName || "Değerli müşterimiz";
+    const subject = "Faturanız hazır — PetSupo";
+    const bodyLines = [
+      `Merhaba ${greetingName},`,
+      "",
+      "Siparişinizin faturası hazır.",
+      orderNumber ? `Sipariş No: ${orderNumber}` : null,
+      carrierCompany ? `Kargo Firması: ${carrierCompany}` : null,
+      "",
+      "Lütfen uygulamayı açarak faturanızın detaylarını görüntüleyin.",
+      "",
+      "Teşekkür ederiz.",
+      "PetSupo",
+    ].filter(Boolean);
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;background:#f6f7fb;padding:24px;">
+        <div style="max-width:560px;margin:auto;background:#ffffff;border-radius:14px;padding:28px;">
+          <h2 style="margin:0 0 16px;color:#9E1B4F;">PetSupo</h2>
+          <p style="margin:0 0 12px;font-size:15px;color:#222;">Merhaba ${greetingName},</p>
+          <p style="margin:0 0 12px;font-size:15px;color:#222;">Siparişinizin faturası hazır.</p>
+          ${orderNumber ? `<p style="margin:0 0 8px;font-size:14px;color:#444;">Sipariş No: ${orderNumber}</p>` : ""}
+          ${carrierCompany ? `<p style="margin:0 0 8px;font-size:14px;color:#444;">Kargo Firması: ${carrierCompany}</p>` : ""}
+          <p style="margin:16px 0 0;font-size:14px;color:#444;">Lütfen uygulamayı açarak faturanızın detaylarını görüntüleyin.</p>
+          <p style="margin:16px 0 0;font-size:14px;color:#444;">Teşekkür ederiz.</p>
+          <p style="margin:8px 0 0;font-size:14px;color:#444;">PetSupo</p>
+        </div>
+      </div>
+    `;
+
+    const text = bodyLines.join("\n");
+    const result = await resend.emails.send({
+      from: "PetSupo 🐾 <no-reply@petsupo.com>",
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    return {
+      status: "sent",
+      skippedReason: null,
+      messageId: result?.data?.id || result?.id || null,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      skippedReason: null,
+      messageId: null,
+      error: error?.message || String(error),
+    };
   }
 }
 
@@ -8760,7 +9590,12 @@ exports.verifyPaymentByOrderId = onCall(
     region: "europe-west3",
     timeoutSeconds: 60,
     memory: "512MiB",
-    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+    secrets: [
+      IYZICO_API_KEY,
+      IYZICO_SECRET_KEY,
+      resendApiKey,
+      ORDER_EXTERNAL_NOTIFICATIONS_ENABLED,
+    ],
   },
   async (request) => {
     try {
@@ -9202,6 +10037,18 @@ exports.verifyPaymentByOrderId = onCall(
         }
       }
 
+      try {
+        await sendExternalOrderNotifications({
+          orderId: safeOrderId,
+          orderData,
+          source: "verifyPaymentByOrderId",
+          paymentId: result?.paymentId || orderData?.payment?.paymentId || null,
+          userId: orderData.buyerUid || orderData.userId || auth.uid,
+        });
+      } catch (e) {
+        console.error("External order notification failed:", e);
+      }
+
       return {
         success: true,
         orderId: safeOrderId,
@@ -9227,7 +10074,12 @@ exports.verifyPayment = onCall(
     region: "europe-west3",
     timeoutSeconds: 60,
     memory: "256MiB",
-    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+    secrets: [
+      IYZICO_API_KEY,
+      IYZICO_SECRET_KEY,
+      resendApiKey,
+      ORDER_EXTERNAL_NOTIFICATIONS_ENABLED,
+    ],
   },
   async (request) => {
     try {
@@ -9613,6 +10465,18 @@ exports.verifyPayment = onCall(
       }
 
       if (orderData.type === "appointment") {
+        try {
+          await sendExternalOrderNotifications({
+            orderId,
+            orderData,
+            source: "verifyPayment",
+            paymentId: result?.paymentId || orderData?.payment?.paymentId || null,
+            userId: orderData.buyerUid || orderData.userId || auth.uid,
+          });
+        } catch (e) {
+          console.error("External order notification failed:", e);
+        }
+
         return {
           success: true,
           type: "appointment",
@@ -9805,6 +10669,18 @@ exports.verifyPayment = onCall(
         } else {
           console.log("❌ PUSH SEND FAILED", "new_paid_order ownerUid missing");
         }
+      }
+
+      try {
+        await sendExternalOrderNotifications({
+          orderId,
+          orderData,
+          source: "verifyPayment",
+          paymentId: result?.paymentId || orderData?.payment?.paymentId || null,
+          userId: orderData.buyerUid || orderData.userId || auth.uid,
+        });
+      } catch (e) {
+        console.error("External order notification failed:", e);
       }
 
       return {
@@ -14778,6 +15654,146 @@ exports.uploadInvoiceAndValidate = onCall(
       expectedInvoiceSystem,
       riskFlags,
     };
+  }
+);
+
+exports.onInvoiceReadyEmail = onDocumentUpdated(
+  {
+    region: "europe-west3",
+    document: "sellerOrders/{sellerOrderId}",
+    secrets: [resendApiKey],
+  },
+  async (event) => {
+    try {
+      const db = admin.firestore();
+      const sellerOrderId = event.params.sellerOrderId;
+      const beforeData = event.data?.before?.data() || {};
+      const afterData = event.data?.after?.data() || {};
+
+      if (!isInvoiceReadyTransition(beforeData, afterData)) {
+        return null;
+      }
+
+      const rootOrderId = firstNonEmptyValue(
+        afterData.rootOrderId,
+        beforeData.rootOrderId
+      );
+      const rootOrderSnap = rootOrderId
+        ? await db.collection("orders").doc(rootOrderId).get()
+        : null;
+      const rootOrderData = rootOrderSnap?.exists ? rootOrderSnap.data() || {} : {};
+
+      const buyerUid = firstNonEmptyValue(
+        afterData.buyerUid,
+        rootOrderData.buyerUid,
+        rootOrderData.userId
+      );
+      const userSnap = buyerUid
+        ? await db.collection("users").doc(String(buyerUid)).get()
+        : null;
+      const userData = userSnap?.exists ? userSnap.data() || {} : {};
+
+      const dispatchId = `invoice_${sellerOrderId}_v1`;
+      const dispatchRef = db.collection("invoice_notification_dispatches").doc(dispatchId);
+      const claim = await claimInvoiceEmailDispatch({
+        dispatchRef,
+        sellerOrderId,
+        version: 1,
+      });
+
+      if (!claim.shouldSend) {
+        console.log("invoice email dispatch skipped", {
+          sellerOrderId,
+          reason: claim.reason,
+        });
+        return null;
+      }
+
+      const resend = new Resend(resendApiKey.value());
+      const buyerEmail = resolveInvoiceBuyerEmail(afterData, rootOrderData, userData);
+      const buyerName = resolveInvoiceBuyerName(afterData, rootOrderData, userData);
+      const orderNumber = resolveInvoiceOrderNumber(afterData, rootOrderData, sellerOrderId);
+      const carrierCompany = resolveInvoiceCarrierCompany(afterData, rootOrderData);
+
+      const emailResult = await sendInvoiceReadyEmail({
+        resend,
+        to: buyerEmail,
+        buyerName,
+        orderNumber,
+        carrierCompany,
+      });
+
+      const smsResult = {
+        status: "skipped",
+        skippedReason: "sms_not_configured",
+        providerSid: null,
+        error: null,
+      };
+
+      if (emailResult.status === "sent") {
+        console.log("invoice email sent", {
+          sellerOrderId,
+          dispatchId,
+          messageId: emailResult.messageId || null,
+        });
+      } else if (emailResult.status === "failed") {
+        console.error("invoice email failed", {
+          sellerOrderId,
+          dispatchId,
+          error: emailResult.error || null,
+        });
+      } else {
+        console.log("invoice email skipped", {
+          sellerOrderId,
+          dispatchId,
+          reason: emailResult.skippedReason || "unknown",
+        });
+      }
+
+      const finalState =
+        emailResult.status === "sent"
+          ? "sent"
+          : emailResult.status === "failed"
+            ? "failed"
+            : "skipped";
+
+      await markInvoiceEmailDispatch(dispatchRef, {
+        sellerOrderId,
+        rootOrderId: rootOrderId || null,
+        buyerUid: buyerUid || null,
+        buyerEmail: buyerEmail || null,
+        buyerName: buyerName || null,
+        orderNumber: orderNumber || null,
+        carrierCompany: carrierCompany || null,
+        type: "invoice_ready",
+        version: 1,
+        state: finalState,
+        attemptCount: Number(claim.existing?.attemptCount || 0) + 1,
+        channels: {
+          email: {
+            status: emailResult.status,
+            sentAt:
+              emailResult.status === "sent"
+                ? admin.firestore.FieldValue.serverTimestamp()
+                : null,
+            messageId: emailResult.messageId || null,
+            error: emailResult.error || null,
+          },
+          sms: {
+            status: smsResult.status,
+            sentAt: null,
+            providerSid: smsResult.providerSid || null,
+            error: smsResult.error || null,
+            skippedReason: smsResult.skippedReason || null,
+          },
+        },
+      });
+
+      return null;
+    } catch (error) {
+      console.error("onInvoiceReadyEmail ERROR:", error);
+      return null;
+    }
   }
 );
 exports.checkPendingInvoices = onSchedule(

@@ -14,7 +14,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_patients_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_settings_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_gallery_management_page.dart';
 
-class VetDashboardOverviewTab extends StatelessWidget {
+class VetDashboardOverviewTab extends StatefulWidget {
   final String businessId;
   final Map<String, dynamic> businessData;
 
@@ -25,11 +25,60 @@ class VetDashboardOverviewTab extends StatelessWidget {
   });
 
   @override
+  State<VetDashboardOverviewTab> createState() =>
+      _VetDashboardOverviewTabState();
+}
+
+class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
+    with AutomaticKeepAliveClientMixin {
+  final ScrollController _scrollController = ScrollController();
+  late final Stream<QuerySnapshot> _appointmentsStream;
+  late final Stream<QuerySnapshot> _revenueStream;
+  late final Stream<QuerySnapshot> _servicesStream;
+
+  String get businessId => widget.businessId;
+  Map<String, dynamic> get businessData => widget.businessData;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _appointmentsStream = FirebaseFirestore.instance
+        .collection('vet_appointments')
+        .where('businessId', isEqualTo: widget.businessId)
+        .orderBy('scheduledAt', descending: true)
+        .snapshots();
+    _revenueStream = FirebaseFirestore.instance
+        .collection('vet_appointments')
+        .where('businessId', isEqualTo: widget.businessId)
+        .snapshots(includeMetadataChanges: false);
+    _servicesStream = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(widget.businessId)
+        .collection('services')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
+    //debugPrint('📄 Overview build ${identityHashCode(this)}');
     final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
     final contact = Map<String, dynamic>.from(businessData['contact'] ?? {});
 
     return ListView(
+      controller: _scrollController,
+      key: const PageStorageKey('vet_dashboard_overview_scroll'),
+      cacheExtent: 5000,
       padding: const EdgeInsets.all(16),
       children: [
         /// ================= PROFILE (ONLY ONCE) =================
@@ -40,7 +89,9 @@ class VetDashboardOverviewTab extends StatelessWidget {
         const SizedBox(height: 20),
 
         /// ================= REVENUE =================
-        _buildRevenueCard(context),
+        _KeepAliveWrapper(
+          child: RepaintBoundary(child: _buildRevenueCard(context)),
+        ),
 
         const SizedBox(height: 20),
 
@@ -50,156 +101,164 @@ class VetDashboardOverviewTab extends StatelessWidget {
         _SectionTitle("Recent Appointments"),
         const SizedBox(height: 10),
 
-        StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('vet_appointments')
-              .where('businessId', isEqualTo: businessId)
-              .orderBy('scheduledAt', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            debugPrint("🟡 APPOINTMENT STREAM BUILD");
-            debugPrint("🟡 businessId = $businessId");
-            debugPrint("🟡 state = ${snapshot.connectionState}");
-            debugPrint("🟡 hasData = ${snapshot.hasData}");
-            debugPrint("🟡 hasError = ${snapshot.hasError}");
-            debugPrint("🟡 error = ${snapshot.error}");
-            debugPrint("🟡 docs = ${snapshot.data?.docs.length}");
+        _KeepAliveWrapper(
+          child: RepaintBoundary(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _appointmentsStream,
+              builder: (context, snapshot) {
+                debugPrint("🟡 APPOINTMENT STREAM BUILD");
+                debugPrint("🟡 businessId = $businessId");
+                debugPrint("🟡 state = ${snapshot.connectionState}");
+                debugPrint("🟡 hasData = ${snapshot.hasData}");
+                debugPrint("🟡 hasError = ${snapshot.hasError}");
+                debugPrint("🟡 error = ${snapshot.error}");
+                debugPrint("🟡 docs = ${snapshot.data?.docs.length}");
 
-            if (snapshot.hasError) {
-              return _emptyBox("Appointment error: ${snapshot.error}");
-            }
+                if (snapshot.hasError) {
+                  return _emptyBox("Appointment error: ${snapshot.error}");
+                }
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _emptyBox("Loading appointments...");
-            }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _emptyBox("Loading appointments...");
+                }
 
-            if (!snapshot.hasData) {
-              return _emptyBox("No appointment data");
-            }
+                if (!snapshot.hasData) {
+                  return _emptyBox("No appointment data");
+                }
 
-            final docs = snapshot.data!.docs.toList(); // 🔥 مهم (mutable)
-            int total = docs.length;
+                final docs = snapshot.data!.docs.toList(); // 🔥 مهم (mutable)
+                int total = docs.length;
 
-            int pendingCount = docs.where((d) {
-              final data = d.data() as Map<String, dynamic>;
-              return data['status'] == 'pending';
-            }).length;
-
-            int confirmedCount = docs.where((d) {
-              final data = d.data() as Map<String, dynamic>;
-              return data['status'] == 'confirmed';
-            }).length;
-
-            int completedCount = docs.where((d) {
-              final data = d.data() as Map<String, dynamic>;
-              return data['status'] == 'completed';
-            }).length;
-            // 🔥 SORT حرفه‌ای (pending اول + جدیدترین بالا)
-            docs.sort((a, b) {
-              final aData = a.data() as Map<String, dynamic>;
-              final bData = b.data() as Map<String, dynamic>;
-
-              final aStatus = aData['status'] ?? '';
-              final bStatus = bData['status'] ?? '';
-
-              // ✅ pending بیاد بالا
-              if (aStatus == 'pending' && bStatus != 'pending') return -1;
-              if (aStatus != 'pending' && bStatus == 'pending') return 1;
-
-              // ✅ بعدش بر اساس زمان
-              final aTs = aData['scheduledAt'] ?? aData['scheduledDateTime'];
-              final bTs = bData['scheduledAt'] ?? bData['scheduledDateTime'];
-
-              final aTime = aTs is Timestamp ? aTs.toDate() : null;
-              final bTime = bTs is Timestamp ? bTs.toDate() : null;
-
-              if (aTime == null || bTime == null) return 0;
-
-              return bTime.compareTo(aTime); // newest first
-            });
-
-            if (docs.isEmpty) {
-              return _emptyBox("No appointments yet");
-            }
-
-            // 🔥 1. جدا کردن pending
-
-            final pending = docs
-                .where((d) {
+                int pendingCount = docs.where((d) {
                   final data = d.data() as Map<String, dynamic>;
                   return data['status'] == 'pending';
-                })
-                .take(3)
-                .toList();
+                }).length;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /// ================= KPI (NEW) =================
-                Row(
+                int confirmedCount = docs.where((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  return data['status'] == 'confirmed';
+                }).length;
+
+                int completedCount = docs.where((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  return data['status'] == 'completed';
+                }).length;
+                // 🔥 SORT حرفه‌ای (pending اول + جدیدترین بالا)
+                docs.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+
+                  final aStatus = aData['status'] ?? '';
+                  final bStatus = bData['status'] ?? '';
+
+                  // ✅ pending بیاد بالا
+                  if (aStatus == 'pending' && bStatus != 'pending') return -1;
+                  if (aStatus != 'pending' && bStatus == 'pending') return 1;
+
+                  // ✅ بعدش بر اساس زمان
+                  final aTs =
+                      aData['scheduledAt'] ?? aData['scheduledDateTime'];
+                  final bTs =
+                      bData['scheduledAt'] ?? bData['scheduledDateTime'];
+
+                  final aTime = aTs is Timestamp ? aTs.toDate() : null;
+                  final bTime = bTs is Timestamp ? bTs.toDate() : null;
+
+                  if (aTime == null || bTime == null) return 0;
+
+                  return bTime.compareTo(aTime); // newest first
+                });
+
+                if (docs.isEmpty) {
+                  return _emptyBox("No appointments yet");
+                }
+
+                // 🔥 1. جدا کردن pending
+
+                final pending = docs
+                    .where((d) {
+                      final data = d.data() as Map<String, dynamic>;
+                      return data['status'] == 'pending';
+                    })
+                    .take(3)
+                    .toList();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _KpiCard(
-                      title: "Total",
-                      value: "$total",
-                      icon: LucideIcons.calendar,
-                    ),
-                    const SizedBox(width: 10),
-                    _KpiCard(
-                      title: "Pending",
-                      value: "$pendingCount",
-                      icon: LucideIcons.clock,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                Row(
-                  children: [
-                    _KpiCard(
-                      title: "Confirmed",
-                      value: "$confirmedCount",
-                      icon: LucideIcons.checkCircle,
-                    ),
-                    const SizedBox(width: 10),
-                    _KpiCard(
-                      title: "Completed",
-                      value: "$completedCount",
-                      icon: LucideIcons.check,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
-
-                /// ================= PENDING =================
-                _SectionTitle("Pending Requests"),
-                const SizedBox(height: 8),
-
-                if (pending.isEmpty)
-                  _emptyBox("No pending requests")
-                else
-                  ...pending.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return _appointmentItem(context, doc.id, data);
-                  }),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Open Appointments tab from top"),
+                    /// ================= KPI (NEW) =================
+                    Row(
+                      children: [
+                        _KpiCard(
+                          title: "Total",
+                          value: "$total",
+                          icon: LucideIcons.calendar,
                         ),
-                      );
-                    },
-                    child: const Text("View all appointments"),
-                  ),
-                ),
-              ],
-            );
-          },
+                        const SizedBox(width: 10),
+                        _KpiCard(
+                          title: "Pending",
+                          value: "$pendingCount",
+                          icon: LucideIcons.clock,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Row(
+                      children: [
+                        _KpiCard(
+                          title: "Confirmed",
+                          value: "$confirmedCount",
+                          icon: LucideIcons.checkCircle,
+                        ),
+                        const SizedBox(width: 10),
+                        _KpiCard(
+                          title: "Completed",
+                          value: "$completedCount",
+                          icon: LucideIcons.check,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    /// ================= PENDING =================
+                    _SectionTitle("Pending Requests"),
+                    const SizedBox(height: 8),
+
+                    if (pending.isEmpty)
+                      _emptyBox("No pending requests")
+                    else
+                      ...pending.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return RepaintBoundary(
+                          child: _AppointmentItem(
+                            key: ValueKey(doc.id),
+                            id: doc.id,
+                            data: data,
+                          ),
+                        );
+                      }),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Open Appointments tab from top"),
+                            ),
+                          );
+                        },
+                        child: const Text("View all appointments"),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
         ),
 
         /// ================= SERVICES =================
@@ -306,45 +365,44 @@ class VetDashboardOverviewTab extends StatelessWidget {
         _SectionTitle("Your Services"),
         const SizedBox(height: 10),
 
-        StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('businesses')
-              .doc(businessId)
-              .collection('services')
-              .orderBy('createdAt', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final docs = snapshot.data!.docs;
-
-            if (docs.isEmpty) {
-              return _emptyBox("No services yet");
-            }
-
-            final newServices = docs
-                .map((e) => (e.data() as Map)['title'] as String)
-                .toList();
-
-            final appState = context.read<AppState>();
-
-            // 🔥 فقط اگر تغییر کرده update کن
-            if (!listEquals(appState.existingServices, newServices)) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (context.mounted) {
-                  appState.setExistingServices(newServices);
+        _KeepAliveWrapper(
+          child: RepaintBoundary(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _servicesStream,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
                 }
-              });
-            }
-            return Column(
-              children: docs.map((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                return _serviceItem(context, doc.id, data);
-              }).toList(),
-            );
-          },
+
+                final docs = snapshot.data!.docs;
+
+                if (docs.isEmpty) {
+                  return _emptyBox("No services yet");
+                }
+
+                final newServices = docs
+                    .map((e) => (e.data() as Map)['title'] as String)
+                    .toList();
+
+                final appState = context.read<AppState>();
+
+                // 🔥 فقط اگر تغییر کرده update کن
+                if (!listEquals(appState.existingServices, newServices)) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (context.mounted) {
+                      appState.setExistingServices(newServices);
+                    }
+                  });
+                }
+                return Column(
+                  children: docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return _serviceItem(context, doc.id, data);
+                  }).toList(),
+                );
+              },
+            ),
+          ),
         ),
       ],
     );
@@ -358,10 +416,7 @@ class VetDashboardOverviewTab extends StatelessWidget {
     }
 
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('vet_appointments')
-          .where('businessId', isEqualTo: businessId)
-          .snapshots(includeMetadataChanges: false),
+      stream: _revenueStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _emptyBox('Revenue error: ${snapshot.error}');
@@ -612,11 +667,162 @@ class VetDashboardOverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _appointmentItem(
+  Future<void> _deleteService(
     BuildContext context,
+    String businessId,
     String id,
-    Map<String, dynamic> data,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Service"),
+        content: const Text("Are you sure you want to delete this service?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(businessId)
+          .collection('services')
+          .doc(id)
+          .delete();
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Service deleted")));
+    } catch (e) {
+      debugPrint('❌ deleteService error: $e');
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Delete failed")));
+    }
+  }
+
+  Widget _profileCard(
+    BuildContext context,
+    Map<String, dynamic> profile,
+    Map<String, dynamic> contact,
   ) {
+    final name = profile['displayName'] ?? 'Clinic';
+    final description =
+        profile['description'] ?? profile['bio'] ?? "No description yet";
+    debugPrint(
+      '🩺 VET BUSINESS MAP → source=VetDashboardOverview '
+      'businessId=$businessId displayName=$name '
+      'descriptionLength=${description.toString().length}',
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(name, style: AppTheme.h3(weight: FontWeight.w800)),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFC107),
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          EditVetProfilePage(businessId: businessId),
+                    ),
+                  );
+                },
+                icon: const Icon(LucideIcons.edit2, size: 18),
+                label: const Text("Edit"),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          Text(description, style: AppTheme.body(color: AppTheme.muted)),
+
+          const SizedBox(height: 12),
+
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip("📞 ${contact['phone'] ?? '-'}"),
+              _chip("📍 ${contact['city'] ?? '-'}"),
+              _chip("📍 ${contact['district'] ?? '-'}"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ================= UI HELPERS =================
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.black12),
+      boxShadow: AppTheme.cardShadow(opacity: 0.06),
+    );
+  }
+
+  Widget _emptyBox(String text) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
+      child: Text(text, style: AppTheme.body(color: AppTheme.muted)),
+    );
+  }
+
+  Widget _chip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF9E1B4F).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text,
+        style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
+      ),
+    );
+  }
+}
+
+class _AppointmentItem extends StatelessWidget {
+  final String id;
+  final Map<String, dynamic> data;
+
+  const _AppointmentItem({super.key, required this.id, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
     debugPrint("🧩 RENDER: ${data['dogName']} - ${data['status']}");
     final status = data['status'] ?? 'pending';
 
@@ -771,7 +977,7 @@ class VetDashboardOverviewTab extends StatelessWidget {
     );
   }
 
-  Future<void> _updateAppointmentStatus(
+  static Future<void> _updateAppointmentStatus(
     BuildContext context,
     String id,
     String newStatus,
@@ -814,7 +1020,7 @@ class VetDashboardOverviewTab extends StatelessWidget {
     }
   }
 
-  String _approvalTargetStatus(Map<String, dynamic> data) {
+  static String _approvalTargetStatus(Map<String, dynamic> data) {
     final rawPrice = data['servicePrice'] ?? data['price'];
     final double price = rawPrice is num
         ? rawPrice.toDouble()
@@ -822,152 +1028,26 @@ class VetDashboardOverviewTab extends StatelessWidget {
     final requiresPayment = data['serviceRequiresPayment'] == true || price > 0;
     return requiresPayment ? 'awaiting_payment' : 'confirmed';
   }
+}
 
-  Future<void> _deleteService(
-    BuildContext context,
-    String businessId,
-    String id,
-  ) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Delete Service"),
-        content: const Text("Are you sure you want to delete this service?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete"),
-          ),
-        ],
-      ),
-    );
+class _KeepAliveWrapper extends StatefulWidget {
+  final Widget child;
 
-    if (confirm != true) return;
+  const _KeepAliveWrapper({required this.child});
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(businessId)
-          .collection('services')
-          .doc(id)
-          .delete();
+  @override
+  State<_KeepAliveWrapper> createState() => _KeepAliveWrapperState();
+}
 
-      if (!context.mounted) return;
+class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Service deleted")));
-    } catch (e) {
-      debugPrint('❌ deleteService error: $e');
-
-      if (!context.mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Delete failed")));
-    }
-  }
-
-  Widget _profileCard(
-    BuildContext context,
-    Map<String, dynamic> profile,
-    Map<String, dynamic> contact,
-  ) {
-    final name = profile['displayName'] ?? 'Clinic';
-    final description =
-        profile['description'] ?? profile['bio'] ?? "No description yet";
-    debugPrint(
-      '🩺 VET BUSINESS MAP → source=VetDashboardOverview '
-      'businessId=$businessId displayName=$name '
-      'descriptionLength=${description.toString().length}',
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(name, style: AppTheme.h3(weight: FontWeight.w800)),
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFC107),
-                  foregroundColor: Colors.black,
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          EditVetProfilePage(businessId: businessId),
-                    ),
-                  );
-                },
-                icon: const Icon(LucideIcons.edit2, size: 18),
-                label: const Text("Edit"),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(description, style: AppTheme.body(color: AppTheme.muted)),
-
-          const SizedBox(height: 12),
-
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _chip("📞 ${contact['phone'] ?? '-'}"),
-              _chip("📍 ${contact['city'] ?? '-'}"),
-              _chip("📍 ${contact['district'] ?? '-'}"),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// ================= UI HELPERS =================
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.black12),
-      boxShadow: AppTheme.cardShadow(opacity: 0.06),
-    );
-  }
-
-  Widget _emptyBox(String text) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: Text(text, style: AppTheme.body(color: AppTheme.muted)),
-    );
-  }
-
-  Widget _chip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        text,
-        style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
-      ),
-    );
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 

@@ -20,6 +20,7 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
   final _whatsappController = TextEditingController();
   final _emailController = TextEditingController();
   final _websiteController = TextEditingController();
+  final _instagramController = TextEditingController();
   final _cityController = TextEditingController();
   final _districtController = TextEditingController();
   final _addressController = TextEditingController();
@@ -68,6 +69,23 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
       _whatsappController.text = (contact['whatsapp'] ?? '').toString();
       _emailController.text = (contact['email'] ?? '').toString();
       _websiteController.text = (contact['website'] ?? '').toString();
+      final vetProfileContent =
+    (vetData['profileContent']
+            as Map<String, dynamic>?) ??
+        {};
+
+final socialMedia =
+    (vetProfileContent['socialMedia']
+            as Map<String, dynamic>?) ??
+        {};
+
+_instagramController.text =
+    (socialMedia['instagram'] ??
+            vetProfile['instagram'] ??
+            vetData['instagram'] ??
+            contact['instagram'] ??
+            '')
+        .toString();
       _cityController.text = (contact['city'] ?? '').toString();
       _districtController.text = (contact['district'] ?? '').toString();
       _addressController.text = (contact['address'] ?? '').toString();
@@ -108,6 +126,7 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
               'whatsapp': _whatsappController.text.trim(),
               'email': _emailController.text.trim(),
               'website': _websiteController.text.trim(),
+              'instagram': _instagramController.text.trim(),
               'city': _cityController.text.trim(),
               'district': _districtController.text.trim(),
               'address': _addressController.text.trim(),
@@ -118,14 +137,42 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
                 'clinicName': _clinicNameController.text.trim(),
                 'vetName': _clinicNameController.text.trim(),
                 'workingHours': _workingHoursController.text.trim(),
-                'profile': {'bio': _bioController.text.trim()},
+                'profile': {
+  'bio': _bioController.text.trim(),
+  'instagram':
+      _instagramController.text.trim(),
+},
+
+'profileContent': {
+  'bio':
+      _bioController.text.trim(),
+
+  'socialMedia': {
+    'instagram':
+        _instagramController.text.trim(),
+  },
+},
                 'updatedAt': FieldValue.serverTimestamp(),
               },
               'veterinarian': {
                 'clinicName': _clinicNameController.text.trim(),
                 'vetName': _clinicNameController.text.trim(),
                 'workingHours': _workingHoursController.text.trim(),
-                'profile': {'bio': _bioController.text.trim()},
+                'profile': {
+  'bio': _bioController.text.trim(),
+  'instagram':
+      _instagramController.text.trim(),
+},
+
+'profileContent': {
+  'bio':
+      _bioController.text.trim(),
+
+  'socialMedia': {
+    'instagram':
+        _instagramController.text.trim(),
+  },
+},
                 'updatedAt': FieldValue.serverTimestamp(),
               },
             },
@@ -179,6 +226,7 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
     _whatsappController.dispose();
     _emailController.dispose();
     _websiteController.dispose();
+    _instagramController.dispose();
     _cityController.dispose();
     _districtController.dispose();
     _addressController.dispose();
@@ -213,6 +261,10 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
                   _field(_whatsappController, 'WhatsApp'),
                   _field(_emailController, 'Email'),
                   _field(_websiteController, 'Website'),
+                  _field(
+  _instagramController,
+  'Instagram',
+),
                   _field(_cityController, 'City'),
                   _field(_districtController, 'District'),
                   _field(_addressController, 'Address'),

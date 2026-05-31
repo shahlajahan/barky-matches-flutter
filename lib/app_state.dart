@@ -408,7 +408,10 @@ class AppState with ChangeNotifier {
 
   void closeBusinessDetails() {
     _activeBusiness = null;
-    closeVetDetails();
+    _businessAppointment = null;
+    _appointmentService = null;
+    _businessSubPage = BusinessSubPage.none;
+    _selectedVet = null;
     notifyListeners();
   }
 
@@ -3525,6 +3528,8 @@ if (
 
 }
 
+
+
     // هر بار tab عوض میشه overlay بسته بشه
     _homeOverlay = HomeOverlay.none;
     _selectedPark = null;
@@ -3613,6 +3618,24 @@ if (
       debugPrint("❌ handleRemoteMessage error: $e");
     }
   }
+
+  BusinessCardData? selectedGroomy;
+
+void openGroomyDetails(
+  BusinessCardData groomy,
+) {
+
+  selectedGroomy = groomy;
+
+  notifyListeners();
+}
+
+void closeGroomyDetails() {
+
+  selectedGroomy = null;
+
+  notifyListeners();
+}
 
   // ─── شروع Listener واقعی برای unread notifications ───
   void startUnreadNotificationsListener() {

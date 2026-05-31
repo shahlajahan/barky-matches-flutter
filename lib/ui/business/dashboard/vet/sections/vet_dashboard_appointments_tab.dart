@@ -61,7 +61,7 @@ class _VetDashboardAppointmentsTabState
 
     final targetId = appState.openAppointmentId;
 
-    debugPrint("👀 openAppointmentId = $targetId");
+   // debugPrint("👀 openAppointmentId = $targetId");
 
     if (targetId == null) return;
 
@@ -88,12 +88,7 @@ class _VetDashboardAppointmentsTabState
     final questions = _listOfMaps(snapshot['questions']);
     final legacyAnswers = _legacyPreVisitAnswers(data['preVisitForm']);
 
-    debugPrint(
-      '🩺 PREVISIT UI RENDER '
-      'appointmentId=${data['id'] ?? appointmentId} '
-      'answers=${answers.length} '
-      'questions=${questions.length}',
-    );
+    
 
     final hasNew = answers.isNotEmpty && questions.isNotEmpty;
     final hasLegacy = legacyAnswers.isNotEmpty;
@@ -203,7 +198,7 @@ class _VetDashboardAppointmentsTabState
     final note = _appointmentNote(data);
 
     if (note.isEmpty) {
-      debugPrint('📝 CLIENT NOTE EMPTY appointmentId=$appointmentId');
+     // debugPrint('📝 CLIENT NOTE EMPTY appointmentId=$appointmentId');
       return const SizedBox.shrink();
     }
 

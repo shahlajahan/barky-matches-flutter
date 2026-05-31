@@ -1355,20 +1355,15 @@ class _HomePageState extends State<HomePage>
               const SizedBox(width: 14),
 
               Expanded(
-                child: _miniServiceCard(
-                  title: l.petShopTitle,
-                  subtitle: l.shopNearYou,
-                  imagePath: "assets/home/petshop.png",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AllProductsPage(),
-                      ),
-                    );
-                  },
-                ),
-              ),
+  child: _miniServiceCard(
+    title: l.petShopTitle,
+    subtitle: l.shopNearYou,
+    imagePath: "assets/home/petshop.png",
+    onTap: () {
+      appState.setCurrentTab(NavTab.favorites);
+    },
+  ),
+),
             ],
           ),
         ),
@@ -2109,15 +2104,23 @@ class _HomePageState extends State<HomePage>
 
                   /// 🔹 IMAGE (اصلاح سایز)
                   Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Image.asset(
-                        imagePath,
-                        fit: BoxFit.contain,
-                        height: double.infinity,
-                      ),
-                    ),
-                  ),
+  child: Align(
+    alignment: Alignment.centerRight,
+
+    child: Transform.translate(
+      offset: const Offset(10,0), // → بچسبه به edge
+
+      child: SizedBox(
+        height: 95,
+
+        child: Image.asset(
+          imagePath,
+          fit: BoxFit.contain,
+        ),
+      ),
+    ),
+  ),
+),
                 ],
               ),
             ),
@@ -2216,10 +2219,14 @@ class _HomePageState extends State<HomePage>
                     ),
 
                     /// Image
-                    SizedBox(
-                      height: 40,
-                      child: Image.asset(imagePath, fit: BoxFit.contain),
-                    ),
+                   SizedBox(
+  height: 82,
+  width: 82,
+  child: Image.asset(
+    imagePath,
+    fit: BoxFit.contain,
+  ),
+),
                   ],
                 ),
               ),

@@ -34,66 +34,111 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
   VetDashboardSection _selected = VetDashboardSection.overview;
 
   @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+  void initState() {
+    super.initState();
+   // debugPrint('🏥 VetDashboardPage initState ${identityHashCode(this)}');
+  }
 
-    /// 🔥🔥🔥 AUTO OPEN APPOINTMENT (اینجا اضافه کن)
-    if (appState.selectedAppointmentId != null) {
-      return AppointmentDetailPage(
-        appointmentId: appState.selectedAppointmentId!,
-      );
-    }
-
-    /// 🔴 HANDLE SUB PAGE
-    if (appState.businessSubPage == BusinessSubPage.addService) {
-      return AddServicesPage(businessId: widget.businessId);
-    }
-    if (appState.businessSubPage == BusinessSubPage.addServiceDetail) {
-      return AddServiceDetailPage(
-        businessId: widget.businessId,
-        serviceTitle: appState.selectedServiceTitle ?? '',
-      );
-    }
-    return SafeArea(
-      top: false,
-      child: Container(
-        color: AppTheme.bg,
-        child: Column(
-          children: [
-            /// 🟣 TABS
-            _TopTabs(
-              selected: _selected,
-              onChange: (s) => setState(() => _selected = s),
-            ),
-
-            /// 📦 CONTENT
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: _buildContent(),
-              ),
-            ),
-          ],
-        ),
-      ),
+  @override
+  void didUpdateWidget(covariant VetDashboardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint(
+      '🏥 VetDashboardPage didUpdateWidget ${identityHashCode(this)} '
+      'oldBusinessId=${oldWidget.businessId} newBusinessId=${widget.businessId}',
     );
   }
 
-  Widget _buildContent() {
-    switch (_selected) {
-      case VetDashboardSection.overview:
-        return VetDashboardOverviewTab(
-          key: const ValueKey('overview'),
-          businessId: widget.businessId,
-          businessData: widget.businessData,
-        );
+  @override
+  void deactivate() {
+    //debugPrint('🏥 VetDashboardPage deactivate ${identityHashCode(this)}');
+    super.deactivate();
+  }
 
-      case VetDashboardSection.appointments:
-        return VetDashboardAppointmentsTab(
-          key: const ValueKey('appointments'),
-          businessId: widget.businessId,
-        );
+  @override
+  void activate() {
+    super.activate();
+    debugPrint('🏥 VetDashboardPage activate ${identityHashCode(this)}');
+  }
+
+  @override
+  void dispose() {
+   // debugPrint('🏥 VetDashboardPage dispose ${identityHashCode(this)}');
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+   // debugPrint('🏥 VetDashboardPage build ${identityHashCode(this)}');
+    final selectedAppointmentId = context.select<AppState, String?>(
+      (s) => s.selectedAppointmentId,
+    );
+    final businessSubPage = context.select<AppState, BusinessSubPage>(
+      (s) => s.businessSubPage,
+    );
+    final selectedServiceTitle = context.select<AppState, String?>(
+      (s) => s.selectedServiceTitle,
+    );
+
+    Widget? overlay;
+
+    if (selectedAppointmentId != null) {
+      overlay = AppointmentDetailPage(appointmentId: selectedAppointmentId);
+    } else if (businessSubPage == BusinessSubPage.addService) {
+      overlay = AddServicesPage(businessId: widget.businessId);
+    } else if (businessSubPage == BusinessSubPage.addServiceDetail) {
+      overlay = AddServiceDetailPage(
+        businessId: widget.businessId,
+        serviceTitle: selectedServiceTitle ?? '',
+      );
     }
+
+    return Stack(
+      children: [
+        SafeArea(
+          top: false,
+          child: Container(
+            color: AppTheme.bg,
+            child: Column(
+              children: [
+                /// 🟣 TABS
+                _TopTabs(
+                  selected: _selected,
+                  onChange: (s) {
+                    debugPrint(
+                      '🧭 Vet tab switch current=$_selected selected=$s businessId=${widget.businessId}',
+                    );
+                    setState(() => _selected = s);
+                  },
+                ),
+
+                /// 📦 CONTENT
+                Expanded(
+                  child: IndexedStack(
+                    index: _selected.index,
+                    children: _buildContent(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (overlay != null) Positioned.fill(child: overlay),
+      ],
+    );
+  }
+
+  List<Widget> _buildContent() {
+    return [
+      VetDashboardOverviewTab(
+        key: const ValueKey('overview'),
+        businessId: widget.businessId,
+        businessData: widget.businessData,
+      ),
+      VetDashboardAppointmentsTab(
+        key: const ValueKey('appointments'),
+        businessId: widget.businessId,
+      ),
+    ];
   }
 }
 

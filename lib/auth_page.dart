@@ -23,6 +23,7 @@ import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
+import 'verify_phone_page.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -259,6 +260,7 @@ class VerifyEmailPage extends StatefulWidget {
 class _VerifyEmailPageState extends State<VerifyEmailPage> {
   final _codeController = TextEditingController();
   bool _isLoading = false;
+
   static const String verifyEmailCodeUrl =
       'https://verifyemailcode-tj6s667gfq-ey.a.run.app';
 
@@ -487,6 +489,7 @@ class _AuthPageState extends State<AuthPage> {
   final _scrollController = ScrollController();
   final _phoneFocusNode = FocusNode();
   bool _isLogin = false;
+  bool _usePhoneSignup = false;
   String _selectedCountryCode = '+90';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -832,7 +835,21 @@ class _AuthPageState extends State<AuthPage> {
       await ensureFirebase();
 
       final trimmedEmail = email.trim().toLowerCase();
+if(_usePhoneSignup){
 
+return {
+
+'success': true,
+
+'userId': FirebaseAuth.instance.currentUser?.uid,
+
+'requestId': null,
+
+'errorMessage': null,
+
+};
+
+}
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: trimmedEmail,
         password: password,
@@ -1254,7 +1271,9 @@ class _AuthPageState extends State<AuthPage> {
         }
 
         final username = _usernameController.text.trim();
-        final email = _emailController.text.trim();
+        final email = _usePhoneSignup
+    ? ''
+    : _emailController.text.trim();
         final password = _passwordController.text.trim(); // ✅ باید اینجا باشه
         if (kDebugMode) {
           debugPrint("👤 USERNAME PROVIDED = ${username.isNotEmpty}");
@@ -1266,6 +1285,18 @@ class _AuthPageState extends State<AuthPage> {
         final district = _normalizeLocationText(_districtController.text);
 
         await Future.delayed(const Duration(milliseconds: 500));
+
+        if (!_usePhoneSignup && email.isEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Email required')));
+
+          return;
+        }
 
         final Map<String, dynamic> result = await _registerWithFirebase(
           email,
@@ -1287,55 +1318,106 @@ class _AuthPageState extends State<AuthPage> {
         final String? userId = result['userId']; // ✅ اضافه کن
         final String? requestId = result['requestId'];
 
-        if (success &&
-            userId != null &&
-            requestId != null &&
-            mounted &&
-            context.mounted) {
+        if (success && userId != null && mounted && context.mounted) {
           final currentUserBoxStorage = Hive.box<String>('currentUserBox');
+
           await currentUserBoxStorage.put(
             'receiveNews',
             _receiveNews.toString(),
           );
+
           debugPrint('AuthPage - Receive news preference saved: $_receiveNews');
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VerifyEmailPage(
-                email: email,
-                userId: userId,
-                requestId: requestId,
+          if (_usePhoneSignup) {
+
+        final fullPhoneNumber =
+'+90${_phoneController.text.trim()}';
+
+debugPrint(
+'FULL PHONE NUMBER =====> $fullPhoneNumber'
+);    
+
+  Navigator.push(
+
+    context,
+
+    MaterialPageRoute(
+
+      builder: (_) => VerifyPhonePage(
+
+        phone: phone!,
+
+        userId: userId,
+
+      ),
+
+    ),
+
+  ).then((verified) async {
+
+    if (verified == true) {
+
+      await Hive.box<String>(
+        'currentUserBox',
+      ).put(
+        'currentUserId',
+        userId,
+      );
+
+      Provider.of<AppState>(
+        context,
+        listen: false,
+      ).updateUserId(
+        userId,
+      );
+
+      Navigator.of(context)
+          .pushAndRemoveUntil(
+
+        MaterialPageRoute(
+          builder: (_) =>
+              const HomeGate(),
+        ),
+
+        (route) => false,
+
+      );
+
+    }
+
+  });
+
+} else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VerifyEmailPage(
+                  email: email,
+                  userId: userId,
+                  requestId: requestId!,
+                ),
               ),
-            ),
-          ).then((isVerified) async {
-            if (!mounted) return;
+            ).then((isVerified) async {
+              if (isVerified == true) {
+                await Hive.box<String>(
+                  'currentUserBox',
+                ).put('currentUserId', userId);
 
-            if (isVerified == true && context.mounted) {
-              await Hive.box<String>(
-                'currentUserBox',
-              ).put('currentUserId', userId);
-              Provider.of<AppState>(
-                context,
-                listen: false,
-              ).updateUserId(userId);
+                Provider.of<AppState>(
+                  context,
+                  listen: false,
+                ).updateUserId(userId);
 
-              debugPrint(
-                'AuthPage - Navigation to PlaymatePage after verification triggered',
-              );
-
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const HomeGate()),
-                (route) => false,
-              );
-            } else if (mounted && context.mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(l10n.verifyEmailTitle)));
-            }
-          });
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomeGate()),
+                  (route) => false,
+                );
+              }
+            });
+          }
         } else if (errorMessage != null && mounted && context.mounted) {
           debugPrint('AuthPage - Registration failed: $errorMessage');
+
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(errorMessage)));
@@ -1465,6 +1547,44 @@ class _AuthPageState extends State<AuthPage> {
 
                     const SizedBox(height: 28),
 
+                    if (!_isLogin) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Text('Email'),
+
+                              selected: !_usePhoneSignup,
+
+                              onSelected: (_) {
+                                setState(() {
+                                  _usePhoneSignup = false;
+                                });
+                              },
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Text('Phone'),
+
+                              selected: _usePhoneSignup,
+
+                              onSelected: (_) {
+                                setState(() {
+                                  _usePhoneSignup = true;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+                    ],
+
                     Container(
                       padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
                       decoration: BoxDecoration(
@@ -1554,39 +1674,40 @@ class _AuthPageState extends State<AuthPage> {
                             const SizedBox(height: 14),
                           ],
 
-                          TextFormField(
-                            controller: _emailController,
-                            decoration: _authInputDecoration(
-                              label: l10n.emailLabel,
-                              icon: LucideIcons.mail,
+                          if (!_usePhoneSignup) ...[
+                            TextFormField(
+                              controller: _emailController,
+                              decoration: _authInputDecoration(
+                                label: l10n.emailLabel,
+                                icon: LucideIcons.mail,
+                              ),
+                              style: GoogleFonts.poppins(
+                                color: Colors.black87,
+                                fontSize: 14,
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (value) {
+                                final email = value?.trim() ?? '';
+
+                                if (email.isEmpty) {
+                                  return null;
+                                }
+
+                                final emailRegex = RegExp(
+                                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                                );
+
+                                if (!emailRegex.hasMatch(email)) {
+                                  return l10n.emailInvalid;
+                                }
+
+                                return null;
+                              },
                             ),
-                            style: GoogleFonts.poppins(
-                              color: Colors.black87,
-                              fontSize: 14,
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              final email = value?.trim() ?? '';
+                            const SizedBox(height: 14),
+                          ],
 
-                              if (email.isEmpty) {
-                                return l10n.emailRequired;
-                              }
-
-                              final emailRegex = RegExp(
-                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                              );
-
-                              if (!emailRegex.hasMatch(email)) {
-                                return l10n.emailInvalid;
-                              }
-
-                              return null;
-                            },
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          if (!_isLogin) ...[
+                          if (!_isLogin && _usePhoneSignup) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,

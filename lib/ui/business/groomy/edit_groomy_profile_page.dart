@@ -27,6 +27,8 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
 
   final _websiteController = TextEditingController();
 
+  final _instagramController = TextEditingController();
+
   final _cityController = TextEditingController();
 
   final _districtController = TextEditingController();
@@ -86,6 +88,20 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
 
       _websiteController.text = (contact['website'] ?? '').toString();
 
+      final groomyProfileContent =
+    (groomyData['profileContent'] as Map<String, dynamic>?) ?? {};
+
+final socialMedia =
+    (groomyProfileContent['socialMedia'] as Map<String, dynamic>?) ?? {};
+
+_instagramController.text =
+    (socialMedia['instagram'] ??
+            groomyProfile['instagram'] ??
+            groomyData['instagram'] ??
+            contact['instagram'] ??
+            '')
+        .toString();
+
       _cityController.text = (contact['city'] ?? '').toString();
 
       _districtController.text = (contact['district'] ?? '').toString();
@@ -144,6 +160,8 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
 
               'website': _websiteController.text.trim(),
 
+              'instagram': _instagramController.text.trim(),
+
               'city': _cityController.text.trim(),
 
               'district': _districtController.text.trim(),
@@ -159,7 +177,17 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
 
                 'description': _bioController.text.trim(),
 
-                'profile': {'bio': _bioController.text.trim()},
+                'profile': {
+  'bio': _bioController.text.trim(),
+  'instagram': _instagramController.text.trim(),
+},
+
+'profileContent': {
+  'bio': _bioController.text.trim(),
+  'socialMedia': {
+    'instagram': _instagramController.text.trim(),
+  },
+},
 
                 'updatedAt': FieldValue.serverTimestamp(),
               },
@@ -220,6 +248,7 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
     _whatsappController.dispose();
     _emailController.dispose();
     _websiteController.dispose();
+    _instagramController.dispose();
     _cityController.dispose();
     _districtController.dispose();
     _workingHoursController.dispose();
@@ -262,6 +291,8 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
                   _field(_emailController, 'Email'),
 
                   _field(_websiteController, 'Website'),
+
+                  _field(_instagramController, 'Instagram'),
 
                   _field(_cityController, 'City'),
 

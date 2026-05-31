@@ -9,6 +9,7 @@ import 'app_state.dart' as app;
 import 'l10n/app_localizations.dart';
 import 'ui/business/business_card_data.dart';
 import 'ui/business/groomy/groomy_appointment_page.dart';
+import 'ui/business/business_card.dart';
 
 class GroomyPage extends StatefulWidget {
   const GroomyPage({super.key});
@@ -155,6 +156,13 @@ class _GroomyPageState extends State<GroomyPage>
       phone: contact['phone']?.toString(),
       whatsapp: contact['whatsapp']?.toString() ?? contact['phone']?.toString(),
       rating: ratingRaw is num ? ratingRaw.toDouble() : null,
+      isPartner:
+
+    root['status'] == 'approved' ||
+
+    root['isPartner'] == true ||
+
+    grooming['featuredGroomer'] == true,
       reviewsCount: reviewCountRaw is num ? reviewCountRaw.toInt() : null,
       workingHours: workingHoursMap,
       description: description,
@@ -357,154 +365,32 @@ class _GroomyPageState extends State<GroomyPage>
                     itemCount: _filteredGroomers.length,
                     itemBuilder: (context, index) {
                       final groomy = _filteredGroomers[index];
-                      return _GroomyBusinessCard(
-                        business: groomy,
-                        onTap: () {
-                          debugPrint(
-                            'OPEN GROOMY BUSINESS id=${groomy.id} name=${groomy.name}',
-                          );
-                          appState.openBusinessDetails(groomy);
-                        },
-                        onCallTap:
-                            groomy.phone == null || groomy.phone!.trim().isEmpty
-                            ? null
-                            : () => _callBusiness(groomy.phone),
-                        onDirectionsTap:
-                            [groomy.name, groomy.address]
-                                .where((item) => item.trim().isNotEmpty)
-                                .join(', ')
-                                .trim()
-                                .isEmpty
-                            ? null
-                            : () => _openDirections(
-                                [groomy.name, groomy.address]
-                                    .where((item) => item.trim().isNotEmpty)
-                                    .join(', '),
-                              ),
-                      );
+                      final addressQuery = [
+  groomy.name,
+  groomy.address,
+].where((item) => item.trim().isNotEmpty).join(', ');
+
+return BusinessCard(
+  data: groomy,
+  onTap: () {
+    debugPrint(
+      'OPEN GROOMY BUSINESS id=${groomy.id} name=${groomy.name}',
+    );
+    appState.openBusinessDetails(groomy);
+  },
+  onCallTap: groomy.phone == null || groomy.phone!.trim().isEmpty
+      ? null
+      : () => _callBusiness(groomy.phone),
+  onDirectionsTap: addressQuery.trim().isEmpty
+      ? null
+      : () => _openDirections(addressQuery),
+  onWhatsAppTap: null,
+  onMessageTap: null,
+);
                     },
                   ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GroomyBusinessCard extends StatelessWidget {
-  final BusinessCardData business;
-  final VoidCallback onTap;
-  final VoidCallback? onCallTap;
-  final VoidCallback? onDirectionsTap;
-
-  const _GroomyBusinessCard({
-    required this.business,
-    required this.onTap,
-    this.onCallTap,
-    this.onDirectionsTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final location = [
-      business.district,
-      business.city,
-    ].where((item) => item.trim().isNotEmpty).join(', ');
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 58,
-                  height: 58,
-                  child: business.logoUrl == null || business.logoUrl!.isEmpty
-                      ? Container(
-                          color: const Color(0xFFF3D6E2),
-                          child: const Icon(
-                            Icons.content_cut,
-                            color: Color(0xFF9E1B4F),
-                          ),
-                        )
-                      : Image.network(
-                          business.logoUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                                color: const Color(0xFFF3D6E2),
-                                child: const Icon(
-                                  Icons.content_cut,
-                                  color: Color(0xFF9E1B4F),
-                                ),
-                              ),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      business.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      business.description?.trim().isNotEmpty == true
-                          ? business.description!
-                          : business.specialties.join(', '),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    if (location.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        location,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black45,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.call, size: 20),
-                    onPressed: onCallTap,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.directions, size: 20),
-                    onPressed: onDirectionsTap,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

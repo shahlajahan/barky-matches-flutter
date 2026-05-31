@@ -91,17 +91,39 @@ class _GroomyDashboardPageState extends State<GroomyDashboardPage> {
               },
             ),
 
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: _buildContent(),
-              ),
-            ),
+           Expanded(
+  child: IndexedStack(
+    index: _selected.index,
+    children: [
+      GroomyDashboardOverviewTab(
+        key: const ValueKey('overview'),
+        businessId: widget.businessId,
+        businessData: widget.businessData,
+      ),
+
+      GroomyServicesTab(
+        key: const ValueKey('services'),
+        businessId: widget.businessId,
+      ),
+
+      GroomyDashboardGalleryTab(
+        key: const ValueKey('gallery'),
+        businessId: widget.businessId,
+      ),
+
+      GroomyDashboardAppointmentsTab(
+        key: const ValueKey('appointments'),
+        businessId: widget.businessId,
+      ),
+    ],
+  ),
+),
           ],
         ),
       ),
     );
   }
+  /*
 
   Widget _buildContent() {
     switch (_selected) {
@@ -147,6 +169,7 @@ class _GroomyDashboardPageState extends State<GroomyDashboardPage> {
         );
     }
   }
+  */
 }
 
 class _TopTabs extends StatelessWidget {

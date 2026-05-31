@@ -25,14 +25,22 @@ class GroomyDashboardOverviewTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildRevenueCard(context),
-          const SizedBox(height: 20),
-          _buildProfileSection(context),
-          const SizedBox(height: 20),
-          _buildStatsSection(context),
-          const SizedBox(height: 20),
-          _buildAppointmentsSection(context),
-        ],
+
+_buildProfileSection(context),
+
+const SizedBox(height:20),
+
+_buildRevenueCard(context),
+
+const SizedBox(height:20),
+
+_buildStatsSection(context),
+
+const SizedBox(height:20),
+
+_buildAppointmentsSection(context),
+
+],
       ),
     );
   }
@@ -72,13 +80,22 @@ class GroomyDashboardOverviewTab extends StatelessWidget {
         }).toList();
 
         if (paidDocs.isEmpty) {
-          return _emptyBox('No revenue yet');
-        }
+
+ return const SizedBox.shrink();
+
+}
 
         double netRevenue = 0;
         double grossSales = 0;
         double commissionTotal = 0;
         double penaltyTotal = 0;
+
+        final appointmentCount = paidDocs.length;
+
+final averageTicket =
+appointmentCount == 0
+? 0.0
+: grossSales / appointmentCount;
 
         for (final doc in paidDocs) {
           final data = doc.data() as Map<String, dynamic>;
@@ -130,14 +147,89 @@ class GroomyDashboardOverviewTab extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _row('Gross Sales', grossSales),
-              _row('Platform Fee', -commissionTotal),
-              _row('Adjustments', -penaltyTotal),
+
+_row('Platform Fee', -commissionTotal),
+
+_row('Adjustments', -penaltyTotal),
+
+const SizedBox(height: 14),
+
+Row(
+ children: [
+
+   _revenueKpi(
+     label: 'Paid Appointments',
+     value: appointmentCount.toString(),
+   ),
+
+   const SizedBox(width:10),
+
+   _revenueKpi(
+     label: 'Average Ticket',
+     value:
+      '₺${averageTicket.toStringAsFixed(0)}',
+   ),
+
+ ],
+),
             ],
           ),
         );
       },
     );
   }
+
+  Widget _revenueKpi({
+ required String label,
+ required String value,
+}) {
+
+ return Expanded(
+   child: Container(
+     padding: const EdgeInsets.all(12),
+
+     decoration: BoxDecoration(
+       color: Colors.white.withValues(alpha: 0.10),
+
+       borderRadius: BorderRadius.circular(12),
+
+       border: Border.all(
+         color: Colors.white.withValues(alpha: 0.10),
+       ),
+     ),
+
+     child: Column(
+       crossAxisAlignment: CrossAxisAlignment.start,
+
+       children: [
+
+         Text(
+           value,
+
+           style: const TextStyle(
+             color: Colors.white,
+             fontSize: 18,
+             fontWeight: FontWeight.w800,
+           ),
+         ),
+
+         const SizedBox(height: 3),
+
+         Text(
+           label,
+
+           style: const TextStyle(
+             color: Colors.white60,
+             fontSize: 12,
+             fontWeight: FontWeight.w600,
+           ),
+         ),
+       ],
+     ),
+   ),
+ );
+
+}
 
   Widget _buildProfileSection(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(

@@ -17,7 +17,7 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/business/business_detail_overlay.dart';
-import 'package:barky_matches_fixed/ui/business/groomy/groomy_details_overlay.dart';
+
 import 'package:barky_matches_fixed/ui/business/pet_hotel/pet_hotel_details_overlay.dart';
 import 'package:flutter/rendering.dart';
 
@@ -27,6 +27,8 @@ import 'package:barky_matches_fixed/social/services/follow_service.dart';
 import 'package:barky_matches_fixed/social/pages/followers_list_page.dart';
 import 'package:barky_matches_fixed/social/pages/following_list_page.dart';
 import 'package:barky_matches_fixed/social/widgets/petplore_profile_overlay_v2.dart';
+
+import 'package:barky_matches_fixed/ui/business/groomy/groomy_details_overlay.dart';
 
 class BarkyScaffold extends StatefulWidget {
   final Widget body;
@@ -272,26 +274,38 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                     final onWhatsApp = _whatsAppAction(business);
                     final onDirections = _directionsAction(business);
 
-                    if (business.type == BusinessType.groomer) {
-                      debugPrint(
-                        'GROOMY DETAIL OPEN id=${business.id} name=${business.name}',
-                      );
-                      return GroomyDetailsOverlay(
-                        key: ValueKey('${business.type}-${business.id}'),
-                        data: business,
-                        onClose: appState.closeBusinessDetails,
-                        onOpenAppointment: (service) {
-                          appState.closeBusinessDetails();
-                          appState.openBusinessAppointment(
-                            business,
-                            selectedService: service,
-                          );
-                        },
-                        onCall: onCall,
-                        onWhatsApp: onWhatsApp,
-                        onDirections: onDirections,
-                      );
-                    }
+                  if (business.type == BusinessType.groomer) {
+
+  debugPrint(
+    'GROOMY DETAIL OPEN → BusinessDetailOverlay'
+  );
+
+  return BusinessDetailOverlay(
+    key: ValueKey(
+      '${business.type}-${business.id}',
+    ),
+
+    data: business,
+
+    onClose:
+        appState.closeBusinessDetails,
+
+    onOpenAppointment: () {
+
+      appState.closeBusinessDetails();
+
+      appState.openBusinessAppointment(
+        business,
+      );
+    },
+
+    onCall: onCall,
+
+    onWhatsApp: onWhatsApp,
+
+    onDirections: onDirections,
+  );
+}
                     if (business.type == BusinessType.adoptionCenter) {
                       debugPrint(
                         'ADOPTION CENTER DETAIL OPEN id=${business.id} name=${business.name}',

@@ -285,6 +285,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final bool _initialized = false;
   bool _disposed = false;
   Future<ImageProvider?>? _profileImageFuture;
+  Future<DocumentSnapshot>? _businessDashboardFuture;
+  String? _businessDashboardFutureBusinessId;
   late AppState _appState;
   String _currentUserId = '';
   Box<Dog>? _dogsBox;
@@ -983,6 +985,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
       return const DeleteAccountPage();
     }
     if (appState.profileSubPage == ProfileSubPage.businessDashboard) {
+      debugPrint(
+        '👤 UserProfilePage businessDashboard branch build '
+        '${identityHashCode(this)} businessId=${appState.businessId}',
+      );
       if (appState.businessId == null) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -997,12 +1003,24 @@ class _UserProfilePageState extends State<UserProfilePage> {
         return const SizedBox();
       }
 
-      return FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
+      final businessId = appState.businessId!;
+      if (_businessDashboardFuture == null ||
+          _businessDashboardFutureBusinessId != businessId) {
+        _businessDashboardFutureBusinessId = businessId;
+        _businessDashboardFuture = FirebaseFirestore.instance
             .collection('businesses')
-            .doc(appState.businessId!)
-            .get(),
+            .doc(businessId)
+            .get();
+      }
+
+      return FutureBuilder<DocumentSnapshot>(
+        future: _businessDashboardFuture,
         builder: (context, snapshot) {
+          debugPrint(
+            '👤 UserProfilePage FutureBuilder rebuild '
+            '${identityHashCode(this)} state=${snapshot.connectionState} '
+            'hasData=${snapshot.hasData} businessId=$businessId',
+          );
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }

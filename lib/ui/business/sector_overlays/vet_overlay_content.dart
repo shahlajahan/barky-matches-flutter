@@ -47,7 +47,9 @@ class VetOverlayContent extends StatelessWidget {
     final about =
         (data.description != null && data.description!.trim().isNotEmpty)
         ? data.description!.trim()
-        : "No clinic description available.";
+        : data.type == BusinessType.groomer
+ ? "No groomer description available."
+ : "No clinic description available.";
 
     return SingleChildScrollView(
       child: Column(
@@ -75,7 +77,9 @@ class VetOverlayContent extends StatelessWidget {
           ],
 
           Text(
-            "About",
+            data.type == BusinessType.groomer
+   ? "About Groomer"
+   : "About",
             style: AppTheme.bodyMedium(
               color: Colors.white,
             ).copyWith(fontWeight: FontWeight.w700),
@@ -196,8 +200,14 @@ class VetOverlayContent extends StatelessWidget {
         children: [
           Text(
             data.isPartner
-                ? 'Book an Appointment'
-                : 'This clinic is not yet a partner.',
+
+? 'Book an Appointment'
+
+: data.type == BusinessType.groomer
+
+    ? 'This groomer is not yet a partner.'
+
+    : 'This clinic is not yet a partner.',
             style: AppTheme.bodyMedium(
               color: Colors.white,
             ).copyWith(fontWeight: FontWeight.w700),
@@ -205,28 +215,47 @@ class VetOverlayContent extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             data.isPartner
-                ? 'This clinic accepts appointments via PetSopu.'
-                : 'You can request this clinic to join PetSopu.',
+    ? data.type == BusinessType.groomer
+        ? 'This groomer accepts appointments via PetSopu.'
+        : 'This clinic accepts appointments via PetSopu.'
+                : data.type == BusinessType.groomer
+
+? 'You can invite this groomer to join PetSopu.'
+
+: 'You can request this clinic to join PetSopu.',
             style: AppTheme.caption(
               color: Colors.white70,
             ).copyWith(height: 1.5),
           ),
           const SizedBox(height: 16),
           GestureDetector(
-            onTap: () {
-              if (data.isPartner) {
-                onOpenFullProfile?.call();
-              } else {
-                onClose?.call();
+           onTap: () {
 
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => SuggestClinicSheet(vetName: data.name),
-                );
-              }
-            },
+  if (data.isPartner) {
+
+    if (data.type == BusinessType.groomer) {
+
+   onOpenFullProfile?.call();
+
+   return;
+}
+
+    onOpenFullProfile?.call();
+
+  } else {
+
+    onClose?.call();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SuggestClinicSheet(
+        vetName: data.name,
+      ),
+    );
+  }
+},
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14),

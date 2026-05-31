@@ -7,6 +7,7 @@ import FirebaseCore
 import FirebaseMessaging
 
 import google_mobile_ads
+import FirebaseAuth
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -47,19 +48,25 @@ import google_mobile_ads
   }
 
   override func application(
-    _ application: UIApplication,
-    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
-  ) {
+_ application: UIApplication,
+didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+) {
 
-    print("🌐 APNS TOKEN STATE (native) = received")
+print("🌐 APNS TOKEN STATE (native) = received")
 
-    Messaging.messaging().apnsToken = deviceToken
+Messaging.messaging().apnsToken = deviceToken
 
-    super.application(
-      application,
-      didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
-    )
-  }
+Auth.auth().setAPNSToken(
+deviceToken,
+type: .unknown
+)
+
+super.application(
+application,
+didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+)
+
+}
 
   override func application(
     _ application: UIApplication,

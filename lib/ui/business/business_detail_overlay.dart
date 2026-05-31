@@ -10,6 +10,8 @@ import 'sector_overlays/adoption_overlay_content.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'pet_hotel/pet_hotel_details_page.dart';
 
+import 'package:barky_matches_fixed/ui/business/groomy/groomy_details_overlay.dart';
+
 enum _BusinessTab { info, services, action, contact }
 
 class BusinessDetailOverlay extends StatefulWidget {
@@ -57,9 +59,10 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
   void _buildTabs() {
     _tabs = [_BusinessTab.info, _BusinessTab.services];
 
-    if (widget.data.type == BusinessType.vet ||
-        widget.data.type == BusinessType.adoptionCenter ||
-        widget.data.type == BusinessType.petHotel) {
+   if (widget.data.type == BusinessType.vet ||
+    widget.data.type == BusinessType.groomer ||
+    widget.data.type == BusinessType.adoptionCenter ||
+    widget.data.type == BusinessType.petHotel) {
       _tabs.add(_BusinessTab.action);
     }
 
@@ -248,6 +251,83 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
           onClose: widget.onClose,
         );
 
+       case BusinessType.groomer:
+
+  return VetOverlayContent(
+    data: widget.data,
+
+    showInfo: info,
+    showServices: services,
+    showAction: action,
+
+    onOpenAppointment:
+        widget.onOpenAppointment,
+
+    onOpenFullProfile: () {
+
+      final appState =
+          context.read<AppState>();
+
+      final navigator =
+          Navigator.of(context);
+
+      final business =
+          widget.data;
+
+      appState.closeBusinessDetails();
+
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+
+            backgroundColor: Colors.black,
+
+            body: SafeArea(
+
+              child: GroomyDetailsOverlay(
+
+                data: business,
+
+                onClose: () {
+
+                  navigator.pop();
+
+                },
+
+                onOpenAppointment: (service) {
+
+                  navigator.pop();
+
+                  WidgetsBinding.instance
+                      .addPostFrameCallback((_) {
+
+                    appState.openBusinessAppointment(
+                      business,
+
+                      selectedService: service,
+                    );
+
+                  });
+                },
+
+                onCall: widget.onCall,
+
+                onWhatsApp: widget.onWhatsApp,
+
+                onDirections: null,
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+
+    onCall: widget.onCall,
+
+    onWhatsApp: widget.onWhatsApp,
+
+    onClose: widget.onClose,
+  );
       case BusinessType.adoptionCenter:
         return AdoptionOverlayContent(
           data: widget.data,
