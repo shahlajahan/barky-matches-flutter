@@ -256,9 +256,7 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
 
         if (ownerUid != null) {
           debugPrint('🩺 USER UPDATE PAYLOAD: $userUpdateData');
-          debugPrint(
- 'USER DOC WRITE UID: $ownerUid'
-);
+          debugPrint('USER DOC WRITE UID: $ownerUid');
           await firestore
               .collection('users')
               .doc(ownerUid)

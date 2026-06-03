@@ -157,12 +157,9 @@ class _GroomyPageState extends State<GroomyPage>
       whatsapp: contact['whatsapp']?.toString() ?? contact['phone']?.toString(),
       rating: ratingRaw is num ? ratingRaw.toDouble() : null,
       isPartner:
-
-    root['status'] == 'approved' ||
-
-    root['isPartner'] == true ||
-
-    grooming['featuredGroomer'] == true,
+          root['status'] == 'approved' ||
+          root['isPartner'] == true ||
+          grooming['featuredGroomer'] == true,
       reviewsCount: reviewCountRaw is num ? reviewCountRaw.toInt() : null,
       workingHours: workingHoursMap,
       description: description,
@@ -175,6 +172,8 @@ class _GroomyPageState extends State<GroomyPage>
       website:
           contact['website']?.toString() ?? socialMedia['website']?.toString(),
       logoUrl: _firstText([
+        root['coverImageUrl'], // ADD THIS FIRST
+        profile['coverUrl'], // ADD THIS TOO
         profile['logoUrl'],
         profile['logo'],
         profileContent['clinicLogoUrl'],
@@ -366,27 +365,28 @@ class _GroomyPageState extends State<GroomyPage>
                     itemBuilder: (context, index) {
                       final groomy = _filteredGroomers[index];
                       final addressQuery = [
-  groomy.name,
-  groomy.address,
-].where((item) => item.trim().isNotEmpty).join(', ');
+                        groomy.name,
+                        groomy.address,
+                      ].where((item) => item.trim().isNotEmpty).join(', ');
 
-return BusinessCard(
-  data: groomy,
-  onTap: () {
-    debugPrint(
-      'OPEN GROOMY BUSINESS id=${groomy.id} name=${groomy.name}',
-    );
-    appState.openBusinessDetails(groomy);
-  },
-  onCallTap: groomy.phone == null || groomy.phone!.trim().isEmpty
-      ? null
-      : () => _callBusiness(groomy.phone),
-  onDirectionsTap: addressQuery.trim().isEmpty
-      ? null
-      : () => _openDirections(addressQuery),
-  onWhatsAppTap: null,
-  onMessageTap: null,
-);
+                      return BusinessCard(
+                        data: groomy,
+                        onTap: () {
+                          debugPrint(
+                            'OPEN GROOMY BUSINESS id=${groomy.id} name=${groomy.name}',
+                          );
+                          appState.openBusinessDetails(groomy);
+                        },
+                        onCallTap:
+                            groomy.phone == null || groomy.phone!.trim().isEmpty
+                            ? null
+                            : () => _callBusiness(groomy.phone),
+                        onDirectionsTap: addressQuery.trim().isEmpty
+                            ? null
+                            : () => _openDirections(addressQuery),
+                        onWhatsAppTap: null,
+                        onMessageTap: null,
+                      );
                     },
                   ),
           ),

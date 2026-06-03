@@ -59,10 +59,10 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
   void _buildTabs() {
     _tabs = [_BusinessTab.info, _BusinessTab.services];
 
-   if (widget.data.type == BusinessType.vet ||
-    widget.data.type == BusinessType.groomer ||
-    widget.data.type == BusinessType.adoptionCenter ||
-    widget.data.type == BusinessType.petHotel) {
+    if (widget.data.type == BusinessType.vet ||
+        widget.data.type == BusinessType.groomer ||
+        widget.data.type == BusinessType.adoptionCenter ||
+        widget.data.type == BusinessType.petHotel) {
       _tabs.add(_BusinessTab.action);
     }
 
@@ -251,83 +251,68 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
           onClose: widget.onClose,
         );
 
-       case BusinessType.groomer:
+      case BusinessType.groomer:
+        return VetOverlayContent(
+          data: widget.data,
 
-  return VetOverlayContent(
-    data: widget.data,
+          showInfo: info,
+          showServices: services,
+          showAction: action,
 
-    showInfo: info,
-    showServices: services,
-    showAction: action,
+          onOpenAppointment: widget.onOpenAppointment,
 
-    onOpenAppointment:
-        widget.onOpenAppointment,
+          onOpenFullProfile: () {
+            final appState = context.read<AppState>();
 
-    onOpenFullProfile: () {
+            final navigator = Navigator.of(context);
 
-      final appState =
-          context.read<AppState>();
+            final business = widget.data;
 
-      final navigator =
-          Navigator.of(context);
+            appState.closeBusinessDetails();
 
-      final business =
-          widget.data;
+            navigator.push(
+              MaterialPageRoute(
+                builder: (_) => Scaffold(
+                  backgroundColor: Colors.black,
 
-      appState.closeBusinessDetails();
+                  body: SafeArea(
+                    child: GroomyDetailsOverlay(
+                      data: business,
 
-      navigator.push(
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
+                      onClose: () {
+                        navigator.pop();
+                      },
 
-            backgroundColor: Colors.black,
+                      onOpenAppointment: (service) {
+                        navigator.pop();
 
-            body: SafeArea(
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          appState.openBusinessAppointment(
+                            business,
 
-              child: GroomyDetailsOverlay(
+                            selectedService: service,
+                          );
+                        });
+                      },
 
-                data: business,
+                      onCall: widget.onCall,
 
-                onClose: () {
+                      onWhatsApp: widget.onWhatsApp,
 
-                  navigator.pop();
-
-                },
-
-                onOpenAppointment: (service) {
-
-                  navigator.pop();
-
-                  WidgetsBinding.instance
-                      .addPostFrameCallback((_) {
-
-                    appState.openBusinessAppointment(
-                      business,
-
-                      selectedService: service,
-                    );
-
-                  });
-                },
-
-                onCall: widget.onCall,
-
-                onWhatsApp: widget.onWhatsApp,
-
-                onDirections: null,
+                      onDirections: null,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-      );
-    },
+            );
+          },
 
-    onCall: widget.onCall,
+          onCall: widget.onCall,
 
-    onWhatsApp: widget.onWhatsApp,
+          onWhatsApp: widget.onWhatsApp,
 
-    onClose: widget.onClose,
-  );
+          onClose: widget.onClose,
+        );
       case BusinessType.adoptionCenter:
         return AdoptionOverlayContent(
           data: widget.data,

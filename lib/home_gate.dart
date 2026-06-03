@@ -602,6 +602,7 @@ class _ProfileTab extends StatelessWidget {
     }
 
     // 🟢 Business Dashboard
+
     if (subPage == ProfileSubPage.businessDashboard) {
       return BusinessDashboardPage(businessId: uid);
     }

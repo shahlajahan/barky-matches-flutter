@@ -179,10 +179,8 @@ class _AdoptionCenterDashboardGalleryTabState
   }
 
   List<String> _mergedImagesFromData(Map<String, dynamic> data) {
-  return <String>{
-    ...List<String>.from(data['images'] ?? []),
-  }.toList();
-}
+    return <String>{...List<String>.from(data['images'] ?? [])}.toList();
+  }
 
   @override
   Widget build(BuildContext context) {

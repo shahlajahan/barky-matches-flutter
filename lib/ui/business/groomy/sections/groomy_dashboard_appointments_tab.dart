@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:provider/provider.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
 class GroomyDashboardAppointmentsTab extends StatelessWidget {
@@ -21,7 +23,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
           .orderBy('scheduledAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        debugPrint("✂️ GROOMY APPOINTMENTS TAB");
+        debugPrint("✂️ GROOMY APPOINTMENTS TAB ${identityHashCode(this)}");
 
         if (snapshot.hasError) {
           return _centerText("Appointment error: ${snapshot.error}");
@@ -87,7 +89,12 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
     String appointmentId,
     Map<String, dynamic> data,
   ) {
-    final status = data['status'] ?? 'pending';
+    final status = (data['status'] ?? 'pending')
+        .toString()
+        .toLowerCase()
+        .trim();
+    final openedFromNotification =
+        context.read<AppState>().openAppointmentId == appointmentId;
 
     final petName = data['petName'] ?? '';
 
@@ -118,6 +125,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
 
     switch (status) {
       case 'confirmed':
+      case 'confirmed_paid':
         statusColor = Colors.green;
         break;
 
@@ -127,6 +135,11 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
 
       case 'completed':
         statusColor = Colors.blue;
+        break;
+
+      case 'cancelled_by_groomy':
+      case 'cancelled_by_user':
+        statusColor = Colors.grey;
         break;
 
       default:
@@ -272,75 +285,145 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
           const SizedBox(height: 14),
 
           /// ACTIONS
-          if (status == 'pending')
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final rawPrice = data['price'] ?? data['servicePrice'];
-
-                      final numericPrice = rawPrice is num
-                          ? rawPrice.toDouble()
-                          : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
-
-                      final nextStatus = numericPrice > 0
-                          ? 'awaiting_payment'
-                          : 'confirmed';
-
-                      _updateAppointmentStatus(
-                        context,
-                        appointmentId,
-                        nextStatus,
-                      );
-                    },
-
-                    child: const Text("Accept"),
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                    ),
-
-                    onPressed: () => _updateAppointmentStatus(
-                      context,
-                      appointmentId,
-                      'rejected',
-                    ),
-
-                    child: const Text("Reject"),
-                  ),
-                ),
-              ],
-            )
-          else if (status == 'confirmed')
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _updateAppointmentStatus(
-                  context,
-                  appointmentId,
-                  'completed',
-                ),
-
-                child: const Text("Mark Completed"),
-              ),
-            )
-          else
-            Center(
-              child: Text(
-                "Already ${status.toUpperCase()}",
-                style: AppTheme.caption(color: Colors.grey),
-              ),
-            ),
+          _buildActions(
+            context,
+            appointmentId,
+            status,
+            data,
+            openedFromNotification,
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildActions(
+    BuildContext context,
+    String appointmentId,
+    String status,
+    Map<String, dynamic> data,
+    bool openedFromNotification,
+  ) {
+    final visibleActions = <String>[];
+
+    if (status == 'pending' || status == 'requested' || status == 'new') {
+      visibleActions.addAll(['Accept', 'Reject']);
+    } else if (status == 'confirmed' || status == 'confirmed_paid') {
+      visibleActions.addAll(['Complete', 'Cancel']);
+    } else if (status == 'awaiting_payment') {
+      visibleActions.add('Awaiting payment');
+    }
+
+    debugPrint(
+      '✂️ GROOMY APPOINTMENT CARD → '
+      'appointmentId=$appointmentId status=$status '
+      'openedFromNotification=$openedFromNotification '
+      'visibleActions=$visibleActions',
+    );
+
+    if (status == 'pending' || status == 'requested' || status == 'new') {
+      final targetStatus = _approvalTargetStatus(data);
+      return Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () => _updateAppointmentStatus(
+                context,
+                appointmentId,
+                targetStatus,
+              ),
+              child: const Text("Accept"),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () =>
+                  _updateAppointmentStatus(context, appointmentId, 'rejected'),
+              child: const Text("Reject"),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (status == 'confirmed' || status == 'confirmed_paid') {
+      return Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () =>
+                  _updateAppointmentStatus(context, appointmentId, 'completed'),
+              child: const Text("Complete"),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => _updateAppointmentStatus(
+                context,
+                appointmentId,
+                'cancelled_by_groomy',
+              ),
+              child: const Text("Cancel"),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (status == 'awaiting_payment') {
+      return Center(
+        child: Text(
+          "Awaiting payment",
+          style: AppTheme.caption(color: Colors.grey),
+        ),
+      );
+    }
+
+    return Center(
+      child: Text(
+        "Already ${status.toUpperCase()}",
+        style: AppTheme.caption(color: Colors.grey),
+      ),
+    );
+  }
+
+  String _approvalTargetStatus(Map<String, dynamic> data) {
+    final raw = data['requiresPayment'] ?? data['serviceRequiresPayment'];
+
+    if (raw is bool) {
+      return raw ? 'awaiting_payment' : 'confirmed';
+    }
+
+    if (raw is num) {
+      return raw != 0 ? 'awaiting_payment' : 'confirmed';
+    }
+
+    final text = raw?.toString().trim().toLowerCase() ?? '';
+    if (text.isEmpty) {
+      return 'awaiting_payment';
+    }
+
+    if (text == 'true' ||
+        text == '1' ||
+        text == 'yes' ||
+        text == 'on' ||
+        text == 'required') {
+      return 'awaiting_payment';
+    }
+
+    if (text == 'false' ||
+        text == '0' ||
+        text == 'no' ||
+        text == 'off' ||
+        text == 'not_required') {
+      return 'confirmed';
+    }
+
+    return 'awaiting_payment';
   }
 
   Future<void> _updateAppointmentStatus(

@@ -36,11 +36,9 @@ class _VetDetailsPageState extends State<VetDetailsPage>
   final Map<String, int> _optimisticLikes = {};
   final Map<String, bool> _optimisticIsLiked = {};
   final Set<String> _likeBusy = {};
-  final ValueNotifier<double?> _liveRating =
-    ValueNotifier(null);
+  final ValueNotifier<double?> _liveRating = ValueNotifier(null);
 
-final ValueNotifier<int> _liveReviewCount =
-    ValueNotifier(0);
+  final ValueNotifier<int> _liveReviewCount = ValueNotifier(0);
   bool _openingAppointment = false;
 
   Map<String, dynamic>? get _workingHoursMap {
@@ -801,16 +799,13 @@ final ValueNotifier<int> _liveReviewCount =
         : '';
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream:
- FirebaseFirestore.instance
-   .collection('businesses')
-   .doc(vet.id)
-   .snapshots()
-   .distinct(
-     (prev,next) =>
-       prev.data().toString() ==
-       next.data().toString(),
-   ),
+      stream: FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(vet.id)
+          .snapshots()
+          .distinct(
+            (prev, next) => prev.data().toString() == next.data().toString(),
+          ),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};
         final rawProfile = data['sectorData']?['veterinary']?['profileContent'];
@@ -894,67 +889,42 @@ final ValueNotifier<int> _liveReviewCount =
 
                   // ⭐ Rating
                   Row(
-  children: [
+                    children: [
+                      const Icon(
+                        LucideIcons.star,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
 
-    const Icon(
-      LucideIcons.star,
-      size: 16,
-      color: Colors.amber,
-    ),
+                      const SizedBox(width: 6),
 
-    const SizedBox(width: 6),
+                      ValueListenableBuilder<double?>(
+                        valueListenable: _liveRating,
 
-    ValueListenableBuilder<double?>(
-      valueListenable: _liveRating,
+                        builder: (context, rating, _) {
+                          return Text(
+                            (rating ?? vet.rating)?.toStringAsFixed(1) ?? '-',
 
-      builder: (context, rating, _) {
+                            style: const TextStyle(color: Colors.white),
+                          );
+                        },
+                      ),
 
-        return Text(
+                      const SizedBox(width: 6),
 
-          (rating ?? vet.rating)
-                  ?.toStringAsFixed(1) ??
-              '-',
+                      ValueListenableBuilder<int>(
+                        valueListenable: _liveReviewCount,
 
-          style: const TextStyle(
-            color: Colors.white,
-          ),
+                        builder: (context, count, _) {
+                          return Text(
+                            '(${l10n.reviewsCountLabel(count != 0 ? count : (vet.reviewsCount ?? 0))})',
 
-        );
-
-      },
-
-    ),
-
-    const SizedBox(width: 6),
-
-    ValueListenableBuilder<int>(
-
-      valueListenable: _liveReviewCount,
-
-      builder: (context, count, _) {
-
-        return Text(
-
-          '(${l10n.reviewsCountLabel(
-
-            count != 0
-                ? count
-                : (vet.reviewsCount ?? 0),
-
-          )})',
-
-          style: const TextStyle(
-            color: Colors.white70,
-          ),
-
-        );
-
-      },
-
-    ),
-
-  ],
-),
+                            style: const TextStyle(color: Colors.white70),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
 
                   const SizedBox(height: 10),
 
@@ -1081,18 +1051,14 @@ final ValueNotifier<int> _liveReviewCount =
           .doc(widget.vet.id)
           .collection('services')
           .where('isActive', isEqualTo: true)
-         .snapshots()
-.distinct(
- (prev,next) {
+          .snapshots()
+          .distinct((prev, next) {
+            if (prev.docs.length != next.docs.length) {
+              return false;
+            }
 
-   if (prev.docs.length != next.docs.length) {
-     return false;
-   }
-
-   return true;
-
- },
-),
+            return true;
+          }),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -1137,8 +1103,8 @@ final ValueNotifier<int> _liveReviewCount =
 
             return GestureDetector(
               onTap: () {
-  _openAppointmentPage(service);
-},
+                _openAppointmentPage(service);
+              },
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -1321,8 +1287,8 @@ final ValueNotifier<int> _liveReviewCount =
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted &&
               (_liveRating != avg || _liveReviewCount != reviews.length)) {
-           _liveRating.value = avg;
-_liveReviewCount.value = reviews.length;
+            _liveRating.value = avg;
+            _liveReviewCount.value = reviews.length;
           }
         });
 

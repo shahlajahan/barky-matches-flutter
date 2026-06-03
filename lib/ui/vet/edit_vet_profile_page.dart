@@ -70,22 +70,18 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
       _emailController.text = (contact['email'] ?? '').toString();
       _websiteController.text = (contact['website'] ?? '').toString();
       final vetProfileContent =
-    (vetData['profileContent']
-            as Map<String, dynamic>?) ??
-        {};
+          (vetData['profileContent'] as Map<String, dynamic>?) ?? {};
 
-final socialMedia =
-    (vetProfileContent['socialMedia']
-            as Map<String, dynamic>?) ??
-        {};
+      final socialMedia =
+          (vetProfileContent['socialMedia'] as Map<String, dynamic>?) ?? {};
 
-_instagramController.text =
-    (socialMedia['instagram'] ??
-            vetProfile['instagram'] ??
-            vetData['instagram'] ??
-            contact['instagram'] ??
-            '')
-        .toString();
+      _instagramController.text =
+          (socialMedia['instagram'] ??
+                  vetProfile['instagram'] ??
+                  vetData['instagram'] ??
+                  contact['instagram'] ??
+                  '')
+              .toString();
       _cityController.text = (contact['city'] ?? '').toString();
       _districtController.text = (contact['district'] ?? '').toString();
       _addressController.text = (contact['address'] ?? '').toString();
@@ -138,20 +134,17 @@ _instagramController.text =
                 'vetName': _clinicNameController.text.trim(),
                 'workingHours': _workingHoursController.text.trim(),
                 'profile': {
-  'bio': _bioController.text.trim(),
-  'instagram':
-      _instagramController.text.trim(),
-},
+                  'bio': _bioController.text.trim(),
+                  'instagram': _instagramController.text.trim(),
+                },
 
-'profileContent': {
-  'bio':
-      _bioController.text.trim(),
+                'profileContent': {
+                  'bio': _bioController.text.trim(),
 
-  'socialMedia': {
-    'instagram':
-        _instagramController.text.trim(),
-  },
-},
+                  'socialMedia': {
+                    'instagram': _instagramController.text.trim(),
+                  },
+                },
                 'updatedAt': FieldValue.serverTimestamp(),
               },
               'veterinarian': {
@@ -159,20 +152,17 @@ _instagramController.text =
                 'vetName': _clinicNameController.text.trim(),
                 'workingHours': _workingHoursController.text.trim(),
                 'profile': {
-  'bio': _bioController.text.trim(),
-  'instagram':
-      _instagramController.text.trim(),
-},
+                  'bio': _bioController.text.trim(),
+                  'instagram': _instagramController.text.trim(),
+                },
 
-'profileContent': {
-  'bio':
-      _bioController.text.trim(),
+                'profileContent': {
+                  'bio': _bioController.text.trim(),
 
-  'socialMedia': {
-    'instagram':
-        _instagramController.text.trim(),
-  },
-},
+                  'socialMedia': {
+                    'instagram': _instagramController.text.trim(),
+                  },
+                },
                 'updatedAt': FieldValue.serverTimestamp(),
               },
             },
@@ -261,10 +251,7 @@ _instagramController.text =
                   _field(_whatsappController, 'WhatsApp'),
                   _field(_emailController, 'Email'),
                   _field(_websiteController, 'Website'),
-                  _field(
-  _instagramController,
-  'Instagram',
-),
+                  _field(_instagramController, 'Instagram'),
                   _field(_cityController, 'City'),
                   _field(_districtController, 'District'),
                   _field(_addressController, 'Address'),

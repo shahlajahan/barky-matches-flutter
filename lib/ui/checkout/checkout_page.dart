@@ -970,39 +970,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
           Text(l10n.checkoutCargoUpdatesQuestion),
           const SizedBox(height: 10),
           RadioListTile<String>(
-  value: "sms",
-  groupValue: notificationPreference,
-  contentPadding: EdgeInsets.zero,
+            value: "sms",
+            groupValue: notificationPreference,
+            contentPadding: EdgeInsets.zero,
 
-  title: Row(
-    children: [
+            title: Row(
+              children: [
+                Text(l10n.checkoutSmsOption),
 
-      Text(l10n.checkoutSmsOption),
+                const SizedBox(width: 8),
 
-      const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    "Yakında",
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
 
-      Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 3,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Text(
-          "Yakında",
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+            onChanged: null,
           ),
-        ),
-      ),
-    ],
-  ),
-
-  onChanged: null,
-),
           RadioListTile<String>(
             value: "email",
             groupValue: notificationPreference,

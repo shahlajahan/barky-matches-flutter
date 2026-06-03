@@ -69,20 +69,34 @@ class OrderReturnService {
 
   Stream<List<OrderReturnRecord>> watchSellerOrderReturns({
     required String sellerOrderId,
+    String? buyerUid,
+    String? businessId,
   }) {
-    return _db
+    debugPrint(
+      '🧾 watchSellerOrderReturns query sellerOrderId=$sellerOrderId '
+      'buyerUid=${buyerUid ?? "null"} businessId=${businessId ?? "null"}',
+    );
+
+    Query<Map<String, dynamic>> query = _db
         .collection('order_returns')
-        .where('sellerOrderId', isEqualTo: sellerOrderId)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map(OrderReturnRecord.fromDoc).toList()
-                ..sort((a, b) {
-                  final aTime = a.requestedAt?.millisecondsSinceEpoch ?? 0;
-                  final bTime = b.requestedAt?.millisecondsSinceEpoch ?? 0;
-                  return bTime.compareTo(aTime);
-                }),
-        );
+        .where('sellerOrderId', isEqualTo: sellerOrderId);
+
+    if (buyerUid != null && buyerUid.isNotEmpty) {
+      query = query.where('buyerUid', isEqualTo: buyerUid);
+    }
+
+    if (businessId != null && businessId.isNotEmpty) {
+      query = query.where('businessId', isEqualTo: businessId);
+    }
+
+    return query.snapshots().map(
+      (snapshot) =>
+          snapshot.docs.map(OrderReturnRecord.fromDoc).toList()..sort((a, b) {
+            final aTime = a.requestedAt?.millisecondsSinceEpoch ?? 0;
+            final bTime = b.requestedAt?.millisecondsSinceEpoch ?? 0;
+            return bTime.compareTo(aTime);
+          }),
+    );
   }
 
   Future<String> createReturnRequest({

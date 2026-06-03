@@ -447,20 +447,19 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
- void closeVaccineNotification() {
+  void closeVaccineNotification() {
+    activeVaccineBusinessId = null;
 
-  activeVaccineBusinessId = null;
+    activeVaccinePatientId = null;
 
-  activeVaccinePatientId = null;
+    activeVaccineId = null;
 
-  activeVaccineId = null;
+    activeVaccinePetId = null;
 
-  activeVaccinePetId = null;
+    closeVetDetails(); // 👈 add this
 
-  closeVetDetails(); // 👈 add this
-
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
   void closeBusinessAppointment() {
     _businessAppointment = null;
@@ -1537,6 +1536,9 @@ class AppState with ChangeNotifier {
 
     _authSub = authEvents.listen(
       (user) {
+        debugPrint(
+          'AUTH STATE CHANGED → user=${user?.uid ?? "NULL"} source=${AuthTrap.authProbeMinimalMode ? "authStateChanges" : "idTokenChanges"}',
+        );
         // ─────────────────────────────
         // USER LOGGED OUT
         // ─────────────────────────────
@@ -3018,7 +3020,9 @@ class AppState with ChangeNotifier {
     if (type == 'groomy_appointment_request') {
       final appointmentId = payload['appointmentId']?.toString();
 
-      debugPrint("✂️ GROOMY APPOINTMENT TAP → $appointmentId");
+      debugPrint(
+        "✂️ GROOMY APPOINTMENT TAP → $appointmentId openedFromNotification=true",
+      );
 
       closeNotifications();
 
@@ -3055,6 +3059,32 @@ class AppState with ChangeNotifier {
 
       setOpenAppointmentId(appointmentId);
       openBusinessDashboard();
+
+      return;
+    }
+
+    if (type == 'invoice_reminder' || type == 'payment_window_expired') {
+      final sellerOrderId = payload['sellerOrderId']?.toString();
+      final rootOrderId = payload['orderId']?.toString();
+
+      debugPrint("🧾 INVOICE NOTIF sellerOrderId = $sellerOrderId");
+      debugPrint("🧾 INVOICE NOTIF rootOrderId = $rootOrderId");
+
+      if ((sellerOrderId == null || sellerOrderId.isEmpty) &&
+          (rootOrderId == null || rootOrderId.isEmpty)) {
+        debugPrint("❌ INVOICE NOTIF HAS NO ORDER ID");
+        return;
+      }
+
+      closeNotifications();
+
+      _ignoreNextNotificationTap = true;
+      ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
+
+      debugPrint(
+        "🧾 OPEN ORDER FROM INVOICE → ${sellerOrderId ?? rootOrderId}",
+      );
+      openOrderSmart(sellerOrderId, rootOrderId);
 
       return;
     }
@@ -3142,7 +3172,9 @@ class AppState with ChangeNotifier {
       final appointmentId = payload['appointmentId']?.toString();
       final status = payload['status']?.toString().toLowerCase();
 
-      debugPrint("✂️ GROOMY RESPONSE TAP → $appointmentId / $status");
+      debugPrint(
+        "✂️ GROOMY RESPONSE TAP → $appointmentId / $status openedFromNotification=true",
+      );
 
       if (appointmentId == null || appointmentId.isEmpty) return;
 
@@ -3151,8 +3183,24 @@ class AppState with ChangeNotifier {
       _ignoreNextNotificationTap = true;
       ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
 
-      setCurrentTab(NavTab.profile);
-      openProfileSubPage(ProfileSubPage.appointments);
+      final shouldOpenPayment =
+          status == 'awaiting_payment' ||
+          status == 'confirmed' ||
+          status == 'confirmed_paid';
+
+      if (shouldOpenPayment) {
+        setSelectedAppointmentId(
+          appointmentId,
+          collection:
+              payload['appointmentCollection']?.toString() ??
+              'groomy_appointments',
+        );
+        debugPrint("💳 GROOMY RESPONSE → open payment flow");
+        setCurrentTab(NavTab.home);
+      } else {
+        setCurrentTab(NavTab.profile);
+        openProfileSubPage(ProfileSubPage.appointments);
+      }
 
       return;
     }
@@ -3299,14 +3347,12 @@ class AppState with ChangeNotifier {
 
       setCurrentTab(NavTab.vet);
 
-openVaccineDetail(
-  vaccineId: vaccineId,
-  patientId: patientId,
-  businessId: businessId,
-  petId: petId,
-);
-
-
+      openVaccineDetail(
+        vaccineId: vaccineId,
+        patientId: patientId,
+        businessId: businessId,
+        petId: petId,
+      );
 
       return;
     }
@@ -3389,29 +3435,28 @@ openVaccineDetail(
     debugPrint('⚠️ Unknown notification type: $rawType');
   }
 
+  void openVaccineDetail({
+    required String vaccineId,
+    required String patientId,
+    required String businessId,
+    String? petId,
+  }) {
+    activeVaccineId = vaccineId;
+    activeVaccinePatientId = patientId;
+    activeVaccineBusinessId = businessId;
+    activeVaccinePetId = petId;
 
-void openVaccineDetail({
-  required String vaccineId,
-  required String patientId,
-  required String businessId,
-  String? petId,
-}) {
-  activeVaccineId = vaccineId;
-  activeVaccinePatientId = patientId;
-  activeVaccineBusinessId = businessId;
-  activeVaccinePetId = petId;
+    notifyListeners();
+  }
 
-  notifyListeners();
-}
+  void closeVaccineDetail() {
+    activeVaccineId = null;
+    activeVaccinePatientId = null;
+    activeVaccineBusinessId = null;
+    activeVaccinePetId = null;
 
-void closeVaccineDetail() {
-  activeVaccineId = null;
-  activeVaccinePatientId = null;
-  activeVaccineBusinessId = null;
-  activeVaccinePetId = null;
-
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
   void applyPlaymateFilters(Map<String, dynamic> filters) {
     playmateFilters = filters;
@@ -3514,21 +3559,11 @@ void closeVaccineDetail() {
 
     // 💉 اگر داریم از vaccine notification خارج میشیم
 
-if (
-
-    _currentTab == NavTab.vet &&
-
-    tab != NavTab.vet &&
-
-    activeVaccineId != null
-
-) {
-
-  closeVaccineNotification();
-
-}
-
-
+    if (_currentTab == NavTab.vet &&
+        tab != NavTab.vet &&
+        activeVaccineId != null) {
+      closeVaccineNotification();
+    }
 
     // هر بار tab عوض میشه overlay بسته بشه
     _homeOverlay = HomeOverlay.none;
@@ -3621,21 +3656,17 @@ if (
 
   BusinessCardData? selectedGroomy;
 
-void openGroomyDetails(
-  BusinessCardData groomy,
-) {
+  void openGroomyDetails(BusinessCardData groomy) {
+    selectedGroomy = groomy;
 
-  selectedGroomy = groomy;
+    notifyListeners();
+  }
 
-  notifyListeners();
-}
+  void closeGroomyDetails() {
+    selectedGroomy = null;
 
-void closeGroomyDetails() {
-
-  selectedGroomy = null;
-
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
   // ─── شروع Listener واقعی برای unread notifications ───
   void startUnreadNotificationsListener() {

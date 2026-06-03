@@ -4,514 +4,319 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class VerifyPhonePage extends StatefulWidget {
+  final String phone;
 
-final String phone;
+  final String userId;
 
-final String userId;
+  const VerifyPhonePage({super.key, required this.phone, required this.userId});
 
-const VerifyPhonePage({
-
-super.key,
-
-required this.phone,
-
-required this.userId,
-
-});
-
-@override
-State<VerifyPhonePage> createState() =>
-_VerifyPhonePageState();
-
+  @override
+  State<VerifyPhonePage> createState() => _VerifyPhonePageState();
 }
 
-class _VerifyPhonePageState
-extends State<VerifyPhonePage> {
+class _VerifyPhonePageState extends State<VerifyPhonePage> {
+  final TextEditingController _codeController = TextEditingController();
 
-final TextEditingController
-_codeController=
-TextEditingController();
+  bool _loading = false;
 
-bool _loading=false;
+  String? verificationId;
 
-String? verificationId;
+  @override
+  void initState() {
+    super.initState();
 
-@override
-void initState(){
+    _sendCode();
+  }
 
-super.initState();
-
-_sendCode();
-
-}
-
-Future<void> _sendCode() async {
-
+  Future<void> _sendCode() async {
     verificationId = null;
 
-    debugPrint(
-'VERIFY PAGE SEND CODE CALLED'
-);
+    debugPrint('VERIFY PAGE SEND CODE CALLED');
 
-debugPrint(
-'PHONE => ${widget.phone}'
-);
+    debugPrint('PHONE => ${widget.phone}');
 
-await FirebaseAuth.instance.verifyPhoneNumber(
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: widget.phone,
 
-phoneNumber: widget.phone,
+      verificationCompleted: (credential) {},
 
-verificationCompleted:(credential){},
+      verificationFailed: (e) {
+        debugPrint('PHONE VERIFY FAILED: ${e.code}');
 
-verificationFailed:(e){
+        debugPrint('PHONE VERIFY MESSAGE: ${e.message}');
 
-debugPrint(
-'PHONE VERIFY FAILED: ${e.code}'
-);
+        debugPrint('PHONE VERIFY FULL: $e');
 
-debugPrint(
-'PHONE VERIFY MESSAGE: ${e.message}'
-);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${e.code}\n${e.message}')));
+        }
+      },
 
-debugPrint(
-'PHONE VERIFY FULL: $e'
-);
+      codeSent: (id, resend) {
+        verificationId = id;
 
-if(mounted){
+        debugPrint('CODE SENT');
 
-ScaffoldMessenger.of(context)
-.showSnackBar(
+        debugPrint('VERIFICATION ID = $id');
+      },
 
-SnackBar(
+      codeAutoRetrievalTimeout: (id) {
+        verificationId = id;
 
-content: Text(
+        debugPrint('TIMEOUT ID = $id');
+      },
+    );
+  }
 
-'${e.code}\n${e.message}',
+  Future<void> _verify() async {
+    if (verificationId == null || _codeController.text.length != 6) return;
 
-),
+    setState(() => _loading = true);
 
-),
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId!,
 
-);
+        smsCode: _codeController.text.trim(),
+      );
 
-}
+      await FirebaseAuth.instance.signInWithCredential(credential);
 
-},
+      final authUser = FirebaseAuth.instance.currentUser!;
 
-codeSent:(id,resend){
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(authUser.uid)
+          .set({
+            'uid': authUser.uid,
 
-verificationId=id;
+            'phone': widget.phone,
 
-debugPrint(
-'CODE SENT'
-);
+            'phoneVerified': true,
 
-debugPrint(
-'VERIFICATION ID = $id'
-);
+            'createdAt': FieldValue.serverTimestamp(),
 
-},
+            'username': '',
 
-codeAutoRetrievalTimeout:(id){
+            'email': '',
+          }, SetOptions(merge: true));
 
-verificationId=id;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(authUser.uid)
+          .set({
+            'phone': widget.phone,
 
-debugPrint(
-'TIMEOUT ID = $id'
-);
+            'phoneVerified': true,
 
-},
+            'phoneVerifiedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
-);
+      if (!mounted) return;
 
-}
+      Navigator.pop(context, true);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
 
-Future<void> _verify() async {
+    setState(() => _loading = false);
+  }
 
-if(
-verificationId==null ||
-_codeController.text.length!=6
-)return;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
 
-setState(()=>_loading=true);
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.pink, Colors.pinkAccent],
 
-try{
+              begin: Alignment.topLeft,
 
-final credential=
+              end: Alignment.bottomRight,
+            ),
+          ),
 
-PhoneAuthProvider.credential(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
 
-verificationId: verificationId!,
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
 
-smsCode:
-_codeController.text.trim(),
+                /// BACK + CHANGE NUMBER
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        Navigator.pop(context, false);
+                      },
 
-);
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    ),
 
-await FirebaseAuth.instance
-.signInWithCredential(
-credential,
-);
+                    const Spacer(),
 
-final authUser =
-FirebaseAuth.instance.currentUser!;
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context, false);
+                      },
 
-await FirebaseFirestore.instance
-.collection('users')
-.doc(authUser.uid)
-.set({
+                      child: const Text(
+                        "Change Number",
 
-'uid': authUser.uid,
+                        style: TextStyle(
+                          color: Colors.white,
 
-'phone': widget.phone,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
 
-'phoneVerified': true,
+                const SizedBox(height: 40),
 
-'createdAt':
-FieldValue.serverTimestamp(),
+                Text(
+                  "Verify Phone",
 
-'username': '',
+                  style: GoogleFonts.dancingScript(
+                    fontSize: 42,
 
-'email': '',
+                    fontWeight: FontWeight.w700,
 
-},
+                    color: Colors.white,
+                  ),
+                ),
 
-SetOptions(
-merge:true,
-),
-);
+                const SizedBox(height: 20),
 
-await FirebaseFirestore.instance
-.collection('users')
-.doc(authUser.uid)
-.set({
+                Text(
+                  "Enter code sent to\n${widget.phone}",
 
-'phone':widget.phone,
+                  textAlign: TextAlign.center,
 
-'phoneVerified':true,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
 
-'phoneVerifiedAt':
-FieldValue.serverTimestamp(),
+                    color: Colors.white70,
+                  ),
+                ),
 
-},
+                const SizedBox(height: 35),
 
-SetOptions(
-merge:true,
-),
+                TextField(
+                  controller: _codeController,
 
-);
+                  keyboardType: TextInputType.number,
 
-if(!mounted)return;
+                  maxLength: 6,
 
-Navigator.pop(
-context,
-true,
-);
+                  style: const TextStyle(color: Colors.white, fontSize: 24),
 
-}catch(e){
+                  textAlign: TextAlign.center,
 
-ScaffoldMessenger.of(context)
-.showSnackBar(
+                  decoration: InputDecoration(
+                    counterText: "",
 
-SnackBar(
-content: Text(
-e.toString(),
-),
-),
+                    filled: true,
 
-);
+                    fillColor: Colors.white24,
 
-}
+                    labelText: "Code",
 
-setState(()=>_loading=false);
+                    labelStyle: const TextStyle(color: Colors.white70),
 
-}
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
 
-@override
-Widget build(BuildContext context){
+                      borderSide: BorderSide(
+                        color: Colors.white.withOpacity(.4),
+                      ),
+                    ),
 
-return Scaffold(
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
 
-body: Container(
+                      borderSide: const BorderSide(
+                        color: Colors.amber,
 
-decoration:
-const BoxDecoration(
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
 
-gradient:
-LinearGradient(
+                const SizedBox(height: 28),
 
-colors:[
-Colors.pink,
-Colors.pinkAccent
-],
+                SizedBox(
+                  width: 220,
 
-begin:
-Alignment.topLeft,
+                  height: 60,
 
-end:
-Alignment.bottomRight,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _verify,
 
-),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
 
-),
+                      foregroundColor: Colors.black,
 
-child: Center(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
 
-child: SingleChildScrollView(
+                    child: _loading
+                        ? const CircularProgressIndicator()
+                        : const Text(
+                            "Verify",
 
-padding:
-const EdgeInsets.all(16),
+                            style: TextStyle(
+                              fontSize: 24,
 
-child: Column(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
 
-mainAxisAlignment:
-MainAxisAlignment.center,
+                const SizedBox(height: 20),
 
-children:[
+                TextButton(
+                  onPressed: () async {
+                    await _sendCode();
 
-Text(
+                    if (!mounted) return;
 
-"Verify Phone",
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("New code sent")),
+                    );
+                  },
 
-style:
-GoogleFonts.dancingScript(
+                  child: const Text(
+                    "Resend Code",
 
-fontSize:32,
+                    style: TextStyle(
+                      fontSize: 22,
 
-fontWeight:
-FontWeight.w700,
+                      color: Colors.white,
 
-color:
-Colors.white,
-
-),
-
-),
-
-const SizedBox(
-height:20,
-),
-
-Text(
-
-"Enter code sent to ${widget.phone}",
-
-textAlign:
-TextAlign.center,
-
-style:
-GoogleFonts.poppins(
-
-color:
-Colors.white70,
-
-fontSize:16,
-
-),
-
-),
-
-const SizedBox(
-height:25,
-),
-
-TextField(
-
-controller:
-_codeController,
-
-keyboardType:
-TextInputType.number,
-
-maxLength:6,
-
-style:
-const TextStyle(
-color: Colors.black,
-),
-
-decoration:
-InputDecoration(
-
-counterText:"",
-
-filled:true,
-
-fillColor:
-Colors.white24,
-
-labelText:
-"Code",
-
-labelStyle:
-const TextStyle(
-color: Colors.black54,
-),
-
-border:
-OutlineInputBorder(
-
-borderRadius:
-BorderRadius.circular(
-20,
-),
-
-borderSide:
-BorderSide.none,
-
-),
-
-),
-
-),
-
-const SizedBox(
-height:25,
-),
-
-SizedBox(
-
-width:150,
-
-height:55,
-
-child:
-
-ElevatedButton(
-
-onPressed:
-_loading
-?null
-:_verify,
-
-style:
-ElevatedButton.styleFrom(
-
-backgroundColor:
-Colors.amber,
-
-foregroundColor:
-Colors.black,
-
-shape:
-RoundedRectangleBorder(
-
-borderRadius:
-BorderRadius.circular(
-18,
-),
-
-),
-
-),
-
-child:
-
-_loading
-
-?const SizedBox(
-
-height:24,
-
-width:24,
-
-child:
-
-CircularProgressIndicator(
-
-strokeWidth:3,
-
-color:Colors.black,
-
-),
-
-)
-
-:const Text(
-
-"Verify",
-
-style:
-
-TextStyle(
-
-fontSize:18,
-
-fontWeight:
-FontWeight.bold,
-
-),
-
-),
-
-),
-
-),
-
-const SizedBox(
-height:16,
-),
-
-TextButton(
-
-onPressed: () async {
-
-await _sendCode();
-
-if(!mounted)return;
-
-ScaffoldMessenger.of(context)
-.showSnackBar(
-
-const SnackBar(
-
-content:
-Text(
-'New code sent',
-),
-
-),
-
-);
-
-},
-
-child:
-
-const Text(
-
-"Resend Code",
-
-style:
-
-TextStyle(
-
-color:
-Colors.white,
-
-fontSize:16,
-
-fontWeight:
-FontWeight.w600,
-
-),
-
-),
-
-),
-
-],
-
-),
-
-),
-
-),
-
-),
-
-);
-
-}
-
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

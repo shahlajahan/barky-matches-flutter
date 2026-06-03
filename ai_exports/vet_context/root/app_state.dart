@@ -444,20 +444,19 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
- void closeVaccineNotification() {
+  void closeVaccineNotification() {
+    activeVaccineBusinessId = null;
 
-  activeVaccineBusinessId = null;
+    activeVaccinePatientId = null;
 
-  activeVaccinePatientId = null;
+    activeVaccineId = null;
 
-  activeVaccineId = null;
+    activeVaccinePetId = null;
 
-  activeVaccinePetId = null;
+    closeVetDetails(); // 👈 add this
 
-  closeVetDetails(); // 👈 add this
-
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
   void closeBusinessAppointment() {
     _businessAppointment = null;
@@ -3296,14 +3295,12 @@ class AppState with ChangeNotifier {
 
       setCurrentTab(NavTab.vet);
 
-openVaccineDetail(
-  vaccineId: vaccineId,
-  patientId: patientId,
-  businessId: businessId,
-  petId: petId,
-);
-
-
+      openVaccineDetail(
+        vaccineId: vaccineId,
+        patientId: patientId,
+        businessId: businessId,
+        petId: petId,
+      );
 
       return;
     }
@@ -3316,31 +3313,41 @@ openVaccineDetail(
       'order_update',
       'order_created',
       'new_paid_order',
+
+      // NEW
+      'invoice_reminder',
+      'payment_window_expired',
     ];
 
-    if (orderTypes.any((t) => type.contains(t))) {
+    if (orderTypes.contains(type)) {
       final sellerOrderId = payload['sellerOrderId']?.toString();
+
       final rootOrderId = payload['orderId']?.toString();
 
       debugPrint("📦 NOTIF sellerOrderId = $sellerOrderId");
       debugPrint("📦 NOTIF rootOrderId = $rootOrderId");
 
-      if ((sellerOrderId == null || sellerOrderId.isEmpty) &&
-          (rootOrderId == null || rootOrderId.isEmpty)) {
-        debugPrint("❌ NO ORDER ID AT ALL");
+      final idToOpen = (sellerOrderId != null && sellerOrderId.isNotEmpty)
+          ? sellerOrderId
+          : rootOrderId;
+
+      if (idToOpen == null || idToOpen.isEmpty) {
+        debugPrint("❌ ORDER ID NULL");
+
         return;
       }
 
       closeNotifications();
 
       _ignoreNextNotificationTap = true;
+
       ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
 
-      final idToOpen = (sellerOrderId != null && sellerOrderId.isNotEmpty)
-          ? sellerOrderId
-          : rootOrderId!;
-
       debugPrint("📦 OPEN ORDER → $idToOpen");
+
+      setCurrentTab(NavTab.profile);
+
+      openProfileSubPage(ProfileSubPage.myOrders);
 
       openOrderSmart(sellerOrderId, rootOrderId);
 
@@ -3386,29 +3393,28 @@ openVaccineDetail(
     debugPrint('⚠️ Unknown notification type: $rawType');
   }
 
+  void openVaccineDetail({
+    required String vaccineId,
+    required String patientId,
+    required String businessId,
+    String? petId,
+  }) {
+    activeVaccineId = vaccineId;
+    activeVaccinePatientId = patientId;
+    activeVaccineBusinessId = businessId;
+    activeVaccinePetId = petId;
 
-void openVaccineDetail({
-  required String vaccineId,
-  required String patientId,
-  required String businessId,
-  String? petId,
-}) {
-  activeVaccineId = vaccineId;
-  activeVaccinePatientId = patientId;
-  activeVaccineBusinessId = businessId;
-  activeVaccinePetId = petId;
+    notifyListeners();
+  }
 
-  notifyListeners();
-}
+  void closeVaccineDetail() {
+    activeVaccineId = null;
+    activeVaccinePatientId = null;
+    activeVaccineBusinessId = null;
+    activeVaccinePetId = null;
 
-void closeVaccineDetail() {
-  activeVaccineId = null;
-  activeVaccinePatientId = null;
-  activeVaccineBusinessId = null;
-  activeVaccinePetId = null;
-
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
   void applyPlaymateFilters(Map<String, dynamic> filters) {
     playmateFilters = filters;
@@ -3511,19 +3517,11 @@ void closeVaccineDetail() {
 
     // 💉 اگر داریم از vaccine notification خارج میشیم
 
-if (
-
-    _currentTab == NavTab.vet &&
-
-    tab != NavTab.vet &&
-
-    activeVaccineId != null
-
-) {
-
-  closeVaccineNotification();
-
-}
+    if (_currentTab == NavTab.vet &&
+        tab != NavTab.vet &&
+        activeVaccineId != null) {
+      closeVaccineNotification();
+    }
 
     // هر بار tab عوض میشه overlay بسته بشه
     _homeOverlay = HomeOverlay.none;

@@ -504,11 +504,27 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   ) {
     final l10n = AppLocalizations.of(context)!;
     final buyerUid = (data['buyerUid'] ?? '').toString();
+    final sellerBusinessId = (data['businessId'] ?? data['shopId'] ?? '')
+        .toString();
+
+    debugPrint(
+      '🧾 Return Requests stream → sellerOrderId=${widget.sellerOrderId} '
+      'isSeller=$isSeller currentUserId=$currentUserId '
+      'buyerUid=$buyerUid businessId=$sellerBusinessId',
+    );
+
+    final returnStream = isSeller
+        ? OrderReturnService.instance.watchSellerOrderReturns(
+            sellerOrderId: widget.sellerOrderId,
+            businessId: sellerBusinessId,
+          )
+        : OrderReturnService.instance.watchSellerOrderReturns(
+            sellerOrderId: widget.sellerOrderId,
+            buyerUid: currentUserId,
+          );
 
     return StreamBuilder<List<OrderReturnRecord>>(
-      stream: OrderReturnService.instance.watchSellerOrderReturns(
-        sellerOrderId: widget.sellerOrderId,
-      ),
+      stream: returnStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _sectionCard(

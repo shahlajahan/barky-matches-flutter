@@ -671,6 +671,9 @@ class _AuthPageState extends State<AuthPage> {
           .signInWithEmailAndPassword(email: trimmedEmail, password: password);
 
       final signedInUser = userCredential.user;
+      debugPrint(
+        "PROVIDERS = ${signedInUser?.providerData.map((e) => e.providerId).toList()}",
+      );
 
       if (signedInUser == null) {
         return {
@@ -684,6 +687,14 @@ class _AuthPageState extends State<AuthPage> {
       userId = signedInUser.uid;
 
       Map<String, dynamic> userData = await _fetchUserDataIsolate(userId);
+
+      await signedInUser.reload();
+
+      debugPrint(
+        "FIREBASE VERIFIED = ${FirebaseAuth.instance.currentUser?.emailVerified}",
+      );
+
+      debugPrint("FIRESTORE VERIFIED = ${userData['emailVerified']}");
 
       if (userData.isEmpty) {
         userData = {
@@ -704,7 +715,13 @@ class _AuthPageState extends State<AuthPage> {
             .set(userData, SetOptions(merge: true));
       }
 
-      if (userData['emailVerified'] == false) {
+      if (userData['emailVerified'] == false &&
+          userData['phoneVerified'] != true) {
+        debugPrint(
+          "BLOCK LOGIN -> emailVerified=${userData['emailVerified']} "
+          "phoneVerified=${userData['phoneVerified']}",
+        );
+
         return {
           'isAuthenticated': false,
           'errorMessage': l10n.pleaseVerifyEmailBeforeSigningIn,
@@ -835,21 +852,17 @@ class _AuthPageState extends State<AuthPage> {
       await ensureFirebase();
 
       final trimmedEmail = email.trim().toLowerCase();
-if(_usePhoneSignup){
+      if (_usePhoneSignup) {
+        return {
+          'success': true,
 
-return {
+          'userId': FirebaseAuth.instance.currentUser?.uid,
 
-'success': true,
+          'requestId': null,
 
-'userId': FirebaseAuth.instance.currentUser?.uid,
-
-'requestId': null,
-
-'errorMessage': null,
-
-};
-
-}
+          'errorMessage': null,
+        };
+      }
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: trimmedEmail,
         password: password,
@@ -1271,9 +1284,7 @@ return {
         }
 
         final username = _usernameController.text.trim();
-        final email = _usePhoneSignup
-    ? ''
-    : _emailController.text.trim();
+        final email = _usePhoneSignup ? '' : _emailController.text.trim();
         final password = _passwordController.text.trim(); // ✅ باید اینجا باشه
         if (kDebugMode) {
           debugPrint("👤 USERNAME PROVIDED = ${username.isNotEmpty}");
@@ -1307,16 +1318,16 @@ return {
           district,
         );
 
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-
         final bool success = result['success'] ?? false;
 
         final String? errorMessage = result['errorMessage'];
         final String? userId = result['userId']; // ✅ اضافه کن
         final String? requestId = result['requestId'];
+
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
 
         if (success && userId != null && mounted && context.mounted) {
           final currentUserBoxStorage = Hive.box<String>('currentUserBox');
@@ -1329,65 +1340,29 @@ return {
           debugPrint('AuthPage - Receive news preference saved: $_receiveNews');
 
           if (_usePhoneSignup) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VerifyPhonePage(phone: phone!, userId: userId),
+              ),
+            ).then((verified) async {
+              if (verified == true) {
+                await Hive.box<String>(
+                  'currentUserBox',
+                ).put('currentUserId', userId);
 
-        final fullPhoneNumber =
-'+90${_phoneController.text.trim()}';
+                Provider.of<AppState>(
+                  context,
+                  listen: false,
+                ).updateUserId(userId);
 
-debugPrint(
-'FULL PHONE NUMBER =====> $fullPhoneNumber'
-);    
-
-  Navigator.push(
-
-    context,
-
-    MaterialPageRoute(
-
-      builder: (_) => VerifyPhonePage(
-
-        phone: phone!,
-
-        userId: userId,
-
-      ),
-
-    ),
-
-  ).then((verified) async {
-
-    if (verified == true) {
-
-      await Hive.box<String>(
-        'currentUserBox',
-      ).put(
-        'currentUserId',
-        userId,
-      );
-
-      Provider.of<AppState>(
-        context,
-        listen: false,
-      ).updateUserId(
-        userId,
-      );
-
-      Navigator.of(context)
-          .pushAndRemoveUntil(
-
-        MaterialPageRoute(
-          builder: (_) =>
-              const HomeGate(),
-        ),
-
-        (route) => false,
-
-      );
-
-    }
-
-  });
-
-} else {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomeGate()),
+                  (route) => false,
+                );
+              }
+            });
+          } else {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -1414,6 +1389,11 @@ debugPrint(
                 );
               }
             });
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
           }
         } else if (errorMessage != null && mounted && context.mounted) {
           debugPrint('AuthPage - Registration failed: $errorMessage');

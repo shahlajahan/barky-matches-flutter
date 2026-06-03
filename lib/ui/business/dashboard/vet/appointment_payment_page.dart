@@ -9,7 +9,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
 
 class AppointmentPaymentPage extends StatefulWidget {
   final String appointmentId;
@@ -213,6 +215,90 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     }
   }
 
+  Future<void> _syncClientRecordAfterPayment() async {
+    final data = appointment;
+    if (data == null) return;
+
+    if (widget.appointmentCollection == 'hotel_bookings') {
+      return;
+    }
+
+    final businessId = data['businessId']?.toString().trim() ?? '';
+    final petId = (data['petId'] ?? data['dogId'])?.toString().trim() ?? '';
+    final ownerId =
+        (data['ownerId'] ??
+                data['petOwnerUid'] ??
+                data['userId'] ??
+                data['requesterUserId'])
+            ?.toString()
+            .trim() ??
+        '';
+    final petName = (data['petName'] ?? data['dogName'] ?? data['pet'] ?? 'Pet')
+        .toString();
+    final ownerName =
+        (data['ownerName'] ??
+                data['username'] ??
+                data['clientName'] ??
+                data['owner'] ??
+                'Owner')
+            .toString();
+    final breed = (data['petBreed'] ?? data['breed'] ?? data['dogBreed'] ?? '')
+        .toString();
+    final phone = (data['ownerPhone'] ?? data['phone'] ?? '').toString().trim();
+    final appointmentDateRaw = data['scheduledAt'] ?? data['scheduledDateTime'];
+    final appointmentDate = appointmentDateRaw is Timestamp
+        ? appointmentDateRaw.toDate()
+        : null;
+
+    if (widget.appointmentCollection == 'groomy_appointments') {
+      if (businessId.isEmpty || petId.isEmpty) return;
+
+      await GroomyClientsPage.upsertClientFromAppointment(
+        businessId: businessId,
+        petId: petId,
+        ownerId: ownerId.isEmpty ? 'unknown' : ownerId,
+        petName: petName,
+        ownerName: ownerName,
+        breed: breed.isEmpty ? null : breed,
+        phone: phone.isEmpty ? null : phone,
+        appointmentDate: appointmentDate,
+      );
+      return;
+    }
+
+    if (widget.appointmentCollection != 'vet_appointments') {
+      return;
+    }
+
+    if (businessId.isEmpty || petId.isEmpty) return;
+
+    final patientId = '${businessId}_$petId';
+    final patientRef = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(businessId)
+        .collection('patients')
+        .doc(patientId);
+
+    await patientRef.set({
+      'businessId': businessId,
+      'patientId': patientId,
+      'petId': petId,
+      'ownerId': ownerId.isEmpty ? 'unknown' : ownerId,
+      'petName': petName,
+      'ownerName': ownerName,
+      'breed': breed,
+      'ownerPhone': phone,
+      'phone': phone,
+      'createdFrom': 'appointment',
+      'source': 'appointment_auto',
+      'lastAppointmentAt': appointmentDate != null
+          ? Timestamp.fromDate(appointmentDate)
+          : FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> _startPayment() async {
     if (appointment == null || paying) return;
 
@@ -262,6 +348,8 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         final verifyData = Map<String, dynamic>.from(verifyResult.data as Map);
 
         debugPrint("✅ PAYMENT VERIFIED → $verifyData");
+
+        await _syncClientRecordAfterPayment();
 
         if (!mounted) return;
 

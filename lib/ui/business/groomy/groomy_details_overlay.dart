@@ -109,8 +109,6 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
     return null;
   }
 
- 
-
   List<Map<String, dynamic>> _fallbackServices() {
     final servicesData = _groomyData['services'];
     List<String> titles = [];
@@ -122,8 +120,6 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
     } else if (widget.data.services != null) {
       titles = widget.data.services!;
     }
-
-   
 
     return titles
         .where((title) => title.trim().isNotEmpty)
@@ -779,348 +775,221 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
     );
   }
 
- Widget _buildHeader() {
-  final status = _openingStatusLabel();
-  final l10n = AppLocalizations.of(context)!;
+  Widget _buildHeader() {
+    final status = _openingStatusLabel();
+    final l10n = AppLocalizations.of(context)!;
 
-  final fallbackImageUrl =
-      (widget.data.logoUrl != null &&
-              widget.data.logoUrl!.isNotEmpty)
-          ? widget.data.logoUrl!
-          : '';
+    final fallbackImageUrl =
+        (widget.data.logoUrl != null && widget.data.logoUrl!.isNotEmpty)
+        ? widget.data.logoUrl!
+        : '';
 
-  return StreamBuilder<
-      DocumentSnapshot<
-          Map<String, dynamic>>>(
-    stream: FirebaseFirestore.instance
-        .collection('businesses')
-        .doc(widget.data.id)
-        .snapshots()
-        .distinct(
-          (prev, next) =>
-              prev.data().toString() ==
-              next.data().toString(),
-        ),
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(widget.data.id)
+          .snapshots()
+          .distinct(
+            (prev, next) => prev.data().toString() == next.data().toString(),
+          ),
 
-    builder: (context, snapshot) {
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() ?? {};
 
-      final data =
-          snapshot.data?.data() ?? {};
+        final sectorData = Map<String, dynamic>.from(data['sectorData'] ?? {});
 
-      final sectorData =
-          Map<String, dynamic>.from(
-        data['sectorData'] ?? {},
-      );
+        final groomyData = Map<String, dynamic>.from(
+          sectorData['groomy'] ??
+              sectorData['groomer'] ??
+              sectorData['grooming'] ??
+              {},
+        );
 
-      final groomyData =
-          Map<String, dynamic>.from(
-        sectorData['groomy'] ??
-            sectorData['groomer'] ??
-            sectorData['grooming'] ??
-            {},
-      );
+        final profileContent = Map<String, dynamic>.from(
+          groomyData['profileContent'] ?? groomyData['profile'] ?? {},
+        );
 
-      final profileContent =
-          Map<String, dynamic>.from(
-        groomyData['profileContent'] ??
-            groomyData['profile'] ??
-            {},
-      );
+        final liveImages = data['images'] is List
+            ? List<String>.from(data['images'])
+            : <String>[];
 
-      final liveImages =
-          data['images'] is List
-              ? List<String>.from(
-                  data['images'],
-                )
-              : <String>[];
+        final imageUrl =
+            [
+                  data['coverImageUrl'],
 
-      final imageUrl =
-          [
-            data['coverImageUrl'],
+                  profileContent['coverImageUrl'],
 
-            profileContent[
-                'coverImageUrl'],
+                  profileContent['coverUrl'],
 
-            profileContent[
-                'coverUrl'],
+                  groomyData['coverImageUrl'],
 
-            groomyData[
-                'coverImageUrl'],
+                  groomyData['coverImage'],
 
-            groomyData[
-                'coverImage'],
+                  if (liveImages.isNotEmpty) liveImages.first,
 
-            if (liveImages.isNotEmpty)
-              liveImages.first,
+                  fallbackImageUrl,
+                ]
+                .map((e) => e?.toString().trim() ?? '')
+                .firstWhere((e) => e.isNotEmpty, orElse: () => '');
 
-            fallbackImageUrl,
-          ]
-              .map(
-                (e) =>
-                    e?.toString()
-                        .trim() ??
-                    '',
-              )
-              .firstWhere(
-                (e) => e.isNotEmpty,
-                orElse: () => '',
-              );
+        return Stack(
+          children: [
+            Container(
+              height: 200,
+              width: double.infinity,
+              color: Colors.grey.shade200,
 
-      return Stack(
-        children: [
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 200,
 
-          Container(
-            height: 200,
-            width: double.infinity,
-            color: Colors.grey.shade200,
-
-            child: imageUrl.isNotEmpty
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    width:
-                        double.infinity,
-                    height: 200,
-
-                    errorBuilder:
-                        (_, __, ___) =>
-                            Center(
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Icon(
+                          LucideIcons.scissors,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                    )
+                  : Center(
                       child: Icon(
                         LucideIcons.scissors,
                         size: 48,
-                        color: Colors
-                            .grey
-                            .shade400,
+                        color: Colors.grey.shade400,
                       ),
                     ),
-                  )
-                : Center(
-                    child: Icon(
-                      LucideIcons.scissors,
-                      size: 48,
-                      color: Colors
-                          .grey
-                          .shade400,
-                    ),
+            ),
+
+            Container(
+              height: 200,
+
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+
+                  end: Alignment.bottomCenter,
+
+                  colors: [Colors.transparent, Colors.black54],
+                ),
+              ),
+            ),
+
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+
+                children: [
+                  Text(
+                    widget.data.name,
+
+                    style: AppTheme.h1().copyWith(color: Colors.white),
                   ),
-          ),
 
-          Container(
-            height: 200,
+                  const SizedBox(height: 6),
 
-            decoration:
-                const BoxDecoration(
-              gradient:
-                  LinearGradient(
-                begin:
-                    Alignment
-                        .topCenter,
+                  Text(
+                    _locationText,
 
-                end: Alignment
-                    .bottomCenter,
+                    style: AppTheme.bodyMedium(color: Colors.white70),
+                  ),
 
-                colors: [
-                  Colors.transparent,
-                  Colors.black54,
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      const Icon(
+                        LucideIcons.star,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      ValueListenableBuilder<double?>(
+                        valueListenable: _liveRating,
+
+                        builder: (context, rating, _) {
+                          return Text(
+                            _formatRating(rating ?? widget.data.rating),
+
+                            style: const TextStyle(color: Colors.white),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      ValueListenableBuilder<int>(
+                        valueListenable: _liveReviewCount,
+
+                        builder: (context, count, _) {
+                          return Text(
+                            '(${l10n.reviewsCountLabel(count != 0 ? count : (widget.data.reviewsCount ?? 0))})',
+
+                            style: const TextStyle(color: Colors.white70),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      _badge(status),
+
+                      if (widget.data.is24h) ...[
+                        const SizedBox(width: 6),
+
+                        _badge('24/7'),
+                      ],
+
+                      if (widget.data.isEmergency) ...[
+                        const SizedBox(width: 6),
+
+                        _badge('Emergency'),
+                      ],
+
+                      if (widget.data.isVerified) ...[
+                        const SizedBox(width: 6),
+
+                        _badge('Verified'),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
-          ),
+          ],
+        );
+      },
+    );
+  }
 
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
+  Widget _badge(String text) {
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
 
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
 
-              children: [
-
-                Text(
-                  widget.data.name,
-
-                  style:
-                      AppTheme.h1()
-                          .copyWith(
-                    color:
-                        Colors.white,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 6,
-                ),
-
-                Text(
-                  _locationText,
-
-                  style:
-                      AppTheme.bodyMedium(
-                    color: Colors
-                        .white70,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 8,
-                ),
-
-                Row(
-                  children: [
-
-                    const Icon(
-                      LucideIcons.star,
-                      size: 16,
-                      color:
-                          Colors.amber,
-                    ),
-
-                    const SizedBox(
-                      width: 6,
-                    ),
-
-                    ValueListenableBuilder<
-                        double?>(
-                      valueListenable:
-                          _liveRating,
-
-                      builder:
-                          (
-                        context,
-                        rating,
-                        _,
-                      ) {
-
-                        return Text(
-                          _formatRating(
-                            rating ??
-                                widget
-                                    .data
-                                    .rating,
-                          ),
-
-                          style:
-                              const TextStyle(
-                            color:
-                                Colors
-                                    .white,
-                          ),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(
-                      width: 6,
-                    ),
-
-                    ValueListenableBuilder<
-                        int>(
-                      valueListenable:
-                          _liveReviewCount,
-
-                      builder:
-                          (
-                        context,
-                        count,
-                        _,
-                      ) {
-
-                        return Text(
-                          '(${l10n.reviewsCountLabel(count != 0 ? count : (widget.data.reviewsCount ?? 0))})',
-
-                          style:
-                              const TextStyle(
-                            color: Colors
-                                .white70,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(
-                  height: 10,
-                ),
-
-                Row(
-                  children: [
-
-                    _badge(status),
-
-                    if (widget
-                        .data
-                        .is24h) ...[
-                      const SizedBox(
-                        width: 6,
-                      ),
-
-                      _badge(
-                        '24/7',
-                      ),
-                    ],
-
-                    if (widget
-                        .data
-                        .isEmergency) ...[
-                      const SizedBox(
-                        width: 6,
-                      ),
-
-                      _badge(
-                        'Emergency',
-                      ),
-                    ],
-
-                    if (widget
-                        .data
-                        .isVerified) ...[
-                      const SizedBox(
-                        width: 6,
-                      ),
-
-                      _badge(
-                        'Verified',
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-Widget _badge(String text) {
-  return Container(
-    margin: const EdgeInsets.only(right: 6),
-
-    padding: const EdgeInsets.symmetric(
-      horizontal: 8,
-      vertical: 4,
-    ),
-
-    decoration: BoxDecoration(
-      color: Colors.amber,
-      borderRadius: BorderRadius.circular(8),
-    ),
-
-    child: Text(
-      text,
-
-      style: AppTheme.caption(
-        color: Colors.black,
+      decoration: BoxDecoration(
+        color: Colors.amber,
+        borderRadius: BorderRadius.circular(8),
       ),
-    ),
-  );
-}
-/*
+
+      child: Text(text, style: AppTheme.caption(color: Colors.black)),
+    );
+  }
+
+  /*
   Widget _statusChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1181,131 +1050,82 @@ Widget _badge(String text) {
   }
 
   Widget _buildOverviewTab() {
-  final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
-  final rawData =
-      widget.data.rawData ?? {};
+    final rawData = widget.data.rawData ?? {};
 
-  final sectorData =
-      Map<String, dynamic>.from(
-    rawData['sectorData'] ?? {},
-  );
+    final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
 
-  final groomyData =
-      Map<String, dynamic>.from(
-    sectorData['groomy'] ??
-        sectorData['groomer'] ??
-        sectorData['grooming'] ??
-        {},
-  );
+    final groomyData = Map<String, dynamic>.from(
+      sectorData['groomy'] ??
+          sectorData['groomer'] ??
+          sectorData['grooming'] ??
+          {},
+    );
 
-  final profileContent =
-      Map<String, dynamic>.from(
-    groomyData['profileContent'] ??
-        groomyData['profile'] ??
-        {},
-  );
+    final profileContent = Map<String, dynamic>.from(
+      groomyData['profileContent'] ?? groomyData['profile'] ?? {},
+    );
 
-  final bio =
-      (profileContent['bio'] ?? '')
-          .toString()
-          .trim();
+    final bio = (profileContent['bio'] ?? '').toString().trim();
 
-  final about =
-      bio.isNotEmpty
-      ? bio
-      : 'No groomer description available.';
+    final about = bio.isNotEmpty ? bio : 'No groomer description available.';
 
-  final socialMedia =
-      (profileContent['socialMedia']
-              as Map<String, dynamic>?) ??
-          {};
+    final socialMedia =
+        (profileContent['socialMedia'] as Map<String, dynamic>?) ?? {};
 
-  final instagram =
-      (socialMedia['instagram'] ?? '')
-          .toString()
-          .trim();
+    final instagram = (socialMedia['instagram'] ?? '').toString().trim();
 
-  return ListView(
-    padding:
-        const EdgeInsets.all(16),
+    return ListView(
+      padding: const EdgeInsets.all(16),
 
-    children: [
+      children: [
+        _sectionCard(
+          title: l10n.aboutTitle,
 
-      _sectionCard(
-        title:
-            l10n.aboutTitle,
+          child: Text(
+            about,
 
-        child: Text(
-          about,
-
-          style:
-              AppTheme.bodyMedium(
-            color:
-                Colors.black87,
-          ).copyWith(
-            height: 1.55,
+            style: AppTheme.bodyMedium(
+              color: Colors.black87,
+            ).copyWith(height: 1.55),
           ),
         ),
-      ),
 
-      const SizedBox(
-        height: 14,
-      ),
+        const SizedBox(height: 14),
 
-      _sectionCard(
-        title:
-            l10n.workingHoursTitle,
+        _sectionCard(
+          title: l10n.workingHoursTitle,
 
-        child:
-            _buildWorkingHoursSection(),
-      ),
+          child: _buildWorkingHoursSection(),
+        ),
 
-      const SizedBox(
-        height: 14,
-      ),
+        const SizedBox(height: 14),
 
-      _sectionCard(
-        title:
-            l10n.instagramTitle,
+        _sectionCard(
+          title: l10n.instagramTitle,
 
-        child: Text(
+          child: Text(
+            instagram.isNotEmpty ? instagram : l10n.instagramNotAvailable,
 
-          instagram.isNotEmpty
-              ? instagram
-              : l10n
-                    .instagramNotAvailable,
-
-          style:
-              AppTheme.bodyMedium(
-            color:
-                Colors.black87,
+            style: AppTheme.bodyMedium(color: Colors.black87),
           ),
         ),
-      ),
 
-      const SizedBox(
-        height: 14,
-      ),
+        const SizedBox(height: 14),
 
-      _sectionCard(
-        title:
-            l10n.locationTitle,
+        _sectionCard(
+          title: l10n.locationTitle,
 
-        child: Text(
+          child: Text(
+            _locationText,
 
-          _locationText,
-
-          style:
-              AppTheme.bodyMedium(
-            color:
-                Colors.black87,
+            style: AppTheme.bodyMedium(color: Colors.black87),
           ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   Widget _buildWorkingHoursSection() {
     final l10n = AppLocalizations.of(context)!;
@@ -1332,75 +1152,49 @@ Widget _badge(String text) {
         }
 
         return Padding(
-  padding: const EdgeInsets.only(
-    bottom: 8,
-  ),
+          padding: const EdgeInsets.only(bottom: 8),
 
-  child: Row(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
 
-    crossAxisAlignment:
-        CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 4,
 
-    children: [
+                child: Text(
+                  entry.key.toString()[0].toUpperCase() +
+                      entry.key.toString().substring(1),
 
-      Expanded(
+                  overflow: TextOverflow.ellipsis,
 
-        flex: 4,
+                  maxLines: 1,
 
-        child: Text(
+                  style: AppTheme.bodyMedium().copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
 
-          entry.key
-              .toString()[0]
-              .toUpperCase() +
+              const SizedBox(width: 12),
 
-          entry.key
-              .toString()
-              .substring(1),
+              Expanded(
+                flex: 5,
 
-          overflow:
-              TextOverflow.ellipsis,
+                child: Text(
+                  hoursText,
 
-          maxLines: 1,
+                  textAlign: TextAlign.right,
 
-          style:
-              AppTheme.bodyMedium()
-                  .copyWith(
+                  overflow: TextOverflow.ellipsis,
 
-            fontWeight:
-                FontWeight.w600,
+                  maxLines: 1,
 
+                  style: AppTheme.bodyMedium(color: Colors.black87),
+                ),
+              ),
+            ],
           ),
-        ),
-      ),
-
-      const SizedBox(width: 12),
-
-      Expanded(
-
-        flex: 5,
-
-        child: Text(
-
-          hoursText,
-
-          textAlign:
-              TextAlign.right,
-
-          overflow:
-              TextOverflow.ellipsis,
-
-          maxLines: 1,
-
-          style:
-              AppTheme.bodyMedium(
-            color:
-                Colors.black87,
-          ),
-        ),
-      ),
-    ],
-  ),
-);
+        );
       }).toList(),
     );
   }
@@ -1417,7 +1211,6 @@ Widget _badge(String text) {
           .orderBy('sortOrder')
           .snapshots(),
       builder: (context, snapshot) {
-        
         if (snapshot.hasError) {
           return Center(
             child: Text(
@@ -1441,10 +1234,8 @@ Widget _badge(String text) {
                 .where((service) => service['isActive'] != false),
           );
         } else {
-  services.addAll(
-    [],
-  );
-}
+          services.addAll([]);
+        }
 
         if (services.isEmpty) {
           return Center(
@@ -1469,123 +1260,74 @@ Widget _badge(String text) {
                 .trim();
 
             return GestureDetector(
-  onTap: widget.onOpenAppointment == null
-      ? null
-      : () => widget.onOpenAppointment!(
-            service,
-          ),
+              onTap: widget.onOpenAppointment == null
+                  ? null
+                  : () => widget.onOpenAppointment!(service),
 
-  child: Container(
-    padding:
-        const EdgeInsets.all(
-      14,
-    ),
+              child: Container(
+                padding: const EdgeInsets.all(14),
 
-    decoration:
-        BoxDecoration(
-      color: Colors.white,
+                decoration: BoxDecoration(
+                  color: Colors.white,
 
-      borderRadius:
-          BorderRadius.circular(
-        14,
-      ),
+                  borderRadius: BorderRadius.circular(14),
 
-      border: Border.all(
-        color:
-            Colors.grey.shade200,
-      ),
-    ),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
 
-    child: Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
 
-      children: [
+                  children: [
+                    const Icon(
+                      LucideIcons.check,
+                      color: Colors.amber,
+                      size: 18,
+                    ),
 
-        const Icon(
-          LucideIcons.check,
-          color:
-              Colors.amber,
-          size: 18,
-        ),
+                    const SizedBox(width: 10),
 
-        const SizedBox(
-          width: 10,
-        ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
 
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+                        children: [
+                          Text(
+                            title.isEmpty ? 'Service' : title,
 
-            children: [
+                            style: AppTheme.bodyMedium(),
+                          ),
 
-              Text(
-                title.isEmpty
-                    ? 'Service'
-                    : title,
+                          if (price > 0 || duration > 0) ...[
+                            const SizedBox(height: 4),
 
-                style:
-                    AppTheme
-                        .bodyMedium(),
+                            Text(
+                              [
+                                if (price > 0) '₺$price',
+
+                                if (duration > 0) duration.toString(),
+                              ].join(' • '),
+
+                              style: AppTheme.caption(color: Colors.black54),
+                            ),
+                          ],
+
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+
+                            Text(
+                              description,
+
+                              style: AppTheme.caption(color: Colors.black45),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-
-              if (price > 0 ||
-                  duration > 0) ...[
-
-                const SizedBox(
-                  height: 4,
-                ),
-
-                Text(
-                  [
-
-                    if (price >
-                        0)
-                      '₺$price',
-
-                    if (duration >
-                        0)
-                      duration
-                          .toString(),
-
-                  ].join(
-                    ' • ',
-                  ),
-
-                  style:
-                      AppTheme.caption(
-                    color: Colors
-                        .black54,
-                  ),
-                ),
-              ],
-
-              if (description
-                  .isNotEmpty) ...[
-
-                const SizedBox(
-                  height: 4,
-                ),
-
-                Text(
-                  description,
-
-                  style:
-                      AppTheme.caption(
-                    color: Colors
-                        .black45,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-);
+            );
           },
         );
       },
@@ -1660,319 +1402,163 @@ Widget _badge(String text) {
     );
   }
 
- Widget _buildGalleryTab() {
+  Widget _buildGalleryTab() {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(widget.data.id)
+          .snapshots(),
 
-  return StreamBuilder<
-      DocumentSnapshot<
-          Map<String, dynamic>>>(
-    stream:
-        FirebaseFirestore
-            .instance
-            .collection(
-              'businesses',
-            )
-            .doc(
-              widget.data.id,
-            )
-            .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() ?? {};
 
-    builder:
-        (
-          context,
-          snapshot,
-        ) {
+        final sectorData = Map<String, dynamic>.from(data['sectorData'] ?? {});
 
-      final data =
-          snapshot.data
-              ?.data() ??
-          {};
-
-      final sectorData =
-          Map<String, dynamic>.from(
-        data['sectorData'] ??
-            {},
-      );
-
-      final groomyData =
-          Map<String, dynamic>.from(
-        sectorData['groomy'] ??
-            sectorData[
-                'groomer'] ??
-            sectorData[
-                'grooming'] ??
-            {},
-      );
-
-      final profileContent =
-          Map<String, dynamic>.from(
-        groomyData[
-                'profileContent'] ??
-            groomyData[
-                'profile'] ??
-            {},
-      );
-
-      final images =
-          <String>{
-
-        ..._stringList(
-          data['images'],
-        ),
-
-        ..._stringList(
-          data[
-              'clinicPhotoUrls'],
-        ),
-
-        ..._stringList(
-          profileContent[
-              'photos'],
-        ),
-
-        ..._stringList(
-          profileContent[
-              'clinicPhotoUrls'],
-        ),
-
-        ..._stringList(
-          groomyData[
-              'coverImage'],
-        ),
-
-        ..._stringList(
-          groomyData[
-              'coverImageUrl'],
-        ),
-
-      }
-              .where(
-                (e) =>
-                    e.trim()
-                        .isNotEmpty,
-              )
-              .toList();
-
-      if (images.isEmpty) {
-
-        return const Center(
-          child: Text(
-            'No images',
-          ),
+        final groomyData = Map<String, dynamic>.from(
+          sectorData['groomy'] ??
+              sectorData['groomer'] ??
+              sectorData['grooming'] ??
+              {},
         );
-      }
 
-      final media =
-    images
-        .map(
-          (e) => MediaItem(
-            url: e,
-            type: MediaType.image,
+        final profileContent = Map<String, dynamic>.from(
+          groomyData['profileContent'] ?? groomyData['profile'] ?? {},
+        );
+
+        final images = <String>{
+          ..._stringList(data['images']),
+
+          ..._stringList(data['clinicPhotoUrls']),
+
+          ..._stringList(profileContent['photos']),
+
+          ..._stringList(profileContent['clinicPhotoUrls']),
+
+          ..._stringList(groomyData['coverImage']),
+
+          ..._stringList(groomyData['coverImageUrl']),
+        }.where((e) => e.trim().isNotEmpty).toList();
+
+        if (images.isEmpty) {
+          return const Center(child: Text('No images'));
+        }
+
+        final media = images
+            .map((e) => MediaItem(url: e, type: MediaType.image))
+            .toList();
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+
+          itemCount: images.length,
+
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+
+            crossAxisSpacing: 8,
+
+            mainAxisSpacing: 8,
           ),
-        )
-        .toList();
 
-      return GridView.builder(
-        padding:
-            const EdgeInsets.all(
-          16,
-        ),
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () {
+                _openGalleryViewer(media, index);
+              },
 
-        itemCount:
-            images.length,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
 
-        gridDelegate:
-            const SliverGridDelegateWithFixedCrossAxisCount(
+                child: Image.network(
+                  images[index],
 
-          crossAxisCount:
-              3,
+                  fit: BoxFit.cover,
 
-          crossAxisSpacing:
-              8,
+                  errorBuilder: (_, __, ___) {
+                    return Container(
+                      color: Colors.grey.shade200,
 
-          mainAxisSpacing:
-              8,
-        ),
-
-        itemBuilder:
-            (
-              context,
-              index,
-            ) {
-
-          return GestureDetector(
-
-            onTap:
-                () {
-
-              _openGalleryViewer(
-                media,
-                index,
-              );
-
-            },
-
-            child:
-                ClipRRect(
-
-              borderRadius:
-                  BorderRadius.circular(
-                12,
+                      child: const Center(child: Icon(Icons.image)),
+                    );
+                  },
+                ),
               ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-              child: Image.network(
-  images[index],
+  List<String> _stringList(dynamic value) {
+    if (value is List) {
+      return value.map((e) => e?.toString() ?? '').toList();
+    }
 
-  fit: BoxFit.cover,
+    final text = value?.toString() ?? '';
 
-  errorBuilder:
-      (_, __, ___) {
+    return text.trim().isEmpty ? <String>[] : [text];
+  }
 
-    return Container(
-      color:
-          Colors.grey.shade200,
+  Widget _contactButton(IconData icon, String label, VoidCallback? onTap) {
+    final enabled = onTap != null;
 
-      child: const Center(
-        child: Icon(
-          Icons.image,
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+
+        child: InkWell(
+          onTap: onTap,
+
+          borderRadius: BorderRadius.circular(14),
+
+          child: Container(
+            height: 56,
+
+            decoration: BoxDecoration(
+              color: enabled ? Colors.amber : Colors.white,
+
+              borderRadius: BorderRadius.circular(14),
+
+              border: Border.all(color: Colors.black12),
+            ),
+
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+
+                  children: [
+                    Icon(
+                      icon,
+
+                      size: 18,
+
+                      color: enabled ? Colors.black : Colors.grey,
+                    ),
+
+                    const SizedBox(width: 6),
+
+                    Text(
+                      label,
+
+                      style: AppTheme.bodyMedium().copyWith(
+                        fontWeight: FontWeight.w700,
+
+                        color: enabled ? Colors.black : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
-  },
-),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
-
-List<String> _stringList(dynamic value) {
-
-  if (value is List) {
-    return value
-        .map(
-          (e) =>
-              e?.toString() ??
-              '',
-        )
-        .toList();
   }
-
-  final text =
-      value?.toString() ?? '';
-
-  return text
-          .trim()
-          .isEmpty
-      ? <String>[]
-      : [text];
-}
-
- Widget _contactButton(
-  IconData icon,
-  String label,
-  VoidCallback? onTap,
-) {
-
-  final enabled =
-      onTap != null;
-
-  return Expanded(
-
-    child: Material(
-
-      color:
-          Colors.transparent,
-
-      child: InkWell(
-
-        onTap: onTap,
-
-        borderRadius:
-            BorderRadius.circular(
-              14,
-            ),
-
-        child: Container(
-
-          height: 56,
-
-          decoration:
-
-              BoxDecoration(
-
-            color: enabled
-                ? Colors.amber
-                : Colors.white,
-
-            borderRadius:
-                BorderRadius.circular(
-                  14,
-                ),
-
-            border: Border.all(
-              color:
-                  Colors.black12,
-            ),
-          ),
-
-          child: Center(
-
-            child: FittedBox(
-
-              fit:
-                  BoxFit.scaleDown,
-
-              child: Row(
-
-                mainAxisSize:
-                    MainAxisSize.min,
-
-                children: [
-
-                  Icon(
-
-                    icon,
-
-                    size: 18,
-
-                    color: enabled
-                        ? Colors.black
-                        : Colors.grey,
-
-                  ),
-
-                  const SizedBox(
-                    width: 6,
-                  ),
-
-                  Text(
-
-                    label,
-
-                    style:
-                        AppTheme.bodyMedium()
-                            .copyWith(
-
-                      fontWeight:
-                          FontWeight.w700,
-
-                      color: enabled
-                          ? Colors.black
-                          : Colors.grey,
-
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
 
   @override
   Widget build(BuildContext context) {

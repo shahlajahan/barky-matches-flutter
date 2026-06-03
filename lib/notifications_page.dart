@@ -277,8 +277,27 @@ class _NotificationsPageState extends State<NotificationsPage>
                               'type': 'playdate_response',
                               'requestId': data['requestId'],
                             });
-                            break;
 
+                            break;
+                          case 'invoice_reminder':
+                          case 'payment_window_expired':
+                            Future.microtask(() {
+                              if (mounted) {
+                                appState.closeNotifications();
+                              }
+                            });
+
+                            widget.onNotificationSelected({
+                              'type': rawType,
+
+                              'sellerOrderId': data['sellerOrderId'],
+                              'orderId': data['orderId'],
+
+                              // بعضی flow ها اینو میفرستن
+                              'appointmentId': data['appointmentId'],
+                            });
+
+                            break;
                           case 'new_order':
                           case 'order_paid':
                           case 'order_update':

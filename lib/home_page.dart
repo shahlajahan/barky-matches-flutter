@@ -29,6 +29,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
 import 'package:barky_matches_fixed/widgets/ads/native_ad_widget.dart';
 
+import 'package:barky_matches_fixed/models/featured_deal.dart';
+/*
 class FeaturedDeal {
   final String shopName;
   final String description;
@@ -46,6 +48,7 @@ class FeaturedDeal {
     this.premiumOnly = false,
   });
 }
+*/
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -128,7 +131,8 @@ class _HomePageState extends State<HomePage>
   static const double _cardGap = 14;
 
   bool _bootstrapped = false;
-
+  List<FeaturedDeal> _featuredDeals = [];
+  /*
   List<FeaturedDeal> get _featuredDeals {
     final l = AppLocalizations.of(context)!;
     return [
@@ -156,6 +160,70 @@ class _HomePageState extends State<HomePage>
       ),
     ];
   }
+*/
+
+  Future<void> _loadFeaturedDeals() async {
+    debugPrint("🔥 FEATURED LOAD START");
+
+    try {
+      final language = Localizations.localeOf(context).languageCode;
+
+      debugPrint("🔥 LANGUAGE = $language");
+
+      final query = FirebaseFirestore.instance
+          .collection("featured_deals")
+          .orderBy("order");
+
+      debugPrint("🔥 QUERY CREATED");
+
+      final snapshot = await query.get();
+
+      debugPrint("🔥 SNAPSHOT RECEIVED");
+
+      debugPrint("🔥 DOC COUNT = ${snapshot.docs.length}");
+
+      for (final doc in snapshot.docs) {
+        debugPrint("🔥 DOC ID = ${doc.id}");
+
+        debugPrint("🔥 DOC DATA = ${doc.data()}");
+      }
+
+      final deals = snapshot.docs
+          .where((doc) {
+            final active = doc.data()["isActive"];
+
+            debugPrint("🔥 ACTIVE CHECK ${doc.id} -> $active");
+
+            return active == true;
+          })
+          .map((doc) {
+            debugPrint("🔥 PARSING DOC ${doc.id}");
+
+            return FeaturedDeal.fromFirestore(doc.data(), language);
+          })
+          .toList();
+
+      debugPrint("🔥 DEAL PARSE FINISHED");
+
+      debugPrint("🔥 DEAL COUNT FINAL = ${deals.length}");
+
+      if (!mounted) {
+        debugPrint("🔥 NOT MOUNTED");
+
+        return;
+      }
+
+      setState(() {
+        _featuredDeals = deals;
+      });
+
+      debugPrint("🔥 SETSTATE DONE");
+    } catch (e, stack) {
+      debugPrint("❌ FEATURED ERROR = $e");
+
+      debugPrint("❌ STACK = $stack");
+    }
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -178,9 +246,18 @@ class _HomePageState extends State<HomePage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!_bootstrapped) {
         _bootstrapped = true;
+
+        debugPrint("STEP 1");
+
         await _syncDogsWithFirestore();
 
-        await _applyFiltersAsync(); // ✅ مهم
+        debugPrint("STEP 2");
+
+        await _loadFeaturedDeals();
+
+        debugPrint("STEP 3");
+
+        await _applyFiltersAsync();
 
         debugPrint("🔥 DATA LOADED INTO HIVE");
       }
@@ -1355,15 +1432,15 @@ class _HomePageState extends State<HomePage>
               const SizedBox(width: 14),
 
               Expanded(
-  child: _miniServiceCard(
-    title: l.petShopTitle,
-    subtitle: l.shopNearYou,
-    imagePath: "assets/home/petshop.png",
-    onTap: () {
-      appState.setCurrentTab(NavTab.favorites);
-    },
-  ),
-),
+                child: _miniServiceCard(
+                  title: l.petShopTitle,
+                  subtitle: l.shopNearYou,
+                  imagePath: "assets/home/petshop.png",
+                  onTap: () {
+                    appState.setCurrentTab(NavTab.favorites);
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -1379,7 +1456,9 @@ class _HomePageState extends State<HomePage>
     required List<FeaturedDeal> deals,
     required void Function(FeaturedDeal deal) onTapDeal,
   }) {
-    if (deals.isEmpty) return const SizedBox.shrink();
+    if (deals.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2045,21 +2124,29 @@ class _HomePageState extends State<HomePage>
 
       child: Material(
         color: Colors.transparent,
+
         child: InkWell(
           borderRadius: BorderRadius.circular(_homeRadius),
+
           onTap: onTap,
+
           child: Ink(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF9E1B4F), Color(0xFFD94A7A), Colors.white],
+
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
+
               borderRadius: BorderRadius.circular(_homeRadius),
+
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF9E1B4F).withValues(alpha: 0.10),
+
                   blurRadius: 20,
+
                   offset: const Offset(0, 10),
                 ),
               ],
@@ -2067,32 +2154,47 @@ class _HomePageState extends State<HomePage>
 
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+
               child: Row(
                 children: [
-                  /// 🔹 TEXT
-                  Expanded(
+                  /// TEXT
+                  Flexible(
+                    flex: 5,
+
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+
                       mainAxisAlignment: MainAxisAlignment.center,
+
                       children: [
-                        /// TITLE (اصلاح شد)
                         Text(
                           title,
+
+                          maxLines: 1,
+
                           style: GoogleFonts.poppins(
-                            fontSize: 16, // 👈 کوچیک‌تر
+                            fontSize: 16,
+
                             fontWeight: FontWeight.w700,
+
                             color: Colors.white,
                           ),
                         ),
 
                         const SizedBox(height: 6),
 
-                        /// SUBTITLE (هماهنگ با بقیه)
                         Text(
                           subtitle,
+
+                          maxLines: 2,
+
+                          overflow: TextOverflow.ellipsis,
+
                           style: GoogleFonts.poppins(
                             fontSize: 11,
+
                             fontWeight: FontWeight.w500,
+
                             color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
@@ -2100,27 +2202,22 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
 
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
 
-                  /// 🔹 IMAGE (اصلاح سایز)
-                  Expanded(
-  child: Align(
-    alignment: Alignment.centerRight,
+                  /// IMAGE
+                  Flexible(
+                    flex: 4,
 
-    child: Transform.translate(
-      offset: const Offset(10,0), // → بچسبه به edge
+                    child: Align(
+                      alignment: Alignment.centerRight,
 
-      child: SizedBox(
-        height: 95,
+                      child: SizedBox(
+                        height: 88,
 
-        child: Image.asset(
-          imagePath,
-          fit: BoxFit.contain,
-        ),
-      ),
-    ),
-  ),
-),
+                        child: Image.asset(imagePath, fit: BoxFit.contain),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2138,47 +2235,61 @@ class _HomePageState extends State<HomePage>
     bool isSponsored = false,
   }) {
     final l = AppLocalizations.of(context)!;
+
     return Material(
       color: Colors.transparent,
+
       child: InkWell(
         borderRadius: BorderRadius.circular(_homeRadius),
+
         onTap: onTap,
+
         child: Ink(
           height: 120,
+
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF9E1B4F), Color(0xFFD94A7A), Colors.white],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
+
             borderRadius: BorderRadius.circular(_homeRadius),
 
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF9E1B4F).withValues(alpha: 0.10),
+
                 blurRadius: 20,
+
                 offset: const Offset(0, 10),
               ),
             ],
           ),
+
           child: Stack(
             children: [
-              /// 🔹 Sponsored Badge
+              /// Sponsored Badge
               if (isSponsored)
                 Positioned(
                   top: 10,
                   right: 10,
+
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
                     ),
+
                     decoration: BoxDecoration(
                       color: Colors.orange,
+
                       borderRadius: BorderRadius.circular(12),
                     ),
+
                     child: Text(
                       l.homeSponsoredLabel,
+
                       style: const TextStyle(
                         fontSize: 10,
                         color: Colors.white,
@@ -2190,27 +2301,44 @@ class _HomePageState extends State<HomePage>
 
               Padding(
                 padding: const EdgeInsets.all(14),
+
                 child: Row(
                   children: [
-                    /// Text
+                    /// TEXT
                     Expanded(
+                      flex: 6, // 👈 جدید
+
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
+
                         children: [
                           Text(
                             title,
+
+                            maxLines: 2,
+
                             style: GoogleFonts.poppins(
-                              fontSize: 16,
+                              fontSize: 15, // 16 → 15
+
                               fontWeight: FontWeight.w700,
+
                               color: Colors.white,
                             ),
                           ),
+
                           const SizedBox(height: 4),
+
                           Text(
                             subtitle,
+
+                            maxLines: 2,
+
+                            overflow: TextOverflow.ellipsis,
+
                             style: GoogleFonts.poppins(
                               fontSize: 11,
+
                               color: Colors.white.withValues(alpha: 0.85),
                             ),
                           ),
@@ -2218,15 +2346,18 @@ class _HomePageState extends State<HomePage>
                       ),
                     ),
 
-                    /// Image
-                   SizedBox(
-  height: 82,
-  width: 82,
-  child: Image.asset(
-    imagePath,
-    fit: BoxFit.contain,
-  ),
-),
+                    const SizedBox(width: 6),
+
+                    /// IMAGE
+                    Expanded(
+                      flex: 4, // 👈 جدید
+
+                      child: SizedBox(
+                        height: 78, // 82 → 78
+
+                        child: Image.asset(imagePath, fit: BoxFit.contain),
+                      ),
+                    ),
                   ],
                 ),
               ),

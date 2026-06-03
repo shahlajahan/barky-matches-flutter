@@ -39,27 +39,329 @@ class SellerProfilePage extends StatelessWidget {
         child: Material(
           color: AppTheme.bg,
           child: Stack(
+            clipBehavior: Clip.none,
 
-  clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: Container(
+                  color: AppTheme.bg,
 
-  children:[
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 240,
+                          child: StreamBuilder<DocumentSnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('businesses')
+                                .doc(sellerId)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              final data =
+                                  snapshot.data?.data()
+                                      as Map<String, dynamic>? ??
+                                  {};
 
-    Positioned.fill(
+                              final profile =
+                                  (data['profile'] as Map<String, dynamic>?) ??
+                                  {};
+                              final contact =
+                                  (data['contact'] as Map<String, dynamic>?) ??
+                                  {};
+                              final verification =
+                                  (data['verification']
+                                      as Map<String, dynamic>?) ??
+                                  {};
 
-      child:
+                              final phone = contact['phone']?.toString();
+                              final whatsapp = contact['whatsapp']?.toString();
+                              final email = contact['email']?.toString();
 
-      Container(
+                              final isVerified =
+                                  verification['isVerified'] == true;
+                              final businessDisplayName =
+                                  (profile['businessName'] ??
+                                          profile['name'] ??
+                                          sellerName ??
+                                          'Seller')
+                                      .toString();
 
-        color: AppTheme.bg,
+                              final coverUrl =
+                                  (profile['coverUrl'] ??
+                                          profile['coverImage'] ??
+                                          profile['bannerUrl'] ??
+                                          data['coverUrl'])
+                                      ?.toString();
 
-        child:
-            SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: 240,
-                        child: StreamBuilder<DocumentSnapshot>(
+                              final logoUrl =
+                                  (profile['logoUrl'] ??
+                                  profile['imageUrl'] ??
+                                  data['logoUrl']);
+                              debugPrint("🔥 COVER URL: $coverUrl");
+                              debugPrint("🔥 LOGO URL: $logoUrl");
+
+                              final city = (contact['city'] ?? profile['city'])
+                                  ?.toString();
+                              final district =
+                                  (contact['district'] ?? profile['district'])
+                                      ?.toString();
+
+                              return Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  if (_isUsableUrl(coverUrl))
+                                    CachedNetworkImage(
+                                      imageUrl: coverUrl!,
+                                      fit: BoxFit.cover,
+                                    )
+                                  else
+                                    Container(
+                                      color: const Color(0xFFF3F3F3),
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.storefront_outlined,
+                                          size: 40,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ),
+                                  Container(
+                                    color: Colors.black.withOpacity(0.18),
+                                  ),
+                                  SafeArea(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        56,
+                                        16,
+                                        20,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Spacer(),
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Container(
+                                                width: 84,
+                                                height: 84,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(22),
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 2,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.12),
+                                                      blurRadius: 14,
+                                                      offset: const Offset(
+                                                        0,
+                                                        6,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  child: _SellerLogo(
+                                                    url: logoUrl,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 14),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            businessDisplayName,
+                                                            maxLines: 2,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style: AppTheme.h2(
+                                                              color:
+                                                                  Colors.white,
+                                                              weight: FontWeight
+                                                                  .w900,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        if (isVerified) ...[
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                          const Icon(
+                                                            Icons.verified,
+                                                            color: Colors.blue,
+                                                            size: 18,
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Row(
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.star_rounded,
+                                                          color: Color(
+                                                            0xFFFFC107,
+                                                          ),
+                                                          size: 18,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        Text(
+                                                          '4.6',
+                                                          style: AppTheme.body(
+                                                            color: Colors.white,
+                                                            weight:
+                                                                FontWeight.w700,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Text(
+                                                          'Seller rating',
+                                                          style:
+                                                              AppTheme.caption(
+                                                                color: Colors
+                                                                    .white70,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    if ((city ?? '')
+                                                            .isNotEmpty ||
+                                                        (district ?? '')
+                                                            .isNotEmpty) ...[
+                                                      const SizedBox(height: 6),
+                                                      Text(
+                                                        [
+                                                          if ((district ?? '')
+                                                              .isNotEmpty)
+                                                            district,
+                                                          if ((city ?? '')
+                                                              .isNotEmpty)
+                                                            city,
+                                                        ].join(' / '),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: AppTheme.caption(
+                                                          color: Colors.white70,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collectionGroup('products')
+                              .where('isActive', isEqualTo: true)
+                              .where('businessId', isEqualTo: sellerId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            debugPrint("🟡 SellerProfilePage QUERY RUN");
+                            debugPrint("👉 sellerId = $sellerId");
+                            debugPrint("👉 hasError = ${snapshot.hasError}");
+                            debugPrint("👉 hasData = ${snapshot.hasData}");
+
+                            if (snapshot.hasError) {
+                              debugPrint(
+                                "🔥 FIRESTORE ERROR: ${snapshot.error}",
+                              );
+                            }
+
+                            if (snapshot.hasData) {
+                              debugPrint(
+                                "📦 DOC COUNT: ${snapshot.data!.docs.length}",
+                              );
+                            }
+
+                            final docs = snapshot.data?.docs ?? [];
+                            final products = docs.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return Product.fromJson(doc.id, data);
+                            }).toList();
+
+                            final totalProducts = products.length;
+                            final inStockCount = products
+                                .where((p) => p.stock > 0)
+                                .length;
+                            final discountedCount = products
+                                .where(
+                                  (p) =>
+                                      p.salePrice != null &&
+                                      p.salePrice! > 0 &&
+                                      p.salePrice! < p.price,
+                                )
+                                .length;
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _MetricCard(
+                                      title: 'Products',
+                                      value: totalProducts.toString(),
+                                      icon: Icons.inventory_2_outlined,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _MetricCard(
+                                      title: 'In stock',
+                                      value: inStockCount.toString(),
+                                      icon: Icons.check_circle_outline,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _MetricCard(
+                                      title: 'Deals',
+                                      value: discountedCount.toString(),
+                                      icon: Icons.local_offer_outlined,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('businesses')
                               .doc(sellerId)
@@ -69,653 +371,339 @@ class SellerProfilePage extends StatelessWidget {
                                 snapshot.data?.data()
                                     as Map<String, dynamic>? ??
                                 {};
-
                             final profile =
                                 (data['profile'] as Map<String, dynamic>?) ??
                                 {};
                             final contact =
                                 (data['contact'] as Map<String, dynamic>?) ??
                                 {};
-                            final verification =
-                                (data['verification']
+                            final sectorData =
+                                (data['sectorData'] as Map<String, dynamic>?) ??
+                                {};
+
+                            final petshopData =
+                                (sectorData['petshop']
                                     as Map<String, dynamic>?) ??
                                 {};
+                            final petshopProfile =
+                                (petshopData['profile']
+                                    as Map<String, dynamic>?) ??
+                                {};
+                            final nestedProfile =
+                                (profile['profile'] as Map<String, dynamic>?) ??
+                                {};
+
+                            debugPrint("🔥 PROFILE RAW: ${data['profile']}");
+                            debugPrint(
+                              "🔥 SECTOR DATA RAW: ${data['sectorData']}",
+                            );
+                            debugPrint(
+                              "🔥 PETSHOP PROFILE RAW: $petshopProfile",
+                            );
+
+                            String? about;
+
+                            if ((profile['description'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty) {
+                              about = profile['description'].toString().trim();
+                            } else if ((profile['about'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty) {
+                              about = profile['about'].toString().trim();
+                            } else if ((profile['bio'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty) {
+                              about = profile['bio'].toString().trim();
+                            } else if ((nestedProfile['bio'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty) {
+                              about = nestedProfile['bio'].toString().trim();
+                            } else if ((petshopProfile['bio'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty) {
+                              about = petshopProfile['bio'].toString().trim();
+                            }
 
                             final phone = contact['phone']?.toString();
                             final whatsapp = contact['whatsapp']?.toString();
+                            final website = contact['website']?.toString();
                             final email = contact['email']?.toString();
 
-                            final isVerified =
-                                verification['isVerified'] == true;
-                            final businessDisplayName =
-                                (profile['businessName'] ??
-                                        profile['name'] ??
-                                        sellerName ??
-                                        'Seller')
-                                    .toString();
-
-                            final coverUrl =
-                                (profile['coverUrl'] ??
-                                        profile['coverImage'] ??
-                                        profile['bannerUrl'] ??
-                                        data['coverUrl'])
-                                    ?.toString();
-
-                            final logoUrl =
-                                (profile['logoUrl'] ??
-                                profile['imageUrl'] ??
-                                data['logoUrl']);
-                            debugPrint("🔥 COVER URL: $coverUrl");
-                            debugPrint("🔥 LOGO URL: $logoUrl");
-
-                            final city = (contact['city'] ?? profile['city'])
-                                ?.toString();
-                            final district =
-                                (contact['district'] ?? profile['district'])
-                                    ?.toString();
-
-                            return Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                if (_isUsableUrl(coverUrl))
-                                  CachedNetworkImage(
-                                    imageUrl: coverUrl!,
-                                    fit: BoxFit.cover,
-                                  )
-                                else
-                                  Container(
-                                    color: const Color(0xFFF3F3F3),
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.storefront_outlined,
-                                        size: 40,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                    ),
-                                  ),
-                                Container(
-                                  color: Colors.black.withOpacity(0.18),
-                                ),
-                                SafeArea(
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      16,
-                                      56,
-                                      16,
-                                      20,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Spacer(),
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          children: [
-                                            Container(
-                                              width: 84,
-                                              height: 84,
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(22),
-                                                border: Border.all(
-                                                  color: Colors.white,
-                                                  width: 2,
-                                                ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black
-                                                        .withOpacity(0.12),
-                                                    blurRadius: 14,
-                                                    offset: const Offset(0, 6),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                child: _SellerLogo(
-                                                  url: logoUrl,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 14),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          businessDisplayName,
-                                                          maxLines: 2,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style: AppTheme.h2(
-                                                            color: Colors.white,
-                                                            weight:
-                                                                FontWeight.w900,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      if (isVerified) ...[
-                                                        const SizedBox(
-                                                          width: 6,
-                                                        ),
-                                                        const Icon(
-                                                          Icons.verified,
-                                                          color: Colors.blue,
-                                                          size: 18,
-                                                        ),
-                                                      ],
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  Row(
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.star_rounded,
-                                                        color: Color(
-                                                          0xFFFFC107,
-                                                        ),
-                                                        size: 18,
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        '4.6',
-                                                        style: AppTheme.body(
-                                                          color: Colors.white,
-                                                          weight:
-                                                              FontWeight.w700,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        'Seller rating',
-                                                        style: AppTheme.caption(
-                                                          color: Colors.white70,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  if ((city ?? '').isNotEmpty ||
-                                                      (district ?? '')
-                                                          .isNotEmpty) ...[
-                                                    const SizedBox(height: 6),
-                                                    Text(
-                                                      [
-                                                        if ((district ?? '')
-                                                            .isNotEmpty)
-                                                          district,
-                                                        if ((city ?? '')
-                                                            .isNotEmpty)
-                                                          city,
-                                                      ].join(' / '),
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: AppTheme.caption(
-                                                        color: Colors.white70,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collectionGroup('products')
-                            .where('isActive', isEqualTo: true)
-                            .where('businessId', isEqualTo: sellerId)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          debugPrint("🟡 SellerProfilePage QUERY RUN");
-                          debugPrint("👉 sellerId = $sellerId");
-                          debugPrint("👉 hasError = ${snapshot.hasError}");
-                          debugPrint("👉 hasData = ${snapshot.hasData}");
-
-                          if (snapshot.hasError) {
-                            debugPrint("🔥 FIRESTORE ERROR: ${snapshot.error}");
-                          }
-
-                          if (snapshot.hasData) {
-                            debugPrint(
-                              "📦 DOC COUNT: ${snapshot.data!.docs.length}",
-                            );
-                          }
-
-                          final docs = snapshot.data?.docs ?? [];
-                          final products = docs.map((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            return Product.fromJson(doc.id, data);
-                          }).toList();
-
-                          final totalProducts = products.length;
-                          final inStockCount = products
-                              .where((p) => p.stock > 0)
-                              .length;
-                          final discountedCount = products
-                              .where(
-                                (p) =>
-                                    p.salePrice != null &&
-                                    p.salePrice! > 0 &&
-                                    p.salePrice! < p.price,
-                              )
-                              .length;
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _MetricCard(
-                                    title: 'Products',
-                                    value: totalProducts.toString(),
-                                    icon: Icons.inventory_2_outlined,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _MetricCard(
-                                    title: 'In stock',
-                                    value: inStockCount.toString(),
-                                    icon: Icons.check_circle_outline,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _MetricCard(
-                                    title: 'Deals',
-                                    value: discountedCount.toString(),
-                                    icon: Icons.local_offer_outlined,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('businesses')
-                            .doc(sellerId)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          final data =
-                              snapshot.data?.data() as Map<String, dynamic>? ??
-                              {};
-                          final profile =
-                              (data['profile'] as Map<String, dynamic>?) ?? {};
-                          final contact =
-                              (data['contact'] as Map<String, dynamic>?) ?? {};
-                          final sectorData =
-                              (data['sectorData'] as Map<String, dynamic>?) ??
-                              {};
-
-                          final petshopData =
-                              (sectorData['petshop']
-                                  as Map<String, dynamic>?) ??
-                              {};
-                          final petshopProfile =
-                              (petshopData['profile']
-                                  as Map<String, dynamic>?) ??
-                              {};
-                          final nestedProfile =
-                              (profile['profile'] as Map<String, dynamic>?) ??
-                              {};
-
-                          debugPrint("🔥 PROFILE RAW: ${data['profile']}");
-                          debugPrint(
-                            "🔥 SECTOR DATA RAW: ${data['sectorData']}",
-                          );
-                          debugPrint("🔥 PETSHOP PROFILE RAW: $petshopProfile");
-
-                          String? about;
-
-                          if ((profile['description'] ?? '')
-                              .toString()
-                              .trim()
-                              .isNotEmpty) {
-                            about = profile['description'].toString().trim();
-                          } else if ((profile['about'] ?? '')
-                              .toString()
-                              .trim()
-                              .isNotEmpty) {
-                            about = profile['about'].toString().trim();
-                          } else if ((profile['bio'] ?? '')
-                              .toString()
-                              .trim()
-                              .isNotEmpty) {
-                            about = profile['bio'].toString().trim();
-                          } else if ((nestedProfile['bio'] ?? '')
-                              .toString()
-                              .trim()
-                              .isNotEmpty) {
-                            about = nestedProfile['bio'].toString().trim();
-                          } else if ((petshopProfile['bio'] ?? '')
-                              .toString()
-                              .trim()
-                              .isNotEmpty) {
-                            about = petshopProfile['bio'].toString().trim();
-                          }
-
-                          final phone = contact['phone']?.toString();
-                          final whatsapp = contact['whatsapp']?.toString();
-                          final website = contact['website']?.toString();
-                          final email = contact['email']?.toString();
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: Colors.black.withOpacity(0.05),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'About Seller',
-                                    style: AppTheme.h3(weight: FontWeight.w900),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    (about != null && about.trim().isNotEmpty)
-                                        ? about
-                                        : 'This seller has not added a profile description yet.',
-                                    style: AppTheme.body(
-                                      color:
-                                          (about != null &&
-                                              about.trim().isNotEmpty)
-                                          ? AppTheme.textDark
-                                          : AppTheme.muted,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        if ((phone ?? '').isNotEmpty)
-                                          Expanded(
-                                            child: _ActionButton(
-                                              icon: Icons.call,
-                                              label: "Call",
-                                              color: Colors.green,
-                                              onTap: () =>
-                                                  _openUrl("tel:$phone"),
-                                            ),
-                                          ),
-                                        if ((phone ?? '').isNotEmpty &&
-                                            (whatsapp ?? '').isNotEmpty)
-                                          const SizedBox(width: 8),
-                                        if ((whatsapp ?? '').isNotEmpty)
-                                          Expanded(
-                                            child: _ActionButton(
-                                              icon: Icons.chat,
-                                              label: "WhatsApp",
-                                              color: Colors.green.shade700,
-                                              onTap: () => _openUrl(
-                                                "https://wa.me/$whatsapp",
-                                              ),
-                                            ),
-                                          ),
-                                        if ((email ?? '').isNotEmpty)
-                                          const SizedBox(width: 8),
-                                        if ((email ?? '').isNotEmpty)
-                                          Expanded(
-                                            child: _ActionButton(
-                                              icon: Icons.email,
-                                              label: "Email",
-                                              color: Colors.blue,
-                                              onTap: () =>
-                                                  _openUrl("mailto:$email"),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      if ((phone ?? '').isNotEmpty)
-                                        _InfoChip(
-                                          icon: Icons.phone_outlined,
-                                          label: phone!,
-                                        ),
-                                      if ((email ?? '').isNotEmpty)
-                                        _InfoChip(
-                                          icon: Icons.mail_outline,
-                                          label: email!,
-                                        ),
-                                      if ((website ?? '').isNotEmpty)
-                                        _InfoChip(
-                                          icon: Icons.language_outlined,
-                                          label: website!,
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Text(
-                              'Seller Products',
-                              style: AppTheme.h3(weight: FontWeight.w900),
-                            ),
-                            const Spacer(),
-                            Text(
-                              'Newest first',
-                              style: AppTheme.caption(color: AppTheme.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collectionGroup('products')
-                            .where('isActive', isEqualTo: true)
-                            .where('businessId', isEqualTo: sellerId)
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                               ),
                               child: Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.all(24),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: Colors.black.withOpacity(0.05),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'About Seller',
+                                      style: AppTheme.h3(
+                                        weight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      (about != null && about.trim().isNotEmpty)
+                                          ? about
+                                          : 'This seller has not added a profile description yet.',
+                                      style: AppTheme.body(
+                                        color:
+                                            (about != null &&
+                                                about.trim().isNotEmpty)
+                                            ? AppTheme.textDark
+                                            : AppTheme.muted,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          if ((phone ?? '').isNotEmpty)
+                                            Expanded(
+                                              child: _ActionButton(
+                                                icon: Icons.call,
+                                                label: "Call",
+                                                color: Colors.green,
+                                                onTap: () =>
+                                                    _openUrl("tel:$phone"),
+                                              ),
+                                            ),
+                                          if ((phone ?? '').isNotEmpty &&
+                                              (whatsapp ?? '').isNotEmpty)
+                                            const SizedBox(width: 8),
+                                          if ((whatsapp ?? '').isNotEmpty)
+                                            Expanded(
+                                              child: _ActionButton(
+                                                icon: Icons.chat,
+                                                label: "WhatsApp",
+                                                color: Colors.green.shade700,
+                                                onTap: () => _openUrl(
+                                                  "https://wa.me/$whatsapp",
+                                                ),
+                                              ),
+                                            ),
+                                          if ((email ?? '').isNotEmpty)
+                                            const SizedBox(width: 8),
+                                          if ((email ?? '').isNotEmpty)
+                                            Expanded(
+                                              child: _ActionButton(
+                                                icon: Icons.email,
+                                                label: "Email",
+                                                color: Colors.blue,
+                                                onTap: () =>
+                                                    _openUrl("mailto:$email"),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        if ((phone ?? '').isNotEmpty)
+                                          _InfoChip(
+                                            icon: Icons.phone_outlined,
+                                            label: phone!,
+                                          ),
+                                        if ((email ?? '').isNotEmpty)
+                                          _InfoChip(
+                                            icon: Icons.mail_outline,
+                                            label: email!,
+                                          ),
+                                        if ((website ?? '').isNotEmpty)
+                                          _InfoChip(
+                                            icon: Icons.language_outlined,
+                                            label: website!,
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Seller Products',
+                                style: AppTheme.h3(weight: FontWeight.w900),
+                              ),
+                              const Spacer(),
+                              Text(
+                                'Newest first',
+                                style: AppTheme.caption(color: AppTheme.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collectionGroup('products')
+                              .where('isActive', isEqualTo: true)
+                              .where('businessId', isEqualTo: sellerId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(24),
+                                  child: Center(
+                                    child: Text(
+                                      'Error loading seller products: ${snapshot.error}',
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (!snapshot.hasData) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+
+                            final docs = snapshot.data!.docs;
+
+                            final products =
+                                docs.map((doc) {
+                                  final data =
+                                      doc.data() as Map<String, dynamic>;
+                                  return Product.fromJson(doc.id, data);
+                                }).toList()..sort((a, b) {
+                                  final aa =
+                                      a.createdAt?.millisecondsSinceEpoch ?? 0;
+                                  final bb =
+                                      b.createdAt?.millisecondsSinceEpoch ?? 0;
+                                  return bb.compareTo(aa);
+                                });
+
+                            if (products.isEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32),
                                 child: Center(
                                   child: Text(
-                                    'Error loading seller products: ${snapshot.error}',
+                                    'This seller has no active products',
                                   ),
                                 ),
+                              );
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                              child: GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: products.length,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      mainAxisSpacing: 12,
+                                      crossAxisSpacing: 12,
+                                      childAspectRatio: 0.66,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final product = products[index];
+                                  return _SellerProductCard(product: product);
+                                },
                               ),
                             );
-                          }
-
-                          if (!snapshot.hasData) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 32),
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
-
-                          final docs = snapshot.data!.docs;
-
-                          final products =
-                              docs.map((doc) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                return Product.fromJson(doc.id, data);
-                              }).toList()..sort((a, b) {
-                                final aa =
-                                    a.createdAt?.millisecondsSinceEpoch ?? 0;
-                                final bb =
-                                    b.createdAt?.millisecondsSinceEpoch ?? 0;
-                                return bb.compareTo(aa);
-                              });
-
-                          if (products.isEmpty) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 32),
-                              child: Center(
-                                child: Text(
-                                  'This seller has no active products',
-                                ),
-                              ),
-                            );
-                          }
-
-                          return Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                            child: GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: products.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    mainAxisSpacing: 12,
-                                    crossAxisSpacing: 12,
-                                    childAspectRatio: 0.66,
-                                  ),
-                              itemBuilder: (context, index) {
-                                final product = products[index];
-                                return _SellerProductCard(product: product);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-          ),
               Positioned(
+                top: MediaQuery.of(context).padding.top + 12,
 
-  top: MediaQuery.of(context)
-          .padding
-          .top +
-      12,
+                left: 16,
 
-  left: 16,
+                child: Material(
+                  color: Colors.transparent,
 
-  child: Material(
+                  child: InkWell(
+                    onTap: () {
+                      debugPrint("⬅️ CLOSE SELLER PROFILE");
 
-    color: Colors.transparent,
+                      Navigator.of(context).pop();
+                    },
 
-    child: InkWell(
+                    borderRadius: BorderRadius.circular(100),
 
-      onTap: () {
+                    child: Container(
+                      width: 52,
 
-        debugPrint(
-          "⬅️ CLOSE SELLER PROFILE",
-        );
+                      height: 52,
 
-        Navigator.of(context).pop();
-      },
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
 
-      borderRadius:
-          BorderRadius.circular(
-        100,
-      ),
+                        shape: BoxShape.circle,
 
-      child: Container(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
 
-        width: 52,
+                            blurRadius: 12,
 
-        height: 52,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
 
-        decoration:
-            BoxDecoration(
+                      child: const Icon(
+                        Icons.arrow_back_rounded,
 
-          color:
-              Colors.white
-                  .withOpacity(
-            0.95,
-          ),
+                        color: Colors.black,
 
-          shape:
-              BoxShape.circle,
-
-          boxShadow:[
-
-            BoxShadow(
-
-              color:
-                  Colors.black
-                      .withOpacity(
-                0.12,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-
-              blurRadius:12,
-
-              offset:
-                  const Offset(
-                0,
-                4,
-              ),
-            ),
-          ],
-        ),
-
-        child:
-            const Icon(
-
-          Icons.arrow_back_rounded,
-
-          color:
-              Colors.black,
-
-          size:28,
-        ),
-      ),
-    ),
-  ),
-),
             ],
           ),
         ),

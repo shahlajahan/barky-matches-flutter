@@ -88,8 +88,6 @@ class _VetDashboardAppointmentsTabState
     final questions = _listOfMaps(snapshot['questions']);
     final legacyAnswers = _legacyPreVisitAnswers(data['preVisitForm']);
 
-   
-
     final hasNew = answers.isNotEmpty && questions.isNotEmpty;
     final hasLegacy = legacyAnswers.isNotEmpty;
 

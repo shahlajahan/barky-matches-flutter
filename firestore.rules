@@ -379,6 +379,14 @@ match /dogs/{dogId}/visits/{visitId} {
       allow update: if isAdmin() || (isSignedIn() && isOfferClickCountOnlyUpdate());
     }
 
+    match /featured_deals/{dealId} {
+
+  allow read: if isSignedIn();
+
+  allow write: if isAdmin();
+
+}
+
     match /{path=**}/products/{productId} {
 
   allow read: if isSignedIn();

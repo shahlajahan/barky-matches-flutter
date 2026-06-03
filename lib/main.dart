@@ -522,6 +522,11 @@ Future<void> setupFCM() async {
         return;
       }
 
+      if (type.startsWith('groomy_appointment_')) {
+        appState.handleNotificationTap(Map<String, dynamic>.from(data));
+        return;
+      }
+
       _handleRemoteMessage(message);
     });
 
@@ -580,6 +585,11 @@ Future<void> setupFCM() async {
             appState.setCurrentTab(NavTab.profile);
             appState.openProfileSubPage(ProfileSubPage.businessDashboard);
 
+            return;
+          }
+
+          if (type.startsWith('groomy_appointment_')) {
+            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
             return;
           }
 
@@ -802,6 +812,11 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
     appState.setCurrentTab(NavTab.profile);
     appState.openProfileSubPage(ProfileSubPage.businessDashboard);
 
+    return;
+  }
+
+  if (type.startsWith('groomy_appointment_')) {
+    appState.handleNotificationTap(Map<String, dynamic>.from(data));
     return;
   }
 

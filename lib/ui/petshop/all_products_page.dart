@@ -19,7 +19,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/services/product_favorite_service.dart';
 import 'package:barky_matches_fixed/ui/product/favorite_products_page.dart';
 
-
 class AllProductsPage extends StatefulWidget {
   final String? initialSellerId;
   final String? initialSellerName;
@@ -558,195 +557,118 @@ class _AllProductsPageState extends State<AllProductsPage> {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          /// FAVORITES
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseAuth.instance.currentUser == null
+                ? null
+                : FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .collection('favoriteProducts')
+                      .snapshots(),
 
-  /// FAVORITES
+            builder: (context, snapshot) {
+              final count = snapshot.data?.docs.length ?? 0;
 
-  StreamBuilder<QuerySnapshot>(
+              return IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
 
-    stream:
+                    MaterialPageRoute(
+                      builder: (_) => const FavoriteProductsPage(),
+                    ),
+                  );
+                },
 
-        FirebaseAuth.instance.currentUser == null
+                icon: Stack(
+                  clipBehavior: Clip.none,
 
-            ? null
+                  children: [
+                    const Icon(Icons.favorite_border),
 
-            : FirebaseFirestore
-                .instance
-                .collection('users')
-                .doc(
-                  FirebaseAuth
-                      .instance
-                      .currentUser!
-                      .uid,
-                )
-                .collection(
-                  'favoriteProducts',
-                )
-                .snapshots(),
+                    if (count > 0)
+                      Positioned(
+                        right: -6,
+                        top: -6,
 
-    builder:(context,snapshot){
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
 
-      final count =
-          snapshot.data
-              ?.docs
-              .length ??
-          0;
+                          decoration: BoxDecoration(
+                            color: Colors.red,
 
-      return IconButton(
+                            borderRadius: BorderRadius.circular(100),
+                          ),
 
-        onPressed:(){
+                          child: Text(
+                            count.toString(),
 
-          Navigator.push(
+                            style: const TextStyle(
+                              color: Colors.white,
 
-            context,
+                              fontSize: 10,
 
-            MaterialPageRoute(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
 
-              builder:(_)=>
-                  const FavoriteProductsPage(),
-            ),
-          );
-        },
+          /// BASKET
+          IconButton(
+            onPressed: _cart.isEmpty ? null : _openBasket,
 
-        icon: Stack(
+            icon: Stack(
+              clipBehavior: Clip.none,
 
-          clipBehavior:
-              Clip.none,
+              children: [
+                const Icon(LucideIcons.shoppingBag, color: Colors.white),
 
-          children:[
+                if (_cartCount > 0)
+                  Positioned(
+                    right: -6,
+                    top: -6,
 
-            const Icon(
-              Icons.favorite_border,
-            ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
 
-            if(count>0)
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFC107),
 
-              Positioned(
+                        borderRadius: BorderRadius.circular(100),
+                      ),
 
-                right:-6,
-                top:-6,
+                      child: Text(
+                        _cartCount.toString(),
 
-                child: Container(
+                        style: const TextStyle(
+                          fontSize: 10,
 
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal:5,
-                    vertical:2,
-                  ),
+                          fontWeight: FontWeight.w800,
 
-                  decoration:
-                      BoxDecoration(
-
-                    color:
-                        Colors.red,
-
-                    borderRadius:
-                        BorderRadius.circular(
-                      100,
+                          color: Colors.black,
+                        ),
+                      ),
                     ),
                   ),
-
-                  child: Text(
-
-                    count.toString(),
-
-                    style:
-                        const TextStyle(
-
-                      color:
-                          Colors.white,
-
-                      fontSize:10,
-
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    },
-  ),
-
-  /// BASKET
-
-  IconButton(
-
-    onPressed:
-        _cart.isEmpty
-            ? null
-            : _openBasket,
-
-    icon: Stack(
-
-      clipBehavior:
-          Clip.none,
-
-      children:[
-
-        const Icon(
-
-  LucideIcons.shoppingBag,
-
-  color: Colors.white,
-
-),
-
-        if(_cartCount>0)
-
-          Positioned(
-
-            right:-6,
-            top:-6,
-
-            child: Container(
-
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal:5,
-                vertical:2,
-              ),
-
-              decoration:
-                  BoxDecoration(
-
-                color:
-                    const Color(
-                      0xFFFFC107,
-                    ),
-
-                borderRadius:
-                    BorderRadius.circular(
-                  100,
-                ),
-              ),
-
-              child: Text(
-
-                _cartCount.toString(),
-
-                style:
-                    const TextStyle(
-
-                  fontSize:10,
-
-                  fontWeight:
-                      FontWeight.w800,
-
-                  color:
-                      Colors.black,
-                ),
-              ),
+              ],
             ),
           ),
-      ],
-    ),
-  ),
 
-  const SizedBox(width:6),
-
-],
+          const SizedBox(width: 6),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance

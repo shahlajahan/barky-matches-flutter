@@ -36,7 +36,7 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
   @override
   void initState() {
     super.initState();
-   // debugPrint('🏥 VetDashboardPage initState ${identityHashCode(this)}');
+    // debugPrint('🏥 VetDashboardPage initState ${identityHashCode(this)}');
   }
 
   @override
@@ -62,13 +62,13 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
 
   @override
   void dispose() {
-   // debugPrint('🏥 VetDashboardPage dispose ${identityHashCode(this)}');
+    // debugPrint('🏥 VetDashboardPage dispose ${identityHashCode(this)}');
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-   // debugPrint('🏥 VetDashboardPage build ${identityHashCode(this)}');
+    // debugPrint('🏥 VetDashboardPage build ${identityHashCode(this)}');
     final selectedAppointmentId = context.select<AppState, String?>(
       (s) => s.selectedAppointmentId,
     );

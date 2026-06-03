@@ -14,7 +14,7 @@ import 'sections/groomy_dashboard_overview_tab.dart';
 import 'sections/groomy_dashboard_gallery_tab.dart';
 import 'sections/groomy_dashboard_appointments_tab.dart';
 
-enum GroomyDashboardSection { overview, services, gallery, appointments }
+enum GroomyDashboardSection { overview, gallery, appointments }
 
 class GroomyDashboardPage extends StatefulWidget {
   final String businessId;
@@ -45,84 +45,111 @@ class _GroomyDashboardPageState extends State<GroomyDashboardPage> {
 
   GroomyDashboardSection _selected = GroomyDashboardSection.overview;
 
+  void _openAppointmentsTab() {
+    setState(() {
+      _selected = GroomyDashboardSection.appointments;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final businessSubPage = context.select<AppState, BusinessSubPage>(
+      (s) => s.businessSubPage,
+    );
+    final openAppointmentId = context.select<AppState, String?>(
+      (s) => s.openAppointmentId,
+    );
+    final selectedServiceTitle = context.select<AppState, String?>(
+      (s) => s.selectedServiceTitle,
+    );
 
-    /// =============================
-    /// ➕ ADD SERVICE
-    /// =============================
+    if (openAppointmentId != null &&
+        _selected != GroomyDashboardSection.appointments) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (context.read<AppState>().openAppointmentId == null) return;
+        if (_selected == GroomyDashboardSection.appointments) return;
+        debugPrint(
+          '✂️ GROOMY DASHBOARD AUTO-OPEN APPOINTMENTS → $openAppointmentId',
+        );
+        setState(() {
+          _selected = GroomyDashboardSection.appointments;
+        });
+      });
+    }
 
-    if (appState.businessSubPage == BusinessSubPage.addService) {
-      return AddServicesPage(
+    Widget? overlay;
+
+    if (businessSubPage == BusinessSubPage.addService) {
+      overlay = AddServicesPage(
         businessId: widget.businessId,
         services: _groomingServiceTemplates,
         title: 'Add Grooming Service',
         sectionTitle: 'Select Grooming Service',
         fallbackIcon: LucideIcons.scissors,
       );
-    }
-
-    /// =============================
-    /// ✏️ ADD SERVICE DETAIL
-    /// =============================
-
-    if (appState.businessSubPage == BusinessSubPage.addServiceDetail) {
-      return AddServiceDetailPage(
+    } else if (businessSubPage == BusinessSubPage.addServiceDetail) {
+      overlay = AddServiceDetailPage(
         businessId: widget.businessId,
-        serviceTitle: appState.selectedServiceTitle ?? '',
-        serviceId: appState.editingServiceId,
-        existingData: appState.editingServiceData,
+        serviceTitle: selectedServiceTitle ?? '',
+        serviceId: context.read<AppState>().editingServiceId,
+        existingData: context.read<AppState>().editingServiceData,
       );
     }
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        color: AppTheme.bg,
-        child: Column(
-          children: [
-            _TopTabs(
-              selected: _selected,
-              onChange: (section) {
-                setState(() {
-                  _selected = section;
-                });
-              },
+    return Stack(
+      children: [
+        SafeArea(
+          top: false,
+          child: Container(
+            color: AppTheme.bg,
+            child: Column(
+              children: [
+                _TopTabs(
+                  selected: _selected,
+                  onChange: (section) {
+                    setState(() {
+                      _selected = section;
+                    });
+                  },
+                ),
+                Expanded(
+                  child: IndexedStack(
+                    index: _selected.index,
+                    children: [
+                      GroomyDashboardOverviewTab(
+                        key: const ValueKey('overview'),
+                        businessId: widget.businessId,
+                        businessData: widget.businessData,
+                        onOpenAppointments: _openAppointmentsTab,
+                        onOpenGallery: () {
+                          setState(() {
+                            _selected = GroomyDashboardSection.gallery;
+                          });
+                        },
+                      ),
+
+                      GroomyDashboardGalleryTab(
+                        key: const ValueKey('gallery'),
+                        businessId: widget.businessId,
+                      ),
+
+                      GroomyDashboardAppointmentsTab(
+                        key: const ValueKey('appointments'),
+                        businessId: widget.businessId,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-
-           Expanded(
-  child: IndexedStack(
-    index: _selected.index,
-    children: [
-      GroomyDashboardOverviewTab(
-        key: const ValueKey('overview'),
-        businessId: widget.businessId,
-        businessData: widget.businessData,
-      ),
-
-      GroomyServicesTab(
-        key: const ValueKey('services'),
-        businessId: widget.businessId,
-      ),
-
-      GroomyDashboardGalleryTab(
-        key: const ValueKey('gallery'),
-        businessId: widget.businessId,
-      ),
-
-      GroomyDashboardAppointmentsTab(
-        key: const ValueKey('appointments'),
-        businessId: widget.businessId,
-      ),
-    ],
-  ),
-),
-          ],
+          ),
         ),
-      ),
+        if (overlay != null) Positioned.fill(child: overlay),
+      ],
     );
   }
+
   /*
 
   Widget _buildContent() {
@@ -187,8 +214,6 @@ class _TopTabs extends StatelessWidget {
         'Overview',
         LucideIcons.layoutDashboard,
       ),
-
-      (GroomyDashboardSection.services, 'Services', LucideIcons.scissors),
 
       (GroomyDashboardSection.gallery, 'Gallery', LucideIcons.image),
 

@@ -20,47 +20,36 @@ class VaccineNotificationPage extends StatefulWidget {
     this.petId,
   });
 
+  @override
+  State<VaccineNotificationPage> createState() =>
+      _VaccineNotificationPageState();
+}
 
+class _VaccineNotificationPageState extends State<VaccineNotificationPage> {
+  late final Future<DocumentSnapshot<Map<String, dynamic>>> _vaccineFuture;
 
   @override
-State<VaccineNotificationPage> createState() =>
-    _VaccineNotificationPageState();
-}
+  void initState() {
+    super.initState();
 
-class _VaccineNotificationPageState
-    extends State<VaccineNotificationPage> {
+    _vaccineFuture = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(widget.businessId)
+        .collection('patients')
+        .doc(widget.patientId)
+        .collection('vaccines')
+        .doc(widget.vaccineId)
+        .get();
+  }
 
-late final Future<
-DocumentSnapshot<Map<String,dynamic>>
-> _vaccineFuture;
-
-@override
-void initState() {
-
-  super.initState();
-
-  _vaccineFuture =
-      FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(widget.businessId)
-          .collection('patients')
-          .doc(widget.patientId)
-          .collection('vaccines')
-          .doc(widget.vaccineId)
-          .get();
-}
-
-@override
-Widget build(BuildContext context) {
-
-  debugPrint(
- "💉 VaccineNotificationPage BUILD "
- "business=${widget.businessId} "
- "patient=${widget.patientId} "
- "vaccine=${widget.vaccineId}"
-);
-
- 
+  @override
+  Widget build(BuildContext context) {
+    debugPrint(
+      "💉 VaccineNotificationPage BUILD "
+      "business=${widget.businessId} "
+      "patient=${widget.patientId} "
+      "vaccine=${widget.vaccineId}",
+    );
 
     return Container(
       color: const Color(0xFFFFF6F8),
@@ -105,7 +94,7 @@ Widget build(BuildContext context) {
           );
           final reminderEnabled = data['reminderEnabled'] != false;
           final shouldShowAppointmentButton =
-    status.toLowerCase() != 'completed';
+              status.toLowerCase() != 'completed';
           final petName =
               _stringValue(data['petName']) ??
               _stringValue(data['dogName']) ??
@@ -124,28 +113,24 @@ Widget build(BuildContext context) {
               : 'Vaccine notification';
 
           return ListView(
-  padding: const EdgeInsets.fromLTRB(
-    32,
-    40,   // top spacing
-    32,
-    32,
-  ),
-  children: [
-    Padding(
-  padding: const EdgeInsets.only(
-    left: 4,
-    bottom: 28,
-  ),
-  child: Text(
-    "Vaccine Details",
-    style: GoogleFonts.poppins(
-      fontSize: 26,
-      fontWeight: FontWeight.w700,
-      color: const Color(0xFF23171D),
-    ),
-  ),
-),
-
+            padding: const EdgeInsets.fromLTRB(
+              32,
+              40, // top spacing
+              32,
+              32,
+            ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 28),
+                child: Text(
+                  "Vaccine Details",
+                  style: GoogleFonts.poppins(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF23171D),
+                  ),
+                ),
+              ),
 
               Card(
                 margin: EdgeInsets.zero,
@@ -237,174 +222,125 @@ Widget build(BuildContext context) {
                   ),
                 ),
               ),
-              const SizedBox(
-  height: 24,
-),
+              const SizedBox(height: 24),
 
-if (shouldShowAppointmentButton) ...[
-  SizedBox(
-    width: double.infinity,
-    child: ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF9E1B4F),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(
-          vertical: 16,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
+              if (shouldShowAppointmentButton) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF9E1B4F),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
 
-      icon: const Icon(Icons.calendar_month),
+                    icon: const Icon(Icons.calendar_month),
 
-      label: Text(
-        "Book Appointment",
-        style: GoogleFonts.poppins(
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
-      ),
+                    label: Text(
+                      "Book Appointment",
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
 
+                    onPressed: () async {
+                      final businessSnap = await FirebaseFirestore.instance
+                          .collection('businesses')
+                          .doc(widget.businessId)
+                          .get();
 
+                      if (!context.mounted) return;
 
-      onPressed: () async {
+                      if (!businessSnap.exists) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Clinic could not be loaded"),
+                          ),
+                        );
+                        return;
+                      }
 
-  final businessSnap =
-      await FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(widget.businessId)
-          .get();
+                      final data = businessSnap.data()!;
 
-  if (!context.mounted) return;
+                      final vet = BusinessCardData(
+                        id: businessSnap.id,
 
-  if (!businessSnap.exists) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          "Clinic could not be loaded",
-        ),
-      ),
-    );
-    return;
-  }
+                        name: data['displayName'] ?? data['name'] ?? 'Vet',
 
-  final data = businessSnap.data()!;
+                        city: data['city'] ?? '',
 
-  
+                        district: data['district'] ?? '',
 
-final vet = BusinessCardData(
+                        address: data['address'] ?? '',
 
-  id: businessSnap.id,
+                        specialties: List<String>.from(
+                          data['specialties'] ?? [],
+                        ),
 
-  name:
-      data['displayName'] ??
-      data['name'] ??
-      'Vet',
+                        services: data['services'] == null
+                            ? null
+                            : List<String>.from(data['services']),
 
-  city:
-      data['city'] ?? '',
+                        phone: data['phone'],
 
-  district:
-      data['district'] ?? '',
+                        whatsapp: data['whatsapp'],
 
-  address:
-      data['address'] ?? '',
+                        rating: (data['rating'] as num?)?.toDouble(),
 
-  specialties:
-      List<String>.from(
-        data['specialties'] ?? [],
-      ),
+                        reviewsCount: data['reviewsCount'],
 
-  services:
-      data['services'] == null
-          ? null
-          : List<String>.from(
-              data['services'],
-            ),
+                        workingHours: data['workingHours'],
 
-  phone:
-      data['phone'],
+                        description: data['description'],
 
-  whatsapp:
-      data['whatsapp'],
+                        isPartner: data['isPartner'] == true,
 
-  rating:
-      (data['rating'] as num?)
-          ?.toDouble(),
+                        isVerified: data['isVerified'] == true,
 
-  reviewsCount:
-      data['reviewsCount'],
+                        status: data['status'] ?? 'approved',
 
-  workingHours:
-      data['workingHours'],
+                        is24h: data['is24h'] == true,
 
-  description:
-      data['description'],
+                        isEmergency:
+                            data['emergencyService'] == true ||
+                            data['isEmergency'] == true,
 
-  isPartner:
-      data['isPartner'] == true,
+                        type: BusinessType.vet,
 
-  isVerified:
-      data['isVerified'] == true,
+                        instagram: data['instagram'],
 
-  status:
-      data['status'] ?? 'approved',
+                        website: data['website'],
 
-  is24h:
-      data['is24h'] == true,
+                        logoUrl: data['logoUrl'],
 
-  isEmergency:
-      data['emergencyService'] == true ||
+                        rawData: data,
 
-      data['isEmergency'] == true,
+                        data: data,
+                      );
 
-  type:
-      BusinessType.vet,
+                      if (!context.mounted) return;
 
-  instagram:
-      data['instagram'],
+                      final appState = context.read<AppState>();
 
-  website:
-      data['website'],
+                      appState.closeNotifications();
 
-  logoUrl:
-      data['logoUrl'],
+                      appState.openBusinessAppointment(
+                        vet,
 
-  rawData:
-      data,
+                        selectedService: {"id": "vaccination", "title": name},
+                      );
+                    },
+                  ),
+                ),
 
-  data:
-      data,
-);
+                const SizedBox(height: 24),
+              ],
 
-  if (!context.mounted) return;
-
-final appState =
-    context.read<AppState>();
-
-appState.closeNotifications();
-
-appState.openBusinessAppointment(
-  vet,
-
-  selectedService: {
-
-    "id": "vaccination",
-
-    "title": name,
-
-  },
-
-);
-},
-    ),
-  ),
-
-  const SizedBox(height: 24),
-],
-
-_ContextSection(
+              _ContextSection(
                 petName: petName,
                 patientLabel: patientLabel,
                 clinicName: clinicName,
@@ -503,7 +439,7 @@ class _ContextSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-  'Related records',
+            'Related records',
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.w600,

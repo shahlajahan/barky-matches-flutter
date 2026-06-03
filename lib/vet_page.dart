@@ -79,19 +79,15 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
     _promoTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (!mounted || _dynamicTips.isEmpty) return;
 
-      final appState =
-    context.read<app.AppState>();
+      final appState = context.read<app.AppState>();
 
-if (appState.businessSubPage ==
-    app.BusinessSubPage.appointment) {
-  return;
-}
+      if (appState.businessSubPage == app.BusinessSubPage.appointment) {
+        return;
+      }
 
-setState(() {
-  _tipIndex =
-      (_tipIndex + 1)
-      % _dynamicTips.length;
-});
+      setState(() {
+        _tipIndex = (_tipIndex + 1) % _dynamicTips.length;
+      });
     });
 
     _loadVetsFromFirestore();
@@ -156,27 +152,18 @@ setState(() {
   }
 
   Future<void> _generateSmartTips([Position? pos]) async {
-    final position =
-    pos ??
-    _position ??
-    _cachedPosition;
+    final position = pos ?? _position ?? _cachedPosition;
     if (position == null) {
+      setState(() {
+        _dynamicTips = [
+          "💉 Regular vet checkups are essential",
 
-  setState(() {
+          "🐾 Healthy pets need prevention",
+        ];
+      });
 
-    _dynamicTips = [
-
-      "💉 Regular vet checkups are essential",
-
-      "🐾 Healthy pets need prevention",
-
-    ];
-
-  });
-
-  return;
-
-}
+      return;
+    }
     if (!mounted) return;
     final now = DateTime.now();
     final hour = now.hour;
@@ -201,29 +188,15 @@ setState(() {
 
     debugPrint("🌡 TEMP USED: $safeTemp");
 
-final nextVaccineTip =
-    await _buildNextVaccinationTip();
+    final nextVaccineTip = await _buildNextVaccinationTip();
 
-if (!mounted) return;
+    if (!mounted) return;
 
     final tips = _buildAITips(temp: safeTemp, hour: hour, dogSize: "small");
-if (nextVaccineTip != null) {
+    if (nextVaccineTip != null) {
+      tips.add(SmartTip(text: nextVaccineTip, priority: 200, type: "vaccine"));
+    }
 
-  tips.add(
-
-    SmartTip(
-
-      text: nextVaccineTip,
-
-      priority: 200,
-
-      type: "vaccine",
-
-    ),
-
-  );
-
-}
     /// ⏰ TIME
     if (hour >= 7 && hour <= 10) {
       tips.add(
@@ -402,137 +375,81 @@ if (nextVaccineTip != null) {
   }
 
   Future<String?> _buildNextVaccinationTip() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
 
-  try {
+      if (uid == null) return null;
 
-    final uid =
-        FirebaseAuth
-            .instance
-            .currentUser
-            ?.uid;
+      final appState = context.read<app.AppState>();
 
-    if (uid == null) return null;
+      final myDogs = appState.myDogs.where((d) => d.ownerId == uid).toList();
 
-    final appState =
-        context.read<app.AppState>();
+      debugPrint('MY DOG COUNT = ${myDogs.length}');
 
-    final myDogs =
-        appState.myDogs
-            .where(
-              (d) => d.ownerId == uid,
-            )
-            .toList();
+      DateTime? nearest;
 
-    debugPrint(
-      'MY DOG COUNT = ${myDogs.length}',
-    );
+      for (final dog in myDogs) {
+        debugPrint('CHECK DOG = ${dog.id}');
 
-    DateTime? nearest;
+        final snap = await FirebaseFirestore.instance
+            .collection('dogs')
+            .doc(dog.id)
+            .collection('vaccines')
+            .get();
 
-    for (final dog in myDogs) {
+        debugPrint('DOG ${dog.id} vaccines=${snap.docs.length}');
 
-      debugPrint(
-        'CHECK DOG = ${dog.id}',
-      );
+        for (final doc in snap.docs) {
+          final data = doc.data();
 
-      final snap =
-          await FirebaseFirestore.instance
-              .collection('dogs')
-              .doc(dog.id)
-              .collection('vaccines')
-              .get();
+          debugPrint('VACCINE DATA = $data');
 
-      debugPrint(
-        'DOG ${dog.id} vaccines=${snap.docs.length}',
-      );
+          final ts = data['nextDueDate'];
 
-      for (final doc in snap.docs) {
+          DateTime? date;
 
-        final data = doc.data();
+          if (ts is Timestamp) {
+            date = ts.toDate();
+          }
 
-        debugPrint(
-    'VACCINE DATA = $data',
-  );
+          if (date == null) continue;
 
-        final ts =
-    data['nextDueDate'];
-
-        DateTime? date;
-
-        if (ts is Timestamp) {
-          date = ts.toDate();
+          if (nearest == null || date.isBefore(nearest)) {
+            nearest = date;
+          }
         }
-
-        if (date == null) continue;
-
-        if (nearest == null ||
-            date.isBefore(nearest)) {
-
-          nearest = date;
-
-        }
-
       }
 
+      if (nearest == null) {
+        return "💉 Add vaccination records";
+      }
+
+      final now = DateTime.now();
+
+      final today = DateTime(now.year, now.month, now.day);
+
+      final dueDate = DateTime(nearest.year, nearest.month, nearest.day);
+
+      if (dueDate.isBefore(today)) {
+        final diff = today.difference(dueDate).inDays;
+
+        return "⚠️ Vaccination overdue by $diff days";
+      }
+
+      if (dueDate == today) {
+        return "💉Vaccination due today • Tap medical records";
+      }
+
+      return "💉 Next vaccination at "
+          "${nearest.day.toString().padLeft(2, '0')}."
+          "${nearest.month.toString().padLeft(2, '0')}."
+          "${nearest.year}";
+    } catch (e) {
+      debugPrint('vaccine tip error $e');
+
+      return null;
     }
-
-    if (nearest == null) {
-      return "💉 Add vaccination records";
-    }
-
-    final now =
-        DateTime.now();
-
-    final today =
-    DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
-
-final dueDate =
-    DateTime(
-      nearest.year,
-      nearest.month,
-      nearest.day,
-    );
-
-if (dueDate.isBefore(today)) {
-
-  final diff =
-      today
-          .difference(dueDate)
-          .inDays;
-
-  return
-      "⚠️ Vaccination overdue by $diff days";
-
-}
-
-if (dueDate == today) {
-
-  return
-      "💉Vaccination due today • Tap medical records";
-
-}
-
-    return
-        "💉 Next vaccination at "
-        "${nearest.day.toString().padLeft(2,'0')}."
-        "${nearest.month.toString().padLeft(2,'0')}."
-        "${nearest.year}";
-
-  } catch (e) {
-
-    debugPrint(
-      'vaccine tip error $e',
-    );
-
-    return null;
-
   }
-
-}
 
   Future<void> _loadTips() async {
     try {
@@ -992,100 +909,69 @@ if (dueDate == today) {
   Widget build(BuildContext context) {
     super.build(context);
 
-    final appState =
-    context.read<app.AppState>();
+    final appState = context.read<app.AppState>();
 
-final businessSubPage =
-    context.select<
-        app.AppState,
-        app.BusinessSubPage>(
+    final businessSubPage = context.select<app.AppState, app.BusinessSubPage>(
       (s) => s.businessSubPage,
     );
 
-final businessAppointment =
-    context.select<
-        app.AppState,
-        BusinessCardData?>(
+    final businessAppointment = context.select<app.AppState, BusinessCardData?>(
       (s) => s.businessAppointment,
     );
 
-final appointmentService =
-    context.select<
-        app.AppState,
-        Map<String,dynamic>?>(
-      (s) => s.appointmentService,
-    );
+    final appointmentService = context
+        .select<app.AppState, Map<String, dynamic>?>(
+          (s) => s.appointmentService,
+        );
 
-final currentUserId =
-    context.select<
-        app.AppState,
-        String?>(
+    final currentUserId = context.select<app.AppState, String?>(
       (s) => s.currentUserId,
     );
 
-final selectedVet =
-    context.select<
-        app.AppState,
-        BusinessCardData?>(
+    final selectedVet = context.select<app.AppState, BusinessCardData?>(
       (s) => s.selectedVet,
     );
 
-final activeVaccineId =
-    context.select<
-        app.AppState,
-        String?>(
+    final activeVaccineId = context.select<app.AppState, String?>(
       (s) => s.activeVaccineId,
     );
 
-/// APPOINTMENT FIRST
+    /// APPOINTMENT FIRST
 
-if (businessSubPage ==
-    app.BusinessSubPage.appointment &&
-    businessAppointment != null) {
+    if (businessSubPage == app.BusinessSubPage.appointment &&
+        businessAppointment != null) {
+      return VetAppointmentPage(
+        vet: businessAppointment,
+        selectedService: appointmentService,
+      );
+    }
 
-  return VetAppointmentPage(
-    vet: businessAppointment,
-selectedService:
-    appointmentService,
-  );
-}
+    /// THEN VACCINE PAGE
 
+    if (activeVaccineId != null && activeVaccineId.isNotEmpty) {
+      return WillPopScope(
+        onWillPop: () async {
+          appState.closeVaccineNotification();
 
-/// THEN VACCINE PAGE
+          return true;
+        },
 
-if (activeVaccineId != null &&
-    activeVaccineId.isNotEmpty) {
+        child: VaccineNotificationPage(
+          businessId: appState.activeVaccineBusinessId!,
 
-  return WillPopScope(
+          patientId: appState.activeVaccinePatientId!,
 
-    onWillPop: () async {
+          vaccineId: activeVaccineId,
 
-      appState.closeVaccineNotification();
-
-      return true;
-    },
-
-    child: VaccineNotificationPage(
-
-      businessId:
-          appState.activeVaccineBusinessId!,
-
-      patientId:
-          appState.activeVaccinePatientId!,
-
-      vaccineId:
-          activeVaccineId,
-
-      petId:
-          appState.activeVaccinePetId,
-    ),
-  );
-}
+          petId: appState.activeVaccinePetId,
+        ),
+      );
+    }
 
     if (currentUserId == null) {
       return const Center(child: CircularProgressIndicator());
     }
-/*
+    /*
     /// ✅ اول appointment
     if (appState.businessSubPage == app.BusinessSubPage.appointment &&
         appState.businessAppointment != null) {

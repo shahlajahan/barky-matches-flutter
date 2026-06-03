@@ -37,9 +37,12 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
   @override
   void didUpdateWidget(covariant BusinessDashboardPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     debugPrint(
-      '🏢 BusinessDashboardPage didUpdateWidget ${identityHashCode(this)} '
-      'oldBusinessId=${oldWidget.businessId} newBusinessId=${widget.businessId}',
+      "🏢 BusinessDashboardPage didUpdateWidget "
+      "oldHash=${identityHashCode(oldWidget)} "
+      "newHash=${identityHashCode(widget)} "
+      "sameBusiness=${oldWidget.businessId == widget.businessId}",
     );
   }
 
@@ -113,15 +116,7 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
             '🧭 Dashboard routeKey=$routeKey businessId=${widget.businessId}',
           );
           */
-          return IndexedStack(
-            index: 0,
-            children: [
-              KeyedSubtree(
-                key: ValueKey(routeKey),
-                child: _buildDashboardBySector(context, sectors, data),
-              ),
-            ],
-          );
+          return _buildDashboardBySector(context, sectors, data);
         },
       ),
     );
@@ -197,8 +192,15 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     }
 
     if (hasGrooming) {
+      debugPrint(
+        "GROOMY CHILD BUILD "
+        "dataHash=${identityHashCode(data)}",
+      );
       return GroomyDashboardPage(
+        key: ValueKey(widget.businessId),
+
         businessId: widget.businessId,
+
         businessData: data,
       );
     }

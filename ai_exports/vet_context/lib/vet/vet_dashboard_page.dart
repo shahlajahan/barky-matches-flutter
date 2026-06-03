@@ -68,21 +68,21 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
 
             /// 📦 CONTENT
             Expanded(
-  child: IndexedStack(
-    index: _selected == VetDashboardSection.overview ? 0 : 1,
-    children: [
-      VetDashboardOverviewTab(
-        key: const PageStorageKey('vet_overview_scroll'),
-        businessId: widget.businessId,
-        businessData: widget.businessData,
-      ),
-      VetDashboardAppointmentsTab(
-        key: const PageStorageKey('vet_appointments_scroll'),
-        businessId: widget.businessId,
-      ),
-    ],
-  ),
-),
+              child: IndexedStack(
+                index: _selected == VetDashboardSection.overview ? 0 : 1,
+                children: [
+                  VetDashboardOverviewTab(
+                    key: const PageStorageKey('vet_overview_scroll'),
+                    businessId: widget.businessId,
+                    businessData: widget.businessData,
+                  ),
+                  VetDashboardAppointmentsTab(
+                    key: const PageStorageKey('vet_appointments_scroll'),
+                    businessId: widget.businessId,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

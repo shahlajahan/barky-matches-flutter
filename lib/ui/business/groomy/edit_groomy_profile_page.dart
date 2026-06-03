@@ -89,18 +89,18 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
       _websiteController.text = (contact['website'] ?? '').toString();
 
       final groomyProfileContent =
-    (groomyData['profileContent'] as Map<String, dynamic>?) ?? {};
+          (groomyData['profileContent'] as Map<String, dynamic>?) ?? {};
 
-final socialMedia =
-    (groomyProfileContent['socialMedia'] as Map<String, dynamic>?) ?? {};
+      final socialMedia =
+          (groomyProfileContent['socialMedia'] as Map<String, dynamic>?) ?? {};
 
-_instagramController.text =
-    (socialMedia['instagram'] ??
-            groomyProfile['instagram'] ??
-            groomyData['instagram'] ??
-            contact['instagram'] ??
-            '')
-        .toString();
+      _instagramController.text =
+          (socialMedia['instagram'] ??
+                  groomyProfile['instagram'] ??
+                  groomyData['instagram'] ??
+                  contact['instagram'] ??
+                  '')
+              .toString();
 
       _cityController.text = (contact['city'] ?? '').toString();
 
@@ -178,16 +178,16 @@ _instagramController.text =
                 'description': _bioController.text.trim(),
 
                 'profile': {
-  'bio': _bioController.text.trim(),
-  'instagram': _instagramController.text.trim(),
-},
+                  'bio': _bioController.text.trim(),
+                  'instagram': _instagramController.text.trim(),
+                },
 
-'profileContent': {
-  'bio': _bioController.text.trim(),
-  'socialMedia': {
-    'instagram': _instagramController.text.trim(),
-  },
-},
+                'profileContent': {
+                  'bio': _bioController.text.trim(),
+                  'socialMedia': {
+                    'instagram': _instagramController.text.trim(),
+                  },
+                },
 
                 'updatedAt': FieldValue.serverTimestamp(),
               },

@@ -274,38 +274,29 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                     final onWhatsApp = _whatsAppAction(business);
                     final onDirections = _directionsAction(business);
 
-                  if (business.type == BusinessType.groomer) {
+                    if (business.type == BusinessType.groomer) {
+                      debugPrint('GROOMY DETAIL OPEN → BusinessDetailOverlay');
 
-  debugPrint(
-    'GROOMY DETAIL OPEN → BusinessDetailOverlay'
-  );
+                      return BusinessDetailOverlay(
+                        key: ValueKey('${business.type}-${business.id}'),
 
-  return BusinessDetailOverlay(
-    key: ValueKey(
-      '${business.type}-${business.id}',
-    ),
+                        data: business,
 
-    data: business,
+                        onClose: appState.closeBusinessDetails,
 
-    onClose:
-        appState.closeBusinessDetails,
+                        onOpenAppointment: () {
+                          appState.closeBusinessDetails();
 
-    onOpenAppointment: () {
+                          appState.openBusinessAppointment(business);
+                        },
 
-      appState.closeBusinessDetails();
+                        onCall: onCall,
 
-      appState.openBusinessAppointment(
-        business,
-      );
-    },
+                        onWhatsApp: onWhatsApp,
 
-    onCall: onCall,
-
-    onWhatsApp: onWhatsApp,
-
-    onDirections: onDirections,
-  );
-}
+                        onDirections: onDirections,
+                      );
+                    }
                     if (business.type == BusinessType.adoptionCenter) {
                       debugPrint(
                         'ADOPTION CENTER DETAIL OPEN id=${business.id} name=${business.name}',
