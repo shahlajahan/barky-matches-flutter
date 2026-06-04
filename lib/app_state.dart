@@ -292,20 +292,19 @@ class AppState with ChangeNotifier {
       _initialBusinessResolutionStatus;
   String? get initialBusinessResolutionReason =>
       _initialBusinessResolutionReason;
-void setApprovedBusiness({
-  required String businessId,
-  required List<String> sectors,
-}) {
+  void setApprovedBusiness({
+    required String businessId,
+    required List<String> sectors,
+  }) {
+    debugPrint("✅ setApprovedBusiness CALLED");
 
-  debugPrint("✅ setApprovedBusiness CALLED");
+    _businessId = businessId;
+    _businessSectors = sectors;
 
-  _businessId = businessId;
-  _businessSectors = sectors;
+    _businessStatus = 'approved';
 
-  _businessStatus = 'approved';
-
-  notifyListeners();
-}
+    notifyListeners();
+  }
 
   void setInitialBusinessCenterId(String id) {
     _initialBusinessCenterId = id;
@@ -356,8 +355,8 @@ void setApprovedBusiness({
 
   void clearBusinessState() {
     debugPrint("🚨 CLEAR BUSINESS STATE CALLED");
-debugPrint("🚨 OLD businessId=$businessId");
-debugPrint("🚨 OLD approved=$hasApprovedBusiness");
+    debugPrint("🚨 OLD businessId=$businessId");
+    debugPrint("🚨 OLD approved=$hasApprovedBusiness");
     _businessId = null;
     _businessStatus = null;
     _isBusinessVerified = false;

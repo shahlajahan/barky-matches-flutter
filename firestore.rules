@@ -187,6 +187,28 @@ service cloud.firestore {
   );
 }
 
+match /adoption_pets/{petId} {
+
+  allow read: if isSignedIn();
+
+  allow create:
+    if isSignedIn()
+    && request.resource.data.businessId is string
+    && isBusinessOwner(
+      request.resource.data.businessId
+    );
+
+  allow update, delete:
+    if isAdmin()
+    || (
+      isSignedIn()
+      && resource.data.businessId is string
+      && isBusinessOwner(
+        resource.data.businessId
+      )
+    );
+}
+
 match /adoption_center_requests/{requestId} {
 
   allow read: if isAdmin() || (

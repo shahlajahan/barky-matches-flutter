@@ -15,7 +15,6 @@ import 'ui/business/business_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
-
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
 
 enum AdoptionViewType { centers, dogs }
@@ -283,7 +282,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
       stream: FirebaseFirestore.instance
           .collection('dogs')
           .where('isAvailableForAdoption', isEqualTo: true)
-          .where('isHidden', isEqualTo: false)
           .limit(50)
           .snapshots(),
 

@@ -11,10 +11,7 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 class PetHotelGalleryTab extends StatefulWidget {
   final String businessId;
 
-  const PetHotelGalleryTab({
-    super.key,
-    required this.businessId,
-  });
+  const PetHotelGalleryTab({super.key, required this.businessId});
 
   @override
   State<PetHotelGalleryTab> createState() => _PetHotelGalleryTabState();
@@ -35,9 +32,7 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
   }
 
   List<String> _mergedImages(Map<String, dynamic> data) {
-    return <String>{
-      ...List<String>.from(data['images'] ?? []),
-    }.toList();
+    return <String>{...List<String>.from(data['images'] ?? [])}.toList();
   }
 
   Future<void> _pickAndUploadMultiple() async {
@@ -80,25 +75,21 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
 
       final existingImages = _mergedImages(data);
 
-      final existingVideos =
-          List<String>.from(data['videos'] ?? []);
+      final existingVideos = List<String>.from(data['videos'] ?? []);
 
-      final cover =
-          (data['coverImageUrl'] ?? '').toString();
+      final cover = (data['coverImageUrl'] ?? '').toString();
 
       List<String> uploadedImages = [];
 
       if (imageFiles.isNotEmpty) {
-        uploadedImages =
-            await ImageUploadService.uploadBusinessImages(
+        uploadedImages = await ImageUploadService.uploadBusinessImages(
           files: imageFiles,
           businessId: widget.businessId,
           onProgress: (value) {
             if (!mounted) return;
 
             setState(() {
-              _progress =
-                  value.clamp(0.0, 1.0);
+              _progress = value.clamp(0.0, 1.0);
             });
           },
         );
@@ -110,18 +101,15 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
         final name =
             '${DateTime.now().millisecondsSinceEpoch}_${video.path.split('/').last}';
 
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child(
-              'business_gallery/${widget.businessId}/videos/$name',
-            );
+        final ref = FirebaseStorage.instance.ref().child(
+          'business_gallery/${widget.businessId}/videos/$name',
+        );
 
         final task = ref.putFile(video);
 
         final result = await task;
 
-        final url =
-            await result.ref.getDownloadURL();
+        final url = await result.ref.getDownloadURL();
 
         uploadedVideos.add(url);
       }
@@ -139,11 +127,9 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
       await docRef.set({
         'images': nextImages,
         'videos': nextVideos,
-        if (cover.isEmpty &&
-            uploadedImages.isNotEmpty)
+        if (cover.isEmpty && uploadedImages.isNotEmpty)
           'coverImageUrl': uploadedImages.first,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
       debugPrint("HOTEL GALLERY ERROR $e");
@@ -164,10 +150,9 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
         .collection('businesses')
         .doc(widget.businessId)
         .set({
-      'coverImageUrl': url,
-      'updatedAt':
-          FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+          'coverImageUrl': url,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   Future<void> _deleteMedia({
@@ -175,183 +160,107 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
     required List<String> currentImages,
     required String cover,
   }) async {
-    await ImageUploadService.deleteImageByUrl(
-      url,
-    );
+    await ImageUploadService.deleteImageByUrl(url);
 
-    final next =
-        List<String>.from(currentImages)
-          ..remove(url);
+    final next = List<String>.from(currentImages)..remove(url);
 
     await FirebaseFirestore.instance
         .collection('businesses')
         .doc(widget.businessId)
         .set({
-      'images':
-          next.where((e) => !_isVideo(e)).toList(),
-      'videos':
-          next.where((e) => _isVideo(e)).toList(),
-      'coverImageUrl':
-          cover == url
-              ? (next.isNotEmpty
-                    ? next.first
-                    : null)
+          'images': next.where((e) => !_isVideo(e)).toList(),
+          'videos': next.where((e) => _isVideo(e)).toList(),
+          'coverImageUrl': cover == url
+              ? (next.isNotEmpty ? next.first : null)
               : cover,
-      'updatedAt':
-          FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('businesses')
           .doc(widget.businessId)
           .snapshots(),
       builder: (_, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(
-            child:
-                CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
-        final data =
-            snapshot.data!.data() ?? {};
+        final data = snapshot.data!.data() ?? {};
 
-        final images =
-            _mergedImages(data);
+        final images = _mergedImages(data);
 
-        final videos =
-            List<String>.from(
-          data['videos'] ?? [],
-        );
+        final videos = List<String>.from(data['videos'] ?? []);
 
-        final cover =
-            (data['coverImageUrl'] ?? '')
-                .toString();
+        final cover = (data['coverImageUrl'] ?? '').toString();
 
-        final media = [
-          ...images,
-          ...videos,
-        ];
+        final media = [...images, ...videos];
 
         return Column(
           children: [
-
             Padding(
-              padding:
-                  const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-
                   SizedBox(
-                    width:
-                        double.infinity,
-                    child:
-                        ElevatedButton.icon(
-                      onPressed:
-                          _uploading
-                              ? null
-                              : _pickAndUploadMultiple,
-                      icon: const Icon(
-                        Icons
-                            .add_photo_alternate,
-                      ),
-                      label: const Text(
-                        "Upload Hotel Media",
-                      ),
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _uploading ? null : _pickAndUploadMultiple,
+                      icon: const Icon(Icons.add_photo_alternate),
+                      label: const Text("Upload Hotel Media"),
                     ),
                   ),
 
                   if (_uploading) ...[
-                    const SizedBox(
-                      height: 12,
-                    ),
+                    const SizedBox(height: 12),
 
-                    LinearProgressIndicator(
-                      value: _progress,
-                    ),
+                    LinearProgressIndicator(value: _progress),
 
-                    const SizedBox(
-                      height: 6,
-                    ),
+                    const SizedBox(height: 6),
 
-                    Text(
-                      "${(_progress * 100).toStringAsFixed(0)}%",
-                    ),
-                  ]
+                    Text("${(_progress * 100).toStringAsFixed(0)}%"),
+                  ],
                 ],
               ),
             ),
 
             Expanded(
               child: media.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "No media yet",
-                      ),
-                    )
+                  ? const Center(child: Text("No media yet"))
                   : GridView.builder(
-                      padding:
-                          const EdgeInsets.all(
-                              16),
-                      itemCount:
-                          media.length,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: media.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount:
-                            2,
-                        crossAxisSpacing:
-                            12,
-                        mainAxisSpacing:
-                            12,
-                        childAspectRatio:
-                            .92,
-                      ),
-                      itemBuilder:
-                          (_, index) {
-                        final url =
-                            media[index];
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: .92,
+                          ),
+                      itemBuilder: (_, index) {
+                        final url = media[index];
 
-                        final isVideo =
-                            _isVideo(
-                          url,
-                        );
+                        final isVideo = _isVideo(url);
 
-                        final isCover =
-                            cover ==
-                                url;
+                        final isCover = cover == url;
 
                         return _GalleryCard(
                           url: url,
-                          isVideo:
-                              isVideo,
-                          isCover:
-                              isCover,
-                          onSetCover:
-                              isVideo
-                                  ? null
-                                  : () =>
-                                      _setCover(
-                                        url,
-                                      ),
-                          onDelete:
-                              () =>
-                                  _deleteMedia(
+                          isVideo: isVideo,
+                          isCover: isCover,
+                          onSetCover: isVideo ? null : () => _setCover(url),
+                          onDelete: () => _deleteMedia(
                             url: url,
-                            currentImages:
-                                media.cast<
-                                    String>(),
-                            cover:
-                                cover,
+                            currentImages: media.cast<String>(),
+                            cover: cover,
                           ),
                         );
                       },
                     ),
-            )
+            ),
           ],
         );
       },
@@ -379,40 +288,21 @@ class _GalleryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         color: Colors.white,
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 12,
-            color:
-                Color(0x15000000),
-          )
-        ],
+        boxShadow: const [BoxShadow(blurRadius: 12, color: Color(0x15000000))],
       ),
       child: Column(
         children: [
-
           Expanded(
             child: Stack(
               children: [
-
                 Positioned.fill(
-                  child:
-                      ClipRRect(
-                    borderRadius:
-                        const BorderRadius.vertical(
-                      top:
-                          Radius.circular(
-                        18,
-                      ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(18),
                     ),
-                    child:
-                        SmartMedia(
-                      url: url,
-                      fit:
-                          BoxFit.cover,
-                    ),
+                    child: SmartMedia(url: url, fit: BoxFit.cover),
                   ),
                 ),
 
@@ -420,31 +310,18 @@ class _GalleryCard extends StatelessWidget {
                   Positioned(
                     top: 10,
                     left: 10,
-                    child:
-                        Container(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal:
-                            10,
-                        vertical:
-                            5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
                       ),
-                      decoration:
-                          BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.black,
-                        borderRadius:
-                            BorderRadius.circular(
-                          999,
-                        ),
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      child:
-                          const Text(
+                      child: const Text(
                         "Cover",
-                        style:
-                            TextStyle(
-                          color:
-                              Colors.white,
-                        ),
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                   ),
@@ -452,17 +329,11 @@ class _GalleryCard extends StatelessWidget {
                 Positioned(
                   right: 10,
                   top: 10,
-                  child:
-                      GestureDetector(
-                    onTap:
-                        onDelete,
-                    child:
-                        const CircleAvatar(
+                  child: GestureDetector(
+                    onTap: onDelete,
+                    child: const CircleAvatar(
                       radius: 16,
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                      ),
+                      child: Icon(Icons.close, size: 16),
                     ),
                   ),
                 ),
@@ -471,30 +342,21 @@ class _GalleryCard extends StatelessWidget {
           ),
 
           Padding(
-            padding:
-                const EdgeInsets.all(
-                    10),
-            child:
-                SizedBox(
-              width:
-                  double.infinity,
-              child:
-                  OutlinedButton(
-                onPressed:
-                    (isVideo ||
-                            isCover)
-                        ? null
-                        : onSetCover,
+            padding: const EdgeInsets.all(10),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: (isVideo || isCover) ? null : onSetCover,
                 child: Text(
                   isVideo
                       ? "Video"
                       : isCover
-                          ? "Current Cover"
-                          : "Set as Cover",
+                      ? "Current Cover"
+                      : "Set as Cover",
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );

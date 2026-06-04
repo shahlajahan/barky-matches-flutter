@@ -62,10 +62,7 @@ class AdoptionPetCard extends StatelessWidget {
     final color = _statusColor(pet.status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(.12),
         borderRadius: BorderRadius.circular(999),
@@ -84,25 +81,16 @@ class AdoptionPetCard extends StatelessWidget {
   Widget _buildCover() {
     final image =
         pet.coverImageUrl ??
-        (pet.gallery.isNotEmpty
-            ? pet.gallery.first
-            : null);
+        (pet.gallery.isNotEmpty ? pet.gallery.first : null);
 
     if (image == null || image.isEmpty) {
       return Container(
         color: Colors.grey.shade200,
-        child: Icon(
-          Icons.pets,
-          size: 52,
-          color: Colors.grey.shade400,
-        ),
+        child: Icon(Icons.pets, size: 52, color: Colors.grey.shade400),
       );
     }
 
-    return SmartMedia(
-      url: image,
-      fit: BoxFit.cover,
-    );
+    return SmartMedia(url: image, fit: BoxFit.cover);
   }
 
   Widget _buildPopupMenu(BuildContext context) {
@@ -123,15 +111,9 @@ class AdoptionPetCard extends StatelessWidget {
       },
       itemBuilder: (context) {
         return [
-          const PopupMenuItem(
-            value: 'edit',
-            child: Text('Edit'),
-          ),
+          const PopupMenuItem(value: 'edit', child: Text('Edit')),
 
-          const PopupMenuItem(
-            value: 'delete',
-            child: Text('Delete'),
-          ),
+          const PopupMenuItem(value: 'delete', child: Text('Delete')),
 
           const PopupMenuDivider(),
 
@@ -166,30 +148,21 @@ class AdoptionPetCard extends StatelessWidget {
       return 'Recently updated';
     }
 
-    return
-        '${dt.day}.${dt.month}.${dt.year}';
+    return '${dt.day}.${dt.month}.${dt.year}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: const [
           BoxShadow(
             blurRadius: 12,
-            color: Color(
-              0x12000000,
-            ),
-            offset: Offset(
-              0,
-              4,
-            ),
+            color: Color(0x12000000),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -200,152 +173,74 @@ class AdoptionPetCard extends StatelessWidget {
             child: Stack(
               children: [
                 ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(
-                    top:
-                        Radius.circular(
-                      22,
-                    ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(22),
                   ),
-                  child: SizedBox.expand(
-                    child: _buildCover(),
-                  ),
+                  child: SizedBox.expand(child: _buildCover()),
                 ),
 
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child:
-                      _buildPopupMenu(
-                    context,
-                  ),
-                ),
+                Positioned(right: 10, top: 10, child: _buildPopupMenu(context)),
 
-                Positioned(
-                  left: 12,
-                  top: 12,
-                  child:
-                      _buildStatusChip(),
-                ),
+                Positioned(left: 12, top: 12, child: _buildStatusChip()),
               ],
             ),
           ),
 
           Padding(
-            padding:
-                const EdgeInsets.all(
-              16,
-            ),
+            padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         pet.name,
-                        style:
-                            const TextStyle(
+                        style: const TextStyle(
                           fontSize: 22,
-                          fontWeight:
-                              FontWeight
-                                  .w800,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(
-                  height: 10,
-                ),
+                const SizedBox(height: 10),
 
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _InfoChip(
-                      icon:
-                          Icons.pets,
-                      text:
-                          pet.species,
-                    ),
+                    _InfoChip(icon: Icons.pets, text: pet.species),
 
-                    _InfoChip(
-                      icon:
-                          Icons
-                              .category_outlined,
-                      text:
-                          pet.breed,
-                    ),
+                    _InfoChip(icon: Icons.category_outlined, text: pet.breed),
 
-                    _InfoChip(
-                      icon:
-                          Icons
-                              .cake_outlined,
-                      text:
-                          pet.ageLabel,
-                    ),
+                    _InfoChip(icon: Icons.cake_outlined, text: pet.ageLabel),
 
-                    _InfoChip(
-                      icon:
-                          Icons
-                              .transgender,
-                      text:
-                          pet.gender,
-                    ),
+                    _InfoChip(icon: Icons.transgender, text: pet.gender),
                   ],
                 ),
 
-                if (pet.description
-                    .trim()
-                    .isNotEmpty) ...[
-                  const SizedBox(
-                    height: 12,
-                  ),
+                if (pet.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
 
                   Text(
                     pet.description,
-                    style:
-                        TextStyle(
-                      color:
-                          Colors
-                              .grey
-                              .shade700,
-                      height:
-                          1.35,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade700, height: 1.35),
                   ),
                 ],
 
-                const SizedBox(
-                  height: 14,
-                ),
+                const SizedBox(height: 14),
 
                 Row(
                   children: [
-                    Icon(
-                      Icons
-                          .update,
-                      size: 16,
-                      color: Colors
-                          .grey
-                          .shade600,
-                    ),
+                    Icon(Icons.update, size: 16, color: Colors.grey.shade600),
 
-                    const SizedBox(
-                      width: 6,
-                    ),
+                    const SizedBox(width: 6),
 
                     Text(
                       _updatedLabel(),
-                      style:
-                          TextStyle(
-                        color: Colors
-                            .grey
-                            .shade600,
-                      ),
+                      style: TextStyle(color: Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -363,56 +258,24 @@ class _InfoChip extends StatelessWidget {
 
   final String text;
 
-  const _InfoChip({
-    required this.icon,
-    required this.text,
-  });
+  const _InfoChip({required this.icon, required this.text});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color:
-            const Color(
-          0xFFF7F2F5,
-        ),
-        borderRadius:
-            BorderRadius.circular(
-          999,
-        ),
+        color: const Color(0xFFF7F2F5),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
-        mainAxisSize:
-            MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 15,
-            color:
-                const Color(
-              0xFF9E1B4F,
-            ),
-          ),
+          Icon(icon, size: 15, color: const Color(0xFF9E1B4F)),
 
-          const SizedBox(
-            width: 5,
-          ),
+          const SizedBox(width: 5),
 
-          Text(
-            text,
-            style:
-                const TextStyle(
-              fontWeight:
-                  FontWeight.w600,
-            ),
-          ),
+          Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );

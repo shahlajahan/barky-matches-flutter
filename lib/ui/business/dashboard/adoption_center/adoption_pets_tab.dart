@@ -8,10 +8,7 @@ import 'sections/add_edit_adoption_pet_page.dart';
 class AdoptionPetsTab extends StatefulWidget {
   final String businessId;
 
-  const AdoptionPetsTab({
-    super.key,
-    required this.businessId,
-  });
+  const AdoptionPetsTab({super.key, required this.businessId});
 
   @override
   State<AdoptionPetsTab> createState() => _AdoptionPetsTabState();
@@ -25,18 +22,33 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       FirebaseFirestore.instance.collection('adoption_pets');
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _petsStream() {
-    return _collection
+    debugPrint('INDEX DEBUG businessId=${widget.businessId}');
+
+    final query = _collection
         .where('businessId', isEqualTo: widget.businessId)
-        .orderBy('updatedAt', descending: true)
-        .snapshots();
+        .orderBy('updatedAt', descending: true);
+
+    debugPrint('INDEX DEBUG query created');
+
+    return query.snapshots().handleError((e) {
+      debugPrint('INDEX ERROR START ↓↓↓');
+
+      debugPrint(e.toString());
+
+      debugPrint('INDEX ERROR END ↑↑↑');
+    });
   }
 
   List<AdoptionPetModel> _applyFilters(List<AdoptionPetModel> pets) {
     return pets.where((pet) {
-      final matchesStatus = _statusFilter == 'all' || pet.status == _statusFilter;
+      final matchesStatus =
+          _statusFilter == 'all' || pet.status == _statusFilter;
 
       final q = _search.trim().toLowerCase();
-      if (q.isEmpty) return matchesStatus;
+
+      if (q.isEmpty) {
+        return matchesStatus;
+      }
 
       final searchable = [
         pet.name,
@@ -53,9 +65,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
   Future<void> _openAddPet() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AddEditAdoptionPetPage(
-          businessId: widget.businessId,
-        ),
+        builder: (_) => AddEditAdoptionPetPage(businessId: widget.businessId),
       ),
     );
   }
@@ -63,18 +73,13 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
   Future<void> _openEditPet(AdoptionPetModel pet) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AddEditAdoptionPetPage(
-          businessId: widget.businessId,
-          pet: pet,
-        ),
+        builder: (_) =>
+            AddEditAdoptionPetPage(businessId: widget.businessId, pet: pet),
       ),
     );
   }
 
-  Future<void> _changeStatus(
-    AdoptionPetModel pet,
-    String nextStatus,
-  ) async {
+  Future<void> _changeStatus(AdoptionPetModel pet, String nextStatus) async {
     try {
       final update = <String, dynamic>{
         'status': nextStatus,
@@ -90,16 +95,16 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       await _collection.doc(pet.id).set(update, SetOptions(merge: true));
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${pet.name} status updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${pet.name} status updated')));
     } catch (e) {
       debugPrint('ADOPTION PET STATUS ERROR: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status update failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Status update failed: $e')));
     }
   }
 
@@ -118,9 +123,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete'),
             ),
@@ -135,16 +138,16 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       await _collection.doc(pet.id).delete();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${pet.name} deleted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${pet.name} deleted')));
     } catch (e) {
       debugPrint('ADOPTION PET DELETE ERROR: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 
@@ -204,16 +207,14 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
                 _FilterChipButton(
                   label: 'Adopted',
                   selected: _statusFilter == AdoptionPetStatus.adopted,
-                  onTap: () => setState(
-                    () => _statusFilter = AdoptionPetStatus.adopted,
-                  ),
+                  onTap: () =>
+                      setState(() => _statusFilter = AdoptionPetStatus.adopted),
                 ),
                 _FilterChipButton(
                   label: 'Paused',
                   selected: _statusFilter == AdoptionPetStatus.paused,
-                  onTap: () => setState(
-                    () => _statusFilter = AdoptionPetStatus.paused,
-                  ),
+                  onTap: () =>
+                      setState(() => _statusFilter = AdoptionPetStatus.paused),
                 ),
               ],
             ),
@@ -230,27 +231,17 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.pets_rounded,
-              size: 56,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.pets_rounded, size: 56, color: Colors.grey.shade400),
             const SizedBox(height: 14),
             const Text(
               'No adoptable pets yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
               'Add pets that are available for adoption and manage their status here.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                height: 1.35,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, height: 1.35),
             ),
             const SizedBox(height: 18),
             FilledButton.icon(

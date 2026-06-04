@@ -6,12 +6,7 @@ class AdoptionPetStatus {
   static const adopted = 'adopted';
   static const paused = 'paused';
 
-  static const values = [
-    available,
-    reserved,
-    adopted,
-    paused,
-  ];
+  static const values = [available, reserved, adopted, paused];
 }
 
 class AdoptionPetModel {
@@ -63,9 +58,7 @@ class AdoptionPetModel {
     required this.adoptedAt,
   });
 
-  factory AdoptionPetModel.empty({
-    required String businessId,
-  }) {
+  factory AdoptionPetModel.empty({required String businessId}) {
     return AdoptionPetModel(
       id: '',
       businessId: businessId,
@@ -103,58 +96,37 @@ class AdoptionPetModel {
     return AdoptionPetModel(
       id: doc.id,
 
-      businessId:
-          (data['businessId'] ?? '').toString(),
+      businessId: (data['businessId'] ?? '').toString(),
 
-      name:
-          (data['name'] ?? '').toString(),
+      name: (data['name'] ?? '').toString(),
 
-      species:
-          (data['species'] ?? '').toString(),
+      species: (data['species'] ?? '').toString(),
 
-      breed:
-          (data['breed'] ?? '').toString(),
+      breed: (data['breed'] ?? '').toString(),
 
-      ageMonths:
-          (data['ageMonths'] ?? 0) is int
-              ? data['ageMonths']
-              : int.tryParse(
-                    data['ageMonths'].toString(),
-                  ) ??
-                  0,
+      ageMonths: (data['ageMonths'] ?? 0) is int
+          ? data['ageMonths']
+          : int.tryParse(data['ageMonths'].toString()) ?? 0,
 
-      gender:
-          (data['gender'] ?? '').toString(),
+      gender: (data['gender'] ?? '').toString(),
 
-      description:
-          (data['description'] ?? '').toString(),
+      description: (data['description'] ?? '').toString(),
 
-      status:
-          AdoptionPetStatus.values.contains(
-            data['status'],
-          )
-              ? data['status']
-              : AdoptionPetStatus.available,
+      status: AdoptionPetStatus.values.contains(data['status'])
+          ? data['status']
+          : AdoptionPetStatus.available,
 
-      coverImageUrl:
-          data['coverImageUrl']?.toString(),
+      coverImageUrl: data['coverImageUrl']?.toString(),
 
-      gallery:
-          List<String>.from(
-        data['gallery'] ?? [],
-      ),
+      gallery: List<String>.from(data['gallery'] ?? []),
 
-      isVisible:
-          data['isVisible'] ?? true,
+      isVisible: data['isVisible'] ?? true,
 
-      createdAt:
-          _parse(data['createdAt']),
+      createdAt: _parse(data['createdAt']),
 
-      updatedAt:
-          _parse(data['updatedAt']),
+      updatedAt: _parse(data['updatedAt']),
 
-      adoptedAt:
-          _parse(data['adoptedAt']),
+      adoptedAt: _parse(data['adoptedAt']),
     );
   }
 
@@ -182,18 +154,13 @@ class AdoptionPetModel {
 
       'isVisible': isVisible,
 
-      'createdAt':
-          createdAt == null
-              ? FieldValue.serverTimestamp()
-              : Timestamp.fromDate(createdAt!),
+      'createdAt': createdAt == null
+          ? FieldValue.serverTimestamp()
+          : Timestamp.fromDate(createdAt!),
 
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
 
-      'adoptedAt':
-          adoptedAt == null
-              ? null
-              : Timestamp.fromDate(adoptedAt!),
+      'adoptedAt': adoptedAt == null ? null : Timestamp.fromDate(adoptedAt!),
     };
   }
 
@@ -217,47 +184,33 @@ class AdoptionPetModel {
     return AdoptionPetModel(
       id: id ?? this.id,
 
-      businessId:
-          businessId ?? this.businessId,
+      businessId: businessId ?? this.businessId,
 
-      name:
-          name ?? this.name,
+      name: name ?? this.name,
 
-      species:
-          species ?? this.species,
+      species: species ?? this.species,
 
-      breed:
-          breed ?? this.breed,
+      breed: breed ?? this.breed,
 
-      ageMonths:
-          ageMonths ?? this.ageMonths,
+      ageMonths: ageMonths ?? this.ageMonths,
 
-      gender:
-          gender ?? this.gender,
+      gender: gender ?? this.gender,
 
-      description:
-          description ?? this.description,
+      description: description ?? this.description,
 
-      status:
-          status ?? this.status,
+      status: status ?? this.status,
 
-      coverImageUrl:
-          coverImageUrl ?? this.coverImageUrl,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
 
-      gallery:
-          gallery ?? this.gallery,
+      gallery: gallery ?? this.gallery,
 
-      isVisible:
-          isVisible ?? this.isVisible,
+      isVisible: isVisible ?? this.isVisible,
 
-      createdAt:
-          createdAt ?? this.createdAt,
+      createdAt: createdAt ?? this.createdAt,
 
-      updatedAt:
-          updatedAt ?? this.updatedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
 
-      adoptedAt:
-          adoptedAt ?? this.adoptedAt,
+      adoptedAt: adoptedAt ?? this.adoptedAt,
     );
   }
 
@@ -266,11 +219,9 @@ class AdoptionPetModel {
       return '$ageMonths months';
     }
 
-    final years =
-        (ageMonths / 12).floor();
+    final years = (ageMonths / 12).floor();
 
-    final remaining =
-        ageMonths % 12;
+    final remaining = ageMonths % 12;
 
     if (remaining == 0) {
       return '$years years';
@@ -279,9 +230,7 @@ class AdoptionPetModel {
     return '$years y $remaining m';
   }
 
-  bool get isAdopted =>
-      status == AdoptionPetStatus.adopted;
+  bool get isAdopted => status == AdoptionPetStatus.adopted;
 
-  bool get isAvailable =>
-      status == AdoptionPetStatus.available;
+  bool get isAvailable => status == AdoptionPetStatus.available;
 }

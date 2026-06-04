@@ -376,18 +376,21 @@ class _AdoptionCenterDetailsOverlayState
   // =====================================================
 
   Widget _pets() {
+    final businessId = widget.data.id;
+    print("DETAIL PET QUERY businessId=$businessId");
+
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(widget.data.id)
           .collection('adoption_pets')
-          .orderBy('createdAt', descending: true)
+          .where('businessId', isEqualTo: businessId)
           .snapshots(),
 
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
+        print("DETAIL PET COUNT=${snapshot.data?.docs.length ?? 0}");
 
         final pets = <Map<String, dynamic>>[];
 
