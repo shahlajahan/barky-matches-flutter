@@ -8,6 +8,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 
 class GroomyDashboardAppointmentsTab extends StatelessWidget {
   final String businessId;
@@ -282,6 +284,14 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
               ],
             ),
 
+          MarketplaceTransactionStatus(
+            data: data,
+            compact: true,
+            showInvoiceActions: true,
+            collectionName: 'groomy_appointments',
+            transactionId: appointmentId,
+          ),
+
           const SizedBox(height: 14),
 
           /// ACTIONS
@@ -353,8 +363,16 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
         children: [
           Expanded(
             child: ElevatedButton(
-              onPressed: () =>
-                  _updateAppointmentStatus(context, appointmentId, 'completed'),
+              onPressed: () {
+                if (!MarketplaceInvoicePolicy.guardCompletion(
+                  context,
+                  data,
+                  targetStatus: 'completed',
+                )) {
+                  return;
+                }
+                _updateAppointmentStatus(context, appointmentId, 'completed');
+              },
               child: const Text("Complete"),
             ),
           ),

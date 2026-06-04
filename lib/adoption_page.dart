@@ -180,6 +180,14 @@ class _AdoptionPageState extends State<AdoptionPage> {
           final status = (data['status'] ?? 'approved') as String;
 
           final isVerified = verification['isVerified'] == true;
+          final coverImageUrl = (data['coverImageUrl'] ?? '').toString().trim();
+          final profileCoverUrl = (profile['coverUrl'] ?? '').toString().trim();
+          final logoUrl = (profile['logoUrl'] ?? '').toString().trim();
+          final displayImage = coverImageUrl.isNotEmpty
+              ? coverImageUrl
+              : (profileCoverUrl.isNotEmpty
+                    ? profileCoverUrl
+                    : (logoUrl.isNotEmpty ? logoUrl : null));
 
           return BusinessCardData(
             id: doc.id,
@@ -204,6 +212,7 @@ class _AdoptionPageState extends State<AdoptionPage> {
             status: status,
             isEmergency: false,
             type: BusinessType.adoptionCenter,
+            logoUrl: displayImage,
           );
         }).toList();
 

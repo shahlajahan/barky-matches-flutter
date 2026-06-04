@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 
@@ -452,6 +455,14 @@ class _VetDashboardAppointmentsTabState
 
                       _clientNoteSection(data, doc.id),
 
+                      MarketplaceTransactionStatus(
+                        data: data,
+                        compact: true,
+                        showInvoiceActions: true,
+                        collectionName: widget.collectionName,
+                        transactionId: doc.id,
+                      ),
+
                       const SizedBox(height: 12),
 
                       /// ACTIONS
@@ -552,6 +563,14 @@ class _VetDashboardAppointmentsTabState
               );
 
               try {
+                if (!MarketplaceInvoicePolicy.guardCompletion(
+                  context,
+                  data ?? const <String, dynamic>{},
+                  targetStatus: newStatus,
+                )) {
+                  return;
+                }
+
                 await FirebaseFunctions.instanceFor(region: 'europe-west3')
                     .httpsCallable(widget.updateFunctionName)
                     .call({'appointmentId': doc.id, 'newStatus': newStatus});

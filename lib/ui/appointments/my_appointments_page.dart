@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_detail_page.dart';
 
 class MyAppointmentsPage extends StatefulWidget {
@@ -798,6 +799,13 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
                                 ],
                               ),
                           ],
+                        ),
+                        MarketplaceTransactionStatus(
+                          data: data,
+                          compact: true,
+                          showUserInvoiceActions: true,
+                          collectionName: collection,
+                          transactionId: doc.id,
                         ),
                         const SizedBox(height: 12),
                         Row(

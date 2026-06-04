@@ -8,6 +8,7 @@ import 'package:barky_matches_fixed/vet_page.dart';
 import 'package:barky_matches_fixed/groomy_page.dart';
 import 'package:barky_matches_fixed/pet_hotel_page.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_page.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_detail_page.dart';
 import 'package:barky_matches_fixed/ui/green_memorial/green_memorial_page.dart';
 import 'package:barky_matches_fixed/play_date_requests_page_new.dart';
 import 'package:barky_matches_fixed/user_profile_page.dart';
@@ -284,6 +285,7 @@ class _HomeBodyState extends State<_HomeBody> {
         final appointmentId = appState.selectedAppointmentId!;
         final collection =
             appState.selectedAppointmentCollection ?? 'vet_appointments';
+        final isPetTaxi = collection == 'pet_taxi_bookings';
         final isGroomy = collection == 'groomy_appointments';
         final isHotel = collection == 'hotel_bookings';
         debugPrint("💳 NAVIGATE TO PAYMENT PAGE → $appointmentId");
@@ -291,41 +293,43 @@ class _HomeBodyState extends State<_HomeBody> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => AppointmentPaymentPage(
-              appointmentId: appointmentId,
-              appointmentCollection: collection,
-              appointmentType: isHotel
-                  ? 'pet_hotel'
-                  : isGroomy
-                  ? 'grooming'
-                  : 'veterinary',
-              updateStatusFunctionName: isHotel
-                  ? 'updateHotelBookingStatus'
-                  : isGroomy
-                  ? 'updateGroomyAppointmentStatus'
-                  : 'updateVetAppointmentStatus',
-              createOrderFunctionName: isHotel
-                  ? 'createHotelBookingOrder'
-                  : 'createAppointmentOrder',
-              verifyPaymentFunctionName: isHotel
-                  ? 'verifyHotelBookingPayment'
-                  : 'verifyPayment',
-              serviceFallbackName: isHotel
-                  ? 'Hotel stay'
-                  : isGroomy
-                  ? 'Grooming service'
-                  : 'Veterinary service',
-              businessFallbackName: isHotel
-                  ? 'Pet hotel'
-                  : isGroomy
-                  ? 'Grooming studio'
-                  : 'Vet clinic',
-              businessInfoLabel: isHotel
-                  ? 'Hotel'
-                  : isGroomy
-                  ? 'Groomy'
-                  : 'Clinic',
-            ),
+            builder: (_) => isPetTaxi
+                ? PetTaxiBookingDetailPage(bookingId: appointmentId)
+                : AppointmentPaymentPage(
+                    appointmentId: appointmentId,
+                    appointmentCollection: collection,
+                    appointmentType: isHotel
+                        ? 'pet_hotel'
+                        : isGroomy
+                        ? 'grooming'
+                        : 'veterinary',
+                    updateStatusFunctionName: isHotel
+                        ? 'updateHotelBookingStatus'
+                        : isGroomy
+                        ? 'updateGroomyAppointmentStatus'
+                        : 'updateVetAppointmentStatus',
+                    createOrderFunctionName: isHotel
+                        ? 'createHotelBookingOrder'
+                        : 'createAppointmentOrder',
+                    verifyPaymentFunctionName: isHotel
+                        ? 'verifyHotelBookingPayment'
+                        : 'verifyPayment',
+                    serviceFallbackName: isHotel
+                        ? 'Hotel stay'
+                        : isGroomy
+                        ? 'Grooming service'
+                        : 'Veterinary service',
+                    businessFallbackName: isHotel
+                        ? 'Pet hotel'
+                        : isGroomy
+                        ? 'Grooming studio'
+                        : 'Vet clinic',
+                    businessInfoLabel: isHotel
+                        ? 'Hotel'
+                        : isGroomy
+                        ? 'Groomy'
+                        : 'Clinic',
+                  ),
           ),
         );
 
@@ -604,7 +608,11 @@ class _ProfileTab extends StatelessWidget {
     // 🟢 Business Dashboard
 
     if (subPage == ProfileSubPage.businessDashboard) {
-      return BusinessDashboardPage(businessId: uid);
+      final businessId = appState.businessId;
+      if (businessId == null || businessId.isEmpty) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return BusinessDashboardPage(businessId: businessId);
     }
 
     if (subPage == ProfileSubPage.helpCenter) {

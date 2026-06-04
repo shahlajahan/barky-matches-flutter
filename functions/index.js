@@ -6514,6 +6514,225 @@ exports.registerBusiness = onCall(
   }
 );
 
+function isAdoptionBusinessData(data = {}) {
+  const sectors = Array.isArray(data.sectors) ? data.sectors : [];
+  const sectorData = data.sectorData || {};
+  const sector = firstNonEmptyString(
+    data.sector,
+    data.type,
+    data.businessType,
+    data.kind
+  );
+
+  return (
+    sectors.includes("adoption_center") ||
+    sectors.includes("adoption") ||
+    sectors.includes("adoptionCenter") ||
+    sector === "adoption_center" ||
+    sector === "adoption" ||
+    sector === "adoptionCenter" ||
+    !!sectorData.adoption_center ||
+    !!sectorData.adoption ||
+    !!sectorData.adoptionCenter
+  );
+}
+
+function adoptionOwnerCandidateFromData(data = {}) {
+  return firstNonEmptyString(
+    data.ownerUid,
+    data.ownerId,
+    data.uid,
+    data.centerOwnerId,
+    data.creatorUid,
+    data.createdByUid,
+    data.createdBy,
+    data.userId
+  );
+}
+
+function mapAdoptionCenterToBusiness(oldData = {}) {
+  const displayName = firstNonEmptyString(
+    oldData.profile?.displayName,
+    oldData.displayName,
+    oldData.name,
+    oldData.centerName,
+    "Adoption Center"
+  );
+  const description = firstNonEmptyString(
+    oldData.profile?.description,
+    oldData.description,
+    oldData.bio,
+    ""
+  );
+  const contact = oldData.contact || {};
+  const adoptionData =
+    oldData.sectorData?.adoption_center ||
+    oldData.sectorData?.adoptionCenter ||
+    oldData.adoption_center ||
+    oldData.adoptionCenter ||
+    oldData;
+
+  return {
+    ...oldData,
+    sectors: Array.isArray(oldData.sectors)
+      ? oldData.sectors
+      : ["adoption_center"],
+    sectorData: {
+      ...(oldData.sectorData || {}),
+      adoption_center: adoptionData,
+      adoptionCenter: adoptionData,
+    },
+    ownerUid: adoptionOwnerCandidateFromData(oldData) || null,
+    status: oldData.status || "approved",
+    isActive: oldData.isActive !== false,
+    published: oldData.published !== false,
+    profile: {
+      ...(oldData.profile || {}),
+      displayName,
+      description,
+      logoUrl: firstNonEmptyString(
+        oldData.profile?.logoUrl,
+        oldData.logoUrl,
+        oldData.logo
+      ),
+      coverUrl: firstNonEmptyString(
+        oldData.profile?.coverUrl,
+        oldData.profile?.coverImageUrl,
+        oldData.coverUrl,
+        oldData.coverImageUrl,
+        oldData.coverImage
+      ),
+    },
+    contact: {
+      ...contact,
+      phone: firstNonEmptyString(contact.phone, oldData.phone),
+      whatsapp: firstNonEmptyString(contact.whatsapp, oldData.whatsapp),
+      email: firstNonEmptyString(contact.email, oldData.email),
+      instagram: firstNonEmptyString(contact.instagram, oldData.instagram),
+      website: firstNonEmptyString(contact.website, oldData.website),
+      city: firstNonEmptyString(contact.city, oldData.city),
+      district: firstNonEmptyString(contact.district, oldData.district),
+      addressLine: firstNonEmptyString(
+        contact.addressLine,
+        oldData.addressLine,
+        oldData.address
+      ),
+    },
+    verification: {
+      ...(oldData.verification || {}),
+      isVerified: oldData.verification?.isVerified === true,
+    },
+  };
+}
+
+async function findAdoptionOwnerUidForBusiness({
+  db,
+  businessId,
+  businessData = {},
+}) {
+  const directOwner = adoptionOwnerCandidateFromData({
+    ...businessData,
+    ownerUid:
+      businessData.ownerUid === businessId ? null : businessData.ownerUid,
+  });
+  if (directOwner) return directOwner;
+
+  const requestByBusiness = await db
+    .collection("business_requests")
+    .where("businessId", "==", businessId)
+    .limit(1)
+    .get();
+
+  if (!requestByBusiness.empty) {
+    const uid = firstNonEmptyString(requestByBusiness.docs[0].data()?.uid);
+    if (uid) return uid;
+  }
+
+  const displayName = firstNonEmptyString(
+    businessData.profile?.displayName,
+    businessData.displayName,
+    businessData.name
+  );
+  if (displayName) {
+    const requestByName = await db
+      .collection("business_requests")
+      .where("profile.displayName", "==", displayName)
+      .limit(10)
+      .get();
+
+    for (const doc of requestByName.docs) {
+      const requestData = doc.data() || {};
+      if (!isAdoptionBusinessData(requestData)) continue;
+      const uid = firstNonEmptyString(requestData.uid);
+      if (uid) return uid;
+    }
+  }
+
+  const legacySnap = await db.collection("adoption_centers").doc(businessId).get();
+  if (legacySnap.exists) {
+    return adoptionOwnerCandidateFromData(legacySnap.data() || {});
+  }
+
+  return null;
+}
+
+async function repairAdoptionBusinessOwnerUidForRef({
+  db,
+  businessRef,
+  businessData = {},
+  approvedRequestUid = null,
+}) {
+  const businessId = businessRef.id;
+  if (!isAdoptionBusinessData(businessData)) return null;
+  if (businessData.ownerUid && businessData.ownerUid !== businessId) {
+    return businessData.ownerUid;
+  }
+
+  const ownerUid =
+    firstNonEmptyString(approvedRequestUid) ||
+    await findAdoptionOwnerUidForBusiness({
+      db,
+      businessId,
+      businessData,
+    });
+
+  if (!ownerUid || ownerUid === businessId) return null;
+
+  await businessRef.set(
+    {
+      ownerUid,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      "migration.adoptionOwnerUidRepairedAt":
+        admin.firestore.FieldValue.serverTimestamp(),
+      "migration.adoptionOwnerUidPreviousValue": businessData.ownerUid || null,
+    },
+    { merge: true }
+  );
+
+  await db.collection("users").doc(ownerUid).set(
+    {
+      business: {
+        businessId,
+        status: businessData.status || "approved",
+        sectors: Array.isArray(businessData.sectors)
+          ? businessData.sectors
+          : ["adoption_center"],
+        isVerified: businessData.verification?.isVerified === true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+    },
+    { merge: true }
+  );
+
+  logger.info("ADOPTION OWNERUID REPAIRED", {
+    businessId,
+    ownerUid,
+    previousOwnerUid: businessData.ownerUid || null,
+  });
+
+  return ownerUid;
+}
+
 /* =====================================================
  * 🏢 ADMIN RESOLVE BUSINESS REQUEST - UNIFIED
  * ===================================================== */
@@ -6563,6 +6782,17 @@ exports.resolveBusinessRequest = onCall(
 
       const bizRef = db.collection("businesses").doc(businessId);
       const userRef = db.collection("users").doc(ownerUid);
+      const bizSnap = await bizRef.get();
+      const bizData = bizSnap.exists ? bizSnap.data() || {} : {};
+      const repairedAdoptionOwnerUid =
+        action === "approved"
+          ? await repairAdoptionBusinessOwnerUidForRef({
+            db,
+            businessRef: bizRef,
+            businessData: bizData,
+            approvedRequestUid: ownerUid,
+          })
+          : null;
 
       await db.runTransaction(async (tx) => {
 
@@ -6578,6 +6808,7 @@ exports.resolveBusinessRequest = onCall(
           // ✅ update existing business (NOT create new)
           tx.update(bizRef, {
             status: "approved",
+            ownerUid: repairedAdoptionOwnerUid || ownerUid,
 
             "verification.isVerified": true,
             "verification.verifiedAt":
@@ -6677,6 +6908,24 @@ exports.migrateAdoptionCentersToBusinesses = onRequest(
       for (const doc of snapshot.docs) {
         const oldData = doc.data();
         const newBusinessData = mapAdoptionCenterToBusiness(oldData);
+        const repairedOwnerUid = await findAdoptionOwnerUidForBusiness({
+          db: admin.firestore(),
+          businessId: doc.id,
+          businessData: {
+            ...newBusinessData,
+            ...oldData,
+            ownerUid:
+              newBusinessData.ownerUid === doc.id
+                ? null
+                : newBusinessData.ownerUid,
+          },
+        });
+
+        if (repairedOwnerUid) {
+          newBusinessData.ownerUid = repairedOwnerUid;
+        } else if (newBusinessData.ownerUid === doc.id) {
+          newBusinessData.ownerUid = null;
+        }
 
         // ✅ اینجا باید اضافه شود
         newBusinessData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
@@ -6700,6 +6949,45 @@ exports.migrateAdoptionCentersToBusinesses = onRequest(
       console.error("❌ Migration error:", error);
       res.status(500).send(error.toString());
     }
+  }
+);
+
+exports.repairAdoptionBusinessOwnerUid = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    region: "europe-west3",
+  },
+  async () => {
+    const db = admin.firestore();
+    const snap = await db
+      .collection("businesses")
+      .where("status", "==", "approved")
+      .limit(500)
+      .get();
+
+    let checked = 0;
+    let repaired = 0;
+
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      if (!isAdoptionBusinessData(data)) continue;
+      checked++;
+      if (data.ownerUid !== doc.id) continue;
+
+      const ownerUid = await repairAdoptionBusinessOwnerUidForRef({
+        db,
+        businessRef: doc.ref,
+        businessData: data,
+      });
+      if (ownerUid) repaired++;
+    }
+
+    logger.info("ADOPTION OWNERUID REPAIR COMPLETE", {
+      checked,
+      repaired,
+    });
+
+    return null;
   }
 );
 
@@ -8420,6 +8708,238 @@ function buildInitialComplianceObject(nowIso) {
     lastWarningAt: null,
     lastCheckedAt: nowIso,
   };
+}
+
+const MARKETPLACE_INVOICE_READY_STATUSES = [
+  "uploaded_valid",
+  "uploaded_with_issues",
+  "approved",
+  "ready",
+  "issued",
+];
+
+const MARKETPLACE_PENDING_RESPONSE_THRESHOLD_HOURS = 24;
+const MARKETPLACE_INVOICE_UPLOAD_THRESHOLD_HOURS = 72;
+const MARKETPLACE_COMPLETION_INVOICE_STATUSES = ["issued", "approved"];
+const MARKETPLACE_TRANSACTION_COLLECTIONS = [
+  "vet_appointments",
+  "groomy_appointments",
+  "hotel_bookings",
+  "pet_taxi_bookings",
+];
+
+function marketplaceInvoiceStatus(data = {}) {
+  return normalizeLower(
+    data?.invoice?.status ||
+    data?.documents?.invoiceStatus ||
+    data?.invoiceStatus ||
+    "pending_upload"
+  );
+}
+
+function marketplaceInvoiceUrl(data = {}) {
+  return firstNonEmptyValue(
+    data?.invoice?.invoiceUrl,
+    data?.invoice?.pdfUrl,
+    data?.invoiceUrl
+  );
+}
+
+function assertMarketplaceCompletionAllowed({
+  data = {},
+  collectionName = "",
+  transactionId = "",
+  requestedStatus = "",
+}) {
+  if (normalizeLower(requestedStatus) !== "completed") return;
+
+  const paymentStatus = normalizeLower(data?.paymentStatus || "");
+  const invoiceStatus = marketplaceInvoiceStatus(data);
+  const invoiceUrl = marketplaceInvoiceUrl(data);
+  const allowed =
+    paymentStatus === "paid" &&
+    MARKETPLACE_COMPLETION_INVOICE_STATUSES.includes(invoiceStatus) &&
+    !!invoiceUrl;
+
+  logger.info("MARKETPLACE COMPLETE CHECK", {
+    collectionName,
+    transactionId,
+    paymentStatus,
+    invoiceStatus,
+    invoiceUrl: invoiceUrl || null,
+    allowed,
+  });
+  logger.info("MARKETPLACE INVOICE VALIDATION", {
+    collectionName,
+    transactionId,
+    paymentStatus,
+    invoiceStatus,
+    invoiceUrl: invoiceUrl || null,
+    allowed,
+  });
+
+  if (!allowed) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Invoice required before completion"
+    );
+  }
+}
+
+function buildMarketplaceStatus(status = "pending") {
+  const normalized = normalizeLower(status) || "pending";
+  const map = {
+    pending: "PENDING",
+    awaiting_payment: "AWAITING_PAYMENT",
+    awaiting_user_payment: "AWAITING_PAYMENT",
+    confirmed: "CONFIRMED",
+    confirmed_paid: "CONFIRMED",
+    paid: "CONFIRMED",
+    checked_in: "IN_PROGRESS",
+    driver_on_the_way: "IN_PROGRESS",
+    arrived: "IN_PROGRESS",
+    pet_picked_up: "IN_PROGRESS",
+    on_trip: "IN_PROGRESS",
+    completed: "COMPLETED",
+    rejected: "CANCELLED",
+    cancelled: "CANCELLED",
+    cancelled_by_user: "CANCELLED",
+    cancelled_by_vet: "CANCELLED",
+    cancelled_by_groomy: "CANCELLED",
+    cancelled_by_hotel: "CANCELLED",
+    cancelled_by_business: "CANCELLED",
+    payment_expired: "CANCELLED",
+    expired: "CANCELLED",
+    payment_failed: "CANCELLED",
+  };
+
+  return map[normalized] || normalized.toUpperCase();
+}
+
+function appointmentInvoicePricingSnapshot(data = {}) {
+  const grandTotal = roundMoney(
+    data.totalPrice ??
+    data.finalPrice ??
+    data.paymentAmount ??
+    data.price ??
+    data.servicePrice ??
+    0
+  );
+
+  return {
+    subtotal: grandTotal,
+    shippingTotal: 0,
+    taxTotal: 0,
+    grandTotal,
+  };
+}
+
+function buildMarketplaceTransactionPatch({
+  vertical,
+  transactionId,
+  businessId,
+  businessOwnerUid,
+  status = "pending",
+  serviceTitle = "",
+  billingSnapshot = {},
+  sellerSnapshot = {},
+  pricing = {},
+  nowIso = new Date().toISOString(),
+}) {
+  const invoice = buildInitialInvoiceObject({
+    billingSnapshot,
+    sellerSnapshot,
+    pricing,
+    nowIso,
+  });
+
+  invoice.uploadDeadlineAt = addHoursToIso(MARKETPLACE_INVOICE_UPLOAD_THRESHOLD_HOURS);
+  invoice.required = true;
+  invoice.type = "business_uploaded";
+  invoice.vertical = vertical || null;
+  invoice.transactionId = transactionId || null;
+  invoice.invoiceFileName = null;
+  invoice.issuedAt = null;
+  invoice.approvedAt = null;
+  invoice.rejectedAt = null;
+  invoice.rejectionReason = null;
+  invoice.warningCount = 0;
+  invoice.penaltyCount = 0;
+
+  return {
+    marketplace: {
+      model: "business_fulfilled_platform_intermediary",
+      vertical: vertical || null,
+      transactionId: transactionId || null,
+      businessId: businessId || null,
+      businessOwnerUid: businessOwnerUid || null,
+      lifecycleStatus: buildMarketplaceStatus(status),
+      pendingAction: normalizeLower(status) === "pending",
+      delayedAction: false,
+      warningState: null,
+      punishmentState: null,
+      serviceTitle: serviceTitle || null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    },
+    invoice,
+    compliance: buildInitialComplianceObject(nowIso),
+    deadlines: {
+      invoiceUploadDeadlineAt: invoice.uploadDeadlineAt,
+      responseDeadlineAt: addHoursToIso(MARKETPLACE_PENDING_RESPONSE_THRESHOLD_HOURS),
+      lastInvoiceReminderAt: null,
+      lastResponseReminderAt: null,
+    },
+    documents: {
+      invoiceStatus: "pending_upload",
+      invoiceRequired: true,
+    },
+    invoiceStatus: "pending_upload",
+    invoiceUrl: null,
+    invoiceFileName: null,
+    invoiceNumber: null,
+    invoiceIssuedAt: null,
+    invoiceDeadline: invoice.uploadDeadlineAt,
+    warningCount: 0,
+    penaltyCount: 0,
+    invoiceType: invoice.invoiceType || null,
+    invoiceSystem: invoice.invoiceSystem || null,
+    approvedAt: null,
+    rejectedAt: null,
+    rejectionReason: null,
+  };
+}
+
+async function applyMarketplaceStatusPatch({
+  ref,
+  data = {},
+  status,
+  actorUid = "system",
+  setInvoiceDeadline = false,
+}) {
+  const nowIso = new Date().toISOString();
+  const patch = {
+    "marketplace.lifecycleStatus": buildMarketplaceStatus(status),
+    "marketplace.pendingAction": normalizeLower(status) === "pending",
+    "marketplace.updatedAt": nowIso,
+    "marketplace.lastStatusChangedBy": actorUid || "system",
+    "marketplace.lastStatusChangedAt": nowIso,
+  };
+
+  if (
+    setInvoiceDeadline &&
+    !MARKETPLACE_INVOICE_READY_STATUSES.includes(normalizeLower(data?.invoice?.status)) &&
+    !data?.invoice?.uploadDeadlineAt
+  ) {
+    const deadline = addHoursToIso(MARKETPLACE_INVOICE_UPLOAD_THRESHOLD_HOURS);
+    patch["invoice.status"] = "pending_upload";
+    patch["invoice.uploadDeadlineAt"] = deadline;
+    patch["deadlines.invoiceUploadDeadlineAt"] = deadline;
+    patch["documents.invoiceStatus"] = "pending_upload";
+    patch["documents.invoiceRequired"] = true;
+  }
+
+  await ref.set(patch, { merge: true });
 }
 
 async function getCommissionRate(db, businessId) {
@@ -10279,6 +10799,14 @@ exports.verifyPayment = onCall(
           await appointmentRef.update({
             paymentStatus: "paid",
             status: "confirmed_paid",
+            "marketplace.lifecycleStatus": buildMarketplaceStatus("confirmed_paid"),
+            "marketplace.pendingAction": false,
+            "marketplace.updatedAt": new Date().toISOString(),
+            "marketplace.lastStatusChangedBy": auth.uid,
+            "marketplace.lastStatusChangedAt": new Date().toISOString(),
+            "invoice.pricing": appointmentInvoicePricingSnapshot({
+              price: result.paidPrice || result.price || appointmentData.price || 0,
+            }),
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             paymentId: result.paymentId || null,
@@ -15457,15 +15985,39 @@ exports.uploadInvoiceAndValidate = onCall(
   { region: "europe-west3" },
   async (request) => {
 
-    const { sellerOrderId, fileBytes, fileName } = request.data || {};
+    const {
+      sellerOrderId,
+      transactionId,
+      appointmentId,
+      bookingId,
+      collectionName,
+      appointmentCollection,
+      fileBytes,
+      fileName,
+      invoiceNumber,
+      invoiceDate,
+      invoiceSystem,
+      invoiceType,
+      note,
+    } = request.data || {};
     const uid = request.auth?.uid;
 
     if (!uid) {
       throw new HttpsError("unauthenticated", "Login required");
     }
 
-    if (!sellerOrderId || typeof sellerOrderId !== "string") {
-      throw new HttpsError("invalid-argument", "sellerOrderId is required");
+    const targetId = String(
+      sellerOrderId || transactionId || appointmentId || bookingId || ""
+    ).trim();
+    const targetCollection = String(
+      collectionName || appointmentCollection || ""
+    ).trim();
+
+    if (!targetId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "sellerOrderId or transactionId is required"
+      );
     }
 
     if (!fileBytes) {
@@ -15482,7 +16034,22 @@ exports.uploadInvoiceAndValidate = onCall(
     // =========================
     // 1) GET ORDER
     // =========================
-    const orderRef = db.collection("sellerOrders").doc(sellerOrderId);
+    const resolvedCollection =
+      sellerOrderId
+        ? "sellerOrders"
+        : MARKETPLACE_TRANSACTION_COLLECTIONS.includes(targetCollection)
+          ? targetCollection
+          : null;
+    const isMarketplaceInvoice = resolvedCollection !== "sellerOrders";
+
+    if (!resolvedCollection) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid collectionName is required for marketplace invoices"
+      );
+    }
+
+    const orderRef = db.collection(resolvedCollection).doc(targetId);
     const orderSnap = await orderRef.get();
 
     if (!orderSnap.exists) {
@@ -15496,6 +16063,8 @@ exports.uploadInvoiceAndValidate = onCall(
     // =========================
     const sellerOwnerUid =
       order?.sellerSnapshot?.ownerUid ||
+      order?.marketplace?.businessOwnerUid ||
+      order?.businessOwnerUid ||
       order?.sellerUid ||
       order?.shopId ||
       null;
@@ -15542,7 +16111,15 @@ exports.uploadInvoiceAndValidate = onCall(
     // =========================
     // 4) UPLOAD FILE
     // =========================
-    const filePath = `invoices/${uid}/${sellerOrderId}/${normalizedFileName}`;
+    if (isMarketplaceInvoice) {
+      logger.info("MARKETPLACE INVOICE UPLOAD START", {
+        collectionName: resolvedCollection,
+        transactionId: targetId,
+        fileName: normalizedFileName,
+      });
+    }
+
+    const filePath = `invoices/${uid}/${targetId}/${normalizedFileName}`;
     const file = bucket.file(filePath);
 
     await file.save(buffer, {
@@ -15553,6 +16130,13 @@ exports.uploadInvoiceAndValidate = onCall(
     await file.makePublic();
 
     const url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    if (isMarketplaceInvoice) {
+      logger.info("MARKETPLACE INVOICE FILE URL", {
+        collectionName: resolvedCollection,
+        transactionId: targetId,
+        url,
+      });
+    }
 
     // =========================
     // 5) OCR
@@ -15576,6 +16160,11 @@ exports.uploadInvoiceAndValidate = onCall(
     const extractedInvoiceNumber = extractInvoiceNumber(extractedText);
     const extractedInvoiceDate = extractInvoiceDate(extractedText);
     const extractedInvoiceSystem = extractInvoiceSystem(extractedText);
+    const manualInvoiceNumber = String(invoiceNumber || "").trim();
+    const manualInvoiceDate = String(invoiceDate || "").trim();
+    const manualInvoiceSystem = String(invoiceSystem || "").trim();
+    const manualInvoiceType = String(invoiceType || "").trim();
+    const manualNote = String(note || "").trim();
 
     // =========================
     // 7) VALIDATION
@@ -15597,26 +16186,40 @@ exports.uploadInvoiceAndValidate = onCall(
         ? "eFatura"
         : "eArsiv";
 
-    const newStatus =
+    const uploadedStatus =
       validationIssues.length === 0
         ? "uploaded_valid"
         : "uploaded_with_issues";
+    const newStatus = isMarketplaceInvoice ? "issued" : uploadedStatus;
+    const finalInvoiceNumber =
+      manualInvoiceNumber || extractedInvoiceNumber || null;
+    const finalInvoiceDate = manualInvoiceDate || extractedInvoiceDate || null;
+    const finalInvoiceSystem =
+      manualInvoiceSystem || extractedInvoiceSystem || expectedInvoiceSystem || null;
+    const finalInvoiceType =
+      manualInvoiceType || billing?.invoiceType || detectInvoiceType(billing);
 
     // =========================
     // 8) SAVE
     // =========================
     await orderRef.update({
       "invoice.pdfUrl": url,
+      "invoice.invoiceUrl": url,
+      "invoice.invoiceFileName": normalizedFileName,
       "invoice.filePath": filePath,
+      "invoice.invoiceStoragePath": filePath,
 
       "invoice.status": newStatus,
       "invoice.uploadedAt": nowIso,
       "invoice.uploadedBy": uid,
+      "invoice.issuedAt": nowIso,
 
-      "invoice.invoiceNumber": extractedInvoiceNumber || null,
-      "invoice.invoiceDate": extractedInvoiceDate || null,
-      "invoice.invoiceSystem":
-        extractedInvoiceSystem || expectedInvoiceSystem || null,
+      "invoice.invoiceNumber": finalInvoiceNumber,
+      "invoice.invoiceNo": finalInvoiceNumber,
+      "invoice.invoiceDate": finalInvoiceDate,
+      "invoice.invoiceSystem": finalInvoiceSystem,
+      "invoice.invoiceType": finalInvoiceType || null,
+      "invoice.note": manualNote || null,
 
       "invoice.validationIssues": validationIssues,
 
@@ -15637,10 +16240,56 @@ exports.uploadInvoiceAndValidate = onCall(
       "documents.invoiceRequired": true,
 
       "compliance.invoiceMissing": false,
+      "compliance.invoiceLate": false,
       "compliance.lastCheckedAt": nowIso,
+      "marketplace.invoiceState": newStatus,
+      "marketplace.updatedAt": nowIso,
+
+      invoiceStatus: newStatus,
+      invoiceUrl: url,
+      invoiceFileName: normalizedFileName,
+      invoiceNumber: finalInvoiceNumber,
+      invoiceIssuedAt: nowIso,
+      invoiceDeadline:
+        order?.invoice?.uploadDeadlineAt ||
+        order?.deadlines?.invoiceUploadDeadlineAt ||
+        null,
+      warningCount: Number(order?.compliance?.warningCount || order?.warningCount || 0),
+      penaltyCount: Number(order?.compliance?.penaltyCount || order?.penaltyCount || 0),
+      invoiceType: finalInvoiceType || null,
+      invoiceSystem: finalInvoiceSystem,
+      approvedAt: null,
+      rejectedAt: null,
+      rejectionReason: null,
 
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    if (resolvedCollection !== "sellerOrders") {
+      const buyerUid = order.userId || order.buyerUid || null;
+      if (buyerUid) {
+        await createNotification(db, {
+          type: "invoice_ready",
+          recipientUserId: buyerUid,
+          userId: buyerUid,
+          senderUserId: uid,
+          title: "Invoice issued",
+          body: "Your invoice is ready.",
+          appointmentId: targetId,
+          bookingId: resolvedCollection === "hotel_bookings" || resolvedCollection === "pet_taxi_bookings"
+            ? targetId
+            : null,
+          appointmentCollection: resolvedCollection,
+          businessId: order.businessId || null,
+        });
+      }
+      logger.info("MARKETPLACE INVOICE UPLOAD SUCCESS", {
+        collection: resolvedCollection,
+        transactionId: targetId,
+        status: newStatus,
+        invoiceUrl: url,
+      });
+    }
 
     // =========================
     // 9) RETURN
@@ -15648,9 +16297,9 @@ exports.uploadInvoiceAndValidate = onCall(
     return {
       success: true,
       pdfUrl: url,
-      invoiceNumber: extractedInvoiceNumber || null,
-      invoiceDate: extractedInvoiceDate || null,
-      invoiceSystem: extractedInvoiceSystem || null,
+      invoiceNumber: finalInvoiceNumber,
+      invoiceDate: finalInvoiceDate,
+      invoiceSystem: finalInvoiceSystem,
       expectedInvoiceSystem,
       riskFlags,
     };
@@ -15868,6 +16517,299 @@ exports.checkPendingInvoices = onSchedule(
     }
 
     return null;
+  }
+);
+
+exports.markMarketplaceInvoiceStatus = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const collectionName = String(request.data?.collectionName || "").trim();
+    const transactionId = String(
+      request.data?.transactionId ||
+      request.data?.appointmentId ||
+      request.data?.bookingId ||
+      ""
+    ).trim();
+    const status = normalizeLower(request.data?.status || "");
+    const rejectionReason = String(request.data?.rejectionReason || "").trim();
+    const allowedStatuses = [
+      "approved",
+      "rejected",
+    ];
+
+    if (!MARKETPLACE_TRANSACTION_COLLECTIONS.includes(collectionName)) {
+      throw new HttpsError("invalid-argument", "Invalid collectionName");
+    }
+    if (!transactionId) {
+      throw new HttpsError("invalid-argument", "transactionId is required");
+    }
+    if (!allowedStatuses.includes(status)) {
+      throw new HttpsError("invalid-argument", "Invalid invoice status");
+    }
+
+    const ref = db.collection(collectionName).doc(transactionId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Transaction not found");
+    }
+
+    const data = snap.data() || {};
+    const businessId = data.businessId || null;
+    const businessSnap = businessId
+      ? await db.collection("businesses").doc(String(businessId)).get()
+      : null;
+    const businessData = businessSnap?.exists ? businessSnap.data() || {} : {};
+    const businessOwnerUid =
+      businessData.ownerUid ||
+      businessData.uid ||
+      data.marketplace?.businessOwnerUid ||
+      data.businessOwnerUid ||
+      null;
+    const adminAllowed = await isAdminUser(db, uid);
+    const buyerUid = data.userId || data.buyerUid || null;
+    const isBuyerReview = ["approved", "rejected"].includes(status);
+
+    if (isBuyerReview && buyerUid !== uid && !adminAllowed) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only the buyer can review invoice status"
+      );
+    }
+
+    if (!isBuyerReview && businessOwnerUid !== uid && !adminAllowed) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only the business owner can update invoice status"
+      );
+    }
+
+    if (!marketplaceInvoiceUrl(data)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Invoice file required before status review"
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const reviewPatch = {
+      "invoice.status": status,
+      "invoice.markedAt": nowIso,
+      "invoice.markedBy": uid,
+      "invoice.updatedAt": nowIso,
+      "documents.invoiceStatus": status,
+      "marketplace.invoiceState": status,
+      "marketplace.updatedAt": nowIso,
+      "compliance.invoiceMissing":
+        !MARKETPLACE_INVOICE_READY_STATUSES.includes(status),
+      invoiceStatus: status,
+      approvedAt: status === "approved" ? nowIso : null,
+      rejectedAt: status === "rejected" ? nowIso : null,
+      rejectionReason: status === "rejected" ? rejectionReason || null : null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (status === "approved") {
+      reviewPatch["invoice.approvedAt"] = nowIso;
+      reviewPatch["invoice.approvedBy"] = uid;
+      reviewPatch["invoice.rejectedAt"] = null;
+      reviewPatch["invoice.rejectionReason"] = null;
+    }
+    if (status === "rejected") {
+      reviewPatch["invoice.rejectedAt"] = nowIso;
+      reviewPatch["invoice.rejectedBy"] = uid;
+      reviewPatch["invoice.rejectionReason"] = rejectionReason || null;
+    }
+    await ref.set(reviewPatch, { merge: true });
+
+    const invoiceNotificationType = {
+      approved: "invoice_approved",
+      rejected: "invoice_rejected",
+    }[status] || "invoice_reviewed";
+    const reviewRecipientUid = businessOwnerUid || null;
+    if (reviewRecipientUid) {
+      await createNotification(db, {
+        type: invoiceNotificationType,
+        recipientUserId: reviewRecipientUid,
+        userId: reviewRecipientUid,
+        senderUserId: uid,
+        title: status === "approved"
+          ? "Invoice approved"
+          : "Invoice rejected",
+        body: "Your invoice status was updated.",
+        appointmentId: transactionId,
+        bookingId: collectionName === "hotel_bookings" || collectionName === "pet_taxi_bookings"
+          ? transactionId
+          : null,
+        appointmentCollection: collectionName,
+        collectionName,
+        transactionId,
+        businessId,
+      });
+    }
+
+    logger.info("🧾 MARKETPLACE INVOICE STATUS MARKED", {
+      collectionName,
+      transactionId,
+      status,
+      by: uid,
+    });
+
+    return { success: true, collectionName, transactionId, status };
+  }
+);
+
+exports.checkMarketplaceAccountability = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    region: "europe-west3",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => {
+    const nowMillis = Date.now();
+
+    for (const collectionName of MARKETPLACE_TRANSACTION_COLLECTIONS) {
+      const pendingSnap = await db
+        .collection(collectionName)
+        .where("status", "==", "pending")
+        .limit(100)
+        .get();
+
+      for (const doc of pendingSnap.docs) {
+        const data = doc.data() || {};
+        const deadlineMillis = toMillisSafe(data.deadlines?.responseDeadlineAt);
+        if (!deadlineMillis || deadlineMillis >= nowMillis) continue;
+        if (data.marketplace?.delayedAction === true) continue;
+
+        await doc.ref.update({
+          "marketplace.delayedAction": true,
+          "marketplace.warningState": "response_delayed",
+          "marketplace.punishmentState": "warning",
+          "marketplace.visibleStatus": "Business response delayed",
+          "compliance.delayedResponse": true,
+          "compliance.delayedCount": admin.firestore.FieldValue.increment(1),
+          "compliance.warningCount": admin.firestore.FieldValue.increment(1),
+          "compliance.penaltyPoints": admin.firestore.FieldValue.increment(10),
+          "compliance.lastWarningAt": admin.firestore.FieldValue.serverTimestamp(),
+          "compliance.lastCheckedAt": new Date().toISOString(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const businessId = data.businessId || null;
+        const businessSnap = businessId
+          ? await db.collection("businesses").doc(String(businessId)).get()
+          : null;
+        const businessData = businessSnap?.exists ? businessSnap.data() || {} : {};
+        const businessOwnerUid =
+          businessData.ownerUid ||
+          businessData.uid ||
+          data.marketplace?.businessOwnerUid ||
+          data.businessOwnerUid ||
+          null;
+        const userId = data.userId || data.buyerUid || null;
+
+        if (businessOwnerUid) {
+          await createNotification(db, {
+            recipientUserId: businessOwnerUid,
+            userId: businessOwnerUid,
+            type: "marketplace_response_delayed",
+            title: "Response delayed",
+            body: "A pending customer request needs your response.",
+            appointmentId: doc.id,
+            bookingId: collectionName === "hotel_bookings" || collectionName === "pet_taxi_bookings"
+              ? doc.id
+              : null,
+            appointmentCollection: collectionName,
+            businessId,
+          });
+        }
+        if (userId) {
+          await createNotification(db, {
+            recipientUserId: userId,
+            userId,
+            type: "marketplace_business_delayed",
+            title: "Business response delayed",
+            body: "The business has not responded yet. We are tracking this delay.",
+            appointmentId: doc.id,
+            bookingId: collectionName === "hotel_bookings" || collectionName === "pet_taxi_bookings"
+              ? doc.id
+              : null,
+            appointmentCollection: collectionName,
+            businessId,
+          });
+        }
+        logger.warn("⚠️ MARKETPLACE RESPONSE DELAYED", {
+          collectionName,
+          transactionId: doc.id,
+          businessId,
+        });
+      }
+
+      const invoiceSnap = await db
+        .collection(collectionName)
+        .where("invoice.status", "==", "pending_upload")
+        .limit(100)
+        .get();
+
+      for (const doc of invoiceSnap.docs) {
+        const data = doc.data() || {};
+        logger.info("MARKETPLACE DEADLINE CHECK", {
+          collectionName,
+          transactionId: doc.id,
+          invoiceStatus: data.invoice?.status || null,
+          deadline:
+            data.invoice?.uploadDeadlineAt ||
+            data.deadlines?.invoiceUploadDeadlineAt ||
+            null,
+        });
+        const status = normalizeLower(data.status);
+        if (["pending", "rejected", "cancelled_by_user", "cancelled_by_vet", "cancelled_by_groomy", "cancelled_by_hotel", "cancelled_by_business", "payment_expired", "payment_failed"].includes(status)) {
+          continue;
+        }
+        const deadlineMillis = toMillisSafe(
+          data.invoice?.uploadDeadlineAt ||
+          data.deadlines?.invoiceUploadDeadlineAt
+        );
+        if (!deadlineMillis || deadlineMillis >= nowMillis) continue;
+
+        logger.info("MARKETPLACE PENALTY CHECK", {
+          collectionName,
+          transactionId: doc.id,
+          warningCount: data.compliance?.warningCount || data.warningCount || 0,
+          penaltyCount: data.compliance?.penaltyCount || data.penaltyCount || 0,
+          penaltyPoints: data.compliance?.penaltyPoints || 0,
+        });
+
+        await doc.ref.update({
+          "invoice.status": "late",
+          "invoice.isLate": true,
+          "invoice.warningCount": admin.firestore.FieldValue.increment(1),
+          "invoice.penaltyCount": admin.firestore.FieldValue.increment(1),
+          "documents.invoiceStatus": "late",
+          "marketplace.invoiceState": "late",
+          "marketplace.warningState": "invoice_late",
+          "marketplace.punishmentState": "warning",
+          "compliance.invoiceLate": true,
+          "compliance.warningCount": admin.firestore.FieldValue.increment(1),
+          "compliance.penaltyCount": admin.firestore.FieldValue.increment(1),
+          "compliance.penaltyPoints": admin.firestore.FieldValue.increment(10),
+          "compliance.lastWarningAt": admin.firestore.FieldValue.serverTimestamp(),
+          "compliance.lastCheckedAt": new Date().toISOString(),
+          invoiceStatus: "late",
+          warningCount: admin.firestore.FieldValue.increment(1),
+          penaltyCount: admin.firestore.FieldValue.increment(1),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        logger.warn("⚠️ MARKETPLACE INVOICE LATE", {
+          collectionName,
+          transactionId: doc.id,
+        });
+      }
+    }
   }
 );
 
@@ -16636,6 +17578,13 @@ exports.updateVetAppointmentStatus = onCall(
         );
       }
 
+      assertMarketplaceCompletionAllowed({
+        data,
+        collectionName: "vet_appointments",
+        transactionId: appointmentId,
+        requestedStatus: appliedStatus,
+      });
+
       logger.info("🔥 BEFORE UPDATE", {
         appointmentId,
         currentStatus,
@@ -16653,6 +17602,14 @@ exports.updateVetAppointmentStatus = onCall(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedBy: uid,
+        marketplace: {
+          ...(data.marketplace || {}),
+          lifecycleStatus: buildMarketplaceStatus(appliedStatus),
+          pendingAction: appliedStatus === "pending",
+          updatedAt: new Date().toISOString(),
+          lastStatusChangedBy: uid,
+          lastStatusChangedAt: new Date().toISOString(),
+        },
         lastStatusChange: {
           from: currentStatus,
           to: appliedStatus,
@@ -17736,11 +18693,26 @@ exports.updateGroomyAppointmentStatus = onCall(
         );
       }
 
+      assertMarketplaceCompletionAllowed({
+        data,
+        collectionName: "groomy_appointments",
+        transactionId: appointmentId,
+        requestedStatus: appliedStatus,
+      });
+
       const updatePayload = {
         status: appliedStatus,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedBy: uid,
+        marketplace: {
+          ...(data.marketplace || {}),
+          lifecycleStatus: buildMarketplaceStatus(appliedStatus),
+          pendingAction: appliedStatus === "pending",
+          updatedAt: new Date().toISOString(),
+          lastStatusChangedBy: uid,
+          lastStatusChangedAt: new Date().toISOString(),
+        },
         lastStatusChange: {
           from: currentStatus,
           to: appliedStatus,
@@ -18453,6 +19425,22 @@ exports.createVetAppointment = onCall(
       });
 
       const docRef = await col.add({
+        ...buildMarketplaceTransactionPatch({
+          vertical: "veterinary",
+          transactionId: null,
+          businessId,
+          businessOwnerUid,
+          status: "pending",
+          serviceTitle: serviceTitle || "",
+          sellerSnapshot: {
+            businessId,
+            ownerUid: businessOwnerUid,
+            businessName,
+          },
+          pricing: appointmentInvoicePricingSnapshot({
+            price: paymentPolicy.servicePrice ?? price ?? 0,
+          }),
+        }),
         userId: uid,
         requesterUserId: uid,
         ownerId: petOwnerUid,
@@ -18511,6 +19499,18 @@ exports.createVetAppointment = onCall(
       });
 
       logger.info("✅ Appointment created:", docRef.id);
+      await docRef.set(
+        {
+          "marketplace.transactionId": docRef.id,
+          "invoice.transactionId": docRef.id,
+        },
+        { merge: true }
+      );
+      logger.info("🧾 MARKETPLACE TRANSACTION INIT", {
+        vertical: "veterinary",
+        appointmentId: docRef.id,
+        businessId,
+      });
 
       // =========================
       // NOTIFICATION SYSTEM
@@ -18753,6 +19753,24 @@ exports.createGroomyAppointment = onCall(
         "Grooming studio";
 
       const docRef = await col.add({
+        ...buildMarketplaceTransactionPatch({
+          vertical: "grooming",
+          transactionId: null,
+          businessId,
+          businessOwnerUid: businessData.ownerUid || businessData.uid || businessId,
+          status: "pending",
+          serviceTitle: serviceTitle || "",
+          sellerSnapshot: {
+            businessId,
+            ownerUid: businessData.ownerUid || businessData.uid || businessId,
+            businessName: finalBusinessName,
+            taxNumber: businessData.legal?.taxNumber || null,
+            mersisNumber: businessData.legal?.mersisNumber || null,
+          },
+          pricing: appointmentInvoicePricingSnapshot({
+            price: paymentPolicy.servicePrice ?? price ?? 0,
+          }),
+        }),
         appointmentType: "grooming",
         userId: uid,
 
@@ -18794,6 +19812,18 @@ exports.createGroomyAppointment = onCall(
       });
 
       logger.info("✅ Groomy appointment created:", docRef.id);
+      await docRef.set(
+        {
+          "marketplace.transactionId": docRef.id,
+          "invoice.transactionId": docRef.id,
+        },
+        { merge: true }
+      );
+      logger.info("🧾 MARKETPLACE TRANSACTION INIT", {
+        vertical: "grooming",
+        appointmentId: docRef.id,
+        businessId,
+      });
 
       try {
         const businessOwnerUid =
@@ -18997,6 +20027,24 @@ exports.createHotelBooking = onCall(
         "Pet hotel";
 
       const docRef = await db.collection("hotel_bookings").add({
+        ...buildMarketplaceTransactionPatch({
+          vertical: "pet_hotel",
+          transactionId: null,
+          businessId,
+          businessOwnerUid: businessData.ownerUid || businessData.uid || businessId,
+          status: "pending",
+          serviceTitle: serviceTitle || serviceData.title || "Hotel stay",
+          sellerSnapshot: {
+            businessId,
+            ownerUid: businessData.ownerUid || businessData.uid || businessId,
+            businessName: finalBusinessName,
+            taxNumber: businessData.legal?.taxNumber || null,
+            mersisNumber: businessData.legal?.mersisNumber || null,
+          },
+          pricing: appointmentInvoicePricingSnapshot({
+            totalPrice,
+          }),
+        }),
         appointmentType: "pet_hotel",
         bookingType: "pet_hotel",
         userId: uid,
@@ -19045,6 +20093,18 @@ exports.createHotelBooking = onCall(
       });
 
       logger.info("✅ Hotel booking created:", docRef.id);
+      await docRef.set(
+        {
+          "marketplace.transactionId": docRef.id,
+          "invoice.transactionId": docRef.id,
+        },
+        { merge: true }
+      );
+      logger.info("🧾 MARKETPLACE TRANSACTION INIT", {
+        vertical: "pet_hotel",
+        bookingId: docRef.id,
+        businessId,
+      });
 
       try {
         const businessOwnerUid =
@@ -19341,11 +20401,26 @@ exports.updateHotelBookingStatus = onCall(
         }
       }
 
+      assertMarketplaceCompletionAllowed({
+        data,
+        collectionName: "hotel_bookings",
+        transactionId: bookingId,
+        requestedStatus: appliedStatus,
+      });
+
       const updatePayload = {
         status: appliedStatus,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         statusUpdatedBy: uid,
+        marketplace: {
+          ...(data.marketplace || {}),
+          lifecycleStatus: buildMarketplaceStatus(appliedStatus),
+          pendingAction: appliedStatus === "pending",
+          updatedAt: new Date().toISOString(),
+          lastStatusChangedBy: uid,
+          lastStatusChangedAt: new Date().toISOString(),
+        },
         lastStatusChange: {
           from: currentStatus,
           to: appliedStatus,
@@ -19828,6 +20903,24 @@ exports.createPetTaxiBooking = onCall(
         "Pet Taxi";
 
       const docRef = await db.collection("pet_taxi_bookings").add({
+        ...buildMarketplaceTransactionPatch({
+          vertical: "pet_taxi",
+          transactionId: null,
+          businessId,
+          businessOwnerUid: businessData.ownerUid || businessData.uid || businessId,
+          status: "pending",
+          serviceTitle: "Pet transportation",
+          sellerSnapshot: {
+            businessId,
+            ownerUid: businessData.ownerUid || businessData.uid || businessId,
+            businessName: finalBusinessName,
+            taxNumber: businessData.legal?.taxNumber || null,
+            mersisNumber: businessData.legal?.mersisNumber || null,
+          },
+          pricing: appointmentInvoicePricingSnapshot({
+            finalPrice: request.data.priceEstimate,
+          }),
+        }),
         userId: uid,
         businessId,
         businessName: finalBusinessName,
@@ -19894,6 +20987,18 @@ exports.createPetTaxiBooking = onCall(
           at: admin.firestore.FieldValue.serverTimestamp(),
           by: uid,
         },
+      });
+      await docRef.set(
+        {
+          "marketplace.transactionId": docRef.id,
+          "invoice.transactionId": docRef.id,
+        },
+        { merge: true }
+      );
+      logger.info("🧾 MARKETPLACE TRANSACTION INIT", {
+        vertical: "pet_taxi",
+        bookingId: docRef.id,
+        businessId,
       });
 
       try {
@@ -19993,6 +21098,16 @@ exports.updatePetTaxiBookingStatus = onCall(
       const update = {
         status: proposingPrice ? "awaiting_user_payment" : newStatus,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        marketplace: {
+          ...(data.marketplace || {}),
+          lifecycleStatus: buildMarketplaceStatus(
+            proposingPrice ? "awaiting_user_payment" : newStatus
+          ),
+          pendingAction: false,
+          updatedAt: new Date().toISOString(),
+          lastStatusChangedBy: uid,
+          lastStatusChangedAt: new Date().toISOString(),
+        },
         lastStatusChange: {
           from: oldStatus,
           to: proposingPrice ? "awaiting_user_payment" : newStatus,
@@ -20021,6 +21136,12 @@ exports.updatePetTaxiBookingStatus = onCall(
       }
 
       if (newStatus === "completed") {
+        assertMarketplaceCompletionAllowed({
+          data,
+          collectionName: "pet_taxi_bookings",
+          transactionId: bookingId,
+          requestedStatus: newStatus,
+        });
         update.providerPayoutStatus = data.paymentStatus === "paid"
           ? "pending"
           : data.providerPayoutStatus || "not_ready";
@@ -20402,6 +21523,14 @@ exports.verifyPetTaxiPayment = onCall(
       await bookingRef.update({
         paymentStatus: "paid",
         status: "confirmed_paid",
+        "marketplace.lifecycleStatus": buildMarketplaceStatus("confirmed_paid"),
+        "marketplace.pendingAction": false,
+        "marketplace.updatedAt": new Date().toISOString(),
+        "marketplace.lastStatusChangedBy": uid,
+        "marketplace.lastStatusChangedAt": new Date().toISOString(),
+        "invoice.pricing": appointmentInvoicePricingSnapshot({
+          paymentAmount: result.paidPrice || result.price || bookingData.finalPrice || 0,
+        }),
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         paymentOrderId: orderId,

@@ -281,6 +281,11 @@ class _NotificationsPageState extends State<NotificationsPage>
                             break;
                           case 'invoice_reminder':
                           case 'payment_window_expired':
+                          case 'invoice_issued':
+                          case 'invoice_approved':
+                          case 'invoice_rejected':
+                          case 'invoice_pending':
+                          case 'invoice_ready':
                             Future.microtask(() {
                               if (mounted) {
                                 appState.closeNotifications();
@@ -295,6 +300,12 @@ class _NotificationsPageState extends State<NotificationsPage>
 
                               // بعضی flow ها اینو میفرستن
                               'appointmentId': data['appointmentId'],
+                              'bookingId': data['bookingId'],
+                              'transactionId': data['transactionId'],
+                              'appointmentCollection':
+                                  data['appointmentCollection'],
+                              'collectionName': data['collectionName'],
+                              'businessId': data['businessId'],
                             });
 
                             break;

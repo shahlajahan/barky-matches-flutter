@@ -10,8 +10,8 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
-import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
 
 class AppointmentPaymentPage extends StatefulWidget {
   final String appointmentId;
@@ -741,6 +741,13 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                   refundRequired: refundRequired,
                   refundStatus: refundStatus,
                 ),
+              ),
+              MarketplaceTransactionStatus(
+                data: appointment!,
+                compact: true,
+                showUserInvoiceActions: true,
+                collectionName: widget.appointmentCollection,
+                transactionId: widget.appointmentId,
               ),
               const SizedBox(height: 24),
               if (canCancel) ...[

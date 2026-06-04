@@ -12,10 +12,25 @@ service cloud.firestore {
     }
 
     function isBusinessOwner(businessId) {
-      return isSignedIn()
-        && businessId is string
-        && get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerUid == request.auth.uid;
-    }
+
+  return isSignedIn()
+
+    && businessId is string
+
+    && (
+
+      get(
+        /databases/$(database)/documents/businesses/$(businessId)
+      ).data.ownerUid == request.auth.uid
+
+      ||
+
+      get(
+        /databases/$(database)/documents/businesses/$(businessId)
+      ).data.contact.email == request.auth.token.email
+
+    );
+}
 
     function isSellerOrderBusinessOwner(data) {
       return isSignedIn() && (
@@ -359,10 +374,13 @@ match /dogs/{dogId}/visits/{visitId} {
     request.resource.data.ownerUid == request.auth.uid
   );
 
-  allow update, delete: if isAdmin() || (
-    isSignedIn() &&
-    resource.data.ownerUid == request.auth.uid
-  );
+  allow update, delete:
+
+if isAdmin()
+
+||
+
+isBusinessOwner(businessId);
 
   
   match /{document=**} {

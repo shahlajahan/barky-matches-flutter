@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:barky_matches_fixed/services/image_upload_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
@@ -30,6 +30,49 @@ class _AdoptionCenterDashboardGalleryTabState
     return p.endsWith('.mp4') || p.endsWith('.mov') || p.endsWith('.hevc');
   }
 
+  String _extensionFor(File file, {required bool isVideo}) {
+    final name = file.path.split('/').last;
+    final dot = name.lastIndexOf('.');
+    if (dot >= 0 && dot < name.length - 1) {
+      return name.substring(dot + 1).toLowerCase();
+    }
+    return isVideo ? 'mp4' : 'jpg';
+  }
+
+  Future<String> _uploadAdoptionMedia(
+    File file, {
+    required bool isVideo,
+  }) async {
+    final folder = isVideo ? 'videos' : 'photos';
+    final extension = _extensionFor(file, isVideo: isVideo);
+    final ref = FirebaseStorage.instance.ref().child(
+      'business_sector_docs/${widget.businessId}/adoption_center/$folder/${DateTime.now().millisecondsSinceEpoch}.$extension',
+    );
+
+    print("FILE NAME = ${file.path}");
+    print("FULL STORAGE REF = ${ref.fullPath}");
+
+    try {
+      final task = ref.putFile(file);
+      task.snapshotEvents.listen((event) {
+        if (!mounted || event.totalBytes <= 0) return;
+        setState(() {
+          _progress = (event.bytesTransferred / event.totalBytes).clamp(
+            0.0,
+            1.0,
+          );
+        });
+      });
+
+      final snap = await task;
+      return snap.ref.getDownloadURL();
+    } catch (e) {
+      print("UPLOAD FAILED REF = ${ref.fullPath}");
+      print("UPLOAD ERROR = $e");
+      rethrow;
+    }
+  }
+
   Future<void> _pickAndUploadMultiple() async {
     if (_picking) return;
     _picking = true;
@@ -54,6 +97,19 @@ class _AdoptionCenterDashboardGalleryTabState
       debugPrint("IMAGES: ${imageFiles.length}");
       debugPrint("VIDEOS: ${videoFiles.length}");
 
+      final businessId = widget.businessId;
+      print("UPLOAD START");
+      print("AUTH UID = ${FirebaseAuth.instance.currentUser?.uid}");
+      print("BUSINESS ID = $businessId");
+      print("IMAGE COUNT = ${imageFiles.length}");
+      print("VIDEO COUNT = ${videoFiles.length}");
+      print(
+        "STORAGE PHOTO PATH = business_sector_docs/$businessId/adoption_center/photos/",
+      );
+      print(
+        "STORAGE VIDEO PATH = business_sector_docs/$businessId/adoption_center/videos/",
+      );
+
       setState(() {
         _uploading = true;
         _progress = 0;
@@ -70,29 +126,14 @@ class _AdoptionCenterDashboardGalleryTabState
       final currentCover = (currentData['coverImageUrl'] ?? '').toString();
 
       List<String> imageUrls = [];
-      if (imageFiles.isNotEmpty) {
-        imageUrls = await ImageUploadService.uploadBusinessImages(
-          files: imageFiles,
-          businessId: widget.businessId,
-          onProgress: (p) {
-            if (!mounted) return;
-            setState(() {
-              _progress = p.isNaN || p.isInfinite ? 0 : p.clamp(0.0, 1.0);
-            });
-          },
-        );
+      for (final imageFile in imageFiles) {
+        final url = await _uploadAdoptionMedia(imageFile, isVideo: false);
+        imageUrls.add(url);
       }
 
       List<String> videoUrls = [];
       for (final videoFile in videoFiles) {
-        final fileName =
-            '${DateTime.now().millisecondsSinceEpoch}_${videoFile.path.split('/').last}';
-        final ref = FirebaseStorage.instance.ref().child(
-          'business_gallery/${widget.businessId}/videos/$fileName',
-        );
-        final task = ref.putFile(videoFile);
-        final snap = await task;
-        final url = await snap.ref.getDownloadURL();
+        final url = await _uploadAdoptionMedia(videoFile, isVideo: true);
         videoUrls.add(url);
       }
 
@@ -129,7 +170,7 @@ class _AdoptionCenterDashboardGalleryTabState
     required String currentCover,
   }) async {
     try {
-      await ImageUploadService.deleteImageByUrl(url);
+      await FirebaseStorage.instance.refFromURL(url).delete();
 
       final nextImages = List<String>.from(currentImages)..remove(url);
       String? nextCover;

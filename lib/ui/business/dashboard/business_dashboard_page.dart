@@ -110,12 +110,6 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
           /// =============================
           /// 🐾 ROUTING BY SECTOR
           /// =============================
-          final routeKey = _routeKeyFor(sectors, data);
-          /*
-          debugPrint(
-            '🧭 Dashboard routeKey=$routeKey businessId=${widget.businessId}',
-          );
-          */
           return _buildDashboardBySector(context, sectors, data);
         },
       ),
@@ -131,27 +125,10 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     Map<String, dynamic> data,
   ) {
     final l10n = AppLocalizations.of(context)!;
-    final sectorData =
-        (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
-    final normalizedSectors = {
-      ...sectors.map((sector) => sector.toLowerCase()),
-      ...sectorData.keys.map((sector) => sector.toLowerCase()),
-    };
-
-    final hasPetShop =
-        normalizedSectors.contains('pet_shop') ||
-        normalizedSectors.contains('petshop');
-
-    final hasGrooming =
-        normalizedSectors.contains('grooming') ||
-        normalizedSectors.contains('groomer') ||
-        ((data['sectorData']?['petshop']?['shopTypes'] as List?)?.contains(
-              'Grooming',
-            ) ??
-            false);
+    final sector = _resolveBusinessSector(sectors, data);
 
     /// 🐶 VET
-    if (normalizedSectors.contains('veterinary')) {
+    if (sector == 'vet') {
       return KeyedSubtree(
         key: ValueKey(widget.businessId),
         child: VetDashboardPage(
@@ -161,37 +138,11 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
       );
     }
 
-    if (hasPetShop && hasGrooming) {
-      return DefaultTabController(
-        length: 2,
-        child: Column(
-          children: [
-            const TabBar(
-              isScrollable: true,
-              tabs: [
-                Tab(text: 'Pet Shop'),
-                Tab(text: 'Groomy'),
-              ],
-            ),
-
-            Expanded(
-              child: TabBarView(
-                children: [
-                  const PetShopDashboardPage(),
-
-                  GroomyDashboardPage(
-                    businessId: widget.businessId,
-                    businessData: data,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+    if (sector == 'pet_shop') {
+      return const PetShopDashboardPage();
     }
 
-    if (hasGrooming) {
+    if (sector == 'groomy') {
       debugPrint(
         "GROOMY CHILD BUILD "
         "dataHash=${identityHashCode(data)}",
@@ -205,27 +156,21 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
       );
     }
 
-    if (normalizedSectors.contains('adoption_center') ||
-        normalizedSectors.contains('adoption') ||
-        normalizedSectors.contains('adoptioncenter')) {
+    if (sector == 'adoption_center') {
       return AdoptionCenterDashboardPage(
         businessId: widget.businessId,
         businessData: data,
       );
     }
 
-    if (normalizedSectors.contains('pet_hotel') ||
-        normalizedSectors.contains('hotel') ||
-        normalizedSectors.contains('pet hotel')) {
+    if (sector == 'pet_hotel') {
       return PetHotelDashboardPage(
         businessId: widget.businessId,
         businessData: data,
       );
     }
 
-    if (normalizedSectors.contains('pet_taxi') ||
-        normalizedSectors.contains('pet taxi') ||
-        normalizedSectors.contains('taxi')) {
+    if (sector == 'pet_taxi') {
       return PetTaxiDashboardPage(
         businessId: widget.businessId,
         businessData: data,
@@ -238,44 +183,66 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     );
   }
 
-  String _routeKeyFor(List<String> sectors, Map<String, dynamic> data) {
+  String _resolveBusinessSector(
+    List<String> sectors,
+    Map<String, dynamic> data,
+  ) {
     final sectorData =
         (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
-    final normalizedSectors = {
-      ...sectors.map((sector) => sector.toLowerCase()),
-      ...sectorData.keys.map((sector) => sector.toLowerCase()),
-    };
+    final normalized = [
+      ...sectors,
+      ...sectorData.keys,
+      data['sector'],
+      data['type'],
+      data['businessType'],
+      data['category'],
+    ].map((value) => value?.toString().trim().toLowerCase() ?? '').toList();
 
-    if (normalizedSectors.contains('veterinary')) return 'veterinary';
-    if ((normalizedSectors.contains('pet_shop') ||
-            normalizedSectors.contains('petshop')) &&
-        (normalizedSectors.contains('grooming') ||
-            normalizedSectors.contains('groomer') ||
-            ((data['sectorData']?['petshop']?['shopTypes'] as List?)?.contains(
-                  'Grooming',
-                ) ??
-                false))) {
-      return 'pet_shop_grooming';
+    bool hasAny(List<String> values) {
+      return normalized.any((item) => values.any(item.contains));
     }
-    if (normalizedSectors.contains('grooming') ||
-        normalizedSectors.contains('groomer')) {
-      return 'grooming';
-    }
-    if (normalizedSectors.contains('adoption_center') ||
-        normalizedSectors.contains('adoption') ||
-        normalizedSectors.contains('adoptioncenter')) {
+
+    if (sectorData.containsKey('adoption_center') ||
+        sectorData.containsKey('adoptionCenter') ||
+        hasAny(['adoption_center', 'adoption center', 'adoptioncenter']) ||
+        normalized.any((item) => item == 'adoption')) {
       return 'adoption_center';
     }
-    if (normalizedSectors.contains('pet_hotel') ||
-        normalizedSectors.contains('hotel') ||
-        normalizedSectors.contains('pet hotel')) {
-      return 'pet_hotel';
-    }
-    if (normalizedSectors.contains('pet_taxi') ||
-        normalizedSectors.contains('pet taxi') ||
-        normalizedSectors.contains('taxi')) {
+
+    if (sectorData.containsKey('pet_taxi') ||
+        hasAny(['pet_taxi', 'pet taxi']) ||
+        normalized.any((item) => item == 'taxi')) {
       return 'pet_taxi';
     }
+
+    if (sectorData.containsKey('pet_hotel') ||
+        sectorData.containsKey('hotel') ||
+        sectorData.containsKey('petHotel') ||
+        hasAny(['pet_hotel', 'pet hotel', 'boarding']) ||
+        normalized.any((item) => item == 'hotel')) {
+      return 'pet_hotel';
+    }
+
+    if (sectorData.containsKey('groomy') ||
+        sectorData.containsKey('grooming') ||
+        sectorData.containsKey('groomer') ||
+        hasAny(['groomy', 'grooming', 'groomer'])) {
+      return 'groomy';
+    }
+
+    if (sectorData.containsKey('pet_shop') ||
+        sectorData.containsKey('petshop') ||
+        hasAny(['pet_shop', 'pet shop', 'petshop', 'seller', 'store'])) {
+      return 'pet_shop';
+    }
+
+    if (sectorData.containsKey('veterinary') ||
+        sectorData.containsKey('vet') ||
+        hasAny(['veterinary']) ||
+        normalized.any((item) => item == 'vet')) {
+      return 'vet';
+    }
+
     return 'empty';
   }
 }

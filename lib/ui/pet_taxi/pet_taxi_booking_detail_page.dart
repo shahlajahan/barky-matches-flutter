@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
 
 class PetTaxiBookingDetailPage extends StatefulWidget {
@@ -205,6 +206,12 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
             padding: const EdgeInsets.all(16),
             children: [
               _header(data, status),
+              MarketplaceTransactionStatus(
+                data: data,
+                showUserInvoiceActions: true,
+                collectionName: 'pet_taxi_bookings',
+                transactionId: widget.bookingId,
+              ),
               const SizedBox(height: 12),
               _info(LucideIcons.mapPin, 'Pickup', data['pickupAddress']),
               _info(LucideIcons.flag, 'Dropoff', data['dropoffAddress']),

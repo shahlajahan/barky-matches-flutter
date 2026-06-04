@@ -752,19 +752,6 @@ class _HomePageState extends State<HomePage>
       return text.isEmpty ? <String>[] : <String>[text];
     }
 
-    BusinessType businessTypeFrom(dynamic value) {
-      final type = normalize(value);
-      if (type.contains('adoption')) return BusinessType.adoptionCenter;
-      if (type.contains('shop') || type.contains('pet_shop')) {
-        return BusinessType.petShop;
-      }
-      if (type.contains('groom')) return BusinessType.groomer;
-      if (type.contains('hotel') || type.contains('boarding')) {
-        return BusinessType.petHotel;
-      }
-      return BusinessType.vet;
-    }
-
     String businessSector(dynamic business) {
       final profile =
           (business['profile'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -800,6 +787,22 @@ class _HomePageState extends State<HomePage>
         normalizedSectorData,
       ].join(' ').toLowerCase();
 
+      if (sectorData.containsKey('adoption_center') ||
+          sectorData.containsKey('adoptionCenter') ||
+          raw.contains('adoption_center') ||
+          raw.contains('adoption center') ||
+          raw.contains('adoptioncenter') ||
+          raw.contains('adoption')) {
+        return 'adoption_center adoption adoption center';
+      }
+
+      if (sectorData.containsKey('pet_taxi') ||
+          raw.contains('pet_taxi') ||
+          raw.contains('pet taxi') ||
+          raw.contains('taxi')) {
+        return 'pet_taxi pet taxi';
+      }
+
       if (raw.contains('groom') ||
           raw.contains('groomer') ||
           raw.contains('grooming') ||
@@ -816,23 +819,36 @@ class _HomePageState extends State<HomePage>
         return 'pet_hotel hotel boarding';
       }
 
+      if (raw.contains('petshop') ||
+          raw.contains('pet_shop') ||
+          raw.contains('pet shop') ||
+          raw.contains('seller') ||
+          raw.contains('store')) {
+        return 'pet_shop petshop seller store';
+      }
+
       if (raw.contains('vet') ||
           raw.contains('veterinary') ||
           raw.contains('clinic')) {
         return 'vet veterinary clinic';
       }
 
-      if (raw.contains('petshop') ||
-          raw.contains('pet_shop') ||
-          raw.contains('seller') ||
-          raw.contains('store')) {
-        return 'petshop seller store';
-      }
-
-      return raw;
+      return 'unknown';
     }
 
     String businessRouteFromSector(String sector) {
+      if (sector.contains('adoption_center') ||
+          sector.contains('adoption center') ||
+          sector.contains('adoption')) {
+        return 'ADOPTION_CENTER';
+      }
+
+      if (sector.contains('pet_taxi') ||
+          sector.contains('pet taxi') ||
+          sector.contains('taxi')) {
+        return 'PET_TAXI';
+      }
+
       if (sector.contains('groomy') ||
           sector.contains('grooming') ||
           sector.contains('groomer')) {
@@ -865,11 +881,13 @@ class _HomePageState extends State<HomePage>
     }
 
     BusinessType businessTypeFromRoute(String route, String sector) {
+      if (route == 'ADOPTION_CENTER') return BusinessType.adoptionCenter;
       if (route == 'GROOMING') return BusinessType.groomer;
       if (route == 'SELLER') return BusinessType.petShop;
       if (route == 'VET') return BusinessType.vet;
       if (route == 'PET_HOTEL') return BusinessType.petHotel;
-      return businessTypeFrom(sector);
+      if (route == 'PET_TAXI') return BusinessType.petTaxi;
+      return BusinessType.petShop;
     }
 
     debugPrint("🏪 FIRESTORE BUSINESSES: ${firestoreBusinesses.length}");

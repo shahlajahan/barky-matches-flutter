@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 
 class PetHotelBookingsTab extends StatelessWidget {
   final String businessId;
@@ -169,14 +171,26 @@ class PetHotelBookingsTab extends StatelessWidget {
               ),
             ),
           ],
+          MarketplaceTransactionStatus(
+            data: data,
+            compact: true,
+            showInvoiceActions: true,
+            collectionName: 'hotel_bookings',
+            transactionId: bookingId,
+          ),
           const SizedBox(height: 14),
-          _actions(context, bookingId, status),
+          _actions(context, bookingId, status, data),
         ],
       ),
     );
   }
 
-  Widget _actions(BuildContext context, String bookingId, String status) {
+  Widget _actions(
+    BuildContext context,
+    String bookingId,
+    String status,
+    Map<String, dynamic> data,
+  ) {
     if (status == 'pending') {
       return Row(
         children: [
@@ -231,8 +245,16 @@ class PetHotelBookingsTab extends StatelessWidget {
       return SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: () =>
-              _updateBookingStatus(context, bookingId, 'completed'),
+          onPressed: () {
+            if (!MarketplaceInvoicePolicy.guardCompletion(
+              context,
+              data,
+              targetStatus: 'completed',
+            )) {
+              return;
+            }
+            _updateBookingStatus(context, bookingId, 'completed');
+          },
           child: const Text('Complete Stay'),
         ),
       );

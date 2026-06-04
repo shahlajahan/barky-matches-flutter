@@ -292,18 +292,20 @@ class AppState with ChangeNotifier {
       _initialBusinessResolutionStatus;
   String? get initialBusinessResolutionReason =>
       _initialBusinessResolutionReason;
+void setApprovedBusiness({
+  required String businessId,
+  required List<String> sectors,
+}) {
 
-  void setApprovedBusiness({
-    required String businessId,
-    required List<String> sectors, // 🔥 required کن
-  }) {
-    _businessId = businessId;
-    _businessStatus = "approved";
-    _isBusinessVerified = true;
-    _businessSectors = sectors;
+  debugPrint("✅ setApprovedBusiness CALLED");
 
-    notifyListeners();
-  }
+  _businessId = businessId;
+  _businessSectors = sectors;
+
+  _businessStatus = 'approved';
+
+  notifyListeners();
+}
 
   void setInitialBusinessCenterId(String id) {
     _initialBusinessCenterId = id;
@@ -353,6 +355,9 @@ class AppState with ChangeNotifier {
   }
 
   void clearBusinessState() {
+    debugPrint("🚨 CLEAR BUSINESS STATE CALLED");
+debugPrint("🚨 OLD businessId=$businessId");
+debugPrint("🚨 OLD approved=$hasApprovedBusiness");
     _businessId = null;
     _businessStatus = null;
     _isBusinessVerified = false;
@@ -2919,6 +2924,66 @@ class AppState with ChangeNotifier {
     _initialAdoptionRequestId = null;
   }
 
+  bool _handleMarketplaceInvoiceNotification(
+    String type,
+    Map<String, dynamic> payload,
+  ) {
+    const invoiceTypes = {
+      'invoice_issued',
+      'invoice_approved',
+      'invoice_rejected',
+      'invoice_pending',
+      'invoice_ready',
+    };
+
+    if (!invoiceTypes.contains(type)) return false;
+
+    debugPrint('MARKETPLACE NOTIFICATION ROUTE type=$type payload=$payload');
+    debugPrint('INVOICE ROUTE START');
+
+    final collection =
+        payload['appointmentCollection']?.toString().trim().isNotEmpty == true
+        ? payload['appointmentCollection']!.toString().trim()
+        : payload['collectionName']?.toString().trim().isNotEmpty == true
+        ? payload['collectionName']!.toString().trim()
+        : payload['collection']?.toString().trim().isNotEmpty == true
+        ? payload['collection']!.toString().trim()
+        : null;
+    final appointmentId =
+        payload['appointmentId']?.toString().trim().isNotEmpty == true
+        ? payload['appointmentId']!.toString().trim()
+        : payload['bookingId']?.toString().trim().isNotEmpty == true
+        ? payload['bookingId']!.toString().trim()
+        : payload['transactionId']?.toString().trim().isNotEmpty == true
+        ? payload['transactionId']!.toString().trim()
+        : null;
+
+    debugPrint('INVOICE ROUTE COLLECTION=$collection');
+    debugPrint('INVOICE ROUTE APPOINTMENT=$appointmentId');
+
+    if (appointmentId == null || appointmentId.isEmpty) {
+      debugPrint('MARKETPLACE NOTIFICATION ROUTE missing appointment id');
+      setCurrentTab(NavTab.profile);
+      openProfileSubPage(ProfileSubPage.appointments);
+      return true;
+    }
+
+    closeNotifications();
+    _ignoreNextNotificationTap = true;
+    ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
+
+    if (collection != null && collection.isNotEmpty) {
+      setSelectedAppointmentId(appointmentId, collection: collection);
+      setCurrentTab(NavTab.home);
+    } else {
+      setOpenAppointmentId(appointmentId);
+      openBusinessDashboard();
+    }
+
+    debugPrint('INVOICE ROUTE SUCCESS');
+    return true;
+  }
+
   void handleNotificationTap(Map<String, dynamic> payload) {
     debugPrint("🧪 ENTERED NEW HANDLER VERSION");
     debugPrint('🔥🔥🔥 TAP HANDLER EXECUTED');
@@ -2941,6 +3006,10 @@ class AppState with ChangeNotifier {
         payload['lostDogId']?.toString() ?? payload['lostPetId']?.toString();
     final foundDogId =
         payload['foundDogId']?.toString() ?? payload['foundPetId']?.toString();
+
+    if (_handleMarketplaceInvoiceNotification(type, payload)) {
+      return;
+    }
 
     // ───────────────── PLAYDATE REQUEST ─────────────────
     if (type == 'playdate_request') {

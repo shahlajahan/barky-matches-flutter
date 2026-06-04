@@ -510,29 +510,18 @@ class _UserProfilePageState extends State<UserProfilePage> {
         // 4️⃣ APPROVED VIA REQUEST → FETCH BUSINESS
         // =========================
         if (status == 'approved') {
-          final businessId = data['businessId'];
+          final bizDoc = await _resolveApprovedBusinessFromRequest(uid, data);
 
-          if (businessId != null) {
-            final bizDoc = await FirebaseFirestore.instance
-                .collection("businesses")
-                .doc(businessId)
-                .get();
+          if (bizDoc != null && bizDoc.exists) {
+            final bizData = bizDoc.data() as Map<String, dynamic>? ?? {};
+            final sectors = List<String>.from(bizData['sectors'] ?? []);
 
-            if (bizDoc.exists) {
-              final sectors = List<String>.from(
-                bizDoc.data()?['sectors'] ?? [],
-              );
+            appState.setApprovedBusiness(
+              businessId: bizDoc.id,
+              sectors: sectors,
+            );
 
-              appState.setApprovedBusiness(
-                businessId: businessId,
-                sectors: sectors,
-              );
-
-              debugPrint("✅ approved via request → businessId=$businessId");
-              return;
-            } else {
-              debugPrint("⚠️ business doc missing for approved request");
-            }
+            return;
           }
         }
 
@@ -547,6 +536,69 @@ class _UserProfilePageState extends State<UserProfilePage> {
     } catch (e) {
       debugPrint("❌ Business load error: $e");
     }
+  }
+
+  Future<DocumentSnapshot?> _resolveApprovedBusinessFromRequest(
+    String uid,
+    Map<String, dynamic> requestData,
+  ) async {
+    final firestore = FirebaseFirestore.instance;
+    final requestedBusinessId = requestData['businessId']?.toString().trim();
+
+    if (requestedBusinessId != null && requestedBusinessId.isNotEmpty) {
+      final requestedDoc = await firestore
+          .collection("businesses")
+          .doc(requestedBusinessId)
+          .get();
+      if (requestedDoc.exists) return requestedDoc;
+    }
+
+    for (final ownerField in const [
+      'ownerUid',
+      'ownerId',
+      'uid',
+      'centerOwnerId',
+    ]) {
+      final owned = await firestore
+          .collection("businesses")
+          .where(ownerField, isEqualTo: uid)
+          .where("status", isEqualTo: "approved")
+          .limit(1)
+          .get();
+      if (owned.docs.isNotEmpty) return owned.docs.first;
+    }
+
+    final requestProfile =
+        (requestData['profile'] as Map?)?.cast<String, dynamic>() ?? {};
+    final requestName =
+        (requestProfile['displayName'] ??
+                requestProfile['businessName'] ??
+                requestData['displayName'] ??
+                requestData['businessName'] ??
+                requestData['name'])
+            ?.toString()
+            .trim();
+    final requestSectors = List<String>.from(requestData['sectors'] ?? []);
+
+    if (requestName == null || requestName.isEmpty) return null;
+
+    final named = await firestore
+        .collection("businesses")
+        .where("profile.displayName", isEqualTo: requestName)
+        .where("status", isEqualTo: "approved")
+        .limit(10)
+        .get();
+
+    for (final doc in named.docs) {
+      final data = doc.data();
+      final sectors = List<String>.from(data['sectors'] ?? []);
+      if (_resolveBusinessSector(sectors, data) ==
+          _resolveBusinessSector(requestSectors, requestData)) {
+        return doc;
+      }
+    }
+
+    return null;
   }
 
   Future<void> _pickProfileImage() async {
@@ -1028,28 +1080,29 @@ class _UserProfilePageState extends State<UserProfilePage> {
           final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
 
           final sectors = List<String>.from(data['sectors'] ?? []);
+          final sector = _resolveBusinessSector(sectors, data);
 
           debugPrint("🏪 REAL SECTORS => $sectors");
 
           Widget dashboardBody;
 
-          if (sectors.contains("pet_shop")) {
+          if (sector == "pet_shop") {
             dashboardBody = const PetShopDashboardPage();
-          } else if (sectors.contains("veterinary")) {
-            dashboardBody = BusinessDashboardPage(
-              businessId: appState.businessId!,
-            );
-          } else if (sectors.contains("groomer") ||
-              sectors.contains("grooming")) {
+          } else if (sector == "groomy") {
             dashboardBody = GroomyDashboardPage(
               businessId: appState.businessId!,
               businessData: data,
             );
-          } else if (sectors.contains("pet_hotel") ||
-              sectors.contains("hotel")) {
+          } else if (sector == "pet_hotel") {
             dashboardBody = PetHotelDashboardPage(
               businessId: appState.businessId!,
               businessData: data,
+            );
+          } else if (sector == "vet" ||
+              sector == "adoption_center" ||
+              sector == "pet_taxi") {
+            dashboardBody = BusinessDashboardPage(
+              businessId: appState.businessId!,
             );
           } else {
             dashboardBody = Center(
@@ -1536,6 +1589,69 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
+  String _resolveBusinessSector(
+    List<String> sectors,
+    Map<String, dynamic> data,
+  ) {
+    final sectorData =
+        (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
+    final normalized = [
+      ...sectors,
+      ...sectorData.keys,
+      data['sector'],
+      data['type'],
+      data['businessType'],
+      data['category'],
+    ].map((value) => value?.toString().trim().toLowerCase() ?? '').toList();
+
+    bool hasAny(List<String> values) {
+      return normalized.any((item) => values.any(item.contains));
+    }
+
+    if (sectorData.containsKey('adoption_center') ||
+        sectorData.containsKey('adoptionCenter') ||
+        hasAny(['adoption_center', 'adoption center', 'adoptioncenter']) ||
+        normalized.any((item) => item == 'adoption')) {
+      return 'adoption_center';
+    }
+
+    if (sectorData.containsKey('pet_taxi') ||
+        hasAny(['pet_taxi', 'pet taxi']) ||
+        normalized.any((item) => item == 'taxi')) {
+      return 'pet_taxi';
+    }
+
+    if (sectorData.containsKey('pet_hotel') ||
+        sectorData.containsKey('hotel') ||
+        sectorData.containsKey('petHotel') ||
+        hasAny(['pet_hotel', 'pet hotel', 'boarding']) ||
+        normalized.any((item) => item == 'hotel')) {
+      return 'pet_hotel';
+    }
+
+    if (sectorData.containsKey('groomy') ||
+        sectorData.containsKey('grooming') ||
+        sectorData.containsKey('groomer') ||
+        hasAny(['groomy', 'grooming', 'groomer'])) {
+      return 'groomy';
+    }
+
+    if (sectorData.containsKey('pet_shop') ||
+        sectorData.containsKey('petshop') ||
+        hasAny(['pet_shop', 'pet shop', 'petshop', 'seller', 'store'])) {
+      return 'pet_shop';
+    }
+
+    if (sectorData.containsKey('veterinary') ||
+        sectorData.containsKey('vet') ||
+        hasAny(['veterinary']) ||
+        normalized.any((item) => item == 'vet')) {
+      return 'vet';
+    }
+
+    return 'empty';
+  }
+
   Future<ImageProvider?> _loadProfileImage() async {
     if (!mounted) return null;
 
@@ -1879,14 +1995,10 @@ class _AdminPanelCard extends StatelessWidget {
 class _ApprovedBusinessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final appState = context.read<AppState>();
-
     return GestureDetector(
       onTap: () {
         final appState = context.read<AppState>();
-        debugPrint(
-          "👉 OPEN DASHBOARD with businessId = ${appState.businessId}",
-        );
+        debugPrint("OPEN DASHBOARD with businessId = ${appState.businessId}");
         appState.openProfileSubPage(ProfileSubPage.businessDashboard);
       },
       child: Container(

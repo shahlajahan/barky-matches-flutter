@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 
 class PetTaxiDashboardBookingsTab extends StatefulWidget {
   final String businessId;
@@ -161,6 +163,13 @@ class _PetTaxiDashboardBookingsTabState
               style: AppTheme.body(color: AppTheme.muted),
             ),
           ],
+          MarketplaceTransactionStatus(
+            data: data,
+            compact: true,
+            showInvoiceActions: true,
+            collectionName: 'pet_taxi_bookings',
+            transactionId: bookingId,
+          ),
           const SizedBox(height: 14),
           _actions(context, bookingId, status, data),
         ],
@@ -228,7 +237,16 @@ class _PetTaxiDashboardBookingsTabState
         children: [
           Expanded(
             child: ElevatedButton(
-              onPressed: () => _confirmAndUpdate(context, bookingId, next),
+              onPressed: () {
+                if (!MarketplaceInvoicePolicy.guardCompletion(
+                  context,
+                  data,
+                  targetStatus: next,
+                )) {
+                  return;
+                }
+                _confirmAndUpdate(context, bookingId, next);
+              },
               child: Text(_label(next)),
             ),
           ),

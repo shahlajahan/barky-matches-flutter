@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
+import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 
 class AppointmentDetailPage extends StatefulWidget {
   final String appointmentId;
@@ -78,6 +81,12 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
                 if (refundLabel.isNotEmpty)
                   Text("${l10n.refundResultLabel}: $refundLabel"),
                 Text("${l10n.priceLabel}: ₺$price"),
+                MarketplaceTransactionStatus(
+                  data: data,
+                  showInvoiceActions: true,
+                  collectionName: 'vet_appointments',
+                  transactionId: widget.appointmentId,
+                ),
 
                 _preVisitFormSection(data),
 
@@ -107,11 +116,20 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
+                        if (!MarketplaceInvoicePolicy.guardCompletion(
+                          context,
+                          data,
+                          targetStatus: 'completed',
+                        )) {
+                          return;
+                        }
                         final messenger = ScaffoldMessenger.of(context);
-                        await FirebaseFirestore.instance
-                            .collection('vet_appointments')
-                            .doc(widget.appointmentId)
-                            .update({"status": "completed"});
+                        await FirebaseFunctions.instanceFor(
+                          region: 'europe-west3',
+                        ).httpsCallable('updateVetAppointmentStatus').call({
+                          'appointmentId': widget.appointmentId,
+                          'newStatus': 'completed',
+                        });
 
                         messenger.showSnackBar(
                           SnackBar(content: Text(l10n.markedAsCompletedSnack)),
