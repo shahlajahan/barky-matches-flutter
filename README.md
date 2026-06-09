@@ -1,16 +1,46 @@
-# barky_matches_fixed
+# Petsupo Core Platform
 
-A new Flutter project.
+⚠️ This repository originally started as BarkyMatches and evolved into Petsupo.
 
-## Getting Started
+This repository contains the active production codebase behind Petsupo.
 
-This project is a starting point for a Flutter application.
+Today it powers the Petsupo ecosystem, a multi-tenant pet-tech platform connecting pet owners and pet businesses.
 
-A few resources to get you started if this is your first Flutter project:
+## Features
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Veterinary Services
+- Grooming
+- Pet Hotels
+- Pet Taxi
+- Adoption
+- Lost & Found
+- Social Community
+- Marketplace
+- Business Dashboards
+- Notifications & Messaging
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Tech Stack
+
+- Flutter
+- Firebase
+- Firestore
+- Cloud Functions
+- Firebase Messaging
+- Firebase Storage
+- GitHub Actions
+
+## Architecture
+
+Flutter UI
+↓
+State Management
+↓
+Repositories
+↓
+Firestore / Cloud Functions
+
+## Status
+
+Actively developed and maintained.
+
+This repository represents the production codebase behind Petsupo.
