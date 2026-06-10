@@ -1,4 +1,5 @@
 # Petsupo Core Platform
+Production codebase powering the Petsupo ecosystem.
 
 ⚠️ This repository originally started as BarkyMatches and evolved into Petsupo.
 
