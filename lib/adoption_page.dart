@@ -466,9 +466,11 @@ class _AdoptionPageState extends State<AdoptionPage> {
 
     // 🐶 DOG OVERLAY (جدید)
     if (appState.adoptionDogOverlayId != null) {
-      final dog = _adoptionDogs
-          .where((d) => d.id == appState.adoptionDogOverlayId)
-          .firstOrNull;
+      final dog =
+          appState.adoptionDogOverlayDog ??
+          _adoptionDogs
+              .where((d) => d.id == appState.adoptionDogOverlayId)
+              .firstOrNull;
 
       if (dog == null) {
         return const SizedBox.shrink();

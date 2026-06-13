@@ -17,6 +17,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';
+import 'onboarding_page.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -38,7 +39,11 @@ class _WelcomePageState extends State<WelcomePage>
   void initState() {
     super.initState();
 
-    _initPage(); // 🔥 مهم
+    _initPage();
+
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  _checkOnboarding();
+});
 
     // 🔥 PULSE INIT
     _pulseController = AnimationController(
@@ -336,6 +341,24 @@ Future<void> debugFirestoreRestOffers() async {
       );
     });
   }
+
+  Future<void> _checkOnboarding() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final hasSeen =
+      prefs.getBool('hasSeenOnboarding') ?? false;
+
+  if (hasSeen || !mounted) return;
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const OnboardingPage(),
+      ),
+    );
+  });
+}
 
   Widget _buildLogo() {
     return Container(

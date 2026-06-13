@@ -41,62 +41,113 @@ class ChatService {
 
     final chatRef = _chats.doc(chatId);
 
-    final chatSnap = await chatRef.get();
+final chatSnap = await chatRef.get();
 
-    if (!chatSnap.exists) {
-      final now = FieldValue.serverTimestamp();
+debugPrint(
+  "🐾 CHAT DOC = ${chatSnap.data()}",
+);
 
-      debugPrint("💬 CREATING CHAT → $chatId");
+if (chatSnap.exists) {
 
-      debugPrint("💬 participants → $ids");
+  final data = chatSnap.data() ?? {};
 
-      debugPrint("💬 currentUserId → $currentUserId");
+  final participantNames =
+      Map<String, dynamic>.from(
+    data['participantNames'] ?? {},
+  );
 
-      debugPrint("💬 otherUserId → $otherUserId");
+  final names = {
+    currentUserId: currentUserName,
+    otherUserId: otherUserName,
+  };
 
-      try {
-        await chatRef.set({
-          'participants': ids,
+  debugPrint(
+    "💬 EXISTING participantNames=$participantNames",
+  );
 
-          'participantMap': {currentUserId: true, otherUserId: true},
+  debugPrint(
+    "💬 EXPECTED names=$names",
+  );
 
-          'participantNames': {
-            currentUserId: currentUserName,
-            otherUserId: otherUserName,
-          },
+  if (participantNames.isEmpty ||
+      !participantNames.containsKey(currentUserId) ||
+      !participantNames.containsKey(otherUserId)) {
 
-          'participantPhotos': {
-            currentUserId: currentUserPhoto,
-            otherUserId: otherUserPhoto,
-          },
+    debugPrint(
+      "💬 REPAIR RUNNING",
+    );
 
-          'lastMessage': '',
-          'lastMessageAt': now,
-          'lastSenderId': '',
+    await chatRef.update({
+      'participantNames': names,
+    });
 
-          'unreadCount': {currentUserId: 0, otherUserId: 0},
+    debugPrint(
+      "💬 REPAIR DONE = $names",
+    );
+  }
 
-          'createdAt': now,
-          'updatedAt': now,
-        });
+} else {
 
-        final verify = await chatRef.get();
+  final now = FieldValue.serverTimestamp();
 
-        if (!verify.exists) {
-          throw Exception('Chat creation failed');
-        }
+  debugPrint("💬 CREATING CHAT → $chatId");
 
-        debugPrint("✅ CHAT VERIFIED");
+  debugPrint("💬 participants → $ids");
 
-        debugPrint("✅ CHAT CREATED SUCCESSFULLY");
-      } catch (e, stack) {
-        debugPrint("❌ CHAT CREATE ERROR → $e");
+  debugPrint("💬 currentUserId → $currentUserId");
 
-        debugPrint("$stack");
+  debugPrint("💬 otherUserId → $otherUserId");
 
-        rethrow;
-      }
+  try {
+
+    await chatRef.set({
+      'participants': ids,
+
+      'participantMap': {
+        currentUserId: true,
+        otherUserId: true,
+      },
+
+      'participantNames': {
+        currentUserId: currentUserName,
+        otherUserId: otherUserName,
+      },
+
+      'participantPhotos': {
+        currentUserId: currentUserPhoto,
+        otherUserId: otherUserPhoto,
+      },
+
+      'lastMessage': '',
+      'lastMessageAt': now,
+      'lastSenderId': '',
+
+      'unreadCount': {
+        currentUserId: 0,
+        otherUserId: 0,
+      },
+
+      'createdAt': now,
+      'updatedAt': now,
+    });
+
+    final verify = await chatRef.get();
+
+    if (!verify.exists) {
+      throw Exception('Chat creation failed');
     }
+
+    debugPrint("✅ CHAT VERIFIED");
+    debugPrint("✅ CHAT CREATED SUCCESSFULLY");
+
+  } catch (e, stack) {
+
+    debugPrint("❌ CHAT CREATE ERROR → $e");
+    debugPrint("$stack");
+
+    rethrow;
+  }
+}
 
     return chatId;
   }

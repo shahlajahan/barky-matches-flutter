@@ -298,6 +298,7 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                       );
                     }
                     if (business.type == BusinessType.adoptionCenter) {
+                      debugPrint('OPEN ADOPTION DETAIL OVERLAY');
                       debugPrint(
                         'ADOPTION CENTER DETAIL OPEN id=${business.id} name=${business.name}',
                       );

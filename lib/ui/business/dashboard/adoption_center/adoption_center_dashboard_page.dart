@@ -17,6 +17,8 @@ import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/sectio
 
 import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/adoption_center_requests_tab.dart';
 
+import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/edit_adoption_center_profile_page.dart';
+
 enum AdoptionCenterDashboardSection { overview, pets, gallery, requests }
 
 class AdoptionCenterDashboardPage extends StatefulWidget {
@@ -128,54 +130,69 @@ class _AdoptionCenterDashboardPageState
   }
 
   Widget _buildContent() {
-    switch (_selected) {
-      /// =============================
-      /// OVERVIEW
-      /// =============================
+  switch (_selected) {
 
-      case AdoptionCenterDashboardSection.overview:
-        return AdoptionCenterDashboardOverviewTab(
-          key: const ValueKey('overview'),
+    case AdoptionCenterDashboardSection.overview:
 
-          businessId: widget.businessId,
+      return AdoptionCenterDashboardOverviewTab(
+        key: const ValueKey('overview'),
 
-          businessData: widget.businessData,
-        );
+        businessId: widget.businessId,
 
-      /// =============================
-      /// PETS
-      /// =============================
+        businessData: widget.businessData,
 
-      case AdoptionCenterDashboardSection.pets:
-        return AdoptionPetsTab(
-          key: const ValueKey('pets'),
+        onOpenPets: () {
+          setState(() {
+            _selected =
+                AdoptionCenterDashboardSection.pets;
+          });
+        },
 
-          businessId: widget.businessId,
-        );
+        onOpenRequests: () {
+          setState(() {
+            _selected =
+                AdoptionCenterDashboardSection.requests;
+          });
+        },
 
-      /// =============================
-      /// GALLERY
-      /// =============================
+        onOpenSettings: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  EditAdoptionCenterProfilePage(
+                businessId: widget.businessId,
+              ),
+            ),
+          );
+        },
+      );
 
-      case AdoptionCenterDashboardSection.gallery:
-        return AdoptionCenterDashboardGalleryTab(
-          key: const ValueKey('gallery'),
+    case AdoptionCenterDashboardSection.pets:
 
-          businessId: widget.businessId,
-        );
+      return AdoptionPetsTab(
+        key: const ValueKey('pets'),
 
-      /// =============================
-      /// REQUESTS
-      /// =============================
+        businessId: widget.businessId,
+      );
 
-      case AdoptionCenterDashboardSection.requests:
-        return AdoptionCenterRequestsTab(
-          key: const ValueKey('requests'),
+    case AdoptionCenterDashboardSection.gallery:
 
-          businessId: widget.businessId,
-        );
-    }
+      return AdoptionCenterDashboardGalleryTab(
+        key: const ValueKey('gallery'),
+
+        businessId: widget.businessId,
+      );
+
+    case AdoptionCenterDashboardSection.requests:
+
+      return AdoptionCenterRequestsTab(
+        key: const ValueKey('requests'),
+
+        businessId: widget.businessId,
+      );
   }
+}
 }
 
 class _TopTabs extends StatelessWidget {
@@ -188,26 +205,22 @@ class _TopTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (
-        AdoptionCenterDashboardSection.overview,
+  (
+    AdoptionCenterDashboardSection.overview,
 
-        'Overview',
+    'Overview',
 
-        LucideIcons.layoutDashboard,
-      ),
+    LucideIcons.layoutDashboard,
+  ),
 
-      (AdoptionCenterDashboardSection.pets, 'Pets', Icons.pets),
+  (
+    AdoptionCenterDashboardSection.gallery,
 
-      (AdoptionCenterDashboardSection.gallery, 'Gallery', LucideIcons.image),
+    'Gallery',
 
-      (
-        AdoptionCenterDashboardSection.requests,
-
-        'Requests',
-
-        LucideIcons.heartHandshake,
-      ),
-    ];
+    LucideIcons.image,
+  ),
+];
 
     return Container(
       margin: const EdgeInsets.only(top: 10),

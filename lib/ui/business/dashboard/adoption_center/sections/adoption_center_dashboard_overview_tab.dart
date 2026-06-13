@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
+import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 
 class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
   final String businessId;
 
   final Map<String, dynamic> businessData;
 
+  final VoidCallback? onOpenPets;
+
+  final VoidCallback? onOpenRequests;
+
+  final VoidCallback? onOpenSettings;
+
   const AdoptionCenterDashboardOverviewTab({
     super.key,
     required this.businessId,
     required this.businessData,
+    this.onOpenPets,
+    this.onOpenRequests,
+    this.onOpenSettings,
   });
 
   @override
@@ -23,6 +34,15 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
     final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
 
     final contact = Map<String, dynamic>.from(businessData['contact'] ?? {});
+
+    debugPrint('🐾 OVERVIEW STREAM targetOwnerId=$businessId');
+
+    final requestsStream = FirebaseFirestore.instance
+        .collection('adoption_requests')
+        .where('targetOwnerId', isEqualTo: businessId)
+        //.orderBy('createdAt', descending: true)
+        //.limit(5)
+        .snapshots();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -43,16 +63,9 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
         const SizedBox(height: 10),
 
         StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('adoption_center_requests')
-              .where('businessId', isEqualTo: businessId)
-              .snapshots(),
+          stream: requestsStream,
 
           builder: (context, snapshot) {
-            debugPrint("🐾 ADOPTION REQUEST STREAM");
-
-            debugPrint("🐾 businessId = $businessId");
-
             if (snapshot.hasError) {
               return _emptyBox("Request error: ${snapshot.error}");
             }
@@ -70,47 +83,6 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
             if (docs.isEmpty) {
               return _emptyBox("No adoption requests yet");
             }
-
-            docs.sort((a, b) {
-              final aData = a.data() as Map<String, dynamic>;
-
-              final bData = b.data() as Map<String, dynamic>;
-
-              final aStatus = aData['status'] ?? '';
-
-              final bStatus = bData['status'] ?? '';
-
-              if (aStatus == 'pending' && bStatus != 'pending') {
-                return -1;
-              }
-
-              if (aStatus != 'pending' && bStatus == 'pending') {
-                return 1;
-              }
-
-              final aTs = aData['createdAt'];
-
-              final bTs = bData['createdAt'];
-
-              final aTime = aTs is Timestamp ? aTs.toDate() : null;
-
-              final bTime = bTs is Timestamp ? bTs.toDate() : null;
-
-              if (aTime == null || bTime == null) {
-                return 0;
-              }
-
-              return bTime.compareTo(aTime);
-            });
-
-            final pending = docs
-                .where((d) {
-                  final data = d.data() as Map<String, dynamic>;
-
-                  return data['status'] == 'pending';
-                })
-                .take(3)
-                .toList();
 
             final total = docs.length;
 
@@ -176,14 +148,40 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                _SectionTitle("Pending Adoption Requests"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
 
-                const SizedBox(height: 8),
+                        children: [
+                          _SectionTitle("Recent Adoption Requests"),
 
-                if (pending.isEmpty)
-                  _emptyBox("No pending adoption requests")
+                          const SizedBox(height: 4),
+
+                          Text(
+                            "Latest adoption applications",
+
+                            style: AppTheme.caption(color: AppTheme.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    TextButton(
+                      onPressed: onOpenRequests,
+
+                      child: const Text("View All"),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                if (docs.isEmpty)
+                  _emptyBox("No adoption requests yet")
                 else
-                  ...pending.map((doc) {
+                  ...docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
 
                     return _requestItem(context, doc.id, data);
@@ -202,15 +200,19 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
 
         Row(
           children: [
-            _actionBtn("Add Pet", Icons.pets),
+            _actionBtn("Add Pet", Icons.pets, onTap: onOpenPets),
 
             const SizedBox(width: 10),
 
-            _actionBtn("Requests", LucideIcons.heartHandshake),
+            _actionBtn(
+              "Requests",
+              LucideIcons.heartHandshake,
+              onTap: onOpenRequests,
+            ),
 
             const SizedBox(width: 10),
 
-            _actionBtn("Settings", LucideIcons.settings),
+            _actionBtn("Settings", LucideIcons.settings, onTap: onOpenSettings),
           ],
         ),
       ],
@@ -218,179 +220,472 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
   }
 
   Widget _requestItem(
-    BuildContext context,
-    String id,
-    Map<String, dynamic> data,
-  ) {
-    final status = data['status'] ?? 'pending';
+BuildContext context,
+String id,
+Map<String,dynamic> data,
+){
 
-    final petName = data['petName'] ?? '';
+final status =
+(data['status'] ?? 'pending')
+.toString();
 
-    final breed = data['petBreed'] ?? '-';
+final requesterId =
+(data['requesterId'] ?? '')
+.toString();
 
-    final requesterName = data['requesterName'] ?? 'User';
+final targetId =
+(data['targetId'] ?? '')
+.toString();
 
-    final ts = data['createdAt'];
+debugPrint(
+'🐾 REQUEST DATA = $data',
+);
 
-    final dt = ts is Timestamp ? ts.toDate() : null;
+debugPrint(
+'🐾 REQUESTER ID = $requesterId',
+);
 
-    String dateText = '';
+debugPrint(
+'🐾 TARGET ID = $targetId',
+);
 
-    if (dt != null) {
-      dateText = "${dt.year}-${dt.month}-${dt.day}";
-    }
+final ts = data['createdAt'];
 
-    Color statusColor;
+final date =
+ts is Timestamp
+? ts.toDate()
+: null;
 
-    switch (status) {
+final dateLabel =
+date == null
+? '-'
+: '${date.day.toString().padLeft(2,'0')}.'
+'${date.month.toString().padLeft(2,'0')}.'
+'${date.year}';
+
+return FutureBuilder<List<dynamic>>(
+
+future: Future.wait([
+
+FirebaseFirestore.instance
+.collection('adoption_pets')
+.doc(targetId)
+.get(),
+
+FirebaseFirestore.instance
+.collection('users')
+.doc(requesterId)
+.get(),
+
+FirebaseFirestore.instance
+.collection('businesses')
+.doc(requesterId)
+.get(),
+
+]),
+
+builder:(context,snapshot){
+  debugPrint(
+'🐾 FUTURE HAS DATA = ${snapshot.hasData}',
+);
+
+String petName="Pet";
+String breed="";
+String requester="User";
+
+if(snapshot.hasData){
+
+final petSnap =
+snapshot.data![0]
+as DocumentSnapshot;
+
+final userSnap =
+snapshot.data![1]
+as DocumentSnapshot;
+
+if(
+petSnap.exists &&
+petSnap.data()!=null
+){
+
+final pet =
+petSnap.data()
+as Map<String,dynamic>;
+
+petName =
+(pet['name'] ?? 'Pet')
+.toString();
+
+breed =
+(pet['breed'] ?? '')
+.toString();
+
+}
+
+if(
+userSnap.exists &&
+userSnap.data()!=null
+){
+
+final userSnap =
+snapshot.data![1]
+as DocumentSnapshot;
+
+final businessSnap =
+snapshot.data![2]
+as DocumentSnapshot;
+
+debugPrint(
+'🐾 USER EXISTS = ${userSnap.exists}',
+);
+
+debugPrint(
+'🐾 BUSINESS EXISTS = ${businessSnap.exists}',
+);
+
+debugPrint(
+'🐾 USER DATA = ${userSnap.data()}',
+);
+
+debugPrint(
+'🐾 BUSINESS DATA = ${businessSnap.data()}',
+);
+
+if (
+userSnap.exists &&
+userSnap.data()!=null
+) {
+
+  final user =
+      userSnap.data()
+          as Map<String,dynamic>;
+
+  requester =
+      (
+        user['displayName'] ??
+        user['name'] ??
+        user['username'] ??
+        ''
+      ).toString();
+
+}
+
+if (
+
+(requester.isEmpty ||
+ requester == 'User') &&
+
+businessSnap.exists &&
+businessSnap.data()!=null
+
+) {
+
+  final business =
+      businessSnap.data()
+          as Map<String,dynamic>;
+
+  final profile =
+      (business['profile'] as Map?)
+          ?.cast<String,dynamic>() ??
+      {};
+
+  requester =
+      (
+        profile['displayName'] ??
+        profile['businessName'] ??
+        ''
+      ).toString();
+
+}
+
+if (
+requester.isEmpty
+) {
+
+  requester =
+      (data['requesterName'] ?? 'User')
+          .toString();
+
+}
+}
+
+}
+
+return GestureDetector(
+
+onTap:(){
+
+final appState =
+context.read<AppState>();
+
+appState
+.setInitialAdoptionRequestId(id);
+
+appState.setCurrentTab(
+NavTab.profile,
+);
+
+appState.openProfileSubPage(
+ProfileSubPage.adoptionInbox,
+);
+
+},
+
+child: Container(
+
+margin:
+const EdgeInsets.only(
+bottom:12,
+),
+
+decoration: BoxDecoration(
+
+color: Colors.white,
+
+borderRadius:
+BorderRadius.circular(18),
+
+border: Border.all(
+color:
+const Color(
+0xFF9E1B4F,
+).withOpacity(.10),
+),
+
+boxShadow:
+AppTheme.cardShadow(
+opacity:.06,
+),
+
+),
+
+child: Padding(
+
+padding:
+const EdgeInsets.all(14),
+
+child: Column(
+
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children:[
+
+Row(
+
+children:[
+
+Container(
+
+width:44,
+height:44,
+
+decoration:
+BoxDecoration(
+
+color:
+const Color(
+0xFF9E1B4F,
+).withOpacity(.08),
+
+borderRadius:
+BorderRadius.circular(
+12,
+),
+
+),
+
+child: const Icon(
+LucideIcons
+.heartHandshake,
+
+color:
+Color(
+0xFF9E1B4F,
+),
+
+),
+
+),
+
+const SizedBox(
+width:12,
+),
+
+Expanded(
+
+child: Column(
+
+crossAxisAlignment:
+CrossAxisAlignment
+.start,
+
+children:[
+
+Text(
+
+petName,
+
+style:
+AppTheme.body(
+color:
+AppTheme
+.textDark,
+).copyWith(
+fontWeight:
+FontWeight
+.w700,
+),
+
+),
+
+const SizedBox(
+height:6,
+),
+
+Row(
+
+children:[
+
+_statusPill(
+status,
+),
+
+const SizedBox(
+width:8,
+),
+
+Expanded(
+
+child: Text(
+
+requester,
+
+overflow:
+TextOverflow
+.ellipsis,
+
+style:
+AppTheme.caption(
+color:
+AppTheme
+.muted,
+),
+
+),
+
+),
+
+],
+
+),
+
+const SizedBox(
+height:6,
+),
+
+Text(
+
+"$breed • $dateLabel",
+
+style:
+AppTheme.caption(
+color:
+AppTheme
+.muted,
+),
+
+),
+
+],
+
+),
+
+),
+
+const Icon(
+Icons.chevron_right,
+color:
+Colors.black38,
+),
+
+],
+
+),
+
+const SizedBox(
+height:10,
+),
+
+Text(
+
+"Tap for more details",
+
+style:
+AppTheme.caption(
+color:
+AppTheme.muted,
+),
+
+),
+
+],
+
+),
+
+),
+
+),
+
+);
+
+},
+
+);
+
+}
+
+  Widget _statusPill(String status) {
+    Color color;
+
+    switch (status.toLowerCase()) {
       case 'approved':
-        statusColor = Colors.green;
-        break;
-
-      case 'rejected':
-        statusColor = Colors.red;
+        color = Colors.green;
         break;
 
       case 'completed':
-        statusColor = Colors.blue;
+        color = Colors.purple;
+        break;
+
+      case 'rejected':
+        color = Colors.red;
         break;
 
       default:
-        statusColor = Colors.orange;
+        color = Colors.orange;
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
 
-      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
 
-      decoration: _cardDecoration(),
+        borderRadius: BorderRadius.circular(999),
+      ),
 
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Text(
+        status.toUpperCase(),
 
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        style: TextStyle(
+          color: color,
 
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          fontWeight: FontWeight.w700,
 
-                  children: [
-                    Text(
-                      petName,
-
-                      style: AppTheme.bodyMedium().copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Text("Breed: $breed", style: AppTheme.caption()),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      "Requester: $requesterName",
-
-                      style: AppTheme.caption(),
-                    ),
-                  ],
-                ),
-              ),
-
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
-
-                  borderRadius: BorderRadius.circular(8),
-                ),
-
-                child: Text(
-                  status.toUpperCase(),
-
-                  style: TextStyle(
-                    color: statusColor,
-
-                    fontWeight: FontWeight.w600,
-
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(dateText, style: AppTheme.caption()),
-
-          const SizedBox(height: 10),
-
-          if (status == 'pending')
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _updateRequestStatus(context, id, 'approved');
-                    },
-
-                    child: const Text("Approve"),
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _updateRequestStatus(context, id, 'rejected');
-                    },
-
-                    child: const Text("Reject"),
-                  ),
-                ),
-              ],
-            ),
-        ],
+          fontSize: 10,
+        ),
       ),
     );
-  }
-
-  Future<void> _updateRequestStatus(
-    BuildContext context,
-    String requestId,
-    String newStatus,
-  ) async {
-    try {
-      await FirebaseFunctions.instanceFor(region: 'europe-west3')
-          .httpsCallable('updateAdoptionCenterRequestStatus')
-          .call({'requestId': requestId, 'newStatus': newStatus});
-
-      if (!context.mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Request updated: $newStatus")));
-    } catch (e) {
-      debugPrint("❌ ADOPTION UPDATE ERROR: $e");
-
-      if (!context.mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Update failed: $e")));
-    }
   }
 
   Widget _profileCard(
@@ -545,30 +840,36 @@ class _actionBtn extends StatelessWidget {
 
   final IconData icon;
 
-  const _actionBtn(this.text, this.icon);
+  final VoidCallback? onTap;
+
+  const _actionBtn(this.text, this.icon, {this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
+      child: GestureDetector(
+        onTap: onTap,
 
-        decoration: BoxDecoration(
-          color: Colors.white,
+        child: Container(
+          padding: const EdgeInsets.all(12),
 
-          borderRadius: BorderRadius.circular(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
 
-          border: Border.all(color: Colors.black12),
-        ),
+            borderRadius: BorderRadius.circular(14),
 
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFF9E1B4F)),
+            border: Border.all(color: Colors.black12),
+          ),
 
-            const SizedBox(height: 6),
+          child: Column(
+            children: [
+              Icon(icon, color: const Color(0xFF9E1B4F)),
 
-            Text(text),
-          ],
+              const SizedBox(height: 6),
+
+              Text(text),
+            ],
+          ),
         ),
       ),
     );

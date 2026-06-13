@@ -364,8 +364,21 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
         ?_idPhotoUrl,
         ?_incomeProofUrl,
       ];
+debugPrint("🐾 CREATE REQUEST START");
 
+debugPrint("targetType=${widget.targetType}");
+
+debugPrint("targetId=${widget.targetId}");
+
+debugPrint("targetOwnerId=${widget.targetOwnerId}");
+
+debugPrint("dogName=${widget.dogName}");
+
+debugPrint("requesterId=$requesterId");
+
+debugPrint("form ready");
       await AdoptionRequestService.createRequest(
+        
         targetType: widget.targetType,
         targetId: widget.targetId,
         targetOwnerId: widget.targetOwnerId,

@@ -7,102 +7,310 @@ class AdoptionRequestService {
    * ===================================================== */
 
   static Future<String> createRequest({
-    required String targetType,
-    required String targetId,
-    required String targetOwnerId,
-    required Map<String, dynamic> form,
-    required List<String> documents,
-    String? dogName,
-  }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception("UNAUTHENTICATED");
-    }
+  required String targetType,
+  required String targetId,
+  required String targetOwnerId,
+  required Map<String, dynamic> form,
+  required List<String> documents,
+  String? dogName,
+}) async {
+  final user = FirebaseAuth.instance.currentUser;
 
-    final uid = user.uid;
-
-    if (uid == targetOwnerId) {
-      throw Exception("CANNOT_REQUEST_OWN_DOG");
-    }
-
-    // 🔎 Anti duplicate
-    final existing = await FirebaseFirestore.instance
-        .collection('adoption_requests')
-        .where('targetType', isEqualTo: targetType)
-        .where('targetId', isEqualTo: targetId)
-        .where('requesterId', isEqualTo: uid)
-        .where('status', isEqualTo: 'pending')
-        .limit(1)
-        .get();
-
-    if (existing.docs.isNotEmpty) {
-      return existing.docs.first.id;
-    }
-
-    final ref = await FirebaseFirestore.instance
-        .collection('adoption_requests')
-        .add({
-          "targetType": targetType,
-          "targetId": targetId,
-          "targetOwnerId": targetOwnerId,
-
-          "requesterId": uid,
-          "requesterName": user.displayName ?? "User",
-
-          "dogName": dogName,
-          "form": form,
-          "documents": documents,
-
-          "status": "pending",
-          "createdAt": FieldValue.serverTimestamp(),
-
-          "decidedAt": null,
-          "decidedBy": null,
-          "adoptedAt": null,
-          "closedAt": null,
-          "closedReason": null,
-        });
-
-    return ref.id;
+  if (user == null) {
+    throw Exception("UNAUTHENTICATED");
   }
+
+  final uid = user.uid;
+
+  if (uid == targetOwnerId) {
+    throw Exception("CANNOT_REQUEST_OWN_DOG");
+  }
+
+  // 🔎 Anti duplicate
+  final existing = await FirebaseFirestore.instance
+      .collection('adoption_requests')
+      .where('targetType', isEqualTo: targetType)
+      .where('targetId', isEqualTo: targetId)
+      .where('requesterId', isEqualTo: uid)
+      .where('status', isEqualTo: 'pending')
+      .limit(1)
+      .get();
+
+  if (existing.docs.isNotEmpty) {
+    return existing.docs.first.id;
+  }
+
+  /// =====================================================
+  /// Resolve requester name
+  /// =====================================================
+
+  String requesterName = "User";
+
+  final userDoc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .get();
+
+  if (userDoc.exists) {
+    final userData = userDoc.data() ?? {};
+
+    requesterName =
+        (userData['username'] ??
+                userData['displayName'] ??
+                userData['name'] ??
+                "User")
+            .toString();
+
+    if (requesterName.trim().isEmpty) {
+      requesterName = "User";
+    }
+  }
+
+  print("🐾 REQUESTER NAME = $requesterName");
+
+  /// =====================================================
+  /// Payload
+  /// =====================================================
+
+  final payload = {
+    "businessId": targetOwnerId,
+
+    "targetType": targetType,
+    "targetId": targetId,
+    "targetOwnerId": targetOwnerId,
+
+    "requesterId": uid,
+    "requesterName": requesterName,
+
+    "dogName": dogName,
+
+    "form": form,
+    "documents": documents,
+
+    "status": "pending",
+
+    "createdAt": FieldValue.serverTimestamp(),
+    "updatedAt": FieldValue.serverTimestamp(),
+
+    "decidedAt": null,
+    "decidedBy": null,
+    "adoptedAt": null,
+    "closedAt": null,
+    "closedReason": null,
+  };
+
+  print("🐾 REQUEST PAYLOAD = $payload");
+
+  final ref = await FirebaseFirestore.instance
+      .collection('adoption_requests')
+      .add(payload);
+
+  print("🐾 REQUEST CREATED ID = ${ref.id}");
+
+  return ref.id;
+}
 
   /* =====================================================
    * OWNER APPROVE / REJECT
    * ===================================================== */
 
   static Future<void> decideRequest({
-    required String requestId,
-    required String status, // approved | rejected
-  }) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw Exception("UNAUTHENTICATED");
+  required String requestId,
+  required String status,
+}) async {
 
-    if (status != "approved" && status != "rejected") {
-      throw Exception("INVALID_STATUS");
+  final uid =
+      FirebaseAuth.instance.currentUser?.uid;
+
+  if (uid == null) {
+    throw Exception("UNAUTHENTICATED");
+  }
+
+  if (status != "approved" &&
+      status != "rejected") {
+
+    throw Exception("INVALID_STATUS");
+  }
+
+  final ref = FirebaseFirestore.instance
+      .collection('adoption_requests')
+      .doc(requestId);
+
+  await FirebaseFirestore.instance
+      .runTransaction((tx) async {
+
+    final snap = await tx.get(ref);
+
+    if (!snap.exists) {
+      throw Exception(
+        "REQUEST_NOT_FOUND",
+      );
     }
 
-    final ref = FirebaseFirestore.instance
-        .collection('adoption_requests')
-        .doc(requestId);
+    final data = snap.data()!;
 
-    await FirebaseFirestore.instance.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      if (!snap.exists) throw Exception("REQUEST_NOT_FOUND");
+    print(
+  "REQUEST TARGET TYPE = "
+  "${data['targetType']}"
+);
 
-      final data = snap.data()!;
-      final ownerId = (data['targetOwnerId'] ?? '').toString();
-      final currentStatus = (data['status'] ?? '').toString();
+print(
+  "REQUEST TARGET ID = "
+  "${data['targetId']}"
+);
 
-      if (uid != ownerId) throw Exception("NOT_OWNER");
-      if (currentStatus != 'pending') throw Exception("NOT_PENDING");
+print(
+  "REQUEST FULL DATA = "
+  "$data"
+);
 
-      tx.update(ref, {
-        "status": status,
-        "decidedAt": FieldValue.serverTimestamp(),
-        "decidedBy": uid,
-      });
-    });
+    final ownerId =
+        (data['targetOwnerId'] ?? '')
+            .toString();
+
+    final currentStatus =
+        (data['status'] ?? '')
+            .toString();
+
+    print(
+      "SERVICE UID = $uid",
+    );
+
+    print(
+      "OWNER FROM DOC = $ownerId",
+    );
+
+    /*
+    ==================================
+    NEW OWNER CHECK
+    ==================================
+    */
+
+    bool isOwner =
+    uid == ownerId;
+
+if (!isOwner) {
+
+  final businessSnap =
+      await tx.get(
+    FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(ownerId),
+  );
+
+  if (businessSnap.exists) {
+
+    final business =
+        businessSnap.data()!;
+
+    final businessOwnerUid =
+    (business['ownerUid'] ?? '')
+        .toString();
+
+print(
+"BUSINESS OWNER UID = "
+"$businessOwnerUid"
+);
+
+isOwner =
+    businessOwnerUid ==
+    ownerId;
   }
+}
+
+    print(
+      "FINAL IS OWNER = "
+      "$isOwner",
+    );
+
+    if (!isOwner) {
+
+      throw Exception(
+        "NOT_OWNER",
+      );
+    }
+
+    if (currentStatus !=
+        'pending') {
+
+      throw Exception(
+        "NOT_PENDING",
+      );
+    }
+
+   DocumentReference? adoptionPetRef;
+DocumentSnapshot? adoptionPetSnap;
+
+if (status == "approved") {
+
+  final targetId =
+      (data['targetId'] ?? '')
+          .toString();
+
+  if (targetId.isNotEmpty) {
+
+    adoptionPetRef =
+        FirebaseFirestore.instance
+            .collection('adoption_pets')
+            .doc(targetId);
+
+    adoptionPetSnap =
+        await tx.get(adoptionPetRef);
+        print(
+  "ADOPTION PET DOC EXISTS = "
+  "${adoptionPetSnap.exists}"
+);
+
+print(
+  "ADOPTION PET PATH = "
+  "${adoptionPetRef.path}"
+);
+
+  }
+
+}
+
+/* ALL READS FINISHED */
+
+tx.update(ref, {
+
+  "status": status,
+
+  "decidedAt":
+      FieldValue.serverTimestamp(),
+
+  "decidedBy": uid,
+
+  "updatedAt":
+      FieldValue.serverTimestamp(),
+
+});
+
+if (
+
+adoptionPetRef != null &&
+adoptionPetSnap != null &&
+adoptionPetSnap.exists
+
+) {
+
+  tx.update(adoptionPetRef!, {
+
+    "status": "adopted",
+
+    "adoptedAt":
+        FieldValue.serverTimestamp(),
+
+    "updatedAt":
+        FieldValue.serverTimestamp(),
+
+  });
+
+}
+
+  });
+
+}
 
   /* =====================================================
    * MARK DOG AS ADOPTED

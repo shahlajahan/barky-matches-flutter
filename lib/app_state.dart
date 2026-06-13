@@ -411,11 +411,19 @@ class AppState with ChangeNotifier {
   }
 
   void closeBusinessDetails() {
+    final wasAdoptionCenter =
+        _activeBusiness?.type == BusinessType.adoptionCenter;
+    if (wasAdoptionCenter) {
+      debugPrint('CLOSE ADOPTION DETAIL OVERLAY');
+    }
     _activeBusiness = null;
     _businessAppointment = null;
     _appointmentService = null;
     _businessSubPage = BusinessSubPage.none;
     _selectedVet = null;
+    if (wasAdoptionCenter) {
+      debugPrint('ADOPTION SCREEN RESTORED');
+    }
     notifyListeners();
   }
 
@@ -1718,14 +1726,17 @@ class AppState with ChangeNotifier {
   }
 
   String? adoptionDogOverlayId;
+  Dog? adoptionDogOverlayDog;
 
-  void openAdoptionDogOverlay(String dogId) {
+  void openAdoptionDogOverlay(String dogId, {Dog? dog}) {
     adoptionDogOverlayId = dogId;
+    adoptionDogOverlayDog = dog;
     notifyListeners();
   }
 
   void closeAdoptionDogOverlay() {
     adoptionDogOverlayId = null;
+    adoptionDogOverlayDog = null;
     notifyListeners();
   }
 
@@ -1966,6 +1977,8 @@ class AppState with ChangeNotifier {
           debugPrint(
             '🌐 FIRST FIRESTORE READ START → loadUsernameFromFirebase',
           );
+
+          
           final usernameLoaded = await loadUsernameFromFirebase();
           if (usernameLoaded) {
             debugPrint(

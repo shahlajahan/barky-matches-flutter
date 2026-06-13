@@ -1340,6 +1340,18 @@ class _AuthPageState extends State<AuthPage> {
           debugPrint('AuthPage - Receive news preference saved: $_receiveNews');
 
           if (_usePhoneSignup) {
+            debugPrint('========== SIGNUP START ==========');
+
+debugPrint(
+  'Firebase currentUser = ${FirebaseAuth.instance.currentUser?.uid}',
+);
+
+debugPrint(
+  'AppState currentUserId = '
+  '${context.read<AppState>().currentUserId}',
+);
+
+debugPrint('=================================');
             Navigator.push(
               context,
               MaterialPageRoute(

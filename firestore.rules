@@ -171,20 +171,29 @@ service cloud.firestore {
       );
     }
 
-    function isAdoptionRequestParticipant(data) {
+   function isAdoptionRequestParticipant(data) {
+
   return isSignedIn() && (
+
     data.requesterUserId == request.auth.uid ||
+
     data.requesterId == request.auth.uid ||
+
     data.ownerId == request.auth.uid ||
-    data.targetOwnerId == request.auth.uid ||
+
     data.targetUserId == request.auth.uid ||
 
-    // ✅ Adoption Center Business Owner
+    data.targetOwnerId == request.auth.uid ||
+
     (
-      data.businessId is string &&
-      isBusinessOwner(data.businessId)
+      data.targetOwnerId is string &&
+      isBusinessOwner(
+        data.targetOwnerId
+      )
     )
+
   );
+
 }
 
 match /adoption_pets/{petId} {
@@ -209,29 +218,38 @@ match /adoption_pets/{petId} {
     );
 }
 
-match /adoption_center_requests/{requestId} {
+allow read: if isAdmin() || (
 
-  allow read: if isAdmin() || (
-    isSignedIn() &&
+  isSignedIn() && (
+
+    resource.data.requesterUserId
+      == request.auth.uid ||
+
     (
-      resource.data.requesterUserId == request.auth.uid ||
 
-      (
-        resource.data.businessId is string &&
-        isBusinessOwner(resource.data.businessId)
+      resource.data.businessId
+          is string &&
+
+      isBusinessOwner(
+        resource.data.businessId
       )
-    )
-  );
 
-  allow create: if isSignedIn();
+    ) ||
 
-  allow update, delete:
-    if isAdmin() ||
     (
-      resource.data.businessId is string &&
-      isBusinessOwner(resource.data.businessId)
-    );
-}
+
+      resource.data.targetOwnerId
+          is string &&
+
+      isBusinessOwner(
+        resource.data.targetOwnerId
+      )
+
+    )
+
+  )
+
+);
 
     function isBusinessRequestOwner(data) {
       return isSignedIn() && (

@@ -3,7 +3,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/dog.dart';
+import 'package:barky_matches_fixed/dog_card.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
@@ -375,6 +379,39 @@ class _AdoptionCenterDetailsOverlayState
   // PETS
   // =====================================================
 
+  Dog _dogFromAdoptionPet(Map<String, dynamic> pet) {
+    final coverImageUrl = (pet['coverImageUrl'] ?? '').toString().trim();
+    final gallery = pet['gallery'] is List
+        ? List<String>.from(
+            (pet['gallery'] as List).map((item) => item?.toString() ?? ''),
+          ).where((url) => url.trim().isNotEmpty).toList()
+        : <String>[];
+    final imagePaths = <String>[
+      if (coverImageUrl.isNotEmpty) coverImageUrl else ...gallery,
+    ];
+    final ageMonthsRaw = pet['ageMonths'];
+    final ageMonths = ageMonthsRaw is num
+        ? ageMonthsRaw.toDouble()
+        : double.tryParse(ageMonthsRaw?.toString() ?? '') ?? 0;
+
+    return Dog(
+      id: (pet['id'] ?? '').toString(),
+      ownerId: (pet['businessId'] ?? widget.data.id).toString(),
+      name: (pet['name'] ?? '').toString(),
+      breed: (pet['breed'] ?? '').toString(),
+      gender: (pet['gender'] ?? '').toString(),
+      age: (ageMonths / 12).round(),
+      imagePaths: imagePaths,
+      isAvailableForAdoption: true,
+      healthStatus: (pet['healthStatus'] ?? '').toString(),
+      isNeutered: pet['isNeutered'] == true,
+      description: (pet['description'] ?? '').toString(),
+      traits: const [],
+      isOwner: false,
+      petType: (pet['species'] ?? 'dog').toString(),
+    );
+  }
+
   Widget _pets() {
     final businessId = widget.data.id;
     print("DETAIL PET QUERY businessId=$businessId");
@@ -392,120 +429,80 @@ class _AdoptionCenterDetailsOverlayState
 
         print("DETAIL PET COUNT=${snapshot.data?.docs.length ?? 0}");
 
-        final pets = <Map<String, dynamic>>[];
+        final dogs = <Dog>[];
 
         if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-          pets.addAll(
+          dogs.addAll(
             snapshot.data!.docs
                 .map((doc) {
                   final data = doc.data();
 
                   return {...data, 'id': doc.id};
                 })
-                .where((pet) => pet['isActive'] != false),
+                .where(
+ (pet) =>
+
+     pet['isActive'] != false &&
+
+     (pet['status'] ?? 'available')
+         == 'available'
+)
+                .map(_dogFromAdoptionPet),
           );
         } else {
-          pets.addAll(_fallbackPets());
+          dogs.addAll(_fallbackPets().map(_dogFromAdoptionPet));
         }
 
-        if (pets.isEmpty) {
+        if (dogs.isEmpty) {
           return const Center(child: Text('No pets available'));
         }
+
+        for(final d in snapshot.data!.docs){
+
+  final data = d.data();
+
+  print(
+    "PET "
+    "${d.id} "
+    "active=${data['isActive']} "
+    "available=${data['isAvailableForAdoption']}"
+  );
+
+}
+
+        final appState = context.read<AppState>();
+        final currentUserId = appState.currentUserId ?? '';
 
         return ListView.separated(
           padding: const EdgeInsets.all(16),
 
-          itemCount: pets.length,
+          itemCount: dogs.length,
 
           separatorBuilder: (_, __) => const SizedBox(height: 10),
 
           itemBuilder: (context, index) {
-            final pet = pets[index];
+            final dog = dogs[index];
 
-            final title = pet['title']?.toString() ?? '';
-
-            final breed = pet['breed']?.toString() ?? '';
-
-            final age = pet['age']?.toString() ?? '';
-
-            final gender = pet['gender']?.toString() ?? '';
-
-            return Material(
-              color: Colors.white,
-
-              borderRadius: BorderRadius.circular(14),
-
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-
-                onTap: widget.onOpenPet == null
-                    ? null
-                    : () {
-                        widget.onOpenPet!(pet);
-                      },
-
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-
-                        decoration: BoxDecoration(
-                          color: Colors.amber,
-
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-
-                        child: const Icon(
-                          LucideIcons.heartHandshake,
-
-                          color: Colors.black,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-
-                          children: [
-                            Text(
-                              title,
-
-                              style: AppTheme.body().copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-
-                            const SizedBox(height: 4),
-
-                            if (breed.trim().isNotEmpty)
-                              Text(
-                                breed,
-
-                                style: AppTheme.caption(color: Colors.grey),
-                              ),
-
-                            if (age.trim().isNotEmpty ||
-                                gender.trim().isNotEmpty)
-                              Text(
-                                '$age  $gender',
-
-                                style: AppTheme.caption(color: Colors.grey),
-                              ),
-                          ],
-                        ),
-                      ),
-
-                      const Icon(Icons.chevron_right),
-                    ],
-                  ),
-                ),
-              ),
+            return DogCard(
+              mode: DogCardMode.compact,
+              dog: dog,
+              allDogs: dogs,
+              currentUserId: currentUserId,
+              favoriteDogs: appState.favoriteDogs,
+              onToggleFavorite: appState.toggleFavorite,
+              likers: appState.dogLikes[dog.id] ?? [],
+              enableChat: false,
+              enablePlaydate: false,
+              enableEdit: false,
+              enableNavigation: false,
+              onCardTap: () {
+                print("ADOPTION PET CARD TAP");
+                print("OPEN ADOPTION PET DETAIL");
+                print("DOG CARD FLOW REUSED");
+                final appState = context.read<AppState>();
+                appState.closeBusinessDetails();
+                appState.openAdoptionDogOverlay(dog.id, dog: dog);
+              },
             );
           },
         );

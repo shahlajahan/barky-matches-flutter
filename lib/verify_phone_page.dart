@@ -31,9 +31,47 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
   Future<void> _sendCode() async {
     verificationId = null;
 
+    debugPrint('==== FIREBASE APP INFO ====');
+
+debugPrint(
+  'APP ID: ${FirebaseAuth.instance.app.options.appId}',
+);
+
+debugPrint(
+  'PROJECT ID: ${FirebaseAuth.instance.app.options.projectId}',
+);
+
+debugPrint(
+  'SENDER ID: ${FirebaseAuth.instance.app.options.messagingSenderId}',
+);
+
+debugPrint(
+  'PHONE AUTH: ${widget.phone}',
+);
+
+debugPrint('===========================');
+
     debugPrint('VERIFY PAGE SEND CODE CALLED');
 
     debugPrint('PHONE => ${widget.phone}');
+
+    final auth = FirebaseAuth.instance;
+
+debugPrint("========== PHONE AUTH DIAGNOSTIC ==========");
+debugPrint("currentUser: ${auth.currentUser?.uid}");
+debugPrint("providerData: ${auth.currentUser?.providerData}");
+debugPrint("isAnonymous: ${auth.currentUser?.isAnonymous}");
+debugPrint("phone: ${auth.currentUser?.phoneNumber}");
+debugPrint("email: ${auth.currentUser?.email}");
+
+try {
+  final token = await auth.currentUser?.getIdToken();
+  debugPrint("idToken exists: ${token != null}");
+} catch (e) {
+  debugPrint("idToken ERROR: $e");
+}
+
+debugPrint("===========================================");
 
     await FirebaseAuth.instance.verifyPhoneNumber(
       phoneNumber: widget.phone,

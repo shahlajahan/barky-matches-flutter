@@ -105,6 +105,8 @@ flutter:
     - assets/home/
     - assets/brands/
     - assets/data/turkey_districts.json
+    - assets/image/
+    - assets/onboarding/
 
   fonts:
     - family: Poppins
