@@ -865,6 +865,7 @@
   "nearbyClinics": "کلینیک‌های نزدیک",
   "groomyTitle": "آرایش حیوانات",
   "bookGrooming": "رزرو آرایش",
+  "pamperYourPet": "ناز و نوازش برای پت شما",
   "petShopTitle": "پت شاپ",
   "shopNearYou": "خرید نزدیک شما",
 
@@ -885,12 +886,22 @@
 
   "dogParkTitle": "پارک سگ‌ها",
   "exploreNearbyParks": "پارک‌های نزدیک را ببین",
+  "reportFoundTitle": "گزارش پیدا شدن",
+"reconnectFamilies": "به بازگشت حیوانات به خانواده‌هایشان کمک کنید",
+
+"lostPetsTitle": "حیوانات گمشده",
+"activeReportsNearby": "گزارش‌های فعال گم‌شدن را ببینید",
+
+"foundPetsTitle": "حیوانات پیدا شده",
+"waitingToReunite": "در انتظار بازگشت به خانه",
+  "createMemoriesTogether": "با هم خاطره بسازید",
   "trainingTitle": "آموزش",
   "comingSoon": "به زودی",
 
   "trainingComingSoonMessage": "بخش آموزش به زودی اضافه می‌شود 🐾",
 
   "communityHub": "جامعه کاربران",
+  "safetyAndRescue": "ایمنی و نجات",
 
   "activeCount": "{count} فعال",
   "@activeCount": {
@@ -915,6 +926,7 @@
   "homeRideSafelySubtitle": "سفر امن",
   "homeGreenMemorialTitle": "یادبود سبز",
   "homeVeterinaryTitle": "دامپزشکی",
+  "expertCareForYourPet": "مراقبت تخصصی برای حیوان خانگی شما",
   "homeLocationNeededTitle": "موقعیت لازم است",
   "homeLocationNeededMessage": "برای نمایش دامپزشکان نزدیک از موقعیت شما استفاده می‌کنیم",
   "homeAllowButton": "اجازه دادن",

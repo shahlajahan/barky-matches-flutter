@@ -2006,6 +2006,7 @@
   "nearbyClinics": "Nearby clinics",
   "groomyTitle": "Groomy",
   "bookGrooming": "Book grooming",
+  "pamperYourPet": "Pamper your pet",
   "petShopTitle": "Pet Shop",
   "shopNearYou": "Shop near you",
   "featuredDeal": "Featured Deal",
@@ -2023,10 +2024,20 @@
   "outdoorAndLifestyle": "Outdoor & Lifestyle",
   "dogParkTitle": "Dog Park",
   "exploreNearbyParks": "Explore nearby parks",
+  "createMemoriesTogether": "Create memories together",
+  "reportFoundTitle": "Report Found",
+"reconnectFamilies": "Help reunite pets with their families",
+
+"lostPetsTitle": "Lost Pets",
+"activeReportsNearby": "View active missing pet reports",
+
+"foundPetsTitle": "Found Pets",
+"waitingToReunite": "Pets waiting to return home",
   "trainingTitle": "Training",
   "comingSoon": "Coming soon",
   "trainingComingSoonMessage": "Training feature coming soon 🐾",
   "communityHub": "Community Hub",
+  "safetyAndRescue": "Safety & Rescue",
   "activeCount": "{count} active",
   "@activeCount": {
     "placeholders": {
@@ -2050,6 +2061,7 @@
   "homeRideSafelySubtitle": "Ride safely",
   "homeGreenMemorialTitle": "Green Memorial",
   "homeVeterinaryTitle": "Veterinary",
+  "expertCareForYourPet": "Expert care for your pet",
   "homeLocationNeededTitle": "Location needed",
   "homeLocationNeededMessage": "We use your location to show nearby vets",
   "homeAllowButton": "Allow",

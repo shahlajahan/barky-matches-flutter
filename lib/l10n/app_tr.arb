@@ -865,6 +865,8 @@
   "nearbyClinics": "Yakındaki klinikler",
   "groomyTitle": "Bakım",
   "bookGrooming": "Bakım randevusu al",
+  "pamperYourPet": "Dostunuzu şımartın",
+
   "petShopTitle": "Pet Shop",
   "shopNearYou": "Yakındaki ürünleri keşfet",
 
@@ -885,12 +887,22 @@
 
   "dogParkTitle": "Köpek Parkı",
   "exploreNearbyParks": "Yakındaki parkları keşfet",
+  "reportFoundTitle": "Bulundu Bildir",
+"reconnectFamilies": "Evcil dostları ailelerine kavuşturmaya yardım et",
+
+"lostPetsTitle": "Kayıp Dostlar",
+"activeReportsNearby": "Aktif kayıp ilanlarını görüntüle",
+
+"foundPetsTitle": "Bulunan Dostlar",
+"waitingToReunite": "Yuvalarına dönmeyi bekleyen dostlar",
+  "createMemoriesTogether": "Birlikte anılar biriktirin",
   "trainingTitle": "Eğitim",
   "comingSoon": "Çok yakında",
 
   "trainingComingSoonMessage": "Eğitim özelliği yakında geliyor 🐾",
 
   "communityHub": "Topluluk Merkezi",
+  "safetyAndRescue": "Güvenlik ve Kurtarma",
 
   "activeCount": "{count} aktif",
   "@activeCount": {
@@ -915,6 +927,7 @@
   "homeRideSafelySubtitle": "Güvenle yolculuk",
   "homeGreenMemorialTitle": "Yeşil Anıt",
   "homeVeterinaryTitle": "Veteriner",
+  "expertCareForYourPet": "Evcil dostunuz için uzman bakım",
   "homeLocationNeededTitle": "Konum gerekli",
   "homeLocationNeededMessage": "Yakındaki veterinerleri göstermek için konumunuzu kullanıyoruz",
   "homeAllowButton": "İzin ver",

@@ -64,8 +64,7 @@ import 'app_localizations_tr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -73,8 +72,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -86,20 +84,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('fa'),
     Locale('ru'),
-    Locale('tr'),
+    Locale('tr')
   ];
 
   /// Message shown when user is not logged in and is redirected to login page
@@ -2440,10 +2437,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{requesterDog} wants to play with {requestedDog}!'**
-  String playdateRequestNotificationBody(
-    Object requesterDog,
-    Object requestedDog,
-  );
+  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog);
 
   /// Success message for creating request
   ///
@@ -3631,12 +3625,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Play date scheduled for {day}/{month}/{year} at {time}!'**
-  String dogViewPlayDateScheduled(
-    Object day,
-    Object month,
-    Object year,
-    Object time,
-  );
+  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time);
 
   /// Success message for sending adoption request in dog view
   ///
@@ -5018,6 +5007,12 @@ abstract class AppLocalizations {
   /// **'Book grooming'**
   String get bookGrooming;
 
+  /// No description provided for @pamperYourPet.
+  ///
+  /// In en, this message translates to:
+  /// **'Pamper your pet'**
+  String get pamperYourPet;
+
   /// No description provided for @petShopTitle.
   ///
   /// In en, this message translates to:
@@ -5078,6 +5073,48 @@ abstract class AppLocalizations {
   /// **'Explore nearby parks'**
   String get exploreNearbyParks;
 
+  /// No description provided for @createMemoriesTogether.
+  ///
+  /// In en, this message translates to:
+  /// **'Create memories together'**
+  String get createMemoriesTogether;
+
+  /// No description provided for @reportFoundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Found'**
+  String get reportFoundTitle;
+
+  /// No description provided for @reconnectFamilies.
+  ///
+  /// In en, this message translates to:
+  /// **'Help reunite pets with their families'**
+  String get reconnectFamilies;
+
+  /// No description provided for @lostPetsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lost Pets'**
+  String get lostPetsTitle;
+
+  /// No description provided for @activeReportsNearby.
+  ///
+  /// In en, this message translates to:
+  /// **'View active missing pet reports'**
+  String get activeReportsNearby;
+
+  /// No description provided for @foundPetsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Found Pets'**
+  String get foundPetsTitle;
+
+  /// No description provided for @waitingToReunite.
+  ///
+  /// In en, this message translates to:
+  /// **'Pets waiting to return home'**
+  String get waitingToReunite;
+
   /// No description provided for @trainingTitle.
   ///
   /// In en, this message translates to:
@@ -5101,6 +5138,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Community Hub'**
   String get communityHub;
+
+  /// No description provided for @safetyAndRescue.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety & Rescue'**
+  String get safetyAndRescue;
 
   /// No description provided for @activeCount.
   ///
@@ -5203,6 +5246,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Veterinary'**
   String get homeVeterinaryTitle;
+
+  /// No description provided for @expertCareForYourPet.
+  ///
+  /// In en, this message translates to:
+  /// **'Expert care for your pet'**
+  String get expertCareForYourPet;
 
   /// No description provided for @homeLocationNeededTitle.
   ///
@@ -8580,11 +8629,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} by {brand} is a useful accessory in the {subCategory} category.'**
-  String smartDescriptionAccessories(
-    Object brand,
-    Object name,
-    Object subCategory,
-  );
+  String smartDescriptionAccessories(Object brand, Object name, Object subCategory);
 
   /// No description provided for @smartDescriptionHealth.
   ///
@@ -9457,8 +9502,7 @@ abstract class AppLocalizations {
   String get refundRejectedStatusLabel;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -9467,30 +9511,27 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en':
-      return AppLocalizationsEn();
-    case 'fa':
-      return AppLocalizationsFa();
-    case 'ru':
-      return AppLocalizationsRu();
-    case 'tr':
-      return AppLocalizationsTr();
+    case 'en': return AppLocalizationsEn();
+    case 'fa': return AppLocalizationsFa();
+    case 'ru': return AppLocalizationsRu();
+    case 'tr': return AppLocalizationsTr();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }
