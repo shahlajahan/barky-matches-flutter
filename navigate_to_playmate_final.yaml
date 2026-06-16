@@ -1,0 +1,5 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn: "Playmate"
+- waitForAnimationToEnd
+- takeScreenshot: playmates_discovery_verification

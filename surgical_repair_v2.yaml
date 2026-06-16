@@ -1,0 +1,13 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn: "Email"
+- longPressOn: "Email"
+- tapOn: "Select All"
+- tapOn: "Cut"
+- inputText: "info@imulife.com.tr"
+- tapOn: "Password"
+- longPressOn: "Password"
+- tapOn: "Select All"
+- tapOn: "Cut"
+- inputText: "Pass1234"
+- takeScreenshot: login_repaired_verification

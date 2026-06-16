@@ -1,0 +1,16 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn: "Email"
+- eraseText: 60
+- inputText: "info@imulife.com.tr"
+- tapOn: "Password"
+- eraseText: 30
+- inputText: "Pass1234"
+- tapOn: "done"
+- tapOn:
+    text: "Sign In"
+    index: 1
+- waitForAnimationToEnd
+- scroll
+- scroll
+- takeScreenshot: home_scrolled_community

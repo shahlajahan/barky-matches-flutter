@@ -100,7 +100,13 @@ class AppState with ChangeNotifier {
   bool get isGuestUser => isGuest;
 
   void setGuestUser() {
-    _currentUserId = 'guest'; // ✅ مهم
+    _currentUserId = 'guest';
+
+    _username = null;
+    _currentUserName = null;
+    _userRole = null;
+
+    clearBusinessState();
 
     notifyListeners();
   }
@@ -1554,6 +1560,10 @@ class AppState with ChangeNotifier {
         // ─────────────────────────────
         // USER LOGGED OUT
         // ─────────────────────────────
+
+        debugPrint(
+          '🔥 AUTH LISTENER USER = ${user?.uid} / current=${FirebaseAuth.instance.currentUser?.uid}',
+        );
         if (user == null) {
           _resetStartupReadiness();
           if (_hasSeenAuthenticatedUser) {
@@ -1586,6 +1596,11 @@ class AppState with ChangeNotifier {
 
           // 🔥🔥🔥 THIS IS THE FIX
           _currentUserId = 'guest';
+
+          _username = null;
+          _currentUserName = null;
+          _userRole = null;
+
           FirestoreReadinessGate.instance.markAuthStabilized('guest');
           clearBusinessState();
 
@@ -1978,7 +1993,6 @@ class AppState with ChangeNotifier {
             '🌐 FIRST FIRESTORE READ START → loadUsernameFromFirebase',
           );
 
-          
           final usernameLoaded = await loadUsernameFromFirebase();
           if (usernameLoaded) {
             debugPrint(
@@ -3854,6 +3868,17 @@ class AppState with ChangeNotifier {
 
   void setSelectedRequesterDogId(String? dogId) {
     _selectedRequesterDogId = dogId;
+    notifyListeners();
+  }
+
+  void openPlaydateScheduling({
+    Map<String, dynamic>? activePlaydatePark,
+    String? selectedRequesterDogId,
+  }) {
+    _activePlaydatePark = activePlaydatePark;
+    _selectedRequesterDogId = selectedRequesterDogId;
+    _currentTab = NavTab.playdateScheduling;
+    debugPrint('🧭 currentTab NOW → $_currentTab');
     notifyListeners();
   }
 

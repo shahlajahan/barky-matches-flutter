@@ -1,0 +1,6 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn:
+    point: "195,806" # Tapping the center discovery icon based on bounds [163,779][227,833]
+- waitForAnimationToEnd
+- takeScreenshot: playmates_discovery_verification

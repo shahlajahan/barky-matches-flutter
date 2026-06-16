@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'dog.dart';
 import 'auth_page.dart';
 import 'offers_manager.dart';
@@ -15,7 +17,6 @@ import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/home_gate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';
 import 'onboarding_page.dart';
 
@@ -41,9 +42,9 @@ class _WelcomePageState extends State<WelcomePage>
 
     _initPage();
 
-WidgetsBinding.instance.addPostFrameCallback((_) {
-  _checkOnboarding();
-});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkOnboarding();
+    });
 
     // 🔥 PULSE INIT
     _pulseController = AnimationController(
@@ -124,67 +125,6 @@ Future<void> debugFirestoreRestOffers() async {
     }());
   }
 
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        bool isPressed = false;
-
-        return GestureDetector(
-          onTapDown: (_) {
-            setState(() => isPressed = true);
-          },
-          onTapUp: (_) {
-            setState(() => isPressed = false);
-          },
-          onTapCancel: () {
-            setState(() => isPressed = false);
-          },
-          onTap: () {
-            HapticFeedback.lightImpact();
-            onTap();
-          },
-          child: AnimatedScale(
-            scale: isPressed ? 0.96 : 1,
-            duration: const Duration(milliseconds: 120),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: isPressed
-                    ? [] // وقتی pressed شد shadow حذف میشه → حس فشار
-                    : AppTheme.cardShadow(),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, color: AppTheme.primary, size: 22),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
-                    style: AppTheme.h3(color: AppTheme.textDark),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   void dispose() {
     _pulseController?.dispose();
@@ -216,149 +156,129 @@ Future<void> debugFirestoreRestOffers() async {
     }
   }
 
-  void _showAuthRequiredSheet(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!;
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
 
-    Future.delayed(Duration.zero, () {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    final hasSeen = prefs.getBool('hasSeenOnboarding') ?? false;
+
+    if (hasSeen || !mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => const OnboardingPage(),
         ),
-        backgroundColor: Colors.white,
-        builder: (context) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(LucideIcons.lock, size: 32, color: AppTheme.primary),
-
-                const SizedBox(height: 12),
-
-                Text("Sign in required", style: AppTheme.h2()),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  localizations.signInToAccessPlaymate,
-                  style: AppTheme.body(),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 20),
-
-                Row(
-                  children: [
-                    // 🔓 SIGN IN
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AuthPage(
-                                isLogin: true,
-
-                                onDogAdded: (_) {
-                                  final appState = context.read<app.AppState>();
-
-                                  appState.setCurrentTab(NavTab.home);
-
-                                  Navigator.of(
-                                    context,
-                                  ).popUntil((route) => route.isFirst);
-                                },
-
-                                favoriteDogs: context
-                                    .read<app.AppState>()
-                                    .favoriteDogsNotifier
-                                    .value,
-
-                                onToggleFavorite: context
-                                    .read<app.AppState>()
-                                    .onToggleFavorite,
-                              ),
-                            ),
-                          );
-                        },
-                        child: const Text("Sign In"),
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // ✨ SIGN UP
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE91E63),
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AuthPage(
-                                isLogin: false,
-
-                                onDogAdded: (_) {
-                                  final appState = context.read<app.AppState>();
-
-                                  appState.setCurrentTab(NavTab.home);
-
-                                  Navigator.of(
-                                    context,
-                                  ).popUntil((route) => route.isFirst);
-                                },
-
-                                favoriteDogs: context
-                                    .read<app.AppState>()
-                                    .favoriteDogsNotifier
-                                    .value,
-
-                                onToggleFavorite: context
-                                    .read<app.AppState>()
-                                    .onToggleFavorite,
-                              ),
-                            ),
-                          );
-                        },
-                        child: const Text("Sign Up"),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
       );
     });
   }
 
-  Future<void> _checkOnboarding() async {
-  final prefs = await SharedPreferences.getInstance();
-
-  final hasSeen =
-      prefs.getBool('hasSeenOnboarding') ?? false;
-
-  if (hasSeen || !mounted) return;
-
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    Navigator.of(context).push(
+  void _openSignUp() {
+    Navigator.push(
+      context,
       MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => const OnboardingPage(),
+        builder: (_) => AuthPage(
+          isLogin: false,
+          onAuthSuccess: () {
+            final appState = context.read<app.AppState>();
+            appState.setCurrentTab(NavTab.home);
+
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          },
+          favoriteDogs: context.read<app.AppState>().favoriteDogsNotifier.value,
+          onToggleFavorite: context.read<app.AppState>().onToggleFavorite,
+        ),
       ),
     );
-  });
-}
+  }
+
+  Future<void> _openAdoptionAsGuest() async {
+    debugPrint("🟡 Welcome → set tab = NavTab.adoption");
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final appState = context.read<app.AppState>();
+    final navigator = Navigator.of(context);
+
+    appState.setGuestUser();
+    appState.setCurrentTab(NavTab.adoption);
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeGate()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _exploreAsGuest() async {
+    try {
+      final appState = context.read<app.AppState>();
+      final navigator = Navigator.of(context);
+
+      await FirebaseAuth.instance.signOut();
+
+      final currentUserBox = Hive.box<String>('currentUserBox');
+      await currentUserBox.put('currentUserId', 'guest');
+
+      appState.setGuestUser();
+
+      debugPrint('🚫 Guest mode → no notification permission');
+
+      if (!mounted) return;
+
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeGate()),
+        (route) => false,
+      );
+    } catch (e) {
+      debugPrint('Guest login error: $e');
+    }
+  }
+
+  Widget _buildActivationSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "How would you like to start?",
+            style: AppTheme.h2().copyWith(color: const Color(0xFF9E1B4F)),
+          ),
+          const SizedBox(height: 10),
+          _ActivationCard(
+            icon: LucideIcons.dog,
+            title: "I have a pet",
+            subtitle:
+                "Track health, discover services, and build your pet profile.",
+            cta: "Create My Account",
+            onTap: _openSignUp,
+          ),
+          const SizedBox(height: 8),
+          _ActivationCard(
+            icon: LucideIcons.heart,
+            title: "I'm looking to adopt",
+            subtitle: "Browse adoptable pets and connect with shelters.",
+            cta: "Explore Adoption",
+            onTap: _openAdoptionAsGuest,
+          ),
+          const SizedBox(height: 8),
+          _ActivationCard(
+            icon: LucideIcons.compass,
+            title: "Explore as guest",
+            subtitle: "Discover PetSupo before creating an account.",
+            cta: "Continue",
+            onTap: _exploreAsGuest,
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildLogo() {
     return Container(
@@ -376,8 +296,6 @@ Future<void> debugFirestoreRestOffers() async {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!;
-
     final appState = context.read<app.AppState>();
 
     final favoriteDogs = appState.favoriteDogsNotifier.value;
@@ -470,18 +388,34 @@ Future<void> debugFirestoreRestOffers() async {
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     child: Center(
-                                      child: _pulseAnimation == null
-                                          ? _buildLogo()
-                                          : AnimatedBuilder(
-                                              animation: _pulseAnimation!,
-                                              builder: (context, child) {
-                                                return Transform.scale(
-                                                  scale: _pulseAnimation!.value,
-                                                  child: child,
-                                                );
-                                              },
-                                              child: _buildLogo(),
-                                            ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          _pulseAnimation == null
+                                              ? _buildLogo()
+                                              : AnimatedBuilder(
+                                                  animation: _pulseAnimation!,
+                                                  builder: (context, child) {
+                                                    return Transform.scale(
+                                                      scale: _pulseAnimation!
+                                                          .value,
+                                                      child: child,
+                                                    );
+                                                  },
+                                                  child: _buildLogo(),
+                                                ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            "More than an app.\nA home for pets and their people.",
+                                            textAlign: TextAlign.center,
+                                            style: AppTheme.caption(
+                                              color: Colors.white,
+                                              weight: FontWeight.w600,
+                                            ).copyWith(height: 1.25),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -495,88 +429,49 @@ Future<void> debugFirestoreRestOffers() async {
 
                         const SizedBox(height: 8),
 
-                        // ⚡ QUICK ACTIONS
+                        // 🔐 AUTH BUTTONS
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            localizations.appFeatures,
-                            style: AppTheme.h2().copyWith(
-                              color: const Color(0xFF9E1B4F),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: GridView.count(
-                            crossAxisCount: 2,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            childAspectRatio: 1.4,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
+                          child: Row(
                             children: [
-                              _buildQuickAction(
-                                icon: LucideIcons.dog,
-                                title: localizations.playmateService,
-                                onTap: () {
-                                  _showAuthRequiredSheet(context);
-                                },
+                              Expanded(
+                                child: _SignUpButton(
+                                  onAuthSuccess: () {
+                                    final appState = context
+                                        .read<app.AppState>();
+                                    appState.setCurrentTab(NavTab.home);
+
+                                    Navigator.of(
+                                      context,
+                                    ).popUntil((route) => route.isFirst);
+                                  },
+                                  favoriteDogs: favoriteDogs,
+                                  onToggleFavorite: onToggleFavorite,
+                                ),
                               ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _SignInButton(
+                                  onAuthSuccess: () {
+                                    final appState = context
+                                        .read<app.AppState>();
+                                    appState.setCurrentTab(NavTab.home);
 
-                              _buildQuickAction(
-                                icon: LucideIcons.stethoscope,
-                                title: localizations.vetServices,
-                                onTap: () {
-                                  _showAuthRequiredSheet(context);
-                                },
-                              ),
-
-                              // 🔥 ADOPTION
-                              _buildQuickAction(
-                                icon: LucideIcons.heart,
-                                title: localizations.adoptionCenter,
-                                onTap: () async {
-                                  debugPrint(
-                                    "🟡 Welcome → set tab = NavTab.adoption",
-                                  );
-
-                                  setState(() {
-                                    _isLoading = true;
-                                  });
-
-                                  final appState = context.read<app.AppState>();
-
-                                  appState.setGuestUser();
-                                  appState.setCurrentTab(NavTab.adoption);
-
-                                  await Future.delayed(
-                                    const Duration(milliseconds: 300),
-                                  );
-
-                                  if (!mounted) return;
-
-                                  Navigator.of(context).pushAndRemoveUntil(
-                                    MaterialPageRoute(
-                                      builder: (_) => const HomeGate(),
-                                    ),
-                                    (route) => false,
-                                  );
-                                },
-                              ),
-
-                              _buildQuickAction(
-                                icon: LucideIcons.graduationCap,
-                                title: localizations.dogTraining,
-                                onTap: () {
-                                  _showAuthRequiredSheet(context);
-                                },
+                                    Navigator.of(
+                                      context,
+                                    ).popUntil((route) => route.isFirst);
+                                  },
+                                  favoriteDogs: favoriteDogs,
+                                  onToggleFavorite: onToggleFavorite,
+                                ),
                               ),
                             ],
                           ),
                         ),
+
+                        const SizedBox(height: 14),
+
+                        _buildActivationSection(),
 
                         const SizedBox(height: 16),
 
@@ -655,46 +550,6 @@ Future<void> debugFirestoreRestOffers() async {
 
                         const SizedBox(height: 16),
 
-                        // 🔐 AUTH BUTTONS
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _SignUpButton(
-                                  onAuthSuccess: () {
-                                    final appState = context
-                                        .read<app.AppState>();
-                                    appState.setCurrentTab(NavTab.home);
-
-                                    Navigator.of(
-                                      context,
-                                    ).popUntil((route) => route.isFirst);
-                                  },
-                                  favoriteDogs: favoriteDogs,
-                                  onToggleFavorite: onToggleFavorite,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _SignInButton(
-                                  onAuthSuccess: () {
-                                    final appState = context
-                                        .read<app.AppState>();
-                                    appState.setCurrentTab(NavTab.home);
-
-                                    Navigator.of(
-                                      context,
-                                    ).popUntil((route) => route.isFirst);
-                                  },
-                                  favoriteDogs: favoriteDogs,
-                                  onToggleFavorite: onToggleFavorite,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -722,6 +577,83 @@ Future<void> debugFirestoreRestOffers() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language', language);
     context.read<app.AppState>().setLocale(language);
+  }
+}
+
+class _ActivationCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String cta;
+  final VoidCallback onTap;
+
+  const _ActivationCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.cta,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 110),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+            boxShadow: AppTheme.cardShadow(opacity: 0.08),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.card.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(AppTheme.radius),
+                ),
+                child: Icon(icon, color: AppTheme.card, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTheme.h3(color: AppTheme.textDark)),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: AppTheme.body(color: AppTheme.muted, size: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      cta,
+                      style: AppTheme.button(
+                        color: AppTheme.card,
+                      ).copyWith(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                LucideIcons.chevronRight,
+                color: AppTheme.card.withOpacity(0.55),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

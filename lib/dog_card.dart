@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'dog.dart';
 import 'app_state.dart';
-import 'play_date_scheduling_page.dart';
 import 'dart:io';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'ui/common/report_button.dart';
@@ -178,14 +177,8 @@ class _DogCardState extends State<DogCard>
             icon: const Icon(Icons.calendar_today),
             color: color,
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PlayDateSchedulingPage(
-                    selectedDog: widget.dog,
-                    allDogs: widget.allDogs,
-                  ),
-                ),
+              context.read<AppState>().openPlaydateScheduling(
+                selectedRequesterDogId: widget.dog.id,
               );
             },
           ),

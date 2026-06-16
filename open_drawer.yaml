@@ -1,0 +1,6 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn:
+    point: "32,80" # Center of [8,47][56,113]
+- waitForAnimationToEnd
+- takeScreenshot: drawer_opened

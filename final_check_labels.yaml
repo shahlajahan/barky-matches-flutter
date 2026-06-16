@@ -1,0 +1,13 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn:
+    text: "Sign In"
+    index: 1
+- waitForAnimationToEnd
+- tapOn:
+    point: "32,80"
+- waitForAnimationToEnd
+- tapOn: "Playmate"
+- waitForAnimationToEnd
+- tapOn: "beni"
+- waitForAnimationToEnd

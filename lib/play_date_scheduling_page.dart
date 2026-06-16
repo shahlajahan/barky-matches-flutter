@@ -632,7 +632,10 @@ class _PlayDateSchedulingPageState extends State<PlayDateSchedulingPage> {
     final uid = appState.currentUserId;
 
     if (uid == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const ColoredBox(
+        color: AppTheme.bg,
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
 
     final myDogs = appState.myDogs;
@@ -658,262 +661,278 @@ class _PlayDateSchedulingPageState extends State<PlayDateSchedulingPage> {
         ? l10n.selectDateAndTime
         : '${DateFormat('yyyy-MM-dd').format(_selectedDate!)} • ${_selectedTime!.format(context)}';
 
-    return Scaffold(
-      backgroundColor: AppTheme.bg,
-
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: SizedBox(
-          height: 54,
-          child: ElevatedButton(
-            onPressed:
-                (_sending ||
-                    friendDogs.isEmpty ||
-                    myDogs.isEmpty ||
-                    _selectedRequesterDogId == null)
-                ? null
-                : _createRequest,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accent,
-              disabledBackgroundColor: Colors.grey.withOpacity(0.25),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: _sending
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      color: Colors.black,
-                    ),
-                  )
-                : Text(
-                    l10n.sendRequestButton,
-                    style: AppTheme.button().copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-          ),
-        ),
-      ),
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${l10n.schedulePlayDate} 🐾',
-                style: AppTheme.h1(color: const Color(0xFF9E1B4F), size: 24),
-              ),
-
-              const SizedBox(height: 6),
-
-              Text(
-                l10n.playdateSchedulingSubtitle,
-                style: AppTheme.body(color: Colors.black54, size: 13),
-              ),
-
-              const SizedBox(height: 20),
-
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: AppTheme.cardShadow(opacity: 0.08),
-                ),
+    return ColoredBox(
+      color: AppTheme.bg,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.selectDateAndTime,
-                      style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    _dateTimeTile(
-                      icon: Icons.calendar_today,
-                      value: _selectedDate == null
-                          ? l10n.pickDate
-                          : DateFormat('yyyy-MM-dd').format(_selectedDate!),
-                      onTap: _pickDate,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    _dateTimeTile(
-                      icon: Icons.access_time,
-                      value: _selectedTime == null
-                          ? l10n.pickTime
-                          : _selectedTime!.format(context),
-                      onTap: _pickTime,
-                    ),
-
-                    if (_buildScheduledDateTime() != null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3F7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          scheduledText,
-                          style: AppTheme.caption(
-                            color: const Color(0xFF9E1B4F),
-                            weight: FontWeight.w600,
-                          ),
-                        ),
+                      '${l10n.schedulePlayDate} 🐾',
+                      style: AppTheme.h1(
+                        color: const Color(0xFF9E1B4F),
+                        size: 24,
                       ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: AppTheme.cardShadow(opacity: 0.08),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.selectLocation,
-                      style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
 
-                    if (isPresetPark)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.green.withOpacity(0.18),
+                    Text(
+                      l10n.playdateSchedulingSubtitle,
+                      style: AppTheme.body(color: Colors.black54, size: 13),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: AppTheme.cardShadow(opacity: 0.08),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.selectDateAndTime,
+                            style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.park, color: Colors.green),
-                            const SizedBox(width: 10),
-                            Expanded(
+
+                          const SizedBox(height: 12),
+
+                          _dateTimeTile(
+                            icon: Icons.calendar_today,
+                            value: _selectedDate == null
+                                ? l10n.pickDate
+                                : DateFormat(
+                                    'yyyy-MM-dd',
+                                  ).format(_selectedDate!),
+                            onTap: _pickDate,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          _dateTimeTile(
+                            icon: Icons.access_time,
+                            value: _selectedTime == null
+                                ? l10n.pickTime
+                                : _selectedTime!.format(context),
+                            onTap: _pickTime,
+                          ),
+
+                          if (_buildScheduledDateTime() != null) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3F7),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               child: Text(
-                                _selectedLocationText ?? '',
-                                style: AppTheme.body(
-                                  color: Colors.black87,
+                                scheduledText,
+                                style: AppTheme.caption(
+                                  color: const Color(0xFF9E1B4F),
                                   weight: FontWeight.w600,
                                 ),
                               ),
                             ),
                           ],
-                        ),
-                      )
-                    else
-                      _dateTimeTile(
-                        icon: Icons.location_on,
-                        value: _selectedLocationText ?? l10n.selectLocation,
-                        onTap: _pickLocation,
+                        ],
                       ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: AppTheme.cardShadow(opacity: 0.08),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.selectYourDog,
-                      style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 16),
 
-                    if (myDogs.isEmpty)
-                      Text(l10n.selectYourDogHint, style: AppTheme.caption())
-                    else
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedRequesterDogId,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: const Color(0xFFFFF3F7),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 14,
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: AppTheme.cardShadow(opacity: 0.08),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.selectLocation,
+                            style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        items: myDogs
-                            .map(
-                              (d) => DropdownMenuItem<String>(
-                                value: d.id,
-                                child: Text(
-                                  '${d.name} • ${d.breed}',
-                                  style: AppTheme.body(),
-                                  overflow: TextOverflow.ellipsis,
+
+                          const SizedBox(height: 12),
+
+                          if (isPresetPark)
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.green.withOpacity(0.18),
                                 ),
                               ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.park, color: Colors.green),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _selectedLocationText ?? '',
+                                      style: AppTheme.body(
+                                        color: Colors.black87,
+                                        weight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             )
-                            .toList(),
-                        onChanged: (v) {
-                          setState(() => _selectedRequesterDogId = v);
-                        },
+                          else
+                            _dateTimeTile(
+                              icon: Icons.location_on,
+                              value:
+                                  _selectedLocationText ?? l10n.selectLocation,
+                              onTap: _pickLocation,
+                            ),
+                        ],
                       ),
-
-                    const SizedBox(height: 18),
-
-                    Text(
-                      l10n.selectFriendsDog,
-                      style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 16),
 
-                    if (friendDogs.isEmpty)
-                      Text(l10n.noDogsFound, style: AppTheme.caption())
-                    else
-                      _buildFriendDogSelector(l10n, friendDogs),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: AppTheme.cardShadow(opacity: 0.08),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.selectYourDog,
+                            style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          if (myDogs.isEmpty)
+                            Text(
+                              l10n.selectYourDogHint,
+                              style: AppTheme.caption(),
+                            )
+                          else
+                            DropdownButtonFormField<String>(
+                              initialValue: _selectedRequesterDogId,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: const Color(0xFFFFF3F7),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                              items: myDogs
+                                  .map(
+                                    (d) => DropdownMenuItem<String>(
+                                      value: d.id,
+                                      child: Text(
+                                        '${d.name} • ${d.breed}',
+                                        style: AppTheme.body(),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                setState(() => _selectedRequesterDogId = v);
+                              },
+                            ),
+
+                          const SizedBox(height: 18),
+
+                          Text(
+                            l10n.selectFriendsDog,
+                            style: AppTheme.h2(color: const Color(0xFF9E1B4F)),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          if (friendDogs.isEmpty)
+                            Text(l10n.noDogsFound, style: AppTheme.caption())
+                          else
+                            _buildFriendDogSelector(l10n, friendDogs),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 100),
-            ],
-          ),
+            ),
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                height: 54,
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed:
+                      (_sending ||
+                          friendDogs.isEmpty ||
+                          myDogs.isEmpty ||
+                          _selectedRequesterDogId == null)
+                      ? null
+                      : _createRequest,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accent,
+                    disabledBackgroundColor: Colors.grey.withOpacity(0.25),
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _sending
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: Colors.black,
+                          ),
+                        )
+                      : Text(
+                          l10n.sendRequestButton,
+                          style: AppTheme.button().copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

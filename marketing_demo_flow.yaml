@@ -1,0 +1,28 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn: "Sign In"
+- tapOn: "Email"
+- inputText: "info@imulife.com.tr"
+- tapOn: "Password"
+- inputText: "Pass1234"
+- tapOn:
+    point: "287,328" # Using point for the specific 'Sign In' submit button to avoid ambiguity
+- waitForAnimationToEnd
+- takeScreenshot: demo_home
+- delay: 4000
+- tapOn: "Playmates"
+- waitForAnimationToEnd
+- takeScreenshot: demo_playmates
+- delay: 4000
+- tapOn: "Veterinary"
+- waitForAnimationToEnd
+- takeScreenshot: demo_veterinary
+- delay: 4000
+- tapOn: "Adoption"
+- waitForAnimationToEnd
+- takeScreenshot: demo_adoption
+- delay: 4000
+- tapOn: "Profile"
+- waitForAnimationToEnd
+- takeScreenshot: demo_profile
+- delay: 4000

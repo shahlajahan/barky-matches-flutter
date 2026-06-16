@@ -1,0 +1,5 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn: "Home"
+- waitForAnimationToEnd
+- takeScreenshot: home_path_analysis

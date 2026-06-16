@@ -1,0 +1,11 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- takeScreenshot: onboarding_1
+- tapOn: "Next"
+- takeScreenshot: onboarding_2
+- tapOn: "Next"
+- takeScreenshot: onboarding_3
+- tapOn: "Next"
+- takeScreenshot: onboarding_4
+- tapOn: "Get Started"
+- takeScreenshot: auth_gateway_recovered

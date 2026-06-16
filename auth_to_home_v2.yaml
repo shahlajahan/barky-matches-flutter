@@ -1,0 +1,13 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn: "Sign In"
+- tapOn:
+    point: "195,347"
+- inputText: "info@imulife.com.tr"
+- tapOn:
+    point: "195,412"
+- inputText: "Pass1234"
+- hideKeyboard
+- tapOn: "Sign In"
+- waitForAnimationToEnd
+- takeScreenshot: home_loaded

@@ -154,8 +154,9 @@ class _AdoptionPageState extends State<AdoptionPage> {
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text("ERROR: ${snapshot.error}"));
-        }
+  debugPrint("❌ CENTERS STREAM ERROR = ${snapshot.error}");
+  return Center(child: Text("ERROR: ${snapshot.error}"));
+}
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -214,6 +215,8 @@ class _AdoptionPageState extends State<AdoptionPage> {
             logoUrl: displayImage,
           );
         }).toList();
+
+        debugPrint("✅ CENTERS STREAM SUCCESS");
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 12),

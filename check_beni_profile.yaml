@@ -1,0 +1,5 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn:
+    text: "beni.*"
+- waitForAnimationToEnd

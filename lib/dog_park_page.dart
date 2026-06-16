@@ -493,9 +493,9 @@ class _DogParkPageState extends State<DogParkPage>
                             return;
                           }
 
-                          appState.startPlaydateAtPark(park);
-
-                          appState.setCurrentTab(NavTab.playdateScheduling);
+                          appState.openPlaydateScheduling(
+                            activePlaydatePark: park,
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFC107),

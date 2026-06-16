@@ -1,0 +1,13 @@
+appId: com.shahlajahan.barkymatches.dev
+---
+- tapOn: "Sign In"
+- tapOn: "Email"
+- inputText: "info@imulife.com.tr"
+- tapOn: "Password"
+- inputText: "Pass1234"
+- tapOn:
+    point: "287,328"
+- waitForAnimationToEnd
+- tapOn: "Playmates"
+- waitForAnimationToEnd
+- takeScreenshot: hero_candidate_discovery
