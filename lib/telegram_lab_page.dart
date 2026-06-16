@@ -15,8 +15,10 @@ class _TelegramLabPageState extends State<TelegramLabPage> {
   String _result = '';
 
   // ⚠️ بعد از revoke این‌ها را جایگزین کن
-  static const String botToken = 'YOUR_NEW_BOT_TOKEN';
-  static const String chatId = 'YOUR_CHAT_ID';
+  static const String botToken =
+    '8786163588:AAEQdcaKkoWvYyuiGji5qKxpTbnlDqCogok';
+
+static const String chatId = '723570051';
 
   Future<void> _sendMessage() async {
     setState(() {
@@ -39,9 +41,9 @@ class _TelegramLabPageState extends State<TelegramLabPage> {
           'text': '''
 🐶 Petsupo Lab Bot
 
-سلام شهلا!
+Hello!
 
-این اولین پیام ربات تلگرام از داخل Flutter است.
+This is the first Telegram message sent from Flutter.
 
 📋 Checklist
 ✅ Flutter Connected
