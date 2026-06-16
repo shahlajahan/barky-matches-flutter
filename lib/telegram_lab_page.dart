@@ -1,7 +1,5 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 
 class TelegramLabPage extends StatefulWidget {
   const TelegramLabPage({super.key});
@@ -14,68 +12,53 @@ class _TelegramLabPageState extends State<TelegramLabPage> {
   bool _isSending = false;
   String _result = '';
 
-  // ⚠️ بعد از revoke این‌ها را جایگزین کن
-  static const String botToken =
-    '8786163588:AAEQdcaKkoWvYyuiGji5qKxpTbnlDqCogok';
-
-static const String chatId = '723570051';
+ 
 
   Future<void> _sendMessage() async {
-    setState(() {
-      _isSending = true;
-      _result = '';
-    });
+  setState(() {
+    _isSending = true;
+    _result = '';
+  });
 
-    try {
-      final url = Uri.parse(
-        'https://api.telegram.org/bot$botToken/sendMessage',
-      );
+  try {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'europe-west1',
+    ).httpsCallable('sendTelegramMessage');
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'chat_id': chatId,
-          'text': '''
+    final response = await callable.call({
+      'chatId': '723570051',
+      'text': '''
 🐶 Petsupo Lab Bot
 
 Hello!
 
-This is the first Telegram message sent from Flutter.
+This message was sent securely through Firebase Cloud Functions v2.
 
-📋 Checklist
-✅ Flutter Connected
+✅ Flutter
+✅ Cloud Functions v2
+✅ Secret Manager
 ✅ Telegram Bot API
-✅ Petsupo Lab
-
-💉 Vaccines
-✅ DHPP
-⏳ Rabies
-❌ Bordetella
 
 📌 Today's Tasks
 • Book vet appointment
 • Check medical records
 • Schedule grooming
 ''',
-        }),
-      );
-
-      setState(() {
-        _result = response.body;
-      });
-    } catch (e) {
-      setState(() {
-        _result = e.toString();
-      });
-    }
+    });
 
     setState(() {
-      _isSending = false;
+  _result = '✅ Telegram message sent successfully';
+});
+  } catch (e) {
+    setState(() {
+      _result = e.toString();
     });
   }
+
+  setState(() {
+    _isSending = false;
+  });
+}
 
   @override
   Widget build(BuildContext context) {

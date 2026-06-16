@@ -41,6 +41,7 @@ const ORDER_EXTERNAL_NOTIFICATIONS_ENABLED = defineSecret(
   "ORDER_EXTERNAL_NOTIFICATIONS_ENABLED"
 );
 
+const TELEGRAM_BOT_TOKEN = defineSecret("TELEGRAM_BOT_TOKEN");
 
 
 if (!admin.apps.length) {
@@ -22054,3 +22055,56 @@ exports.activateSubscription = onCall(async (request) => {
 
   return { success: true };
 });
+
+
+
+
+
+
+exports.sendTelegramMessage = onCall(
+  {
+    region: "europe-west1",
+    secrets: [TELEGRAM_BOT_TOKEN],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const { chatId, text } = request.data || {};
+
+    if (!chatId || !text) {
+      throw new HttpsError("invalid-argument", "chatId and text are required");
+    }
+
+    const token = TELEGRAM_BOT_TOKEN.value();
+
+    const response = await fetch(
+      `https://api.telegram.org/bot${token}/sendMessage`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || result.ok !== true) {
+      throw new HttpsError(
+        "internal",
+        result.description || "Telegram send failed"
+      );
+    }
+
+    return {
+      ok: true,
+      result,
+    };
+  }
+);
