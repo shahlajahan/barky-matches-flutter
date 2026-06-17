@@ -438,6 +438,16 @@ class _AddDogPageState extends State<AddDogPage> {
         final ref = FirebaseStorage.instance.ref().child(
           'dog_images/$userId/$dogId/$fileName.jpg',
         );
+        debugPrint(
+  '🔥 STORAGE PATH = dog_images/$userId/$dogId/$fileName.jpg',
+);
+try {
+  await ref.putFile(file);
+} on FirebaseException catch (e) {
+  debugPrint('🔥 STORAGE CODE = ${e.code}');
+  debugPrint('🔥 STORAGE MESSAGE = ${e.message}');
+  rethrow;
+}
 
         debugPrint("AddDogPage - Uploading image to ${ref.fullPath}");
 
@@ -631,7 +641,10 @@ class _AddDogPageState extends State<AddDogPage> {
         debugPrint(
           'AddDogPage - Dog added to Hive: ${newDog.name}, ID: $dogId',
         );
-
+debugPrint('🔥 SAVING DOG');
+debugPrint('🔥 dogId = $dogId');
+debugPrint('🔥 ownerId = $userId');
+debugPrint('🔥 name = ${newDog.name}');
         await FirebaseFirestore.instance.collection('dogs').doc(dogId).set({
           'id': dogId,
           'name': newDog.name,

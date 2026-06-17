@@ -39,11 +39,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/pet_hotel/pet_hotel_da
 import 'package:barky_matches_fixed/ui/profile/change_password_page.dart';
 
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
-import 'package:barky_matches_fixed/social/pages/create_social_post_page.dart';
 
-import 'package:barky_matches_fixed/social/pages/saved_posts_page.dart';
-
-import 'package:barky_matches_fixed/social/widgets/user_posts_grid.dart';
 
 // ────────────────────────────────────────────────
 //  جدید — کامپوننت‌های استاندارد TYPE A
@@ -298,7 +294,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   File? _profileImageFile;
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = true;
-  bool _generatingFcmToken = false;
+  //bool _generatingFcmToken = false;
   final List<Dog> _cachedUserDogs = [];
   final List<Dog> _cachedAdoptionDogs = [];
   String _city = '';
@@ -905,7 +901,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       debugPrint('UserProfilePage - logout error: $e');
     }
   }
-
+/*
   Future<void> _generateFcmTokenDebug() async {
     if (_generatingFcmToken) return;
 
@@ -935,7 +931,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       }
     }
   }
-
+*/
   @override
   void dispose() {
     _disposed = true;
@@ -1197,31 +1193,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
               ProfileSection(
                 title: AppLocalizations.of(context)!.userProfileActivity,
                 children: [
-                  ProfileTile(
-                    icon: Icons.add_a_photo,
-                    title: "Create Post",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CreateSocialPostPage(),
-                        ),
-                      );
-                    },
-                  ),
+                  
 
-                  ProfileTile(
-                    icon: Icons.bookmark,
-                    title: "Saved Posts",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SavedPostsPage(),
-                        ),
-                      );
-                    },
-                  ),
+                  
 
                   ProfileTile(
                     icon: Icons.bookmark,
@@ -1266,24 +1240,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   ),
                 ],
               ),
-
-              const SizedBox(height: 24),
-
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Posts',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              UserPostsGrid(userId: widget.userId),
               // 3. Business Section (logic اصلی حفظ شده)
               ProfileSection(
                 title: AppLocalizations.of(context)!.userProfileBusiness,
@@ -1382,6 +1338,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         // بعداً پیاده‌سازی
                       },
                     ),
+                    /*
                     ProfileTile(
                       icon: Icons.notifications_active,
                       title: _generatingFcmToken
@@ -1391,6 +1348,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           ? () {}
                           : _generateFcmTokenDebug,
                     ),
+                    */
                     ProfileTile(
                       icon: Icons.lock,
                       title: AppLocalizations.of(
@@ -1433,10 +1391,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           MaterialPageRoute(
                             builder: (_) => AddDogPage(
                               onDogAdded: (newDog) {
-                                final appState = context.read<AppState>();
+  final appState = context.read<AppState>();
 
-                                appState.setMyDogs([newDog]); // فقط اضافه کن
-                              },
+  appState.loadMyDogs();
+},
                               favoriteDogs: widget.favoriteDogs,
                               onToggleFavorite: widget.onToggleFavorite,
                             ),
@@ -1663,6 +1621,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     if (dog.imagePaths.isEmpty) return null;
 
     final imagePath = dog.imagePaths.first;
+    debugPrint('🐶 PROFILE IMAGE PATH = $imagePath');
     if (imagePath.startsWith('assets/')) return AssetImage(imagePath);
 
     final file = File(imagePath);

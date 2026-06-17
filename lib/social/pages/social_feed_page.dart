@@ -39,7 +39,7 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
     debugPrint('🔥 SOCIAL FEED PAGE BUILD');
 
     return Container(
-      color: Colors.black,
+      color: const Color(0xFF121417),
       child: StreamBuilder<List<SocialPost>>(
         stream: _postService.streamPublicPosts(),
         builder: (context, snapshot) {

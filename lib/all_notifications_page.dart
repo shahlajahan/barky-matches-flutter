@@ -79,18 +79,18 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
       }
 
       final personalSnapshot = await FirebaseFirestore.instance
-          .collection('notifications')
-          .where('recipientUserId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .limit(20)
-          .get();
+    .collection('notifications')
+    .where('recipientUserId', isEqualTo: userId)
+    .orderBy('createdAt', descending: true)
+    .limit(20)
+    .get();
 
-      final publicSnapshot = await FirebaseFirestore.instance
-          .collection('notifications')
-          .where('recipientUserId', isNull: true)
-          .orderBy('timestamp', descending: true)
-          .limit(20)
-          .get();
+final publicSnapshot = await FirebaseFirestore.instance
+    .collection('notifications')
+    .where('recipientUserId', isNull: true)
+    .orderBy('createdAt', descending: true)
+    .limit(20)
+    .get();
 
       final allNotifications = <AppNotification>[];
 

@@ -240,6 +240,17 @@ function computeRootStatusFromSellerStatuses(statuses) {
 }
 
 async function createNotification(db, payload) {
+
+  console.error("🚨 NOTIFICATION CREATED", {
+    type: payload.type,
+    title: payload.title,
+    userId: payload.userId,
+    recipientUserId: payload.recipientUserId,
+    sellerOrderId: payload.sellerOrderId,
+    orderId: payload.orderId,
+    stack: new Error().stack,
+  });
+
   const { skipPush, fallbackToken, ...notificationPayload } = payload || {};
 
   await db.collection("notifications").add({
@@ -16452,53 +16463,118 @@ exports.checkPendingInvoices = onSchedule(
     region: "europe-west3",
   },
   async () => {
+
+    console.log("🚨 TEST CHECKPENDINGINVOICES");
+    console.log("🚨 TIME =", new Date().toISOString());
+
     const db = admin.firestore();
     const nowMillis = Date.now();
+
+    logger.info("🚀 checkPendingInvoices START", {
+      timestamp: new Date().toISOString(),
+    });
 
     const snap = await db
       .collection("sellerOrders")
       .where("invoice.status", "==", "pending_upload")
       .get();
 
+    logger.info("📦 TOTAL PENDING INVOICES", {
+      count: snap.docs.length,
+    });
+
     for (const doc of snap.docs) {
-      const data = doc.data();
-      const invoice = data.invoice || {};
-      const deadline = invoice.uploadDeadlineAt;
+      try {
+        const data = doc.data();
+        const invoice = data.invoice || {};
 
-      if (!deadline) continue;
-
-      // ✅ SAFE TIME CONVERSION
-      const deadlineMillis = toMillisSafe(deadline);
-      if (!deadlineMillis) continue;
-
-      const isLate = deadlineMillis < nowMillis;
-
-      // 🔴 LATE
-      if (isLate) {
-        await doc.ref.update({
-          "invoice.status": "late",
-          "invoice.isLate": true,
-
-          "compliance.invoiceLate": true,
-          "compliance.warningCount":
-            admin.firestore.FieldValue.increment(1),
-          "compliance.penaltyPoints":
-            admin.firestore.FieldValue.increment(10),
-
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        logger.warn("⚠️ INVOICE LATE", {
+        logger.info("🔍 CHECKING SELLER ORDER", {
           sellerOrderId: doc.id,
+          sellerUid: data.sellerUid,
+          rootOrderId: data.rootOrderId,
+          invoiceStatus: invoice.status,
+          reminder24hSent: invoice.reminder24hSent ?? false,
+          reminder2hSent: invoice.reminder2hSent ?? false,
+          uploadDeadlineAt: invoice.uploadDeadlineAt || null,
         });
-      }
 
-      // 🟡 REMINDER
-      else {
+        const deadline = invoice.uploadDeadlineAt;
+
+        if (!deadline) {
+          logger.warn("⚠️ NO DEADLINE FOUND", {
+            sellerOrderId: doc.id,
+          });
+          continue;
+        }
+
+        const deadlineMillis = toMillisSafe(deadline);
+
+        if (!deadlineMillis) {
+          logger.warn("⚠️ INVALID DEADLINE", {
+            sellerOrderId: doc.id,
+            deadline,
+          });
+          continue;
+        }
+
         const hoursLeft =
           (deadlineMillis - nowMillis) / (1000 * 60 * 60);
 
-        if (hoursLeft < 24) {
+        const isLate = deadlineMillis < nowMillis;
+
+        logger.info("⏳ DEADLINE CHECK", {
+          sellerOrderId: doc.id,
+          hoursLeft,
+          isLate,
+        });
+
+        // =========================
+        // 🔴 LATE
+        // =========================
+
+        if (isLate) {
+          logger.warn("🔴 ORDER IS LATE", {
+            sellerOrderId: doc.id,
+          });
+
+          if (invoice.status !== "late") {
+            await doc.ref.update({
+              "invoice.status": "late",
+              "invoice.isLate": true,
+
+              "compliance.invoiceLate": true,
+
+              "compliance.warningCount":
+                admin.firestore.FieldValue.increment(1),
+
+              "compliance.penaltyPoints":
+                admin.firestore.FieldValue.increment(10),
+
+              updatedAt:
+                admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            logger.warn("⚠️ INVOICE LATE UPDATED", {
+              sellerOrderId: doc.id,
+            });
+          }
+
+          continue;
+        }
+
+        // =========================
+        // 🟡 24H REMINDER
+        // =========================
+
+        if (
+          hoursLeft <= 24 &&
+          !invoice.reminder24hSent
+        ) {
+          logger.info("🟡 SENDING 24H REMINDER", {
+            sellerOrderId: doc.id,
+            hoursLeft,
+          });
+
           await createNotification(db, {
             recipientUserId: data.sellerUid,
             userId: data.sellerUid,
@@ -16509,18 +16585,64 @@ exports.checkPendingInvoices = onSchedule(
             orderId: data.rootOrderId,
           });
 
-          logger.info("⏰ INVOICE REMINDER SENT", {
+          await doc.ref.update({
+            "invoice.reminder24hSent": true,
+            "invoice.reminder24hSentAt":
+              admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          logger.info("✅ 24H REMINDER SENT", {
+            sellerOrderId: doc.id,
+          });
+        }
+
+        // =========================
+        // 🟠 2H REMINDER
+        // =========================
+
+        if (
+          hoursLeft <= 2 &&
+          !invoice.reminder2hSent
+        ) {
+          logger.info("🟠 SENDING 2H REMINDER", {
             sellerOrderId: doc.id,
             hoursLeft,
           });
+
+          await createNotification(db, {
+            recipientUserId: data.sellerUid,
+            userId: data.sellerUid,
+            type: "invoice_reminder",
+            title: "Son Hatırlatma ⏰",
+            body: "Fatura yükleme süreniz 2 saat içinde dolacak.",
+            sellerOrderId: doc.id,
+            orderId: data.rootOrderId,
+          });
+
+          await doc.ref.update({
+            "invoice.reminder2hSent": true,
+            "invoice.reminder2hSentAt":
+              admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          logger.info("✅ 2H REMINDER SENT", {
+            sellerOrderId: doc.id,
+          });
         }
+      } catch (error) {
+        logger.error("❌ CHECK PENDING INVOICE ERROR", {
+          sellerOrderId: doc.id,
+          error: error.message,
+          stack: error.stack,
+        });
       }
     }
+
+    logger.info("🏁 checkPendingInvoices FINISHED");
 
     return null;
   }
 );
-
 exports.markMarketplaceInvoiceStatus = onCall(
   { region: "europe-west3" },
   async (request) => {

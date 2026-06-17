@@ -39,7 +39,7 @@ class _PetplorePageState extends State<PetplorePage>
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     return Container(
-      color: Colors.black,
+      color: const Color(0xFF121417),
 
       child: Stack(
         children: [
@@ -483,7 +483,7 @@ class _MyPostsTab extends StatelessWidget {
     }
 
     return Container(
-      color: Colors.black,
+     color: const Color(0xFF121417),
 
       child: UserPostsGrid(userId: currentUserId),
     );

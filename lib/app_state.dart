@@ -3889,23 +3889,9 @@ class AppState with ChangeNotifier {
   }
 
   void setMyDogs(List<Dog> dogs) {
-    final Map<String, Dog> map = {};
-
-    // 🔹 اول Hive
-    final box = Hive.box<Dog>('dogsBox');
-    for (var d in box.values) {
-      map[d.id] = d;
-    }
-
-    // 🔹 بعد Firestore
-    for (var d in dogs) {
-      map[d.id] = d;
-    }
-
-    _myDogs = map.values.toList(); //
-
-    notifyListeners();
-  }
+  _myDogs = List<Dog>.from(dogs);
+  notifyListeners();
+}
 
   void setPendingNotificationNavigation(Map<String, dynamic> data) {
     _pendingNotificationNavigation = data;

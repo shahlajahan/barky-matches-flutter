@@ -38,8 +38,13 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
   String _selectedPetType = 'dog';
   String? _selectedBreed;
 
+  File? _selectedImage;
+bool _isUploadingImage = false;
+
   final _colorController = TextEditingController();
   final _weightController = TextEditingController();
+
+  String? _selectedPetName;
 
   String? _selectedCollarType;
   final _clothingColorController = TextEditingController();
@@ -55,8 +60,10 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
 
   String? _selectedGender;
   String? _selectedHealthStatus;
-  File? _selectedImage;
-  bool _isUploadingImage = false;
+  List<Map<String, dynamic>> _userPets = [];
+
+bool _isLoadingPets = true;
+  String? _profilePetImageUrl;
 
   final List<String> _contactTypes = [
     "Phone",
@@ -92,10 +99,72 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _bootstrapLocation();
+void initState() {
+  super.initState();
+  _bootstrapLocation();
+  _loadUserPets();
+}
+
+Future<void> _loadUserPets() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('dogs')
+        .where('ownerId', isEqualTo: user.uid)
+        .get();
+
+    _userPets = snapshot.docs.map((doc) {
+      return {
+        'id': doc.id,
+        ...doc.data(),
+      };
+    }).toList();
+
+    if (mounted) {
+      setState(() {
+        _isLoadingPets = false;
+      });
+    }
+  } catch (e) {
+    debugPrint('load pets error: $e');
+
+    if (mounted) {
+      setState(() {
+        _isLoadingPets = false;
+      });
+    }
   }
+}
+
+void _fillPetData(Map<String, dynamic> pet) {
+ 
+
+  _nameController.text = pet['name'] ?? '';
+
+  _selectedPetType = pet['petType'] ?? 'dog';
+
+  _selectedBreed = pet['breed'];
+
+  _selectedGender = pet['gender'];
+
+  _weightController.text =
+      pet['weight']?.toString() ?? '';
+
+  _colorController.text =
+      pet['color'] ?? '';
+
+      final imagePaths = pet['imagePaths'];
+
+if (imagePaths is List && imagePaths.isNotEmpty) {
+  _profilePetImageUrl = imagePaths.first.toString();
+}
+debugPrint('🔥 IMAGE PATHS = $imagePaths');
+debugPrint('🔥 PROFILE IMAGE = $_profilePetImageUrl');
+
+  setState(() {});
+}
 
   Future<void> _pickImage() async {
     if (_isPickingImage) return;
@@ -278,6 +347,8 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
         gender: _selectedGender,
         healthStatus: _selectedHealthStatus,
 
+       
+
         name: _nameController.text.trim(),
         petType: _selectedPetType,
         breed: _selectedBreed!,
@@ -321,11 +392,16 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
           .collection('lost_pets')
           .add(lostDog.toMap());
 
-      final imageUrl = await _uploadImage(docRef.id);
+      final uploadedImageUrl = await _uploadImage(docRef.id);
 
-      if (imageUrl != null) {
-        await docRef.update({'imageUrl': imageUrl});
-      }
+final finalImageUrl = uploadedImageUrl ?? _profilePetImageUrl;
+debugPrint('🔥 FINAL IMAGE URL = $finalImageUrl');
+
+if (finalImageUrl != null && finalImageUrl.isNotEmpty) {
+  await docRef.update({'imageUrl': finalImageUrl});
+  debugPrint('🔥 IMAGE SAVED TO FIRESTORE');
+  debugPrint('🔥 SAVED IMAGE = $finalImageUrl');
+}
 
       if (kDebugMode) {
         debugPrint(
@@ -468,52 +544,81 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildTextField(
-                          _nameController,
-                          "Missing Pet Name",
-                          required: true,
-                        ),
+                        if (_userPets.isNotEmpty) ...[
+  _buildDropdownField(
+    value: _selectedPetName,
+    hint: "Select Your Pet",
+    items: _userPets
+        .map((e) => e['name'] as String)
+        .toList(),
+    onChanged: (value) {
+      if (value == null) return;
+
+      setState(() {
+  _selectedPetName = value;
+});
+
+      final pet = _userPets.firstWhere(
+        (e) => e['name'] == value,
+      );
+
+      _fillPetData(pet);
+    },
+  ),
+
+  const SizedBox(height: 16),
+],
+                        if (_selectedPetName == null)
+  _buildTextField(
+    _nameController,
+    "Missing Pet Name",
+    required: true,
+  ),
                         const SizedBox(height: 16),
 
-                        _buildDropdownField(
-                          value: _selectedPetType,
-                          hint: "Select Pet Type",
-                          items: _petTypes,
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _selectedPetType = value;
-                              _selectedBreed = null;
-                            });
-                          },
-                          validator: (value) =>
-                              value == null ? "Select pet type" : null,
-                        ),
+                        if (_selectedPetName == null)
+  _buildDropdownField(
+    value: _selectedPetType,
+    hint: "Select Pet Type",
+    items: _petTypes,
+    onChanged: (value) {
+      if (value == null) return;
+      setState(() {
+        _selectedPetType = value;
+        _selectedBreed = null;
+      });
+    },
+    validator: (value) =>
+        value == null ? "Select pet type" : null,
+  ),
 
                         const SizedBox(height: 16),
 
-                        _buildDropdownField(
-                          value: _selectedBreed,
-                          hint: localizations.selectBreedHint,
-                          items: breedsForPetType(_selectedPetType),
-                          onChanged: (value) =>
-                              setState(() => _selectedBreed = value),
-                          validator: (value) => value == null
-                              ? localizations.pleaseSelectBreed
-                              : null,
-                        ),
+                        if (_selectedPetName == null)
+  _buildDropdownField(
+    value: _selectedBreed,
+    hint: localizations.selectBreedHint,
+    items: breedsForPetType(_selectedPetType),
+    onChanged: (value) =>
+        setState(() => _selectedBreed = value),
+    validator: (value) =>
+        value == null
+            ? localizations.pleaseSelectBreed
+            : null,
+  ),
 
                         const SizedBox(height: 16),
 
-                        _buildDropdownField(
-                          value: _selectedGender,
-                          validator: (value) =>
-                              value == null ? "Select gender" : null,
-                          hint: "Select Gender",
-                          items: _genders,
-                          onChanged: (value) =>
-                              setState(() => _selectedGender = value),
-                        ),
+                        if (_selectedPetName == null)
+  _buildDropdownField(
+    value: _selectedGender,
+    validator: (value) =>
+        value == null ? "Select gender" : null,
+    hint: "Select Gender",
+    items: _genders,
+    onChanged: (value) =>
+        setState(() => _selectedGender = value),
+  ),
 
                         const SizedBox(height: 16),
 
@@ -649,32 +754,40 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
                         const SizedBox(height: 12),
 
                         GestureDetector(
-                          onTap: _pickImage,
-                          child: Container(
-                            height: 150,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: _selectedImage == null
-                                ? const Center(
-                                    child: Text("Tap to select image"),
-                                  )
-                                : ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: Image.file(
-                                      _selectedImage!,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          _descriptionController,
-                          localizations.descriptionLabel,
-                          maxLines: 3,
-                        ),
+  onTap: _pickImage,
+  child: Container(
+    height: 150,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: _selectedImage != null
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.file(
+              _selectedImage!,
+              fit: BoxFit.cover,
+            ),
+          )
+        : _profilePetImageUrl != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  _profilePetImageUrl!,
+                  fit: BoxFit.cover,
+                ),
+              )
+            : const Center(
+                child: Text("Tap to select image"),
+              ),
+  ),
+),
+const SizedBox(height: 16),
+_buildTextField(
+  _descriptionController,
+  localizations.descriptionLabel,
+  maxLines: 3,
+),
 
                         const SizedBox(height: 24),
 

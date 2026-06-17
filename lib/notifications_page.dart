@@ -512,16 +512,27 @@ class _NotificationsPageState extends State<NotificationsPage>
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.amber),
                             onPressed: () async {
+                              final uid = FirebaseAuth.instance.currentUser?.uid;
+
+debugPrint('CURRENT UID = $uid');
+debugPrint('WIDGET USER ID = ${widget.currentUserId}');
+debugPrint('NOTIFICATION ID = ${notification.id}');
                               if (widget.currentUserId == null ||
                                   widget.currentUserId == 'guest') {
                                 debugPrint('🚫 Guest → delete blocked');
                                 return;
+
+                                
                               }
+
+                              
 
                               await FirebaseFirestore.instance
                                   .collection('notifications')
                                   .doc(notification.id)
                                   .delete();
+
+                                  
                             },
                           ),
                         ],
