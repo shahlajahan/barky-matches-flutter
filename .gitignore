@@ -44,4 +44,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 node_modules/
-.flutter-plugins
+.flutter-pluginsai_exports/
