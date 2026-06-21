@@ -47,24 +47,20 @@ class _UpgradePageState extends State<UpgradePage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Padding(
-  padding: const EdgeInsets.only(left: 12),
-  child: GestureDetector(
-    onTap: () => Navigator.pop(context),
-    child: Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(
-        Icons.close,
-        color: Colors.white,
-        size: 20,
-      ),
-    ),
-  ),
-),
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 20),
+            ),
+          ),
+        ),
         title: Text(
           l10n.upgradePageTitle,
           style: GoogleFonts.poppins(color: Colors.white),
