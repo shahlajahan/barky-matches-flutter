@@ -36,12 +36,12 @@ jobs:
         run: flutter analyze || true
 
       - name: Run tests
-  run: |
-    if [ -d "test" ]; then
-      flutter test
-    else
-      echo "No tests found, skipping..."
-    fi
+        run: |
+          if [ -d "test" ]; then
+            flutter test
+          else
+            echo "No tests found, skipping..."
+          fi
 
       - name: Build APK
         run: flutter build apk --debug
