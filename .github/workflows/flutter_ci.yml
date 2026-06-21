@@ -33,8 +33,7 @@ jobs:
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze project source
-  run: |
-    flutter analyze || echo "Analyze completed with warnings"
+        run: flutter analyze || true
 
       - name: Run tests
         run: flutter test
