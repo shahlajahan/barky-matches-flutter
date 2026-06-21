@@ -41,7 +41,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:app_links/app_links.dart';
 
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart';
 import 'ui/appointments/my_appointments_page.dart';
 import 'ui/business/dashboard/vet/appointment_payment_page.dart';
 
