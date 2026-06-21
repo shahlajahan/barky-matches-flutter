@@ -5,11 +5,13 @@ on:
     branches:
       - main
       - master
+      - home-dna-experiment
 
   pull_request:
     branches:
       - main
       - master
+      - home-dna-experiment
 
 jobs:
   analyze-and-test:
