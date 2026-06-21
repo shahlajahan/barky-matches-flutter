@@ -13,28 +13,27 @@ class _OnboardingPageState extends State<OnboardingPage> {
   int _currentPage = 0;
 
   final List<_OnboardingItem> _items = const [
-  _OnboardingItem(
-    image: "assets/onboarding/slide1.png",
-    title: "Welcome to PetSupo",
-    subtitle: "Everything your pet needs,\nall in one place.",
-  ),
-  _OnboardingItem(
-    image: "assets/onboarding/slide2.png",
-    title: "Veterinary Care",
-    subtitle: "Trusted care,\nwhen your pet needs it most.",
-  ),
-  _OnboardingItem(
-    image: "assets/onboarding/slide3.png",
-    title: "Adoption & Community",
-    subtitle: "Because every pet\ndeserves a loving home.",
-  ),
-  _OnboardingItem(
-  image: "assets/onboarding/slide4.png",
-  title: "Your Journey Begins",
-  subtitle:
-      "Making life better\nfor pets and their people.",
-),
-];
+    _OnboardingItem(
+      image: "assets/onboarding/slide1.png",
+      title: "Welcome to PetSupo",
+      subtitle: "Everything your pet needs,\nall in one place.",
+    ),
+    _OnboardingItem(
+      image: "assets/onboarding/slide2.png",
+      title: "Veterinary Care",
+      subtitle: "Trusted care,\nwhen your pet needs it most.",
+    ),
+    _OnboardingItem(
+      image: "assets/onboarding/slide3.png",
+      title: "Adoption & Community",
+      subtitle: "Because every pet\ndeserves a loving home.",
+    ),
+    _OnboardingItem(
+      image: "assets/onboarding/slide4.png",
+      title: "Your Journey Begins",
+      subtitle: "Making life better\nfor pets and their people.",
+    ),
+  ];
 
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
@@ -75,10 +74,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
             children: [
               const SizedBox(height: 12),
 
-              Image.asset(
-                "assets/image/logo.png",
-                height: 56,
-              ),
+              Image.asset("assets/image/logo.png", height: 56),
 
               const SizedBox(height: 14),
 
@@ -99,10 +95,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         Expanded(
                           child: Transform.scale(
                             scale: 1.03,
-                            child: Image.asset(
-                              item.image,
-                              fit: BoxFit.contain,
-                            ),
+                            child: Image.asset(item.image, fit: BoxFit.contain),
                           ),
                         ),
 

@@ -169,52 +169,46 @@ class AdminDashboardPage extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-const Text(
-  "Developer Tools",
-  style: TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-  ),
-),
+                const Text(
+                  "Developer Tools",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
 
-const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-Card(
-  child: ListTile(
-    leading: const Icon(Icons.telegram, color: Colors.blue),
-    title: const Text("Telegram Lab"),
-    subtitle: const Text("Test Telegram Bot API"),
-    trailing: const Icon(Icons.chevron_right),
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const TelegramLabPage(),
-        ),
-      );
-    },
-  ),
-),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.telegram, color: Colors.blue),
+                    title: const Text("Telegram Lab"),
+                    subtitle: const Text("Test Telegram Bot API"),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TelegramLabPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
 
-Card(
-  child: ListTile(
-    leading: const Icon(
-      Icons.people,
-      color: Colors.green,
-    ),
-    title: const Text("Telegram Users"),
-    subtitle: const Text("View connected Telegram users"),
-    trailing: const Icon(Icons.chevron_right),
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const TelegramUsersPage(),
-        ),
-      );
-    },
-  ),
-),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.people, color: Colors.green),
+                    title: const Text("Telegram Users"),
+                    subtitle: const Text("View connected Telegram users"),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TelegramUsersPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           );

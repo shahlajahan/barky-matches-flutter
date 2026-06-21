@@ -369,32 +369,25 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
   }
 
   @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
 
-Widget build(BuildContext context) {
+    if (appState.isGuestUser) {
+      return GuestFeatureGate(
+        icon: Icons.pets,
 
-  final appState = context.watch<AppState>();
+        title: "Report a Found Pet",
 
-  if (appState.isGuestUser) {
+        description:
+            "Sign in to publish found pet reports and help reunite pets with their families.",
 
-    return GuestFeatureGate(
+        buttonText: "Sign In",
 
-      icon: Icons.pets,
-
-      title: "Report a Found Pet",
-
-      description:
-
-          "Sign in to publish found pet reports and help reunite pets with their families.",
-
-      buttonText: "Sign In",
-
-      onPressed: () {
-  appState.setCurrentTab(NavTab.profile);
-},
-
-    );
-
-  }
+        onPressed: () {
+          appState.setCurrentTab(NavTab.profile);
+        },
+      );
+    }
     final localizations = AppLocalizations.of(context)!;
 
     return SafeArea(

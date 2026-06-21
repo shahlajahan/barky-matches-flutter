@@ -14,14 +14,12 @@ class FavoritesPage extends StatelessWidget {
     final favoriteDogs = appState.favoriteDogs;
     final currentUserId = appState.currentUserId ?? '';
 
-debugPrint("❤️ favoriteDogs = ${favoriteDogs.length}");
-debugPrint("❤️ currentUserId = $currentUserId");
+    debugPrint("❤️ favoriteDogs = ${favoriteDogs.length}");
+    debugPrint("❤️ currentUserId = $currentUserId");
 
-for (final dog in favoriteDogs) {
-  debugPrint(
-    "❤️ ${dog.name} owner=${dog.ownerId} id=${dog.id}",
-  );
-}
+    for (final dog in favoriteDogs) {
+      debugPrint("❤️ ${dog.name} owner=${dog.ownerId} id=${dog.id}");
+    }
     final filteredFavoriteDogs = favoriteDogs
         .where((dog) => dog.ownerId != currentUserId)
         .toList();

@@ -27,16 +27,13 @@ class _PetplorePageState extends State<PetplorePage>
   final FollowService _followService = FollowService();
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  final isGuest = FirebaseAuth.instance.currentUser == null;
+    final isGuest = FirebaseAuth.instance.currentUser == null;
 
-  _tabController = TabController(
-    length: isGuest ? 1 : 3,
-    vsync: this,
-  );
-}
+    _tabController = TabController(length: isGuest ? 1 : 3, vsync: this);
+  }
 
   @override
   void dispose() {
@@ -46,7 +43,6 @@ void initState() {
 
   @override
   Widget build(BuildContext context) {
-    
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final isGuest = currentUserId == null;
     return Container(
@@ -368,27 +364,27 @@ void initState() {
                       fontSize: 14,
                     ),
 
-                   tabs: isGuest
-    ? const [
-        Tab(
-          icon: Icon(LucideIcons.compass, size: 20),
-          text: 'Feed',
-        ),
-      ]
-    : const [
-        Tab(
-          icon: Icon(LucideIcons.compass, size: 20),
-          text: 'Feed',
-        ),
-        Tab(
-          icon: Icon(LucideIcons.bookmark, size: 20),
-          text: 'Saved',
-        ),
-        Tab(
-          icon: Icon(LucideIcons.layoutGrid, size: 20),
-          text: 'My Posts',
-        ),
-      ],
+                    tabs: isGuest
+                        ? const [
+                            Tab(
+                              icon: Icon(LucideIcons.compass, size: 20),
+                              text: 'Feed',
+                            ),
+                          ]
+                        : const [
+                            Tab(
+                              icon: Icon(LucideIcons.compass, size: 20),
+                              text: 'Feed',
+                            ),
+                            Tab(
+                              icon: Icon(LucideIcons.bookmark, size: 20),
+                              text: 'Saved',
+                            ),
+                            Tab(
+                              icon: Icon(LucideIcons.layoutGrid, size: 20),
+                              text: 'My Posts',
+                            ),
+                          ],
                   ),
                 ),
               ),
@@ -401,14 +397,12 @@ void initState() {
                   controller: _tabController,
 
                   children: isGuest
-    ? const [
-        SocialFeedPage(),
-      ]
-    : const [
-        SocialFeedPage(),
-        SavedPostsPage(),
-        _MyPostsTab(),
-      ],
+                      ? const [SocialFeedPage()]
+                      : const [
+                          SocialFeedPage(),
+                          SavedPostsPage(),
+                          _MyPostsTab(),
+                        ],
                 ),
               ),
             ],
@@ -450,19 +444,19 @@ void initState() {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(100),
 
-                 onTap: () {
-  if (isGuest) {
-    context.read<AppState>().setCurrentTab(NavTab.profile);
-    return;
-  }
+                  onTap: () {
+                    if (isGuest) {
+                      context.read<AppState>().setCurrentTab(NavTab.profile);
+                      return;
+                    }
 
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const CreateSocialPostPage(),
-    ),
-  );
-},
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CreateSocialPostPage(),
+                      ),
+                    );
+                  },
 
                   child: const Center(
                     child: Icon(
@@ -503,7 +497,7 @@ class _MyPostsTab extends StatelessWidget {
     }
 
     return Container(
-     color: const Color(0xFF121417),
+      color: const Color(0xFF121417),
 
       child: UserPostsGrid(userId: currentUserId),
     );

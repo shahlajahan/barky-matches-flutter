@@ -71,14 +71,14 @@ class BarkyBottomNav extends StatelessWidget {
                 top: -10,
                 child: GestureDetector(
                   onTap: () {
-  if (currentTab == NavTab.vet) return;
+                    if (currentTab == NavTab.vet) return;
 
-  appState.closeNotifications();
+                    appState.closeNotifications();
 
-  appState.setBottomNavVisibility(true);
+                    appState.setBottomNavVisibility(true);
 
-  appState.setCurrentTab(NavTab.vet);
-},
+                    appState.setCurrentTab(NavTab.vet);
+                  },
                   child: Container(
                     height: 64,
                     width: 64,
@@ -122,17 +122,17 @@ class BarkyBottomNav extends StatelessWidget {
     final isActive = tab == currentTab;
 
     return GestureDetector(
-     onTap: () {
-  if (isActive && tab != NavTab.profile) {
-    return;
-  }
+      onTap: () {
+        if (isActive && tab != NavTab.profile) {
+          return;
+        }
 
-  appState.closeNotifications();
+        appState.closeNotifications();
 
-  appState.setBottomNavVisibility(true);
+        appState.setBottomNavVisibility(true);
 
-  appState.setCurrentTab(tab);
-},
+        appState.setCurrentTab(tab);
+      },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

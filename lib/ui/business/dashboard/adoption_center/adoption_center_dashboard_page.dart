@@ -130,69 +130,61 @@ class _AdoptionCenterDashboardPageState
   }
 
   Widget _buildContent() {
-  switch (_selected) {
+    switch (_selected) {
+      case AdoptionCenterDashboardSection.overview:
+        return AdoptionCenterDashboardOverviewTab(
+          key: const ValueKey('overview'),
 
-    case AdoptionCenterDashboardSection.overview:
+          businessId: widget.businessId,
 
-      return AdoptionCenterDashboardOverviewTab(
-        key: const ValueKey('overview'),
+          businessData: widget.businessData,
 
-        businessId: widget.businessId,
+          onOpenPets: () {
+            setState(() {
+              _selected = AdoptionCenterDashboardSection.pets;
+            });
+          },
 
-        businessData: widget.businessData,
+          onOpenRequests: () {
+            setState(() {
+              _selected = AdoptionCenterDashboardSection.requests;
+            });
+          },
 
-        onOpenPets: () {
-          setState(() {
-            _selected =
-                AdoptionCenterDashboardSection.pets;
-          });
-        },
-
-        onOpenRequests: () {
-          setState(() {
-            _selected =
-                AdoptionCenterDashboardSection.requests;
-          });
-        },
-
-        onOpenSettings: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  EditAdoptionCenterProfilePage(
-                businessId: widget.businessId,
+          onOpenSettings: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => EditAdoptionCenterProfilePage(
+                  businessId: widget.businessId,
+                ),
               ),
-            ),
-          );
-        },
-      );
+            );
+          },
+        );
 
-    case AdoptionCenterDashboardSection.pets:
+      case AdoptionCenterDashboardSection.pets:
+        return AdoptionPetsTab(
+          key: const ValueKey('pets'),
 
-      return AdoptionPetsTab(
-        key: const ValueKey('pets'),
+          businessId: widget.businessId,
+        );
 
-        businessId: widget.businessId,
-      );
+      case AdoptionCenterDashboardSection.gallery:
+        return AdoptionCenterDashboardGalleryTab(
+          key: const ValueKey('gallery'),
 
-    case AdoptionCenterDashboardSection.gallery:
+          businessId: widget.businessId,
+        );
 
-      return AdoptionCenterDashboardGalleryTab(
-        key: const ValueKey('gallery'),
+      case AdoptionCenterDashboardSection.requests:
+        return AdoptionCenterRequestsTab(
+          key: const ValueKey('requests'),
 
-        businessId: widget.businessId,
-      );
-
-    case AdoptionCenterDashboardSection.requests:
-
-      return AdoptionCenterRequestsTab(
-        key: const ValueKey('requests'),
-
-        businessId: widget.businessId,
-      );
+          businessId: widget.businessId,
+        );
+    }
   }
-}
 }
 
 class _TopTabs extends StatelessWidget {
@@ -205,22 +197,16 @@ class _TopTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-  (
-    AdoptionCenterDashboardSection.overview,
+      (
+        AdoptionCenterDashboardSection.overview,
 
-    'Overview',
+        'Overview',
 
-    LucideIcons.layoutDashboard,
-  ),
+        LucideIcons.layoutDashboard,
+      ),
 
-  (
-    AdoptionCenterDashboardSection.gallery,
-
-    'Gallery',
-
-    LucideIcons.image,
-  ),
-];
+      (AdoptionCenterDashboardSection.gallery, 'Gallery', LucideIcons.image),
+    ];
 
     return Container(
       margin: const EdgeInsets.only(top: 10),

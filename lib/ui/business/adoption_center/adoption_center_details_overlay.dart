@@ -60,128 +60,105 @@ class _AdoptionCenterDetailsOverlayState
   }
 
   Map<String, dynamic>? get _workingHoursMap {
-  debugPrint('🔥 NEW WORKING HOURS GETTER LOADED 🔥');
+    debugPrint('🔥 NEW WORKING HOURS GETTER LOADED 🔥');
 
-  final rawData = widget.data.rawData ?? {};
+    final rawData = widget.data.rawData ?? {};
 
-  debugPrint('========================');
-debugPrint('RAW DATA KEYS => ${rawData.keys.toList()}');
+    debugPrint('========================');
+    debugPrint('RAW DATA KEYS => ${rawData.keys.toList()}');
 
-debugPrint(
-  'RAW adoption_center => ${rawData["adoption_center"]}',
-);
+    debugPrint('RAW adoption_center => ${rawData["adoption_center"]}');
 
-debugPrint(
-  'RAW sectorData => ${rawData["sectorData"]}',
-);
+    debugPrint('RAW sectorData => ${rawData["sectorData"]}');
 
-debugPrint(
-  'sectorData KEYS => ${Map<String, dynamic>.from(rawData["sectorData"] ?? {}).keys.toList()}',
-);
+    debugPrint(
+      'sectorData KEYS => ${Map<String, dynamic>.from(rawData["sectorData"] ?? {}).keys.toList()}',
+    );
 
-debugPrint('========================');
+    debugPrint('========================');
 
-  final sectorData =
-      Map<String, dynamic>.from(rawData['sectorData'] ?? {});
+    final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
 
-  final sectorAdoptionCenter =
-      sectorData['adoptionCenter'] is Map
-          ? Map<String, dynamic>.from(
-              sectorData['adoptionCenter'],
-            )
-          : <String, dynamic>{};
-
-  final rawAdoptionCenter =
-    sectorData['adoption_center'] is Map
-        ? Map<String, dynamic>.from(
-            sectorData['adoption_center'],
-          )
+    final sectorAdoptionCenter = sectorData['adoptionCenter'] is Map
+        ? Map<String, dynamic>.from(sectorData['adoptionCenter'])
         : <String, dynamic>{};
 
-  final Object? raw;
+    final rawAdoptionCenter = sectorData['adoption_center'] is Map
+        ? Map<String, dynamic>.from(sectorData['adoption_center'])
+        : <String, dynamic>{};
 
-  // ✅ Priority:
-  // 1. adoption_center.workingHours (GOOD MAP)
-  // 2. widget.data.workingHours
-  // 3. _adoptionData.workingHoursMap
-  // 4. rawData.workingHoursMap
-  // 5. sectorData.adoptionCenter.workingHours (OLD STRING - LAST)
+    final Object? raw;
 
-  if (rawAdoptionCenter['workingHours'] != null) {
-    raw = rawAdoptionCenter['workingHours'];
-    debugPrint(
-      'ADOPTION HOURS SOURCE = adoption_center.workingHours',
-    );
-  } else if (widget.data.workingHours != null) {
-    raw = widget.data.workingHours;
-    debugPrint(
-      'ADOPTION HOURS SOURCE = widget.data.workingHours',
-    );
-  } else if (_adoptionData['workingHoursMap'] != null) {
-    raw = _adoptionData['workingHoursMap'];
-    debugPrint(
-      'ADOPTION HOURS SOURCE = _adoptionData.workingHoursMap',
-    );
-  } else if (rawData['workingHoursMap'] != null) {
-    raw = rawData['workingHoursMap'];
-    debugPrint(
-      'ADOPTION HOURS SOURCE = rawData.workingHoursMap',
-    );
-  } else {
-    raw = sectorAdoptionCenter['workingHours'];
-    debugPrint(
-      'ADOPTION HOURS SOURCE = sectorData.adoptionCenter.workingHours (LEGACY)',
-    );
-  }
+    // ✅ Priority:
+    // 1. adoption_center.workingHours (GOOD MAP)
+    // 2. widget.data.workingHours
+    // 3. _adoptionData.workingHoursMap
+    // 4. rawData.workingHoursMap
+    // 5. sectorData.adoptionCenter.workingHours (OLD STRING - LAST)
 
-  debugPrint('ADOPTION HOURS RAW = $raw');
-  debugPrint('RAW CLASS = ${raw.runtimeType}');
-
-  if (raw == null) {
-    return null;
-  }
-
-  if (raw is Map<String, dynamic>) {
-    return raw;
-  }
-
-  if (raw is Map) {
-    return raw.map(
-      (key, value) => MapEntry(key.toString(), value),
-    );
-  }
-
-  // Legacy string support
-  if (raw is String) {
-    final regex = RegExp(
-      r'workingHours:\s*([0-9]{2}:[0-9]{2}-[0-9]{2}:[0-9]{2})',
-    );
-
-    final match = regex.firstMatch(raw);
-
-    if (match != null) {
-      return {
-        'workingDays': const [
-          'Monday',
-          'Tuesday',
-          'Wednesday',
-          'Thursday',
-          'Friday',
-          'Saturday',
-          'Sunday',
-        ],
-        'weekendOpen': true,
-        'workingHours': match.group(1),
-      };
+    if (rawAdoptionCenter['workingHours'] != null) {
+      raw = rawAdoptionCenter['workingHours'];
+      debugPrint('ADOPTION HOURS SOURCE = adoption_center.workingHours');
+    } else if (widget.data.workingHours != null) {
+      raw = widget.data.workingHours;
+      debugPrint('ADOPTION HOURS SOURCE = widget.data.workingHours');
+    } else if (_adoptionData['workingHoursMap'] != null) {
+      raw = _adoptionData['workingHoursMap'];
+      debugPrint('ADOPTION HOURS SOURCE = _adoptionData.workingHoursMap');
+    } else if (rawData['workingHoursMap'] != null) {
+      raw = rawData['workingHoursMap'];
+      debugPrint('ADOPTION HOURS SOURCE = rawData.workingHoursMap');
+    } else {
+      raw = sectorAdoptionCenter['workingHours'];
+      debugPrint(
+        'ADOPTION HOURS SOURCE = sectorData.adoptionCenter.workingHours (LEGACY)',
+      );
     }
 
-    return {
-      'workingHours': raw,
-    };
-  }
+    debugPrint('ADOPTION HOURS RAW = $raw');
+    debugPrint('RAW CLASS = ${raw.runtimeType}');
 
-  return null;
-}
+    if (raw == null) {
+      return null;
+    }
+
+    if (raw is Map<String, dynamic>) {
+      return raw;
+    }
+
+    if (raw is Map) {
+      return raw.map((key, value) => MapEntry(key.toString(), value));
+    }
+
+    // Legacy string support
+    if (raw is String) {
+      final regex = RegExp(
+        r'workingHours:\s*([0-9]{2}:[0-9]{2}-[0-9]{2}:[0-9]{2})',
+      );
+
+      final match = regex.firstMatch(raw);
+
+      if (match != null) {
+        return {
+          'workingDays': const [
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday',
+            'Sunday',
+          ],
+          'weekendOpen': true,
+          'workingHours': match.group(1),
+        };
+      }
+
+      return {'workingHours': raw};
+    }
+
+    return null;
+  }
 
   String get _locationText {
     final parts = <String>[
@@ -1288,82 +1265,75 @@ debugPrint('========================');
   }
 
   Widget _buildWorkingHoursSection() {
-  final l10n = AppLocalizations.of(context)!;
-  final hours = _workingHoursMap;
+    final l10n = AppLocalizations.of(context)!;
+    final hours = _workingHoursMap;
 
-  if (hours == null || hours.isEmpty) {
-    return Text(
-      l10n.workingHoursNotAvailable,
-      style: AppTheme.bodyMedium(color: Colors.black87),
-    );
-  }
-
-  // ===== SIMPLE STRUCTURE =====
-  if (hours.containsKey('workingHours')) {
-    final workingHours =
-        (hours['workingHours'] ?? '').toString();
-
-    if (workingHours.isNotEmpty) {
+    if (hours == null || hours.isEmpty) {
       return Text(
-        workingHours,
-        style: AppTheme.bodyMedium(
-          color: Colors.black87,
-        ),
+        l10n.workingHoursNotAvailable,
+        style: AppTheme.bodyMedium(color: Colors.black87),
       );
     }
-  }
 
-  // ===== DAILY STRUCTURE =====
-  final entries = hours.entries.toList();
+    // ===== SIMPLE STRUCTURE =====
+    if (hours.containsKey('workingHours')) {
+      final workingHours = (hours['workingHours'] ?? '').toString();
 
-  return Column(
-    children: entries.map((entry) {
-      final value = entry.value;
-
-      String hoursText = '';
-
-      if (value is Map<String, dynamic>) {
-        final isOpen = value['open'] == true;
-
-        hoursText = isOpen
-            ? (value['hours'] ?? '').toString()
-            : 'Closed';
-      } else {
-        hoursText = value.toString();
+      if (workingHours.isNotEmpty) {
+        return Text(
+          workingHours,
+          style: AppTheme.bodyMedium(color: Colors.black87),
+        );
       }
+    }
 
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 4,
-              child: Text(
-                entry.key.toString()[0].toUpperCase() +
-                    entry.key.toString().substring(1),
-                style: AppTheme.bodyMedium().copyWith(
-                  fontWeight: FontWeight.w600,
+    // ===== DAILY STRUCTURE =====
+    final entries = hours.entries.toList();
+
+    return Column(
+      children: entries.map((entry) {
+        final value = entry.value;
+
+        String hoursText = '';
+
+        if (value is Map<String, dynamic>) {
+          final isOpen = value['open'] == true;
+
+          hoursText = isOpen ? (value['hours'] ?? '').toString() : 'Closed';
+        } else {
+          hoursText = value.toString();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 4,
+                child: Text(
+                  entry.key.toString()[0].toUpperCase() +
+                      entry.key.toString().substring(1),
+                  style: AppTheme.bodyMedium().copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 5,
-              child: Text(
-                hoursText,
-                textAlign: TextAlign.right,
-                style: AppTheme.bodyMedium(
-                  color: Colors.black87,
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: Text(
+                  hoursText,
+                  textAlign: TextAlign.right,
+                  style: AppTheme.bodyMedium(color: Colors.black87),
                 ),
               ),
-            ),
-          ],
-        ),
-      );
-    }).toList(),
-  );
-}
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
 
   Widget _buildServicesTab() {
     final l10n = AppLocalizations.of(context)!;

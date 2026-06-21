@@ -12,22 +12,20 @@ class _TelegramLabPageState extends State<TelegramLabPage> {
   bool _isSending = false;
   String _result = '';
 
- 
-
   Future<void> _sendMessage() async {
-  setState(() {
-    _isSending = true;
-    _result = '';
-  });
+    setState(() {
+      _isSending = true;
+      _result = '';
+    });
 
-  try {
-    final callable = FirebaseFunctions.instanceFor(
-      region: 'europe-west1',
-    ).httpsCallable('sendTelegramMessage');
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west1',
+      ).httpsCallable('sendTelegramMessage');
 
-    final response = await callable.call({
-      'chatId': '723570051',
-      'text': '''
+      final response = await callable.call({
+        'chatId': '723570051',
+        'text': '''
 🐶 Petsupo Lab Bot
 
 Hello!
@@ -44,46 +42,37 @@ This message was sent securely through Firebase Cloud Functions v2.
 • Check medical records
 • Schedule grooming
 ''',
-    });
+      });
+
+      setState(() {
+        _result = '✅ Telegram message sent successfully';
+      });
+    } catch (e) {
+      setState(() {
+        _result = e.toString();
+      });
+    }
 
     setState(() {
-  _result = '✅ Telegram message sent successfully';
-});
-  } catch (e) {
-    setState(() {
-      _result = e.toString();
+      _isSending = false;
     });
   }
-
-  setState(() {
-    _isSending = false;
-  });
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Telegram Lab'),
-      ),
+      appBar: AppBar(title: const Text('Telegram Lab')),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const Icon(
-              Icons.telegram,
-              size: 80,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.telegram, size: 80, color: Colors.blue),
 
             const SizedBox(height: 20),
 
             const Text(
               'Telegram Bot API Test',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 12),
@@ -103,9 +92,7 @@ This message was sent securely through Firebase Cloud Functions v2.
                   padding: const EdgeInsets.all(16),
                   child: _isSending
                       ? const CircularProgressIndicator()
-                      : const Text(
-                          'Send Telegram Message',
-                        ),
+                      : const Text('Send Telegram Message'),
                 ),
               ),
             ),
@@ -115,9 +102,7 @@ This message was sent securely through Firebase Cloud Functions v2.
             Expanded(
               child: SingleChildScrollView(
                 child: SelectableText(
-                  _result.isEmpty
-                      ? 'No response yet.'
-                      : _result,
+                  _result.isEmpty ? 'No response yet.' : _result,
                 ),
               ),
             ),

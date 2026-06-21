@@ -27,18 +27,11 @@ class GuestFeatureGate extends StatelessWidget {
       child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 32,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: 72,
-                  color: AppTheme.accent,
-                ),
+                Icon(icon, size: 72, color: AppTheme.accent),
 
                 const SizedBox(height: 32),
 

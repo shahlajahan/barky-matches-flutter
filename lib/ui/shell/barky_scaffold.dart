@@ -78,28 +78,28 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
   }
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!mounted) return;
-
-    context.read<AppState>().setBottomNavVisibility(true);
-  });
-}
-
-@override
-void didUpdateWidget(covariant BarkyScaffold oldWidget) {
-  super.didUpdateWidget(oldWidget);
-
-  if (oldWidget.currentTab != widget.currentTab) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
       context.read<AppState>().setBottomNavVisibility(true);
     });
   }
-}
+
+  @override
+  void didUpdateWidget(covariant BarkyScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.currentTab != widget.currentTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        context.read<AppState>().setBottomNavVisibility(true);
+      });
+    }
+  }
 
   VoidCallback? _whatsAppAction(BusinessCardData business) {
     if (business.whatsapp == null || business.whatsapp!.trim().isEmpty) {
@@ -195,17 +195,17 @@ void didUpdateWidget(covariant BarkyScaffold oldWidget) {
           bottom: false,
           child: NotificationListener<UserScrollNotification>(
             onNotification: (notification) {
-  final appState = context.read<AppState>();
+              final appState = context.read<AppState>();
 
-  if (notification.direction == ScrollDirection.reverse) {
-    appState.setBottomNavVisibility(false);
-  } else if (notification.direction == ScrollDirection.forward ||
-             notification.direction == ScrollDirection.idle) {
-    appState.setBottomNavVisibility(true);
-  }
+              if (notification.direction == ScrollDirection.reverse) {
+                appState.setBottomNavVisibility(false);
+              } else if (notification.direction == ScrollDirection.forward ||
+                  notification.direction == ScrollDirection.idle) {
+                appState.setBottomNavVisibility(true);
+              }
 
-  return false;
-},
+              return false;
+            },
 
             child: Stack(
               children: [
@@ -276,39 +276,38 @@ void didUpdateWidget(covariant BarkyScaffold oldWidget) {
             ),
 
             */
+                Builder(
+                  builder: (context) {
+                    final show = context.select<AppState, bool>(
+                      (s) => s.showGuestFeatureGate,
+                    );
 
-            Builder(
-  builder: (context) {
-    final show = context.select<AppState, bool>(
-      (s) => s.showGuestFeatureGate,
-    );
+                    if (!show) {
+                      return const SizedBox.shrink();
+                    }
 
-    if (!show) {
-      return const SizedBox.shrink();
-    }
+                    final appState = context.read<AppState>();
 
-    final appState = context.read<AppState>();
+                    return Positioned.fill(
+                      child: GuestFeatureGate(
+                        icon: Icons.people_alt_rounded,
+                        title: "Follow pet lovers",
+                        description:
+                            "Create an account to build your pet community.",
+                        buttonText: "Sign In",
+                        onPressed: () {
+                          appState.closeGuestFeatureGate();
 
-    return Positioned.fill(
-      child: GuestFeatureGate(
-        icon: Icons.people_alt_rounded,
-        title: "Follow pet lovers",
-        description:
-            "Create an account to build your pet community.",
-        buttonText: "Sign In",
-        onPressed: () {
-  appState.closeGuestFeatureGate();
+                          // ✅ اول پروفایل Petplore بسته شود
+                          appState.closePetploreProfile();
 
-  // ✅ اول پروفایل Petplore بسته شود
-  appState.closePetploreProfile();
-
-  // ✅ بعد Tab عوض شود
-  appState.setCurrentTab(NavTab.profile);
-},
-      ),
-    );
-  },
-),
+                          // ✅ بعد Tab عوض شود
+                          appState.setCurrentTab(NavTab.profile);
+                        },
+                      ),
+                    );
+                  },
+                ),
 
                 // ─────────────────────────────
                 // 🧩 Business Detail Overlay (GLOBAL)

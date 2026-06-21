@@ -19,42 +19,36 @@ class AppNotification {
   });
 
   Map<String, dynamic> toMap() {
-  return {
-    'title': title,
-    'body': body,
-    'createdAt': Timestamp.fromDate(timestamp),
-    'payload': payload,
-    'isRead': isRead,
-  };
-}
-
-  factory AppNotification.fromMap(
-  String id,
-  Map<String, dynamic> map,
-) {
-  String? payloadString;
-  final rawPayload = map['payload'];
-
-  if (rawPayload is String) {
-    payloadString = rawPayload;
-  } else if (rawPayload is Map<String, dynamic>) {
-    payloadString = jsonEncode(rawPayload);
+    return {
+      'title': title,
+      'body': body,
+      'createdAt': Timestamp.fromDate(timestamp),
+      'payload': payload,
+      'isRead': isRead,
+    };
   }
 
-  final ts =
-      map['createdAt'] ??
-      map['timestamp'];
+  factory AppNotification.fromMap(String id, Map<String, dynamic> map) {
+    String? payloadString;
+    final rawPayload = map['payload'];
 
-  return AppNotification(
-    id: id,
-    title: map['title'] as String? ?? '',
-    body: map['body'] as String? ?? '',
-    timestamp:
-        ts is Timestamp
-            ? ts.toDate()
-            : DateTime.fromMillisecondsSinceEpoch(0),
-    payload: payloadString,
-    isRead: map['isRead'] as bool? ?? false,
-  );
-}
+    if (rawPayload is String) {
+      payloadString = rawPayload;
+    } else if (rawPayload is Map<String, dynamic>) {
+      payloadString = jsonEncode(rawPayload);
+    }
+
+    final ts = map['createdAt'] ?? map['timestamp'];
+
+    return AppNotification(
+      id: id,
+      title: map['title'] as String? ?? '',
+      body: map['body'] as String? ?? '',
+      timestamp: ts is Timestamp
+          ? ts.toDate()
+          : DateTime.fromMillisecondsSinceEpoch(0),
+      payload: payloadString,
+      isRead: map['isRead'] as bool? ?? false,
+    );
+  }
 }

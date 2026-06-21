@@ -41,113 +41,87 @@ class ChatService {
 
     final chatRef = _chats.doc(chatId);
 
-final chatSnap = await chatRef.get();
+    final chatSnap = await chatRef.get();
 
-debugPrint(
-  "🐾 CHAT DOC = ${chatSnap.data()}",
-);
+    debugPrint("🐾 CHAT DOC = ${chatSnap.data()}");
 
-if (chatSnap.exists) {
+    if (chatSnap.exists) {
+      final data = chatSnap.data() ?? {};
 
-  final data = chatSnap.data() ?? {};
+      final participantNames = Map<String, dynamic>.from(
+        data['participantNames'] ?? {},
+      );
 
-  final participantNames =
-      Map<String, dynamic>.from(
-    data['participantNames'] ?? {},
-  );
-
-  final names = {
-    currentUserId: currentUserName,
-    otherUserId: otherUserName,
-  };
-
-  debugPrint(
-    "💬 EXISTING participantNames=$participantNames",
-  );
-
-  debugPrint(
-    "💬 EXPECTED names=$names",
-  );
-
-  if (participantNames.isEmpty ||
-      !participantNames.containsKey(currentUserId) ||
-      !participantNames.containsKey(otherUserId)) {
-
-    debugPrint(
-      "💬 REPAIR RUNNING",
-    );
-
-    await chatRef.update({
-      'participantNames': names,
-    });
-
-    debugPrint(
-      "💬 REPAIR DONE = $names",
-    );
-  }
-
-} else {
-
-  final now = FieldValue.serverTimestamp();
-
-  debugPrint("💬 CREATING CHAT → $chatId");
-
-  debugPrint("💬 participants → $ids");
-
-  debugPrint("💬 currentUserId → $currentUserId");
-
-  debugPrint("💬 otherUserId → $otherUserId");
-
-  try {
-
-    await chatRef.set({
-      'participants': ids,
-
-      'participantMap': {
-        currentUserId: true,
-        otherUserId: true,
-      },
-
-      'participantNames': {
+      final names = {
         currentUserId: currentUserName,
         otherUserId: otherUserName,
-      },
+      };
 
-      'participantPhotos': {
-        currentUserId: currentUserPhoto,
-        otherUserId: otherUserPhoto,
-      },
+      debugPrint("💬 EXISTING participantNames=$participantNames");
 
-      'lastMessage': '',
-      'lastMessageAt': now,
-      'lastSenderId': '',
+      debugPrint("💬 EXPECTED names=$names");
 
-      'unreadCount': {
-        currentUserId: 0,
-        otherUserId: 0,
-      },
+      if (participantNames.isEmpty ||
+          !participantNames.containsKey(currentUserId) ||
+          !participantNames.containsKey(otherUserId)) {
+        debugPrint("💬 REPAIR RUNNING");
 
-      'createdAt': now,
-      'updatedAt': now,
-    });
+        await chatRef.update({'participantNames': names});
 
-    final verify = await chatRef.get();
+        debugPrint("💬 REPAIR DONE = $names");
+      }
+    } else {
+      final now = FieldValue.serverTimestamp();
 
-    if (!verify.exists) {
-      throw Exception('Chat creation failed');
+      debugPrint("💬 CREATING CHAT → $chatId");
+
+      debugPrint("💬 participants → $ids");
+
+      debugPrint("💬 currentUserId → $currentUserId");
+
+      debugPrint("💬 otherUserId → $otherUserId");
+
+      try {
+        await chatRef.set({
+          'participants': ids,
+
+          'participantMap': {currentUserId: true, otherUserId: true},
+
+          'participantNames': {
+            currentUserId: currentUserName,
+            otherUserId: otherUserName,
+          },
+
+          'participantPhotos': {
+            currentUserId: currentUserPhoto,
+            otherUserId: otherUserPhoto,
+          },
+
+          'lastMessage': '',
+          'lastMessageAt': now,
+          'lastSenderId': '',
+
+          'unreadCount': {currentUserId: 0, otherUserId: 0},
+
+          'createdAt': now,
+          'updatedAt': now,
+        });
+
+        final verify = await chatRef.get();
+
+        if (!verify.exists) {
+          throw Exception('Chat creation failed');
+        }
+
+        debugPrint("✅ CHAT VERIFIED");
+        debugPrint("✅ CHAT CREATED SUCCESSFULLY");
+      } catch (e, stack) {
+        debugPrint("❌ CHAT CREATE ERROR → $e");
+        debugPrint("$stack");
+
+        rethrow;
+      }
     }
-
-    debugPrint("✅ CHAT VERIFIED");
-    debugPrint("✅ CHAT CREATED SUCCESSFULLY");
-
-  } catch (e, stack) {
-
-    debugPrint("❌ CHAT CREATE ERROR → $e");
-    debugPrint("$stack");
-
-    rethrow;
-  }
-}
 
     return chatId;
   }

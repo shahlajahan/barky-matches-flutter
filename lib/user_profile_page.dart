@@ -40,7 +40,6 @@ import 'package:barky_matches_fixed/ui/profile/change_password_page.dart';
 
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 
-
 // ────────────────────────────────────────────────
 //  جدید — کامپوننت‌های استاندارد TYPE A
 // ────────────────────────────────────────────────
@@ -901,7 +900,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
       debugPrint('UserProfilePage - logout error: $e');
     }
   }
-/*
+
+  /*
   Future<void> _generateFcmTokenDebug() async {
     if (_generatingFcmToken) return;
 
@@ -1193,10 +1193,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
               ProfileSection(
                 title: AppLocalizations.of(context)!.userProfileActivity,
                 children: [
-                  
-
-                  
-
                   ProfileTile(
                     icon: Icons.bookmark,
                     title: AppLocalizations.of(context)!.userProfileSavedParks,
@@ -1391,10 +1387,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           MaterialPageRoute(
                             builder: (_) => AddDogPage(
                               onDogAdded: (newDog) {
-  final appState = context.read<AppState>();
+                                final appState = context.read<AppState>();
 
-  appState.loadMyDogs();
-},
+                                appState.loadMyDogs();
+                              },
                               favoriteDogs: widget.favoriteDogs,
                               onToggleFavorite: widget.onToggleFavorite,
                             ),

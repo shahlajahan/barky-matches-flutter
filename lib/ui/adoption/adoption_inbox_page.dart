@@ -217,112 +217,80 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
     );
   }
 
-  Widget _buildSelectedRequest(
-  String currentUid,
-  String requestId,
-) {
-  return Container(
-    color: const Color(0xFFFDF2F5),
+  Widget _buildSelectedRequest(String currentUid, String requestId) {
+    return Container(
+      color: const Color(0xFFFDF2F5),
 
-    child: StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('adoption_requests')
-          .doc(requestId)
-          .snapshots(),
+      child: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('adoption_requests')
+            .doc(requestId)
+            .snapshots(),
 
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              "Error: ${snapshot.error}",
-            ),
-          );
-        }
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
 
-        if (!snapshot.hasData) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        final doc = snapshot.data!;
+          final doc = snapshot.data!;
 
-        if (!doc.exists || doc.data() == null) {
-          return Center(
-            child: Text(
-              "Adoption request not found",
-              style: AppTheme.body(
-                color: AppTheme.muted,
+          if (!doc.exists || doc.data() == null) {
+            return Center(
+              child: Text(
+                "Adoption request not found",
+                style: AppTheme.body(color: AppTheme.muted),
               ),
-            ),
+            );
+          }
+
+          final data = doc.data() as Map<String, dynamic>;
+
+          final targetOwnerId = (data['targetOwnerId'] ?? '').toString();
+
+          final targetId = (data['targetId'] ?? '').toString();
+
+          final ownerTargetIds = <String>{currentUid, targetOwnerId, targetId};
+
+          debugPrint(
+            "🐾 SELECTED REQUEST OWNER IDS = "
+            "$ownerTargetIds",
           );
-        }
 
-        final data =
-            doc.data() as Map<String, dynamic>;
+          return ListView(
+            padding: const EdgeInsets.all(16),
 
-        final targetOwnerId =
-            (data['targetOwnerId'] ?? '')
-                .toString();
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
 
-        final targetId =
-            (data['targetId'] ?? '')
-                .toString();
+                child: TextButton.icon(
+                  onPressed: () {
+                    context.read<AppState>().consumeInitialAdoptionRequest();
+                  },
 
-        final ownerTargetIds = <String>{
+                  icon: const Icon(Icons.arrow_back),
 
-          currentUid,
-
-          targetOwnerId,
-
-          targetId,
-
-        };
-
-        debugPrint(
-          "🐾 SELECTED REQUEST OWNER IDS = "
-          "$ownerTargetIds",
-        );
-
-        return ListView(
-          padding: const EdgeInsets.all(16),
-
-          children: [
-
-            Align(
-              alignment: Alignment.centerLeft,
-
-              child: TextButton.icon(
-                onPressed: () {
-                  context
-                      .read<AppState>()
-                      .consumeInitialAdoptionRequest();
-                },
-
-                icon: const Icon(
-                  Icons.arrow_back,
-                ),
-
-                label: const Text(
-                  "Back to requests",
+                  label: const Text("Back to requests"),
                 ),
               ),
-            ),
 
-            _buildRequestCard(
-              doc,
+              _buildRequestCard(
+                doc,
 
-              currentUid,
+                currentUid,
 
-              ownerTargetIds:
-                  ownerTargetIds,
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
+                ownerTargetIds: ownerTargetIds,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildRequestCard(
     DocumentSnapshot doc,
@@ -336,26 +304,19 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
     final targetId = (data['targetId'] ?? '').toString();
     final targetOwnerId = (data['targetOwnerId'] ?? '').toString();
     debugPrint(
-  "🐾 INBOX DEBUG "
-  "targetOwnerId=$targetOwnerId "
-  "currentUid=$currentUid "
-  "ownerTargetIds=$ownerTargetIds",
-);
+      "🐾 INBOX DEBUG "
+      "targetOwnerId=$targetOwnerId "
+      "currentUid=$currentUid "
+      "ownerTargetIds=$ownerTargetIds",
+    );
     final requesterId = (data['requesterId'] ?? '').toString();
     final openedFromOverview =
+        context.read<AppState>().initialAdoptionRequestId != null;
 
-context
-   .read<AppState>()
-   .initialAdoptionRequestId !=
-null;
-
-final isOwnerView =
-
-ownerTargetIds.contains(targetOwnerId) ||
-
-ownerTargetIds.contains(targetId) ||
-
-openedFromOverview;
+    final isOwnerView =
+        ownerTargetIds.contains(targetOwnerId) ||
+        ownerTargetIds.contains(targetId) ||
+        openedFromOverview;
     final isRequesterView = requesterId == currentUid;
 
     final form = (data['form'] is Map)
@@ -464,220 +425,161 @@ openedFromOverview;
               const SizedBox(height: 20),
 
               if (status == "pending" && isOwnerView)
-  _buildActionButtons(
-    requestId: doc.id,
-    isBusy: isBusy,
-    targetOwnerId: targetOwnerId,
-    requesterId: requesterId,
-  )
-else if (status == "pending" && isRequesterView)
-  _buildWaitingForOwnerMessage()
-else if (status == "pending")
-  _buildWaitingForOwnerMessage(),
+                _buildActionButtons(
+                  requestId: doc.id,
+                  isBusy: isBusy,
+                  targetOwnerId: targetOwnerId,
+                  requesterId: requesterId,
+                )
+              else if (status == "pending" && isRequesterView)
+                _buildWaitingForOwnerMessage()
+              else if (status == "pending")
+                _buildWaitingForOwnerMessage(),
+
+              if (isOwnerView && requesterId.isNotEmpty) ...[
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final currentUser = FirebaseAuth.instance.currentUser;
+
+                      if (currentUser == null) {
+                        return;
+                      }
+
+                      final myUid = currentUser.uid;
+
+                      /// ============================
+                      /// Load requester name from users
+                      /// ============================
+
+                      String requesterName = "User";
+
+                      final userSnap = await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(requesterId)
+                          .get();
+
+                      if (userSnap.exists) {
+                        final userData = userSnap.data()!;
+
+                        requesterName =
+                            (userData['username'] ??
+                                    userData['displayName'] ??
+                                    userData['name'] ??
+                                    "User")
+                                .toString();
+
+                        debugPrint("🐾 REQUESTER USER DATA = $userData");
+                      }
+
+                      /// ============================
+                      /// Current user name
+                      /// ============================
+
+                      /// ============================
+                      /// Current user name
+                      /// Prefer business name
+                      /// ============================
+
+                      String myName = "User";
+
+                      final businessSnap = await FirebaseFirestore.instance
+                          .collection('businesses')
+                          .doc(myUid)
+                          .get();
+
+                      if (businessSnap.exists) {
+                        final businessData = businessSnap.data()!;
+
+                        myName =
+                            (businessData['profile']?['displayName'] ??
+                                    businessData['profile']?['businessName'] ??
+                                    "User")
+                                .toString();
+
+                        debugPrint("🐾 MY BUSINESS DATA = $businessData");
+                      } else {
+                        final myUserSnap = await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(myUid)
+                            .get();
+
+                        if (myUserSnap.exists) {
+                          final myData = myUserSnap.data()!;
+
+                          myName =
+                              (myData['username'] ??
+                                      myData['displayName'] ??
+                                      myData['name'] ??
+                                      currentUser.displayName ??
+                                      "User")
+                                  .toString();
+                        } else {
+                          myName =
+                              currentUser.displayName?.trim().isNotEmpty == true
+                              ? currentUser.displayName!.trim()
+                              : "User";
+                        }
+                      }
+
+                      debugPrint("🐾 MY CHAT NAME = $myName");
 
-if (isOwnerView && requesterId.isNotEmpty) ...[
+                      /// ============================
+                      /// Create / Get chat
+                      /// ============================
 
-  const SizedBox(
-    height: 12,
-  ),
+                      final chatId = await ChatService.instance.getOrCreateChat(
+                        currentUserId: myUid,
 
-  SizedBox(
+                        otherUserId: requesterId,
 
-    width: double.infinity,
+                        currentUserName: myName,
 
-    child: ElevatedButton.icon(
+                        otherUserName: requesterName,
+                      );
 
-     onPressed: () async {
+                      debugPrint("🐾 CHAT ID = $chatId");
 
-  final currentUser =
-      FirebaseAuth.instance.currentUser;
+                      if (!context.mounted) {
+                        return;
+                      }
 
-  if (currentUser == null) {
-    return;
-  }
+                      Navigator.push(
+                        context,
 
-  final myUid = currentUser.uid;
+                        MaterialPageRoute(
+                          builder: (_) => ChatDetailPage(
+                            chatId: chatId,
 
-  /// ============================
-  /// Load requester name from users
-  /// ============================
+                            otherUserId: requesterId,
 
-  String requesterName = "User";
+                            otherUserName: requesterName,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.message),
 
-  final userSnap = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(requesterId)
-      .get();
+                    label: const Text("Message Applicant"),
 
-  if (userSnap.exists) {
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
 
-    final userData = userSnap.data()!;
+                      foregroundColor: const Color(0xFF9E1B4F),
 
-    requesterName =
-        (userData['username'] ??
-                userData['displayName'] ??
-                userData['name'] ??
-                "User")
-            .toString();
+                      padding: const EdgeInsets.symmetric(vertical: 12),
 
-    debugPrint(
-      "🐾 REQUESTER USER DATA = $userData",
-    );
-
-  }
-
-  /// ============================
-  /// Current user name
-  /// ============================
-
-  /// ============================
-/// Current user name
-/// Prefer business name
-/// ============================
-
-String myName = "User";
-
-final businessSnap = await FirebaseFirestore.instance
-    .collection('businesses')
-    .doc(myUid)
-    .get();
-
-if (businessSnap.exists) {
-
-  final businessData = businessSnap.data()!;
-
-  myName =
-      (businessData['profile']?['displayName'] ??
-       businessData['profile']?['businessName'] ??
-       "User")
-          .toString();
-
-  debugPrint(
-    "🐾 MY BUSINESS DATA = $businessData",
-  );
-
-} else {
-
-  final myUserSnap = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(myUid)
-      .get();
-
-  if (myUserSnap.exists) {
-
-    final myData = myUserSnap.data()!;
-
-    myName =
-        (myData['username'] ??
-         myData['displayName'] ??
-         myData['name'] ??
-         currentUser.displayName ??
-         "User")
-            .toString();
-
-  } else {
-
-    myName =
-        currentUser.displayName
-            ?.trim()
-            .isNotEmpty ==
-        true
-            ? currentUser.displayName!.trim()
-            : "User";
-  }
-}
-
-debugPrint(
-  "🐾 MY CHAT NAME = $myName",
-);
-
-  /// ============================
-  /// Create / Get chat
-  /// ============================
-
-  final chatId =
-      await ChatService.instance
-          .getOrCreateChat(
-
-    currentUserId: myUid,
-
-    otherUserId: requesterId,
-
-    currentUserName: myName,
-
-    otherUserName: requesterName,
-
-  );
-
-  debugPrint(
-    "🐾 CHAT ID = $chatId",
-  );
-
-  if (!context.mounted) {
-    return;
-  }
-
-  Navigator.push(
-
-    context,
-
-    MaterialPageRoute(
-
-      builder: (_) => ChatDetailPage(
-
-        chatId: chatId,
-
-        otherUserId: requesterId,
-
-        otherUserName: requesterName,
-
-      ),
-
-    ),
-
-  );
-
-},
-      icon: const Icon(
-        Icons.message,
-      ),
-
-      label: const Text(
-        "Message Applicant",
-      ),
-
-      style: ElevatedButton.styleFrom(
-
-        backgroundColor:
-            Colors.white,
-
-        foregroundColor:
-            const Color(
-              0xFF9E1B4F,
-            ),
-
-        padding:
-            const EdgeInsets.symmetric(
-          vertical: 12,
-        ),
-
-        shape:
-            RoundedRectangleBorder(
-
-          borderRadius:
-              BorderRadius.circular(
-            14,
-          ),
-
-        ),
-
-      ),
-
-    ),
-
-  ),
-
-],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -700,167 +602,81 @@ debugPrint(
   }
 
   Widget _buildRequestPetHeader({
-  required String currentUid,
-  required String status,
-  required String targetType,
-  required String targetId,
-}) {
+    required String currentUid,
+    required String status,
+    required String targetType,
+    required String targetId,
+  }) {
+    if (targetId.isEmpty) {
+      return _buildUnknownPetHeader(status);
+    }
 
-  if (targetId.isEmpty) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('adoption_pets')
+          .doc(targetId)
+          .snapshots(),
 
-    return _buildUnknownPetHeader(
-      status,
-    );
+      builder: (context, snapshot) {
+        if (!snapshot.hasData ||
+            !snapshot.data!.exists ||
+            snapshot.data!.data() == null) {
+          return _buildUnknownPetHeader(status);
+        }
 
-  }
-
-  return StreamBuilder<DocumentSnapshot>(
-
-    stream:
-        FirebaseFirestore.instance
-            .collection(
-              'adoption_pets',
-            )
-            .doc(
-              targetId,
-            )
-            .snapshots(),
-
-    builder: (
-      context,
-      snapshot,
-    ) {
-
-      if (
-      !snapshot.hasData ||
-      !snapshot.data!.exists ||
-      snapshot.data!.data()==null
-      ) {
-
-        return _buildUnknownPetHeader(
-          status,
+        final pet = Map<String, dynamic>.from(
+          snapshot.data!.data() as Map<String, dynamic>,
         );
 
-      }
+        final petName = (pet['name'] ?? 'Unknown Pet').toString();
 
-      final pet = Map<String,dynamic>.from(
-        snapshot.data!.data()
-        as Map<String,dynamic>,
-      );
+        final breed = (pet['breed'] ?? '').toString();
 
-      final petName =
-      (
-      pet['name'] ??
-      'Unknown Pet'
-      ).toString();
+        final image = (pet['coverImageUrl'] ?? '').toString();
 
-      final breed =
-      (
-      pet['breed'] ??
-      ''
-      ).toString();
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
 
-      final image =
-      (
-      pet['coverImageUrl'] ??
-      ''
-      ).toString();
+          children: [
+            Container(
+              width: 70,
+              height: 70,
 
-      return Row(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
 
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-
-        children: [
-
-          Container(
-            width: 70,
-            height: 70,
-
-            decoration:
-                BoxDecoration(
-              borderRadius:
-                  BorderRadius.circular(
-                    16,
-                  ),
-
-              color:
-                  Colors.white
-                      .withOpacity(
-                        .16,
-                      ),
-            ),
-
-            clipBehavior:
-                Clip.hardEdge,
-
-            child:
-
-            image.isNotEmpty
-
-            ? SmartMedia(
-                url: image,
-                fit: BoxFit.cover,
-              )
-
-            : const Icon(
-                Icons.pets,
-                color: Colors.white,
+                color: Colors.white.withOpacity(.16),
               ),
-          ),
 
-          const SizedBox(
-            width: 12,
-          ),
+              clipBehavior: Clip.hardEdge,
 
-          Expanded(
-
-            child: Column(
-
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-
-              children: [
-
-                Text(
-
-                  petName,
-
-                  style:
-                      AppTheme.h2(
-                    color:
-                        Colors.white,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 4,
-                ),
-
-                Text(
-
-                  breed,
-
-                  style:
-                      AppTheme.body(
-                    color:
-                        Colors.white70,
-                  ),
-                ),
-
-              ],
+              child: image.isNotEmpty
+                  ? SmartMedia(url: image, fit: BoxFit.cover)
+                  : const Icon(Icons.pets, color: Colors.white),
             ),
-          ),
 
-          _buildStatusBadge(
-            status,
-          ),
+            const SizedBox(width: 12),
 
-        ],
-      );
-    },
-  );
-}
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+
+                children: [
+                  Text(petName, style: AppTheme.h2(color: Colors.white)),
+
+                  const SizedBox(height: 4),
+
+                  Text(breed, style: AppTheme.body(color: Colors.white70)),
+                ],
+              ),
+            ),
+
+            _buildStatusBadge(status),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _buildUnknownPetHeader(String status) {
     return Row(

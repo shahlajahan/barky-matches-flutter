@@ -6,12 +6,8 @@ class TelegramUsersPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Telegram Users'),
-      ),
-      body: const Center(
-        child: Text('Coming soon...'),
-      ),
+      appBar: AppBar(title: const Text('Telegram Users')),
+      body: const Center(child: Text('Coming soon...')),
     );
   }
 }

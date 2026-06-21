@@ -1218,64 +1218,64 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildMainFeaturesGrid() {
-  final l = AppLocalizations.of(context)!;
+    final l = AppLocalizations.of(context)!;
 
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Column(
-      children: [
-        /// HERO PETPLORE
-        _BigPhotoHomeCard(
-          title: "Petplore",
-          subtitle: "Share moments with pet lovers",
-          imagePath: "assets/home/heroes/petplore_hero.png",
-          imageAlignment: const Alignment(0.2, -0.45),
-          onTap: () {
-            context.read<app.AppState>().setCurrentTab(
-              NavTab.petplore,
-            );
-          },
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          /// HERO PETPLORE
+          _BigPhotoHomeCard(
+            title: "Petplore",
+            subtitle: "Share moments with pet lovers",
+            imagePath: "assets/home/heroes/petplore_hero.png",
+            imageAlignment: const Alignment(0.2, -0.45),
+            onTap: () {
+              context.read<app.AppState>().setCurrentTab(NavTab.petplore);
+            },
+          ),
 
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-        /// GRID
-        Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 16),
-  child: Row(
-    children: [
-      Expanded(
-        child: _SmallPhotoHomeCard(
-          title: "Playmate",
-          subtitle: "Help your pet make new friends",
-          imagePath: "assets/home/playmate.png",
-          onTap: () {
-            context.read<app.AppState>()
-                .setCurrentTab(NavTab.playmates);
-          },
-        ),
+          /// GRID
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _SmallPhotoHomeCard(
+                    title: "Playmate",
+                    subtitle: "Help your pet make new friends",
+                    imagePath: "assets/home/playmate.png",
+                    onTap: () {
+                      context.read<app.AppState>().setCurrentTab(
+                        NavTab.playmates,
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(width: 14),
+
+                Expanded(
+                  child: _SmallPhotoHomeCard(
+                    title: l.adoptionTitle,
+                    subtitle: l.giveLove,
+                    imagePath: "assets/home/adoption.png",
+                    onTap: () {
+                      context.read<app.AppState>().setCurrentTab(
+                        NavTab.adoption,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-
-      const SizedBox(width: 14),
-
-      Expanded(
-        child: _SmallPhotoHomeCard(
-          title: l.adoptionTitle,
-          subtitle: l.giveLove,
-          imagePath: "assets/home/adoption.png",
-          onTap: () {
-            context.read<app.AppState>()
-                .setCurrentTab(NavTab.adoption);
-          },
-        ),
-      ),
-    ],
-  ),
-),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   void _scrollToSafety() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1322,34 +1322,34 @@ class _HomePageState extends State<HomePage>
 
               /// 🔥 TITLE → پایین کارت
               Positioned(
-  left: 22,
-  bottom: 18,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        "Green Memorial",
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+                left: 22,
+                bottom: 18,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Green Memorial",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
 
-      const SizedBox(height: 4),
+                    const SizedBox(height: 4),
 
-      Text(
-        "Love lives in memories",
-        style: GoogleFonts.poppins(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          height: 1.35,
-        ),
-      ),
-    ],
-  ),
-),
+                    Text(
+                      "Love lives in memories",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -1631,9 +1631,9 @@ class _HomePageState extends State<HomePage>
                       if (deal.discountPercent > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
-  horizontal: 8,
-  vertical: 4,
-),
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.18),
                             borderRadius: BorderRadius.circular(999),
@@ -1656,7 +1656,7 @@ class _HomePageState extends State<HomePage>
                 // RIGHT: logo
                 Container(
                   width: 72,
-height: 72,
+                  height: 72,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.22),
                     borderRadius: BorderRadius.circular(18),
@@ -1910,7 +1910,6 @@ height: 72,
                     ),
                   ],
 
-                  
                   const SizedBox(height: _sectionGap),
 
                   _buildSectionHeader("Community"),
@@ -1919,35 +1918,32 @@ height: 72,
 
                   const SizedBox(height: _sectionGap),
 
-_buildSectionHeader("Social Impact"),
-const SizedBox(height: 12),
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 16),
-  child: _greenMemorialCard(),
-),
+                  _buildSectionHeader("Social Impact"),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _greenMemorialCard(),
+                  ),
 
-const SizedBox(height: _sectionGap),
+                  const SizedBox(height: _sectionGap),
 
-Container(
-  key: _safetyKey,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _buildSafetyHeader(lostCount + foundCount),
-      const SizedBox(height: 10),
-      _buildSafetySection(),
-    ],
-  ),
-),
+                  Container(
+                    key: _safetyKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSafetyHeader(lostCount + foundCount),
+                        const SizedBox(height: 10),
+                        _buildSafetySection(),
+                      ],
+                    ),
+                  ),
 
-const SizedBox(height: _sectionGap),
+                  const SizedBox(height: _sectionGap),
 
-_buildSectionHeader(l.outdoorAndLifestyle),
-const SizedBox(height: 12),
-_buildPlacesSection(),
-                 
-
-                  
+                  _buildSectionHeader(l.outdoorAndLifestyle),
+                  const SizedBox(height: 12),
+                  _buildPlacesSection(),
 
                   const SizedBox(height: 20),
 
@@ -2071,44 +2067,44 @@ _buildPlacesSection(),
   }
 
   Widget _featureCard({
-  required String title,
-  required String subtitle,
-  required String imagePath,
-  required IconData icon,
-  required VoidCallback onTap,
-  double imageScale = 1.18,
-}) {
+    required String title,
+    required String subtitle,
+    required String imagePath,
+    required IconData icon,
+    required VoidCallback onTap,
+    double imageScale = 1.18,
+  }) {
     final bool isAlert = title.toLowerCase() == "alerts";
     return _buildHomeImageCard(
-  title: title,
-  subtitle: subtitle,
-  imagePath: imagePath,
-  onTap: onTap,
-  hideTextForAlertTitle: isAlert,
-  imageScale: imageScale,
-);
+      title: title,
+      subtitle: subtitle,
+      imagePath: imagePath,
+      onTap: onTap,
+      hideTextForAlertTitle: isAlert,
+      imageScale: imageScale,
+    );
   }
 
   Widget _buildHomeImageCard({
-  required String title,
-  required String subtitle,
-  required String imagePath,
-  required VoidCallback onTap,
-  bool hasAlert = false,
-  int count = 0,
-  bool hideTextForAlertTitle = false,
-  double imageScale = 1.18,
-}) {
+    required String title,
+    required String subtitle,
+    required String imagePath,
+    required VoidCallback onTap,
+    bool hasAlert = false,
+    int count = 0,
+    bool hideTextForAlertTitle = false,
+    double imageScale = 1.18,
+  }) {
     return HomeImageCard(
-  title: title,
-  subtitle: subtitle,
-  imagePath: imagePath,
-  onTap: onTap,
-  hasAlert: hasAlert,
-  count: count,
-  hideTextForAlertTitle: hideTextForAlertTitle,
-  imageScale: imageScale,
-);
+      title: title,
+      subtitle: subtitle,
+      imagePath: imagePath,
+      onTap: onTap,
+      hasAlert: hasAlert,
+      count: count,
+      hideTextForAlertTitle: hideTextForAlertTitle,
+      imageScale: imageScale,
+    );
   }
 
   Widget _buildSectionHeader(String title) {
@@ -2139,55 +2135,55 @@ _buildPlacesSection(),
   }
 
   Widget _buildPlacesSection() {
-  final l = AppLocalizations.of(context)!;
-  final appState = context.read<app.AppState>();
+    final l = AppLocalizations.of(context)!;
+    final appState = context.read<app.AppState>();
 
-  return Column(
-    children: [
-      _wideImagePlaceCard(
-        title: l.homePetFriendlyPlaceTitle,
-        subtitle: l.createMemoriesTogether,
-        imagePath: "assets/home/heroes/pet_friendly_place_hero.png",
-        onTap: () {
-          appState.setCurrentTab(NavTab.dogParks);
-        },
-      ),
+    return Column(
+      children: [
+        _wideImagePlaceCard(
+          title: l.homePetFriendlyPlaceTitle,
+          subtitle: l.createMemoriesTogether,
+          imagePath: "assets/home/heroes/pet_friendly_place_hero.png",
+          onTap: () {
+            appState.setCurrentTab(NavTab.dogParks);
+          },
+        ),
 
-      const SizedBox(height: 14),
+        const SizedBox(height: 14),
 
-      _wideImagePlaceCard(
-        title: l.trainingTitle,
-        subtitle: l.comingSoon,
-        imagePath: "assets/home/heroes/training_hero.png",
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l.trainingComingSoonMessage),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
-      ),
-    ],
-  );
-}
+        _wideImagePlaceCard(
+          title: l.trainingTitle,
+          subtitle: l.comingSoon,
+          imagePath: "assets/home/heroes/training_hero.png",
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(l.trainingComingSoonMessage),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
 
   Widget _wideImagePlaceCard({
-  required String title,
-  required String subtitle,
-  required String imagePath,
-  required VoidCallback onTap,
-}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: _BigPhotoHomeCard(
-      title: title,
-      subtitle: subtitle,
-      imagePath: imagePath,
-      onTap: onTap,
-    ),
-  );
-}
+    required String title,
+    required String subtitle,
+    required String imagePath,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _BigPhotoHomeCard(
+        title: title,
+        subtitle: subtitle,
+        imagePath: imagePath,
+        onTap: onTap,
+      ),
+    );
+  }
 
   Widget _buildSafetyHeader(int lostCount) {
     final l = AppLocalizations.of(context)!;
@@ -2232,75 +2228,72 @@ _buildPlacesSection(),
   }
 
   Widget _buildSafetySection() {
-  final l = AppLocalizations.of(context)!;
-  final appState = context.read<app.AppState>();
+    final l = AppLocalizations.of(context)!;
+    final appState = context.read<app.AppState>();
 
-  final lostCount =
-      context.select<app.AppState, int>((s) => s.lostDogsCount);
+    final lostCount = context.select<app.AppState, int>((s) => s.lostDogsCount);
 
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Column(
-      children: [
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          /// HERO REPORT LOST
+          _BigPhotoHomeCard(
+            title: l.reportTitle,
+            subtitle: l.lostPetTitle,
+            imagePath: "assets/home/lost_dog.png",
+            imageAlignment: const Alignment(0.35, -0.35),
+            onTap: () {
+              appState.setCurrentTab(NavTab.reportLost);
+            },
+          ),
 
-        /// HERO REPORT LOST
-        _BigPhotoHomeCard(
-          title: l.reportTitle,
-          subtitle: l.lostPetTitle,
-          imagePath: "assets/home/lost_dog.png",
-          imageAlignment: const Alignment(0.35, -0.35),
-          onTap: () {
-            appState.setCurrentTab(NavTab.reportLost);
-          },
-        ),
+          const SizedBox(height: 14),
 
-        const SizedBox(height: 14),
-
-        /// LOST PETS + FOUND PETS
-        Row(
-          children: [
-
-            Expanded(
-              child: _SmallPhotoHomeCard(
-                title: l.lostPetsTitle,
-                subtitle: l.activeReportsNearby,
-                imagePath: "assets/home/lost_dog_list.png",
-                onTap: () {
-                  appState.setCurrentTab(NavTab.lostDogs);
-                },
+          /// LOST PETS + FOUND PETS
+          Row(
+            children: [
+              Expanded(
+                child: _SmallPhotoHomeCard(
+                  title: l.lostPetsTitle,
+                  subtitle: l.activeReportsNearby,
+                  imagePath: "assets/home/lost_dog_list.png",
+                  onTap: () {
+                    appState.setCurrentTab(NavTab.lostDogs);
+                  },
+                ),
               ),
-            ),
 
-            const SizedBox(width: 14),
+              const SizedBox(width: 14),
 
-            Expanded(
-              child: _SmallPhotoHomeCard(
-                title: l.foundPetsTitle,
-                subtitle: l.waitingToReunite,
-                imagePath: "assets/home/found_dog.png",
-                onTap: () {
-                  appState.setCurrentTab(NavTab.foundDogs);
-                },
+              Expanded(
+                child: _SmallPhotoHomeCard(
+                  title: l.foundPetsTitle,
+                  subtitle: l.waitingToReunite,
+                  imagePath: "assets/home/found_dog.png",
+                  onTap: () {
+                    appState.setCurrentTab(NavTab.foundDogs);
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
 
-        const SizedBox(height: 14),
+          const SizedBox(height: 14),
 
-        /// HERO REPORT FOUND
-        _BigPhotoHomeCard(
-          title: l.reportFoundTitle,
-          subtitle: l.reconnectFamilies,
-          imagePath: "assets/home/found-dog.png",
-          onTap: () {
-            appState.setCurrentTab(NavTab.reportFound);
-          },
-        ),
-      ],
-    ),
-  );
-}
+          /// HERO REPORT FOUND
+          _BigPhotoHomeCard(
+            title: l.reportFoundTitle,
+            subtitle: l.reconnectFamilies,
+            imagePath: "assets/home/found-dog.png",
+            onTap: () {
+              appState.setCurrentTab(NavTab.reportFound);
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildDraggableBasket() {
     final l = AppLocalizations.of(context)!;
@@ -2391,12 +2384,12 @@ class _BigPhotoHomeCard extends StatelessWidget {
   final Alignment imageAlignment;
 
   const _BigPhotoHomeCard({
-  required this.title,
-  required this.subtitle,
-  required this.imagePath,
-  required this.onTap,
-  this.imageAlignment = const Alignment(0.2, 0.15),
-});
+    required this.title,
+    required this.subtitle,
+    required this.imagePath,
+    required this.onTap,
+    this.imageAlignment = const Alignment(0.2, 0.15),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2420,10 +2413,10 @@ class _BigPhotoHomeCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               Image.asset(
-  imagePath,
-  fit: BoxFit.cover,
-  alignment: imageAlignment,
-),
+                imagePath,
+                fit: BoxFit.cover,
+                alignment: imageAlignment,
+              ),
 
               Container(
                 decoration: BoxDecoration(
@@ -2439,35 +2432,35 @@ class _BigPhotoHomeCard extends StatelessWidget {
               ),
 
               Positioned(
-  left: 22,
-  top: 32,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style:  GoogleFonts.poppins(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      SizedBox(height: 6),
-      SizedBox(
-        width: 220,
-        child: Text(
-          subtitle,
-          style:  GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            height: 1.35,
-          ),
-        ),
-      ),
-    ],
-  ),
-),
+                left: 22,
+                top: 32,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    SizedBox(
+                      width: 220,
+                      child: Text(
+                        subtitle,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -2533,34 +2526,34 @@ class _SmallPhotoHomeCard extends StatelessWidget {
                 ),
               ),
               Positioned(
-  left: 16,
-  right: 16,
-  bottom: 6,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        title,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        subtitle,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          height: 1.35,
-        ),
-      ),
-    ],
-  ),
-),
+                left: 16,
+                right: 16,
+                bottom: 6,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

@@ -20,8 +20,8 @@ class HomeImageCard extends StatefulWidget {
     this.hasAlert = false,
     this.count = 0,
     this.hideTextForAlertTitle = false,
-this.imageScale = 1.18,
-});
+    this.imageScale = 1.18,
+  });
 
   @override
   State<HomeImageCard> createState() => _HomeImageCardState();
@@ -119,12 +119,12 @@ class _HomeImageCardState extends State<HomeImageCard> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(8),
                                   child: Transform.scale(
-  scale: widget.imageScale,
-  child: Image.asset(
-    widget.imagePath,
-    fit: BoxFit.contain,
-  ),
-),
+                                    scale: widget.imageScale,
+                                    child: Image.asset(
+                                      widget.imagePath,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),

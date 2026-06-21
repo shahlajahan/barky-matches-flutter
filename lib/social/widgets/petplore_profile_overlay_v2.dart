@@ -200,7 +200,6 @@ class _PetploreProfileOverlayV2State extends State<PetploreProfileOverlayV2> {
                     clipBehavior: Clip.antiAlias,
                     child:
                         StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          
                           stream: FirebaseFirestore.instance
                               .collection('users')
                               .doc(widget.userId)
@@ -356,9 +355,8 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
-final isOwnProfile =
-    !appState.isGuestUser &&
-    appState.currentUserId == user.id;
+    final isOwnProfile =
+        !appState.isGuestUser && appState.currentUserId == user.id;
     final joined = user.joinedAt == null
         ? null
         : 'Joined ${_monthName(user.joinedAt!.month)} ${user.joinedAt!.year}';
@@ -618,16 +616,15 @@ class _PetploreFollowButtonState extends State<_PetploreFollowButton> {
   final FollowService _followService = FollowService();
   bool _busy = false;
 
- @override
-Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
 
-  final appState = context.watch<AppState>();
+    debugPrint(
+      "👤 FOLLOW BUTTON BUILD guest=${appState.isGuestUser} uid=${appState.currentUserId}",
+    );
 
-debugPrint(
-  "👤 FOLLOW BUTTON BUILD guest=${appState.isGuestUser} uid=${appState.currentUserId}",
-);
-
-  return StreamBuilder<bool>(
+    return StreamBuilder<bool>(
       stream: _followService.isFollowing(widget.userId),
       builder: (context, snapshot) {
         final following = snapshot.data ?? false;
@@ -637,37 +634,37 @@ debugPrint(
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: _busy
-    ? null
-    : () async {
-        final appState = context.read<AppState>();
+                ? null
+                : () async {
+                    final appState = context.read<AppState>();
 
-        // 🔒 Guest Gate
-       if (appState.isGuestUser) {
-  if (appState.isGuestUser) {
-  appState.openGuestFeatureGate();
-  return;
-}
+                    // 🔒 Guest Gate
+                    if (appState.isGuestUser) {
+                      if (appState.isGuestUser) {
+                        appState.openGuestFeatureGate();
+                        return;
+                      }
 
-  return;
-}
-        setState(() => _busy = true);
+                      return;
+                    }
+                    setState(() => _busy = true);
 
-        try {
-          if (following) {
-            await _followService.unfollowUser(
-              targetUserId: widget.userId,
-            );
-          } else {
-            await _followService.followUser(
-              targetUserId: widget.userId,
-            );
-          }
-        } finally {
-          if (mounted) {
-            setState(() => _busy = false);
-          }
-        }
-      },
+                    try {
+                      if (following) {
+                        await _followService.unfollowUser(
+                          targetUserId: widget.userId,
+                        );
+                      } else {
+                        await _followService.followUser(
+                          targetUserId: widget.userId,
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _busy = false);
+                      }
+                    }
+                  },
             child: Container(
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 18),

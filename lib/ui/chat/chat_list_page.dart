@@ -26,11 +26,11 @@ class _ChatListPageState extends State<ChatListPage> {
   static const Color _cardBorder = Color(0xFFF1D6E0);
   static const Color _softPink = Color(0xFFFCE7F0);
 
- String get currentUserId {
-  final appState = context.read<AppState>();
+  String get currentUserId {
+    final appState = context.read<AppState>();
 
-  return appState.currentUserId ?? 'guest';
-}
+    return appState.currentUserId ?? 'guest';
+  }
 
   Widget _buildEmptyState() {
     return Center(
@@ -668,20 +668,17 @@ class _ChatListPageState extends State<ChatListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
 
-  final appState = context.watch<AppState>();
+    if (appState.isGuest) {
+      return Scaffold(
+        backgroundColor: _background,
+        appBar: _buildAppBar(),
+        body: const Center(child: Text("Sign in to use chats")),
+      );
+    }
 
-  if (appState.isGuest) {
     return Scaffold(
-      backgroundColor: _background,
-      appBar: _buildAppBar(),
-      body: const Center(
-        child: Text("Sign in to use chats"),
-      ),
-    );
-  }
-
-  return Scaffold(
       backgroundColor: _background,
 
       appBar: _buildAppBar(),

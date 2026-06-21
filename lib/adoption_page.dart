@@ -194,36 +194,37 @@ class _AdoptionPageState extends State<AdoptionPage> {
               ),
           ].where((item) => item.trim().isNotEmpty).toSet().toList();
           final sectorAdoptionCenter =
-    (sectorData['adoptionCenter'] as Map?)?.cast<String, dynamic>() ?? {};
+              (sectorData['adoptionCenter'] as Map?)?.cast<String, dynamic>() ??
+              {};
 
-final rawAdoptionCenter =
-    (sectorData['adoption_center'] as Map?)?.cast<String, dynamic>() ?? {};
+          final rawAdoptionCenter =
+              (sectorData['adoption_center'] as Map?)
+                  ?.cast<String, dynamic>() ??
+              {};
 
-final workingHoursRaw =
-    rawAdoptionCenter['workingHours'] ??
-    adoptionData['workingHoursMap'] ??
-    data['workingHoursMap'] ??
-    data['workingHours'] ??
-    sectorAdoptionCenter['workingHours'];
-              debugPrint(
-  '🔥 ADOPTION_PAGE workingHoursRaw TYPE = ${workingHoursRaw.runtimeType}',
-);
+          final workingHoursRaw =
+              rawAdoptionCenter['workingHours'] ??
+              adoptionData['workingHoursMap'] ??
+              data['workingHoursMap'] ??
+              data['workingHours'] ??
+              sectorAdoptionCenter['workingHours'];
+          debugPrint(
+            '🔥 ADOPTION_PAGE workingHoursRaw TYPE = ${workingHoursRaw.runtimeType}',
+          );
 
-debugPrint(
-  '🔥 ADOPTION_PAGE workingHoursRaw VALUE = $workingHoursRaw',
-);
+          debugPrint(
+            '🔥 ADOPTION_PAGE workingHoursRaw VALUE = $workingHoursRaw',
+          );
           final workingHours = workingHoursRaw is Map
               ? workingHoursRaw.map(
                   (key, value) => MapEntry(key.toString(), value),
                 )
               : null;
-              debugPrint(
-  '🔥 ADOPTION_PAGE workingHours TYPE = ${workingHours.runtimeType}',
-);
+          debugPrint(
+            '🔥 ADOPTION_PAGE workingHours TYPE = ${workingHours.runtimeType}',
+          );
 
-debugPrint(
-  '🔥 ADOPTION_PAGE workingHours VALUE = $workingHours',
-);
+          debugPrint('🔥 ADOPTION_PAGE workingHours VALUE = $workingHours');
 
           final status = (data['status'] ?? 'approved') as String;
 

@@ -220,430 +220,229 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
   }
 
   Widget _requestItem(
-BuildContext context,
-String id,
-Map<String,dynamic> data,
-){
+    BuildContext context,
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    final status = (data['status'] ?? 'pending').toString();
 
-final status =
-(data['status'] ?? 'pending')
-.toString();
+    final requesterId = (data['requesterId'] ?? '').toString();
 
-final requesterId =
-(data['requesterId'] ?? '')
-.toString();
+    final targetId = (data['targetId'] ?? '').toString();
 
-final targetId =
-(data['targetId'] ?? '')
-.toString();
+    debugPrint('🐾 REQUEST DATA = $data');
 
-debugPrint(
-'🐾 REQUEST DATA = $data',
-);
+    debugPrint('🐾 REQUESTER ID = $requesterId');
 
-debugPrint(
-'🐾 REQUESTER ID = $requesterId',
-);
+    debugPrint('🐾 TARGET ID = $targetId');
 
-debugPrint(
-'🐾 TARGET ID = $targetId',
-);
+    final ts = data['createdAt'];
 
-final ts = data['createdAt'];
-
-final date =
-ts is Timestamp
-? ts.toDate()
-: null;
-
-final dateLabel =
-date == null
-? '-'
-: '${date.day.toString().padLeft(2,'0')}.'
-'${date.month.toString().padLeft(2,'0')}.'
-'${date.year}';
-
-return FutureBuilder<List<dynamic>>(
-
-future: Future.wait([
-
-FirebaseFirestore.instance
-.collection('adoption_pets')
-.doc(targetId)
-.get(),
-
-FirebaseFirestore.instance
-.collection('users')
-.doc(requesterId)
-.get(),
+    final date = ts is Timestamp ? ts.toDate() : null;
 
-FirebaseFirestore.instance
-.collection('businesses')
-.doc(requesterId)
-.get(),
+    final dateLabel = date == null
+        ? '-'
+        : '${date.day.toString().padLeft(2, '0')}.'
+              '${date.month.toString().padLeft(2, '0')}.'
+              '${date.year}';
 
-]),
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        FirebaseFirestore.instance
+            .collection('adoption_pets')
+            .doc(targetId)
+            .get(),
 
-builder:(context,snapshot){
-  debugPrint(
-'🐾 FUTURE HAS DATA = ${snapshot.hasData}',
-);
+        FirebaseFirestore.instance.collection('users').doc(requesterId).get(),
 
-String petName="Pet";
-String breed="";
-String requester="User";
+        FirebaseFirestore.instance
+            .collection('businesses')
+            .doc(requesterId)
+            .get(),
+      ]),
 
-if(snapshot.hasData){
-
-final petSnap =
-snapshot.data![0]
-as DocumentSnapshot;
+      builder: (context, snapshot) {
+        debugPrint('🐾 FUTURE HAS DATA = ${snapshot.hasData}');
 
-final userSnap =
-snapshot.data![1]
-as DocumentSnapshot;
+        String petName = "Pet";
+        String breed = "";
+        String requester = "User";
 
-if(
-petSnap.exists &&
-petSnap.data()!=null
-){
+        if (snapshot.hasData) {
+          final petSnap = snapshot.data![0] as DocumentSnapshot;
 
-final pet =
-petSnap.data()
-as Map<String,dynamic>;
+          final userSnap = snapshot.data![1] as DocumentSnapshot;
 
-petName =
-(pet['name'] ?? 'Pet')
-.toString();
+          if (petSnap.exists && petSnap.data() != null) {
+            final pet = petSnap.data() as Map<String, dynamic>;
 
-breed =
-(pet['breed'] ?? '')
-.toString();
+            petName = (pet['name'] ?? 'Pet').toString();
 
-}
+            breed = (pet['breed'] ?? '').toString();
+          }
 
-if(
-userSnap.exists &&
-userSnap.data()!=null
-){
+          if (userSnap.exists && userSnap.data() != null) {
+            final userSnap = snapshot.data![1] as DocumentSnapshot;
 
-final userSnap =
-snapshot.data![1]
-as DocumentSnapshot;
+            final businessSnap = snapshot.data![2] as DocumentSnapshot;
 
-final businessSnap =
-snapshot.data![2]
-as DocumentSnapshot;
+            debugPrint('🐾 USER EXISTS = ${userSnap.exists}');
 
-debugPrint(
-'🐾 USER EXISTS = ${userSnap.exists}',
-);
+            debugPrint('🐾 BUSINESS EXISTS = ${businessSnap.exists}');
 
-debugPrint(
-'🐾 BUSINESS EXISTS = ${businessSnap.exists}',
-);
+            debugPrint('🐾 USER DATA = ${userSnap.data()}');
 
-debugPrint(
-'🐾 USER DATA = ${userSnap.data()}',
-);
+            debugPrint('🐾 BUSINESS DATA = ${businessSnap.data()}');
 
-debugPrint(
-'🐾 BUSINESS DATA = ${businessSnap.data()}',
-);
+            if (userSnap.exists && userSnap.data() != null) {
+              final user = userSnap.data() as Map<String, dynamic>;
 
-if (
-userSnap.exists &&
-userSnap.data()!=null
-) {
+              requester =
+                  (user['displayName'] ??
+                          user['name'] ??
+                          user['username'] ??
+                          '')
+                      .toString();
+            }
 
-  final user =
-      userSnap.data()
-          as Map<String,dynamic>;
+            if ((requester.isEmpty || requester == 'User') &&
+                businessSnap.exists &&
+                businessSnap.data() != null) {
+              final business = businessSnap.data() as Map<String, dynamic>;
 
-  requester =
-      (
-        user['displayName'] ??
-        user['name'] ??
-        user['username'] ??
-        ''
-      ).toString();
+              final profile =
+                  (business['profile'] as Map?)?.cast<String, dynamic>() ?? {};
 
-}
+              requester =
+                  (profile['displayName'] ?? profile['businessName'] ?? '')
+                      .toString();
+            }
 
-if (
+            if (requester.isEmpty) {
+              requester = (data['requesterName'] ?? 'User').toString();
+            }
+          }
+        }
 
-(requester.isEmpty ||
- requester == 'User') &&
+        return GestureDetector(
+          onTap: () {
+            final appState = context.read<AppState>();
 
-businessSnap.exists &&
-businessSnap.data()!=null
+            appState.setInitialAdoptionRequestId(id);
 
-) {
+            appState.setCurrentTab(NavTab.profile);
 
-  final business =
-      businessSnap.data()
-          as Map<String,dynamic>;
+            appState.openProfileSubPage(ProfileSubPage.adoptionInbox);
+          },
 
-  final profile =
-      (business['profile'] as Map?)
-          ?.cast<String,dynamic>() ??
-      {};
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
 
-  requester =
-      (
-        profile['displayName'] ??
-        profile['businessName'] ??
-        ''
-      ).toString();
+            decoration: BoxDecoration(
+              color: Colors.white,
 
-}
+              borderRadius: BorderRadius.circular(18),
 
-if (
-requester.isEmpty
-) {
+              border: Border.all(
+                color: const Color(0xFF9E1B4F).withOpacity(.10),
+              ),
 
-  requester =
-      (data['requesterName'] ?? 'User')
-          .toString();
+              boxShadow: AppTheme.cardShadow(opacity: .06),
+            ),
 
-}
-}
+            child: Padding(
+              padding: const EdgeInsets.all(14),
 
-}
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
 
-return GestureDetector(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
 
-onTap:(){
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9E1B4F).withOpacity(.08),
 
-final appState =
-context.read<AppState>();
+                          borderRadius: BorderRadius.circular(12),
+                        ),
 
-appState
-.setInitialAdoptionRequestId(id);
+                        child: const Icon(
+                          LucideIcons.heartHandshake,
 
-appState.setCurrentTab(
-NavTab.profile,
-);
+                          color: Color(0xFF9E1B4F),
+                        ),
+                      ),
 
-appState.openProfileSubPage(
-ProfileSubPage.adoptionInbox,
-);
+                      const SizedBox(width: 12),
 
-},
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
 
-child: Container(
+                          children: [
+                            Text(
+                              petName,
 
-margin:
-const EdgeInsets.only(
-bottom:12,
-),
+                              style: AppTheme.body(
+                                color: AppTheme.textDark,
+                              ).copyWith(fontWeight: FontWeight.w700),
+                            ),
 
-decoration: BoxDecoration(
+                            const SizedBox(height: 6),
 
-color: Colors.white,
+                            Row(
+                              children: [
+                                _statusPill(status),
 
-borderRadius:
-BorderRadius.circular(18),
+                                const SizedBox(width: 8),
 
-border: Border.all(
-color:
-const Color(
-0xFF9E1B4F,
-).withOpacity(.10),
-),
+                                Expanded(
+                                  child: Text(
+                                    requester,
 
-boxShadow:
-AppTheme.cardShadow(
-opacity:.06,
-),
+                                    overflow: TextOverflow.ellipsis,
 
-),
+                                    style: AppTheme.caption(
+                                      color: AppTheme.muted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
 
-child: Padding(
+                            const SizedBox(height: 6),
 
-padding:
-const EdgeInsets.all(14),
+                            Text(
+                              "$breed • $dateLabel",
 
-child: Column(
+                              style: AppTheme.caption(color: AppTheme.muted),
+                            ),
+                          ],
+                        ),
+                      ),
 
-crossAxisAlignment:
-CrossAxisAlignment.start,
+                      const Icon(Icons.chevron_right, color: Colors.black38),
+                    ],
+                  ),
 
-children:[
+                  const SizedBox(height: 10),
 
-Row(
+                  Text(
+                    "Tap for more details",
 
-children:[
-
-Container(
-
-width:44,
-height:44,
-
-decoration:
-BoxDecoration(
-
-color:
-const Color(
-0xFF9E1B4F,
-).withOpacity(.08),
-
-borderRadius:
-BorderRadius.circular(
-12,
-),
-
-),
-
-child: const Icon(
-LucideIcons
-.heartHandshake,
-
-color:
-Color(
-0xFF9E1B4F,
-),
-
-),
-
-),
-
-const SizedBox(
-width:12,
-),
-
-Expanded(
-
-child: Column(
-
-crossAxisAlignment:
-CrossAxisAlignment
-.start,
-
-children:[
-
-Text(
-
-petName,
-
-style:
-AppTheme.body(
-color:
-AppTheme
-.textDark,
-).copyWith(
-fontWeight:
-FontWeight
-.w700,
-),
-
-),
-
-const SizedBox(
-height:6,
-),
-
-Row(
-
-children:[
-
-_statusPill(
-status,
-),
-
-const SizedBox(
-width:8,
-),
-
-Expanded(
-
-child: Text(
-
-requester,
-
-overflow:
-TextOverflow
-.ellipsis,
-
-style:
-AppTheme.caption(
-color:
-AppTheme
-.muted,
-),
-
-),
-
-),
-
-],
-
-),
-
-const SizedBox(
-height:6,
-),
-
-Text(
-
-"$breed • $dateLabel",
-
-style:
-AppTheme.caption(
-color:
-AppTheme
-.muted,
-),
-
-),
-
-],
-
-),
-
-),
-
-const Icon(
-Icons.chevron_right,
-color:
-Colors.black38,
-),
-
-],
-
-),
-
-const SizedBox(
-height:10,
-),
-
-Text(
-
-"Tap for more details",
-
-style:
-AppTheme.caption(
-color:
-AppTheme.muted,
-),
-
-),
-
-],
-
-),
-
-),
-
-),
-
-);
-
-},
-
-);
-
-}
+                    style: AppTheme.caption(color: AppTheme.muted),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _statusPill(String status) {
     Color color;
