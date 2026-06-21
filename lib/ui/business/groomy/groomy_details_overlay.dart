@@ -332,6 +332,11 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
 
     FocusManager.instance.primaryFocus?.unfocus();
 
+    debugPrint(
+      'REVIEW SHEET OPEN source=groomy businessId=${widget.data.id} '
+      'isDismissible=$isDismissible enableDrag=$enableDrag',
+    );
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -340,6 +345,9 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
       backgroundColor: backgroundColor,
       builder: (_) => _WriteReviewSheet(groomyId: widget.data.id),
     ).whenComplete(() {
+      debugPrint(
+        'REVIEW SHEET CLOSED source=groomy businessId=${widget.data.id}',
+      );
       FocusManager.instance.primaryFocus?.unfocus();
     });
   }
@@ -706,11 +714,8 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
               Text(l10n.noReviewsYet, style: AppTheme.bodyMedium()),
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: () => _openWriteReviewSheet(
-                  isDismissible: false,
-                  enableDrag: false,
-                  backgroundColor: Colors.white,
-                ),
+                onPressed: () =>
+                    _openWriteReviewSheet(backgroundColor: Colors.white),
                 child: Text(l10n.beFirstToReview),
               ),
             ],
@@ -1677,20 +1682,40 @@ class _WriteReviewSheet extends StatefulWidget {
 
 class _WriteReviewSheetState extends State<_WriteReviewSheet> {
   final TextEditingController _reviewController = TextEditingController();
-  final FocusNode _reviewFocusNode = FocusNode();
+  final FocusNode _reviewFocusNode = FocusNode(
+    debugLabel: 'groomy review field',
+  );
 
   double _reviewRating = 5;
   bool _isSubmitting = false;
 
+  void _unfocusReviewSheet() {
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    debugPrint(
+      'REVIEW SHEET UNFOCUS source=groomy '
+      'primaryFocus=${primaryFocus?.debugLabel ?? primaryFocus?.context?.widget.runtimeType} '
+      'reviewFocus=${_reviewFocusNode.hasFocus}',
+    );
+    _reviewFocusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   @override
   void dispose() {
-    _reviewFocusNode.unfocus();
+    debugPrint(
+      'REVIEW SHEET DISPOSE source=groomy '
+      'primaryFocus=${FocusManager.instance.primaryFocus?.debugLabel ?? FocusManager.instance.primaryFocus?.context?.widget.runtimeType} '
+      'reviewFocus=${_reviewFocusNode.hasFocus}',
+    );
+    _unfocusReviewSheet();
     _reviewFocusNode.dispose();
     _reviewController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    _unfocusReviewSheet();
+
     final l10n = AppLocalizations.of(context)!;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -1744,6 +1769,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
       });
 
       if (!mounted) return;
+      _unfocusReviewSheet();
       Navigator.of(context).pop();
       ScaffoldMessenger.of(
         context,

@@ -12,6 +12,11 @@ import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import '../models/social_post.dart';
 import '../services/social_post_service.dart';
 
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
+import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+
 class CreateSocialPostPage extends StatefulWidget {
   const CreateSocialPostPage({super.key});
 

@@ -493,12 +493,20 @@ class _PetHotelReviewsTabState extends State<PetHotelReviewsTab> {
   }
 
   Future<void> _openWriteReviewSheet() async {
+    debugPrint(
+      'REVIEW SHEET OPEN source=pet_hotel businessId=${widget.businessId} '
+      'isDismissible=true enableDrag=true',
+    );
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       builder: (_) => _WriteReviewSheet(businessId: widget.businessId),
-    );
+    ).whenComplete(() {
+      debugPrint(
+        'REVIEW SHEET CLOSED source=pet_hotel businessId=${widget.businessId}',
+      );
+    });
   }
 
   Widget _emptyReviewsState() {
@@ -621,13 +629,42 @@ class _WriteReviewSheet extends StatefulWidget {
 
 class _WriteReviewSheetState extends State<_WriteReviewSheet> {
   final TextEditingController _reviewController = TextEditingController();
+  final FocusNode _reviewFocusNode = FocusNode(
+    debugLabel: 'pet hotel review field',
+  );
 
   double _reviewRating = 5;
 
   bool _isSubmitting = false;
 
+  void _unfocusReviewSheet() {
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    debugPrint(
+      'REVIEW SHEET UNFOCUS source=pet_hotel '
+      'primaryFocus=${primaryFocus?.debugLabel ?? primaryFocus?.context?.widget.runtimeType} '
+      'reviewFocus=${_reviewFocusNode.hasFocus}',
+    );
+    _reviewFocusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  @override
+  void dispose() {
+    debugPrint(
+      'REVIEW SHEET DISPOSE source=pet_hotel '
+      'primaryFocus=${FocusManager.instance.primaryFocus?.debugLabel ?? FocusManager.instance.primaryFocus?.context?.widget.runtimeType} '
+      'reviewFocus=${_reviewFocusNode.hasFocus}',
+    );
+    _unfocusReviewSheet();
+    _reviewFocusNode.dispose();
+    _reviewController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submitReview() async {
     if (_isSubmitting) return;
+
+    _unfocusReviewSheet();
 
     setState(() {
       _isSubmitting = true;
@@ -729,6 +766,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
 
       if (!mounted) return;
 
+      _unfocusReviewSheet();
       Navigator.pop(context);
     } catch (e) {
       debugPrint('🔥 REVIEW ERROR: $e');
@@ -793,6 +831,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
 
                 TextField(
                   controller: _reviewController,
+                  focusNode: _reviewFocusNode,
                   maxLines: 4,
                   decoration: InputDecoration(
                     hintText: l10n.shareYourExperienceHint,

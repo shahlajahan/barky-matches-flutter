@@ -26,6 +26,7 @@ import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'offers_manager.dart';
+import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 
 enum BusinessSubPage {
   none,
@@ -81,6 +82,19 @@ class AppState with ChangeNotifier {
   bool get shouldShowAds {
     return !_subscription.plan.isPaid;
   }
+  bool showGuestFeatureGate = false;
+
+  //GuestFeatureGateData? activeGuestFeatureGate;
+
+void openGuestFeatureGate() {
+  showGuestFeatureGate = true;
+  notifyListeners();
+}
+
+void closeGuestFeatureGate() {
+  showGuestFeatureGate = false;
+  notifyListeners();
+}
 
   void setBottomNavVisibility(bool visible) {
     if (_showBottomNav == visible) return;
@@ -99,17 +113,39 @@ class AppState with ChangeNotifier {
 
   bool get isGuestUser => isGuest;
 
-  void setGuestUser() {
-    _currentUserId = 'guest';
+ void setGuestUser() {
+  debugPrint("👤 ENTER GUEST MODE");
 
-    _username = null;
-    _currentUserName = null;
-    _userRole = null;
+  _currentUserId = 'guest';
 
-    clearBusinessState();
+  _username = null;
+  _currentUserName = null;
+  _userRole = null;
 
-    notifyListeners();
-  }
+  // ---------- USER DATA ----------
+  _myDogs.clear();
+  _allDogs.clear();
+
+  _favoriteDogs.clear();
+  favoriteDogsNotifier.value = [];
+
+  _favoriteParks.clear();
+
+  // ---------- PROFILE ----------
+  editingDog = null;
+
+  playmateProfileUserId = null;
+  playmateDogsSnapshot = null;
+
+  // ---------- BUSINESS ----------
+  clearBusinessState();
+
+  // ---------- STATE ----------
+  _isUserInitialized = true;
+  _isUserProfileReady = true;
+
+  notifyListeners();
+}
 
   void setLocale(String languageCode) {
     _locale = Locale(languageCode);
@@ -1135,6 +1171,11 @@ class AppState with ChangeNotifier {
     _favoriteParks.clear();
     _myDogs.clear();
     _allDogs.clear();
+    _savedParksLoaded = false;
+
+favoriteDogsNotifier.value = [];
+
+notifyListeners();
 
     _unreadNotificationsCount = 0;
     _selectedPark = null;
@@ -1595,24 +1636,17 @@ class AppState with ChangeNotifier {
           _initializingForUid = null;
 
           // 🔥🔥🔥 THIS IS THE FIX
-          _currentUserId = 'guest';
+         setGuestUser();
 
-          _username = null;
-          _currentUserName = null;
-          _userRole = null;
+         _clearAuthMemoryState();
 
-          FirestoreReadinessGate.instance.markAuthStabilized('guest');
-          clearBusinessState();
+FirestoreReadinessGate.instance.markAuthStabilized('guest');
 
-          _isUserInitialized = true; // 👈 مهم
-          _isUserProfileReady = true; // 👈 مهم
-          _completeNoncriticalGate(false);
+_completeNoncriticalGate(false);
 
-          debugPrint('👤 Guest mode activated from auth listener');
+debugPrint("👤 Guest mode activated from auth listener");
 
-          notifyListeners();
-
-          return;
+return;
         }
 
         // ─────────────────────────────
@@ -1957,6 +1991,7 @@ class AppState with ChangeNotifier {
       _isUserProfileReady = true;
       _isUserInitialized = true;
       debugPrint('🌐 INITUSER FINISHED → uid=${uid ?? "n/a"}');
+      unawaited(_clearAuthDependentCaches());
       notifyListeners();
       return;
     }
@@ -2628,39 +2663,49 @@ class AppState with ChangeNotifier {
   }
 
   Future<void> loadMyDogs() async {
-    final uid = _currentUserId;
-    if (isGuest || uid == null || uid.isEmpty) {
-      debugPrint('🐾 loadMyDogs skipped (guest)');
-      return;
-    }
+  final uid = _currentUserId;
 
-    final usedCache = FirestoreRecovery.passiveMode && _applyCachedMyDogs(uid);
-    if (usedCache) notifyListeners();
+  if (isGuest || uid == null || uid.isEmpty) {
+    debugPrint('🐾 Guest mode → clear my dogs');
 
-    try {
-      debugPrint('🐾 Loading dogs for user $uid (passive Firestore)');
+    _myDogs.clear();
 
-      final snapshot = await _criticalFirestoreRetry(
-        () => FirebaseFirestore.instance
-            .collection('dogs')
-            .where('ownerId', isEqualTo: uid)
-            .get(),
-        operationName: 'loadMyDogs',
-      );
+    notifyListeners();
 
-      _myDogs = snapshot.docs.map((doc) => Dog.fromFirestore(doc)).toList();
+    return;
+  }
 
-      debugPrint('🐾 Loaded ${_myDogs.length} my dogs');
+  final usedCache = FirestoreRecovery.passiveMode && _applyCachedMyDogs(uid);
+  if (usedCache) notifyListeners();
+
+  try {
+    debugPrint('🐾 Loading dogs for user $uid (passive Firestore)');
+
+    final snapshot = await _criticalFirestoreRetry(
+      () => FirebaseFirestore.instance
+          .collection('dogs')
+          .where('ownerId', isEqualTo: uid)
+          .get(),
+      operationName: 'loadMyDogs',
+    );
+
+    _myDogs = snapshot.docs.map((doc) => Dog.fromFirestore(doc)).toList();
+
+    debugPrint('🐾 Loaded ${_myDogs.length} my dogs');
+
+    notifyListeners();
+  } catch (e) {
+    debugPrint('❌ loadMyDogs failed: $e');
+
+    if (!usedCache) {
+      debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → my dogs empty');
+
+      _myDogs = [];
+
       notifyListeners();
-    } catch (e) {
-      debugPrint('❌ loadMyDogs failed: $e');
-      if (!usedCache) {
-        debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → my dogs empty');
-        _myDogs = [];
-        notifyListeners();
-      }
     }
   }
+}
 
   Future<void> loadAllDogsForDiscovery() async {
     if (!_noncriticalReadsAllowed) {
@@ -2672,9 +2717,16 @@ class AppState with ChangeNotifier {
 
     final uid = _currentUserId;
     if (isGuest || uid == null || uid.isEmpty) {
-      _savedParksLoaded = true;
-      return;
-    }
+  debugPrint("🐕 Guest mode → clear discovery dogs");
+
+  _allDogs.clear();
+
+  _savedParksLoaded = true;
+
+  notifyListeners();
+
+  return;
+}
 
     final usedCache =
         FirestoreRecovery.passiveMode && _applyCachedDiscoveryDogs(uid);
@@ -4127,6 +4179,11 @@ class AppState with ChangeNotifier {
   }
 
   Future<void> addFavorite(Dog dog) async {
+     if (isGuest) {
+    debugPrint("🚫 Guest cannot add favorites");
+    return;
+  }
+
     try {
       final key = dog.id;
       final favoritesBox = Hive.box<Dog>('favoritesBox');

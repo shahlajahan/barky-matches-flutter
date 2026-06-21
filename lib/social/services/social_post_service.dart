@@ -106,9 +106,12 @@ class SocialPostService {
   }
 
   Future<void> toggleLike(String postId) async {
-    final user = FirebaseAuth.instance.currentUser;
+  final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null) return;
+  if (user == null) {
+    debugPrint("🚫 Guest cannot like posts");
+    return;
+  }
 
     final likeRef = _likesCollection.doc(_likeDocId(postId, user.uid));
     final postRef = _postsCollection.doc(postId);

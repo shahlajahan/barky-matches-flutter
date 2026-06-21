@@ -9,6 +9,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../services/follow_service.dart';
 import '../overlay/petplore_search_overlay.dart';
 
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+
 class PetplorePage extends StatefulWidget {
   const PetplorePage({super.key});
 
@@ -23,11 +27,16 @@ class _PetplorePageState extends State<PetplorePage>
   final FollowService _followService = FollowService();
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    _tabController = TabController(length: 3, vsync: this);
-  }
+  final isGuest = FirebaseAuth.instance.currentUser == null;
+
+  _tabController = TabController(
+    length: isGuest ? 1 : 3,
+    vsync: this,
+  );
+}
 
   @override
   void dispose() {
@@ -37,7 +46,9 @@ class _PetplorePageState extends State<PetplorePage>
 
   @override
   Widget build(BuildContext context) {
+    
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final isGuest = currentUserId == null;
     return Container(
       color: const Color(0xFF121417),
 
@@ -357,25 +368,27 @@ class _PetplorePageState extends State<PetplorePage>
                       fontSize: 14,
                     ),
 
-                    tabs: const [
-                      Tab(
-                        icon: Icon(LucideIcons.compass, size: 20),
-
-                        text: 'Feed',
-                      ),
-
-                      Tab(
-                        icon: Icon(LucideIcons.bookmark, size: 20),
-
-                        text: 'Saved',
-                      ),
-
-                      Tab(
-                        icon: Icon(LucideIcons.layoutGrid, size: 20),
-
-                        text: 'My Posts',
-                      ),
-                    ],
+                   tabs: isGuest
+    ? const [
+        Tab(
+          icon: Icon(LucideIcons.compass, size: 20),
+          text: 'Feed',
+        ),
+      ]
+    : const [
+        Tab(
+          icon: Icon(LucideIcons.compass, size: 20),
+          text: 'Feed',
+        ),
+        Tab(
+          icon: Icon(LucideIcons.bookmark, size: 20),
+          text: 'Saved',
+        ),
+        Tab(
+          icon: Icon(LucideIcons.layoutGrid, size: 20),
+          text: 'My Posts',
+        ),
+      ],
                   ),
                 ),
               ),
@@ -387,13 +400,15 @@ class _PetplorePageState extends State<PetplorePage>
                 child: TabBarView(
                   controller: _tabController,
 
-                  children: const [
-                    SocialFeedPage(),
-
-                    SavedPostsPage(),
-
-                    _MyPostsTab(),
-                  ],
+                  children: isGuest
+    ? const [
+        SocialFeedPage(),
+      ]
+    : const [
+        SocialFeedPage(),
+        SavedPostsPage(),
+        _MyPostsTab(),
+      ],
                 ),
               ),
             ],
@@ -435,14 +450,19 @@ class _PetplorePageState extends State<PetplorePage>
                 child: InkWell(
                   borderRadius: BorderRadius.circular(100),
 
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CreateSocialPostPage(),
-                      ),
-                    );
-                  },
+                 onTap: () {
+  if (isGuest) {
+    context.read<AppState>().setCurrentTab(NavTab.profile);
+    return;
+  }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const CreateSocialPostPage(),
+    ),
+  );
+},
 
                   child: const Center(
                     child: Icon(

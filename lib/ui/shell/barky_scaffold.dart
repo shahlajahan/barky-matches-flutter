@@ -22,13 +22,14 @@ import 'package:barky_matches_fixed/ui/business/pet_hotel/pet_hotel_details_over
 import 'package:flutter/rendering.dart';
 
 import 'package:barky_matches_fixed/ui/chat/chat_list_page.dart';
+import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
 import 'package:barky_matches_fixed/ui/business/adoption_center/adoption_center_details_overlay.dart';
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
 import 'package:barky_matches_fixed/social/pages/followers_list_page.dart';
 import 'package:barky_matches_fixed/social/pages/following_list_page.dart';
 import 'package:barky_matches_fixed/social/widgets/petplore_profile_overlay_v2.dart';
 
-import 'package:barky_matches_fixed/ui/business/groomy/groomy_details_overlay.dart';
+import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
 
 class BarkyScaffold extends StatefulWidget {
   final Widget body;
@@ -75,6 +76,30 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
       }
     };
   }
+
+  @override
+void initState() {
+  super.initState();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+
+    context.read<AppState>().setBottomNavVisibility(true);
+  });
+}
+
+@override
+void didUpdateWidget(covariant BarkyScaffold oldWidget) {
+  super.didUpdateWidget(oldWidget);
+
+  if (oldWidget.currentTab != widget.currentTab) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      context.read<AppState>().setBottomNavVisibility(true);
+    });
+  }
+}
 
   VoidCallback? _whatsAppAction(BusinessCardData business) {
     if (business.whatsapp == null || business.whatsapp!.trim().isEmpty) {
@@ -170,18 +195,17 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
           bottom: false,
           child: NotificationListener<UserScrollNotification>(
             onNotification: (notification) {
-              final appState = context.read<AppState>();
+  final appState = context.read<AppState>();
 
-              if (notification.direction == ScrollDirection.reverse) {
-                appState.setBottomNavVisibility(false);
-              }
+  if (notification.direction == ScrollDirection.reverse) {
+    appState.setBottomNavVisibility(false);
+  } else if (notification.direction == ScrollDirection.forward ||
+             notification.direction == ScrollDirection.idle) {
+    appState.setBottomNavVisibility(true);
+  }
 
-              if (notification.direction == ScrollDirection.forward) {
-                appState.setBottomNavVisibility(true);
-              }
-
-              return false;
-            },
+  return false;
+},
 
             child: Stack(
               children: [
@@ -253,6 +277,39 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
 
             */
 
+            Builder(
+  builder: (context) {
+    final show = context.select<AppState, bool>(
+      (s) => s.showGuestFeatureGate,
+    );
+
+    if (!show) {
+      return const SizedBox.shrink();
+    }
+
+    final appState = context.read<AppState>();
+
+    return Positioned.fill(
+      child: GuestFeatureGate(
+        icon: Icons.people_alt_rounded,
+        title: "Follow pet lovers",
+        description:
+            "Create an account to build your pet community.",
+        buttonText: "Sign In",
+        onPressed: () {
+  appState.closeGuestFeatureGate();
+
+  // ✅ اول پروفایل Petplore بسته شود
+  appState.closePetploreProfile();
+
+  // ✅ بعد Tab عوض شود
+  appState.setCurrentTab(NavTab.profile);
+},
+      ),
+    );
+  },
+),
+
                 // ─────────────────────────────
                 // 🧩 Business Detail Overlay (GLOBAL)
                 // ─────────────────────────────
@@ -311,7 +368,21 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                         onClose: appState.closeBusinessDetails,
 
                         onOpenPet: (pet) {
-                          debugPrint('OPEN ADOPTION PET => ${pet['title']}');
+                          debugPrint(
+                            'OPEN ADOPTION PET => id=${pet.id} name=${pet.name}',
+                          );
+
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => AdoptionRequestSheet(
+                              targetType: 'adoption_pet',
+                              targetId: pet.id,
+                              targetOwnerId: pet.businessId,
+                              dogName: pet.name,
+                            ),
+                          );
                         },
 
                         onCall: onCall,

@@ -13,6 +13,12 @@ import 'package:barky_matches_fixed/social/services/follow_service.dart';
 import 'package:barky_matches_fixed/social/widgets/social_post_media_viewer_overlay.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+
+import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
+
 class PetploreProfileOverlayV2 extends StatefulWidget {
   final String userId;
   final List<Dog> dogs;
@@ -194,6 +200,7 @@ class _PetploreProfileOverlayV2State extends State<PetploreProfileOverlayV2> {
                     clipBehavior: Clip.antiAlias,
                     child:
                         StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          
                           stream: FirebaseFirestore.instance
                               .collection('users')
                               .doc(widget.userId)
@@ -347,8 +354,11 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final isOwnProfile = currentUserId == user.id;
+    final appState = context.watch<AppState>();
+
+final isOwnProfile =
+    !appState.isGuestUser &&
+    appState.currentUserId == user.id;
     final joined = user.joinedAt == null
         ? null
         : 'Joined ${_monthName(user.joinedAt!.month)} ${user.joinedAt!.year}';
@@ -608,9 +618,16 @@ class _PetploreFollowButtonState extends State<_PetploreFollowButton> {
   final FollowService _followService = FollowService();
   bool _busy = false;
 
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<bool>(
+ @override
+Widget build(BuildContext context) {
+
+  final appState = context.watch<AppState>();
+
+debugPrint(
+  "👤 FOLLOW BUTTON BUILD guest=${appState.isGuestUser} uid=${appState.currentUserId}",
+);
+
+  return StreamBuilder<bool>(
       stream: _followService.isFollowing(widget.userId),
       builder: (context, snapshot) {
         final following = snapshot.data ?? false;
@@ -620,23 +637,37 @@ class _PetploreFollowButtonState extends State<_PetploreFollowButton> {
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: _busy
-                ? null
-                : () async {
-                    setState(() => _busy = true);
-                    try {
-                      if (following) {
-                        await _followService.unfollowUser(
-                          targetUserId: widget.userId,
-                        );
-                      } else {
-                        await _followService.followUser(
-                          targetUserId: widget.userId,
-                        );
-                      }
-                    } finally {
-                      if (mounted) setState(() => _busy = false);
-                    }
-                  },
+    ? null
+    : () async {
+        final appState = context.read<AppState>();
+
+        // 🔒 Guest Gate
+       if (appState.isGuestUser) {
+  if (appState.isGuestUser) {
+  appState.openGuestFeatureGate();
+  return;
+}
+
+  return;
+}
+        setState(() => _busy = true);
+
+        try {
+          if (following) {
+            await _followService.unfollowUser(
+              targetUserId: widget.userId,
+            );
+          } else {
+            await _followService.followUser(
+              targetUserId: widget.userId,
+            );
+          }
+        } finally {
+          if (mounted) {
+            setState(() => _busy = false);
+          }
+        }
+      },
             child: Container(
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 18),

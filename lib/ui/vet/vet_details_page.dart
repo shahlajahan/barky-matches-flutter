@@ -281,6 +281,11 @@ class _VetDetailsPageState extends State<VetDetailsPage>
 
     FocusManager.instance.primaryFocus?.unfocus();
 
+    debugPrint(
+      'REVIEW SHEET OPEN source=vet businessId=${widget.vet.id} '
+      'isDismissible=$isDismissible enableDrag=$enableDrag',
+    );
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -289,6 +294,7 @@ class _VetDetailsPageState extends State<VetDetailsPage>
       backgroundColor: backgroundColor,
       builder: (_) => _WriteReviewSheet(vetId: widget.vet.id),
     ).whenComplete(() {
+      debugPrint('REVIEW SHEET CLOSED source=vet businessId=${widget.vet.id}');
       FocusManager.instance.primaryFocus?.unfocus();
     });
   }
@@ -775,11 +781,8 @@ class _VetDetailsPageState extends State<VetDetailsPage>
               const SizedBox(height: 12),
 
               OutlinedButton(
-                onPressed: () => _openWriteReviewSheet(
-                  isDismissible: false,
-                  enableDrag: false,
-                  backgroundColor: Colors.white,
-                ),
+                onPressed: () =>
+                    _openWriteReviewSheet(backgroundColor: Colors.white),
                 child: Text(l10n.beFirstToReview),
               ),
             ],
@@ -1555,14 +1558,30 @@ class _WriteReviewSheet extends StatefulWidget {
 
 class _WriteReviewSheetState extends State<_WriteReviewSheet> {
   final TextEditingController _reviewController = TextEditingController();
-  final FocusNode _reviewFocusNode = FocusNode();
+  final FocusNode _reviewFocusNode = FocusNode(debugLabel: 'vet review field');
 
   double _reviewRating = 5;
   bool _isSubmitting = false;
 
+  void _unfocusReviewSheet() {
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    debugPrint(
+      'REVIEW SHEET UNFOCUS source=vet '
+      'primaryFocus=${primaryFocus?.debugLabel ?? primaryFocus?.context?.widget.runtimeType} '
+      'reviewFocus=${_reviewFocusNode.hasFocus}',
+    );
+    _reviewFocusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   @override
   void dispose() {
-    _reviewFocusNode.unfocus();
+    debugPrint(
+      'REVIEW SHEET DISPOSE source=vet '
+      'primaryFocus=${FocusManager.instance.primaryFocus?.debugLabel ?? FocusManager.instance.primaryFocus?.context?.widget.runtimeType} '
+      'reviewFocus=${_reviewFocusNode.hasFocus}',
+    );
+    _unfocusReviewSheet();
     _reviewFocusNode.dispose();
     _reviewController.dispose();
     super.dispose();
@@ -1578,7 +1597,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
   Future<void> _submitReview() async {
     if (_isSubmitting) return;
 
-    FocusManager.instance.primaryFocus?.unfocus();
+    _unfocusReviewSheet();
 
     setState(() => _isSubmitting = true);
     var shouldResetSubmitting = true;
@@ -1664,7 +1683,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
       if (!mounted) return;
 
       shouldResetSubmitting = false;
-      FocusManager.instance.primaryFocus?.unfocus();
+      _unfocusReviewSheet();
       Navigator.of(context).pop();
     } catch (e) {
       debugPrint("🔥 ERROR: $e");
@@ -1696,7 +1715,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
             bottom: MediaQuery.of(context).viewInsets.bottom + 16,
           ),
           child: GestureDetector(
-            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            onTap: _unfocusReviewSheet,
             child: SingleChildScrollView(
               controller: scrollController,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

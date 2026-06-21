@@ -154,9 +154,9 @@ class _AdoptionPageState extends State<AdoptionPage> {
         }
 
         if (snapshot.hasError) {
-  debugPrint("❌ CENTERS STREAM ERROR = ${snapshot.error}");
-  return Center(child: Text("ERROR: ${snapshot.error}"));
-}
+          debugPrint("❌ CENTERS STREAM ERROR = ${snapshot.error}");
+          return Center(child: Text("ERROR: ${snapshot.error}"));
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -176,13 +176,66 @@ class _AdoptionPageState extends State<AdoptionPage> {
               (data['contact'] as Map?)?.cast<String, dynamic>() ?? {};
           final verification =
               (data['verification'] as Map?)?.cast<String, dynamic>() ?? {};
+          final sectorData =
+              (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
+          final adoptionData =
+              (sectorData['adoptionCenter'] as Map?)?.cast<String, dynamic>() ??
+              (sectorData['adoption_center'] as Map?)
+                  ?.cast<String, dynamic>() ??
+              {};
+          final servicesData = adoptionData['services'];
+          final specialties = <String>[
+            ...((profile['specialties'] as List?) ?? const []).map(
+              (item) => item.toString(),
+            ),
+            if (servicesData is Map && servicesData['offeredServices'] is List)
+              ...(servicesData['offeredServices'] as List).map(
+                (item) => item.toString(),
+              ),
+          ].where((item) => item.trim().isNotEmpty).toSet().toList();
+          final sectorAdoptionCenter =
+    (sectorData['adoptionCenter'] as Map?)?.cast<String, dynamic>() ?? {};
+
+final rawAdoptionCenter =
+    (sectorData['adoption_center'] as Map?)?.cast<String, dynamic>() ?? {};
+
+final workingHoursRaw =
+    rawAdoptionCenter['workingHours'] ??
+    adoptionData['workingHoursMap'] ??
+    data['workingHoursMap'] ??
+    data['workingHours'] ??
+    sectorAdoptionCenter['workingHours'];
+              debugPrint(
+  '🔥 ADOPTION_PAGE workingHoursRaw TYPE = ${workingHoursRaw.runtimeType}',
+);
+
+debugPrint(
+  '🔥 ADOPTION_PAGE workingHoursRaw VALUE = $workingHoursRaw',
+);
+          final workingHours = workingHoursRaw is Map
+              ? workingHoursRaw.map(
+                  (key, value) => MapEntry(key.toString(), value),
+                )
+              : null;
+              debugPrint(
+  '🔥 ADOPTION_PAGE workingHours TYPE = ${workingHours.runtimeType}',
+);
+
+debugPrint(
+  '🔥 ADOPTION_PAGE workingHours VALUE = $workingHours',
+);
 
           final status = (data['status'] ?? 'approved') as String;
 
           final isVerified = verification['isVerified'] == true;
-          final coverImageUrl = (data['coverImageUrl'] ?? '').toString().trim();
+          final coverImageUrl =
+              (data['coverImageUrl'] ?? adoptionData['coverImageUrl'] ?? '')
+                  .toString()
+                  .trim();
           final profileCoverUrl = (profile['coverUrl'] ?? '').toString().trim();
-          final logoUrl = (profile['logoUrl'] ?? '').toString().trim();
+          final logoUrl = (profile['logoUrl'] ?? adoptionData['logo'] ?? '')
+              .toString()
+              .trim();
           final displayImage = coverImageUrl.isNotEmpty
               ? coverImageUrl
               : (profileCoverUrl.isNotEmpty
@@ -195,16 +248,16 @@ class _AdoptionPageState extends State<AdoptionPage> {
             city: (contact['city'] ?? '') as String,
             district: (contact['district'] ?? '') as String,
             address: '${contact['district'] ?? ''}, ${contact['city'] ?? ''}',
-            specialties: const [],
+            specialties: specialties,
             description: profile['description'] as String?,
 
             phone: contact['phone'] as String?,
             whatsapp: contact['whatsapp'] as String?,
 
-            services: null,
+            services: specialties,
             rating: (profile['rating'] as num?)?.toDouble(),
             reviewsCount: (profile['reviewCount'] as num?)?.toInt(),
-            workingHours: null,
+            workingHours: workingHours,
             distanceKm: null,
 
             isPartner: false,
@@ -213,6 +266,8 @@ class _AdoptionPageState extends State<AdoptionPage> {
             isEmergency: false,
             type: BusinessType.adoptionCenter,
             logoUrl: displayImage,
+            rawData: data,
+            data: data,
           );
         }).toList();
 
@@ -227,6 +282,8 @@ class _AdoptionPageState extends State<AdoptionPage> {
             return BusinessCard(
               data: business,
               onTap: () => appState.openBusinessDetails(business),
+              primaryCtaLabel: 'View Available Pets',
+              onPrimaryCtaTap: () => appState.openBusinessDetails(business),
               onCallTap: business.phone != null
                   ? () async {
                       final phone = business.phone!.replaceAll(

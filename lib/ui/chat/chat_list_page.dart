@@ -10,6 +10,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:barky_matches_fixed/ui/chat/chat_search_delegate.dart';
 import 'package:barky_matches_fixed/ui/business/chat/business_chat_page.dart';
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
 
 class ChatListPage extends StatefulWidget {
   const ChatListPage({super.key});
@@ -24,7 +26,11 @@ class _ChatListPageState extends State<ChatListPage> {
   static const Color _cardBorder = Color(0xFFF1D6E0);
   static const Color _softPink = Color(0xFFFCE7F0);
 
-  String get currentUserId => FirebaseAuth.instance.currentUser!.uid;
+ String get currentUserId {
+  final appState = context.read<AppState>();
+
+  return appState.currentUserId ?? 'guest';
+}
 
   Widget _buildEmptyState() {
     return Center(
@@ -662,7 +668,20 @@ class _ChatListPageState extends State<ChatListPage> {
 
   @override
   Widget build(BuildContext context) {
+
+  final appState = context.watch<AppState>();
+
+  if (appState.isGuest) {
     return Scaffold(
+      backgroundColor: _background,
+      appBar: _buildAppBar(),
+      body: const Center(
+        child: Text("Sign in to use chats"),
+      ),
+    );
+  }
+
+  return Scaffold(
       backgroundColor: _background,
 
       appBar: _buildAppBar(),

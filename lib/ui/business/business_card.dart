@@ -13,6 +13,8 @@ class BusinessCard extends StatelessWidget {
   final VoidCallback? onWhatsAppTap;
   final VoidCallback? onDirectionsTap;
   final VoidCallback? onMessageTap;
+  final String? primaryCtaLabel;
+  final VoidCallback? onPrimaryCtaTap;
 
   const BusinessCard({
     super.key,
@@ -22,6 +24,8 @@ class BusinessCard extends StatelessWidget {
     this.onWhatsAppTap,
     this.onDirectionsTap,
     this.onMessageTap,
+    this.primaryCtaLabel,
+    this.onPrimaryCtaTap,
   });
 
   // ─────────────────────────────────────────────
@@ -309,6 +313,32 @@ class BusinessCard extends StatelessWidget {
                 ],
               ],
             ),
+
+            if (primaryCtaLabel != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 46,
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onPrimaryCtaTap,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    primaryCtaLabel!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

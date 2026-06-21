@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
 
 class FoundDogReportPage extends StatefulWidget {
   const FoundDogReportPage({super.key});
@@ -368,7 +369,32 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+
+Widget build(BuildContext context) {
+
+  final appState = context.watch<AppState>();
+
+  if (appState.isGuestUser) {
+
+    return GuestFeatureGate(
+
+      icon: Icons.pets,
+
+      title: "Report a Found Pet",
+
+      description:
+
+          "Sign in to publish found pet reports and help reunite pets with their families.",
+
+      buttonText: "Sign In",
+
+      onPressed: () {
+  appState.setCurrentTab(NavTab.profile);
+},
+
+    );
+
+  }
     final localizations = AppLocalizations.of(context)!;
 
     return SafeArea(

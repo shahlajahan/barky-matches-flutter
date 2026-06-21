@@ -69,7 +69,16 @@ class _EditAdoptionCenterProfilePageState
 
       final sectorData =
           (data['sectorData'] as Map<String, dynamic>?) ?? {};
-
+debugPrint('==============================');
+debugPrint('FULL DOC DATA = $data');
+debugPrint('SECTOR DATA = ${data['sectorData']}');
+debugPrint(
+  'ADOPTION WORKING HOURS RAW FIRESTORE = ${data['sectorData']?['adoptionCenter']?['workingHours']}',
+);
+debugPrint(
+  'ADOPTION WORKING HOURS TYPE = ${(data['sectorData']?['adoptionCenter']?['workingHours']).runtimeType}',
+);
+debugPrint('==============================');
       final adoptionData =
           (sectorData['adoptionCenter']
                   as Map<String, dynamic>?) ??
@@ -116,9 +125,15 @@ class _EditAdoptionCenterProfilePageState
       _districtController.text =
           (contact['district'] ?? '').toString();
 
-      _workingHoursController.text =
-          (adoptionData['workingHours'] ?? '')
-              .toString();
+      final workingHours = adoptionData['workingHours'];
+
+if (workingHours is Map) {
+  _workingHoursController.text =
+      (workingHours['workingHours'] ?? '').toString();
+} else {
+  _workingHoursController.text =
+      (workingHours ?? '').toString();
+}
     } finally {
       if (mounted) {
         setState(() {
@@ -191,8 +206,19 @@ class _EditAdoptionCenterProfilePageState
             'centerName':
                 _centerNameController.text.trim(),
 
-            'workingHours':
-                _workingHoursController.text.trim(),
+            'workingHours': {
+  'workingHours': _workingHoursController.text.trim(),
+  'workingDays': [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ],
+  'weekendOpen': true,
+},
 
             'description':
                 _bioController.text.trim(),

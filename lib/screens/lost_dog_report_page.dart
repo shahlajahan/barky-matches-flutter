@@ -23,6 +23,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
 
 class LostDogReportPage extends StatefulWidget {
   const LostDogReportPage({super.key});
@@ -526,6 +527,21 @@ if (finalImageUrl != null && finalImageUrl.isNotEmpty) {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
+    final isGuest = FirebaseAuth.instance.currentUser == null;
+
+if (isGuest) {
+  return GuestFeatureGate(
+    icon: Icons.search,
+    title: "Report Lost Pet",
+    description:
+        "Sign in to notify nearby pet owners, veterinary clinics and adoption centers.",
+    onPressed: () {
+      context.read<AppState>().setCurrentTab(
+        NavTab.profile,
+      );
+    },
+  );
+}
 
     return SafeArea(
       top: false,
