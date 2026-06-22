@@ -87,6 +87,8 @@ class AppState with ChangeNotifier {
 
   //GuestFeatureGateData? activeGuestFeatureGate;
 
+  
+
   void openGuestFeatureGate() {
     showGuestFeatureGate = true;
     notifyListeners();

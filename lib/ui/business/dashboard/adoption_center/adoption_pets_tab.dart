@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'sections/adoption_pet_model.dart';
 import 'sections/adoption_pet_card.dart';
 import 'sections/add_edit_adoption_pet_page.dart';
+import 'package:barky_matches_fixed/add_dog_page.dart';
 
 class AdoptionPetsTab extends StatefulWidget {
   final String businessId;
@@ -21,54 +22,78 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
   CollectionReference<Map<String, dynamic>> get _collection =>
       FirebaseFirestore.instance.collection('adoption_pets');
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _petsStream() {
-    debugPrint('INDEX DEBUG businessId=${widget.businessId}');
+Stream<QuerySnapshot<Map<String, dynamic>>> _petsStream() {
+  debugPrint('🔥 STREAM FILTER = $_statusFilter');
 
-    final query = _collection
-        .where('businessId', isEqualTo: widget.businessId)
-        .orderBy('updatedAt', descending: true);
+  Query<Map<String, dynamic>> query = _collection.where(
+    'businessId',
+    isEqualTo: widget.businessId,
+  );
 
-    debugPrint('INDEX DEBUG query created');
+  if (_statusFilter != 'all') {
+    debugPrint('🔥 QUERY status=$_statusFilter');
 
-    return query.snapshots().handleError((e) {
-      debugPrint('INDEX ERROR START ↓↓↓');
-
-      debugPrint(e.toString());
-
-      debugPrint('INDEX ERROR END ↑↑↑');
-    });
-  }
-
-  List<AdoptionPetModel> _applyFilters(List<AdoptionPetModel> pets) {
-    return pets.where((pet) {
-      final matchesStatus =
-          _statusFilter == 'all' || pet.status == _statusFilter;
-
-      final q = _search.trim().toLowerCase();
-
-      if (q.isEmpty) {
-        return matchesStatus;
-      }
-
-      final searchable = [
-        pet.name,
-        pet.species,
-        pet.breed,
-        pet.gender,
-        pet.status,
-      ].join(' ').toLowerCase();
-
-      return matchesStatus && searchable.contains(q);
-    }).toList();
-  }
-
-  Future<void> _openAddPet() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AddEditAdoptionPetPage(businessId: widget.businessId),
-      ),
+    query = query.where(
+      'status',
+      isEqualTo: _statusFilter,
     );
   }
+
+  return query.snapshots();
+}
+
+@override
+void initState() {
+  super.initState();
+
+  debugPrint(
+    '🟢 AdoptionPetsTab INIT ${identityHashCode(this)}',
+  );
+}
+
+@override
+void dispose() {
+  debugPrint(
+    '🔴 AdoptionPetsTab DISPOSE ${identityHashCode(this)}',
+  );
+
+  super.dispose();
+}
+ List<AdoptionPetModel> _applyFilters(List<AdoptionPetModel> pets) {
+  final q = _search.trim().toLowerCase();
+
+  if (q.isEmpty) {
+    return pets;
+  }
+
+  return pets.where((pet) {
+    if (!pet.isVisible) return false;
+    final searchable = [
+      pet.name,
+      pet.species,
+      pet.breed,
+      pet.gender,
+    ].join(' ').toLowerCase();
+
+    return searchable.contains(q);
+  }).toList();
+}
+
+  Future<void> _openAddPet() async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => AddDogPage(
+        mode: AddDogMode.adoptionCenter,
+        businessId: widget.businessId,
+        favoriteDogs: const [],
+        onToggleFavorite: (_) {},
+        onDogAdded: (_) {
+          debugPrint('🐾 Adoption pet added');
+        },
+      ),
+    ),
+  );
+}
 
   Future<void> _openEditPet(AdoptionPetModel pet) async {
     await Navigator.of(context).push(
@@ -269,69 +294,124 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _petsStream(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return _buildError(snapshot.error!);
-            }
+Widget build(BuildContext context) {
+  debugPrint(
+    '🟡 BUILD ${identityHashCode(this)} filter=$_statusFilter',
+  );
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+  return Stack(
+    children: [
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _petsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _buildError(snapshot.error!);
+          }
 
-            final docs = snapshot.data?.docs ?? [];
-
-            final pets = docs
-                .map((doc) => AdoptionPetModel.fromFirestore(doc))
-                .toList();
-
-            final filteredPets = _applyFilters(pets);
-
-            return Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: filteredPets.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
-                          itemCount: filteredPets.length,
-                          itemBuilder: (context, index) {
-                            final pet = filteredPets[index];
-
-                            return AdoptionPetCard(
-                              pet: pet,
-                              onEdit: () => _openEditPet(pet),
-                              onDelete: () => _deletePet(pet),
-                              onStatusChanged: (nextStatus) {
-                                _changeStatus(pet, nextStatus);
-                              },
-                            );
-                          },
-                        ),
-                ),
-              ],
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
             );
-          },
-        ),
+          }
 
-        Positioned(
-          right: 18,
-          bottom: 18,
-          child: FloatingActionButton.extended(
-            heroTag: 'add_adoption_pet_${widget.businessId}',
-            onPressed: _openAddPet,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Pet'),
-          ),
+          final docs = snapshot.data?.docs ?? [];
+
+          for (final doc in docs) {
+            debugPrint(
+              '🐾 PET '
+              'id=${doc.id} '
+              'status=${doc.data()['status']} '
+              'visible=${doc.data()['isVisible']} '
+              'name=${doc.data()['name']}',
+            );
+          }
+
+          final pets = docs
+    .map((doc) => AdoptionPetModel.fromFirestore(doc))
+    .toList()
+  ..sort((a, b) {
+    final aDate = a.updatedAt ?? a.createdAt ?? DateTime(1970);
+    final bDate = b.updatedAt ?? b.createdAt ?? DateTime(1970);
+    return bDate.compareTo(aDate);
+  });
+
+          debugPrint(
+            '🐾 FILTER = $_statusFilter docs=${docs.length}',
+          );
+
+          final filteredPets = _applyFilters(pets);
+
+          debugPrint('========== FINAL LIST ==========');
+
+          for (final pet in filteredPets) {
+            debugPrint(
+              '${pet.name} | ${pet.status} | ${pet.id}',
+            );
+          }
+
+          debugPrint(
+            'FINAL COUNT = ${filteredPets.length}',
+          );
+
+          return Column(
+            children: [
+              _buildHeader(),
+
+              Expanded(
+                child: filteredPets.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        key: ValueKey(_statusFilter),
+                        padding: const EdgeInsets.fromLTRB(
+                          16,
+                          6,
+                          16,
+                          96,
+                        ),
+                        itemCount: filteredPets.length,
+                        itemBuilder: (context, index) {
+                          final pet = filteredPets[index];
+
+                          debugPrint(
+                            'BUILD ITEM -> '
+                            'index=$index '
+                            'name=${pet.name} '
+                            'status=${pet.status}',
+                          );
+
+                          return AdoptionPetCard(
+                            key: ValueKey(pet.id),
+                            pet: pet,
+                            onEdit: () => _openEditPet(pet),
+                            onDelete: () => _deletePet(pet),
+                            onStatusChanged: (nextStatus) {
+                              _changeStatus(
+                                pet,
+                                nextStatus,
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+
+      Positioned(
+        right: 18,
+        bottom: 18,
+        child: FloatingActionButton.extended(
+          heroTag: 'add_adoption_pet_${widget.businessId}',
+          onPressed: _openAddPet,
+          icon: const Icon(Icons.add),
+          label: const Text('Add Pet'),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 }
 
 class _FilterChipButton extends StatelessWidget {

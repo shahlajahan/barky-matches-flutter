@@ -8,8 +8,9 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/add_dog_page.dart';
 
-class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
+class AdoptionCenterDashboardOverviewTab extends StatefulWidget {
   final String businessId;
 
   final Map<String, dynamic> businessData;
@@ -30,19 +31,37 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final profile = Map<String, dynamic>.from(businessData['profile'] ?? {});
+  State<AdoptionCenterDashboardOverviewTab> createState() =>
+      _AdoptionCenterDashboardOverviewTabState();
+}
 
-    final contact = Map<String, dynamic>.from(businessData['contact'] ?? {});
+class _AdoptionCenterDashboardOverviewTabState
+    extends State<AdoptionCenterDashboardOverviewTab> {
+  late final Stream<QuerySnapshot> _requestsStream;
 
-    debugPrint('🐾 OVERVIEW STREAM targetOwnerId=$businessId');
+  @override
+  void initState() {
+    super.initState();
 
-    final requestsStream = FirebaseFirestore.instance
+    debugPrint('🐾 OVERVIEW STREAM targetOwnerId=${widget.businessId}');
+
+    _requestsStream = FirebaseFirestore.instance
         .collection('adoption_requests')
-        .where('targetOwnerId', isEqualTo: businessId)
+        .where('targetOwnerId', isEqualTo: widget.businessId)
         //.orderBy('createdAt', descending: true)
         //.limit(5)
         .snapshots();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = Map<String, dynamic>.from(
+      widget.businessData['profile'] ?? {},
+    );
+
+    final contact = Map<String, dynamic>.from(
+      widget.businessData['contact'] ?? {},
+    );
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -63,7 +82,7 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
         const SizedBox(height: 10),
 
         StreamBuilder<QuerySnapshot>(
-          stream: requestsStream,
+          stream: _requestsStream,
 
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -169,7 +188,7 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
                     ),
 
                     TextButton(
-                      onPressed: onOpenRequests,
+                      onPressed: widget.onOpenRequests,
 
                       child: const Text("View All"),
                     ),
@@ -184,7 +203,11 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
                   ...docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
 
-                    return _requestItem(context, doc.id, data);
+                    return _AdoptionRequestItem(
+                      key: ValueKey(doc.id),
+                      id: doc.id,
+                      data: data,
+                    );
                   }),
               ],
             );
@@ -200,43 +223,176 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
 
         Row(
           children: [
-            _actionBtn("Add Pet", Icons.pets, onTap: onOpenPets),
+            _actionBtn(
+  "Add Pet",
+  Icons.pets,
+  onTap: widget.onOpenPets,
+),
 
             const SizedBox(width: 10),
 
             _actionBtn(
               "Requests",
               LucideIcons.heartHandshake,
-              onTap: onOpenRequests,
+              onTap: widget.onOpenRequests,
             ),
 
             const SizedBox(width: 10),
 
-            _actionBtn("Settings", LucideIcons.settings, onTap: onOpenSettings),
+            _actionBtn(
+              "Settings",
+              LucideIcons.settings,
+              onTap: widget.onOpenSettings,
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _requestItem(
+  Widget _profileCard(
     BuildContext context,
-    String id,
-    Map<String, dynamic> data,
+    Map<String, dynamic> profile,
+    Map<String, dynamic> contact,
   ) {
-    final status = (data['status'] ?? 'pending').toString();
+    final name = profile['displayName'] ?? 'Adoption Center';
 
-    final requesterId = (data['requesterId'] ?? '').toString();
+    final description = profile['description'] ?? "No description yet";
 
-    final targetId = (data['targetId'] ?? '').toString();
+    return Container(
+      padding: const EdgeInsets.all(16),
 
-    debugPrint('🐾 REQUEST DATA = $data');
+      decoration: _cardDecoration(),
+
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(name, style: AppTheme.h3(weight: FontWeight.w800)),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          Text(description, style: AppTheme.body(color: AppTheme.muted)),
+
+          const SizedBox(height: 12),
+
+          Wrap(
+            spacing: 8,
+
+            runSpacing: 8,
+
+            children: [
+              _chip("📞 ${contact['phone'] ?? '-'}"),
+
+              _chip("📍 ${contact['city'] ?? '-'}"),
+
+              _chip("📍 ${contact['district'] ?? '-'}"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+
+      borderRadius: BorderRadius.circular(16),
+
+      border: Border.all(color: Colors.black12),
+
+      boxShadow: AppTheme.cardShadow(opacity: 0.06),
+    );
+  }
+
+  Widget _emptyBox(String text) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+
+      decoration: _cardDecoration(),
+
+      child: Text(text, style: AppTheme.body(color: AppTheme.muted)),
+    );
+  }
+
+  Widget _chip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+
+      decoration: BoxDecoration(
+        color: const Color(0xFF9E1B4F).withOpacity(0.08),
+
+        borderRadius: BorderRadius.circular(10),
+      ),
+
+      child: Text(
+        text,
+
+        style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
+      ),
+    );
+  }
+}
+
+class _AdoptionRequestItem extends StatefulWidget {
+  final String id;
+
+  final Map<String, dynamic> data;
+
+  const _AdoptionRequestItem({super.key, required this.id, required this.data});
+
+  @override
+  State<_AdoptionRequestItem> createState() => _AdoptionRequestItemState();
+}
+
+class _AdoptionRequestItemState extends State<_AdoptionRequestItem> {
+  late final Future<List<dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final requesterId = (widget.data['requesterId'] ?? '').toString();
+
+    final targetId = (widget.data['targetId'] ?? '').toString();
+
+    _future = Future.wait([
+      FirebaseFirestore.instance
+          .collection('adoption_pets')
+          .doc(targetId)
+          .get(),
+
+      FirebaseFirestore.instance.collection('users').doc(requesterId).get(),
+
+      FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(requesterId)
+          .get(),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (widget.data['status'] ?? 'pending').toString();
+
+    final requesterId = (widget.data['requesterId'] ?? '').toString();
+
+    final targetId = (widget.data['targetId'] ?? '').toString();
+
+    debugPrint('🐾 REQUEST DATA = ${widget.data}');
 
     debugPrint('🐾 REQUESTER ID = $requesterId');
 
     debugPrint('🐾 TARGET ID = $targetId');
 
-    final ts = data['createdAt'];
+    final ts = widget.data['createdAt'];
 
     final date = ts is Timestamp ? ts.toDate() : null;
 
@@ -247,19 +403,7 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
               '${date.year}';
 
     return FutureBuilder<List<dynamic>>(
-      future: Future.wait([
-        FirebaseFirestore.instance
-            .collection('adoption_pets')
-            .doc(targetId)
-            .get(),
-
-        FirebaseFirestore.instance.collection('users').doc(requesterId).get(),
-
-        FirebaseFirestore.instance
-            .collection('businesses')
-            .doc(requesterId)
-            .get(),
-      ]),
+      future: _future,
 
       builder: (context, snapshot) {
         debugPrint('🐾 FUTURE HAS DATA = ${snapshot.hasData}');
@@ -319,7 +463,7 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
             }
 
             if (requester.isEmpty) {
-              requester = (data['requesterName'] ?? 'User').toString();
+              requester = (widget.data['requesterName'] ?? 'User').toString();
             }
           }
         }
@@ -328,7 +472,7 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
           onTap: () {
             final appState = context.read<AppState>();
 
-            appState.setInitialAdoptionRequestId(id);
+            appState.setInitialAdoptionRequestId(widget.id);
 
             appState.setCurrentTab(NavTab.profile);
 
@@ -483,96 +627,6 @@ class AdoptionCenterDashboardOverviewTab extends StatelessWidget {
 
           fontSize: 10,
         ),
-      ),
-    );
-  }
-
-  Widget _profileCard(
-    BuildContext context,
-    Map<String, dynamic> profile,
-    Map<String, dynamic> contact,
-  ) {
-    final name = profile['displayName'] ?? 'Adoption Center';
-
-    final description = profile['description'] ?? "No description yet";
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-
-      decoration: _cardDecoration(),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(name, style: AppTheme.h3(weight: FontWeight.w800)),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(description, style: AppTheme.body(color: AppTheme.muted)),
-
-          const SizedBox(height: 12),
-
-          Wrap(
-            spacing: 8,
-
-            runSpacing: 8,
-
-            children: [
-              _chip("📞 ${contact['phone'] ?? '-'}"),
-
-              _chip("📍 ${contact['city'] ?? '-'}"),
-
-              _chip("📍 ${contact['district'] ?? '-'}"),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-
-      borderRadius: BorderRadius.circular(16),
-
-      border: Border.all(color: Colors.black12),
-
-      boxShadow: AppTheme.cardShadow(opacity: 0.06),
-    );
-  }
-
-  Widget _emptyBox(String text) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-
-      decoration: _cardDecoration(),
-
-      child: Text(text, style: AppTheme.body(color: AppTheme.muted)),
-    );
-  }
-
-  Widget _chip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-
-      decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F).withOpacity(0.08),
-
-        borderRadius: BorderRadius.circular(10),
-      ),
-
-      child: Text(
-        text,
-
-        style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
       ),
     );
   }

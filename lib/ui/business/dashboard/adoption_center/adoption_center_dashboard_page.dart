@@ -62,9 +62,25 @@ class _AdoptionCenterDashboardPageState
   AdoptionCenterDashboardSection _selected =
       AdoptionCenterDashboardSection.overview;
 
+      @override
+void initState() {
+  super.initState();
+  debugPrint("🐶 AdoptionDashboard init");
+}
+
+@override
+void didUpdateWidget(covariant AdoptionCenterDashboardPage oldWidget) {
+  super.didUpdateWidget(oldWidget);
+
+  debugPrint(
+    "🐶 AdoptionDashboard didUpdate "
+    "sameData=${identical(oldWidget.businessData, widget.businessData)}",
+  );
+}
+
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+   final appState = context.read<AppState>();
 
     /// =============================
     /// ➕ ADD PET

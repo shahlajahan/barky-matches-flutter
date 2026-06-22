@@ -12,16 +12,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 
+enum AddDogMode {
+  ownerPet,
+  adoptionCenter,
+}
+
 class AddDogPage extends StatefulWidget {
   final Function(Dog)? onDogAdded;
   final List<Dog> favoriteDogs;
   final Function(Dog) onToggleFavorite;
+
+  final AddDogMode mode;
+  final String? businessId;
 
   const AddDogPage({
     super.key,
     required this.onDogAdded,
     required this.favoriteDogs,
     required this.onToggleFavorite,
+    this.mode = AddDogMode.ownerPet,
+    this.businessId,
   });
 
   @override
@@ -579,7 +589,13 @@ class _AddDogPageState extends State<AddDogPage> {
         final userId = user.uid;
         debugPrint('AddDogPage - Current userId: $userId');
 
-        final dogId = FirebaseFirestore.instance.collection('dogs').doc().id;
+        final collectionName =
+    widget.mode == AddDogMode.adoptionCenter
+        ? 'adoption_pets'
+        : 'dogs';
+
+final dogId =
+    FirebaseFirestore.instance.collection(collectionName).doc().id;
         debugPrint('AddDogPage - Generated dogId: $dogId');
 
         final dogsBox = Hive.box<Dog>('dogsBox');
@@ -643,7 +659,10 @@ class _AddDogPageState extends State<AddDogPage> {
         debugPrint('🔥 dogId = $dogId');
         debugPrint('🔥 ownerId = $userId');
         debugPrint('🔥 name = ${newDog.name}');
-        await FirebaseFirestore.instance.collection('dogs').doc(dogId).set({
+        await FirebaseFirestore.instance
+    .collection(collectionName)
+    .doc(dogId)
+    .set({
           'id': dogId,
           'name': newDog.name,
           'petName': newDog.name,
@@ -662,11 +681,16 @@ class _AddDogPageState extends State<AddDogPage> {
           'latitude': newDog.latitude,
           'longitude': newDog.longitude,
           'petType': newDog.petType,
+          'businessId': widget.businessId,
+'status': 'available',
+'createdAt': FieldValue.serverTimestamp(),
+'updatedAt': FieldValue.serverTimestamp(),
 
           // 🔐 Trust & Safety fields
           'reportCount': 0,
           'isHidden': false,
           'moderationStatus': 'active',
+          'isVisible': true,
         });
         debugPrint(
           '🐾 PET NAME SYNC → name=${newDog.name} petName=${newDog.name}',

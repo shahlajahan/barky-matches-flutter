@@ -223,20 +223,27 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
 
             child: GestureDetector(
               onDoubleTap: () async {
-                await _postService.toggleLike(post.id);
+  final appState = context.read<AppState>();
 
-                await Future.delayed(const Duration(milliseconds: 700));
+  if (appState.isGuest) {
+    appState.openGuestFeatureGate();
+    return;
+  }
 
-                if (!mounted) return;
+  await _postService.toggleLike(post.id);
 
-                _animatingPostId = post.id;
+  await Future.delayed(const Duration(milliseconds: 700));
 
-                Future.delayed(const Duration(milliseconds: 700), () {
-                  if (!mounted) return;
+  if (!mounted) return;
 
-                  _animatingPostId = null;
-                });
-              },
+  _animatingPostId = post.id;
+
+  Future.delayed(const Duration(milliseconds: 700), () {
+    if (!mounted) return;
+
+    _animatingPostId = null;
+  });
+},
 
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(28),
@@ -339,12 +346,19 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
                                 Row(
                                   children: [
                                     _buildActionButton(
-                                      icon: LucideIcons.heart,
-                                      count: post.likeCount.toString(),
-                                      onTap: () async {
-                                        await _postService.toggleLike(post.id);
-                                      },
-                                    ),
+  icon: LucideIcons.heart,
+  count: post.likeCount.toString(),
+  onTap: () async {
+    final appState = context.read<AppState>();
+
+    if (appState.isGuest) {
+      appState.openGuestFeatureGate();
+      return;
+    }
+
+    await _postService.toggleLike(post.id);
+  },
+),
 
                                     const SizedBox(width: 18),
 
@@ -352,14 +366,20 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
                                       icon: LucideIcons.messageCircle,
                                       count: post.commentCount.toString(),
                                       onTap: () {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          backgroundColor: Colors.transparent,
-                                          builder: (_) =>
-                                              CommentsBottomSheet(post: post),
-                                        );
-                                      },
+  final appState = context.read<AppState>();
+
+  if (appState.isGuest) {
+    appState.openGuestFeatureGate();
+    return;
+  }
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => CommentsBottomSheet(post: post),
+  );
+},
                                     ),
 
                                     const SizedBox(width: 18),
@@ -388,19 +408,25 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
                                   borderRadius: BorderRadius.circular(18),
 
                                   onTap: () async {
-                                    debugPrint('🔥 SAVE POST TAP');
+  final appState = context.read<AppState>();
 
-                                    try {
-                                      await _saveService.toggleSave(post.id);
+  if (appState.isGuest) {
+    appState.openGuestFeatureGate();
+    return;
+  }
 
-                                      if (!mounted) return;
+  debugPrint('🔥 SAVE POST TAP');
 
-                                      debugPrint('✅ SAVE TOGGLED');
-                                    } catch (e) {
-                                      debugPrint('❌ SAVE ERROR: $e');
-                                    }
-                                  },
+  try {
+    await _saveService.toggleSave(post.id);
 
+    if (!mounted) return;
+
+    debugPrint('✅ SAVE TOGGLED');
+  } catch (e) {
+    debugPrint('❌ SAVE ERROR: $e');
+  }
+},
                                   child: Ink(
                                     height: 56,
                                     width: 56,

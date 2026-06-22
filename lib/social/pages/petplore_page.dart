@@ -13,6 +13,8 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 
+import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
+
 class PetplorePage extends StatefulWidget {
   const PetplorePage({super.key});
 
@@ -446,9 +448,9 @@ class _PetplorePageState extends State<PetplorePage>
 
                   onTap: () {
                     if (isGuest) {
-                      context.read<AppState>().setCurrentTab(NavTab.profile);
-                      return;
-                    }
+  context.read<AppState>().openGuestFeatureGate();
+  return;
+}
 
                     Navigator.push(
                       context,

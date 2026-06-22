@@ -46,6 +46,8 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     );
   }
 
+
+
   @override
   void deactivate() {
     debugPrint('🏢 BusinessDashboardPage deactivate ${identityHashCode(this)}');
@@ -64,9 +66,11 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    //debugPrint('📍 Dashboard parent build ${identityHashCode(this)}');
+ @override
+Widget build(BuildContext context) {
+  debugPrint("🔥 BusinessDashboardPage BUILD");
+ 
+    
     final l10n = AppLocalizations.of(context)!;
     return Container(
       color: AppTheme.bg,

@@ -1365,6 +1365,18 @@ class _AdoptionCenterDetailsOverlayState
         }
 
         final docs = snapshot.data?.docs ?? [];
+
+debugPrint('🔥 DETAILS DOC COUNT = ${docs.length}');
+
+for (final doc in docs) {
+  debugPrint(
+    '🔥 PET '
+    'id=${doc.id} '
+    'status=${doc.data()['status']} '
+    'visible=${doc.data()['isVisible']} '
+    'name=${doc.data()['name']}',
+  );
+}
         final services = <Map<String, dynamic>>[];
 
         if (docs.isNotEmpty) {
@@ -1471,14 +1483,16 @@ class _AdoptionCenterDetailsOverlayState
   }
 
   Widget _buildAvailablePetsTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('adoption_pets')
-          .where('businessId', isEqualTo: widget.data.id)
-          .where('status', isEqualTo: AdoptionPetStatus.available)
-          .where('isVisible', isEqualTo: true)
-          .snapshots(),
-      builder: (context, snapshot) {
+  debugPrint('🔥 DETAILS OVERLAY AVAILABLE TAB BUILD');
+  debugPrint('🔥🔥🔥 DETAILS OVERLAY AVAILABLE TAB V2');
+
+  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    stream: FirebaseFirestore.instance
+        .collection('adoption_pets')
+        .where('businessId', isEqualTo: widget.data.id)
+        .snapshots(),
+    builder: (context, snapshot) {
+        
         if (snapshot.hasError) {
           debugPrint(
             'ADOPTION CENTER AVAILABLE PETS QUERY ERROR '
@@ -1499,6 +1513,14 @@ class _AdoptionCenterDetailsOverlayState
         }
 
         final docs = snapshot.data?.docs ?? [];
+        for (final doc in docs) {
+  debugPrint(
+    '🔥 FIRESTORE '
+    'name=${doc.data()['name']} '
+    'status=${doc.data()['status']} '
+    'visible=${doc.data()['isVisible']}',
+  );
+}
         debugPrint(
           'ADOPTION CENTER AVAILABLE PETS QUERY RESULT '
           'collection=adoption_pets businessId=${widget.data.id} '
@@ -1507,8 +1529,35 @@ class _AdoptionCenterDetailsOverlayState
         );
 
         final pets = docs
-            .map((doc) => AdoptionPetModel.fromFirestore(doc))
-            .toList();
+    .map((doc) => AdoptionPetModel.fromFirestore(doc))
+    .toList();
+
+debugPrint('🔥 MODEL COUNT = ${pets.length}');
+
+for (final pet in pets) {
+  debugPrint(
+    '🔥 MODEL '
+    'name=${pet.name} '
+    'status=${pet.status} '
+    'visible=${pet.isVisible}',
+  );
+}
+
+final availablePets = pets
+    .where(
+      (pet) =>
+          pet.status == AdoptionPetStatus.available &&
+          pet.isVisible,
+    )
+    .toList();
+
+debugPrint('🔥 AVAILABLE COUNT = ${availablePets.length}');
+
+for (final pet in availablePets) {
+  debugPrint(
+    '🔥 AVAILABLE PET ${pet.name} status=${pet.status}',
+  );
+}
 
         if (pets.isEmpty) {
           return Center(
@@ -1521,10 +1570,10 @@ class _AdoptionCenterDetailsOverlayState
 
         return ListView.separated(
           padding: const EdgeInsets.all(16),
-          itemCount: pets.length,
+          itemCount: availablePets.length,
           separatorBuilder: (context, index) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            final pet = pets[index];
+           final pet = availablePets[index];
             final imageUrl =
                 pet.coverImageUrl ??
                 (pet.gallery.isNotEmpty ? pet.gallery.first : null);
