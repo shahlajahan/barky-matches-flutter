@@ -12,35 +12,26 @@ import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_page.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/repositories/pet_taxi_business_repository.dart';
 
 class PetTaxiBottomSheet extends StatefulWidget {
-  const PetTaxiBottomSheet({
-    super.key,
-  });
+  const PetTaxiBottomSheet({super.key});
 
   @override
-  State<PetTaxiBottomSheet> createState() =>
-      _PetTaxiBottomSheetState();
+  State<PetTaxiBottomSheet> createState() => _PetTaxiBottomSheetState();
 }
 
-class _PetTaxiBottomSheetState
-    extends State<PetTaxiBottomSheet> {
+class _PetTaxiBottomSheetState extends State<PetTaxiBottomSheet> {
   PetTaxiLocationPoint? _pickup;
   PetTaxiLocationPoint? _destination;
   List<Dog> _dogs = [];
 
-Dog? _selectedDog;
+  Dog? _selectedDog;
 
-  Future<void> _pickLocation(
-    String title,
-    bool isPickup,
-  ) async {
-    final result =
-        await Navigator.push<PetTaxiLocationPoint>(
+  Future<void> _pickLocation(String title, bool isPickup) async {
+    final result = await Navigator.push<PetTaxiLocationPoint>(
       context,
       MaterialPageRoute(
         builder: (_) => PetTaxiLocationPickerPage(
           title: title,
-          initialLocation:
-              isPickup ? _pickup : _destination,
+          initialLocation: isPickup ? _pickup : _destination,
         ),
       ),
     );
@@ -57,53 +48,43 @@ Dog? _selectedDog;
   }
 
   @override
-void initState() {
-  super.initState();
-  _loadDogs();
-}
+  void initState() {
+    super.initState();
+    _loadDogs();
+  }
 
-void _loadDogs() {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
+  void _loadDogs() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
 
-  final box = Hive.box<Dog>('dogsBox');
+    final box = Hive.box<Dog>('dogsBox');
 
-  final dogs = box.values
-      .where((dog) => dog.ownerId == uid)
-      .toList();
+    final dogs = box.values.where((dog) => dog.ownerId == uid).toList();
 
-  setState(() {
-    _dogs = dogs;
+    setState(() {
+      _dogs = dogs;
 
-    if (dogs.isNotEmpty) {
-      _selectedDog = dogs.first;
-    }
-  });
-}
+      if (dogs.isNotEmpty) {
+        _selectedDog = dogs.first;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-   
-   return DraggableScrollableSheet(
-  initialChildSize: .28,
-  minChildSize: .20,
-  maxChildSize: .85,
-  expand: false,
-  builder: (context, scrollController) {
+    return DraggableScrollableSheet(
+      initialChildSize: .28,
+      minChildSize: .20,
+      maxChildSize: .85,
+      expand: false,
+      builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(22),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
           ),
           child: ListView(
             controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              14,
-              20,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
             children: [
               Center(
                 child: Container(
@@ -120,18 +101,11 @@ void _loadDogs() {
 
               const Row(
                 children: [
-                  Icon(
-                    Icons.pets,
-                    size: 22,
-                    color: Color(0xff444444),
-                  ),
+                  Icon(Icons.pets, size: 22, color: Color(0xff444444)),
                   SizedBox(width: 8),
                   Text(
                     "Pet Taxi",
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -140,27 +114,20 @@ void _loadDogs() {
 
               const Text(
                 "Safe & trusted transportation for your pet",
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
 
               const SizedBox(height: 20),
 
               GestureDetector(
                 onTap: () {
-                  _pickLocation(
-                    "Pickup Location",
-                    true,
-                  );
+                  _pickLocation("Pickup Location", true);
                 },
                 child: _Tile(
                   icon: Icons.location_on_outlined,
                   title: "Pickup",
                   subtitle:
-                      _pickup?.formattedAddress ??
-                      "Select pickup location",
+                      _pickup?.formattedAddress ?? "Select pickup location",
                 ),
               ),
 
@@ -168,17 +135,13 @@ void _loadDogs() {
 
               GestureDetector(
                 onTap: () {
-                  _pickLocation(
-                    "Destination",
-                    false,
-                  );
+                  _pickLocation("Destination", false);
                 },
                 child: _Tile(
                   icon: Icons.flag_outlined,
                   title: "Destination",
                   subtitle:
-                      _destination?.formattedAddress ??
-                      "Where are you going?",
+                      _destination?.formattedAddress ?? "Where are you going?",
                 ),
               ),
 
@@ -186,67 +149,62 @@ void _loadDogs() {
 
               GestureDetector(
                 onTap: () async {
+                  final dog = await showModalBottomSheet<Dog>(
+                    context: context,
+                    builder: (_) {
+                      return ListView(
+                        children: _dogs.map((dog) {
+                          return ListTile(
+                            leading: const Icon(Icons.pets),
+                            title: Text(dog.name),
+                            onTap: () {
+                              Navigator.pop(context, dog);
+                            },
+                          );
+                        }).toList(),
+                      );
+                    },
+                  );
 
-  final dog = await showModalBottomSheet<Dog>(
-    context: context,
-    builder: (_) {
-      return ListView(
-        children: _dogs.map((dog) {
-          return ListTile(
-            leading: const Icon(Icons.pets),
-            title: Text(dog.name),
-            onTap: () {
-              Navigator.pop(context, dog);
-            },
-          );
-        }).toList(),
-      );
-    },
-  );
-
-  if (dog != null) {
-    setState(() {
-      _selectedDog = dog;
-    });
-  }
-},
+                  if (dog != null) {
+                    setState(() {
+                      _selectedDog = dog;
+                    });
+                  }
+                },
                 child: _Tile(
-  icon: Icons.pets_outlined,
-  title: "Pet",
-  subtitle: _selectedDog?.name ?? "Select your pet",
-),
+                  icon: Icons.pets_outlined,
+                  title: "Pet",
+                  subtitle: _selectedDog?.name ?? "Select your pet",
+                ),
               ),
 
               const SizedBox(height: 28),
 
-             SizedBox(
-  height: 52,
-  child: ElevatedButton(
-   onPressed: () async {
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final business = await PetTaxiBusinessRepository()
+                        .findNearestBusiness(pickup: _pickup!);
 
-  final business =
-      await PetTaxiBusinessRepository()
-          .findNearestBusiness(
-            pickup: _pickup!,
-          );
+                    if (!context.mounted) return;
 
-  if (!context.mounted) return;
-
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => PetTaxiBookingPage(
-        business: business,
-        initialPickup: _pickup,
-        initialDropoff: _destination,
-        initialDog: _selectedDog,
-      ),
-    ),
-  );
-},
-    child: const Text("Continue"),
-  ),
-),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PetTaxiBookingPage(
+                          business: business,
+                          initialPickup: _pickup,
+                          initialDropoff: _destination,
+                          initialDog: _selectedDog,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text("Continue"),
+                ),
+              ),
               const SizedBox(height: 40),
             ],
           ),
@@ -270,10 +228,7 @@ class _Tile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xffF6F7F9),
         borderRadius: BorderRadius.circular(14),
@@ -286,23 +241,18 @@ class _Tile extends StatelessWidget {
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ],
             ),

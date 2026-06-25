@@ -215,12 +215,12 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
               ),
               const SizedBox(height: 12),
 
-LiveTripStatusCard(
-  businessId: data['businessId']?.toString() ?? '',
-  bookingStatus: status,
-),
+              LiveTripStatusCard(
+                businessId: data['businessId']?.toString() ?? '',
+                bookingStatus: status,
+              ),
 
-const SizedBox(height: 12),
+              const SizedBox(height: 12),
               const SizedBox(height: 12),
               _info(LucideIcons.mapPin, 'Pickup', data['pickupAddress']),
               _info(LucideIcons.flag, 'Dropoff', data['dropoffAddress']),

@@ -299,8 +299,8 @@ class _PetTaxiDashboardBookingsTabState
 
     try {
       debugPrint(
-  "🚕 STATUS UPDATE REQUEST -> booking=$bookingId status=$status",
-);
+        "🚕 STATUS UPDATE REQUEST -> booking=$bookingId status=$status",
+      );
       await FirebaseFunctions.instanceFor(region: 'europe-west3')
           .httpsCallable('updatePetTaxiBookingStatus')
           .call({'bookingId': bookingId, 'newStatus': status});
@@ -371,19 +371,17 @@ class _PetTaxiDashboardBookingsTabState
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-  onPressed: () {
-    if (formKey.currentState?.validate() != true) {
-      return;
-    }
+            onPressed: () {
+              if (formKey.currentState?.validate() != true) {
+                return;
+              }
 
-    Navigator.of(dialogContext).pop(
-      double.parse(
-        _finalPriceController.text.replaceAll(',', '.'),
-      ),
-    );
-  },
-  child: const Text('Send Price'),
-),
+              Navigator.of(dialogContext).pop(
+                double.parse(_finalPriceController.text.replaceAll(',', '.')),
+              );
+            },
+            child: const Text('Send Price'),
+          ),
         ],
       ),
     );

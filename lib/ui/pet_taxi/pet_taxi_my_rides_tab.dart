@@ -5,8 +5,6 @@ class PetTaxiMyRidesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('My Rides'),
-    );
+    return const Center(child: Text('My Rides'));
   }
 }

@@ -12,10 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 
-enum AddDogMode {
-  ownerPet,
-  adoptionCenter,
-}
+enum AddDogMode { ownerPet, adoptionCenter }
 
 class AddDogPage extends StatefulWidget {
   final Function(Dog)? onDogAdded;
@@ -589,13 +586,14 @@ class _AddDogPageState extends State<AddDogPage> {
         final userId = user.uid;
         debugPrint('AddDogPage - Current userId: $userId');
 
-        final collectionName =
-    widget.mode == AddDogMode.adoptionCenter
-        ? 'adoption_pets'
-        : 'dogs';
+        final collectionName = widget.mode == AddDogMode.adoptionCenter
+            ? 'adoption_pets'
+            : 'dogs';
 
-final dogId =
-    FirebaseFirestore.instance.collection(collectionName).doc().id;
+        final dogId = FirebaseFirestore.instance
+            .collection(collectionName)
+            .doc()
+            .id;
         debugPrint('AddDogPage - Generated dogId: $dogId');
 
         final dogsBox = Hive.box<Dog>('dogsBox');
@@ -660,38 +658,38 @@ final dogId =
         debugPrint('🔥 ownerId = $userId');
         debugPrint('🔥 name = ${newDog.name}');
         await FirebaseFirestore.instance
-    .collection(collectionName)
-    .doc(dogId)
-    .set({
-          'id': dogId,
-          'name': newDog.name,
-          'petName': newDog.name,
-          'breed': newDog.breed,
-          'age': newDog.age,
-          'gender': newDog.gender,
-          'healthStatus': newDog.healthStatus,
-          'isNeutered': newDog.isNeutered,
-          'description': newDog.description,
-          'traits': newDog.traits,
-          'ownerGender': newDog.ownerGender,
-          'imagePaths': newDog.imagePaths,
-          'isAvailableForAdoption': newDog.isAvailableForAdoption,
-          'isOwner': newDog.isOwner,
-          'ownerId': userId,
-          'latitude': newDog.latitude,
-          'longitude': newDog.longitude,
-          'petType': newDog.petType,
-          'businessId': widget.businessId,
-'status': 'available',
-'createdAt': FieldValue.serverTimestamp(),
-'updatedAt': FieldValue.serverTimestamp(),
+            .collection(collectionName)
+            .doc(dogId)
+            .set({
+              'id': dogId,
+              'name': newDog.name,
+              'petName': newDog.name,
+              'breed': newDog.breed,
+              'age': newDog.age,
+              'gender': newDog.gender,
+              'healthStatus': newDog.healthStatus,
+              'isNeutered': newDog.isNeutered,
+              'description': newDog.description,
+              'traits': newDog.traits,
+              'ownerGender': newDog.ownerGender,
+              'imagePaths': newDog.imagePaths,
+              'isAvailableForAdoption': newDog.isAvailableForAdoption,
+              'isOwner': newDog.isOwner,
+              'ownerId': userId,
+              'latitude': newDog.latitude,
+              'longitude': newDog.longitude,
+              'petType': newDog.petType,
+              'businessId': widget.businessId,
+              'status': 'available',
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
 
-          // 🔐 Trust & Safety fields
-          'reportCount': 0,
-          'isHidden': false,
-          'moderationStatus': 'active',
-          'isVisible': true,
-        });
+              // 🔐 Trust & Safety fields
+              'reportCount': 0,
+              'isHidden': false,
+              'moderationStatus': 'active',
+              'isVisible': true,
+            });
         debugPrint(
           '🐾 PET NAME SYNC → name=${newDog.name} petName=${newDog.name}',
         );

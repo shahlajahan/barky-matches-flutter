@@ -448,9 +448,9 @@ class _PetplorePageState extends State<PetplorePage>
 
                   onTap: () {
                     if (isGuest) {
-  context.read<AppState>().openGuestFeatureGate();
-  return;
-}
+                      context.read<AppState>().openGuestFeatureGate();
+                      return;
+                    }
 
                     Navigator.push(
                       context,

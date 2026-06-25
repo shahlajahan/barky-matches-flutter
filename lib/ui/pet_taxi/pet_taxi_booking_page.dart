@@ -68,21 +68,21 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   PetTaxiPriceEstimate? _estimate;
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  _pickupLocation = widget.initialPickup;
-  _dropoffLocation = widget.initialDropoff;
-  _selectedDog = widget.initialDog;
+    _pickupLocation = widget.initialPickup;
+    _dropoffLocation = widget.initialDropoff;
+    _selectedDog = widget.initialDog;
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (_pickupLocation != null &&
-        _dropoffLocation != null &&
-        _scheduledAt != null) {
-      _scheduleEstimate();
-    }
-  });
-}
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pickupLocation != null &&
+          _dropoffLocation != null &&
+          _scheduledAt != null) {
+        _scheduleEstimate();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -400,7 +400,6 @@ void initState() {
             return dog.ownerId == currentUserId;
           }).toList()
         : <Dog>[];
-    
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

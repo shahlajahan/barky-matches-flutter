@@ -223,11 +223,7 @@ class _AdoptionCenterDashboardOverviewTabState
 
         Row(
           children: [
-            _actionBtn(
-  "Add Pet",
-  Icons.pets,
-  onTap: widget.onOpenPets,
-),
+            _actionBtn("Add Pet", Icons.pets, onTap: widget.onOpenPets),
 
             const SizedBox(width: 10),
 

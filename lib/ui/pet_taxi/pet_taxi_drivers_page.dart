@@ -13,8 +13,7 @@ class PetTaxiDriversPage extends StatefulWidget {
   const PetTaxiDriversPage({super.key});
 
   @override
-  State<PetTaxiDriversPage> createState() =>
-      _PetTaxiDriversPageState();
+  State<PetTaxiDriversPage> createState() => _PetTaxiDriversPageState();
 }
 
 class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
@@ -42,25 +41,24 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
   }
 
   Future<void> _loadBusinesses() async {
-  try {
-    final businesses =
-        await _repository.loadBusinesses();
+    try {
+      final businesses = await _repository.loadBusinesses();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _businesses = businesses;
-      _filtered = businesses;
-      _loading = false;
-    });
-  } catch (e) {
-    debugPrint(e.toString());
+      setState(() {
+        _businesses = businesses;
+        _filtered = businesses;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint(e.toString());
 
-    if (mounted) {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
-}
 
   BusinessCardData? _mapPetTaxiBusiness(String id, Map<String, dynamic> data) {
     final root = <String, dynamic>{...data, 'id': id};

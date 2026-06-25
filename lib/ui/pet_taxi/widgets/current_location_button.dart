@@ -15,10 +15,7 @@ class CurrentLocationButton extends StatelessWidget {
         child: const SizedBox(
           width: 50,
           height: 50,
-          child: Icon(
-            Icons.my_location,
-            color: Colors.black87,
-          ),
+          child: Icon(Icons.my_location, color: Colors.black87),
         ),
       ),
     );

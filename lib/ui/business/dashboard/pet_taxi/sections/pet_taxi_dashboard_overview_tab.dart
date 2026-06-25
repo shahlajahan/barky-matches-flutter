@@ -26,9 +26,9 @@ class PetTaxiDashboardOverviewTab extends StatefulWidget {
 class _PetTaxiDashboardOverviewTabState
     extends State<PetTaxiDashboardOverviewTab> {
   bool _isAvailable = false;
- StreamSubscription<Position>? _positionSubscription;
- double? _lastLat;
-double? _lastLng;
+  StreamSubscription<Position>? _positionSubscription;
+  double? _lastLat;
+  double? _lastLng;
 
   @override
   void initState() {
@@ -41,8 +41,8 @@ double? _lastLng;
     final taxi = Map<String, dynamic>.from(sectorData['pet_taxi'] ?? {});
 
     _isAvailable = taxi['isAvailable'] == true;
-debugPrint("🚀 INIT isAvailable = $_isAvailable");
-debugPrint("🚀 START LOCATION SERVICE");
+    debugPrint("🚀 INIT isAvailable = $_isAvailable");
+    debugPrint("🚀 START LOCATION SERVICE");
     if (_isAvailable) {
       _startLocationUpdates();
     }
@@ -174,91 +174,83 @@ debugPrint("🚀 START LOCATION SERVICE");
         .update({"sectorData.pet_taxi.isAvailable": value});
 
     if (value) {
-  _startLocationUpdates();
-} else {
-  _positionSubscription?.cancel();
-  _positionSubscription = null;
-}
+      _startLocationUpdates();
+    } else {
+      _positionSubscription?.cancel();
+      _positionSubscription = null;
+    }
   }
 
   Future<void> _startLocationUpdates() async {
-  debugPrint("🚀 _startLocationUpdates CALLED");
+    debugPrint("🚀 _startLocationUpdates CALLED");
 
-  _positionSubscription?.cancel();
+    _positionSubscription?.cancel();
 
-  final permission =
-      await Geolocator.checkPermission();
+    final permission = await Geolocator.checkPermission();
 
-  debugPrint(
-    "📍 PERMISSION = $permission",
-  );
+    debugPrint("📍 PERMISSION = $permission");
 
-  final serviceEnabled =
-      await Geolocator.isLocationServiceEnabled();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
-  debugPrint(
-    "📍 LOCATION SERVICE = $serviceEnabled",
-  );
+    debugPrint("📍 LOCATION SERVICE = $serviceEnabled");
 
-  _positionSubscription =
-      Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          distanceFilter: 50,
-        ),
-      )
-          .distinct(
-            (previous, current) =>
-                previous.latitude == current.latitude &&
-                previous.longitude == current.longitude,
-          )
-          .listen(
-        (position) async {
-          debugPrint("🔥 LOCATION STREAM EVENT");
+    _positionSubscription =
+        Geolocator.getPositionStream(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.best,
+                distanceFilter: 50,
+              ),
+            )
+            .distinct(
+              (previous, current) =>
+                  previous.latitude == current.latitude &&
+                  previous.longitude == current.longitude,
+            )
+            .listen(
+              (position) async {
+                debugPrint("🔥 LOCATION STREAM EVENT");
 
-          debugPrint(
-            "📍 NEW POSITION = "
-            "${position.latitude}, ${position.longitude}",
-          );
+                debugPrint(
+                  "📍 NEW POSITION = "
+                  "${position.latitude}, ${position.longitude}",
+                );
 
-          if (_lastLat == position.latitude &&
-              _lastLng == position.longitude) {
-            debugPrint("⏭️ SAME LOCATION -> SKIPPED");
-            return;
-          }
+                if (_lastLat == position.latitude &&
+                    _lastLng == position.longitude) {
+                  debugPrint("⏭️ SAME LOCATION -> SKIPPED");
+                  return;
+                }
 
-          _lastLat = position.latitude;
-          _lastLng = position.longitude;
+                _lastLat = position.latitude;
+                _lastLng = position.longitude;
 
-          debugPrint(
-            "📍 FIRESTORE WRITE -> "
-            "${position.latitude}, ${position.longitude}",
-          );
+                debugPrint(
+                  "📍 FIRESTORE WRITE -> "
+                  "${position.latitude}, ${position.longitude}",
+                );
 
-          await FirebaseFirestore.instance
-              .collection("businesses")
-              .doc(widget.businessId)
-              .update({
-            "sectorData.pet_taxi.currentLocation.lat":
-                position.latitude,
-            "sectorData.pet_taxi.currentLocation.lng":
-                position.longitude,
-            "sectorData.pet_taxi.currentLocation.updatedAt":
-                FieldValue.serverTimestamp(),
-          });
+                await FirebaseFirestore.instance
+                    .collection("businesses")
+                    .doc(widget.businessId)
+                    .update({
+                      "sectorData.pet_taxi.currentLocation.lat":
+                          position.latitude,
+                      "sectorData.pet_taxi.currentLocation.lng":
+                          position.longitude,
+                      "sectorData.pet_taxi.currentLocation.updatedAt":
+                          FieldValue.serverTimestamp(),
+                    });
 
-          debugPrint(
-            "🚕 DRIVER LOCATION UPDATED -> "
-            "${position.latitude}, ${position.longitude}",
-          );
-        },
-        onError: (error) {
-          debugPrint(
-            "❌ POSITION STREAM ERROR = $error",
-          );
-        },
-      );
-}
+                debugPrint(
+                  "🚕 DRIVER LOCATION UPDATED -> "
+                  "${position.latitude}, ${position.longitude}",
+                );
+              },
+              onError: (error) {
+                debugPrint("❌ POSITION STREAM ERROR = $error");
+              },
+            );
+  }
 
   @override
   void dispose() {

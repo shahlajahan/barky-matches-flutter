@@ -20,10 +20,7 @@ class PetTaxiHomePage extends StatelessWidget {
           ),
           Expanded(
             child: TabBarView(
-              children: [
-                PetTaxiRequestTab(),
-                PetTaxiMyRidesTab(),
-              ],
+              children: [PetTaxiRequestTab(), PetTaxiMyRidesTab()],
             ),
           ),
         ],

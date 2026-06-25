@@ -62,47 +62,47 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
     );
 
     if (pet != null) {
-  switch (pet.species.toLowerCase()) {
-    case 'dog':
-      _species = 'Dog';
-      break;
+      switch (pet.species.toLowerCase()) {
+        case 'dog':
+          _species = 'Dog';
+          break;
 
-    case 'cat':
-      _species = 'Cat';
-      break;
+        case 'cat':
+          _species = 'Cat';
+          break;
 
-    case 'bird':
-      _species = 'Bird';
-      break;
+        case 'bird':
+          _species = 'Bird';
+          break;
 
-    case 'rabbit':
-      _species = 'Rabbit';
-      break;
+        case 'rabbit':
+          _species = 'Rabbit';
+          break;
 
-    default:
-      _species = 'Other';
-  }
+        default:
+          _species = 'Other';
+      }
 
-  switch (pet.gender.toLowerCase()) {
-    case 'male':
-      _gender = 'Male';
-      break;
+      switch (pet.gender.toLowerCase()) {
+        case 'male':
+          _gender = 'Male';
+          break;
 
-    case 'female':
-      _gender = 'Female';
-      break;
+        case 'female':
+          _gender = 'Female';
+          break;
 
-    default:
-      _gender = 'Unknown';
-  }
+        default:
+          _gender = 'Unknown';
+      }
 
-  _status = pet.status;
-  _visible = pet.isVisible;
+      _status = pet.status;
+      _visible = pet.isVisible;
 
-  _coverImageUrl = pet.coverImageUrl;
-  _gallery.clear();
-  _gallery.addAll(pet.gallery);
-}
+      _coverImageUrl = pet.coverImageUrl;
+      _gallery.clear();
+      _gallery.addAll(pet.gallery);
+    }
   }
 
   @override
@@ -267,37 +267,29 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
   }
 
   Widget _dropdown<T>({
-  required T value,
-  required List<T> items,
-  required ValueChanged<T?> onChanged,
-}) {
-  debugPrint('==============================');
-  debugPrint('DROPDOWN BUILD');
-  debugPrint('value = $value');
-  debugPrint('items = ${items.join(", ")}');
+    required T value,
+    required List<T> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    debugPrint('==============================');
+    debugPrint('DROPDOWN BUILD');
+    debugPrint('value = $value');
+    debugPrint('items = ${items.join(", ")}');
 
-  final matchedItems =
-      items.where((item) => item == value).toList();
+    final matchedItems = items.where((item) => item == value).toList();
 
-  debugPrint('matched count = ${matchedItems.length}');
-  debugPrint('==============================');
+    debugPrint('matched count = ${matchedItems.length}');
+    debugPrint('==============================');
 
-  return DropdownButtonFormField<T>(
-    value: value,
-    items: items
-        .map(
-          (e) => DropdownMenuItem<T>(
-            value: e,
-            child: Text(e.toString()),
-          ),
-        )
-        .toList(),
-    onChanged: onChanged,
-    decoration: const InputDecoration(
-      border: OutlineInputBorder(),
-    ),
-  );
-}
+    return DropdownButtonFormField<T>(
+      value: value,
+      items: items
+          .map((e) => DropdownMenuItem<T>(value: e, child: Text(e.toString())))
+          .toList(),
+      onChanged: onChanged,
+      decoration: const InputDecoration(border: OutlineInputBorder()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

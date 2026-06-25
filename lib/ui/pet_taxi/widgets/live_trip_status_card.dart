@@ -45,34 +45,24 @@ class LiveTripStatusCard extends StatelessWidget {
         final sectorData = _map(data['sectorData']);
 
         final taxi = _map(
-          sectorData['pet_taxi'] ??
-              sectorData['petTaxi'] ??
-              sectorData['taxi'],
+          sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
         );
 
         final driver = _map(taxi['driver']);
         final vehicle = _map(taxi['vehicle']);
         final currentLocation = _map(taxi['currentLocation']);
 
-        final lat =
-            (currentLocation['lat'] as num?)?.toDouble();
+        final lat = (currentLocation['lat'] as num?)?.toDouble();
 
-        final lng =
-            (currentLocation['lng'] as num?)?.toDouble();
+        final lng = (currentLocation['lng'] as num?)?.toDouble();
 
         final updatedAt = currentLocation['updatedAt'];
 
-        debugPrint(
-          "🚕 LIVE TRIP STREAM -> $businessId",
-        );
+        debugPrint("🚕 LIVE TRIP STREAM -> $businessId");
 
-        debugPrint(
-          "📍 LIVE DRIVER POSITION -> $lat , $lng",
-        );
+        debugPrint("📍 LIVE DRIVER POSITION -> $lat , $lng");
 
-        debugPrint(
-          "👤 LIVE DRIVER NAME -> ${driver['fullName']}",
-        );
+        debugPrint("👤 LIVE DRIVER NAME -> ${driver['fullName']}");
 
         return Container(
           margin: const EdgeInsets.only(bottom: 14),
@@ -80,16 +70,11 @@ class LiveTripStatusCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: const Color(0xFFFF4F9B).withOpacity(.15),
-            ),
-            boxShadow: AppTheme.cardShadow(
-              opacity: 0.05,
-            ),
+            border: Border.all(color: const Color(0xFFFF4F9B).withOpacity(.15)),
+            boxShadow: AppTheme.cardShadow(opacity: 0.05),
           ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -97,11 +82,8 @@ class LiveTripStatusCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(
-                        0xFFFF4F9B,
-                      ).withOpacity(.12),
-                      borderRadius:
-                          BorderRadius.circular(12),
+                      color: const Color(0xFFFF4F9B).withOpacity(.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
                       LucideIcons.car,
@@ -113,53 +95,39 @@ class LiveTripStatusCard extends StatelessWidget {
 
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           "Live Driver",
-                          style: AppTheme.bodyMedium()
-                              .copyWith(
-                            fontWeight:
-                                FontWeight.w800,
+                          style: AppTheme.bodyMedium().copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
 
                         const SizedBox(height: 2),
 
                         Text(
-                          driver['fullName']
-                                  ?.toString() ??
-                              "Driver",
-                          style: AppTheme.body(
-                            color: AppTheme.muted,
-                          ),
+                          driver['fullName']?.toString() ?? "Driver",
+                          style: AppTheme.body(color: AppTheme.muted),
                         ),
                       ],
                     ),
                   ),
 
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(
-                        .10,
-                      ),
-                      borderRadius:
-                          BorderRadius.circular(10),
+                      color: Colors.blue.withOpacity(.10),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      bookingStatus
-                          .replaceAll("_", " ")
-                          .toUpperCase(),
+                      bookingStatus.replaceAll("_", " ").toUpperCase(),
                       style: const TextStyle(
                         color: Colors.blue,
-                        fontWeight:
-                            FontWeight.w700,
+                        fontWeight: FontWeight.w700,
                         fontSize: 11,
                       ),
                     ),
@@ -169,17 +137,9 @@ class LiveTripStatusCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              _item(
-                LucideIcons.user,
-                "Driver",
-                driver['fullName'],
-              ),
+              _item(LucideIcons.user, "Driver", driver['fullName']),
 
-              _item(
-                LucideIcons.badge,
-                "Plate",
-                vehicle['plateNumber'],
-              ),
+              _item(LucideIcons.badge, "Plate", vehicle['plateNumber']),
 
               _item(
                 LucideIcons.mapPin,
@@ -205,45 +165,25 @@ class LiveTripStatusCard extends StatelessWidget {
     );
   }
 
-  Widget _item(
-    IconData icon,
-    String title,
-    dynamic value,
-  ) {
+  Widget _item(IconData icon, String title, dynamic value) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 10,
-      ),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 17,
-            color: const Color(0xFF9E1B4F),
-          ),
+          Icon(icon, size: 17, color: const Color(0xFF9E1B4F)),
 
           const SizedBox(width: 8),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: AppTheme.caption(
-                    color: AppTheme.muted,
-                  ),
-                ),
+                Text(title, style: AppTheme.caption(color: AppTheme.muted)),
 
                 const SizedBox(height: 2),
 
-                Text(
-                  value?.toString() ?? "-",
-                  style: AppTheme.body(),
-                ),
+                Text(value?.toString() ?? "-", style: AppTheme.body()),
               ],
             ),
           ),

@@ -102,17 +102,11 @@ class AdoptionPetModel {
 
       name: (data['name'] ?? '').toString(),
 
-      species: (data['species'] ??
-        data['petType'] ??
-        '')
-    .toString(),
+      species: (data['species'] ?? data['petType'] ?? '').toString(),
 
       breed: (data['breed'] ?? '').toString(),
 
-   ageMonths: age is num
-    ? age.toInt()
-    : int.tryParse(age.toString()) ?? 0,
-
+      ageMonths: age is num ? age.toInt() : int.tryParse(age.toString()) ?? 0,
 
       gender: (data['gender'] ?? '').toString(),
 
@@ -122,17 +116,14 @@ class AdoptionPetModel {
           ? data['status']
           : AdoptionPetStatus.available,
 
-      coverImageUrl: data['coverImageUrl']?.toString() ??
-    ((data['imagePaths'] is List &&
-            (data['imagePaths'] as List).isNotEmpty)
-        ? (data['imagePaths'] as List).first.toString()
-        : null),
+      coverImageUrl:
+          data['coverImageUrl']?.toString() ??
+          ((data['imagePaths'] is List &&
+                  (data['imagePaths'] as List).isNotEmpty)
+              ? (data['imagePaths'] as List).first.toString()
+              : null),
 
-      gallery: List<String>.from(
-  data['gallery'] ??
-      data['imagePaths'] ??
-      [],
-),
+      gallery: List<String>.from(data['gallery'] ?? data['imagePaths'] ?? []),
 
       isVisible: data['isVisible'] ?? true,
 
@@ -195,7 +186,6 @@ class AdoptionPetModel {
     DateTime? updatedAt,
     DateTime? adoptedAt,
   }) {
-    
     return AdoptionPetModel(
       id: id ?? this.id,
 
