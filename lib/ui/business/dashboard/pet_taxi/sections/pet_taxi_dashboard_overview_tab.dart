@@ -4,7 +4,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
-class PetTaxiDashboardOverviewTab extends StatelessWidget {
+import 'dart:async';
+
+import 'package:geolocator/geolocator.dart';
+
+class PetTaxiDashboardOverviewTab extends StatefulWidget {
   final String businessId;
   final Map<String, dynamic> businessData;
 
@@ -15,9 +19,39 @@ class PetTaxiDashboardOverviewTab extends StatelessWidget {
   });
 
   @override
+  State<PetTaxiDashboardOverviewTab> createState() =>
+      _PetTaxiDashboardOverviewTabState();
+}
+
+class _PetTaxiDashboardOverviewTabState
+    extends State<PetTaxiDashboardOverviewTab> {
+  bool _isAvailable = false;
+ StreamSubscription<Position>? _positionSubscription;
+ double? _lastLat;
+double? _lastLng;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final sectorData = Map<String, dynamic>.from(
+      widget.businessData['sectorData'] ?? {},
+    );
+
+    final taxi = Map<String, dynamic>.from(sectorData['pet_taxi'] ?? {});
+
+    _isAvailable = taxi['isAvailable'] == true;
+debugPrint("🚀 INIT isAvailable = $_isAvailable");
+debugPrint("🚀 START LOCATION SERVICE");
+    if (_isAvailable) {
+      _startLocationUpdates();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final sectorData = Map<String, dynamic>.from(
-      businessData['sectorData'] ?? {},
+      widget.businessData['sectorData'] ?? {},
     );
     final taxi = Map<String, dynamic>.from(sectorData['pet_taxi'] ?? {});
     final compliance = Map<String, dynamic>.from(taxi['compliance'] ?? {});
@@ -27,7 +61,7 @@ class PetTaxiDashboardOverviewTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('pet_taxi_bookings')
-          .where('businessId', isEqualTo: businessId)
+          .where('businessId', isEqualTo: widget.businessId)
           .snapshots(),
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
@@ -66,6 +100,35 @@ class PetTaxiDashboardOverviewTab extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: AppTheme.cardShadow(opacity: 0.05),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.local_taxi_rounded,
+                    color: Color(0xFFFF4F9B),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      "Driver Online",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Switch(value: _isAvailable, onChanged: _toggleAvailability),
+                ],
+              ),
+            ),
+
             _infoCard(
               title: 'Vehicle',
               icon: LucideIcons.car,
@@ -88,7 +151,7 @@ class PetTaxiDashboardOverviewTab extends StatelessWidget {
               icon: LucideIcons.shieldCheck,
               lines: [
                 'Manual review: ${compliance['manualReviewRequired'] == true ? 'Required' : '-'}',
-                'Status: ${compliance['status'] ?? businessData['status'] ?? '-'}',
+                'Status: ${compliance['status'] ?? widget.businessData['status'] ?? '-'}',
                 'Safety equipment: ${compliance['petSafetyEquipmentConfirmed'] == true ? 'Confirmed' : '-'}',
                 'Hygiene: ${compliance['hygieneSanitationConfirmed'] == true ? 'Confirmed' : '-'}',
               ],
@@ -97,6 +160,111 @@ class PetTaxiDashboardOverviewTab extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _toggleAvailability(bool value) async {
+    debugPrint("🔘 SWITCH = $value");
+    setState(() {
+      _isAvailable = value;
+    });
+
+    await FirebaseFirestore.instance
+        .collection("businesses")
+        .doc(widget.businessId)
+        .update({"sectorData.pet_taxi.isAvailable": value});
+
+    if (value) {
+  _startLocationUpdates();
+} else {
+  _positionSubscription?.cancel();
+  _positionSubscription = null;
+}
+  }
+
+  Future<void> _startLocationUpdates() async {
+  debugPrint("🚀 _startLocationUpdates CALLED");
+
+  _positionSubscription?.cancel();
+
+  final permission =
+      await Geolocator.checkPermission();
+
+  debugPrint(
+    "📍 PERMISSION = $permission",
+  );
+
+  final serviceEnabled =
+      await Geolocator.isLocationServiceEnabled();
+
+  debugPrint(
+    "📍 LOCATION SERVICE = $serviceEnabled",
+  );
+
+  _positionSubscription =
+      Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          distanceFilter: 50,
+        ),
+      )
+          .distinct(
+            (previous, current) =>
+                previous.latitude == current.latitude &&
+                previous.longitude == current.longitude,
+          )
+          .listen(
+        (position) async {
+          debugPrint("🔥 LOCATION STREAM EVENT");
+
+          debugPrint(
+            "📍 NEW POSITION = "
+            "${position.latitude}, ${position.longitude}",
+          );
+
+          if (_lastLat == position.latitude &&
+              _lastLng == position.longitude) {
+            debugPrint("⏭️ SAME LOCATION -> SKIPPED");
+            return;
+          }
+
+          _lastLat = position.latitude;
+          _lastLng = position.longitude;
+
+          debugPrint(
+            "📍 FIRESTORE WRITE -> "
+            "${position.latitude}, ${position.longitude}",
+          );
+
+          await FirebaseFirestore.instance
+              .collection("businesses")
+              .doc(widget.businessId)
+              .update({
+            "sectorData.pet_taxi.currentLocation.lat":
+                position.latitude,
+            "sectorData.pet_taxi.currentLocation.lng":
+                position.longitude,
+            "sectorData.pet_taxi.currentLocation.updatedAt":
+                FieldValue.serverTimestamp(),
+          });
+
+          debugPrint(
+            "🚕 DRIVER LOCATION UPDATED -> "
+            "${position.latitude}, ${position.longitude}",
+          );
+        },
+        onError: (error) {
+          debugPrint(
+            "❌ POSITION STREAM ERROR = $error",
+          );
+        },
+      );
+}
+
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+
+    super.dispose();
   }
 
   Widget _stat(String label, int value, Color color) {

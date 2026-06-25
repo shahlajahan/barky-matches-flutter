@@ -19,7 +19,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 class PetTaxiBookingPage extends StatefulWidget {
   final BusinessCardData business;
 
-  const PetTaxiBookingPage({super.key, required this.business});
+  final PetTaxiLocationPoint? initialPickup;
+  final PetTaxiLocationPoint? initialDropoff;
+  final Dog? initialDog;
+
+  const PetTaxiBookingPage({
+    super.key,
+    required this.business,
+    this.initialPickup,
+    this.initialDropoff,
+    this.initialDog,
+  });
 
   @override
   State<PetTaxiBookingPage> createState() => _PetTaxiBookingPageState();
@@ -56,6 +66,23 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   Timer? _estimateDebounce;
   int _estimateRequestId = 0;
   PetTaxiPriceEstimate? _estimate;
+
+  @override
+void initState() {
+  super.initState();
+
+  _pickupLocation = widget.initialPickup;
+  _dropoffLocation = widget.initialDropoff;
+  _selectedDog = widget.initialDog;
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (_pickupLocation != null &&
+        _dropoffLocation != null &&
+        _scheduledAt != null) {
+      _scheduleEstimate();
+    }
+  });
+}
 
   @override
   void dispose() {
@@ -373,8 +400,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
             return dog.ownerId == currentUserId;
           }).toList()
         : <Dog>[];
-    debugPrint('🚕 PetTaxi currentUserId=$currentUserId');
-    debugPrint('🚕 PetTaxi user dogs=${dogs.length}');
+    
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

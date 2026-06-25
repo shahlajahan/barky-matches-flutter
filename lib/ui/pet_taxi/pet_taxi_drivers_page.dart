@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'pet_taxi_booking_page.dart';
+import 'repositories/pet_taxi_business_repository.dart';
 
 class PetTaxiDriversPage extends StatefulWidget {
   const PetTaxiDriversPage({super.key});
@@ -26,6 +27,7 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
   Timer? _searchDebounce;
   List<BusinessCardData> _businesses = [];
   List<BusinessCardData> _filtered = [];
+  final _repository = PetTaxiBusinessRepository();
 
   @override
   void initState() {
@@ -40,31 +42,25 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
   }
 
   Future<void> _loadBusinesses() async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('businesses')
-          .where('status', isEqualTo: 'approved')
-          .get();
-      if (!mounted) return;
+  try {
+    final businesses =
+        await _repository.loadBusinesses();
 
-      final businesses =
-          snapshot.docs
-              .map((doc) => _mapPetTaxiBusiness(doc.id, doc.data()))
-              .whereType<BusinessCardData>()
-              .toList()
-            ..sort((a, b) => a.name.compareTo(b.name));
+    if (!mounted) return;
 
-      setState(() {
-        _businesses = businesses;
-        _filtered = businesses;
-        _loading = false;
-      });
-      debugPrint('PetTaxiPage loaded businesses=${businesses.length}');
-    } catch (e) {
-      debugPrint('PetTaxiPage load error: ${e.toString()}');
-      if (mounted) setState(() => _loading = false);
+    setState(() {
+      _businesses = businesses;
+      _filtered = businesses;
+      _loading = false;
+    });
+  } catch (e) {
+    debugPrint(e.toString());
+
+    if (mounted) {
+      setState(() => _loading = false);
     }
   }
+}
 
   BusinessCardData? _mapPetTaxiBusiness(String id, Map<String, dynamic> data) {
     final root = <String, dynamic>{...data, 'id': id};

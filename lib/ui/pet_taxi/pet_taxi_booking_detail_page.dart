@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
+import 'widgets/live_trip_status_card.dart';
 
 class PetTaxiBookingDetailPage extends StatefulWidget {
   final String bookingId;
@@ -212,6 +213,14 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
                 collectionName: 'pet_taxi_bookings',
                 transactionId: widget.bookingId,
               ),
+              const SizedBox(height: 12),
+
+LiveTripStatusCard(
+  businessId: data['businessId']?.toString() ?? '',
+  bookingStatus: status,
+),
+
+const SizedBox(height: 12),
               const SizedBox(height: 12),
               _info(LucideIcons.mapPin, 'Pickup', data['pickupAddress']),
               _info(LucideIcons.flag, 'Dropoff', data['dropoffAddress']),

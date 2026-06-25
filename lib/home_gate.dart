@@ -421,11 +421,12 @@ if (appState.isGuest) {
             ),
 
           // 🔥 OVERLAY
-          if (_isTransitioning)
-            Container(
-              color: Colors.white.withOpacity(0.4),
-              child: const Center(child: CircularProgressIndicator()),
-            ),
+         // 🔥 OVERLAY
+if (_isTransitioning && currentTab != NavTab.petTaxi)
+  Container(
+    color: Colors.white.withOpacity(0.4),
+    child: const Center(child: CircularProgressIndicator()),
+  ),
         ],
       ),
     );

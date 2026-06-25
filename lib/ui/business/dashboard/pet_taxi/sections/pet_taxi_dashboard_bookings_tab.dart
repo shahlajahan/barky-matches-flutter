@@ -7,6 +7,8 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 
+import 'package:geolocator/geolocator.dart';
+
 class PetTaxiDashboardBookingsTab extends StatefulWidget {
   final String businessId;
   const PetTaxiDashboardBookingsTab({super.key, required this.businessId});
@@ -296,6 +298,9 @@ class _PetTaxiDashboardBookingsTabState
     if (ok != true) return;
 
     try {
+      debugPrint(
+  "🚕 STATUS UPDATE REQUEST -> booking=$bookingId status=$status",
+);
       await FirebaseFunctions.instanceFor(region: 'europe-west3')
           .httpsCallable('updatePetTaxiBookingStatus')
           .call({'bookingId': bookingId, 'newStatus': status});
@@ -366,15 +371,19 @@ class _PetTaxiDashboardBookingsTabState
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() != true) return;
-              Navigator.pop(
-                context,
-                double.parse(_finalPriceController.text.replaceAll(',', '.')),
-              );
-            },
-            child: const Text('Send Price'),
-          ),
+  onPressed: () {
+    if (formKey.currentState?.validate() != true) {
+      return;
+    }
+
+    Navigator.of(dialogContext).pop(
+      double.parse(
+        _finalPriceController.text.replaceAll(',', '.'),
+      ),
+    );
+  },
+  child: const Text('Send Price'),
+),
         ],
       ),
     );

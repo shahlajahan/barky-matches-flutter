@@ -77,6 +77,9 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
       await _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(LatLng(point.lat, point.lng), 16),
       );
+      final zoom = await _mapController?.getZoomLevel();
+
+debugPrint("🔍 CURRENT ZOOM = $zoom");
     }
   }
 
@@ -116,12 +119,38 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: Text(widget.title)),
+     appBar: AppBar(
+  centerTitle: false,
+  titleSpacing: 4,
+  elevation: 0,
+  leadingWidth: 52,
+  title: Text(
+    widget.title,
+    style: const TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
+    ),
+  ),
+),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          padding: const EdgeInsets.fromLTRB(
+  18,
+  12,
+  18,
+  18,
+),
           child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+  minimumSize: const Size(
+    double.infinity,
+    56,
+  ),
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(18),
+  ),
+),
             onPressed: selected == null
                 ? null
                 : () => Navigator.pop(context, selected),
@@ -134,17 +163,47 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           Container(
-            padding: const EdgeInsets.all(14),
-            decoration: _box(),
+  padding: const EdgeInsets.all(18),
+  decoration: _box(),
             child: Column(
               children: [
                 TextField(
+                  style: const TextStyle(
+  fontSize: 18,
+  fontWeight: FontWeight.w500,
+),
                   controller: _search,
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
+  filled: true,
+  fillColor: Colors.white,
+
+  contentPadding: const EdgeInsets.symmetric(
+    horizontal: 20,
+    vertical: 0,
+  ),
+
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(18),
+    borderSide: BorderSide(
+      color: Colors.black12,
+    ),
+  ),
+
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(18),
+    borderSide: BorderSide(
+      color: Color(0xffED1E79),
+      width: 1.5,
+    ),
+  ),
                     labelText: 'Search real address',
                     hintText: 'Street, building, district',
-                    prefixIcon: const Icon(LucideIcons.search),
+                    prefixIcon: const Icon(
+  LucideIcons.search,
+  size: 26,
+  color: Colors.black87,
+),
                     suffixIcon: _searching
                         ? const Padding(
                             padding: EdgeInsets.all(12),
@@ -152,11 +211,15 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
+                              
                             ),
                           )
                         : IconButton(
                             onPressed: _searchLocations,
-                            icon: const Icon(LucideIcons.arrowRight),
+                            icon: const Icon(
+  LucideIcons.arrowRight,
+  size: 28,
+),
                           ),
                   ),
                   onSubmitted: (_) => _searchLocations(),
@@ -178,9 +241,9 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           Container(
-            height: 330,
+            height: 350,
             clipBehavior: Clip.antiAlias,
             decoration: _box(),
             child: GoogleMap(
@@ -202,9 +265,12 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                     },
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(
+  horizontal: 18,
+  vertical: 16,
+),
             decoration: _box(),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,7 +283,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                 Expanded(
                   child: Text(
                     selected == null
-                        ? 'Search an address or tap the map to select an exact pickup/dropoff point.'
+    ? 'Search an address or tap the map to choose an exact location.'
                         : '${selected.formattedAddress}\n${selected.lat.toStringAsFixed(6)}, ${selected.lng.toStringAsFixed(6)}',
                     style: AppTheme.body(),
                   ),
@@ -230,12 +296,23 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
     );
   }
 
-  BoxDecoration _box() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: Colors.black12),
-      boxShadow: AppTheme.cardShadow(opacity: 0.05),
-    );
-  }
+ BoxDecoration _box() {
+  return BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(22),
+    border: Border.all(
+      color: Colors.black12,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(.08),
+        blurRadius: 20,
+        offset: const Offset(
+          0,
+          6,
+        ),
+      ),
+    ],
+  );
+}
 }
