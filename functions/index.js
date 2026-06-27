@@ -29,10 +29,37 @@ const revenue = require("./revenue");
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 const storage = new Storage();
-const { defineSecret } = require("firebase-functions/params");
+const { defineSecret, defineString } = require("firebase-functions/params");
 
 const IYZICO_API_KEY = defineSecret("IYZICO_API_KEY");
 const IYZICO_SECRET_KEY = defineSecret("IYZICO_SECRET_KEY");
+
+const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
+  default: "iyzico",
+});
+
+const ISBANK_CLIENT_ID = defineSecret("ISBANK_CLIENT_ID");
+const ISBANK_STORE_KEY = defineSecret("ISBANK_STORE_KEY");
+const ISBANK_API_USERNAME = defineSecret("ISBANK_API_USERNAME");
+const ISBANK_API_PASSWORD = defineSecret("ISBANK_API_PASSWORD");
+const ISBANK_GATEWAY_URL = defineString("ISBANK_GATEWAY_URL", {
+  default: "https://entegrasyon.asseco-see.com.tr/fim/est3Dgate",
+});
+const ISBANK_API_URL = defineString("ISBANK_API_URL", {
+  default: "https://entegrasyon.asseco-see.com.tr/fim/api",
+});
+const ISBANK_CALLBACK_BASE_URL = defineString("ISBANK_CALLBACK_BASE_URL", {
+  default: "https://app.petsupo.com",
+});
+const ISBANK_STORE_TYPE = defineString("ISBANK_STORE_TYPE", {
+  default: "3d_pay_hosting",
+});
+const ISBANK_CURRENCY_CODE = defineString("ISBANK_CURRENCY_CODE", {
+  default: "949",
+});
+const ISBANK_INSTALLMENT = defineString("ISBANK_INSTALLMENT", {
+  default: "",
+});
 
 const { Resend } = require("resend");
 
@@ -48,6 +75,35 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
+
+function normalizePaymentProvider(value) {
+  const provider = String(value || "").trim().toLowerCase();
+  return provider === "isbank" ? "isbank" : "iyzico";
+}
+
+function getPaymentProviderConfig() {
+  const activeProvider = normalizePaymentProvider(PAYMENT_PROVIDER.value());
+
+  return {
+    activeProvider,
+    iyzico: {
+      enabled: activeProvider === "iyzico",
+    },
+    isbank: {
+      enabled: activeProvider === "isbank",
+      clientId: ISBANK_CLIENT_ID,
+      storeKey: ISBANK_STORE_KEY,
+      apiUsername: ISBANK_API_USERNAME,
+      apiPassword: ISBANK_API_PASSWORD,
+      gatewayUrl: ISBANK_GATEWAY_URL.value(),
+      apiUrl: ISBANK_API_URL.value(),
+      callbackBaseUrl: ISBANK_CALLBACK_BASE_URL.value(),
+      storeType: ISBANK_STORE_TYPE.value(),
+      currencyCode: ISBANK_CURRENCY_CODE.value(),
+      installment: ISBANK_INSTALLMENT.value(),
+    },
+  };
+}
 
 function normalizeTurkishText(value) {
   if (!value) return "";
