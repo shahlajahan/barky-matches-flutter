@@ -29,6 +29,7 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
   LatLng? _firstDriverPosition;
   Set<Marker> _markers = const {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _driversSubscription;
+  BitmapDescriptor? _driverMarker;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _driversStream() {
     return FirebaseFirestore.instance
@@ -40,6 +41,7 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
   @override
   void initState() {
     super.initState();
+    _loadDriverMarker();
     _driversSubscription = _driversStream().listen(_handleDriversSnapshot);
     _debugUserLocation();
   }
@@ -63,6 +65,19 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
     _mapController?.dispose();
     super.dispose();
   }
+
+  Future<void> _loadDriverMarker() async {
+  _driverMarker = await BitmapDescriptor.asset(
+    const ImageConfiguration(
+      size: Size(56, 56),
+    ),
+    "assets/taxi_marker.png",
+  );
+
+  if (mounted) {
+    setState(() {});
+  }
+}
 
   void _handleDriversSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
     final markers = <Marker>{};
@@ -107,7 +122,10 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
       markers.add(
         Marker(
           markerId: MarkerId(doc.id),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          icon: _driverMarker ??
+    BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueRose,
+    ),
           position: position,
           infoWindow: InfoWindow(
             title: _businessName(data, taxi),
