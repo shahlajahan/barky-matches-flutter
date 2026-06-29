@@ -7,6 +7,7 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart';
 
 class PetTaxiDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -26,6 +27,7 @@ class PetTaxiDashboardOverviewTab extends StatefulWidget {
 class _PetTaxiDashboardOverviewTabState
     extends State<PetTaxiDashboardOverviewTab> {
   bool _isAvailable = false;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _revenueStream;
   StreamSubscription<Position>? _positionSubscription;
   double? _lastLat;
   double? _lastLng;
@@ -33,7 +35,10 @@ class _PetTaxiDashboardOverviewTabState
   @override
   void initState() {
     super.initState();
-
+    _revenueStream = FirebaseFirestore.instance
+    .collection('pet_taxi_bookings')
+    .where('businessId', isEqualTo: widget.businessId)
+    .snapshots(includeMetadataChanges: false);
     final sectorData = Map<String, dynamic>.from(
       widget.businessData['sectorData'] ?? {},
     );
@@ -100,6 +105,9 @@ class _PetTaxiDashboardOverviewTabState
               ],
             ),
             const SizedBox(height: 14),
+            _buildRevenueCard(),
+
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 16),
@@ -258,7 +266,211 @@ class _PetTaxiDashboardOverviewTabState
 
     super.dispose();
   }
+Widget _buildRevenueCard() {
+  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    stream: _revenueStream,
+    builder: (context, snapshot) {
 
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      final docs = snapshot.data?.docs ?? [];
+
+      final paidDocs = docs.where((doc) {
+  final status =
+      (doc.data()['status'] ?? '').toString().toLowerCase();
+
+  return const {
+    'confirmed_paid',
+    'pet_picked_up',
+    'on_trip',
+    'completed',
+  }.contains(status);
+}).toList();
+
+      if (paidDocs.isEmpty) {
+        return _infoCard(
+          title: 'Revenue',
+          icon: LucideIcons.wallet,
+          lines: ['No revenue yet'],
+        );
+      }
+
+      double grossSales = 0;
+      double commission = 0;
+      double netRevenue = 0;
+
+      for (final doc in paidDocs) {
+
+        final data = doc.data();
+debugPrint("🚕 BOOKING ${doc.id}");
+debugPrint(data.toString());
+debugPrint("STATUS = ${data['status']}");
+debugPrint("BOOKING STATUS = ${data['bookingStatus']}");
+debugPrint("LIFECYCLE = ${data['lifecycleStatus']}");
+        final financial =
+            Map<String, dynamic>.from(data['financial'] ?? {});
+
+        final pricing =
+            Map<String, dynamic>.from(data['pricing'] ?? {});
+
+        final gross = _moneyValue(
+  pricing['grandTotal'] ??
+  pricing['subtotal'] ??
+  data['finalPrice'],
+);
+
+        final fee =
+            _moneyValue(
+              financial['platformCommissionAmount'] ??
+              financial['commissionAmount'],
+            );
+
+        final net =
+    _moneyValue(
+      financial['businessNetAmount'] ??
+      gross - fee,
+    );
+
+        grossSales += gross;
+        commission += fee;
+        netRevenue += net;
+      }
+
+      final average =
+          paidDocs.isEmpty
+              ? 0
+              : grossSales / paidDocs.length;
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF9E1B4F),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            const Text(
+              'Net Revenue',
+              style: TextStyle(color: Colors.white70),
+            ),
+
+            const SizedBox(height: 6),
+
+            Text(
+              "₺${netRevenue.toStringAsFixed(0)}",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            _revenueRow("Gross Sales", grossSales),
+            _revenueRow("Platform Fee", -commission),
+            _revenueRow("Adjustments", 0),
+
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+
+                Expanded(
+                  child: _miniRevenue(
+                    "Completed Trips",
+                    paidDocs.length.toString(),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: _miniRevenue(
+                    "Average Trip",
+                    "₺${average.toStringAsFixed(0)}",
+                  ),
+                ),
+
+              ],
+            )
+
+          ],
+        ),
+      );
+    },
+  );
+}
+Widget _revenueRow(String title, double value) {
+
+  final negative = value < 0;
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+
+        Text(
+          title,
+          style: const TextStyle(color: Colors.white70),
+        ),
+
+        Text(
+          "${negative ? "-" : ""}₺${value.abs().toStringAsFixed(0)}",
+          style: const TextStyle(color: Colors.white),
+        ),
+
+      ],
+    ),
+  );
+}
+Widget _miniRevenue(String title, String value) {
+
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+
+        const SizedBox(height: 4),
+
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white60,
+          ),
+        ),
+
+      ],
+    ),
+  );
+}
+double _moneyValue(dynamic value) {
+
+  if (value == null) return 0;
+
+  if (value is num) return value.toDouble();
+
+  return double.tryParse(value.toString()) ?? 0;
+}
   Widget _stat(String label, int value, Color color) {
     return Container(
       padding: const EdgeInsets.all(14),

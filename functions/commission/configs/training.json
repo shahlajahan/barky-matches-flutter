@@ -1,0 +1,23 @@
+{
+    "version": 1,
+    "sector": "training",
+    "enabled": true,
+    "rules": {
+        "rule_1": {
+            "type": "percentage",
+            "commissionRate": 10,
+            "conditions": {
+                "discountFrom": 0.0,
+                "discountTo": 15.0
+            }
+        },
+        "rule_2": {
+            "type": "percentage",
+            "commissionRate": 7,
+            "conditions": {
+                "discountFrom": 15.01,
+                "discountTo": 100.0
+            }
+        }
+    }
+}

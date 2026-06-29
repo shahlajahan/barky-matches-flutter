@@ -27,6 +27,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 
+
 class PetShopDashboardPage extends StatefulWidget {
   const PetShopDashboardPage({super.key});
 
@@ -35,6 +36,16 @@ class PetShopDashboardPage extends StatefulWidget {
 }
 
 class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
+
+  String? _businessId;
+
+Stream<QuerySnapshot>? _revenueStream;
+Stream<QuerySnapshot>? _ordersStream;
+Stream<QuerySnapshot<Map<String, dynamic>>>? _returnsStream;
+
+Stream<DocumentSnapshot>? _profileStream;
+
+final ProductService _productService = ProductService();
   void _logFirestoreIndexLink(dynamic error, String tag) {
     final errorStr = error.toString();
 
@@ -53,20 +64,69 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
     }
   }
 
+  void _setupStreams(String businessId) {
+  if (_businessId == businessId) return;
+
+  _businessId = businessId;
+
+  _profileStream = FirebaseFirestore.instance
+      .collection('businesses')
+      .doc(businessId)
+      .snapshots();
+
+  _revenueStream = FirebaseFirestore.instance
+      .collection("sellerOrders")
+      .where("shopId", isEqualTo: businessId)
+      .snapshots(includeMetadataChanges: false);
+
+  _ordersStream = FirebaseFirestore.instance
+      .collection("sellerOrders")
+      .where("shopId", isEqualTo: businessId)
+      .orderBy("createdAt", descending: true)
+      .limit(5)
+      .snapshots();
+
+  _returnsStream = FirebaseFirestore.instance
+      .collection('order_returns')
+      .where('businessId', isEqualTo: businessId)
+      .orderBy('requestedAt', descending: true)
+      .limit(5)
+      .snapshots();
+
+ 
+
+  debugPrint("✅ PETSHOP STREAMS SETUP ONCE → businessId=$businessId");
+}
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final appState = context.watch<AppState>();
-    final businessId = appState.businessId;
-    if (appState.businessSubPage == BusinessSubPage.addProduct) {
+    final businessId = context.select<AppState, String?>(
+  (s) => s.businessId,
+);
+
+final businessSubPage = context.select<AppState, BusinessSubPage>(
+  (s) => s.businessSubPage,
+);
+   // final businessId = appState.businessId;
+    if (businessSubPage == BusinessSubPage.addProduct) {
       return AddProductPage(businessId: businessId!);
     }
+
+    if (businessSubPage == BusinessSubPage.editProduct) {
+  return AddProductPage(
+    businessId: businessId!,
+    existingProduct: context.read<AppState>().editingProduct,
+  );
+}
 
     debugPrint("🧠 DASHBOARD BUILD → businessId=$businessId");
 
     if (businessId == null) {
       return Center(child: Text(l10n.businessNotFound));
     }
+
+    _setupStreams(businessId);
 
     return Container(
       color: AppTheme.bg,
@@ -153,10 +213,7 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
   Widget _buildProfileSection(BuildContext context, String businessId) {
     final l10n = AppLocalizations.of(context)!;
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(businessId)
-          .snapshots(),
+      stream: _profileStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
@@ -325,10 +382,7 @@ Widget _strengthBar(double value) {
       );
     }
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection("sellerOrders")
-          .where("shopId", isEqualTo: businessId)
-          .snapshots(includeMetadataChanges: false),
+      stream: _revenueStream,
       builder: (context, snapshot) {
         // ❌ ERROR
         if (snapshot.hasError) {
@@ -546,12 +600,7 @@ Widget _strengthBar(double value) {
         ),
         const SizedBox(height: 10),
         StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection("sellerOrders")
-              .where("shopId", isEqualTo: businessId)
-              .orderBy("createdAt", descending: true)
-              .limit(5)
-              .snapshots(),
+          stream: _ordersStream,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               _logFirestoreIndexLink(snapshot.error, "ORDERS");
@@ -787,12 +836,7 @@ Widget _strengthBar(double value) {
     final l10n = AppLocalizations.of(context)!;
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('order_returns')
-          .where('businessId', isEqualTo: businessId)
-          .orderBy('requestedAt', descending: true)
-          .limit(5)
-          .snapshots(),
+      stream: _returnsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
@@ -868,6 +912,12 @@ Widget _strengthBar(double value) {
     return StreamBuilder<List<Product>>(
       stream: service.getProducts(businessId),
       builder: (context, snapshot) {
+        debugPrint(
+  "💪 CATALOG "
+  "state=${snapshot.connectionState} "
+  "hasData=${snapshot.hasData} "
+  "count=${snapshot.data?.length}",
+);
         if (snapshot.hasError) {
           return _emptyBox(l10n.catalogStrengthUnavailable);
         }
@@ -987,6 +1037,12 @@ Widget _strengthBar(double value) {
         StreamBuilder<List<Product>>(
           stream: service.getProducts(businessId),
           builder: (context, snapshot) {
+            debugPrint(
+  "📊 STATS "
+  "state=${snapshot.connectionState} "
+  "hasData=${snapshot.hasData} "
+  "count=${snapshot.data?.length}",
+);
             final products = snapshot.data ?? [];
 
             final total = products.length;
@@ -1037,6 +1093,12 @@ Widget _strengthBar(double value) {
         StreamBuilder<List<Product>>(
           stream: service.getProducts(businessId),
           builder: (context, snapshot) {
+            debugPrint(
+  "📦 PRODUCTS "
+  "state=${snapshot.connectionState} "
+  "hasData=${snapshot.hasData} "
+  "count=${snapshot.data?.length}",
+);
             if (snapshot.hasError) {
               return Text(l10n.errorOccurred(snapshot.error.toString()));
             }

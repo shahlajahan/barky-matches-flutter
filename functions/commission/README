@@ -1,0 +1,259 @@
+# Petsupo Commission Engine
+
+The Petsupo Commission Engine is responsible for calculating commissions for every paid booking, appointment, order and lead inside Petsupo.
+
+The engine is configuration-driven and strategy-based.
+
+No commission rules should ever be hardcoded inside Cloud Functions.
+
+---
+
+# Folder Structure
+
+```text
+commission/
+
+│
+
+├── configs/
+│      taxi.json
+│      vet.json
+│      petshop.json
+│      groomy.json
+│      hotel.json
+│      training.json
+│
+├── strategies/
+│      taxiStrategy.js
+│      vetStrategy.js
+│      discountStrategy.js
+│      petshopStrategy.js
+│      groomyStrategy.js
+│      hotelStrategy.js
+│      trainingStrategy.js
+│
+├── commissionCalculator.js
+├── commissionEngine.js
+├── commissionRepository.js
+├── commissionTypes.js
+├── strategyRegistry.js
+│
+└── README.md
+```
+
+---
+
+# Engine Flow
+
+```text
+Payment Success
+
+↓
+
+calculateCommission()
+
+↓
+
+Load Firestore Configuration
+
+↓
+
+Resolve Strategy
+
+↓
+
+Execute Strategy
+
+↓
+
+Return Financial Object
+```
+
+The engine itself never contains business logic.
+
+Business rules belong inside strategies.
+
+---
+
+# Strategies
+
+Every business sector owns its own strategy.
+
+Current strategies:
+
+| Strategy         | Purpose                   |
+| ---------------- | ------------------------- |
+| taxiStrategy     | Final price commission    |
+| vetStrategy      | Surgery / Lead commission |
+| discountStrategy | Shared discount logic     |
+| petshopStrategy  | Category-based commission |
+| groomyStrategy   | Uses discount strategy    |
+| hotelStrategy    | Uses discount strategy    |
+| trainingStrategy | Uses discount strategy    |
+
+---
+
+# Strategy Responsibilities
+
+Every strategy must:
+
+* Validate its own input
+* Select the proper commission rule
+* Calculate commission
+* Calculate business net amount
+* Return the standardized financial object
+
+Strategies must never access Firestore directly.
+
+Strategies receive configuration from the engine.
+
+---
+
+# Configuration
+
+Configurations are stored inside:
+
+```text
+commission/configs/
+```
+
+Every configuration contains:
+
+```json
+{
+    "version":1,
+    "sector":"taxi",
+    "enabled":true
+}
+```
+
+Configurations are synchronized into Firestore.
+
+They should never be edited manually inside Firebase Console.
+
+---
+
+# Seeder
+
+To synchronize configurations:
+
+```bash
+npm run seed:commission
+```
+
+This command updates every document inside:
+
+```text
+commission_configs
+```
+
+---
+
+# Adding a New Sector
+
+1.
+
+Create configuration
+
+```text
+configs/newSector.json
+```
+
+2.
+
+Create strategy
+
+```text
+strategies/newSectorStrategy.js
+```
+
+3.
+
+Register strategy
+
+```text
+strategyRegistry.js
+```
+
+4.
+
+Run Seeder
+
+```bash
+npm run seed:commission
+```
+
+No changes should be required inside `commissionEngine.js`.
+
+---
+
+# Financial Object
+
+Every successful transaction must save the standardized financial object returned by the engine.
+
+Dashboards must always read financial data from this object.
+
+Dashboards should never calculate commissions themselves.
+
+---
+
+# Design Principles
+
+The Commission Engine follows:
+
+* Strategy Pattern
+* Single Responsibility Principle
+* Configuration Driven Design
+* Versioned Configurations
+* Firestore-backed Rules
+* Git Version Controlled Configurations
+* Testable Architecture
+* Extensible Design
+
+---
+
+# Development Rules
+
+Never:
+
+* Hardcode commission percentages
+* Read Firestore inside strategies
+* Duplicate calculation logic
+* Edit Firestore configs manually
+
+Always:
+
+* Update JSON configuration
+* Run Seeder
+* Keep one strategy per sector
+* Return the standardized financial object
+
+---
+
+# Current Status
+
+Current engine version:
+
+```text
+Commission Engine v1
+```
+
+Supported sectors:
+
+* Taxi
+* Vet
+* Petshop
+* Groomy
+* Hotel
+* Training
+
+Future versions may introduce:
+
+* Campaign rules
+* Settlement Engine
+* Wallet System
+* Business Overrides
+* Region-based Rules
+* Seasonal Pricing
+* Commission Simulator
+* Admin Commission Editor

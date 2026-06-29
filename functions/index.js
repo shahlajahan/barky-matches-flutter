@@ -24,6 +24,10 @@ const Iyzipay = require("iyzipay");
 
 const admin = require("firebase-admin");
 const vision = require("@google-cloud/vision");
+const {
+  SETTLEMENT_STATUS,
+  isEligibleForSettlement,
+} = require("./settlement");
 
 const revenue = require("./revenue");
 
@@ -60,6 +64,10 @@ const ISBANK_CURRENCY_CODE = defineString("ISBANK_CURRENCY_CODE", {
 const ISBANK_INSTALLMENT = defineString("ISBANK_INSTALLMENT", {
   default: "",
 });
+
+const {
+  calculateCommission,
+} = require("./commission/commissionEngine");
 
 const { Resend } = require("resend");
 
@@ -103,6 +111,131 @@ function getPaymentProviderConfig() {
       installment: ISBANK_INSTALLMENT.value(),
     },
   };
+}
+
+function normalizeIsbankValue(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function normalizeIsbankAmount(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return "";
+  return amount.toFixed(2);
+}
+
+function normalizeIsbankInstallment(value) {
+  const installment = normalizeIsbankValue(value);
+  return installment === "0" ? "" : installment;
+}
+
+function normalizeIsbankCallbackPayload(payload = {}) {
+  return Object.entries(payload || {}).reduce((normalized, [key, value]) => {
+    const normalizedKey = normalizeIsbankValue(key);
+    if (!normalizedKey) return normalized;
+
+    normalized[normalizedKey] = Array.isArray(value)
+      ? value.map((entry) => normalizeIsbankValue(entry))
+      : normalizeIsbankValue(value);
+
+    return normalized;
+  }, {});
+}
+
+function getIsbankCallbackValue(payload, key) {
+  const normalizedKey = normalizeIsbankValue(key).toLowerCase();
+  const entry = Object.entries(payload || {}).find(
+    ([payloadKey]) => normalizeIsbankValue(payloadKey).toLowerCase() === normalizedKey
+  );
+
+  if (!entry) return "";
+  const value = entry[1];
+  return Array.isArray(value) ? normalizeIsbankValue(value[0]) : normalizeIsbankValue(value);
+}
+
+function buildIsbankBase64Sha1Hash(value) {
+  return crypto
+    .createHash("sha1")
+    .update(String(value), "utf8")
+    .digest("base64");
+}
+
+function buildIsbank3DHash({
+  clientId,
+  orderId,
+  amount,
+  successUrl,
+  failUrl,
+  transactionType,
+  installment,
+  random,
+  storeKey,
+}) {
+  const hashSource = [
+    normalizeIsbankValue(clientId),
+    normalizeIsbankValue(orderId),
+    normalizeIsbankAmount(amount),
+    normalizeIsbankValue(successUrl),
+    normalizeIsbankValue(failUrl),
+    normalizeIsbankValue(transactionType),
+    normalizeIsbankInstallment(installment),
+    normalizeIsbankValue(random),
+    normalizeIsbankValue(storeKey),
+  ].join("");
+
+  return buildIsbankBase64Sha1Hash(hashSource);
+}
+
+function buildIsbankCallbackHash({ payload, storeKey }) {
+  const normalizedPayload = normalizeIsbankCallbackPayload(payload);
+  const hashParams = getIsbankCallbackValue(normalizedPayload, "HASHPARAMS");
+
+  if (!hashParams) return "";
+
+  const hashSource = hashParams
+    .split(":")
+    .filter(Boolean)
+    .map((key) => getIsbankCallbackValue(normalizedPayload, key))
+    .join("") + normalizeIsbankValue(storeKey);
+
+  return buildIsbankBase64Sha1Hash(hashSource);
+}
+
+function isIsbankHashValid({ payload, storeKey }) {
+  const normalizedPayload = normalizeIsbankCallbackPayload(payload);
+  const expectedHash = buildIsbankCallbackHash({
+    payload: normalizedPayload,
+    storeKey,
+  });
+  const receivedHash = getIsbankCallbackValue(normalizedPayload, "HASH");
+
+  if (!expectedHash || !receivedHash) return false;
+
+  const expected = Buffer.from(expectedHash, "utf8");
+  const received = Buffer.from(receivedHash, "utf8");
+
+  return expected.length === received.length && crypto.timingSafeEqual(expected, received);
+}
+
+function escapeIsbankHtmlAttribute(value) {
+  return normalizeIsbankValue(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function buildIsbank3DHtmlForm({ actionUrl, fields }) {
+  const inputs = Object.entries(fields || {})
+    .filter(([key]) => normalizeIsbankValue(key))
+    .map(([key, value]) => {
+      const normalizedValue = Array.isArray(value) ? value[0] : value;
+      return `<input type="hidden" name="${escapeIsbankHtmlAttribute(key)}" value="${escapeIsbankHtmlAttribute(normalizedValue)}">`;
+    })
+    .join("");
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Payment</title></head><body><form id="isbank-3d-form" method="post" action="${escapeIsbankHtmlAttribute(actionUrl)}">${inputs}</form><script>document.getElementById("isbank-3d-form").submit();</script></body></html>`;
 }
 
 function normalizeTurkishText(value) {
@@ -21698,7 +21831,25 @@ exports.verifyPetTaxiPayment = onCall(
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+      // ========================================
+      // Commission Engine
+      // ========================================
 
+      const financial = await calculateCommission({
+        sector: "taxi",
+        finalPrice: Number(
+          result.paidPrice ||
+          result.price ||
+          bookingData.finalPrice ||
+          0
+        ),
+      });
+
+      logger.info("💰 Pet Taxi Commission Result", {
+        bookingId,
+        orderId,
+        financial,
+      });
       await bookingRef.update({
         paymentStatus: "paid",
         status: "confirmed_paid",
@@ -21722,6 +21873,7 @@ exports.verifyPetTaxiPayment = onCall(
         paymentProvider: "iyzico",
         paymentAmount: Number(result.paidPrice || result.price || bookingData.finalPrice || 0),
         paymentCurrency: result.currency || bookingData.finalPriceCurrency || "TRY",
+        financial,
         providerPayoutStatus: "pending_completion",
         providerPayoutAt: null,
         refundStatus: bookingData.refundStatus || "none",
@@ -21734,6 +21886,7 @@ exports.verifyPetTaxiPayment = onCall(
           at: admin.firestore.FieldValue.serverTimestamp(),
           by: uid,
         },
+
       });
 
       const businessId = bookingData.businessId || orderData.businessId;

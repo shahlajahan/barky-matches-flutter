@@ -13,6 +13,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
+
 class ProductCardDashboard extends StatelessWidget {
   final Product product;
   final String businessId;
@@ -205,15 +208,8 @@ class ProductCardDashboard extends StatelessWidget {
               IconButton(
                 icon: const Icon(LucideIcons.pencil),
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddProductPage(
-                        businessId: businessId,
-                        existingProduct: p,
-                      ),
-                    ),
-                  );
+                                    context.read<AppState>().openEditProduct(product);
+
                 },
               ),
               IconButton(
@@ -298,15 +294,7 @@ class ProductCardDashboard extends StatelessWidget {
                 );
               }).toList();
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GalleryViewerPage(
-                    items: items,
-                    initialIndex: initialIndex < 0 ? 0 : initialIndex,
-                  ),
-                ),
-              );
+              context.read<AppState>().openEditProduct(product);
             },
             child: Padding(
               padding: const EdgeInsets.only(right: 8),

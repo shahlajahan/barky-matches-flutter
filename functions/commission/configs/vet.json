@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "sector": "vet",
+    "enabled": true,
+    "rules": {
+        "surgery": {
+            "type": "percentage",
+            "commissionRate": 10,
+            "conditions": {
+                "serviceCategory": "surgery"
+            }
+        },
+        "default": {
+            "type": "fixed_per_lead",
+            "amount": 80,
+            "conditions": {
+                "serviceCategory": "default"
+            }
+        }
+    }
+}

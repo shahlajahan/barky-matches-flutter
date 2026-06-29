@@ -1,0 +1,63 @@
+{
+    "version": 1,
+    "sector": "petshop",
+    "enabled": true,
+    "categories": {
+        "food": {
+            "rules": {
+                "rule_1": {
+                    "type": "percentage",
+                    "commissionRate": 10,
+                    "conditions": {
+                        "discountFrom": 0.0,
+                        "discountTo": 15.0
+                    }
+                },
+                "rule_2": {
+                    "type": "percentage",
+                    "commissionRate": 7,
+                    "conditions": {
+                        "discountFrom": 15.01,
+                        "discountTo": 25.0
+                    }
+                },
+                "rule_3": {
+                    "type": "percentage",
+                    "commissionRate": 0,
+                    "conditions": {
+                        "discountFrom": 25.01,
+                        "discountTo": 100.0
+                    }
+                }
+            }
+        },
+        "non_food": {
+            "rules": {
+                "rule_1": {
+                    "type": "percentage",
+                    "commissionRate": 12,
+                    "conditions": {
+                        "discountFrom": 0.0,
+                        "discountTo": 15.0
+                    }
+                },
+                "rule_2": {
+                    "type": "percentage",
+                    "commissionRate": 9,
+                    "conditions": {
+                        "discountFrom": 15.01,
+                        "discountTo": 25.0
+                    }
+                },
+                "rule_3": {
+                    "type": "percentage",
+                    "commissionRate": 0,
+                    "conditions": {
+                        "discountFrom": 25.01,
+                        "discountTo": 100.0
+                    }
+                }
+            }
+        }
+    }
+}

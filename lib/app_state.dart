@@ -27,6 +27,7 @@ import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/models/product.dart';
 
 enum BusinessSubPage {
   none,
@@ -34,6 +35,7 @@ enum BusinessSubPage {
   addProduct,
   addService,
   addServiceDetail,
+  editProduct,
 }
 
 enum HomeOverlay { none, parkPlaydateEntry, notifications }
@@ -228,6 +230,7 @@ class AppState with ChangeNotifier {
   List<CartItem> get cartItems => List.unmodifiable(_cartItems);
 
   void closeBusinessSubPage() {
+    _editingProduct = null;
     _businessSubPage = BusinessSubPage.none;
 
     /// 🔥 RESET EDIT STATE
@@ -238,9 +241,16 @@ class AppState with ChangeNotifier {
   }
 
   void openAddProduct() {
-    _businessSubPage = BusinessSubPage.addProduct;
-    notifyListeners();
-  }
+  _editingProduct = null;
+  _businessSubPage = BusinessSubPage.addProduct;
+  notifyListeners();
+}
+
+  void openEditProduct(Product product) {
+  _editingProduct = product;
+  _businessSubPage = BusinessSubPage.editProduct;
+  notifyListeners();
+}
 
   void addToCart(CartItem item) {
     debugPrint("🧠 APPSTATE ADD → ${item.allowedCarrierCodes}");
@@ -385,6 +395,9 @@ class AppState with ChangeNotifier {
   BusinessSubPage get businessSubPage => _businessSubPage;
   BusinessCardData? get activeBusiness => _activeBusiness;
   BusinessCardData? get businessAppointment => _businessAppointment;
+
+  Product? _editingProduct;
+Product? get editingProduct => _editingProduct;
 
   void openAddService() {
     _businessSubPage = BusinessSubPage.addService;
