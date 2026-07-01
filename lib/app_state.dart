@@ -36,6 +36,10 @@ enum BusinessSubPage {
   addService,
   addServiceDetail,
   editProduct,
+  petshopProducts,
+  petshopOrders,
+  petshopReturns,
+  petshopSettings,
 }
 
 enum HomeOverlay { none, parkPlaydateEntry, notifications }
@@ -241,16 +245,36 @@ class AppState with ChangeNotifier {
   }
 
   void openAddProduct() {
-  _editingProduct = null;
-  _businessSubPage = BusinessSubPage.addProduct;
-  notifyListeners();
-}
+    _editingProduct = null;
+    _businessSubPage = BusinessSubPage.addProduct;
+    notifyListeners();
+  }
 
   void openEditProduct(Product product) {
-  _editingProduct = product;
-  _businessSubPage = BusinessSubPage.editProduct;
-  notifyListeners();
-}
+    _editingProduct = product;
+    _businessSubPage = BusinessSubPage.editProduct;
+    notifyListeners();
+  }
+
+  void openPetShopProducts() {
+    _businessSubPage = BusinessSubPage.petshopProducts;
+    notifyListeners();
+  }
+
+  void openPetShopOrders() {
+    _businessSubPage = BusinessSubPage.petshopOrders;
+    notifyListeners();
+  }
+
+  void openPetShopReturns() {
+    _businessSubPage = BusinessSubPage.petshopReturns;
+    notifyListeners();
+  }
+
+  void openPetShopSettings() {
+    _businessSubPage = BusinessSubPage.petshopSettings;
+    notifyListeners();
+  }
 
   void addToCart(CartItem item) {
     debugPrint("🧠 APPSTATE ADD → ${item.allowedCarrierCodes}");
@@ -397,7 +421,7 @@ class AppState with ChangeNotifier {
   BusinessCardData? get businessAppointment => _businessAppointment;
 
   Product? _editingProduct;
-Product? get editingProduct => _editingProduct;
+  Product? get editingProduct => _editingProduct;
 
   void openAddService() {
     _businessSubPage = BusinessSubPage.addService;

@@ -9,15 +9,9 @@ import '../../theme/app_theme.dart';
 import '../../models/product.dart';
 import '../../services/product_service.dart';
 import '../business/petshop/add_product_page.dart';
-import 'package:barky_matches_fixed/ui/common/gallery_viewer_page.dart';
-import 'package:barky_matches_fixed/models/media_item.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:barky_matches_fixed/ui/common/smart_video_preview.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/ui/petshop/widgets/product_card_dashboard.dart';
 
-import 'package:barky_matches_fixed/ui/seller/seller_orders_page.dart';
-import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:barky_matches_fixed/models/order_return.dart';
 import 'package:barky_matches_fixed/ui/returns/order_return_card.dart';
 
@@ -27,7 +21,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 
-
 class PetShopDashboardPage extends StatefulWidget {
   const PetShopDashboardPage({super.key});
 
@@ -36,16 +29,15 @@ class PetShopDashboardPage extends StatefulWidget {
 }
 
 class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
-
   String? _businessId;
 
-Stream<QuerySnapshot>? _revenueStream;
-Stream<QuerySnapshot>? _ordersStream;
-Stream<QuerySnapshot<Map<String, dynamic>>>? _returnsStream;
+  Stream<QuerySnapshot>? _revenueStream;
+  Stream<QuerySnapshot>? _ordersStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _returnsStream;
 
-Stream<DocumentSnapshot>? _profileStream;
+  Stream<DocumentSnapshot>? _profileStream;
 
-final ProductService _productService = ProductService();
+  final ProductService _productService = ProductService();
   void _logFirestoreIndexLink(dynamic error, String tag) {
     final errorStr = error.toString();
 
@@ -65,62 +57,71 @@ final ProductService _productService = ProductService();
   }
 
   void _setupStreams(String businessId) {
-  if (_businessId == businessId) return;
+    debugPrint("SETUP CALLED");
+debugPrint("_businessId=$_businessId");
+debugPrint("businessId=$businessId");
+debugPrint("_returnsStream=$_returnsStream");
+    //if (_businessId == businessId) return;
 
-  _businessId = businessId;
+    _businessId = businessId;
 
-  _profileStream = FirebaseFirestore.instance
-      .collection('businesses')
-      .doc(businessId)
-      .snapshots();
+    _profileStream = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(businessId)
+        .snapshots();
 
-  _revenueStream = FirebaseFirestore.instance
-      .collection("sellerOrders")
-      .where("shopId", isEqualTo: businessId)
-      .snapshots(includeMetadataChanges: false);
+    _revenueStream = FirebaseFirestore.instance
+        .collection("sellerOrders")
+        .where("shopId", isEqualTo: businessId)
+        .snapshots(includeMetadataChanges: false);
 
-  _ordersStream = FirebaseFirestore.instance
-      .collection("sellerOrders")
-      .where("shopId", isEqualTo: businessId)
-      .orderBy("createdAt", descending: true)
-      .limit(5)
-      .snapshots();
+    _ordersStream = FirebaseFirestore.instance
+        .collection("sellerOrders")
+        .where("shopId", isEqualTo: businessId)
+        .orderBy("createdAt", descending: true)
+        .limit(5)
+        .snapshots();
 
-  _returnsStream = FirebaseFirestore.instance
-      .collection('order_returns')
-      .where('businessId', isEqualTo: businessId)
-      .orderBy('requestedAt', descending: true)
-      .limit(5)
-      .snapshots();
+    _returnsStream = FirebaseFirestore.instance
+        .collection('order_returns')
+        .where('businessId', isEqualTo: businessId)
+        .orderBy('requestedAt', descending: true)
+        .limit(5)
+        .snapshots();
+debugPrint("===== RETURNS QUERY =====");
+debugPrint("businessId = $businessId");
+debugPrint("stream = $_returnsStream");
+        debugPrint(
+  "📡 RETURNS QUERY businessId=$businessId "
+  "collection=order_returns "
+  "orderBy=requestedAt",
+);
 
- 
-
-  debugPrint("✅ PETSHOP STREAMS SETUP ONCE → businessId=$businessId");
-}
+    debugPrint("✅ PETSHOP STREAMS SETUP ONCE → businessId=$businessId");
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final businessId = context.select<AppState, String?>(
-  (s) => s.businessId,
-);
+    final businessId = context.select<AppState, String?>((s) => s.businessId);
 
-final businessSubPage = context.select<AppState, BusinessSubPage>(
-  (s) => s.businessSubPage,
-);
-   // final businessId = appState.businessId;
+    final businessSubPage = context.select<AppState, BusinessSubPage>(
+      (s) => s.businessSubPage,
+    );
+    debugPrint("================================");
+debugPrint("businessSubPage = $businessSubPage");
+debugPrint("================================");
+    // final businessId = appState.businessId;
     if (businessSubPage == BusinessSubPage.addProduct) {
       return AddProductPage(businessId: businessId!);
     }
 
     if (businessSubPage == BusinessSubPage.editProduct) {
-  return AddProductPage(
-    businessId: businessId!,
-    existingProduct: context.read<AppState>().editingProduct,
-  );
-}
-
-    debugPrint("🧠 DASHBOARD BUILD → businessId=$businessId");
+      return AddProductPage(
+        businessId: businessId!,
+        existingProduct: context.read<AppState>().editingProduct,
+      );
+    }
 
     if (businessId == null) {
       return Center(child: Text(l10n.businessNotFound));
@@ -128,28 +129,245 @@ final businessSubPage = context.select<AppState, BusinessSubPage>(
 
     _setupStreams(businessId);
 
+    if (businessSubPage == BusinessSubPage.petshopProducts) {
+      return _buildDashboardShell(
+        child: _buildBusinessSubPage(
+          title: l10n.productsTitle,
+          child: _buildProductsSection(context, businessId, showTitle: false),
+        ),
+      );
+    }
+
+    if (businessSubPage == BusinessSubPage.petshopOrders) {
+      return _buildDashboardShell(
+        child: _buildBusinessSubPage(
+          title: l10n.ordersTitle,
+          child: _buildOrdersSection(context, businessId, showHeader: false),
+        ),
+      );
+    }
+
+    if (businessSubPage == BusinessSubPage.petshopReturns) {
+      return _buildDashboardShell(
+        child: _buildBusinessSubPage(
+          title: l10n.returnRequestsTitle,
+          child: _buildReturnsSection(context, businessId, showHeader: false),
+        ),
+      );
+    }
+
+    if (businessSubPage == BusinessSubPage.petshopSettings) {
+      return EditPetShopProfilePage(businessId: businessId);
+    }
+
+    debugPrint("🧠 DASHBOARD BUILD → businessId=$businessId");
+
+    return _buildDashboardShell(child: _buildOverview(context, businessId));
+  }
+
+  Widget _buildDashboardShell({required Widget child}) {
     return Container(
       color: AppTheme.bg,
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      child: SafeArea(child: child),
+    );
+  }
+
+  Widget _buildOverview(BuildContext context, String businessId) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(l10n.shopProfileTitle, style: AppTheme.h2()),
+        const SizedBox(height: 10),
+        _buildProfileSection(context, businessId),
+        const SizedBox(height: 20),
+
+        Text("Revenue", style: AppTheme.h2()),
+        const SizedBox(height: 10),
+        _buildRevenueCard(context, businessId),
+        const SizedBox(height: 20),
+
+        Text("Daily Summary", style: AppTheme.h2()),
+        const SizedBox(height: 10),
+        _buildDailySummaryCards(context, businessId),
+        const SizedBox(height: 20),
+
+        Text("Quick Actions", style: AppTheme.h2()),
+        const SizedBox(height: 10),
+        _buildQuickActions(context),
+      ],
+    );
+  }
+
+  Widget _buildBusinessSubPage({required String title, required Widget child}) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
           children: [
-            _buildRevenueCard(context, businessId),
-            const SizedBox(height: 20),
-            _buildProfileSection(context, businessId),
-            const SizedBox(height: 20),
-            _buildOrdersSection(context, businessId),
-            const SizedBox(height: 20),
-            _buildReturnsSection(context, businessId),
-            const SizedBox(height: 20),
-            _buildCatalogStrengthSection(context, businessId),
-            const SizedBox(height: 20),
-            _buildProductsSection(context, businessId),
-            const SizedBox(height: 20),
-            _buildOffersSection(context),
+            IconButton(
+              onPressed: context.read<AppState>().closeBusinessSubPage,
+              icon: const Icon(LucideIcons.arrowLeft),
+            ),
+            const SizedBox(width: 4),
+            Expanded(child: Text(title, style: AppTheme.h2())),
           ],
         ),
-      ),
+        const SizedBox(height: 10),
+        child,
+      ],
+    );
+  }
+
+  Widget _buildDailySummaryCards(BuildContext context, String businessId) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _revenueStream,
+      builder: (context, ordersSnapshot) {
+        final orderDocs = ordersSnapshot.data?.docs ?? [];
+        final now = DateTime.now();
+        final todayStart = DateTime(now.year, now.month, now.day);
+        final tomorrowStart = todayStart.add(const Duration(days: 1));
+
+        final todaysOrders = orderDocs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final createdAt = data["createdAt"];
+          if (createdAt is! Timestamp) return false;
+          final createdDate = createdAt.toDate();
+          return !createdDate.isBefore(todayStart) &&
+              createdDate.isBefore(tomorrowStart);
+        }).toList();
+
+        double todaysRevenue = 0;
+        for (final doc in todaysOrders) {
+          final data = doc.data() as Map<String, dynamic>;
+          final financial = data["financial"] as Map<String, dynamic>?;
+          final raw = financial?["sellerNetAmount"];
+          todaysRevenue += raw is num
+              ? raw.toDouble()
+              : double.tryParse(raw?.toString() ?? "") ?? 0;
+        }
+
+        final pendingOrders = orderDocs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return _normalizeOrderStatus((data["status"] ?? "").toString()) ==
+              "pending";
+        }).length;
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _returnsStream,
+          builder: (context, returnsSnapshot) {
+            final pendingReturns =
+                returnsSnapshot.data?.docs.where((doc) {
+                  final status = (doc.data()["status"] ?? "")
+                      .toString()
+                      .toLowerCase();
+                  return status == "pending";
+                }).length ??
+                0;
+
+            return StreamBuilder<List<Product>>(
+              stream: _productService.getProducts(businessId),
+              builder: (context, productsSnapshot) {
+                final products = productsSnapshot.data ?? [];
+                final lowStock = products.where((p) => p.isLowStock).length;
+
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        _statBox(
+                          l10n.ordersTitle,
+                          todaysOrders.length.toString(),
+                        ),
+                        const SizedBox(width: 10),
+                        _statBox(
+                          "Today",
+                          "₺${todaysRevenue.toStringAsFixed(0)}",
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _statBox(
+                          l10n.pendingStatusLabel,
+                          pendingOrders.toString(),
+                        ),
+                        const SizedBox(width: 10),
+                        _statBox(
+                          l10n.lowStockLabel,
+                          lowStock.toString(),
+                          color: Colors.orange,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _statBox(
+                          l10n.returnRequestsTitle,
+                          pendingReturns.toString(),
+                        ),
+                        const SizedBox(width: 10),
+                        _statBox(
+                          l10n.productsTitle,
+                          products.length.toString(),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _quickActionButton(
+            text: l10n.productsTitle,
+            icon: LucideIcons.package,
+            onTap: context.read<AppState>().openPetShopProducts,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _quickActionButton(
+            text: l10n.ordersTitle,
+            icon: LucideIcons.receipt,
+            onTap: context.read<AppState>().openPetShopOrders,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _quickActionButton(
+            text: l10n.returnRequestsTitle,
+            icon: LucideIcons.rotateCcw,
+            onTap: () {
+  debugPrint("RETURN BUTTON CLICKED");
+  context.read<AppState>().openPetShopReturns();
+},
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _quickActionButton(
+            text: "Settings",
+            icon: LucideIcons.settings,
+            onTap: context.read<AppState>().openPetShopSettings,
+          ),
+        ),
+      ],
     );
   }
 
@@ -253,37 +471,32 @@ final businessSubPage = context.select<AppState, BusinessSubPage>(
 
         return Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black12),
-          ),
+          decoration: _cardDecoration(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Expanded(
-                    child: Text(l10n.shopProfileTitle, style: AppTheme.h2()),
+                    child: Text(
+                      shopName,
+                      style: AppTheme.h3(weight: FontWeight.w800),
+                    ),
                   ),
                   ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFC107),
+                      foregroundColor: Colors.black,
+                    ),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              EditPetShopProfilePage(businessId: businessId),
-                        ),
-                      );
+                      context.read<AppState>().openPetShopSettings();
                     },
-                    icon: const Icon(Icons.edit),
+                    icon: const Icon(LucideIcons.edit2, size: 18),
                     label: Text(l10n.editProfile),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(shopName, style: AppTheme.h3(weight: FontWeight.w800)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 bio.isNotEmpty ? bio : l10n.noDescriptionYet,
                 style: AppTheme.body(
@@ -565,40 +778,25 @@ Widget _strengthBar(double value) {
   // =========================
   // 📦 ORDERS
   // =========================
-  Widget _buildOrdersSection(BuildContext context, String businessId) {
+  Widget _buildOrdersSection(
+    BuildContext context,
+    String businessId, {
+    bool showHeader = true,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l10n.recentOrdersTitle, style: AppTheme.h2()),
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.latestOrdersSubtitle,
-                    style: AppTheme.caption(color: AppTheme.muted),
-                  ),
-                ],
+        if (showHeader) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(l10n.recentOrdersTitle, style: AppTheme.h2()),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SellerOrdersPage(businessId: businessId),
-                  ),
-                );
-              },
-              child: Text(l10n.viewAllButton),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
         StreamBuilder<QuerySnapshot>(
           stream: _ordersStream,
           builder: (context, snapshot) {
@@ -622,12 +820,8 @@ Widget _strengthBar(double value) {
 
             if (docs.isEmpty) {
               return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.black12),
-                ),
+                padding: const EdgeInsets.all(14),
+                decoration: _cardDecoration(),
                 child: Row(
                   children: [
                     const Icon(LucideIcons.package, color: Colors.black38),
@@ -674,7 +868,7 @@ Widget _strengthBar(double value) {
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: const Color(0xFF9E1B4F).withOpacity(0.10),
                     ),
@@ -683,15 +877,9 @@ Widget _strengthBar(double value) {
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                OrderDetailPage(sellerOrderId: doc.id),
-                          ),
-                        );
+                        context.read<AppState>().openOrderSmart(doc.id, null);
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(14),
@@ -832,58 +1020,70 @@ Widget _strengthBar(double value) {
     );
   }
 
-  Widget _buildReturnsSection(BuildContext context, String businessId) {
+  Widget _buildReturnsSection(
+    BuildContext context,
+    String businessId, {
+    bool showHeader = true,
+  }) {
     final l10n = AppLocalizations.of(context)!;
 
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _returnsStream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
-        }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showHeader) ...[
+          Text(l10n.returnRequestsTitle, style: AppTheme.h2()),
+          const SizedBox(height: 10),
+        ],
+        
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _returnsStream,
+          
+          builder: (context, snapshot) {
+            
+            debugPrint(
+  "🔄 RETURNS "
+  "state=${snapshot.connectionState} "
+  "hasData=${snapshot.hasData} "
+  "docs=${snapshot.data?.docs.length} "
+  "error=${snapshot.error}",
+);
+            if (snapshot.hasError) {
+              return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
+            }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        final returns =
-            snapshot.data?.docs.map(OrderReturnRecord.fromDoc).toList() ?? [];
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            final returns =
+                snapshot.data?.docs.map(OrderReturnRecord.fromDoc).toList() ??
+                [];
+debugPrint("📦 RETURN COUNT = ${returns.length}");
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: _cardDecoration(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(l10n.returnRequestsTitle, style: AppTheme.h2()),
-                  ),
+                  if (returns.isEmpty)
+                    Text(
+                      l10n.noReturnsYet,
+                      style: AppTheme.body(color: AppTheme.muted),
+                    )
+                  else
+                    ...returns.map(
+                      (record) => OrderReturnCard(
+                        record: record,
+                        isSeller: true,
+                        isBuyer: false,
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 10),
-              if (returns.isEmpty)
-                Text(
-                  l10n.noReturnsYet,
-                  style: AppTheme.body(color: AppTheme.muted),
-                )
-              else
-                ...returns.map(
-                  (record) => OrderReturnCard(
-                    record: record,
-                    isSeller: true,
-                    isBuyer: false,
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -903,89 +1103,13 @@ Widget _strengthBar(double value) {
   }
 
   // =========================
-  // 🧠 CATALOG STRENGTH
-  // =========================
-  Widget _buildCatalogStrengthSection(BuildContext context, String businessId) {
-    final l10n = AppLocalizations.of(context)!;
-    final service = ProductService();
-
-    return StreamBuilder<List<Product>>(
-      stream: service.getProducts(businessId),
-      builder: (context, snapshot) {
-        debugPrint(
-  "💪 CATALOG "
-  "state=${snapshot.connectionState} "
-  "hasData=${snapshot.hasData} "
-  "count=${snapshot.data?.length}",
-);
-        if (snapshot.hasError) {
-          return _emptyBox(l10n.catalogStrengthUnavailable);
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final products = snapshot.data ?? [];
-        final result = _calculateCatalogStrength(context, products);
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: result.color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: result.color.withOpacity(0.35)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l10n.catalogStrengthTitle, style: AppTheme.h2()),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: LinearProgressIndicator(
-                      value: result.percent / 100,
-                      minHeight: 8,
-                      borderRadius: BorderRadius.circular(100),
-                      valueColor: AlwaysStoppedAnimation<Color>(result.color),
-                      backgroundColor: Colors.white10,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    "${result.percent}%",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: result.color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                result.label,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: result.color,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                result.message,
-                style: TextStyle(color: Colors.grey.shade800),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // =========================
   // 🛒 PRODUCTS
   // =========================
-  Widget _buildProductsSection(BuildContext context, String businessId) {
+  Widget _buildProductsSection(
+    BuildContext context,
+    String businessId, {
+    bool showTitle = true,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final service = ProductService();
 
@@ -998,7 +1122,10 @@ Widget _strengthBar(double value) {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(l10n.productsTitle, style: AppTheme.h2()),
+            if (showTitle)
+              Text(l10n.productsTitle, style: AppTheme.h2())
+            else
+              const SizedBox.shrink(),
 
             Row(
               children: [
@@ -1038,11 +1165,11 @@ Widget _strengthBar(double value) {
           stream: service.getProducts(businessId),
           builder: (context, snapshot) {
             debugPrint(
-  "📊 STATS "
-  "state=${snapshot.connectionState} "
-  "hasData=${snapshot.hasData} "
-  "count=${snapshot.data?.length}",
-);
+              "📊 STATS "
+              "state=${snapshot.connectionState} "
+              "hasData=${snapshot.hasData} "
+              "count=${snapshot.data?.length}",
+            );
             final products = snapshot.data ?? [];
 
             final total = products.length;
@@ -1094,11 +1221,11 @@ Widget _strengthBar(double value) {
           stream: service.getProducts(businessId),
           builder: (context, snapshot) {
             debugPrint(
-  "📦 PRODUCTS "
-  "state=${snapshot.connectionState} "
-  "hasData=${snapshot.hasData} "
-  "count=${snapshot.data?.length}",
-);
+              "📦 PRODUCTS "
+              "state=${snapshot.connectionState} "
+              "hasData=${snapshot.hasData} "
+              "count=${snapshot.data?.length}",
+            );
             if (snapshot.hasError) {
               return Text(l10n.errorOccurred(snapshot.error.toString()));
             }
@@ -1127,11 +1254,7 @@ Widget _strengthBar(double value) {
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       margin: const EdgeInsets.only(bottom: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.black12),
-                      ),
+                      decoration: _cardDecoration(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1182,145 +1305,6 @@ Widget _strengthBar(double value) {
     );
   }
 
-  Widget _badge(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMediaSection(BuildContext context, Product p) {
-    final l10n = AppLocalizations.of(context)!;
-    if (p.media.isEmpty) {
-      return Container(
-        height: 110,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.grey.shade700,
-        ),
-        child: const Center(
-          child: Icon(Icons.image_not_supported, color: Colors.white70),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 110,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: p.media.length,
-        itemBuilder: (_, index) {
-          final m = p.media[index];
-          final isVideo = m.type == "video";
-
-          final hasPlayback =
-              m.playbackUrl != null && m.playbackUrl!.isNotEmpty;
-
-          return GestureDetector(
-            onTap: () {
-              // ✅ فقط مدیاهای safe رو می‌فرستیم
-              final safeMedia = p.media.where((media) {
-                if (media.type == "video") {
-                  return media.playbackUrl != null &&
-                      media.playbackUrl!.isNotEmpty;
-                }
-                return media.originalUrl.isNotEmpty;
-              }).toList();
-
-              if (safeMedia.isEmpty) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(l10n.mediaNotReadyYet)));
-                return;
-              }
-
-              final mediaItems = safeMedia.map((media) {
-                return MediaItem(
-                  url: media.type == "video"
-                      ? media.playbackUrl! // ✅ اینجا safe شده
-                      : media.originalUrl,
-                  type: media.type == "video"
-                      ? MediaType.video
-                      : MediaType.image,
-                );
-              }).toList();
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GalleryViewerPage(
-                    items: mediaItems,
-                    initialIndex: 0, // 🔥 مهم
-                  ),
-                ),
-              );
-            },
-
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // =====================
-                    // 🎥 VIDEO
-                    // =====================
-                    if (isVideo)
-                      SizedBox(
-                        width: 110,
-                        height: 110,
-                        child: hasPlayback
-                            ? SmartVideoPreview(
-                                videoUrl: m.playbackUrl!,
-                                thumbnail: m.thumbnailUrl,
-                              )
-                            : Container(
-                                color: Colors.black,
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              ),
-                      )
-                    // =====================
-                    // 🖼 IMAGE
-                    // =====================
-                    else
-                      CachedNetworkImage(
-                        imageUrl: m.originalUrl,
-                        width: 110,
-                        height: 110,
-                        fit: BoxFit.cover,
-                      ),
-
-                    // ▶️ ICON
-                    if (isVideo)
-                      const Icon(
-                        Icons.play_circle_fill,
-                        color: Colors.white,
-                        size: 36,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _statBox(String title, String value, {Color? color}) {
     return Expanded(
       child: Container(
@@ -1348,179 +1332,53 @@ Widget _strengthBar(double value) {
     );
   }
 
-  // =========================
-  // 🎯 OFFERS
-  // =========================
-  Widget _buildOffersSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(l10n.offersTitle, style: AppTheme.h2()),
-        const SizedBox(height: 10),
-        ElevatedButton(
-          onPressed: () {
-            debugPrint("🎯 CREATE OFFER CLICKED");
-          },
-          child: Text(l10n.createOfferButton),
+  Widget _quickActionButton({
+    required String text,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black12),
+          boxShadow: AppTheme.cardShadow(opacity: 0.04),
         ),
-      ],
-    );
-  }
-
-  // =========================
-  // 🔧 HELPERS
-  // =========================
-  bool _isVideoUrl(String url) {
-    final u = url.toLowerCase();
-    return u.contains('.mp4') ||
-        u.contains('.mov') ||
-        u.contains('.webm') ||
-        u.contains('.m4v') ||
-        u.contains('.hevc');
-  }
-
-  Widget _buildImagePreview(String url) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Container(color: Colors.grey.shade800),
-        Image.network(
-          url,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-
-            return Container(
-              color: Colors.grey.shade800,
-              child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            );
-          },
-          errorBuilder: (_, __, ___) {
-            return Container(
-              color: Colors.grey.shade800,
-              child: const Center(
-                child: Icon(
-                  Icons.broken_image_outlined,
-                  color: Colors.white54,
-                  size: 40,
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVideoPreview(BuildContext context, String url) {
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(color: Colors.black87),
-          const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          const Center(
-            child: Icon(Icons.play_circle_fill, color: Colors.white, size: 56),
-          ),
-          Positioned(
-            right: 10,
-            bottom: 10,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                l10n.videoLabel,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+        child: Column(
+          children: [
+            Icon(icon, color: const Color(0xFF9E1B4F), size: 20),
+            const SizedBox(height: 8),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.caption().copyWith(fontWeight: FontWeight.w700),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _emptyBox(String text) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
-        border: Border.all(color: Colors.black12),
-      ),
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
       child: Text(text, style: AppTheme.body(color: AppTheme.muted)),
     );
   }
 
-  _CatalogStrengthResult _calculateCatalogStrength(
-    BuildContext context,
-    List<Product> products,
-  ) {
-    final l10n = AppLocalizations.of(context)!;
-    if (products.isEmpty) {
-      return _CatalogStrengthResult(
-        percent: 10,
-        label: l10n.catalogStrengthWeakLabel,
-        color: Colors.redAccent,
-        message: l10n.catalogStrengthAddItemsMessage,
-      );
-    }
-
-    int score = 0;
-    int maxScore = 0;
-
-    final sample = products.take(8).toList();
-
-    for (final p in sample) {
-      maxScore += 100;
-
-      if (p.name.trim().isNotEmpty) score += 20;
-      if (p.description.trim().length >= 20) score += 20;
-      if (p.price > 0) score += 15;
-      if (p.stock > 0) score += 10;
-      if (p.media.isNotEmpty) score += 20;
-      if (p.media.length >= 3) score += 10;
-      if (p.category.trim().isNotEmpty && p.category != "general") {
-        score += 5;
-      }
-    }
-
-    final percent = maxScore == 0 ? 0 : ((score / maxScore) * 100).round();
-
-    if (percent < 40) {
-      return _CatalogStrengthResult(
-        percent: percent,
-        label: l10n.catalogStrengthWeakLabel,
-        color: Colors.redAccent,
-        message: l10n.catalogStrengthWeakDetailsMessage,
-      );
-    }
-
-    if (percent < 75) {
-      return _CatalogStrengthResult(
-        percent: percent,
-        label: l10n.catalogStrengthMediumLabel,
-        color: Colors.orange,
-        message: l10n.catalogStrengthMediumMessage,
-      );
-    }
-
-    return _CatalogStrengthResult(
-      percent: percent,
-      label: l10n.catalogStrengthStrongLabel,
-      color: Colors.green,
-      message: l10n.catalogStrengthStrongMessage,
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.black12),
+      boxShadow: AppTheme.cardShadow(opacity: 0.06),
     );
   }
 
@@ -1622,18 +1480,4 @@ Widget _strengthBar(double value) {
       ),
     );
   }
-}
-
-class _CatalogStrengthResult {
-  final int percent;
-  final String label;
-  final Color color;
-  final String message;
-
-  _CatalogStrengthResult({
-    required this.percent,
-    required this.label,
-    required this.color,
-    required this.message,
-  });
 }

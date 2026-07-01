@@ -155,28 +155,29 @@ if (available.length == 1) {
 
 return DefaultTabController(
   length: available.length,
-  child: Scaffold(
-    backgroundColor: AppTheme.bg,
-    appBar: AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      bottom: TabBar(
-        isScrollable: true,
-        tabs: available.map((sector) {
-          return Tab(text: _sectorTitle(sector));
-        }).toList(),
+  child: Column(
+    children: [
+      Material(
+        color: Colors.white,
+        child: TabBar(
+          isScrollable: true,
+          tabs: available.map((sector) {
+            return Tab(text: _sectorTitle(sector));
+          }).toList(),
+        ),
       ),
-    ),
-    body: TabBarView(
-      children: available.map((sector) {
-        return _buildSingleDashboard(
-          context,
-          sector,
-          data,
-        );
-      }).toList(),
-    ),
+      Expanded(
+        child: TabBarView(
+          children: available.map((sector) {
+            return _buildSingleDashboard(
+              context,
+              sector,
+              data,
+            );
+          }).toList(),
+        ),
+      ),
+    ],
   ),
 );
 

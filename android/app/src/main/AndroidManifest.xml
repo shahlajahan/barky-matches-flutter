@@ -18,7 +18,7 @@
     </queries>
 
     <application
-        android:label="barky_matches_fixed"
+        android:label="PetSupo"
         android:icon="@mipmap/ic_launcher"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true">

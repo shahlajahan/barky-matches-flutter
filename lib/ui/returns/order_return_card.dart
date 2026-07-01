@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -27,6 +29,22 @@ class OrderReturnCard extends StatefulWidget {
 class _OrderReturnCardState extends State<OrderReturnCard> {
   bool _isProcessingReturn = false;
   bool _refundLoading = false;
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return "-";
+    return DateFormat("dd MMM yyyy • HH:mm").format(date.toLocal());
+  }
+
+  DateTime? _dateFromValue(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is String && value.trim().isNotEmpty) {
+      return DateTime.tryParse(value.trim());
+    }
+    return null;
+  }
 
   Color _statusColor(OrderReturnStatus status) {
     switch (status) {
@@ -638,13 +656,19 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
         ? widget.record.returnId.substring(0, 6)
         : widget.record.returnId;
 
+    final isRefunded = widget.record.status == OrderReturnStatus.refunded;
+    final badgeBg = isRefunded
+        ? const Color(0xFFEAF8EE)
+        : statusColor.withValues(alpha: 0.12);
+    final badgeTextColor = isRefunded ? const Color(0xFF32C766) : statusColor;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withOpacity(0.15)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.15)),
         boxShadow: AppTheme.cardShadow(opacity: 0.04),
       ),
       child: Column(
@@ -661,35 +685,34 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 6,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(999),
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   _statusLabel(l10n, widget.record.status),
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: AppTheme.caption(
+                    color: badgeTextColor,
+                  ).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
           Text(
             '${l10n.reasonLabel}: ${_reasonLabel(l10n, widget.record.reason)}',
             style: AppTheme.body(color: AppTheme.textDark),
           ),
           if (widget.record.description.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               widget.record.description,
-              style: AppTheme.body(color: AppTheme.muted),
+              style: AppTheme.caption(color: AppTheme.muted),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -705,22 +728,22 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
             ],
           ),
           if (widget.record.returnItems.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
             Text(
               l10n.itemsTitle,
               style: AppTheme.body(weight: FontWeight.w700),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 8,
+              runSpacing: 8,
               children: widget.record.returnItems
-                  .map((item) => _chip('${item.name} x${item.quantity}'))
+                  .map((item) => _chip(_itemLabel(item)))
                   .toList(),
             ),
           ],
           if (widget.record.images.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             SizedBox(
               height: 70,
               child: ListView.separated(
@@ -737,7 +760,7 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                     ),
                   );
                 },
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
                 itemCount: widget.record.images.length,
               ),
             ),
@@ -750,7 +773,7 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
               (widget.record.refundDetails['originalCarrier'] ?? '')
                   .toString()
                   .isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
             if ((widget.record.refundDetails['originalTrackingNumber'] ?? '')
                     .toString()
                     .isNotEmpty ||
@@ -763,18 +786,19 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                   color: AppTheme.textDark,
                 ).copyWith(fontWeight: FontWeight.w700),
               ),
+              const SizedBox(height: 4),
               Text(
                 '${l10n.trackingNumberLabel}: ${(widget.record.refundDetails['originalTrackingNumber'] ?? '-').toString()}',
-                style: AppTheme.caption(color: AppTheme.textDark),
+                style: AppTheme.caption(color: AppTheme.muted),
               ),
               Text(
                 l10n.carrierLabel(
                   (widget.record.refundDetails['originalCarrier'] ?? '-')
                       .toString(),
                 ),
-                style: AppTheme.caption(color: AppTheme.textDark),
+                style: AppTheme.caption(color: AppTheme.muted),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
             ],
             if ((widget.record.trackingNumber ?? '').isNotEmpty ||
                 (widget.record.carrier ?? '').isNotEmpty) ...[
@@ -784,13 +808,14 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                   color: AppTheme.textDark,
                 ).copyWith(fontWeight: FontWeight.w700),
               ),
+              const SizedBox(height: 4),
               Text(
                 '${l10n.returnTrackingNumberLabel}: ${widget.record.trackingNumber ?? '-'}',
-                style: AppTheme.caption(color: AppTheme.textDark),
+                style: AppTheme.caption(color: AppTheme.muted),
               ),
               Text(
                 '${l10n.returnCarrierLabel}: ${widget.record.carrier ?? '-'}',
-                style: AppTheme.caption(color: AppTheme.textDark),
+                style: AppTheme.caption(color: AppTheme.muted),
               ),
               if ((widget.record.trackingNumber ?? '').isNotEmpty &&
                   (widget.record.carrier ?? '').isNotEmpty)
@@ -811,42 +836,54 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
             ],
           ],
           if (widget.record.timeline.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
             Text(
               l10n.returnTimelineTitle,
               style: AppTheme.body(weight: FontWeight.w700),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             ...widget.record.timeline.map((step) {
               final status = (step['status'] ?? '').toString();
-              final at = (step['at'] ?? '').toString();
               final note = (step['note'] ?? '').toString();
               final localizedStatus = status == 'shipped_back'
                   ? l10n.returnShippedBackTimelineLabel
                   : _statusLabel(l10n, OrderReturnStatusX.fromString(status));
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  '• $localizedStatus ${at.isNotEmpty ? '• $at' : ''}${note.isNotEmpty ? ' • $note' : ''}',
-                  style: AppTheme.caption(color: AppTheme.muted),
-                ),
+              final date = _timelineDate(step);
+              return _timelineRow(
+                title: localizedStatus,
+                date: _formatDate(date),
+                note: note,
               );
             }),
           ],
           if (widget.record.refundDetails.isNotEmpty &&
               (widget.record.status == OrderReturnStatus.refunded ||
                   widget.record.status == OrderReturnStatus.refundFailed)) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
             Text(
-              '${l10n.refundResultLabel}: ${widget.record.refundDetails['status'] ?? 'success'}',
-              style: AppTheme.caption(
+              l10n.refundResultLabel,
+              style: AppTheme.body(weight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
                 color: widget.record.status == OrderReturnStatus.refunded
-                    ? Colors.green
-                    : Colors.red,
+                    ? const Color(0xFFEAF8EE)
+                    : Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                (widget.record.refundDetails['status'] ?? 'success').toString(),
+                style: AppTheme.caption(
+                  color: widget.record.status == OrderReturnStatus.refunded
+                      ? const Color(0xFF32C766)
+                      : Colors.red,
+                ).copyWith(fontWeight: FontWeight.w600),
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -906,14 +943,78 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(999),
+        color: Colors.black.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
         style: AppTheme.caption(
           color: AppTheme.textDark,
         ).copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  String _itemLabel(OrderReturnItem item) {
+    final name = item.name.trim().isEmpty ? item.productId : item.name.trim();
+    return item.quantity > 0 ? '$name ×${item.quantity}' : name;
+  }
+
+  DateTime? _timelineDate(Map<String, dynamic> step) {
+    return _dateFromValue(step['at']) ??
+        _dateFromValue(step['createdAt']) ??
+        _dateFromValue(step['requestedAt']) ??
+        _dateFromValue(step['receivedAt']) ??
+        _dateFromValue(step['approvedAt']) ??
+        _dateFromValue(step['refundedAt']) ??
+        _dateFromValue(step['rejectedAt']) ??
+        _dateFromValue(step['resolvedAt']) ??
+        _dateFromValue(step['refundCompletedAt']) ??
+        _dateFromValue(step['refundFailedAt']) ??
+        _dateFromValue(step['updatedAt']);
+  }
+
+  Widget _timelineRow({
+    required String title,
+    required String date,
+    required String note,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 9,
+            height: 9,
+            margin: const EdgeInsets.only(top: 6),
+            decoration: const BoxDecoration(
+              color: Color(0xFF32C766),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTheme.body(
+                    color: AppTheme.textDark,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(date, style: AppTheme.caption(color: AppTheme.muted)),
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(note, style: AppTheme.caption(color: AppTheme.muted)),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

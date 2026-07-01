@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+
+import '../../../app_state.dart';
 
 class EditPetShopProfilePage extends StatefulWidget {
   final String businessId;
@@ -126,7 +129,7 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully')),
       );
-      Navigator.pop(context);
+      context.read<AppState>().closeBusinessSubPage();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -177,48 +180,48 @@ class _EditPetShopProfilePageState extends State<EditPetShopProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: const Text('Edit PetShop Profile')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _field(
-                    _shopNameController,
-                    'Shop Name',
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Shop name is required';
-                      }
-                      return null;
-                    },
-                  ),
-                  _field(_bioController, 'About / Bio', maxLines: 4),
-                  _field(_phoneController, 'Phone'),
-                  _field(_whatsappController, 'WhatsApp'),
-                  _field(_emailController, 'Email'),
-                  _field(_websiteController, 'Website'),
-                  _field(_cityController, 'City'),
-                  _field(_districtController, 'District'),
-                  _field(_workingHoursController, 'Working Hours'),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Save'),
-                  ),
-                ],
-              ),
-            ),
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Edit PetShop Profile', style: AppTheme.h2()),
+          const SizedBox(height: 16),
+          _field(
+            _shopNameController,
+            'Shop Name',
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Shop name is required';
+              }
+              return null;
+            },
+          ),
+          _field(_bioController, 'About / Bio', maxLines: 4),
+          _field(_phoneController, 'Phone'),
+          _field(_whatsappController, 'WhatsApp'),
+          _field(_emailController, 'Email'),
+          _field(_websiteController, 'Website'),
+          _field(_cityController, 'City'),
+          _field(_districtController, 'District'),
+          _field(_workingHoursController, 'Working Hours'),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 }
