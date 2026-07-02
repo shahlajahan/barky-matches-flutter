@@ -108,13 +108,78 @@ static Future<void> petAvatarChanged({
     },
   );
 }
-  // TODO: pet analytics wrappers
-
   // ===========================================================================
-  // Veterinary
-  // ===========================================================================
+// Veterinary
+// ===========================================================================
 
-  // TODO: veterinary analytics wrappers
+static Future<void> vetProfileViewed({
+  required String vetId,
+}) async {
+  await logEvent(
+    AnalyticsEvents.vetProfileViewed,
+    parameters: {
+      AnalyticsParameters.vetId: vetId,
+    },
+  );
+}
+
+static Future<void> vetBookingStarted({
+  required String vetId,
+  String? appointmentType,
+  double? price,
+}) async {
+  await logEvent(
+    AnalyticsEvents.vetBookingStarted,
+    parameters: {
+      AnalyticsParameters.vetId: vetId,
+      if (appointmentType != null)
+        AnalyticsParameters.appointmentType: appointmentType,
+      if (price != null)
+        AnalyticsParameters.price: price,
+    },
+  );
+}
+
+static Future<void> vetBookingCompleted({
+  required String vetId,
+  String? appointmentType,
+  double? price,
+}) async {
+  await logEvent(
+    AnalyticsEvents.vetBookingCompleted,
+    parameters: {
+      AnalyticsParameters.vetId: vetId,
+      if (appointmentType != null)
+        AnalyticsParameters.appointmentType: appointmentType,
+      if (price != null)
+        AnalyticsParameters.price: price,
+    },
+  );
+}
+
+static Future<void> vetBookingCancelled({
+  required String vetId,
+}) async {
+  await logEvent(
+    AnalyticsEvents.vetBookingCancelled,
+    parameters: {
+      AnalyticsParameters.vetId: vetId,
+    },
+  );
+}
+
+static Future<void> vetReviewAdded({
+  required String vetId,
+  required double rating,
+}) async {
+  await logEvent(
+    AnalyticsEvents.vetReviewAdded,
+    parameters: {
+      AnalyticsParameters.vetId: vetId,
+      AnalyticsParameters.rating: rating,
+    },
+  );
+}
 
   // ===========================================================================
   // Grooming

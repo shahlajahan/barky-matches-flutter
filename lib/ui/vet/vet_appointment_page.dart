@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 
 class VetAppointmentPage extends StatefulWidget {
   final BusinessCardData vet;
@@ -795,6 +796,12 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       ).httpsCallable('createVetAppointment').call(appointmentPayload);
 
       debugPrint("✅ FUNCTION SUCCESS");
+
+      await AnalyticsService.vetBookingCompleted(
+  vetId: widget.vet.id,
+  appointmentType: selectedService?['title']?.toString(),
+  price: (selectedService?['price'] as num?)?.toDouble(),
+);
 
       if (!mounted) return;
 

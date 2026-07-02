@@ -29,6 +29,8 @@ class AnalyticsParameters {
   // Booking
   static const appointmentType = 'appointment_type';
   static const vetId = 'vet_id';
+  static const price = 'price';
+static const rating = 'rating';
 
   // Payment
   static const amount = 'amount';
@@ -38,4 +40,6 @@ class AnalyticsParameters {
   // Search
   static const keyword = 'keyword';
   static const category = 'category';
+
+  
 }
