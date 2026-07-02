@@ -11,6 +11,8 @@ import 'dog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 
 enum AddDogMode { ownerPet, adoptionCenter }
 
@@ -696,6 +698,15 @@ class _AddDogPageState extends State<AddDogPage> {
         debugPrint(
           'AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId',
         );
+        
+      await AnalyticsService.petCreated(
+  petType: _selectedPetType,
+  breed: _selectedBreed ?? AnalyticsValues.other,
+  age: newDog.age,
+  gender: newDog.gender.toLowerCase() == 'male'
+      ? AnalyticsValues.male
+      : AnalyticsValues.female,
+);
 
         debugPrint('AddDogPage - Redirecting to Home...');
 

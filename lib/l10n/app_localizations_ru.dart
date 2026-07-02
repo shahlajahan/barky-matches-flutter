@@ -725,10 +725,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get verifyButton => 'Подтвердить';
 
   @override
-  String get authWelcomeBackSubtitle => 'С возвращением в BarkyMatches';
+  String get authWelcomeBackSubtitle => 'С возвращением в PetSupo';
 
   @override
-  String get authCreateAccountSubtitle => 'Создайте аккаунт BarkyMatches';
+  String get authCreateAccountSubtitle => 'Создайте аккаунт PetSupo';
 
   @override
   String get sessionExpiredPleaseSignInAgain =>
@@ -2690,7 +2690,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get offerPremiumBadge => 'Premium';
 
   @override
-  String get offerFallbackTitle => 'Special offer for Barky users';
+  String get offerFallbackTitle => 'Special offer for PetSupo users';
 
   @override
   String get offerFallbackProvider => 'Partner brand';

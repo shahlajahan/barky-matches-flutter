@@ -411,10 +411,10 @@
   "verifyButton": "Verify",
   "@verifyButton": { "description": "Button label for verifying code" },
 
-  "authWelcomeBackSubtitle": "Welcome back to BarkyMatches",
+  "authWelcomeBackSubtitle": "Welcome back to PetSupo",
   "@authWelcomeBackSubtitle": { "description": "Subtitle on auth sign-in page" },
 
-  "authCreateAccountSubtitle": "Create your BarkyMatches account",
+  "authCreateAccountSubtitle": "Create your PetSopu account",
   "@authCreateAccountSubtitle": { "description": "Subtitle on auth sign-up page" },
 
   "sessionExpiredPleaseSignInAgain": "Your session expired. Please sign in again.",
@@ -1954,7 +1954,7 @@
   "offerPremiumBadge": "Premium",
   "@offerPremiumBadge": { "description": "Badge text for premium-only offers" },
 
-  "offerFallbackTitle": "Special offer for Barky users",
+  "offerFallbackTitle": "Special offer for PetSopu users",
   "@offerFallbackTitle": { "description": "Fallback title when offer title is missing" },
 
   "offerFallbackProvider": "Partner brand",
