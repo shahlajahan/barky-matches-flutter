@@ -1419,13 +1419,13 @@ abstract class AppLocalizations {
   /// Subtitle on auth sign-in page
   ///
   /// In en, this message translates to:
-  /// **'Welcome back to BarkyMatches'**
+  /// **'Welcome back to PetSupo'**
   String get authWelcomeBackSubtitle;
 
   /// Subtitle on auth sign-up page
   ///
   /// In en, this message translates to:
-  /// **'Create your BarkyMatches account'**
+  /// **'Create your PetSupo account'**
   String get authCreateAccountSubtitle;
 
   /// Snackbar shown after native auth reset
@@ -4877,7 +4877,7 @@ abstract class AppLocalizations {
   /// Fallback title when offer title is missing
   ///
   /// In en, this message translates to:
-  /// **'Special offer for Barky users'**
+  /// **'Special offer for PetSupo users'**
   String get offerFallbackTitle;
 
   /// Fallback provider name when provider is missing

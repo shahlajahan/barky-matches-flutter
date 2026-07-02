@@ -240,19 +240,19 @@
   "noDogsAddedYet": "Henüz köpek eklenmedi.",
   "@noDogsAddedYet": { "description": "Kullanıcı tarafından köpek eklenmediğinde mesaj" },
 
-  "appTitle": "Barky Matches",
+  "appTitle": "PetSupo",
   "@appTitle": { "description": "Uygulama başlığı" },
 
   "loadingUserData": "Kullanıcı verileri yükleniyor...",
   "@loadingUserData": { "description": "Kullanıcı verileri yüklenirken gösterilen mesaj" },
 
-  "welcomeToPetSopu": "Barky Matches'e hoş geldiniz!",
+  "welcomeToPetSopu": "PetSupo'e hoş geldiniz!",
   "@welcomeToPetSopu": { "description": "Uygulama için hoş geldiniz mesajı" },
 
   "welcomeTo": "Hoş geldiniz",
   "@welcomeTo": { "description": "Hoş geldiniz mesajının bir parçası" },
 
-  "petSopu": "Barky Matches",
+  "petSopu": "PetSupo",
   "@petSopu": { "description": "Uygulama adı" },
 
   "welcomeBack": "Tekrar hoş geldiniz, {username}!",
@@ -411,10 +411,10 @@
   "verifyButton": "Doğrula",
   "@verifyButton": { "description": "Kodu doğrulama için düğme etiketi" },
 
-  "authWelcomeBackSubtitle": "BarkyMatches'a tekrar hoş geldiniz",
+  "authWelcomeBackSubtitle": "PetSupo'a tekrar hoş geldiniz",
   "@authWelcomeBackSubtitle": { "description": "Auth giriş sayfası alt başlığı" },
 
-  "authCreateAccountSubtitle": "BarkyMatches hesabınızı oluşturun",
+  "authCreateAccountSubtitle": "PetSupo hesabınızı oluşturun",
   "@authCreateAccountSubtitle": { "description": "Auth kayıt sayfası alt başlığı" },
 
   "sessionExpiredPleaseSignInAgain": "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
@@ -2045,7 +2045,7 @@
   "offerPremiumBadge": "Premium",
   "@offerPremiumBadge": { "description": "Sadece premium teklifler için rozet metni" },
 
-  "offerFallbackTitle": "Barky kullanıcılarına özel teklif",
+  "offerFallbackTitle": "PetSupo kullanıcılarına özel teklif",
   "@offerFallbackTitle": { "description": "Teklif başlığı eksik olduğunda yedek başlık" },
 
   "offerFallbackProvider": "İş ortağı marka",

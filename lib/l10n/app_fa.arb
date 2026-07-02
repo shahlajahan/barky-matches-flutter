@@ -411,10 +411,10 @@
   "verifyButton": "تأیید",
   "@verifyButton": { "description": "برچسب دکمه برای تأیید کد" },
 
-  "authWelcomeBackSubtitle": "به BarkyMatches خوش برگشتید",
+  "authWelcomeBackSubtitle": "به PetSupo خوش برگشتید",
   "@authWelcomeBackSubtitle": { "description": "زیرعنوان صفحه ورود احراز هویت" },
 
-  "authCreateAccountSubtitle": "حساب BarkyMatches خود را بسازید",
+  "authCreateAccountSubtitle": "حساب PetSupo خود را بسازید",
   "@authCreateAccountSubtitle": { "description": "زیرعنوان صفحه ثبت‌نام احراز هویت" },
 
   "sessionExpiredPleaseSignInAgain": "نشست شما منقضی شد. لطفاً دوباره وارد شوید.",
@@ -2044,7 +2044,7 @@
   "offerPremiumBadge": "پریمیوم",
   "@offerPremiumBadge": { "description": "Badge text for premium-only offers" },
 
-  "offerFallbackTitle": "پیشنهاد ویژه برای کاربران Barky",
+  "offerFallbackTitle": "پیشنهاد ویژه برای کاربران PetSupo",
   "@offerFallbackTitle": { "description": "Fallback title when offer title is missing" },
 
   "offerFallbackProvider": "برند همکار",

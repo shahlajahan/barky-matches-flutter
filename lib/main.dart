@@ -250,18 +250,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   final data = message.data;
   final user = FirebaseAuth.instance.currentUser;
-  /*
-  if (user != null && data['type'] == 'playdate_request') {
-    await FirebaseFirestore.instance.collection('notifications').add({
-      'title': message.notification?.title ?? 'BarkyMatches',
-      'body': message.notification?.body ?? '',
-      'recipientUserId': user.uid,
-      'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false,
-      'payload': data,
-    });
-  }
-  */
+  
 }
 
 Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {

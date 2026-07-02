@@ -533,19 +533,19 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noDogsAddedYet => 'Henüz köpek eklenmedi.';
 
   @override
-  String get appTitle => 'Barky Matches';
+  String get appTitle => 'PetSupo';
 
   @override
   String get loadingUserData => 'Kullanıcı verileri yükleniyor...';
 
   @override
-  String get welcomeToPetSopu => 'Barky Matches\'e hoş geldiniz!';
+  String get welcomeToPetSopu => 'PetSupo\'e hoş geldiniz!';
 
   @override
   String get welcomeTo => 'Hoş geldiniz';
 
   @override
-  String get petSopu => 'Barky Matches';
+  String get petSopu => 'PetSupo';
 
   @override
   String welcomeBack(Object username) {
@@ -723,10 +723,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get verifyButton => 'Doğrula';
 
   @override
-  String get authWelcomeBackSubtitle => 'BarkyMatches\'a tekrar hoş geldiniz';
+  String get authWelcomeBackSubtitle => 'PetSupo\'a tekrar hoş geldiniz';
 
   @override
-  String get authCreateAccountSubtitle => 'BarkyMatches hesabınızı oluşturun';
+  String get authCreateAccountSubtitle => 'PetSupo hesabınızı oluşturun';
 
   @override
   String get sessionExpiredPleaseSignInAgain =>
@@ -2689,7 +2689,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get offerPremiumBadge => 'Premium';
 
   @override
-  String get offerFallbackTitle => 'Barky kullanıcılarına özel teklif';
+  String get offerFallbackTitle => 'PetSupo kullanıcılarına özel teklif';
 
   @override
   String get offerFallbackProvider => 'İş ortağı marka';

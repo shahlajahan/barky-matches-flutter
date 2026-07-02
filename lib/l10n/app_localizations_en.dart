@@ -546,7 +546,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String welcomeBack(Object username) {
-    return 'Welcome back, $username!';
+    return 'PetSupo, $username!';
   }
 
   @override
@@ -718,10 +718,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verifyButton => 'Verify';
 
   @override
-  String get authWelcomeBackSubtitle => 'Welcome back to BarkyMatches';
+  String get authWelcomeBackSubtitle => 'Welcome back to PetSupo';
 
   @override
-  String get authCreateAccountSubtitle => 'Create your BarkyMatches account';
+  String get authCreateAccountSubtitle => 'Create your PetSupo account';
 
   @override
   String get sessionExpiredPleaseSignInAgain =>
@@ -2677,7 +2677,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offerPremiumBadge => 'Premium';
 
   @override
-  String get offerFallbackTitle => 'Special offer for Barky users';
+  String get offerFallbackTitle => 'Special offer for PetSupo users';
 
   @override
   String get offerFallbackProvider => 'Partner brand';

@@ -718,10 +718,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get verifyButton => 'تأیید';
 
   @override
-  String get authWelcomeBackSubtitle => 'به BarkyMatches خوش برگشتید';
+  String get authWelcomeBackSubtitle => 'به PetSupo خوش برگشتید';
 
   @override
-  String get authCreateAccountSubtitle => 'حساب BarkyMatches خود را بسازید';
+  String get authCreateAccountSubtitle => 'حساب PetSupo خود را بسازید';
 
   @override
   String get sessionExpiredPleaseSignInAgain =>
@@ -2680,7 +2680,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get offerPremiumBadge => 'پریمیوم';
 
   @override
-  String get offerFallbackTitle => 'پیشنهاد ویژه برای کاربران Barky';
+  String get offerFallbackTitle => 'پیشنهاد ویژه برای کاربران PetSupo';
 
   @override
   String get offerFallbackProvider => 'برند همکار';
