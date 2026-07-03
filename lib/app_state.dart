@@ -28,6 +28,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/models/product.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 
 enum BusinessSubPage {
   none,
@@ -886,83 +888,102 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveEditedDog(Dog updatedDog) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
+  Future<void> saveEditedDog(
+  Dog updatedDog, {
+  bool avatarChanged = false,
+}) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
 
-      if (user == null) {
-        throw Exception("User not authenticated");
-      }
-
-      final uid = user.uid;
-
-      debugPrint("🐶 saveEditedDog START");
-      debugPrint("🐶 currentUserUid => $uid");
-      debugPrint("🐶 dogId => ${updatedDog.id}");
-
-      final docRef = FirebaseFirestore.instance
-          .collection('dogs')
-          .doc(updatedDog.id);
-
-      final snapshot = await docRef.get();
-
-      if (!snapshot.exists) {
-        throw Exception("Dog document not found");
-      }
-
-      final data = snapshot.data()!;
-
-      final ownerUid = data['ownerUid'] ?? data['ownerId'];
-
-      debugPrint("🐶 ownerUid in document => $ownerUid");
-
-      if (ownerUid != uid) {
-        throw Exception("User is not owner of this dog");
-      }
-
-      await docRef.update({
-        'name': updatedDog.name,
-        'petName': updatedDog.name,
-        'age': updatedDog.age,
-        'healthStatus': updatedDog.healthStatus,
-        'isNeutered': updatedDog.isNeutered,
-        'description': updatedDog.description,
-        'traits': updatedDog.traits,
-        'ownerGender': updatedDog.ownerGender,
-        'imagePaths': updatedDog.imagePaths,
-        'isAvailableForAdoption': updatedDog.isAvailableForAdoption,
-
-        // 🔐 برای عبور از rules
-        'ownerUid': ownerUid,
-        'ownerRole': data['ownerRole'],
-        'centerId': data['centerId'],
-      });
-      debugPrint(
-        '🐾 PET NAME SYNC → name=${updatedDog.name} petName=${updatedDog.name}',
-      );
-
-      final myIndex = _myDogs.indexWhere((d) => d.id == updatedDog.id);
-      if (myIndex != -1) {
-        _myDogs[myIndex] = updatedDog;
-      }
-
-      final allIndex = _allDogs.indexWhere((d) => d.id == updatedDog.id);
-      if (allIndex != -1) {
-        _allDogs[allIndex] = updatedDog;
-      }
-
-      editingDog = null;
-
-      notifyListeners();
-
-      debugPrint("✅ Dog updated safely");
-    } catch (e, stack) {
-      debugPrint("❌ saveEditedDog error: $e");
-      debugPrint("STACK: $stack");
-      rethrow;
+    if (user == null) {
+      throw Exception("User not authenticated");
     }
-  }
 
+    final uid = user.uid;
+
+    debugPrint("🐶 saveEditedDog START");
+    debugPrint("🐶 currentUserUid => $uid");
+    debugPrint("🐶 dogId => ${updatedDog.id}");
+
+    final docRef = FirebaseFirestore.instance
+        .collection('dogs')
+        .doc(updatedDog.id);
+
+    final snapshot = await docRef.get();
+
+    if (!snapshot.exists) {
+      throw Exception("Dog document not found");
+    }
+
+    final data = snapshot.data()!;
+
+    final ownerUid = data['ownerUid'] ?? data['ownerId'];
+
+    debugPrint("🐶 ownerUid in document => $ownerUid");
+
+    if (ownerUid != uid) {
+      throw Exception("User is not owner of this dog");
+    }
+
+    await docRef.update({
+      'name': updatedDog.name,
+      'petName': updatedDog.name,
+      'age': updatedDog.age,
+      'healthStatus': updatedDog.healthStatus,
+      'isNeutered': updatedDog.isNeutered,
+      'description': updatedDog.description,
+      'traits': updatedDog.traits,
+      'ownerGender': updatedDog.ownerGender,
+      'imagePaths': updatedDog.imagePaths,
+      'isAvailableForAdoption': updatedDog.isAvailableForAdoption,
+
+      // 🔐 برای عبور از rules
+      'ownerUid': ownerUid,
+      'ownerRole': data['ownerRole'],
+      'centerId': data['centerId'],
+    });
+
+    debugPrint(
+      '🐾 PET NAME SYNC → name=${updatedDog.name} petName=${updatedDog.name}',
+    );
+
+    final myIndex = _myDogs.indexWhere((d) => d.id == updatedDog.id);
+    if (myIndex != -1) {
+      _myDogs[myIndex] = updatedDog;
+    }
+
+    final allIndex = _allDogs.indexWhere((d) => d.id == updatedDog.id);
+    if (allIndex != -1) {
+      _allDogs[allIndex] = updatedDog;
+    }
+
+    editingDog = null;
+
+    notifyListeners();
+
+    // ✅ Analytics (only after successful update)
+    if (avatarChanged) {
+      await AnalyticsService.petAvatarChanged(
+        petType: updatedDog.petType,
+      );
+    } else {
+      await AnalyticsService.petUpdated(
+        petType: updatedDog.petType,
+        breed: updatedDog.breed,
+        age: updatedDog.age,
+        gender: updatedDog.gender.toLowerCase() == 'male'
+            ? AnalyticsValues.male
+            : AnalyticsValues.female,
+      );
+    }
+
+    debugPrint("✅ Dog updated safely");
+  } catch (e, stack) {
+    debugPrint("❌ saveEditedDog error: $e");
+    debugPrint("STACK: $stack");
+    rethrow;
+  }
+}
   String? _initializedForUid;
   String? _initializingForUid;
 

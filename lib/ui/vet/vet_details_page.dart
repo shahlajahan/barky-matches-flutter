@@ -13,6 +13,7 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 
 enum ReviewSortType { mostRelevant, newest }
 
@@ -227,15 +228,19 @@ class _VetDetailsPageState extends State<VetDetailsPage>
   }
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    _tabController = TabController(length: _tabCount, vsync: this);
+  _tabController = TabController(length: _tabCount, vsync: this);
 
-    debugPrint("🔥 VET ID = ${widget.vet.id}");
+  debugPrint("🔥 VET ID = ${widget.vet.id}");
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {});
-  }
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await AnalyticsService.vetProfileViewed(
+      vetId: widget.vet.id,
+    );
+  });
+}
 
   @override
   void dispose() {
@@ -255,7 +260,7 @@ class _VetDetailsPageState extends State<VetDetailsPage>
     context.read<AppState>().closeVetDetails();
   }
 
-  void _openAppointmentPage([Map<String, dynamic>? service]) {
+ Future<void> _openAppointmentPage([Map<String, dynamic>? service]) async {
     debugPrint("🔥 OPEN APPOINTMENT WITH: $service");
 
     FocusManager.instance.primaryFocus?.unfocus();
@@ -268,7 +273,11 @@ class _VetDetailsPageState extends State<VetDetailsPage>
     } else {
       appState.closeVetDetails();
     }
-
+await AnalyticsService.vetBookingStarted(
+  vetId: widget.vet.id,
+  appointmentType: service?['title']?.toString(),
+  price: (service?['price'] as num?)?.toDouble(),
+);
     appState.openBusinessAppointment(widget.vet, selectedService: service);
   }
 
@@ -469,7 +478,7 @@ class _VetDetailsPageState extends State<VetDetailsPage>
                                   }
 
                                   final doc = snapshot.docs.first;
-                                  _openAppointmentPage({
+                                   await _openAppointmentPage({
                                     ...doc.data(),
                                     'id': doc.id,
                                   });
@@ -1105,9 +1114,9 @@ class _VetDetailsPageState extends State<VetDetailsPage>
                 .trim();
 
             return GestureDetector(
-              onTap: () {
-                _openAppointmentPage(service);
-              },
+              onTap: () async {
+  await _openAppointmentPage(service);
+},
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -1679,6 +1688,11 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
           'lastRankedAt': null,
         },
       });
+
+      await AnalyticsService.vetReviewAdded(
+  vetId: vetId,
+  rating: _reviewRating,
+);
 
       if (!mounted) return;
 

@@ -11,6 +11,7 @@ import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dar
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_detail_page.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 
 class MyAppointmentsPage extends StatefulWidget {
   const MyAppointmentsPage({super.key});
@@ -441,6 +442,13 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
           });
 
       debugPrint("🩺 CANCEL SUCCESS → $appointmentId");
+      if (collection == 'vet_appointments') {
+  final data = doc.data();
+
+  await AnalyticsService.vetBookingCancelled(
+    vetId: (data['businessId'] ?? '').toString(),
+  );
+}
       await _logLatestAppointmentSnapshot(collection, appointmentId);
 
       if (!mounted) return;

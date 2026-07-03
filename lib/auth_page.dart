@@ -24,6 +24,8 @@ import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 import 'verify_phone_page.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_events.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -303,6 +305,8 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
         // 🔥 مهم‌ترین خط
         await FirebaseAuth.instance.currentUser?.reload();
+        await AnalyticsService.emailVerified();
+
 
         if (!mounted) return;
 
@@ -1167,42 +1171,51 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 
-  void _logout() {
-    final l10n = AppLocalizations.of(context)!;
-    debugPrint('AuthPage - Logging out...');
-    try {
-      AuthTrap.signOut(reason: 'session_expired');
-      debugPrint('AuthPage - Signed out from Firebase');
-      final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
-      final currentUserBox = Hive.box<String>('currentUserBox');
-      final dogsBox = Hive.box<Dog>('dogsBox');
-      currentUserBox.clear();
-      userDataBox.clear();
-      dogsBox.clear();
-      debugPrint('AuthPage - Cleared userBox, userDataBox, and dogsBox');
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.clear();
-        debugPrint(
-          'AuthPage - Cleared saved credentials from SharedPreferences',
-        );
-      });
-      if (mounted && context.mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/welcome',
-          (Route<dynamic> route) => false,
-        );
-        debugPrint('AuthPage - Navigated to WelcomePage after logout');
-      }
-    } catch (e) {
-      debugPrint('AuthPage - Error during logout: $e');
-      if (mounted && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
-        );
-      }
+  Future<void> _logout() async {
+  final l10n = AppLocalizations.of(context)!;
+  debugPrint('AuthPage - Logging out...');
+
+  try {
+    AuthTrap.signOut(reason: 'session_expired');
+
+    await AnalyticsService.userLogout();
+
+    debugPrint('AuthPage - Signed out from Firebase');
+
+    final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
+    final currentUserBox = Hive.box<String>('currentUserBox');
+    final dogsBox = Hive.box<Dog>('dogsBox');
+
+    currentUserBox.clear();
+    userDataBox.clear();
+    dogsBox.clear();
+
+    debugPrint('AuthPage - Cleared userBox, userDataBox, and dogsBox');
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    debugPrint('AuthPage - Cleared saved credentials from SharedPreferences');
+
+    if (mounted && context.mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/welcome',
+        (Route<dynamic> route) => false,
+      );
+
+      debugPrint('AuthPage - Navigated to WelcomePage after logout');
+    }
+  } catch (e) {
+    debugPrint('AuthPage - Error during logout: $e');
+
+    if (mounted && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
+      );
     }
   }
+}
 
   void _submit() async {
     final l10n = AppLocalizations.of(context)!;
@@ -1251,6 +1264,7 @@ class _AuthPageState extends State<AuthPage> {
         final String userId = result['userId'] ?? '';
 
         if (isAuthenticated && userId.isNotEmpty && mounted) {
+          await AnalyticsService.userLogin();
           final appState = context.read<AppState>();
           appState.updateUserId(userId);
 
@@ -1330,6 +1344,7 @@ class _AuthPageState extends State<AuthPage> {
         });
 
         if (success && userId != null && mounted && context.mounted) {
+          await AnalyticsService.userSignup();
           final currentUserBoxStorage = Hive.box<String>('currentUserBox');
 
           await currentUserBoxStorage.put(
@@ -2086,6 +2101,7 @@ class _AuthPageState extends State<AuthPage> {
                           );
 
                           if (!mounted) return;
+                          await AnalyticsService.guestModeEntered();
 
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(builder: (_) => const HomeGate()),

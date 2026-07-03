@@ -5,6 +5,8 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/utils/localization_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
+import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 
 typedef EditDogCallback = void Function(Dog updatedDog)?;
 

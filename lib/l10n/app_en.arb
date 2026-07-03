@@ -414,7 +414,11 @@
   "authWelcomeBackSubtitle": "Welcome back to PetSupo",
   "@authWelcomeBackSubtitle": { "description": "Subtitle on auth sign-in page" },
 
+
   "authCreateAccountSubtitle": "Create your PetSupo account",
+
+  "authCreateAccountSubtitle": "Create your PetSopu account",
+
   "@authCreateAccountSubtitle": { "description": "Subtitle on auth sign-up page" },
 
   "sessionExpiredPleaseSignInAgain": "Your session expired. Please sign in again.",
@@ -1948,20 +1952,7 @@
   "errorNoOwnerFound": "No valid owner found for this dog",
   "@errorNoOwnerFound": { "description": "Error message shown when the dog's ownerId is null or empty" },
 
-  "offerHotDeal": "🔥 Hot Deal",
-  "@offerHotDeal": { "description": "Badge text for sponsored offers" },
-
-  "offerPremiumBadge": "Premium",
-  "@offerPremiumBadge": { "description": "Badge text for premium-only offers" },
-
   "offerFallbackTitle": "Special offer for PetSupo users",
-  "@offerFallbackTitle": { "description": "Fallback title when offer title is missing" },
-
-  "offerFallbackProvider": "Partner brand",
-  "@offerFallbackProvider": { "description": "Fallback provider name when provider is missing" },
-
-  "offerUnlock": "Unlock",
-  "@offerUnlock": { "description": "CTA label shown on offer card when an offer code or action is available" },
 
   "offerView": "View",
   "@offerView": { "description": "CTA label shown on offer card when no code exists" },

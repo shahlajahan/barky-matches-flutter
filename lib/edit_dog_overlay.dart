@@ -130,7 +130,10 @@ class _EditDogOverlayState extends State<EditDogOverlay>
       widget.dog.imagePaths = _imagePaths;
 
       // مرحله ۳: از AppState صدا بزن
-      await context.read<AppState>().saveEditedDog(widget.dog);
+await context.read<AppState>().saveEditedDog(
+  widget.dog,
+  avatarChanged: true,
+);
     } catch (e) {
       debugPrint("Upload error: $e");
     }
@@ -673,7 +676,11 @@ class _EditDogOverlayState extends State<EditDogOverlay>
       });
 
       widget.dog.imagePaths = _imagePaths;
-      await context.read<AppState>().saveEditedDog(widget.dog);
+
+await context.read<AppState>().saveEditedDog(
+  widget.dog,
+  avatarChanged: true,
+);
     } catch (e) {
       debugPrint("Video upload error: $e");
     }
