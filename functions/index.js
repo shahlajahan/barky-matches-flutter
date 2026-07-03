@@ -21149,6 +21149,132 @@ function petTaxiUserPushTypeForStatus(status) {
   return map[status] || "pet_taxi_status_update";
 }
 
+function asMap(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+function hasLatLng(value) {
+  return (
+    value &&
+    typeof value.lat === "number" &&
+    Number.isFinite(value.lat) &&
+    typeof value.lng === "number" &&
+    Number.isFinite(value.lng)
+  );
+}
+
+function resolvePetTaxiCurrentLocationForMigration(businessData = {}) {
+  const sectorData = asMap(businessData.sectorData);
+  const taxi = asMap(sectorData.pet_taxi || sectorData.petTaxi || sectorData.taxi);
+  const contact = asMap(businessData.contact);
+  const currentLocation = asMap(taxi.currentLocation);
+  const contactLocation = asMap(contact.location);
+
+  const currentHasCoordinates = hasLatLng(currentLocation);
+  const contactHasCoordinates = hasLatLng(contactLocation);
+  const source = normalizeText(currentLocation.source);
+  const hasRuntimeTimestamp = Boolean(currentLocation.updatedAt);
+
+  const currentLooksRuntime =
+    currentHasCoordinates && (source === "gps_runtime" || hasRuntimeTimestamp);
+
+  const currentLooksSeededAddress =
+    currentHasCoordinates &&
+    (source === "registered_address_seed" ||
+      source === "migrated_from_contact_location");
+
+  if (currentLooksRuntime || currentLooksSeededAddress) {
+    return {
+      shouldBackfill: false,
+      location: currentLocation,
+      reason: null,
+    };
+  }
+
+  if (contactHasCoordinates) {
+    return {
+      shouldBackfill: true,
+      location: contactLocation,
+      reason: currentHasCoordinates
+        ? "legacy_current_location_without_runtime_timestamp"
+        : "missing_current_location",
+      previousCurrentLocation: currentHasCoordinates ? currentLocation : null,
+    };
+  }
+
+  return {
+    shouldBackfill: false,
+    location: currentHasCoordinates ? currentLocation : null,
+    reason: null,
+  };
+}
+
+exports.repairPetTaxiBusinessLocation = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const businessId = normalizeText(request.data?.businessId);
+    if (!businessId) {
+      throw new HttpsError("invalid-argument", "businessId is required.");
+    }
+
+    const businessRef = db.collection("businesses").doc(businessId);
+
+    return db.runTransaction(async (transaction) => {
+      const businessSnap = await transaction.get(businessRef);
+      if (!businessSnap.exists) {
+        throw new HttpsError("not-found", "Business not found.");
+      }
+
+      const businessData = businessSnap.data() || {};
+      const resolved = resolvePetTaxiCurrentLocationForMigration(businessData);
+
+      if (!resolved.shouldBackfill || !hasLatLng(resolved.location)) {
+        return {
+          success: true,
+          migrated: false,
+          reason: "not_needed",
+        };
+      }
+
+      const updates = {
+        "sectorData.pet_taxi.currentLocation.lat": resolved.location.lat,
+        "sectorData.pet_taxi.currentLocation.lng": resolved.location.lng,
+        "sectorData.pet_taxi.currentLocation.source": "registered_address_seed",
+        "sectorData.pet_taxi.currentLocation.updatedAt":
+          admin.firestore.FieldValue.serverTimestamp(),
+        "sectorData.pet_taxi.locationMigration.lastMigratedAt":
+          admin.firestore.FieldValue.serverTimestamp(),
+        "sectorData.pet_taxi.locationMigration.lastMigrationReason":
+          resolved.reason,
+      };
+
+      if (normalizeText(resolved.location.formattedAddress)) {
+        updates["sectorData.pet_taxi.currentLocation.formattedAddress"] =
+          resolved.location.formattedAddress;
+      }
+
+      if (resolved.previousCurrentLocation) {
+        updates["sectorData.pet_taxi.locationMigration.previousCurrentLocation"] =
+          resolved.previousCurrentLocation;
+      }
+
+      transaction.update(businessRef, updates);
+
+      return {
+        success: true,
+        migrated: true,
+        reason: resolved.reason,
+      };
+    });
+  }
+);
+
 exports.createPetTaxiBooking = onCall(
   { region: "europe-west3" },
   async (request) => {

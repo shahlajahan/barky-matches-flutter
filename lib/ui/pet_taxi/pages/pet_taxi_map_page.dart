@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../services/pet_taxi_business_location_resolver.dart';
+import '../services/pet_taxi_location_permission_service.dart';
 import '../widgets/current_location_button.dart';
 import '../widgets/pet_taxi_bottom_sheet.dart';
 import '../pet_taxi_driver_location_resolver.dart';
@@ -27,10 +29,12 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
   CameraPosition? _initialCameraPosition;
   GoogleMapController? _mapController;
   bool _cameraMoved = false;
+  bool _myLocationEnabled = false;
   LatLng? _firstDriverPosition;
   Set<Marker> _markers = const {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _driversSubscription;
   BitmapDescriptor? _driverMarker;
+  final _permissionService = const PetTaxiLocationPermissionService();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _driversStream() {
     return FirebaseFirestore.instance
@@ -44,20 +48,26 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
     super.initState();
     _loadDriverMarker();
     _driversSubscription = _driversStream().listen(_handleDriversSnapshot);
-    _debugUserLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeMyLocation();
+    });
   }
 
-  Future<void> _debugUserLocation() async {
-    try {
-      final position = await Geolocator.getCurrentPosition();
-
-      debugPrint(
-        "👤 USER GPS = "
-        "${position.latitude}, ${position.longitude}",
-      );
-    } catch (e) {
-      debugPrint("❌ USER GPS ERROR = $e");
+  Future<void> _initializeMyLocation() async {
+    if (!mounted) {
+      return;
     }
+
+    final granted = await _permissionService.ensureForegroundPermission(
+      context,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _myLocationEnabled = granted;
+    });
   }
 
   @override
@@ -67,88 +77,125 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
     super.dispose();
   }
 
-  Future<void> _loadDriverMarker() async {
-    try {
-      _driverMarker = await BitmapDescriptor.asset(
-        const ImageConfiguration(size: Size(56, 56)),
-        "assets/taxi_marker.png",
-      );
-    } catch (e, stackTrace) {
-      debugPrint("❌ TAXI MARKER LOAD FAILED = $e");
-      debugPrintStack(stackTrace: stackTrace);
-      _driverMarker = BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueRose,
-      );
+ Future<void> _loadDriverMarker() async {
+  try {
+    _driverMarker = await BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(56, 56)),
+      'assets/taxi_marker.png',
+    );
+  } catch (e, stackTrace) {
+    debugPrint("❌ TAXI MARKER LOAD FAILED = $e");
+    debugPrintStack(stackTrace: stackTrace);
+
+    _driverMarker = BitmapDescriptor.defaultMarkerWithHue(
+      BitmapDescriptor.hueRose,
+    );
+  }
+
+  if (mounted) {
+    setState(() {});
+  }
+}
+
+  Future<void> _moveCameraToUser() async {
+    final granted = await _permissionService.ensureForegroundPermission(context);
+    if (!mounted || !granted) {
+      return;
     }
 
-    if (mounted) {
-      setState(() {});
+    setState(() {
+      _myLocationEnabled = true;
+    });
+
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      await _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(position.latitude, position.longitude),
+          16,
+        ),
+      );
+    } catch (e) {
+      debugPrint('User GPS error = $e');
     }
+
   }
 
   void _handleDriversSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
-    final markers = <Marker>{};
+  final markers = <Marker>{};
 
-    for (final doc in snapshot.docs) {
-      final data = {...doc.data(), 'id': doc.id};
+  for (final doc in snapshot.docs) {
+    final data = {...doc.data(), 'id': doc.id};
 
-      final sectorData = _map(data['sectorData']);
+    PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
+      businessId: doc.id,
+      businessData: data,
+    );
 
-      final taxi = _map(
-        sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
-      );
+    final sectorData = _map(data['sectorData']);
+    final taxi = _map(
+      sectorData['pet_taxi'] ??
+          sectorData['petTaxi'] ??
+          sectorData['taxi'],
+    );
 
-      if (taxi['isAvailable'] != true) {
-        continue;
-      }
-
-      final contact = _map(data['contact']);
-      final location = PetTaxiDriverLocationResolver.resolveDisplayLocation(
-        taxi: taxi,
-        contact: contact,
-      );
-      final lat = location?.lat;
-      final lng = location?.lng;
-
-      debugPrint("🚕 DRIVER = ${_businessName(data, taxi)}");
-      debugPrint("🚕 AVAILABLE = ${taxi['isAvailable']}");
-      debugPrint("🚕 LOCATION = $lat,$lng");
-      debugPrint("🚕 LOCATION SOURCE = ${location?.source.name}");
-
-      if (location == null) {
-        continue;
-      }
-
-      final position = location.latLng;
-
-      _firstDriverPosition ??= position;
-      debugPrint("🚕 DRIVER POSITION = $lat,$lng");
-      debugPrint("🚕 MARKER ADDED -> ${doc.id}");
-
-      markers.add(
-        Marker(
-          markerId: MarkerId(doc.id),
-          icon:
-              _driverMarker ??
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
-          position: position,
-          infoWindow: InfoWindow(
-            title: _businessName(data, taxi),
-            snippet: 'Available Pet Taxi',
-          ),
-        ),
-      );
-
-      _initialCameraPosition ??= CameraPosition(target: position, zoom: 16);
-      _moveCameraToDriverIfNeeded(position);
+    if (taxi['isAvailable'] != true) {
+      continue;
     }
 
-    if (!mounted) return;
+    final contact = _map(data['contact']);
 
-    setState(() {
-      _markers = markers;
-    });
+    final location = PetTaxiDriverLocationResolver.resolveDisplayLocation(
+      taxi: taxi,
+      contact: contact,
+    );
+
+    debugPrint("🚕 DRIVER = ${_businessName(data, taxi)}");
+    debugPrint("🚕 AVAILABLE = ${taxi['isAvailable']}");
+    debugPrint(
+      "🚕 LOCATION = ${location?.lat},${location?.lng}",
+    );
+    debugPrint(
+      "🚕 LOCATION SOURCE = ${location?.source.name}",
+    );
+
+    if (location == null) {
+      continue;
+    }
+
+    final position = location.latLng;
+
+    _firstDriverPosition ??= position;
+
+    markers.add(
+      Marker(
+        markerId: MarkerId(doc.id),
+        icon: _driverMarker ??
+            BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueRose,
+            ),
+        position: position,
+        infoWindow: InfoWindow(
+          title: _businessName(data, taxi),
+          snippet: 'Available Pet Taxi',
+        ),
+      ),
+    );
+
+    _initialCameraPosition ??=
+        CameraPosition(target: position, zoom: 16);
+
+    _moveCameraToDriverIfNeeded(position);
   }
+
+  if (!mounted) {
+    return;
+  }
+
+  setState(() {
+    _markers = markers;
+  });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -175,24 +222,22 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
                 () => EagerGestureRecognizer(),
               ),
             },
-            myLocationEnabled: true,
+            myLocationEnabled: _myLocationEnabled,
             myLocationButtonEnabled: false,
             compassEnabled: false,
             buildingsEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
-            onTap: (_) {
-              debugPrint("🗺️ MAP TAP");
-            },
-            onCameraMove: (position) {
-              debugPrint("🗺️ CAMERA MOVED -> ${position.zoom}");
-            },
           ),
         ),
-        const Positioned(
+        Positioned(
           right: 18,
           bottom: 170,
-          child: CurrentLocationButton(),
+          child: CurrentLocationButton(
+            onTap: () {
+              _moveCameraToUser();
+            },
+          ),
         ),
         const Align(
           alignment: Alignment.bottomCenter,
@@ -215,9 +260,10 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
       _cameraMoved = true;
 
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
-        debugPrint("🎯 CAMERA MOVED TO DRIVER");
         _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(
             CameraPosition(target: position, zoom: 18),

@@ -1,7 +1,7 @@
 name: barky_matches_fixed
 description: A Flutter application for dog playdates.
 publish_to: 'none'
-version: 1.0.3+5
+version: 1.0.3+7
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -107,6 +107,7 @@ flutter:
     - assets/image/
     - assets/onboarding/
     - assets/home/heroes/
+    - assets/taxi_marker.png
 
   fonts:
     - family: Poppins

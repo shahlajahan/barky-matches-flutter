@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_location_permission_service.dart';
 
 class PetTaxiLocationPickerPage extends StatefulWidget {
   final String title;
@@ -25,16 +27,21 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
 
   final _search = TextEditingController();
   final _service = const PetTaxiLocationSearchService();
+  final _permissionService = const PetTaxiLocationPermissionService();
   GoogleMapController? _mapController;
   PetTaxiLocationPoint? _selected;
   List<PetTaxiLocationPoint> _results = const [];
   bool _searching = false;
   bool _resolvingMapTap = false;
+  bool _myLocationEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _selected = widget.initialLocation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeMyLocation();
+    });
   }
 
   @override
@@ -44,27 +51,49 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
     super.dispose();
   }
 
+  Future<void> _initializeMyLocation() async {
+    if (!mounted) {
+      return;
+    }
+
+    final granted = await _permissionService.ensureForegroundPermission(
+      context,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _myLocationEnabled = granted;
+    });
+  }
+
   Future<void> _searchLocations() async {
     final query = _search.text.trim();
-    if (query.length < 4) return;
+    if (query.length < 4) {
+      return;
+    }
 
     setState(() => _searching = true);
     try {
       final results = await _service.searchLocations(query);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _results = results);
       if (results.isNotEmpty) {
         await _select(results.first, moveCamera: true);
       }
     } catch (e) {
-      debugPrint('PetTaxi location search error: ${e.toString()}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Location search failed: ${e.toString()}')),
         );
       }
     } finally {
-      if (mounted) setState(() => _searching = false);
+      if (mounted) {
+        setState(() => _searching = false);
+      }
     }
   }
 
@@ -77,9 +106,6 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
       await _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(LatLng(point.lat, point.lng), 16),
       );
-      final zoom = await _mapController?.getZoomLevel();
-
-      debugPrint("🔍 CURRENT ZOOM = $zoom");
     }
   }
 
@@ -90,7 +116,9 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
         latLng.latitude,
         latLng.longitude,
       );
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _selected = PetTaxiLocationPoint(
           formattedAddress: address,
@@ -99,14 +127,44 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
         );
       });
     } catch (e) {
-      debugPrint('PetTaxi map pick reverse geocode error: ${e.toString()}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Address lookup failed: ${e.toString()}')),
         );
       }
     } finally {
-      if (mounted) setState(() => _resolvingMapTap = false);
+      if (mounted) {
+        setState(() => _resolvingMapTap = false);
+      }
+    }
+  }
+
+  Future<void> _centerOnUser() async {
+    final granted = await _permissionService.ensureForegroundPermission(context);
+    if (!mounted || !granted) {
+      return;
+    }
+
+    setState(() {
+      _myLocationEnabled = true;
+    });
+
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      await _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(position.latitude, position.longitude),
+          16,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not load current location: ${e.toString()}'),
+          ),
+        );
+      }
     }
   }
 
@@ -166,20 +224,17 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
-
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 0,
                     ),
-
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide(color: Colors.black12),
+                      borderSide: const BorderSide(color: Colors.black12),
                     ),
-
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide(
+                      borderSide: const BorderSide(
                         color: Color(0xffED1E79),
                         width: 1.5,
                       ),
@@ -236,7 +291,8 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
               ),
               onMapCreated: (controller) => _mapController = controller,
               onTap: _pickFromMap,
-              myLocationButtonEnabled: true,
+              myLocationEnabled: _myLocationEnabled,
+              myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               markers: selected == null
                   ? const {}
@@ -270,6 +326,14 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () {
+              _centerOnUser();
+            },
+            icon: const Icon(LucideIcons.locateFixed),
+            label: const Text('Use My Current Location'),
           ),
         ],
       ),

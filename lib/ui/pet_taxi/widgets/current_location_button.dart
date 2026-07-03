@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class CurrentLocationButton extends StatelessWidget {
-  const CurrentLocationButton({super.key});
+  final VoidCallback onTap;
+
+  const CurrentLocationButton({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -11,7 +13,7 @@ class CurrentLocationButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(28),
       child: InkWell(
         borderRadius: BorderRadius.circular(28),
-        onTap: () {},
+        onTap: onTap,
         child: const SizedBox(
           width: 50,
           height: 50,

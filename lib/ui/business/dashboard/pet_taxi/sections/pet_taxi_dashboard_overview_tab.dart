@@ -8,6 +8,8 @@ import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_location_permission_service.dart';
 
 class PetTaxiDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -31,6 +33,7 @@ class _PetTaxiDashboardOverviewTabState
   StreamSubscription<Position>? _positionSubscription;
   double? _lastLat;
   double? _lastLng;
+  final _permissionService = const PetTaxiLocationPermissionService();
 
   @override
   void initState() {
@@ -46,6 +49,10 @@ class _PetTaxiDashboardOverviewTabState
     final taxi = Map<String, dynamic>.from(sectorData['pet_taxi'] ?? {});
 
     _isAvailable = taxi['isAvailable'] == true;
+    PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
+      businessId: widget.businessId,
+      businessData: widget.businessData,
+    );
     debugPrint("🚀 INIT isAvailable = $_isAvailable");
     debugPrint("🚀 START LOCATION SERVICE");
     if (_isAvailable) {
@@ -171,6 +178,19 @@ class _PetTaxiDashboardOverviewTabState
   }
 
   Future<void> _toggleAvailability(bool value) async {
+    if (value) {
+      final granted = await _permissionService.ensureForegroundPermission(
+        context,
+      );
+      if (!granted) {
+        if (mounted) {
+          setState(() {
+            _isAvailable = false;
+          });
+        }
+        return;
+      }
+    }
     debugPrint("🔘 SWITCH = $value");
     setState(() {
       _isAvailable = value;
@@ -193,6 +213,19 @@ class _PetTaxiDashboardOverviewTabState
     debugPrint("🚀 _startLocationUpdates CALLED");
 
     _positionSubscription?.cancel();
+    final granted = await _permissionService.ensureForegroundPermission(context);
+    if (!granted) {
+      if (mounted) {
+        setState(() {
+          _isAvailable = false;
+        });
+      }
+      await FirebaseFirestore.instance
+          .collection("businesses")
+          .doc(widget.businessId)
+          .update({"sectorData.pet_taxi.isAvailable": false});
+      return;
+    }
 
     final permission = await Geolocator.checkPermission();
 
@@ -245,6 +278,8 @@ class _PetTaxiDashboardOverviewTabState
                           position.latitude,
                       "sectorData.pet_taxi.currentLocation.lng":
                           position.longitude,
+                      "sectorData.pet_taxi.currentLocation.source":
+                          "gps_runtime",
                       "sectorData.pet_taxi.currentLocation.updatedAt":
                           FieldValue.serverTimestamp(),
                     });
