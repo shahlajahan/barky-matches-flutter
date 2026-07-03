@@ -133,6 +133,19 @@ class SocialPostService {
     await batch.commit();
   }
 
+  Stream<bool> likedStream(String postId) {
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    return Stream.value(false);
+  }
+
+  return _likesCollection
+      .doc(_likeDocId(postId, user.uid))
+      .snapshots()
+      .map((doc) => doc.exists);
+}
+
   /// REPORT POST
   Future<void> reportPost(String postId) async {
     await _postsCollection.doc(postId).update({

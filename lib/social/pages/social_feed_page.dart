@@ -345,21 +345,30 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
 
                                 Row(
                                   children: [
-                                    _buildActionButton(
-                                      icon: LucideIcons.heart,
-                                      count: post.likeCount.toString(),
-                                      onTap: () async {
-                                        final appState = context
-                                            .read<AppState>();
+                                    StreamBuilder<bool>(
+  stream: _postService.likedStream(post.id),
+  builder: (context, snapshot) {
+    final liked = snapshot.data ?? false;
 
-                                        if (appState.isGuest) {
-                                          appState.openGuestFeatureGate();
-                                          return;
-                                        }
+    return _buildActionButton(
+      icon: LucideIcons.heart,
+      iconColor: liked
+          ? const Color(0xFFFF4D8D)
+          : Colors.white,
+      count: post.likeCount.toString(),
+      onTap: () async {
+        final appState = context.read<AppState>();
 
-                                        await _postService.toggleLike(post.id);
-                                      },
-                                    ),
+        if (appState.isGuest) {
+          appState.openGuestFeatureGate();
+          return;
+        }
+
+        await _postService.toggleLike(post.id);
+      },
+    );
+  },
+),
 
                                     const SizedBox(width: 18),
 
@@ -430,30 +439,20 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
                                       debugPrint('❌ SAVE ERROR: $e');
                                     }
                                   },
-                                  child: Ink(
-                                    height: 56,
-                                    width: 56,
+                                 child: StreamBuilder<bool>(
+  stream: _saveService.savedStream(post.id),
+  builder: (context, snapshot) {
+    final saved = snapshot.data ?? false;
 
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.12,
-                                      ),
-
-                                      borderRadius: BorderRadius.circular(18),
-
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.06,
-                                        ),
-                                      ),
-                                    ),
-
-                                    child: const Icon(
-                                      LucideIcons.bookmark,
-                                      color: Colors.white,
-                                      size: 28,
-                                    ),
-                                  ),
+    return Icon(
+      LucideIcons.bookmark,
+      color: saved
+    ? const Color(0xFFFF4D8D)
+    : Colors.white,
+      size: 28,
+    );
+  },
+),
                                 ),
                               ),
                             ],
@@ -497,16 +496,17 @@ https://petsupo.com/post/${post.id}
   }
 
   Widget _buildActionButton({
-    required IconData icon,
-    required String count,
-    required VoidCallback onTap,
-  }) {
+  required IconData icon,
+  required String count,
+  required VoidCallback onTap,
+  Color iconColor = Colors.white,
+}) {
     return GestureDetector(
       onTap: onTap,
 
       child: Row(
         children: [
-          Icon(icon, color: Colors.white, size: 28),
+         Icon(icon, color: iconColor, size: 28),
 
           const SizedBox(width: 7),
 

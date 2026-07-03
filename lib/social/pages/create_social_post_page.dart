@@ -35,6 +35,24 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
   int _previewIndex = 0;
 
   Future<void> _pickMedia() async {
+    final permission = await PhotoManager.requestPermissionExtend();
+
+debugPrint(permission.toString());
+
+if (!permission.isAuth) {
+  debugPrint('PHOTO PERMISSION NOT AUTH: $permission');
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Gallery permission is required: $permission')),
+  );
+  return;
+}
+final paths = await PhotoManager.getAssetPathList();
+
+debugPrint("Albums: ${paths.length}");
+
+for (final p in paths) {
+  debugPrint("${p.name} -> ${await p.assetCountAsync}");
+}
     final result = await AssetPicker.pickAssets(
       context,
       pickerConfig: AssetPickerConfig(
