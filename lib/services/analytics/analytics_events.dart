@@ -27,9 +27,10 @@ class AnalyticsEvents {
 
   // Grooming
   static const groomingProfileViewed = 'grooming_profile_viewed';
-  static const groomingBookingStarted = 'grooming_booking_started';
-  static const groomingBookingCompleted = 'grooming_booking_completed';
-  static const groomingReviewAdded = 'grooming_review_added';
+static const groomingBookingStarted = 'grooming_booking_started';
+static const groomingBookingCompleted = 'grooming_booking_completed';
+static const groomingBookingCancelled = 'grooming_booking_cancelled';
+static const groomingReviewAdded = 'grooming_review_added';
 
   // Pet Hotel
   static const hotelProfileViewed = 'hotel_profile_viewed';
