@@ -701,7 +701,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authWelcomeBackSubtitle => 'Welcome back to PetSupo';
 
   @override
-  String get authCreateAccountSubtitle => 'Create your PetSupo account';
+  String get authCreateAccountSubtitle => 'Create your PetSopu account';
 
   @override
   String get sessionExpiredPleaseSignInAgain => 'Your session expired. Please sign in again.';

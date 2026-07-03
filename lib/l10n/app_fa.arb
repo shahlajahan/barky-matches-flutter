@@ -2041,7 +2041,7 @@
   "offerHotDeal": "🔥 پیشنهاد ویژه",
   "@offerHotDeal": { "description": "Badge text for sponsored offers" },
 
-  "offerPremiumBadge": "پریمیوم",
+  "offerPremiumBadge": "پرمیوم",
   "@offerPremiumBadge": { "description": "Badge text for premium-only offers" },
 
   "offerFallbackTitle": "پیشنهاد ویژه برای کاربران PetSupo",

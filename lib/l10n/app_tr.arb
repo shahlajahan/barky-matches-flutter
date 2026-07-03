@@ -2048,10 +2048,10 @@
   "offerFallbackTitle": "PetSupo kullanıcılarına özel teklif",
   "@offerFallbackTitle": { "description": "Teklif başlığı eksik olduğunda yedek başlık" },
 
-  "offerFallbackProvider": "İş ortağı marka",
+  "offerFallbackProvider": "Partner marka",
   "@offerFallbackProvider": { "description": "Sağlayıcı adı eksik olduğunda yedek isim" },
 
-  "offerUnlock": "Aç",
+  "offerUnlock": "Kilidi aç",
   "@offerUnlock": { "description": "Teklif kartında kod veya eylem varsa gösterilen CTA etiketi" },
 
   "offerView": "Görüntüle",

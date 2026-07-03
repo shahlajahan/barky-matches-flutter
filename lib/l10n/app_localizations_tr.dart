@@ -2616,10 +2616,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get offerFallbackTitle => 'PetSupo kullanıcılarına özel teklif';
 
   @override
-  String get offerFallbackProvider => 'İş ortağı marka';
+  String get offerFallbackProvider => 'Partner marka';
 
   @override
-  String get offerUnlock => 'Aç';
+  String get offerUnlock => 'Kilidi aç';
 
   @override
   String get offerView => 'Görüntüle';

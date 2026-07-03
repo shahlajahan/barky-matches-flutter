@@ -1422,7 +1422,7 @@ abstract class AppLocalizations {
   /// Subtitle on auth sign-up page
   ///
   /// In en, this message translates to:
-  /// **'Create your PetSupo account'**
+  /// **'Create your PetSopu account'**
   String get authCreateAccountSubtitle;
 
   /// Snackbar shown after native auth reset
@@ -4851,25 +4851,25 @@ abstract class AppLocalizations {
   /// **'No valid owner found for this dog'**
   String get errorNoOwnerFound;
 
-  /// Badge text for sponsored offers
+  /// Badge text shown for sponsored offers
   ///
   /// In en, this message translates to:
   /// **'🔥 Hot Deal'**
   String get offerHotDeal;
 
-  /// Badge text for premium-only offers
+  /// Badge text shown for premium-only offers
   ///
   /// In en, this message translates to:
   /// **'Premium'**
   String get offerPremiumBadge;
 
-  /// Fallback title when offer title is missing
+  /// No description provided for @offerFallbackTitle.
   ///
   /// In en, this message translates to:
   /// **'Special offer for PetSupo users'**
   String get offerFallbackTitle;
 
-  /// Fallback provider name when provider is missing
+  /// Fallback provider name shown when an offer provider is missing
   ///
   /// In en, this message translates to:
   /// **'Partner brand'**

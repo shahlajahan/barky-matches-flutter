@@ -2610,7 +2610,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get offerHotDeal => '🔥 پیشنهاد ویژه';
 
   @override
-  String get offerPremiumBadge => 'پریمیوم';
+  String get offerPremiumBadge => 'پرمیوم';
 
   @override
   String get offerFallbackTitle => 'پیشنهاد ویژه برای کاربران PetSupo';

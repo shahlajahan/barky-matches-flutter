@@ -1952,7 +1952,19 @@
   "errorNoOwnerFound": "No valid owner found for this dog",
   "@errorNoOwnerFound": { "description": "Error message shown when the dog's ownerId is null or empty" },
 
+  "offerHotDeal": "🔥 Hot Deal",
+  "@offerHotDeal": { "description": "Badge text shown for sponsored offers" },
+
+  "offerPremiumBadge": "Premium",
+  "@offerPremiumBadge": { "description": "Badge text shown for premium-only offers" },
+
   "offerFallbackTitle": "Special offer for PetSupo users",
+
+  "offerFallbackProvider": "Partner brand",
+  "@offerFallbackProvider": { "description": "Fallback provider name shown when an offer provider is missing" },
+
+  "offerUnlock": "Unlock",
+  "@offerUnlock": { "description": "CTA label shown on offer card when an offer code or action is available" },
 
   "offerView": "View",
   "@offerView": { "description": "CTA label shown on offer card when no code exists" },

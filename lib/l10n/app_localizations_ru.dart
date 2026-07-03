@@ -2607,22 +2607,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get errorNoOwnerFound => 'No valid owner found for this dog';
 
   @override
-  String get offerHotDeal => '🔥 Hot Deal';
+  String get offerHotDeal => '🔥 Горячее предложение';
 
   @override
-  String get offerPremiumBadge => 'Premium';
+  String get offerPremiumBadge => 'Премиум';
 
   @override
   String get offerFallbackTitle => 'Special offer for PetSupo users';
 
   @override
-  String get offerFallbackProvider => 'Partner brand';
+  String get offerFallbackProvider => 'Партнёрский бренд';
 
   @override
-  String get offerUnlock => 'Unlock';
+  String get offerUnlock => 'Открыть';
 
   @override
-  String get offerView => 'View';
+  String get offerView => 'Посмотреть';
 
   @override
   String offerDiscountPercent(Object discount) {
