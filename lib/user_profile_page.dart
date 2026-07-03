@@ -1502,9 +1502,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: Text(
-                AppLocalizations.of(context)!.userProfileLanguageEnglish,
-              ),
+              title: const Text('English'),
               onTap: () {
                 context.read<AppState>().setLocale('en');
                 Navigator.pop(context);
@@ -1512,9 +1510,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             ),
 
             ListTile(
-              title: Text(
-                AppLocalizations.of(context)!.userProfileLanguagePersian,
-              ),
+              title: const Text('فارسی'),
               onTap: () {
                 context.read<AppState>().setLocale('fa');
                 Navigator.pop(context);
@@ -1522,9 +1518,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             ),
 
             ListTile(
-              title: Text(
-                AppLocalizations.of(context)!.userProfileLanguageTurkish,
-              ),
+              title: const Text('Türkçe'),
               onTap: () {
                 context.read<AppState>().setLocale('tr');
                 Navigator.pop(context);

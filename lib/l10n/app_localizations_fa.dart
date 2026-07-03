@@ -466,7 +466,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get profileInformation => 'اطلاعات پروفایل';
 
   @override
-  String get myDogs => 'سگ‌های من';
+  String get myDogs => 'حیوانات خانگی من';
 
   @override
   String get dogsAvailableForAdoption => 'سگ‌های موجود برای پذیرش';
@@ -602,7 +602,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get passwordRequired => 'لطفاً رمز عبور خود را وارد کنید';
 
   @override
-  String get passwordValidation => 'رمز عبور باید حداقل ۸ کاراکتر باشد و شامل حروف و اعداد باشد';
+  String get passwordValidation => 'حداقل ۸ کاراکتر، شامل یک حرف و یک عدد.';
 
   @override
   String get passwordMismatch => 'رمزهای عبور مطابقت ندارند';
@@ -719,6 +719,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get addYourDog => 'سگ خود را اضافه کنید';
 
   @override
+  String get addYourPetTitle => 'حیوان خانگی خود را اضافه کنید';
+
+  @override
   String get nameLabel => 'نام *';
 
   @override
@@ -732,6 +735,9 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get ageLabel => 'سن *';
+
+  @override
+  String get ageUnit => 'واحد';
 
   @override
   String get pleaseEnterDogAge => 'لطفاً سن سگ خود را وارد کنید';
@@ -854,7 +860,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get pleaseFillRequiredFields => 'لطفاً تمام فیلدهای الزامی را به درستی پر کنید';
 
   @override
-  String get addDogButton => 'افزودن سگ';
+  String get addDogButton => 'افزودن حیوان خانگی';
 
   @override
   String get dogDetailsAddTitle => 'افزودن سگ';
@@ -2448,6 +2454,9 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get years => 'سال';
+
+  @override
+  String get months => 'ماه';
 
   @override
   String get breed => 'نژاد';

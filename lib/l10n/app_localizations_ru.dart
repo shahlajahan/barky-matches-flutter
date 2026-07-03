@@ -466,7 +466,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get profileInformation => 'Profile Information';
 
   @override
-  String get myDogs => 'My Dogs';
+  String get myDogs => 'Мои питомцы';
 
   @override
   String get dogsAvailableForAdoption => 'Dogs Available for Adoption';
@@ -602,7 +602,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get passwordRequired => 'Пожалуйста, введите пароль';
 
   @override
-  String get passwordValidation => 'Пароль должен быть не короче 8 символов и содержать буквы и цифры';
+  String get passwordValidation => 'Минимум 8 символов: буква и цифра.';
 
   @override
   String get passwordMismatch => 'Пароли не совпадают';
@@ -719,6 +719,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get addYourDog => 'Add Your Dog';
 
   @override
+  String get addYourPetTitle => 'Добавьте питомца';
+
+  @override
   String get nameLabel => 'Имя *';
 
   @override
@@ -732,6 +735,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get ageLabel => 'Возраст *';
+
+  @override
+  String get ageUnit => 'Ед.';
 
   @override
   String get pleaseEnterDogAge => 'Please enter your dog\'s age';
@@ -854,7 +860,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get pleaseFillRequiredFields => 'Пожалуйста, правильно заполните все обязательные поля';
 
   @override
-  String get addDogButton => 'Add Dog';
+  String get addDogButton => 'Добавить питомца';
 
   @override
   String get dogDetailsAddTitle => 'Add Dog';
@@ -2447,7 +2453,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get pleaseSelectDogForPlaydate => 'Please select one of your dogs for playdate';
 
   @override
-  String get years => 'years';
+  String get years => 'лет';
+
+  @override
+  String get months => 'месяцев';
 
   @override
   String get breed => 'Breed';

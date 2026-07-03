@@ -2135,36 +2135,50 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   InputDecoration _authInputDecoration({
-    required String label,
-    required IconData icon,
-    Widget? suffixIcon,
-  }) {
-    const Color darkPink = Color(0xFF9E1B4F);
+  required String label,
+  required IconData icon,
+  Widget? suffixIcon,
+}) {
+  const Color darkPink = Color(0xFF9E1B4F);
 
-    return InputDecoration(
-      labelText: label,
-      labelStyle: GoogleFonts.poppins(
-        color: Colors.black54,
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
+  return InputDecoration(
+    labelText: label,
+    labelStyle: GoogleFonts.poppins(
+      color: Colors.black54,
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+    ),
+    prefixIcon: Icon(icon, color: darkPink, size: 21),
+    suffixIcon: suffixIcon,
+
+    // 👇 این دو خط را اینجا اضافه کن
+    errorMaxLines: 3,
+    errorStyle: GoogleFonts.poppins(
+      fontSize: 12,
+      height: 1.3,
+    ),
+
+    filled: true,
+    fillColor: const Color(0xFFFFF3F7),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: 14,
+      vertical: 15,
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: Colors.pink.withOpacity(0.10)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(
+        color: Color(0xFFFFC107),
+        width: 1.6,
       ),
-      prefixIcon: Icon(icon, color: darkPink, size: 21),
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: const Color(0xFFFFF3F7),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.pink.withOpacity(0.10)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFFFC107), width: 1.6),
-      ),
-    );
-  }
+    ),
+  );
+}
 }

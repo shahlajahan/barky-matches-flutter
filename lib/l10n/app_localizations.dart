@@ -972,7 +972,7 @@ abstract class AppLocalizations {
   /// Label for user's dogs section
   ///
   /// In en, this message translates to:
-  /// **'My Dogs'**
+  /// **'My Pets'**
   String get myDogs;
 
   /// Label for dogs available for adoption section
@@ -1236,7 +1236,7 @@ abstract class AppLocalizations {
   /// Validation message for invalid password
   ///
   /// In en, this message translates to:
-  /// **'Password must be at least 8 characters, including both letters and numbers'**
+  /// **'Minimum 8 characters, with a letter and a number.'**
   String get passwordValidation;
 
   /// Validation message for mismatched passwords
@@ -1455,6 +1455,12 @@ abstract class AppLocalizations {
   /// **'Add Your Dog'**
   String get addYourDog;
 
+  /// Title for the add pet screen
+  ///
+  /// In en, this message translates to:
+  /// **'Add Your Pet'**
+  String get addYourPetTitle;
+
   /// Label for dog name input field
   ///
   /// In en, this message translates to:
@@ -1484,6 +1490,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Age *'**
   String get ageLabel;
+
+  /// Label for age unit dropdown
+  ///
+  /// In en, this message translates to:
+  /// **'Unit'**
+  String get ageUnit;
 
   /// Validation message for empty dog age
   ///
@@ -1716,7 +1728,7 @@ abstract class AppLocalizations {
   /// Button label for adding dog
   ///
   /// In en, this message translates to:
-  /// **'Add Dog'**
+  /// **'Add Pet'**
   String get addDogButton;
 
   /// Title for add dog page
@@ -4568,6 +4580,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'years'**
   String get years;
+
+  /// Label for months in age display
+  ///
+  /// In en, this message translates to:
+  /// **'months'**
+  String get months;
 
   /// Label for dog breed
   ///

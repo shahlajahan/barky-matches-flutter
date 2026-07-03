@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../widgets/current_location_button.dart';
 import '../widgets/pet_taxi_bottom_sheet.dart';
+import '../pet_taxi_driver_location_resolver.dart';
 
 class PetTaxiMapPage extends StatefulWidget {
   const PetTaxiMapPage({super.key});
@@ -67,17 +68,23 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
   }
 
   Future<void> _loadDriverMarker() async {
-  _driverMarker = await BitmapDescriptor.asset(
-    const ImageConfiguration(
-      size: Size(56, 56),
-    ),
-    "assets/taxi_marker.png",
-  );
+    try {
+      _driverMarker = await BitmapDescriptor.asset(
+        const ImageConfiguration(size: Size(56, 56)),
+        "assets/taxi_marker.png",
+      );
+    } catch (e, stackTrace) {
+      debugPrint("❌ TAXI MARKER LOAD FAILED = $e");
+      debugPrintStack(stackTrace: stackTrace);
+      _driverMarker = BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueRose,
+      );
+    }
 
-  if (mounted) {
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
-}
 
   void _handleDriversSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
     final markers = <Marker>{};
@@ -95,25 +102,24 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
         continue;
       }
 
-      final currentLocation = _map(taxi['currentLocation']);
       final contact = _map(data['contact']);
-      final fallbackLocation = _map(contact['location']);
-      final location = currentLocation.isNotEmpty
-          ? currentLocation
-          : fallbackLocation;
-
-      final lat = (location['lat'] as num?)?.toDouble();
-      final lng = (location['lng'] as num?)?.toDouble();
+      final location = PetTaxiDriverLocationResolver.resolveDisplayLocation(
+        taxi: taxi,
+        contact: contact,
+      );
+      final lat = location?.lat;
+      final lng = location?.lng;
 
       debugPrint("🚕 DRIVER = ${_businessName(data, taxi)}");
       debugPrint("🚕 AVAILABLE = ${taxi['isAvailable']}");
       debugPrint("🚕 LOCATION = $lat,$lng");
+      debugPrint("🚕 LOCATION SOURCE = ${location?.source.name}");
 
-      if (lat == null || lng == null) {
+      if (location == null) {
         continue;
       }
 
-      final position = LatLng(lat, lng);
+      final position = location.latLng;
 
       _firstDriverPosition ??= position;
       debugPrint("🚕 DRIVER POSITION = $lat,$lng");
@@ -122,10 +128,9 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
       markers.add(
         Marker(
           markerId: MarkerId(doc.id),
-          icon: _driverMarker ??
-    BitmapDescriptor.defaultMarkerWithHue(
-      BitmapDescriptor.hueRose,
-    ),
+          icon:
+              _driverMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
           position: position,
           infoWindow: InfoWindow(
             title: _businessName(data, taxi),

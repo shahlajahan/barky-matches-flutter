@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_driver_location_resolver.dart';
 
 class LiveTripStatusCard extends StatelessWidget {
   final String businessId;
@@ -43,6 +44,7 @@ class LiveTripStatusCard extends StatelessWidget {
         final data = snapshot.data!.data() ?? {};
 
         final sectorData = _map(data['sectorData']);
+        final contact = _map(data['contact']);
 
         final taxi = _map(
           sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
@@ -50,17 +52,20 @@ class LiveTripStatusCard extends StatelessWidget {
 
         final driver = _map(taxi['driver']);
         final vehicle = _map(taxi['vehicle']);
-        final currentLocation = _map(taxi['currentLocation']);
-
-        final lat = (currentLocation['lat'] as num?)?.toDouble();
-
-        final lng = (currentLocation['lng'] as num?)?.toDouble();
-
-        final updatedAt = currentLocation['updatedAt'];
+        final location = PetTaxiDriverLocationResolver.resolveDisplayLocation(
+          taxi: taxi,
+          contact: contact,
+        );
+        final lat = location?.lat;
+        final lng = location?.lng;
+        final updatedAt = location?.updatedAt;
 
         debugPrint("🚕 LIVE TRIP STREAM -> $businessId");
 
         debugPrint("📍 LIVE DRIVER POSITION -> $lat , $lng");
+        debugPrint(
+          "📍 LIVE DRIVER LOCATION SOURCE -> ${location?.source.name}",
+        );
 
         debugPrint("👤 LIVE DRIVER NAME -> ${driver['fullName']}");
 

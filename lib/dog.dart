@@ -105,6 +105,12 @@ class Dog extends HiveObject {
   @HiveField(26)
   String petType;
 
+  @HiveField(27)
+  int ageValue;
+
+  @HiveField(28)
+  String ageUnit;
+
   Timestamp? updatedAt;
 
   Dog({
@@ -136,7 +142,9 @@ class Dog extends HiveObject {
     this.boostExpiresAt,
     this.sponsorshipType = '',
     this.petType = 'dog',
-  });
+    int? ageValue,
+    this.ageUnit = 'years',
+  }) : ageValue = ageValue ?? age;
 
   factory Dog.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>?;
@@ -152,6 +160,9 @@ class Dog extends HiveObject {
       name: data['petName'] ?? data['name'] ?? '',
       breed: data['breed'] ?? '',
       age: (data['age'] as num?)?.toInt() ?? 0,
+      ageValue:
+          (data['ageValue'] as num?)?.toInt() ?? (data['age'] as num?)?.toInt(),
+      ageUnit: data['ageUnit'] ?? 'years',
       gender: data['gender'] ?? '',
       healthStatus: data['healthStatus'] ?? '',
       isNeutered: Dog._asBool(data['isNeutered']),
@@ -187,6 +198,9 @@ class Dog extends HiveObject {
           : '',
       breed: map['breed'] ?? '',
       age: (map['age'] as num?)?.toInt() ?? 0,
+      ageValue:
+          (map['ageValue'] as num?)?.toInt() ?? (map['age'] as num?)?.toInt(),
+      ageUnit: map['ageUnit'] ?? 'years',
       gender: map['gender'] ?? '',
       healthStatus: map['healthStatus'] ?? '',
       isNeutered: Dog._asBool(map['isNeutered']),
@@ -220,6 +234,8 @@ class Dog extends HiveObject {
       'petName': name,
       'breed': breed,
       'age': age,
+      'ageValue': ageValue,
+      'ageUnit': ageUnit,
       'gender': gender,
       'healthStatus': healthStatus,
       'isNeutered': isNeutered,
@@ -251,6 +267,8 @@ class Dog extends HiveObject {
     String? name,
     String? breed,
     int? age,
+    int? ageValue,
+    String? ageUnit,
     String? gender,
     String? healthStatus,
     bool? isNeutered,
@@ -280,6 +298,8 @@ class Dog extends HiveObject {
       name: name ?? this.name,
       breed: breed ?? this.breed,
       age: age ?? this.age,
+      ageValue: ageValue ?? this.ageValue,
+      ageUnit: ageUnit ?? this.ageUnit,
       gender: gender ?? this.gender,
       healthStatus: healthStatus ?? this.healthStatus,
       isNeutered: isNeutered ?? this.isNeutered,

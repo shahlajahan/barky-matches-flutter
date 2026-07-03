@@ -189,7 +189,7 @@
   "profileInformation": "Profil Bilgileri",
   "@profileInformation": { "description": "Profil detayları için bölüm başlığı" },
 
-  "myDogs": "Köpeklerim",
+  "myDogs": "Evcil Hayvanlarım",
   "@myDogs": { "description": "Kullanıcının köpekleri için bölüm etiketi" },
 
   "dogsAvailableForAdoption": "Sahiplenmek için mevcut köpekler",
@@ -321,7 +321,7 @@
   "passwordRequired": "Lütfen şifrenizi girin",
   "@passwordRequired": { "description": "Boş şifre için doğrulama mesajı" },
 
-  "passwordValidation": "Şifre en az 8 karakter olmalı ve hem harf hem de sayı içermelidir",
+  "passwordValidation": "En az 8 karakter; bir harf ve bir rakam kullanın.",
   "@passwordValidation": { "description": "Geçersiz şifre için doğrulama mesajı" },
 
   "passwordMismatch": "Şifreler eşleşmiyor",
@@ -429,6 +429,9 @@
   "addYourDog": "Köpeğinizi Ekleyin",
   "@addYourDog": { "description": "Köpek ekleme için düğme etiketi" },
 
+  "addYourPetTitle": "Evcil Hayvanınızı Ekleyin",
+  "@addYourPetTitle": { "description": "Evcil hayvan ekleme ekranı başlığı" },
+
   "nameLabel": "İsim *",
   "@nameLabel": { "description": "Köpek ismi giriş alanı için etiket" },
 
@@ -443,6 +446,9 @@
 
   "ageLabel": "Yaş *",
   "@ageLabel": { "description": "Köpek yaşı giriş alanı için etiket" },
+
+  "ageUnit": "Birim",
+  "@ageUnit": { "description": "Yaş birimi açılır menüsü etiketi" },
 
   "pleaseEnterDogAge": "Lütfen köpeğinizin yaşını girin",
   "@pleaseEnterDogAge": { "description": "Boş köpek yaşı için doğrulama mesajı" },
@@ -551,7 +557,7 @@
   "pleaseFillRequiredFields": "Lütfen tüm gerekli alanları doğru şekilde doldurun",
   "@pleaseFillRequiredFields": { "description": "Eksik gerekli alanlar için doğrulama mesajı" },
 
-  "addDogButton": "Köpek Ekle",
+  "addDogButton": "Evcil Hayvan Ekle",
   "@addDogButton": { "description": "Köpek ekleme için düğme etiketi" },
 
   "dogDetailsAddTitle": "Köpek Ekle",
@@ -1904,6 +1910,9 @@
 
   "years": "yıl",
   "@years": { "description": "Yaş gösteriminde yıllar için etiket" },
+
+  "months": "ay",
+  "@months": { "description": "Yaş gösteriminde aylar için etiket" },
 
   "breed": "Irk",
   "@breed": { "description": "Köpek ırkı için etiket" },

@@ -100,6 +100,7 @@ flutter:
     - assets/icon.png
     - assets/map_style.json
     - assets/marker_icon.png
+    - assets/taxi_marker.png
     - assets/home/
     - assets/brands/
     - assets/data/turkey_districts.json

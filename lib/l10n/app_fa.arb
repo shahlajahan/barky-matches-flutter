@@ -189,7 +189,7 @@
   "profileInformation": "اطلاعات پروفایل",
   "@profileInformation": { "description": "عنوان بخش جزئیات پروفایل" },
 
-  "myDogs": "سگ‌های من",
+  "myDogs": "حیوانات خانگی من",
   "@myDogs": { "description": "برچسب برای بخش سگ‌های کاربر" },
 
   "dogsAvailableForAdoption": "سگ‌های موجود برای پذیرش",
@@ -321,7 +321,7 @@
   "passwordRequired": "لطفاً رمز عبور خود را وارد کنید",
   "@passwordRequired": { "description": "پیام اعتبارسنجی برای رمز عبور خالی" },
 
-  "passwordValidation": "رمز عبور باید حداقل ۸ کاراکتر باشد و شامل حروف و اعداد باشد",
+  "passwordValidation": "حداقل ۸ کاراکتر، شامل یک حرف و یک عدد.",
   "@passwordValidation": { "description": "پیام اعتبارسنجی برای رمز عبور نامعتبر" },
 
   "passwordMismatch": "رمزهای عبور مطابقت ندارند",
@@ -429,6 +429,9 @@
   "addYourDog": "سگ خود را اضافه کنید",
   "@addYourDog": { "description": "برچسب دکمه برای افزودن سگ" },
 
+  "addYourPetTitle": "حیوان خانگی خود را اضافه کنید",
+  "@addYourPetTitle": { "description": "عنوان صفحه افزودن حیوان خانگی" },
+
   "nameLabel": "نام *",
   "@nameLabel": { "description": "برچسب برای فیلد ورودی نام سگ" },
 
@@ -443,6 +446,9 @@
 
   "ageLabel": "سن *",
   "@ageLabel": { "description": "برچسب برای فیلد ورودی سن سگ" },
+
+  "ageUnit": "واحد",
+  "@ageUnit": { "description": "برچسب فهرست انتخاب واحد سن" },
 
   "pleaseEnterDogAge": "لطفاً سن سگ خود را وارد کنید",
   "@pleaseEnterDogAge": { "description": "پیام اعتبارسنجی برای سن سگ خالی" },
@@ -551,7 +557,7 @@
   "pleaseFillRequiredFields": "لطفاً تمام فیلدهای الزامی را به درستی پر کنید",
   "@pleaseFillRequiredFields": { "description": "پیام اعتبارسنجی برای فیلدهای الزامی ناقص" },
 
-  "addDogButton": "افزودن سگ",
+  "addDogButton": "افزودن حیوان خانگی",
   "@addDogButton": { "description": "برچسب دکمه برای افزودن سگ" },
 
   "dogDetailsAddTitle": "افزودن سگ",
@@ -1903,6 +1909,9 @@
 
   "years": "سال",
   "@years": { "description": "برچسب برای سال‌ها در نمایش سن" },
+
+  "months": "ماه",
+  "@months": { "description": "برچسب برای ماه‌ها در نمایش سن" },
 
   "breed": "نژاد",
   "@breed": { "description": "برچسب برای نژاد سگ" },

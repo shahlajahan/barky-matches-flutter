@@ -52,7 +52,7 @@ class TermsPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Welcome to Doggy Playdate! By signing up, you agree to these Terms and Conditions. This app is designed to help you find playmates for your dogs, connect with other pet owners, and access pet-related services. These terms govern your use of the app and services provided by Doggy Playdate.',
+                'Welcome to PetSupo! By signing up, you agree to these Terms and Conditions. This app is designed to help you find playmates for your dogs, connect with other pet owners, and access pet-related services. These terms govern your use of the app and services provided by PetSupo.',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -95,7 +95,7 @@ class TermsPage extends StatelessWidget {
                 '- Obtain explicit consent before collecting or processing your data.\n'
                 '- Use your data only for the purposes stated (e.g., finding playmates, providing location-based services).\n'
                 '- Implement security measures to protect your data.\n'
-                '- Allow you to access, correct, or delete your data upon request. To exercise your rights, contact us at support@doggyplaydate.com.',
+                '- Allow you to access, correct, or delete your data upon request. To exercise your rights, contact us at info@petsupo.com.',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -114,7 +114,7 @@ class TermsPage extends StatelessWidget {
               const SizedBox(height: 8),
               const Text(
                 '- You retain ownership of any content you upload (e.g., photos, descriptions).\n'
-                '- By uploading content, you grant Doggy Playdate a non-exclusive, royalty-free license to use, display, and distribute your content within the app.\n'
+                '- By uploading content, you grant PetSupo a non-exclusive, royalty-free license to use, display, and distribute your content within the app.\n'
                 '- You must not upload content that is illegal, offensive, or violates the rights of others.',
                 style: TextStyle(
                   fontSize: 14,
@@ -133,7 +133,7 @@ class TermsPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Doggy Playdate is not liable for any damages arising from your use of the app, including but not limited to interactions with other users or pets. We do not guarantee the accuracy of information provided by other users.',
+                'PetSupo is not liable for any damages arising from your use of the app, including but not limited to interactions with other users or pets. We do not guarantee the accuracy of information provided by other users.',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -187,7 +187,7 @@ class TermsPage extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'If you have any questions or concerns about these Terms and Conditions, please contact us at support@doggyplaydate.com.',
+                'If you have any questions or concerns about these Terms and Conditions, please contact us at info@petsupo.com.',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,

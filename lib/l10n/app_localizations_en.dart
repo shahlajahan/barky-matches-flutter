@@ -466,7 +466,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileInformation => 'Profile Information';
 
   @override
-  String get myDogs => 'My Dogs';
+  String get myDogs => 'My Pets';
 
   @override
   String get dogsAvailableForAdoption => 'Dogs Available for Adoption';
@@ -602,7 +602,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get passwordRequired => 'Please enter your password';
 
   @override
-  String get passwordValidation => 'Password must be at least 8 characters, including both letters and numbers';
+  String get passwordValidation => 'Minimum 8 characters, with a letter and a number.';
 
   @override
   String get passwordMismatch => 'Passwords do not match';
@@ -719,6 +719,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addYourDog => 'Add Your Dog';
 
   @override
+  String get addYourPetTitle => 'Add Your Pet';
+
+  @override
   String get nameLabel => 'Name *';
 
   @override
@@ -732,6 +735,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ageLabel => 'Age *';
+
+  @override
+  String get ageUnit => 'Unit';
 
   @override
   String get pleaseEnterDogAge => 'Please enter your dog\'s age';
@@ -854,7 +860,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pleaseFillRequiredFields => 'Please fill all required fields correctly';
 
   @override
-  String get addDogButton => 'Add Dog';
+  String get addDogButton => 'Add Pet';
 
   @override
   String get dogDetailsAddTitle => 'Add Dog';
@@ -2448,6 +2454,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get years => 'years';
+
+  @override
+  String get months => 'months';
 
   @override
   String get breed => 'Breed';

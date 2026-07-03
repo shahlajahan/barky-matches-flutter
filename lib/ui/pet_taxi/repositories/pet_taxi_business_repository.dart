@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_driver_location_resolver.dart';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 
@@ -126,23 +127,17 @@ class PetTaxiBusinessRepository {
         continue;
       }
 
-      final currentLocation = map(taxi['currentLocation']);
-
       final contact = map(data['contact']);
-
-      final fallbackLocation = map(contact['location']);
-
-      final location = currentLocation.isNotEmpty
-          ? currentLocation
-          : fallbackLocation;
-
-      final lat = (location['lat'] as num?)?.toDouble();
-
-      final lng = (location['lng'] as num?)?.toDouble();
+      final location = PetTaxiDriverLocationResolver.resolveDisplayLocation(
+        taxi: taxi,
+        contact: contact,
+      );
+      final lat = location?.lat;
+      final lng = location?.lng;
 
       debugPrint(
         "📍 DRIVER LOCATION SOURCE = "
-        "${currentLocation.isNotEmpty ? 'currentLocation' : 'contact.location'}",
+        "${location?.source.name ?? 'missing'}",
       );
 
       debugPrint("📍 DRIVER POSITION = $lat , $lng");

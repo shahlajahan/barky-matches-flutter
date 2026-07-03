@@ -466,7 +466,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get profileInformation => 'Profil Bilgileri';
 
   @override
-  String get myDogs => 'Köpeklerim';
+  String get myDogs => 'Evcil Hayvanlarım';
 
   @override
   String get dogsAvailableForAdoption => 'Sahiplenmek için mevcut köpekler';
@@ -602,7 +602,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get passwordRequired => 'Lütfen şifrenizi girin';
 
   @override
-  String get passwordValidation => 'Şifre en az 8 karakter olmalı ve hem harf hem de sayı içermelidir';
+  String get passwordValidation => 'En az 8 karakter; bir harf ve bir rakam kullanın.';
 
   @override
   String get passwordMismatch => 'Şifreler eşleşmiyor';
@@ -719,6 +719,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get addYourDog => 'Köpeğinizi Ekleyin';
 
   @override
+  String get addYourPetTitle => 'Evcil Hayvanınızı Ekleyin';
+
+  @override
   String get nameLabel => 'İsim *';
 
   @override
@@ -732,6 +735,9 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get ageLabel => 'Yaş *';
+
+  @override
+  String get ageUnit => 'Birim';
 
   @override
   String get pleaseEnterDogAge => 'Lütfen köpeğinizin yaşını girin';
@@ -854,7 +860,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get pleaseFillRequiredFields => 'Lütfen tüm gerekli alanları doğru şekilde doldurun';
 
   @override
-  String get addDogButton => 'Köpek Ekle';
+  String get addDogButton => 'Evcil Hayvan Ekle';
 
   @override
   String get dogDetailsAddTitle => 'Köpek Ekle';
@@ -2448,6 +2454,9 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get years => 'yıl';
+
+  @override
+  String get months => 'ay';
 
   @override
   String get breed => 'Irk';

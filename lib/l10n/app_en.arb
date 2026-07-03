@@ -189,7 +189,7 @@
   "profileInformation": "Profile Information",
   "@profileInformation": { "description": "Section title for profile details" },
 
-  "myDogs": "My Dogs",
+  "myDogs": "My Pets",
   "@myDogs": { "description": "Label for user's dogs section" },
 
   "dogsAvailableForAdoption": "Dogs Available for Adoption",
@@ -321,7 +321,7 @@
   "passwordRequired": "Please enter your password",
   "@passwordRequired": { "description": "Validation message for empty password" },
 
-  "passwordValidation": "Password must be at least 8 characters, including both letters and numbers",
+  "passwordValidation": "Minimum 8 characters, with a letter and a number.",
   "@passwordValidation": { "description": "Validation message for invalid password" },
 
   "passwordMismatch": "Passwords do not match",
@@ -433,6 +433,9 @@
   "addYourDog": "Add Your Dog",
   "@addYourDog": { "description": "Button label for adding a dog" },
 
+  "addYourPetTitle": "Add Your Pet",
+  "@addYourPetTitle": { "description": "Title for the add pet screen" },
+
   "nameLabel": "Name *",
   "@nameLabel": { "description": "Label for dog name input field" },
 
@@ -447,6 +450,9 @@
 
   "ageLabel": "Age *",
   "@ageLabel": { "description": "Label for dog age input field" },
+
+  "ageUnit": "Unit",
+  "@ageUnit": { "description": "Label for age unit dropdown" },
 
   "pleaseEnterDogAge": "Please enter your dog's age",
   "@pleaseEnterDogAge": { "description": "Validation message for empty dog age" },
@@ -555,7 +561,7 @@
   "pleaseFillRequiredFields": "Please fill all required fields correctly",
   "@pleaseFillRequiredFields": { "description": "Validation message for incomplete required fields" },
 
-  "addDogButton": "Add Dog",
+  "addDogButton": "Add Pet",
   "@addDogButton": { "description": "Button label for adding dog" },
 
   "dogDetailsAddTitle": "Add Dog",
@@ -1817,6 +1823,9 @@
 
   "years": "years",
   "@years": { "description": "Label for years in age display" },
+
+  "months": "months",
+  "@months": { "description": "Label for months in age display" },
 
   "breed": "Breed",
   "@breed": { "description": "Label for dog breed" },

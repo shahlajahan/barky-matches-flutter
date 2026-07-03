@@ -43,6 +43,7 @@ class _AddDogPageState extends State<AddDogPage> {
   String? _selectedBreed;
   String _selectedPetType = 'dog';
   final _ageController = TextEditingController();
+  String _selectedAgeUnit = 'years';
   String? _selectedGender;
   String? _selectedHealthStatus;
   bool? _isNeutered;
@@ -267,6 +268,18 @@ class _AddDogPageState extends State<AddDogPage> {
     }
   }
 
+  String _localizedAgeUnitOption(String unit) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (unit) {
+      case 'months':
+        return l10n.months;
+      case 'years':
+        return l10n.years;
+      default:
+        return unit;
+    }
+  }
+
   String _localizedBreedLabel(String breed) {
     final l10n = AppLocalizations.of(context)!;
     switch (breed.toLowerCase().trim()) {
@@ -391,6 +404,12 @@ class _AddDogPageState extends State<AddDogPage> {
             'AddDogPage - Location acquired: Latitude: $_latitude, Longitude: $_longitude',
           );
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location updated successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('AddDogPage - Error getting location: $e');
@@ -492,6 +511,7 @@ class _AddDogPageState extends State<AddDogPage> {
     debugPrint('AddDogPage - Name: ${_nameController.text}');
     debugPrint('AddDogPage - Breed: $_selectedBreed');
     debugPrint('AddDogPage - Age: ${_ageController.text}');
+    debugPrint('AddDogPage - Age Unit: $_selectedAgeUnit');
     debugPrint('AddDogPage - Gender: $_selectedGender');
     debugPrint('AddDogPage - Health Status: $_selectedHealthStatus');
     debugPrint('AddDogPage - Neutered: $_isNeutered');
@@ -628,11 +648,14 @@ class _AddDogPageState extends State<AddDogPage> {
           _imageUrls = await _uploadImages(dogId);
         }
 
+        final ageValue = int.parse(_ageController.text.trim());
         final newDog = Dog(
           id: dogId,
           name: _nameController.text,
           breed: _selectedBreed!,
-          age: int.parse(_ageController.text),
+          age: ageValue,
+          ageValue: ageValue,
+          ageUnit: _selectedAgeUnit,
           gender: _selectedGender!,
           healthStatus: _selectedHealthStatus!,
           isNeutered: _isNeutered!,
@@ -668,6 +691,8 @@ class _AddDogPageState extends State<AddDogPage> {
               'petName': newDog.name,
               'breed': newDog.breed,
               'age': newDog.age,
+              'ageValue': newDog.ageValue,
+              'ageUnit': newDog.ageUnit,
               'gender': newDog.gender,
               'healthStatus': newDog.healthStatus,
               'isNeutered': newDog.isNeutered,
@@ -786,7 +811,7 @@ class _AddDogPageState extends State<AddDogPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)!.addYourDog,
+          AppLocalizations.of(context)!.addYourPetTitle,
           style: GoogleFonts.dancingScript(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -862,32 +887,7 @@ class _AddDogPageState extends State<AddDogPage> {
                         },
                       ),
                       const SizedBox(height: 14),
-                      _buildTextField(
-                        controller: _ageController,
-                        label: AppLocalizations.of(context)!.ageLabel,
-
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            debugPrint(
-                              'AddDogPage - Validation failed: Age is empty',
-                            );
-                            return AppLocalizations.of(
-                              context,
-                            )!.pleaseEnterDogAge;
-                          }
-                          if (int.tryParse(value) == null ||
-                              int.parse(value) <= 0) {
-                            debugPrint(
-                              'AddDogPage - Validation failed: Age is invalid',
-                            );
-                            return AppLocalizations.of(
-                              context,
-                            )!.pleaseEnterValidAge;
-                          }
-                          return null;
-                        },
-                      ),
+                      _buildAgeFields(),
                       const SizedBox(height: 14),
                       _buildDropdownField(
                         value: _selectedGender,
@@ -1136,6 +1136,53 @@ class _AddDogPageState extends State<AddDogPage> {
     );
   }
 
+  Widget _buildAgeFields() {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: _buildTextField(
+            controller: _ageController,
+            label: l10n.ageLabel,
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              final text = value?.trim() ?? '';
+              if (text.isEmpty) {
+                debugPrint('AddDogPage - Validation failed: Age is empty');
+                return l10n.pleaseEnterDogAge;
+              }
+
+              final ageValue = int.tryParse(text);
+              if (ageValue == null || ageValue <= 0) {
+                debugPrint('AddDogPage - Validation failed: Age is invalid');
+                return l10n.pleaseEnterValidAge;
+              }
+
+              return null;
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildDropdownField(
+            value: _selectedAgeUnit,
+            hint: l10n.ageUnit,
+            items: const ['months', 'years'],
+            displayItemLabel: _localizedAgeUnitOption,
+            onChanged: (value) {
+              setState(() {
+                _selectedAgeUnit = value ?? 'years';
+              });
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildNeuteredField() {
     return Row(
       children: [
@@ -1332,7 +1379,7 @@ class _AddDogPageState extends State<AddDogPage> {
 
 List<String> getDogBreeds(BuildContext context) {
   final l10n = AppLocalizations.of(context)!;
-  return [
+  final breeds = [
     l10n.breedPekingese,
     l10n.breedLabradorRetriever,
     l10n.breedBeagle,
@@ -1395,18 +1442,73 @@ List<String> getDogBreeds(BuildContext context) {
     l10n.breedWestHighlandWhiteTerrier,
     l10n.breedYorkshireTerrier,
   ];
+  breeds.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  return breeds;
 }
 
 List<String> getBreedsByPetType(BuildContext context, String petType) {
   switch (petType) {
     case 'cat':
-      return ['Persian', 'Siamese', 'Maine Coon', 'British Shorthair'];
+      return _sortBreedsByLocalizedName(context, [
+        'Persian',
+        'Siamese',
+        'Maine Coon',
+        'British Shorthair',
+      ]);
     case 'bird':
-      return ['Parrot', 'Canary', 'Budgerigar'];
+      return _sortBreedsByLocalizedName(context, [
+        'Parrot',
+        'Canary',
+        'Budgerigar',
+      ]);
     case 'horse':
-      return ['Arabian', 'Thoroughbred', 'Mustang'];
+      return _sortBreedsByLocalizedName(context, [
+        'Arabian',
+        'Thoroughbred',
+        'Mustang',
+      ]);
     case 'dog':
     default:
       return getDogBreeds(context);
+  }
+}
+
+List<String> _sortBreedsByLocalizedName(
+  BuildContext context,
+  List<String> breeds,
+) {
+  breeds.sort((a, b) {
+    final labelA = _localizedBreedNameForSort(context, a);
+    final labelB = _localizedBreedNameForSort(context, b);
+    return labelA.toLowerCase().compareTo(labelB.toLowerCase());
+  });
+  return breeds;
+}
+
+String _localizedBreedNameForSort(BuildContext context, String breed) {
+  final l10n = AppLocalizations.of(context)!;
+  switch (breed.toLowerCase().trim()) {
+    case 'persian':
+      return l10n.breedPersian;
+    case 'siamese':
+      return l10n.breedSiamese;
+    case 'maine coon':
+      return l10n.breedMaineCoon;
+    case 'british shorthair':
+      return l10n.breedBritishShorthair;
+    case 'parrot':
+      return l10n.breedParrot;
+    case 'canary':
+      return l10n.breedCanary;
+    case 'budgerigar':
+      return l10n.breedBudgerigar;
+    case 'arabian':
+      return l10n.breedArabian;
+    case 'thoroughbred':
+      return l10n.breedThoroughbred;
+    case 'mustang':
+      return l10n.breedMustang;
+    default:
+      return breed;
   }
 }

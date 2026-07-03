@@ -44,13 +44,15 @@ class DogAdapter extends TypeAdapter<Dog> {
       boostExpiresAt: fields[24] as Timestamp?,
       sponsorshipType: fields[25] as String,
       petType: fields[26] as String,
+      ageValue: fields[27] as int? ?? fields[3] as int,
+      ageUnit: fields[28] as String? ?? 'years',
     );
   }
 
   @override
   void write(BinaryWriter writer, Dog obj) {
     writer
-      ..writeByte(27)
+      ..writeByte(29)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -104,7 +106,11 @@ class DogAdapter extends TypeAdapter<Dog> {
       ..writeByte(25)
       ..write(obj.sponsorshipType)
       ..writeByte(26)
-      ..write(obj.petType);
+      ..write(obj.petType)
+      ..writeByte(27)
+      ..write(obj.ageValue)
+      ..writeByte(28)
+      ..write(obj.ageUnit);
   }
 
   @override
