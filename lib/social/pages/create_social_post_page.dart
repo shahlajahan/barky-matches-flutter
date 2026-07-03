@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -31,109 +32,181 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
   double _uploadProgress = 0;
   int _previewIndex = 0;
 
-  Future<void> _pickMedia() async {
-    final action = await showModalBottomSheet<_SocialMediaPickAction>(
-      context: context,
-      backgroundColor: Colors.grey[950],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+  void _pickMedia() {
+  debugPrint('OPEN SHEET');
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.grey[950],
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(22),
       ),
-      builder: (context) => SafeArea(
+    ),
+    builder: (context) {
+      debugPrint('BUILD SHEET');
+
+      return SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             _MediaPickOption(
               icon: LucideIcons.image,
               label: 'Photos',
-              onTap: () =>
-                  Navigator.pop(context, _SocialMediaPickAction.photos),
+              onTap: () => _dismissAndSchedulePicker(
+                context,
+                _SocialMediaPickAction.photos,
+              ),
             ),
             _MediaPickOption(
               icon: LucideIcons.video,
               label: 'Video',
-              onTap: () => Navigator.pop(context, _SocialMediaPickAction.video),
+              onTap: () => _dismissAndSchedulePicker(
+                context,
+                _SocialMediaPickAction.video,
+              ),
             ),
             _MediaPickOption(
               icon: LucideIcons.camera,
               label: 'Camera Photo',
-              onTap: () =>
-                  Navigator.pop(context, _SocialMediaPickAction.cameraPhoto),
+              onTap: () => _dismissAndSchedulePicker(
+                context,
+                _SocialMediaPickAction.cameraPhoto,
+              ),
             ),
             _MediaPickOption(
               icon: LucideIcons.video,
               label: 'Camera Video',
-              onTap: () =>
-                  Navigator.pop(context, _SocialMediaPickAction.cameraVideo),
+              onTap: () => _dismissAndSchedulePicker(
+                context,
+                _SocialMediaPickAction.cameraVideo,
+              ),
             ),
           ],
         ),
-      ),
-    );
+      );
+    },
+  );
+}
 
-    if (action == null) return;
+  void _dismissAndSchedulePicker(
+    BuildContext sheetContext,
+    _SocialMediaPickAction action,
+  ) {
+    Navigator.pop(sheetContext);
+    Future.delayed(Duration.zero, () {
+      _pickMediaForAction(action);
+    });
+  }
 
-    final nextItems = <_SelectedSocialMedia>[];
-
-    switch (action) {
-      case _SocialMediaPickAction.photos:
-        final files = await _imagePicker.pickMultiImage(
-          limit: 10,
-          imageQuality: 100,
-        );
-        nextItems.addAll(
-          files.map((file) => _SelectedSocialMedia(file: file, type: 'image')),
-        );
-        break;
-      case _SocialMediaPickAction.video:
-        final file = await _imagePicker.pickVideo(source: ImageSource.gallery);
-        if (file != null) {
-          nextItems.add(await _selectedVideoMedia(file));
-        }
-        break;
-      case _SocialMediaPickAction.cameraPhoto:
-        final file = await _imagePicker.pickImage(
-          source: ImageSource.camera,
-          imageQuality: 100,
-        );
-        if (file != null) {
-          nextItems.add(_SelectedSocialMedia(file: file, type: 'image'));
-        }
-        break;
-      case _SocialMediaPickAction.cameraVideo:
-        final file = await _imagePicker.pickVideo(source: ImageSource.camera);
-        if (file != null) {
-          nextItems.add(await _selectedVideoMedia(file));
-        }
-        break;
-    }
-
-    if (nextItems.isEmpty) return;
-
-    if (!mounted) return;
-    setState(() {
-      final remainingSlots = 10 - _selectedMedia.length;
-      if (remainingSlots > 0) {
-        _selectedMedia.addAll(nextItems.take(remainingSlots));
+  Future<void> _pickMediaForAction(_SocialMediaPickAction action) async {
+    try {
+      switch (action) {
+        case _SocialMediaPickAction.photos:
+          final files = await _imagePicker.pickMultiImage(
+            limit: 10,
+            imageQuality: 100,
+          );
+          _handlePickedItems(
+            files
+                .map((file) => _SelectedSocialMedia(file: file, type: 'image'))
+                .toList(),
+          );
+          break;
+        case _SocialMediaPickAction.video:
+          final file = await _imagePicker.pickVideo(
+            source: ImageSource.gallery,
+          );
+          if (file != null) {
+            _handlePickedItems([
+              _SelectedSocialMedia(file: file, type: 'video'),
+            ]);
+          }
+          break;
+        case _SocialMediaPickAction.cameraPhoto:
+          final file = await _imagePicker.pickImage(
+            source: ImageSource.camera,
+            imageQuality: 100,
+          );
+          if (file != null) {
+            _handlePickedItems([
+              _SelectedSocialMedia(file: file, type: 'image'),
+            ]);
+          }
+          break;
+        case _SocialMediaPickAction.cameraVideo:
+          final file = await _imagePicker.pickVideo(source: ImageSource.camera);
+          if (file != null) {
+            _handlePickedItems([
+              _SelectedSocialMedia(file: file, type: 'video'),
+            ]);
+          }
+          break;
       }
+    } catch (e) {
+      return;
+    }
+  }
+
+  void _handlePickedItems(List<_SelectedSocialMedia> nextItems) {
+    final addedItems = _addSelectedMedia(nextItems);
+
+    for (final item in addedItems) {
+      if (item.isVideo) {
+        _startVideoThumbnailGeneration(item);
+      }
+    }
+  }
+
+  List<_SelectedSocialMedia> _addSelectedMedia(
+    List<_SelectedSocialMedia> items,
+  ) {
+    if (items.isEmpty || !mounted) return const [];
+
+    final remainingSlots = 10 - _selectedMedia.length;
+    if (remainingSlots <= 0) return const [];
+
+    final addedItems = items.take(remainingSlots).toList();
+    setState(() {
+      _selectedMedia.addAll(addedItems);
       if (_previewIndex >= _selectedMedia.length) {
         _previewIndex = (_selectedMedia.length - 1).clamp(0, 999);
       }
     });
+
+    return addedItems;
   }
 
-  Future<_SelectedSocialMedia> _selectedVideoMedia(XFile file) async {
-    final thumbnailBytes = await VideoThumbnail.thumbnailData(
-      video: file.path,
-      imageFormat: ImageFormat.JPEG,
-      maxWidth: 900,
-      quality: 82,
-    );
+  void _startVideoThumbnailGeneration(_SelectedSocialMedia item) {
+    final thumbnailFuture = _generateVideoThumbnail(item.file);
+    unawaited(
+      thumbnailFuture.then((thumbnailBytes) {
+        if (thumbnailBytes == null) {
+          return;
+        }
 
-    return _SelectedSocialMedia(
-      file: file,
-      type: 'video',
-      thumbnailBytes: thumbnailBytes,
+        if (!mounted || !_selectedMedia.contains(item)) {
+          return;
+        }
+
+        setState(() {
+          item.thumbnailBytes = thumbnailBytes;
+        });
+      }),
     );
+  }
+
+  Future<Uint8List?> _generateVideoThumbnail(XFile file) async {
+    try {
+      return await VideoThumbnail.thumbnailData(
+        video: file.path,
+        imageFormat: ImageFormat.JPEG,
+        maxWidth: 900,
+        quality: 82,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<SocialPostMedia>> _uploadMedia({
@@ -438,13 +511,9 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
 class _SelectedSocialMedia {
   final XFile file;
   final String type;
-  final Uint8List? thumbnailBytes;
+  Uint8List? thumbnailBytes;
 
-  const _SelectedSocialMedia({
-    required this.file,
-    required this.type,
-    this.thumbnailBytes,
-  });
+  _SelectedSocialMedia({required this.file, required this.type});
 
   bool get isVideo => type == 'video';
 }
@@ -463,13 +532,25 @@ class _MediaPickOption extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white),
-      title: Text(label, style: const TextStyle(color: Colors.white)),
-      onTap: onTap,
-    );
-  }
+Widget build(BuildContext context) {
+  debugPrint('BUILD OPTION: $label');
+
+  return ListTile(
+  leading: Icon(
+    icon,
+    color: Theme.of(context).colorScheme.onSurface,
+  ),
+  title: Text(
+    label,
+    style: TextStyle(
+      color: Theme.of(context).colorScheme.onSurface,
+      fontSize: 17,
+      fontWeight: FontWeight.w500,
+    ),
+  ),
+  onTap: onTap,
+);
+}
 }
 
 class _ComposerPreview extends StatelessWidget {

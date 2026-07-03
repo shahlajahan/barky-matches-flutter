@@ -11,9 +11,6 @@ import '../overlay/petplore_search_overlay.dart';
 
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
-import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
-
-import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
 
 class PetplorePage extends StatefulWidget {
   const PetplorePage({super.key});
