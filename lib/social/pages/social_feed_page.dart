@@ -27,6 +27,7 @@ class SocialFeedPage extends StatefulWidget {
 
 class _SocialFeedPageState extends State<SocialFeedPage> {
   final SocialPostService _postService = SocialPostService();
+  late final Stream<List<SocialPost>> _feedStream;
 
   final PostSaveService _saveService = PostSaveService();
 
@@ -35,13 +36,19 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
   int _viewerMediaIndex = 0;
 
   @override
+void initState() {
+  super.initState();
+  _feedStream = _postService.streamPublicPosts();
+}
+
+  @override
   Widget build(BuildContext context) {
     debugPrint('🔥 SOCIAL FEED PAGE BUILD');
 
     return Container(
       color: const Color(0xFF121417),
       child: StreamBuilder<List<SocialPost>>(
-        stream: _postService.streamPublicPosts(),
+        stream: _feedStream,
         builder: (context, snapshot) {
           debugPrint('🔥 FEED SNAPSHOT STATE: ${snapshot.connectionState}');
 

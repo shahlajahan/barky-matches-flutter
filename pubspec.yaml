@@ -57,7 +57,6 @@ dependencies:
   webview_flutter: ^4.0.0
   file_picker: ^8.0.0
   mobile_scanner: ^7.2.0
-  wechat_assets_picker: ^9.5.0
   
   # Firebase dependencies (اصلاح شده به نسخه‌های پایدار)
   firebase_core: ^4.1.1
