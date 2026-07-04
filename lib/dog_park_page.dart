@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/core/debug/app_log.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
@@ -35,6 +38,13 @@ class _DogParkPageState extends State<DogParkPage>
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
   final bool _playdateFlowPushed = false;
+  final Stopwatch _mapCreationStopwatch = Stopwatch();
+  CameraPosition? _lastCameraPosition;
+  DateTime? _lastCameraLogAt;
+  double? _lastLoggedZoom;
+
+  static const Duration _cameraLogThrottle = Duration(seconds: 2);
+  static const double _significantZoomDelta = 0.5;
 
   static const Color _bgSoftPink = Color(0xFFFFF6F8);
   static const LatLng _fallbackLatLng = LatLng(41.0457, 29.0048);
@@ -128,7 +138,7 @@ class _DogParkPageState extends State<DogParkPage>
   @override
   void initState() {
     super.initState();
-    debugPrint('🟢 DogPark initState $hashCode');
+    _mapCreationStopwatch.start();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -137,6 +147,9 @@ class _DogParkPageState extends State<DogParkPage>
       parent: _animationController,
       curve: Curves.easeInOut,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _logMapScreenOpened();
+    });
 
     Future.microtask(() async {
       await _loadMapStyle();
@@ -149,46 +162,134 @@ class _DogParkPageState extends State<DogParkPage>
     final appState = context.read<AppState>();
 
     if (appState.isGuestUser) {
-      debugPrint('🚫 Guest → no location');
+      AppLog.location(
+        'Current location request skipped for guest user',
+        data: <String, dynamic>{'platform': defaultTargetPlatform.name},
+      );
       return;
     }
 
     await _resolveLocation();
   }
 
+  Future<void> _logMapScreenOpened() async {
+    if (!mounted) return;
+
+    String applicationId = 'not_available';
+    try {
+      final PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      final String packageName = packageInfo.packageName.trim();
+      if (packageName.isNotEmpty) {
+        applicationId = packageName;
+      }
+    } catch (_) {
+      applicationId = 'not_available';
+    }
+
+    if (!mounted) return;
+
+    AppLog.map(
+      'Map screen opened',
+      data: <String, dynamic>{
+        'currentRoute': ModalRoute.of(context)?.settings.name ?? 'unknown',
+        'buildMode': _buildMode,
+        'applicationId': applicationId,
+        'platform': defaultTargetPlatform.name,
+        'deviceModel': 'not_available',
+        'androidVersion': defaultTargetPlatform == TargetPlatform.android
+            ? 'not_available'
+            : null,
+        'iosVersion': defaultTargetPlatform == TargetPlatform.iOS
+            ? 'not_available'
+            : null,
+      },
+    );
+  }
+
   // --------------------------------------------------
   // LOCATION
   // --------------------------------------------------
   Future<void> _resolveLocation() async {
-    debugPrint('📍 resolveLocation START mounted=$mounted hash=$hashCode');
+    AppLog.location(
+      'Resolving map location',
+      data: <String, dynamic>{'mounted': mounted, 'hashCode': hashCode},
+    );
 
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      AppLog.location(
+        serviceEnabled
+            ? 'Location service enabled'
+            : 'Location service disabled',
+      );
+      if (!serviceEnabled) {
         if (!mounted) return;
         final l10n = AppLocalizations.of(context)!; // ✅ بعد از mounted
         _useFallback(l10n.dogParkLocationServicesDisabled);
         return;
       }
 
+      AppLog.location('Checking location permission');
       LocationPermission permission = await Geolocator.checkPermission();
       if (!mounted) return;
 
       if (permission == LocationPermission.denied) {
+        final Stopwatch permissionStopwatch = Stopwatch()..start();
         permission = await Geolocator.requestPermission();
+        permissionStopwatch.stop();
+        AppLog.performance(
+          'Permission request completed',
+          data: <String, dynamic>{
+            'durationMs': permissionStopwatch.elapsedMilliseconds,
+          },
+        );
         if (!mounted) return;
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.deniedForever) {
+        AppLog.location('Permission permanently denied');
         if (!mounted) return;
         final l10n = AppLocalizations.of(context)!;
         _useFallback(l10n.dogParkPermissionDenied);
         return;
       }
 
+      if (permission == LocationPermission.denied) {
+        AppLog.location('Permission denied');
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context)!;
+        _useFallback(l10n.dogParkPermissionDenied);
+        return;
+      }
+
+      AppLog.location('Permission granted');
+      AppLog.location('Getting current location');
+      final Stopwatch locationStopwatch = Stopwatch()..start();
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.low,
         timeLimit: const Duration(seconds: 8),
+      );
+      locationStopwatch.stop();
+      AppLog.performance(
+        'Current location request completed',
+        data: <String, dynamic>{
+          'durationMs': locationStopwatch.elapsedMilliseconds,
+        },
+      );
+      AppLog.location(
+        'Current location retrieved',
+        data: <String, dynamic>{
+          'latitude': pos.latitude,
+          'longitude': pos.longitude,
+          'accuracy': pos.accuracy,
+          'provider': null,
+          'isMock': (defaultTargetPlatform == TargetPlatform.android ||
+                  defaultTargetPlatform == TargetPlatform.iOS)
+              ? pos.isMocked
+              : null,
+          'speed': pos.speed,
+          'heading': pos.heading,
+        },
       );
 
       if (!mounted) return;
@@ -202,9 +303,16 @@ class _DogParkPageState extends State<DogParkPage>
       _animationController.forward();
       await _addParkMarkers();
 
-      debugPrint('📍 after permission mounted=$mounted');
-      debugPrint('📍 after getCurrentPosition mounted=$mounted hash=$hashCode');
-    } catch (e) {
+      AppLog.location(
+        'Current location resolved',
+        data: <String, dynamic>{'mounted': mounted, 'hashCode': hashCode},
+      );
+    } catch (e, stackTrace) {
+      AppLog.location(
+        'Current location failed',
+        data: <String, dynamic>{'error': e.toString()},
+      );
+      _logMapDiagnosticError('DogPark current location error', e, stackTrace);
       if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
       _useFallback(l10n.dogParkLocationError(e.toString()));
@@ -242,7 +350,8 @@ class _DogParkPageState extends State<DogParkPage>
   Future<void> _loadMapStyle() async {
     try {
       _mapStyle = await rootBundle.loadString('assets/map_style.json');
-    } catch (_) {
+    } catch (e, stackTrace) {
+      _logMapDiagnosticError('DogPark map style load error', e, stackTrace);
       _mapStyle = null;
     }
   }
@@ -260,7 +369,8 @@ class _DogParkPageState extends State<DogParkPage>
         format: ui.ImageByteFormat.png,
       );
       _customMarker = BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
-    } catch (_) {
+    } catch (e, stackTrace) {
+      _logMapDiagnosticError('DogPark custom marker load error', e, stackTrace);
       _customMarker = BitmapDescriptor.defaultMarkerWithHue(
         BitmapDescriptor.hueRed,
       );
@@ -270,6 +380,8 @@ class _DogParkPageState extends State<DogParkPage>
   Future<void> _addParkMarkers() async {
     if (!mounted) return;
 
+    AppLog.map('Marker loading started');
+    final Stopwatch markerStopwatch = Stopwatch()..start();
     final markers = <Marker>{};
 
     for (final park in _dogParks) {
@@ -293,6 +405,17 @@ class _DogParkPageState extends State<DogParkPage>
         ..addAll(markers);
     });
 
+    markerStopwatch.stop();
+    AppLog.performance(
+      'Marker loading completed',
+      data: <String, dynamic>{
+        'durationMs': markerStopwatch.elapsedMilliseconds,
+      },
+    );
+    AppLog.map(
+      'Marker loading finished',
+      data: <String, dynamic>{'markerCount': markers.length},
+    );
     _moveCameraToFitAllMarkers();
   }
 
@@ -312,6 +435,65 @@ class _DogParkPageState extends State<DogParkPage>
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(LatLng(park['lat'], park['lng']), 15),
     );
+  }
+
+  void _logCameraMovement(CameraPosition position, {required bool finished}) {
+    _lastCameraPosition = position;
+    final DateTime now = DateTime.now();
+    final bool throttleElapsed =
+        _lastCameraLogAt == null ||
+        now.difference(_lastCameraLogAt!) >= _cameraLogThrottle;
+    final bool zoomChangedSignificantly =
+        _lastLoggedZoom == null ||
+        (position.zoom - _lastLoggedZoom!).abs() >= _significantZoomDelta;
+
+    if (!finished && !throttleElapsed && !zoomChangedSignificantly) {
+      return;
+    }
+
+    _lastCameraLogAt = now;
+    _lastLoggedZoom = position.zoom;
+    AppLog.map(
+      finished ? 'Camera movement finished' : 'Camera moved',
+      data: <String, dynamic>{
+        'latitude': position.target.latitude,
+        'longitude': position.target.longitude,
+        'zoom': position.zoom,
+      },
+    );
+  }
+
+  void _logMapDiagnosticError(
+    String message,
+    Object exception,
+    StackTrace stackTrace,
+  ) {
+    AppLog.error(
+      message,
+      data: <String, dynamic>{
+        'exceptionType': exception.runtimeType.toString(),
+        'message': exception.toString(),
+        'stackTrace': _truncateStackTrace(stackTrace),
+      },
+    );
+  }
+
+  String _truncateStackTrace(StackTrace stackTrace) {
+    final String value = stackTrace.toString();
+    if (value.length <= 4000) {
+      return value;
+    }
+    return value.substring(0, 4000);
+  }
+
+  String get _buildMode {
+    if (kReleaseMode) {
+      return 'release';
+    }
+    if (kProfileMode) {
+      return 'profile';
+    }
+    return 'debug';
   }
 
   // --------------------------------------------------
@@ -885,8 +1067,32 @@ class _DogParkPageState extends State<DogParkPage>
 
               onMapCreated: (controller) {
                 _mapController = controller;
+                _mapCreationStopwatch.stop();
+                AppLog.performance(
+                  'Map creation completed',
+                  data: <String, dynamic>{
+                    'durationMs': _mapCreationStopwatch.elapsedMilliseconds,
+                  },
+                );
+                AppLog.map(
+                  'GoogleMap onMapCreated',
+                  data: <String, dynamic>{
+                    'timeToCreateMapMs':
+                        _mapCreationStopwatch.elapsedMilliseconds,
+                    'googlePlayServicesVersion': 'not_available',
+                    'googleMapsRenderer': 'not_available',
+                  },
+                );
 
                 _moveCameraToFitAllMarkers();
+              },
+              onCameraMove: (position) {
+                _logCameraMovement(position, finished: false);
+              },
+              onCameraIdle: () {
+                final CameraPosition? position = _lastCameraPosition;
+                if (position == null) return;
+                _logCameraMovement(position, finished: true);
               },
             ),
           ),
@@ -908,7 +1114,6 @@ class _DogParkPageState extends State<DogParkPage>
 
   @override
   void dispose() {
-    debugPrint('🟢 DogPark initState $hashCode');
     //_mapController?.dispose();
     _animationController.dispose();
     super.dispose();

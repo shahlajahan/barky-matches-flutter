@@ -40,6 +40,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:app_links/app_links.dart';
+import 'core/debug/diagnostics_bootstrap.dart';
 
 import 'package:app_links/app_links.dart';
 import 'ui/appointments/my_appointments_page.dart';
@@ -836,6 +837,7 @@ void main() async {
   }
 
   WidgetsFlutterBinding.ensureInitialized();
+  await DiagnosticsBootstrap.initialize();
   GoogleFonts.config.allowRuntimeFetching = true;
   //await waitForInternet();
   await ensureFirebaseInitialized();

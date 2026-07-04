@@ -12,18 +12,25 @@ class AnalyticsService {
 
   /// Generic event logger.
   static Future<void> logEvent(
-    String name, {
-    Map<String, Object>? parameters,
-  }) async {
-    try {
-      await _analytics.logEvent(
-        name: name,
-        parameters: parameters,
-      );
-    } catch (_) {
-      // Analytics should never crash the app.
-    }
+  String name, {
+  Map<String, Object>? parameters,
+}) async {
+  try {
+    print('📊 Analytics Event -> $name');
+    print('📊 Params -> $parameters');
+
+    await _analytics.logEvent(
+      name: name,
+      parameters: parameters,
+    );
+
+    print('✅ Analytics Sent');
+  } catch (e, st) {
+    print('❌ Analytics Error');
+    print(e);
+    print(st);
   }
+}
 
   // ===========================================================================
   // Authentication
@@ -181,11 +188,67 @@ static Future<void> vetReviewAdded({
   );
 }
 
-  // ===========================================================================
-  // Grooming
-  // ===========================================================================
+// ===========================================================================
+// Grooming
+// ===========================================================================
 
-  // TODO: grooming analytics wrappers
+static Future<void> groomingProfileViewed({
+  required String groomerId,
+}) async {
+  await logEvent(
+    AnalyticsEvents.groomingProfileViewed,
+    parameters: {
+      AnalyticsParameters.businessId: groomerId,
+    },
+  );
+}
+
+static Future<void> groomingBookingStarted({
+  required String groomerId,
+  String? appointmentType,
+  double? price,
+}) async {
+  await logEvent(
+    AnalyticsEvents.groomingBookingStarted,
+    parameters: {
+      AnalyticsParameters.businessId: groomerId,
+      if (appointmentType != null)
+        AnalyticsParameters.appointmentType: appointmentType,
+      if (price != null)
+        AnalyticsParameters.price: price,
+    },
+  );
+}
+
+static Future<void> groomingBookingCompleted({
+  required String groomerId,
+  String? appointmentType,
+  double? price,
+}) async {
+  await logEvent(
+    AnalyticsEvents.groomingBookingCompleted,
+    parameters: {
+      AnalyticsParameters.businessId: groomerId,
+      if (appointmentType != null)
+        AnalyticsParameters.appointmentType: appointmentType,
+      if (price != null)
+        AnalyticsParameters.price: price,
+    },
+  );
+}
+
+static Future<void> groomingReviewAdded({
+  required String groomerId,
+  required double rating,
+}) async {
+  await logEvent(
+    AnalyticsEvents.groomingReviewAdded,
+    parameters: {
+      AnalyticsParameters.businessId: groomerId,
+      AnalyticsParameters.rating: rating,
+    },
+  );
+}
 
   // ===========================================================================
   // Pet Hotel
