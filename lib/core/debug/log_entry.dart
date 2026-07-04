@@ -36,6 +36,19 @@ class LogEntry {
   /// Optional structured metadata attached to the entry.
   final Map<String, dynamic>? data;
 
+  factory LogEntry.fromMap(Map<String, dynamic> map) {
+    return LogEntry(
+      timestamp: DateTime.parse(map['timestamp'] as String),
+      sessionId: map['sessionId'] as String,
+      category: LogCategory.values.byName(map['category'] as String),
+      level: LogLevel.values.byName(map['level'] as String),
+      message: map['message'] as String,
+      data: map['data'] == null
+          ? null
+          : Map<String, dynamic>.from(map['data'] as Map),
+    );
+  }
+
   /// Returns a stable serialized representation for future remote transport.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
