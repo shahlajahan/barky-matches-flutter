@@ -7438,6 +7438,8 @@ exports.restoreBusiness = onCall(
 
 exports.expireSubscriptions =
   require("./src/expireSubscriptions").expireSubscriptions;
+exports.submitDiagnosticsReport =
+  require("./src/diagnostics/submitDiagnosticsReport").submitDiagnosticsReport;
 
 
 // =====================================================
