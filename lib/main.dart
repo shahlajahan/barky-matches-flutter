@@ -41,6 +41,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:app_links/app_links.dart';
 import 'core/debug/diagnostics_bootstrap.dart';
+import 'core/debug/diagnostics_uploader.dart';
+import 'developer_tools/developer_tools_page.dart';
 
 import 'package:app_links/app_links.dart';
 import 'ui/appointments/my_appointments_page.dart';
@@ -1089,6 +1091,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _sub;
   Uri? _lastHandledLink;
+  final DiagnosticsUploader _diagnosticsUploader = DiagnosticsUploader();
 
   //Locale _locale = const Locale('en');
 
@@ -1107,6 +1110,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
 
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerDiagnosticsUpload();
+    });
   }
 
   void _handleDeepLinkOnce(Uri uri, String label) {
@@ -1131,7 +1137,16 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       final appState = context.read<AppState>();
 
       appState.ignoreNotificationIconTapFor(const Duration(milliseconds: 600));
+      _triggerDiagnosticsUpload();
     }
+  }
+
+  void _triggerDiagnosticsUpload() {
+    unawaited(
+      _diagnosticsUploader.uploadPendingReports().catchError((Object _) {
+        return;
+      }),
+    );
   }
 
   @override
@@ -1161,13 +1176,15 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        routes: {
+        routes: <String, WidgetBuilder>{
           '/orderDetail': (context) => OrderDetailPage(
             sellerOrderId: ModalRoute.of(context)!.settings.arguments as String,
           ),
           '/appointmentPayment': (context) => AppointmentPaymentPage(
             appointmentId: ModalRoute.of(context)!.settings.arguments as String,
           ),
+          if (kDebugMode)
+            '/developerTools': (context) => const DeveloperToolsPage(),
         },
         home: const AppEntry(),
       ),
