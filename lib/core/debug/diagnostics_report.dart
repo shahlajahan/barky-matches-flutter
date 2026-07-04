@@ -72,10 +72,7 @@ class DiagnosticsReport {
       map['report'] as Map,
     );
 
-    return DiagnosticsReport.fromMap(<String, dynamic>{
-      'clientReportId': map['clientReportId'],
-      ...report,
-    });
+    return DiagnosticsReport.fromMap(report);
   }
 
   const DiagnosticsReport._({
@@ -112,6 +109,7 @@ class DiagnosticsReport {
   /// Returns a stable serialized representation for future transport.
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
+      'clientReportId': clientReportId,
       'schemaVersion': schemaVersion,
       'sessionId': sessionId,
       'createdAt': createdAt.toIso8601String(),
