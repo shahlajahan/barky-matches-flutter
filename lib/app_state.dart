@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/core/debug/firestore_permission_diagnostics.dart';
 import 'package:barky_matches_fixed/firestore_recovery.dart';
 import 'package:barky_matches_fixed/firebase_options.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
@@ -749,6 +750,11 @@ class AppState with ChangeNotifier {
           return await operation();
         } catch (e) {
           lastError = e;
+          await FirestorePermissionDiagnostics.reportIfNeeded(
+            e,
+            failurePath: '_firestoreRetry:$operationName',
+            message: 'Firestore permission denied during retry operation',
+          );
           if (!FirestoreRecovery.isConnectivityError(e)) rethrow;
           if (attempt < maxAttempts) {
             debugPrint(
@@ -777,6 +783,11 @@ class AppState with ChangeNotifier {
           return result;
         } catch (e) {
           lastError = e;
+          await FirestorePermissionDiagnostics.reportIfNeeded(
+            e,
+            failurePath: '_criticalFirestoreRetry:$operationName',
+            message: 'Firestore permission denied during critical retry operation',
+          );
           if (!FirestoreRecovery.isConnectivityError(e)) rethrow;
           if (attempt < 3) {
             debugPrint('🌐 CRITICAL READ RETRY $attempt/3 → $operationName');

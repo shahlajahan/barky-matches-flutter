@@ -1,3 +1,4 @@
+import 'package:barky_matches_fixed/core/debug/firestore_permission_diagnostics.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
@@ -6,14 +7,20 @@ Stream<QuerySnapshot<Map<String, dynamic>>> debugSnapshots(
   String label,
 ) {
   if (kDebugMode) {
-    debugPrint("🔥 FIRESTORE STREAM START → $label");
-    // ❌ stack رو حذف کردیم (یا کنترلش می‌کنیم)
+    debugPrint('FIRESTORE STREAM START -> $label');
   }
 
-  return query.snapshots().handleError((e, stack) {
+  return query.snapshots().handleError((error, stackTrace) {
+    FirestorePermissionDiagnostics.reportIfNeeded(
+      error,
+      failurePath: 'debugSnapshots:$label',
+      message: 'Firestore stream permission denied',
+      stackTrace: stackTrace,
+      data: <String, dynamic>{'label': label},
+    );
     if (kDebugMode) {
-      debugPrint("❌ FIRESTORE ERROR → $label : $e");
-      debugPrintStack(label: "📍 ERROR STACK ($label)");
+      debugPrint('FIRESTORE ERROR -> $label : $error');
+      debugPrintStack(label: 'ERROR STACK ($label)');
     }
   });
 }
