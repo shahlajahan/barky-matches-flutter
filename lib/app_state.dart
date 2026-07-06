@@ -27,10 +27,11 @@ import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'offers_manager.dart';
-import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
+import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
+import 'package:barky_matches_fixed/appointments/models/appointment_status.dart';
 
 enum BusinessSubPage {
   none,
@@ -75,6 +76,8 @@ enum ProfileSubPage {
   businessStatus,
   helpCenter,
   faq,
+  appointmentStatus,
+  appointmentHistory,
 }
 
 enum GlobalRoute { none, feedback, reportProblem, privacy }
@@ -678,6 +681,14 @@ class AppState with ChangeNotifier {
 
   ProfileSubPage get profileSubPage => _profileSubPage;
 
+  AppointmentService? _selectedAppointmentService;
+  AppointmentStatus? _selectedAppointmentStatus;
+
+  AppointmentService? get selectedAppointmentService =>
+      _selectedAppointmentService;
+  AppointmentStatus? get selectedAppointmentStatus =>
+      _selectedAppointmentStatus;
+
   final bool _isHandlingPlaydateResult = false;
 
   String? _userRole;
@@ -808,8 +819,61 @@ class AppState with ChangeNotifier {
 
   void openProfileSubPage(ProfileSubPage page) {
     if (_profileSubPage == page) return;
+    if (page == ProfileSubPage.appointments) {
+      _clearAppointmentFlowSelection();
+    } else if (page != ProfileSubPage.appointmentStatus &&
+        page != ProfileSubPage.appointmentHistory) {
+      _clearAppointmentFlowSelection();
+    }
     _profileSubPage = page;
     notifyListeners();
+  }
+
+  void openAppointmentServices() {
+    _selectedAppointmentService = null;
+    _selectedAppointmentStatus = null;
+    _profileSubPage = ProfileSubPage.appointments;
+    notifyListeners();
+  }
+
+  void openAppointmentStatuses(AppointmentService service) {
+    _selectedAppointmentService = service;
+    _selectedAppointmentStatus = null;
+    _profileSubPage = ProfileSubPage.appointmentStatus;
+    notifyListeners();
+  }
+
+  void openAppointmentHistory(AppointmentStatus status) {
+    if (_selectedAppointmentService == null) return;
+    _selectedAppointmentStatus = status;
+    _profileSubPage = ProfileSubPage.appointmentHistory;
+    notifyListeners();
+  }
+
+  void backFromAppointmentFlow() {
+    switch (_profileSubPage) {
+      case ProfileSubPage.appointmentHistory:
+        _selectedAppointmentStatus = null;
+        _profileSubPage = ProfileSubPage.appointmentStatus;
+        break;
+      case ProfileSubPage.appointmentStatus:
+        _selectedAppointmentService = null;
+        _profileSubPage = ProfileSubPage.appointments;
+        break;
+      case ProfileSubPage.appointments:
+        _clearAppointmentFlowSelection();
+        _profileSubPage = ProfileSubPage.none;
+        break;
+      default:
+        closeProfileSubPage();
+        return;
+    }
+    notifyListeners();
+  }
+
+  void _clearAppointmentFlowSelection() {
+    _selectedAppointmentService = null;
+    _selectedAppointmentStatus = null;
   }
 
   void markPlaydateRequestConsumed(String requestId) {
@@ -995,6 +1059,7 @@ class AppState with ChangeNotifier {
     rethrow;
   }
 }
+
   String? _initializedForUid;
   String? _initializingForUid;
 
@@ -2903,6 +2968,7 @@ class AppState with ChangeNotifier {
   }
 
   void closeProfileSubPage() {
+    _clearAppointmentFlowSelection();
     _profileSubPage = ProfileSubPage.none;
     notifyListeners();
   }

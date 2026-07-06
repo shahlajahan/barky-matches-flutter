@@ -16,6 +16,7 @@ class AppointmentStatusMapper {
       // Approved
       case 'approved':
       case 'confirmed':
+      case 'confirmed_paid':
       case 'accepted':
         return AppointmentStatusType.approved;
 
@@ -27,6 +28,8 @@ class AppointmentStatusMapper {
 
       // Cancelled
       case 'cancelled':
+      case 'cancelled_by_user':
+      case 'cancelled_by_business':
       case 'canceled':
       case 'rejected':
       case 'payment_expired':
@@ -54,10 +57,7 @@ class AppointmentStatusMapper {
     }
   }
 
-  static bool matches(
-    AppointmentStatusType type,
-    String? firestoreStatus,
-  ) {
+  static bool matches(AppointmentStatusType type, String? firestoreStatus) {
     return fromFirestore(firestoreStatus) == type;
   }
 }

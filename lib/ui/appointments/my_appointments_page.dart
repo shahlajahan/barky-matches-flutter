@@ -7,6 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/appointments/config/appointment_source.dart';
+import 'package:barky_matches_fixed/appointments/mappers/appointment_status_mapper.dart';
+import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
+import 'package:barky_matches_fixed/appointments/models/appointment_status.dart';
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
@@ -14,10 +18,17 @@ import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_detail_page.dar
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 
 class MyAppointmentsPage extends StatefulWidget {
-  const MyAppointmentsPage({super.key});
+  const MyAppointmentsPage({super.key, this.service, this.status});
+
+  final AppointmentServiceType? service;
+  final AppointmentStatusType? status;
 
   @override
   State<MyAppointmentsPage> createState() => _MyAppointmentsPageState();
+}
+
+class AppointmentHistoryPage extends MyAppointmentsPage {
+  const AppointmentHistoryPage({super.key, super.service, super.status});
 }
 
 class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
@@ -284,7 +295,7 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
       ..addAll(_hotelBuyerDocs)
       ..addAll(_petTaxiUserDocs);
 
-    final list = merged.values.toList()
+    final list = merged.values.where(_matchesFilters).toList()
       ..sort((a, b) => _compareAppointments(a, b));
 
     if (!mounted) return;
@@ -319,6 +330,30 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
     if (bDate == null) return -1;
 
     return bDate.compareTo(aDate);
+  }
+
+  bool _matchesFilters(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final service = widget.service;
+    if (service != null && doc.reference.parent.id != _collectionFor(service)) {
+      return false;
+    }
+
+    final status = widget.status;
+    if (status != null) {
+      final data = doc.data();
+      if (AppointmentStatusMapper.fromFirestore(data['status']?.toString()) !=
+          status) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  String _collectionFor(AppointmentServiceType service) {
+    return appointmentSources
+        .firstWhere((source) => source.serviceType == service)
+        .collection;
   }
 
   DateTime? _appointmentDateTime(Map<String, dynamic> data) {
@@ -443,12 +478,12 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
 
       debugPrint("🩺 CANCEL SUCCESS → $appointmentId");
       if (collection == 'vet_appointments') {
-  final data = doc.data();
+        final data = doc.data();
 
-  await AnalyticsService.vetBookingCancelled(
-    vetId: (data['businessId'] ?? '').toString(),
-  );
-}
+        await AnalyticsService.vetBookingCancelled(
+          vetId: (data['businessId'] ?? '').toString(),
+        );
+      }
       await _logLatestAppointmentSnapshot(collection, appointmentId);
 
       if (!mounted) return;

@@ -33,6 +33,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_paymen
 
 import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
 //import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
+import 'package:barky_matches_fixed/appointments/pages/appointment_status_page.dart';
 import 'package:barky_matches_fixed/ui/feedback/feedback_form_page.dart';
 import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
 import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
@@ -48,6 +49,7 @@ import 'package:barky_matches_fixed/ui/support/faq_page.dart';
 import 'package:barky_matches_fixed/social/pages/petplore_page.dart';
 
 import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
+import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
 
 // ─────────────────────────────────────────────
 // HomeGate
@@ -544,6 +546,41 @@ class _PlaydateTab extends StatelessWidget {
 class _ProfileTab extends StatelessWidget {
   const _ProfileTab({super.key});
 
+  Widget _buildAppointmentSubPage(BuildContext context, AppState appState) {
+    final service = appState.selectedAppointmentService;
+    final status = appState.selectedAppointmentStatus;
+
+    Widget child;
+    switch (appState.profileSubPage) {
+      case ProfileSubPage.appointmentStatus:
+        child = service == null
+            ? const ServiceCategoriesPage()
+            : AppointmentStatusPage(service: service);
+        break;
+      case ProfileSubPage.appointmentHistory:
+        child = service == null || status == null
+            ? const ServiceCategoriesPage()
+            : AppointmentHistoryPage(
+                service: service.type,
+                status: status.type,
+              );
+        break;
+      case ProfileSubPage.appointments:
+      default:
+        child = const ServiceCategoriesPage();
+        break;
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.read<AppState>().backFromAppointmentFlow();
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
@@ -569,9 +606,11 @@ class _ProfileTab extends StatelessWidget {
     }
 
     // 🟢 Appointments
-    if (subPage == ProfileSubPage.appointments) {
-  return const ServiceCategoriesPage();
-}
+    if (subPage == ProfileSubPage.appointments ||
+        subPage == ProfileSubPage.appointmentStatus ||
+        subPage == ProfileSubPage.appointmentHistory) {
+      return _buildAppointmentSubPage(context, appState);
+    }
 
     // 🟢 Feedback
     if (subPage == ProfileSubPage.feedback) {
