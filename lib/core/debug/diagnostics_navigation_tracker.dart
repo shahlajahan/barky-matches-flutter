@@ -147,7 +147,7 @@ class DiagnosticsNavigationTracker extends NavigatorObserver {
     final Widget? widget = subtreeContext?.widget;
 
     if (widget is DiagnosticsScreenDescriptor) {
-      return widget;
+      return widget as DiagnosticsScreenDescriptor;
     }
 
     return null;

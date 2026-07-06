@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/add_dog_page.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/core/debug/diagnostics_events.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
@@ -31,6 +32,7 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
   Position? _selectedPosition;
   GoogleMapController? _mapController;
   bool _locationPermissionGranted = false;
+  bool _mapInitializationFailureReported = false;
   final _picker = ImagePicker();
 
   Dog? _selectedPet;
@@ -336,6 +338,24 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _reportMapInitializationFailureOnce({
+    required Object exception,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    if (_mapInitializationFailureReported) return;
+    _mapInitializationFailureReported = true;
+    DiagnosticsEvents.mapInitializationFailed(
+      message: 'Create Memorial map initialization failed',
+      data: <String, dynamic>{
+        'exceptionType': exception.runtimeType.toString(),
+        'message': exception.toString(),
+        'stackTrace': stackTrace.toString(),
+        ...?data,
+      },
+    );
+  }
+
   Future<void> _openAddPet() async {
     final appState = context.read<AppState>();
 
@@ -460,10 +480,21 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
                           final selectedPosition = _selectedPosition;
 
                           if (selectedPosition != null) {
-                            _moveCameraToPosition(selectedPosition);
+                            _moveCameraToPosition(selectedPosition).catchError((
+                              Object error,
+                              StackTrace stackTrace,
+                            ) {
+                              _reportMapInitializationFailureOnce(
+                                exception: error,
+                                stackTrace: stackTrace,
+                                data: <String, dynamic>{
+                                  'feature': 'create_memorial_map',
+                                  'stage': 'focusSelectedPosition',
+                                },
+                              );
+                            });
                           }
                         },
-
                         initialCameraPosition: CameraPosition(
                           target: _currentMapTarget,
                           zoom: 13,

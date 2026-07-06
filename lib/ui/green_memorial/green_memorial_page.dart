@@ -12,6 +12,7 @@ import 'package:geolocator/geolocator.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:barky_matches_fixed/core/debug/diagnostics_events.dart';
 
 class GreenMemorialPage extends StatelessWidget {
   const GreenMemorialPage({super.key});
@@ -409,6 +410,7 @@ class _MemorialMap extends StatefulWidget {
 
 class _MemorialMapState extends State<_MemorialMap> {
   GoogleMapController? _mapController;
+  bool _mapInitializationFailureReported = false;
 
   static const LatLng _fallback = LatLng(41.0082, 28.9784);
 
@@ -493,30 +495,60 @@ class _MemorialMapState extends State<_MemorialMap> {
 
             onMapCreated: (controller) async {
               _mapController = controller;
+              try {
+                if (markers.isNotEmpty) {
+                  final first = markers.first.position;
 
-              if (markers.isNotEmpty) {
-                final first = markers.first.position;
-
-                await controller.animateCamera(
-                  CameraUpdate.newCameraPosition(
-                    CameraPosition(target: first, zoom: 13),
-                  ),
-                );
-              } else {
-                final pos = await Geolocator.getCurrentPosition();
-
-                await controller.animateCamera(
-                  CameraUpdate.newCameraPosition(
-                    CameraPosition(
-                      target: LatLng(pos.latitude, pos.longitude),
-                      zoom: 13,
+                  await controller.animateCamera(
+                    CameraUpdate.newCameraPosition(
+                      CameraPosition(target: first, zoom: 13),
                     ),
-                  ),
+                  );
+                } else {
+                  final pos = await Geolocator.getCurrentPosition();
+
+                  await controller.animateCamera(
+                    CameraUpdate.newCameraPosition(
+                      CameraPosition(
+                        target: LatLng(pos.latitude, pos.longitude),
+                        zoom: 13,
+                      ),
+                    ),
+                  );
+                }
+              } catch (e, stackTrace) {
+                _reportMapInitializationFailureOnce(
+                  exception: e,
+                  stackTrace: stackTrace,
+                  data: <String, dynamic>{
+                    'feature': 'green_memorial_map',
+                    'stage': markers.isNotEmpty
+                        ? 'focusFirstMarker'
+                        : 'focusCurrentLocation',
+                  },
                 );
               }
             },
           ),
         );
+      },
+    );
+  }
+
+  void _reportMapInitializationFailureOnce({
+    required Object exception,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    if (_mapInitializationFailureReported) return;
+    _mapInitializationFailureReported = true;
+    DiagnosticsEvents.mapInitializationFailed(
+      message: 'Green Memorial map initialization failed',
+      data: <String, dynamic>{
+        'exceptionType': exception.runtimeType.toString(),
+        'message': exception.toString(),
+        'stackTrace': stackTrace.toString(),
+        ...?data,
       },
     );
   }

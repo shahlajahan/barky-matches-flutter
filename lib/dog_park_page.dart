@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/core/debug/app_log.dart';
+import 'package:barky_matches_fixed/core/debug/diagnostics_events.dart';
+import 'package:barky_matches_fixed/core/debug/google_map_health_monitor.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
@@ -27,7 +29,10 @@ class DogParkPage extends StatefulWidget {
 }
 
 class _DogParkPageState extends State<DogParkPage>
-    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
+    with
+        AutomaticKeepAliveClientMixin,
+        SingleTickerProviderStateMixin,
+        GoogleMapHealthMonitor<DogParkPage> {
   GoogleMapController? _mapController;
   Position? _currentPosition;
   final Set<Marker> _markers = {};
@@ -38,6 +43,7 @@ class _DogParkPageState extends State<DogParkPage>
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
   final bool _playdateFlowPushed = false;
+  bool _mapInitializationFailureReported = false;
   final Stopwatch _mapCreationStopwatch = Stopwatch();
   CameraPosition? _lastCameraPosition;
   DateTime? _lastCameraLogAt;
@@ -138,6 +144,9 @@ class _DogParkPageState extends State<DogParkPage>
   @override
   void initState() {
     super.initState();
+    startGoogleMapHealthTimer(
+      feature: 'dog_park_map',
+    );
     _mapCreationStopwatch.start();
     _animationController = AnimationController(
       vsync: this,
@@ -422,13 +431,34 @@ class _DogParkPageState extends State<DogParkPage>
   // ⭐ مهم‌ترین اصلاح UX
   void _moveCameraToFitAllMarkers() {
     if (_mapController == null || _markers.isEmpty) return;
-    final lats = _markers.map((m) => m.position.latitude).toList();
-    final lngs = _markers.map((m) => m.position.longitude).toList();
-    final bounds = LatLngBounds(
-      southwest: LatLng(lats.reduce(min), lngs.reduce(min)),
-      northeast: LatLng(lats.reduce(max), lngs.reduce(max)),
-    );
-    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+    try {
+      final lats = _markers.map((m) => m.position.latitude).toList();
+      final lngs = _markers.map((m) => m.position.longitude).toList();
+      final bounds = LatLngBounds(
+        southwest: LatLng(lats.reduce(min), lngs.reduce(min)),
+        northeast: LatLng(lats.reduce(max), lngs.reduce(max)),
+      );
+      _mapController!
+          .animateCamera(CameraUpdate.newLatLngBounds(bounds, 80))
+          .then((_) {
+            completeGoogleMapHealthCheck();
+          })
+          .catchError((Object error, StackTrace stackTrace) {
+        _reportMapInitializationFailureOnce(
+          message: 'DogPark map initialization failed',
+          exception: error,
+          stackTrace: stackTrace,
+          data: <String, dynamic>{'stage': 'fitAllMarkers'},
+        );
+      });
+    } catch (e, stackTrace) {
+      _reportMapInitializationFailureOnce(
+        message: 'DogPark map initialization failed',
+        exception: e,
+        stackTrace: stackTrace,
+        data: <String, dynamic>{'stage': 'fitAllMarkers'},
+      );
+    }
   }
 
   void _focusParkOnMap(Map<String, dynamic> park) {
@@ -484,6 +514,25 @@ class _DogParkPageState extends State<DogParkPage>
       return value;
     }
     return value.substring(0, 4000);
+  }
+
+  void _reportMapInitializationFailureOnce({
+    required String message,
+    required Object exception,
+    required StackTrace stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    if (_mapInitializationFailureReported) return;
+    _mapInitializationFailureReported = true;
+    DiagnosticsEvents.mapInitializationFailed(
+      message: message,
+      data: <String, dynamic>{
+        'exceptionType': exception.runtimeType.toString(),
+        'message': exception.toString(),
+        'stackTrace': _truncateStackTrace(stackTrace),
+        ...?data,
+      },
+    );
   }
 
   String get _buildMode {
@@ -1114,6 +1163,7 @@ class _DogParkPageState extends State<DogParkPage>
 
   @override
   void dispose() {
+    cancelGoogleMapHealthTimer();
     //_mapController?.dispose();
     _animationController.dispose();
     super.dispose();

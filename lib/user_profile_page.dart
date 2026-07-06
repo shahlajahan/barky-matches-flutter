@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -1356,6 +1357,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         );
                       },
                     ),
+                    if (kDebugMode && appState.isAdmin)
+                      ProfileTile(
+                        icon: Icons.developer_mode,
+                        title: 'Developer Tools',
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/developerTools');
+                        },
+                      ),
                     ProfileTile(
                       icon: Icons.logout,
                       title: AppLocalizations.of(context)!.logoutMenuItem,
