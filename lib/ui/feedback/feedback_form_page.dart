@@ -16,8 +16,26 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
   String category = "general_feedback";
 
   final TextEditingController messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   bool isSubmitting = false;
+
+  @override
+void initState() {
+  super.initState();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+    _scrollController.jumpTo(0);
+  });
+}
+
+@override
+void dispose() {
+  _scrollController.dispose();
+  messageController.dispose();
+  super.dispose();
+}
 
   Future<void> submitFeedback() async {
     if (rating == 0) {
@@ -165,6 +183,7 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
           },
 
           child: SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
 
             child: Column(

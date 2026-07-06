@@ -146,10 +146,14 @@ class ProfileHeader extends StatelessWidget {
 
         const SizedBox(height: 6),
 
-        Text(
-          phone,
-          style: GoogleFonts.poppins(fontSize: 15, color: Color(0xFF9E1B4F)),
-        ),
+        if (phone.trim().isNotEmpty)
+  Text(
+    phone,
+    style: GoogleFonts.poppins(
+      fontSize: 15,
+      color: const Color(0xFF9E1B4F),
+    ),
+  ),
         if (_locationText.isNotEmpty)
           Text(
             _locationText,
@@ -692,6 +696,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
       // 1) Hive cache
       final cachedData = userDataBox.get(widget.userId);
       if (cachedData != null && mounted) {
+        debugPrint(
+          '🧪 ADMIN ROLE SOURCE=Hive '
+          'kDebugMode=$kDebugMode '
+          'cachedRole=${cachedData['role']}',
+        );
         final savedParks = List<String>.from(cachedData['savedParks'] ?? []);
 
         setState(() {
@@ -699,7 +708,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           _usernameController.text = cachedData['username'] ?? loc.unknownUser;
           _emailController.text = cachedData['email'] ?? '';
           final phone = (cachedData['phone'] ?? '').toString();
-          _phoneController.text = phone.isEmpty ? loc.notProvided : phone;
+_phoneController.text = phone;
           _city = (cachedData['city'] ?? '').toString();
           _district = (cachedData['district'] ?? '').toString();
         });
@@ -713,6 +722,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
       if (userDoc.exists) {
         final rawData = userDoc.data() ?? {};
+        debugPrint(
+          '🧪 ADMIN ROLE SOURCE=Firestore(UserProfilePage._loadUserInfo) '
+          'kDebugMode=$kDebugMode '
+          'firestoreRole=${rawData['role']}',
+        );
 
         // ✅ FIX اصلی: تبدیل Timestamp
         if (userDoc.exists) {
@@ -732,9 +746,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
             _emailController.text = cleaned['email'] ?? '';
 
-            _phoneController.text = (cleaned['phone'] ?? '').toString().isEmpty
-                ? loc.notProvided
-                : cleaned['phone'].toString();
+           _phoneController.text =
+    (cleaned['phone'] ?? '').toString();
           });
         }
       }
@@ -806,9 +819,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final userData = {
       'username': newUsername,
       'email': newEmail,
-      'phone': newPhone.isEmpty
-          ? AppLocalizations.of(context)!.notProvided
-          : newPhone,
+      'phone': newPhone,
       'city': newCity,
       'district': newDistrict,
       'password': userDataBox.get(_currentUserId)?['password'] ?? '',
@@ -955,6 +966,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final userDogs = context.watch<AppState>().myDogs;
     final loc = AppLocalizations.of(context)!;
     final isOwnProfile = _currentUserId == widget.userId;
+    debugPrint(
+      '🧪 ADMIN TILE VISIBILITY '
+      'kDebugMode=$kDebugMode '
+      'appState.isAdmin=${appState.isAdmin} '
+      'appState.userRole=${appState.userRole}',
+    );
 
     // Sub-pages (بدون تغییر)
     if (appState.profileSubPage == ProfileSubPage.savedParks) {
@@ -2286,25 +2303,22 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
     final phoneRegex = RegExp(r'^[0-9+\s()-]*$');
 
-    if (username.isEmpty) {
-      usernameError = AppLocalizations.of(context)!.usernameCannotBeEmpty;
-    } else if (username.length < 3) {
-      usernameError = AppLocalizations.of(
-        context,
-      )!.userProfileUsernameMinLength;
-    } else if (username.length > 20) {
-      usernameError = AppLocalizations.of(
-        context,
-      )!.userProfileUsernameMaxLength;
-    } else if (username.contains(' ')) {
-      usernameError = AppLocalizations.of(context)!.userProfileUsernameNoSpaces;
-    }
+    if (username.isNotEmpty) {
+  if (username.length < 3) {
+    usernameError =
+        AppLocalizations.of(context)!.userProfileUsernameMinLength;
+  } else if (username.length > 20) {
+    usernameError =
+        AppLocalizations.of(context)!.userProfileUsernameMaxLength;
+  } else if (username.contains(' ')) {
+    usernameError =
+        AppLocalizations.of(context)!.userProfileUsernameNoSpaces;
+  }
+}
 
-    if (email.isEmpty) {
-      emailError = AppLocalizations.of(context)!.emailRequired;
-    } else if (!emailRegex.hasMatch(email)) {
-      emailError = AppLocalizations.of(context)!.emailInvalid;
-    }
+    if (email.isNotEmpty && !emailRegex.hasMatch(email)) {
+  emailError = AppLocalizations.of(context)!.emailInvalid;
+}
 
     if (phone.isNotEmpty && !phoneRegex.hasMatch(phone)) {
       phoneError = AppLocalizations.of(
@@ -2380,10 +2394,26 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
           _photoUrl = finalPhotoUrl;
         });
       }
+final currentDoc = await FirebaseFirestore.instance
+    .collection('users')
+    .doc(widget.userId)
+    .get();
 
-      final username = widget.usernameController.text.trim();
-      final email = widget.emailController.text.trim();
-      final phone = widget.phoneController.text.trim();
+final currentData = currentDoc.data() ?? {};
+      final username =
+    widget.usernameController.text.trim().isEmpty
+        ? (currentData['username'] ?? '').toString()
+        : widget.usernameController.text.trim();
+
+final email =
+    widget.emailController.text.trim().isEmpty
+        ? (currentData['email'] ?? '').toString()
+        : widget.emailController.text.trim();
+
+final phone =
+    widget.phoneController.text.trim().isEmpty
+        ? (currentData['phone'] ?? '').toString()
+        : widget.phoneController.text.trim();
       final city = _normalizeLocationText(_cityController.text);
       final district = _normalizeLocationText(_districtController.text);
 
@@ -2393,15 +2423,19 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
           .where('username', isEqualTo: username)
           .get();
 
-      if (usernameCheck.docs.isNotEmpty &&
-          usernameCheck.docs.first.id != widget.userId) {
+      if (username.isNotEmpty &&
+    username != (currentData['username'] ?? '') &&
+    usernameCheck.docs.isNotEmpty &&
+    usernameCheck.docs.first.id != widget.userId) {
         _showSnack(l10n.userProfileUsernameAlreadyTaken);
         setState(() => _isSaving = false);
         return;
       }
 
       // ✅ FIX 3: Email change + reauth + error handling
-      if (user != null && user.email != email) {
+      if (user != null &&
+    email.isNotEmpty &&
+    user.email != email) {
         try {
           // ⚠️ TODO: بعداً password واقعی بگیر
           final credential = EmailAuthProvider.credential(
