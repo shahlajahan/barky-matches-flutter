@@ -30,7 +30,24 @@ class DiagnosticsReportsController extends ChangeNotifier {
   bool get hasMore => _hasMore;
   bool get hasError => _error != null;
 
-  Future<void> loadInitial() async {}
+  Future<void> loadInitial() async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final DiagnosticsReportsPage page = await repository.fetchReports(_query);
+
+      _reports = List<DiagnosticsReportListItem>.unmodifiable(page.items);
+      _cursor = page.nextCursor;
+      _hasMore = page.hasMore;
+    } catch (error) {
+      _error = error;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> refresh() async {}
 
