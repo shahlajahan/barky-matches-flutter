@@ -32,7 +32,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
 
 import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
-import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
+//import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
 import 'package:barky_matches_fixed/ui/feedback/feedback_form_page.dart';
 import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
 import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
@@ -46,6 +46,8 @@ import 'package:barky_matches_fixed/ui/help/help_center_page.dart';
 import 'package:barky_matches_fixed/ui/support/faq_page.dart';
 
 import 'package:barky_matches_fixed/social/pages/petplore_page.dart';
+
+import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
 
 // ─────────────────────────────────────────────
 // HomeGate
@@ -568,8 +570,8 @@ class _ProfileTab extends StatelessWidget {
 
     // 🟢 Appointments
     if (subPage == ProfileSubPage.appointments) {
-      return const MyAppointmentsPage();
-    }
+  return const ServiceCategoriesPage();
+}
 
     // 🟢 Feedback
     if (subPage == ProfileSubPage.feedback) {

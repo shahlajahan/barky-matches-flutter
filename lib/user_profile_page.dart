@@ -31,8 +31,8 @@ import 'package:barky_matches_fixed/ui/business/dashboard/business_dashboard_pag
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
-import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
-
+//import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
+import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
 import 'package:barky_matches_fixed/ui/setting/delete_account_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/pet_hotel/pet_hotel_dashboard_page.dart';
@@ -701,7 +701,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
           'kDebugMode=$kDebugMode '
           'cachedRole=${cachedData['role']}',
         );
-        final savedParks = List<String>.from(cachedData['savedParks'] ?? []);
+       
+       // final savedParks = List<String>.from(cachedData['savedParks'] ?? []);
 
         setState(() {
           final loc = AppLocalizations.of(context)!;
@@ -732,7 +733,7 @@ _phoneController.text = phone;
         if (userDoc.exists) {
           final rawData = userDoc.data() ?? {};
 
-          final cleaned = cleanDeep(Map<String, dynamic>.from(rawData));
+          final cleaned = Map<String, dynamic>.from(rawData);
           _city = cleaned['city'] ?? '';
           _district = cleaned['district'] ?? '';
           await userDataBox.put(widget.userId, cleaned);
@@ -757,9 +758,10 @@ _phoneController.text = phone;
         return; // ⛔️ retry نکن
       }
       debugPrint('UserProfilePage - Firebase error: $e');
-    } catch (e) {
-      debugPrint('UserProfilePage - Error loading user info: $e');
-    }
+    } catch (e, st) {
+  debugPrint('UserProfilePage - Error loading user info: $e');
+  debugPrint(st.toString());
+}
   }
 
   Future<void> _saveDogToHive(Map<String, dynamic> data) async {
@@ -984,8 +986,8 @@ _phoneController.text = phone;
       return const BusinessRegisterPage();
     }
     if (appState.profileSubPage == ProfileSubPage.appointments) {
-      return const MyAppointmentsPage();
-    }
+  return const ServiceCategoriesPage();
+}
 
     if (appState.profileSubPage == ProfileSubPage.myOrders) {
       return const MyOrdersPage();
