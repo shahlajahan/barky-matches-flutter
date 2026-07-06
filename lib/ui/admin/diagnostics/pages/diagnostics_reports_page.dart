@@ -15,11 +15,21 @@ class DiagnosticsReportsPage extends StatefulWidget {
 }
 
 class _DiagnosticsReportsPageState extends State<DiagnosticsReportsPage> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
 
+    _scrollController.addListener(_handleScroll);
     widget.controller.loadInitial();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+
+    super.dispose();
   }
 
   @override
@@ -42,7 +52,9 @@ class _DiagnosticsReportsPageState extends State<DiagnosticsReportsPage> {
           }
 
           return DiagnosticsReportsList(
+            scrollController: _scrollController,
             reports: widget.controller.reports,
+            loadingMore: widget.controller.loadingMore,
             onReportTap: _openReportDetails,
           );
         },
@@ -61,6 +73,17 @@ class _DiagnosticsReportsPageState extends State<DiagnosticsReportsPage> {
         ),
       ),
     );
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final position = _scrollController.position;
+    if (position.extentAfter < 240) {
+      widget.controller.loadMore();
+    }
   }
 }
 
