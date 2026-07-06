@@ -230,6 +230,7 @@ class FirestoreDiagnosticsReportsRepository
       logs: _listValue(
         clientReport['logs'],
       ).map(_logEntryFromValue).toList(growable: false),
+      rawJson: _jsonMapValue(data),
     );
   }
 
@@ -290,5 +291,34 @@ class FirestoreDiagnosticsReportsRepository
     }
 
     return null;
+  }
+
+  Map<String, dynamic> _jsonMapValue(Map<String, dynamic> value) {
+    return value.map(
+      (key, value) => MapEntry<String, dynamic>(key, _jsonValue(value)),
+    );
+  }
+
+  Object? _jsonValue(Object? value) {
+    if (value is Timestamp) {
+      return value.toDate().toIso8601String();
+    }
+
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+
+    if (value is Map) {
+      return value.map(
+        (key, value) =>
+            MapEntry<String, dynamic>(key.toString(), _jsonValue(value)),
+      );
+    }
+
+    if (value is List) {
+      return value.map(_jsonValue).toList(growable: false);
+    }
+
+    return value;
   }
 }

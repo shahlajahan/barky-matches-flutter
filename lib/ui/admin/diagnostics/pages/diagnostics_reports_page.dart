@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/diagnostics_report_details_controller.dart';
 import '../controllers/diagnostics_reports_controller.dart';
+import 'diagnostics_report_details_page.dart';
 import '../widgets/diagnostics_reports_list.dart';
 
 class DiagnosticsReportsPage extends StatefulWidget {
@@ -39,8 +41,24 @@ class _DiagnosticsReportsPageState extends State<DiagnosticsReportsPage> {
             return const Center(child: Text('No diagnostic reports'));
           }
 
-          return DiagnosticsReportsList(reports: widget.controller.reports);
+          return DiagnosticsReportsList(
+            reports: widget.controller.reports,
+            onReportTap: _openReportDetails,
+          );
         },
+      ),
+    );
+  }
+
+  void _openReportDetails(String reportId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => DiagnosticsReportDetailsPage(
+          controller: DiagnosticsReportDetailsController(
+            repository: widget.controller.repository,
+            reportId: reportId,
+          ),
+        ),
       ),
     );
   }

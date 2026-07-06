@@ -7,6 +7,7 @@ class DiagnosticsReportDetail {
     required this.reason,
     required this.receivedAt,
     required this.logs,
+    required this.rawJson,
     this.clientReportId,
     this.sessionId,
     this.platform,
@@ -54,4 +55,5 @@ class DiagnosticsReportDetail {
   final DateTime receivedAt;
   final DateTime? createdAt;
   final List<DiagnosticsReportLogEntry> logs;
+  final Map<String, dynamic> rawJson;
 }
