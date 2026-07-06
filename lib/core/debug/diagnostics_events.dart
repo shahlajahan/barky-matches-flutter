@@ -14,7 +14,7 @@ class DiagnosticsEvents {
     );
     await DiagnosticsReporter().captureDiagnosticEvent(
       reason: 'MapInitializationFailed',
-      severity: 'warning',
+      severity: 'error',
     );
   }
 

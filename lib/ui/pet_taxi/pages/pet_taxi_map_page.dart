@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:barky_matches_fixed/core/debug/google_map_health_monitor.dart';
 
 import '../services/pet_taxi_business_location_resolver.dart';
 import '../services/pet_taxi_location_permission_service.dart';
@@ -20,7 +21,8 @@ class PetTaxiMapPage extends StatefulWidget {
   State<PetTaxiMapPage> createState() => _PetTaxiMapPageState();
 }
 
-class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
+class _PetTaxiMapPageState extends State<PetTaxiMapPage>
+    with GoogleMapHealthMonitor<PetTaxiMapPage> {
   static const CameraPosition _fallbackCameraPosition = CameraPosition(
     target: LatLng(41.0082, 28.9784),
     zoom: 11,
@@ -29,6 +31,7 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
   CameraPosition? _initialCameraPosition;
   GoogleMapController? _mapController;
   bool _cameraMoved = false;
+  bool _firstSuccessfulCameraMovementTracked = false;
   bool _myLocationEnabled = false;
   LatLng? _firstDriverPosition;
   Set<Marker> _markers = const {};
@@ -46,6 +49,12 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
   @override
   void initState() {
     super.initState();
+    startGoogleMapHealthTimer(
+      feature: 'pet_taxi_map',
+      data: <String, dynamic>{
+        'page': 'PetTaxiMapPage',
+      },
+    );
     _loadDriverMarker();
     _driversSubscription = _driversStream().listen(_handleDriversSnapshot);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,6 +81,7 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
 
   @override
   void dispose() {
+    cancelGoogleMapHealthTimer();
     _driversSubscription?.cancel();
     _mapController?.dispose();
     super.dispose();
@@ -103,22 +113,43 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
       return;
     }
 
+    final GoogleMapController? controller = _mapController;
+    if (controller == null) {
+      return;
+    }
+
     setState(() {
       _myLocationEnabled = true;
     });
 
     try {
       final position = await Geolocator.getCurrentPosition();
-      await _mapController?.animateCamera(
+      await controller.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(position.latitude, position.longitude),
           16,
         ),
       );
-    } catch (e) {
+      _markMapReadyFromSuccessfulCameraMovement(
+        trigger: 'userLocation',
+        data: <String, dynamic>{
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'zoom': 16,
+        },
+      );
+    } catch (e, stackTrace) {
       debugPrint('User GPS error = $e');
+      await reportMapInitializationFailure(
+        error: e,
+        stackTrace: stackTrace,
+        message: 'Pet Taxi map initialization failed while focusing user location',
+        data: <String, dynamic>{
+          'page': 'PetTaxiMapPage',
+          'stage': 'focusUserLocation',
+        },
+      );
     }
-
   }
 
   void _handleDriversSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
@@ -205,6 +236,12 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
           child: GoogleMap(
             onMapCreated: (controller) {
               _mapController = controller;
+              trackMapCreated(
+                data: <String, dynamic>{
+                  'page': 'PetTaxiMapPage',
+                  'hasInitialDriverPosition': _firstDriverPosition != null,
+                },
+              );
               final firstDriverPosition = _firstDriverPosition;
               if (firstDriverPosition != null) {
                 _moveCameraToDriverIfNeeded(firstDriverPosition);
@@ -259,18 +296,70 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage> {
     if (_mapController != null && !_cameraMoved) {
       _cameraMoved = true;
 
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 500), () async {
         if (!mounted) {
           return;
         }
 
-        _mapController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: position, zoom: 18),
-          ),
-        );
+        final GoogleMapController? controller = _mapController;
+        if (controller == null) {
+          return;
+        }
+
+        try {
+          await controller.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: position, zoom: 18),
+            ),
+          );
+          _markMapReadyFromSuccessfulCameraMovement(
+            trigger: 'firstDriver',
+            data: <String, dynamic>{
+              'latitude': position.latitude,
+              'longitude': position.longitude,
+              'zoom': 18,
+            },
+          );
+        } catch (e, stackTrace) {
+          await reportMapInitializationFailure(
+            error: e,
+            stackTrace: stackTrace,
+            message:
+                'Pet Taxi map initialization failed while focusing first driver',
+            data: <String, dynamic>{
+              'page': 'PetTaxiMapPage',
+              'driverLatitude': position.latitude,
+              'driverLongitude': position.longitude,
+              'stage': 'focusFirstDriver',
+            },
+          );
+        }
       });
     }
+  }
+
+  void _markMapReadyFromSuccessfulCameraMovement({
+    required String trigger,
+    Map<String, dynamic>? data,
+  }) {
+    if (!_firstSuccessfulCameraMovementTracked) {
+      _firstSuccessfulCameraMovementTracked = true;
+      trackFirstSuccessfulCameraMovement(
+        data: <String, dynamic>{
+          'page': 'PetTaxiMapPage',
+          'trigger': trigger,
+          ...?data,
+        },
+      );
+    }
+
+    completeGoogleMapHealthCheck(
+      data: <String, dynamic>{
+        'page': 'PetTaxiMapPage',
+        'trigger': trigger,
+        ...?data,
+      },
+    );
   }
 
   String _businessName(Map<String, dynamic> data, Map<String, dynamic> taxi) {
