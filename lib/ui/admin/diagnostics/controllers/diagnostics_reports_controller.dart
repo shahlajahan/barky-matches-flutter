@@ -10,7 +10,7 @@ class DiagnosticsReportsController extends ChangeNotifier {
 
   final DiagnosticsReportsRepository repository;
 
-  final DiagnosticsReportsQuery _query;
+  DiagnosticsReportsQuery _query;
   // ignore: prefer_final_fields
   bool _loading = false;
   // ignore: prefer_final_fields
@@ -88,19 +88,17 @@ class DiagnosticsReportsController extends ChangeNotifier {
 
   Future<void> retry() async {}
 
-  Future<void> applyQuery(DiagnosticsReportsQuery query) async {}
+  Future<void> applyQuery(DiagnosticsReportsQuery query) async {
+    _query = query;
+    _reports = const <DiagnosticsReportListItem>[];
+    _cursor = null;
+    _hasMore = false;
+    _loadingMore = false;
+
+    await loadInitial();
+  }
 
   DiagnosticsReportsQuery _queryWithCursor(DiagnosticsReportsCursor cursor) {
-    return DiagnosticsReportsQuery(
-      pageSize: _query.pageSize,
-      cursor: cursor,
-      severity: _query.severity,
-      reason: _query.reason,
-      feature: _query.feature,
-      platform: _query.platform,
-      version: _query.version,
-      dateRange: _query.dateRange,
-      sort: _query.sort,
-    );
+    return _query.copyWith(cursor: cursor);
   }
 }
