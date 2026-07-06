@@ -41,6 +41,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:app_links/app_links.dart';
 import 'core/debug/diagnostics_bootstrap.dart';
+import 'core/debug/diagnostics_navigation_tracker.dart';
 import 'core/debug/diagnostics_uploader.dart';
 import 'developer_tools/developer_tools_page.dart';
 
@@ -62,6 +63,62 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+class _DeveloperToolsAccessDeniedPage extends StatefulWidget {
+  const _DeveloperToolsAccessDeniedPage();
+
+  @override
+  State<_DeveloperToolsAccessDeniedPage> createState() =>
+      _DeveloperToolsAccessDeniedPageState();
+}
+
+class _DeveloperToolsAccessDeniedPageState
+    extends State<_DeveloperToolsAccessDeniedPage> {
+  bool _shouldShowFallback = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.pop();
+        return;
+      }
+      setState(() {
+        _shouldShowFallback = true;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_shouldShowFallback) {
+      return const Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    return const Scaffold(
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Access Denied',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
   'high_importance_channel',
@@ -1167,6 +1224,9 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
+        navigatorObservers: <NavigatorObserver>[
+          DiagnosticsNavigationTracker(),
+        ],
         theme: AppTheme.theme(locale: locale),
         locale: locale,
         localizationsDelegates: const [
@@ -1184,7 +1244,14 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
             appointmentId: ModalRoute.of(context)!.settings.arguments as String,
           ),
           if (kDebugMode)
-            '/developerTools': (context) => const DeveloperToolsPage(),
+            '/developerTools': (context) {
+              final AppState appState = context.read<AppState>();
+              if (!appState.isAdmin) {
+                return const _DeveloperToolsAccessDeniedPage();
+              }
+
+              return const DeveloperToolsPage();
+            },
         },
         home: const AppEntry(),
       ),

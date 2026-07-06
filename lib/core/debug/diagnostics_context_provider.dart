@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'diagnostics_navigation_tracker.dart';
 import 'diagnostics_report.dart';
 
 class DiagnosticsContextProvider {
@@ -9,8 +10,12 @@ class DiagnosticsContextProvider {
 
   static final DiagnosticsContextProvider _instance =
       DiagnosticsContextProvider._();
+  final DiagnosticsNavigationTracker _navigationTracker =
+      DiagnosticsNavigationTracker();
 
   Future<DiagnosticsContext> current() async {
+    final DiagnosticsScreenInfo screen = _navigationTracker.currentScreen;
+
     return DiagnosticsContext(
       appVersion: 'unknown',
       buildNumber: 'unknown',
@@ -25,8 +30,9 @@ class DiagnosticsContextProvider {
       userId: 'anonymous',
       isGuest: true,
       language: 'unknown',
-      currentRoute: 'unknown',
-      currentFeature: 'unknown',
+      currentRoute: screen.route,
+      currentScreenName: screen.screenName,
+      currentFeature: screen.feature,
     );
   }
 
@@ -59,6 +65,7 @@ class DiagnosticsContext {
     required this.isGuest,
     required this.language,
     required this.currentRoute,
+    required this.currentScreenName,
     required this.currentFeature,
   });
 
@@ -76,6 +83,7 @@ class DiagnosticsContext {
   final bool isGuest;
   final String language;
   final String currentRoute;
+  final String currentScreenName;
   final String currentFeature;
 
   DiagnosticsAppInfo get app => DiagnosticsAppInfo(
@@ -102,7 +110,7 @@ class DiagnosticsContext {
 
   DiagnosticsScreenInfo get screen => DiagnosticsScreenInfo(
         route: currentRoute,
-        screenName: currentRoute,
+        screenName: currentScreenName,
         feature: currentFeature,
       );
 }
