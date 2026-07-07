@@ -6,6 +6,7 @@ import '../models/diagnostics_report_log_entry.dart';
 import '../models/diagnostics_reports_cursor.dart';
 import '../models/diagnostics_reports_page.dart';
 import '../models/diagnostics_reports_query.dart';
+import '../models/diagnostics_reports_statistics.dart';
 
 export '../models/diagnostics_report_detail.dart';
 export '../models/diagnostics_report_list_item.dart';
@@ -14,11 +15,20 @@ export '../models/diagnostics_reports_cursor.dart';
 export '../models/diagnostics_reports_date_range.dart';
 export '../models/diagnostics_reports_page.dart';
 export '../models/diagnostics_reports_query.dart';
+export '../models/diagnostics_reports_statistics.dart';
 
 abstract class DiagnosticsReportsRepository {
   Future<DiagnosticsReportsPage> fetchReports(DiagnosticsReportsQuery query);
 
+  Future<DiagnosticsReportsStatistics> fetchStatistics();
+
   Future<DiagnosticsReportDetail?> getReportDetail(String reportId);
+
+  Future<void> markResolved(String reportId);
+
+  Future<void> reopen(String reportId);
+
+  Future<void> ignore(String reportId);
 }
 
 class FirestoreDiagnosticsReportsRepository
@@ -128,6 +138,41 @@ class FirestoreDiagnosticsReportsRepository
   }
 
   @override
+  Future<DiagnosticsReportsStatistics> fetchStatistics() async {
+    final results = await Future.wait<int>([
+      _count(_reportsCollection),
+      _count(_reportsCollection.where('status', isEqualTo: 'resolved')),
+      _count(_reportsCollection.where('status', isEqualTo: 'ignored')),
+      _count(
+        _reportsCollection.where(
+          'clientReport.severity',
+          isEqualTo: 'critical',
+        ),
+      ),
+      _count(
+        _reportsCollection.where('clientReport.severity', isEqualTo: 'error'),
+      ),
+      _count(
+        _reportsCollection.where('clientReport.severity', isEqualTo: 'warning'),
+      ),
+    ]);
+
+    final totalReports = results[0];
+    final resolvedReports = results[1];
+    final ignoredReports = results[2];
+
+    return DiagnosticsReportsStatistics(
+      totalReports: totalReports,
+      openReports: totalReports - resolvedReports - ignoredReports,
+      resolvedReports: resolvedReports,
+      ignoredReports: ignoredReports,
+      criticalReports: results[3],
+      errorReports: results[4],
+      warningReports: results[5],
+    );
+  }
+
+  @override
   Future<DiagnosticsReportDetail?> getReportDetail(String reportId) async {
     final document = await _reportsCollection.doc(reportId).get();
 
@@ -138,8 +183,35 @@ class FirestoreDiagnosticsReportsRepository
     return _detailFromDocument(document);
   }
 
+  @override
+  Future<void> markResolved(String reportId) async {
+    await _updateStatus(reportId, 'resolved');
+  }
+
+  @override
+  Future<void> reopen(String reportId) async {
+    await _updateStatus(reportId, 'open');
+  }
+
+  @override
+  Future<void> ignore(String reportId) async {
+    await _updateStatus(reportId, 'ignored');
+  }
+
   CollectionReference<Map<String, dynamic>> get _reportsCollection =>
       _firestore.collection(_collectionPath);
+
+  Future<int> _count(Query<Map<String, dynamic>> query) async {
+    final snapshot = await query.count().get();
+
+    return snapshot.count ?? 0;
+  }
+
+  Future<void> _updateStatus(String reportId, String status) async {
+    await _reportsCollection.doc(reportId).update(<String, Object?>{
+      'status': status,
+    });
+  }
 
   DiagnosticsReportsCursor _cursorFromDocument(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -205,6 +277,7 @@ class FirestoreDiagnosticsReportsRepository
       sessionId: _stringValue(clientReport['sessionId']),
       severity: _stringValue(clientReport['severity']) ?? '',
       reason: _stringValue(clientReport['reason']) ?? '',
+      status: _stringValue(data['status']) ?? 'open',
       platform: _stringValue(device['platform']),
       version: _stringValue(app['version']),
       buildNumber: _stringValue(app['buildNumber']),

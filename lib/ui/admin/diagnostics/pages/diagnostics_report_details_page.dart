@@ -61,7 +61,10 @@ class _DiagnosticsReportDetailsPageState
             return const Center(child: Text('Diagnostic report not found'));
           }
 
-          return _DiagnosticsReportDetailsView(report: report);
+          return _DiagnosticsReportDetailsView(
+            controller: widget.controller,
+            report: report,
+          );
         },
       ),
     );
@@ -69,8 +72,12 @@ class _DiagnosticsReportDetailsPageState
 }
 
 class _DiagnosticsReportDetailsView extends StatelessWidget {
-  const _DiagnosticsReportDetailsView({required this.report});
+  const _DiagnosticsReportDetailsView({
+    required this.controller,
+    required this.report,
+  });
 
+  final DiagnosticsReportDetailsController controller;
   final DiagnosticsReportDetail report;
 
   @override
@@ -89,6 +96,7 @@ class _DiagnosticsReportDetailsView extends StatelessWidget {
             _DetailsRow('Received At', report.receivedAt.toLocal().toString()),
           ],
         ),
+        _ActionsSection(controller: controller, report: report),
         _DetailsSection(
           title: 'Client',
           rows: [
@@ -108,6 +116,49 @@ class _DiagnosticsReportDetailsView extends StatelessWidget {
         _LogsSection(logs: report.logs),
         _RawJsonSection(rawJson: report.rawJson),
       ],
+    );
+  }
+}
+
+class _ActionsSection extends StatelessWidget {
+  const _ActionsSection({required this.controller, required this.report});
+
+  final DiagnosticsReportDetailsController controller;
+  final DiagnosticsReportDetail report;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = report.status.toLowerCase();
+    final actionInProgress = controller.actionInProgress;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Actions', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            if (status == 'resolved' || status == 'ignored')
+              ElevatedButton(
+                onPressed: actionInProgress ? null : controller.reopen,
+                child: const Text('Reopen'),
+              )
+            else ...[
+              ElevatedButton(
+                onPressed: actionInProgress ? null : controller.markResolved,
+                child: const Text('Mark Resolved'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: actionInProgress ? null : controller.ignore,
+                child: const Text('Ignore'),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

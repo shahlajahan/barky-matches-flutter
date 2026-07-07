@@ -5,6 +5,7 @@ class DiagnosticsReportDetail {
     required this.reportId,
     required this.severity,
     required this.reason,
+    required this.status,
     required this.receivedAt,
     required this.logs,
     required this.rawJson,
@@ -35,6 +36,7 @@ class DiagnosticsReportDetail {
   final String? sessionId;
   final String severity;
   final String reason;
+  final String status;
   final String? platform;
   final String? version;
   final String? buildNumber;

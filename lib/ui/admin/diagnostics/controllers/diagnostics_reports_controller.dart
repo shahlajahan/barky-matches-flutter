@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../repositories/diagnostics_reports_repository.dart';
@@ -22,6 +24,10 @@ class DiagnosticsReportsController extends ChangeNotifier {
   bool _hasMore = false;
   // ignore: prefer_final_fields
   bool _loadingMore = false;
+  DiagnosticsReportsStatistics? _statistics;
+  // ignore: prefer_final_fields
+  bool _statisticsLoading = false;
+  Object? _statisticsError;
 
   DiagnosticsReportsQuery get query => _query;
   bool get loading => _loading;
@@ -32,11 +38,17 @@ class DiagnosticsReportsController extends ChangeNotifier {
   bool get hasMore => _hasMore;
   bool get loadingMore => _loadingMore;
   bool get hasError => _error != null;
+  DiagnosticsReportsStatistics? get statistics => _statistics;
+  bool get statisticsLoading => _statisticsLoading;
+  Object? get statisticsError => _statisticsError;
+  bool get hasStatisticsError => _statisticsError != null;
 
   Future<void> loadInitial() async {
     _loading = true;
     _error = null;
     notifyListeners();
+
+    unawaited(_loadStatistics());
 
     try {
       final DiagnosticsReportsPage page = await repository.fetchReports(_query);
@@ -48,6 +60,21 @@ class DiagnosticsReportsController extends ChangeNotifier {
       _error = error;
     } finally {
       _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadStatistics() async {
+    _statisticsLoading = true;
+    _statisticsError = null;
+    notifyListeners();
+
+    try {
+      _statistics = await repository.fetchStatistics();
+    } catch (error) {
+      _statisticsError = error;
+    } finally {
+      _statisticsLoading = false;
       notifyListeners();
     }
   }

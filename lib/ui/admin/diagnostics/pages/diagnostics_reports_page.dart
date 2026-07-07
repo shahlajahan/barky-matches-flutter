@@ -7,6 +7,7 @@ import '../models/diagnostics_reports_date_range.dart';
 import '../models/diagnostics_reports_query.dart';
 import 'diagnostics_report_details_page.dart';
 import '../widgets/diagnostics_reports_list.dart';
+import '../widgets/diagnostics_statistics_section.dart';
 
 class DiagnosticsReportsPage extends StatefulWidget {
   const DiagnosticsReportsPage({super.key, required this.controller});
@@ -55,15 +56,24 @@ class _DiagnosticsReportsPageState extends State<DiagnosticsReportsPage> {
             return _DiagnosticsReportsErrorState(controller: widget.controller);
           }
 
-          if (widget.controller.reports.isEmpty) {
-            return const Center(child: Text('No diagnostic reports'));
-          }
-
-          return DiagnosticsReportsList(
-            scrollController: _scrollController,
-            reports: widget.controller.reports,
-            loadingMore: widget.controller.loadingMore,
-            onReportTap: _openReportDetails,
+          return Column(
+            children: [
+              DiagnosticsStatisticsSection(
+                statistics: widget.controller.statistics,
+                loading: widget.controller.statisticsLoading,
+                error: widget.controller.statisticsError,
+              ),
+              Expanded(
+                child: widget.controller.reports.isEmpty
+                    ? const Center(child: Text('No diagnostic reports'))
+                    : DiagnosticsReportsList(
+                        scrollController: _scrollController,
+                        reports: widget.controller.reports,
+                        loadingMore: widget.controller.loadingMore,
+                        onReportTap: _openReportDetails,
+                      ),
+              ),
+            ],
           );
         },
       ),
