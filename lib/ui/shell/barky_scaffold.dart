@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -62,6 +63,7 @@ class BarkyScaffold extends StatefulWidget {
 class _BarkyScaffoldState extends State<BarkyScaffold> {
   // 🔒 فقط این تغییر انجام شده — key ثابت شد
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isShowingExitDialog = false;
 
   VoidCallback? _callAction(BusinessCardData business) {
     if (business.phone == null || business.phone!.trim().isEmpty) return null;
@@ -144,17 +146,89 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
     };
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final showUpgradePage = context.select<AppState, bool>(
-      (s) => s.showUpgradePage,
+  Future<void> _handleShellBack() async {
+    final appState = context.read<AppState>();
+
+    if (appState.showUpgradePage) {
+      appState.closeUpgradePage();
+      return;
+    }
+
+    if (appState.homeOverlay != HomeOverlay.none) {
+      appState.closeOverlay();
+      return;
+    }
+
+    if (appState.activeBusiness != null) {
+      appState.closeBusinessDetails();
+      return;
+    }
+
+    if (appState.businessAppointment != null) {
+      appState.closeBusinessAppointment();
+      return;
+    }
+
+    if (appState.editingDog != null) {
+      appState.closeEditDog();
+      return;
+    }
+
+    if (appState.petploreProfileUserId != null) {
+      appState.closePetploreProfile();
+      return;
+    }
+
+    if (appState.playmateProfileUserId != null) {
+      appState.closePlaymateProfile();
+      return;
+    }
+
+    if (appState.profileSubPage != ProfileSubPage.none) {
+      appState.closeProfileSubPage();
+      return;
+    }
+
+    if (widget.currentTab != NavTab.home) {
+      appState.setCurrentTab(NavTab.home);
+      return;
+    }
+
+    if (_isShowingExitDialog) return;
+    _isShowingExitDialog = true;
+
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit app?'),
+        content: const Text('Do you want to close Barky?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Exit'),
+          ),
+        ],
+      ),
     );
 
+    _isShowingExitDialog = false;
+
+    if (shouldExit == true) {
+      SystemNavigator.pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return PopScope(
-      canPop: !showUpgradePage,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop || !showUpgradePage) return;
-        context.read<AppState>().closeUpgradePage();
+        if (didPop) return;
+        _handleShellBack();
       },
       child: Scaffold(
         key: scaffoldKey,

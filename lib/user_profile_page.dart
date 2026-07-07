@@ -2539,7 +2539,7 @@ final phone =
         'photoUrl': finalPhotoUrl,
       };
 
-      await userDataBox.put(widget.userId, merged);
+      await userDataBox.put(widget.userId, cleanDeep(merged));
 
       if (!mounted) return;
 

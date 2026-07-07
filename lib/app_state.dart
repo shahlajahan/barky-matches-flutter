@@ -25,6 +25,7 @@ import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
+import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/models/product.dart';
@@ -1140,7 +1141,7 @@ class AppState with ChangeNotifier {
         'source': _subscription.source.toFirestore(),
       };
 
-    await userDataBox.put(uid, updated);
+    await userDataBox.put(uid, cleanDeep(updated));
   }
 
   Map<dynamic, dynamic>? _cachedUserData(String uid) {
