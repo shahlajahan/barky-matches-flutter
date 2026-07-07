@@ -735,7 +735,9 @@ _phoneController.text = phone;
         if (userDoc.exists) {
           final rawData = userDoc.data() ?? {};
 
-          final cleaned = Map<String, dynamic>.from(rawData);
+          final cleaned = Map<String, dynamic>.from(
+            cleanDeep(Map<String, dynamic>.from(rawData)) as Map,
+          );
           _city = cleaned['city'] ?? '';
           _district = cleaned['district'] ?? '';
           await userDataBox.put(widget.userId, cleaned);
