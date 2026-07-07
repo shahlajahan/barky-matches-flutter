@@ -227,7 +227,13 @@ class _ChatListPageState extends State<ChatListPage> {
       otherUserId: otherUserId,
     );
 
-    final lastMessage = (data['lastMessage'] ?? '').toString();
+    String lastMessage = (data['lastMessage'] ?? '').toString();
+
+if (lastMessage.startsWith('You: ')) {
+  lastMessage = lastMessage.substring(5);
+};
+
+    debugPrint('CHAT DATA => $data');
 
     final unreadMap = Map<String, dynamic>.from(data['unreadCount'] ?? {});
 

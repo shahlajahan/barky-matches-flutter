@@ -22396,53 +22396,50 @@ exports.createAppointmentOrder = onCall(
 exports.createHotelBookingOrder = exports.createAppointmentOrder;
 
 
-exports.activateSubscription = onCall(async (request) => {
-  const uid = request.auth?.uid;
+exports.activateSubscription = onCall(
+  {
+    region: "europe-west3",
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
 
-  if (!uid) {
-    throw new HttpsError('unauthenticated', 'User not logged in');
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "User not logged in");
+    }
+
+    const { plan, productId } = request.data;
+
+    if (!plan) {
+      throw new HttpsError("invalid-argument", "Missing plan");
+    }
+
+    await admin.firestore()
+      .collection("subscriptions")
+      .doc(uid)
+      .set({
+        plan,
+        status: "active",
+        userId: uid,
+        startedAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        productId,
+      });
+
+    await admin.firestore()
+      .collection("users")
+      .doc(uid)
+      .update({
+        subscription: {
+          plan,
+          status: "active",
+          productId,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+
+    return { success: true };
   }
-
-  const { plan, productId } = request.data;
-
-  if (!plan) {
-    throw new HttpsError('invalid-argument', 'Missing plan');
-  }
-
-  // ✅ 1. ذخیره در collection subscriptions
-  await admin.firestore()
-    .collection('subscriptions')
-    .doc(uid)
-    .set({
-      plan,
-      status: 'active',
-      userId: uid,
-      startedAt: admin.firestore.FieldValue.serverTimestamp(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      productId,
-    });
-
-  // 🔥🔥🔥 اینجاااااااااااا اضافه کن
-  // ✅ 2. sync با users (برای rules و UI)
-  await admin.firestore()
-    .collection('users')
-    .doc(uid)
-    .update({
-      subscription: {
-        plan: plan,
-        status: 'active',
-        productId: productId,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }
-    });
-
-  return { success: true };
-});
-
-
-
-
-
+);
 
 exports.sendTelegramMessage = onCall(
   {

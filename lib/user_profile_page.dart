@@ -1065,7 +1065,12 @@ _phoneController.text = phone;
           body: SafeArea(
             child: Stack(
               children: [
-                const UpgradePage(),
+                UpgradePage(
+  onClose: () {
+    debugPrint("🔥 UserProfilePage onClose");
+    context.read<AppState>().closeProfileSubPage();
+  },
+),
 
                 Positioned(
                   top: 8,

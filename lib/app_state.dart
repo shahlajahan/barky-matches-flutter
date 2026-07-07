@@ -2968,10 +2968,11 @@ class AppState with ChangeNotifier {
   }
 
   void closeProfileSubPage() {
-    _clearAppointmentFlowSelection();
-    _profileSubPage = ProfileSubPage.none;
-    notifyListeners();
-  }
+  debugPrint("🔥 closeProfileSubPage()");
+  _clearAppointmentFlowSelection();
+  _profileSubPage = ProfileSubPage.none;
+  notifyListeners();
+}
 
   void openOtherUserProfile(String userId) {
     _otherUserProfileId = userId;

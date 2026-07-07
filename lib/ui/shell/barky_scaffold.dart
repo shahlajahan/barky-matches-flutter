@@ -712,13 +712,19 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                     if (!isOpen) return const SizedBox.shrink();
 
                     final appState = context.read<AppState>();
-
+ debugPrint("🔥 BARKY OVERLAY BUILD");
                     return Positioned.fill(
                       child: Material(
                         color: const Color(0xFF120914),
                         child: Stack(
                           children: [
-                            const UpgradePage(),
+                            
+                           UpgradePage(
+  onClose: () {
+    debugPrint("🔥 BARKY onClose");
+    appState.closeUpgradePage();
+  },
+),
                             SafeArea(
                               child: Align(
                                 alignment: Alignment.topLeft,

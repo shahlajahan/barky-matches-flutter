@@ -3,9 +3,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
 
 class UpgradePage extends StatefulWidget {
-  const UpgradePage({super.key});
+  final VoidCallback? onClose;
+
+  const UpgradePage({
+    super.key,
+    this.onClose,
+  });
 
   @override
   State<UpgradePage> createState() => _UpgradePageState();
@@ -16,11 +23,16 @@ class _UpgradePageState extends State<UpgradePage> {
   bool isBusy = false;
 
   @override
-  void initState() {
-    super.initState();
-    _ensureStoreLoaded();
-  }
+void initState() {
+  super.initState();
 
+  debugPrint(
+    "🔥 UpgradePage created hash=${identityHashCode(this)} "
+    "onClose=${widget.onClose != null}",
+  );
+
+  _ensureStoreLoaded();
+}
   Future<void> _ensureStoreLoaded() async {
     if (IapService.instance.products.isEmpty) {
       await IapService.instance.init();
@@ -35,6 +47,9 @@ class _UpgradePageState extends State<UpgradePage> {
 
   @override
   Widget build(BuildContext context) {
+     debugPrint(
+    "🔥 UpgradePage BUILD onClose=${widget.onClose != null}",
+  );
     final l10n = AppLocalizations.of(context)!;
     final premium = IapService.instance.premiumProduct;
     final gold = IapService.instance.goldProduct;
@@ -49,7 +64,19 @@ class _UpgradePageState extends State<UpgradePage> {
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
           child: GestureDetector(
-            onTap: () => Navigator.pop(context),
+            
+  onTap: () {
+  debugPrint("🔥 CLOSE ICON TAPPED");
+
+  if (widget.onClose != null) {
+    debugPrint("🔥 CALLING onClose()");
+    widget.onClose!();
+    return;
+  }
+
+  debugPrint("🔥 FALLBACK maybePop()");
+  Navigator.of(context).maybePop();
+},
             child: Container(
               width: 40,
               height: 40,

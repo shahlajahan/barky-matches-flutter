@@ -29,6 +29,8 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
   final Set<String> _markedStoryIds = {};
   final TextEditingController _replyController = TextEditingController();
 
+  final FocusNode _replyFocusNode = FocusNode();
+
   late PageController _pageController;
   late AnimationController _progressController;
   int _currentIndex = 0;
@@ -48,13 +50,27 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
         : widget.initialIndex.clamp(0, widget.stories.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
     _progressController = AnimationController(
-      vsync: this,
-      duration: _imageStoryDuration,
-    );
+  vsync: this,
+  duration: _imageStoryDuration,
+);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handleStoryVisible();
-    });
+_replyController.addListener(() {
+  if (mounted) {
+    setState(() {});
+  }
+});
+
+_replyFocusNode.addListener(() {
+  if (_replyFocusNode.hasFocus) {
+    _pauseStory();
+  } else {
+    _resumeStory();
+  }
+});
+
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  _handleStoryVisible();
+});
   }
 
   @override
@@ -62,6 +78,7 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
     _timer?.cancel();
     _pageController.dispose();
     _progressController.dispose();
+    _replyFocusNode.dispose();
     _replyController.dispose();
     super.dispose();
   }
@@ -328,41 +345,65 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
   }
 
   Widget _buildBottomOverlay(PetStory story) {
-    return Row(
-      children: [
-        SizedBox(
-          width: MediaQuery.sizeOf(context).width - 16 - 16 - 12 - 48 - 10 - 48,
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
+  final canSend = _replyController.text.trim().isNotEmpty;
+
+  return Row(
+    children: [
+      SizedBox(
+        width:
+            MediaQuery.sizeOf(context).width -
+            16 -
+            16 -
+            12 -
+            48 -
+            10 -
+            48,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
               color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-            child: TextField(
-              controller: _replyController,
-              style: const TextStyle(color: Colors.white),
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _sendReply(),
-              decoration: const InputDecoration(
-                hintText: 'Reply...',
-                hintStyle: TextStyle(color: Colors.white54),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+          ),
+          child: TextField(
+            controller: _replyController,
+            focusNode: _replyFocusNode,
+            style: const TextStyle(
+              color: Colors.black87, // برای تست می‌توانی موقتاً Colors.red بگذاری
+              fontSize: 16,
+            ),
+            cursorColor: Colors.white,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => _sendReply(),
+            decoration: const InputDecoration(
+              hintText: 'Reply...',
+              hintStyle: TextStyle(
+                color: Colors.white54,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        _buildLikeButton(story),
-        const SizedBox(width: 10),
-        _storyActionButton(icon: Icons.send_rounded, onTap: _shareStory),
-      ],
-    );
-  }
+      ),
+      const SizedBox(width: 12),
+      _buildLikeButton(story),
+      const SizedBox(width: 10),
+      _storyActionButton(
+        icon: Icons.send_rounded,
+        color: canSend
+            ? const Color(0xFFFF4D8D)
+            : Colors.white54,
+        onTap: canSend ? _sendReply : () {},
+      ),
+    ],
+  );
+}
 
   Widget _buildLikeButton(PetStory story) {
     return StreamBuilder<bool>(
@@ -427,6 +468,7 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
     try {
       await _storyService.sendReply(story: story, text: text);
       _replyController.clear();
+      _replyFocusNode.unfocus();
       debugPrint('💬 STORY REPLY SENT: ${story.id}');
 
       if (!mounted) return;

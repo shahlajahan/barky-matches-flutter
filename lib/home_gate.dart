@@ -629,8 +629,13 @@ class _ProfileTab extends StatelessWidget {
 
     // 🟢 Upgrade
     if (subPage == ProfileSubPage.upgrade) {
-      return const UpgradePage();
-    }
+  return UpgradePage(
+    onClose: () {
+      debugPrint("🔥 PROFILE onClose");
+      context.read<AppState>().closeProfileSubPage();
+    },
+  );
+}
 
     // 🟢 Change Password
     if (subPage == ProfileSubPage.changePassword) {

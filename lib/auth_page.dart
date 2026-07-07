@@ -684,11 +684,17 @@ class _AuthPageState extends State<AuthPage> {
       final userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: trimmedEmail, password: password);
 
-      final signedInUser = userCredential.user;
-      debugPrint(
-        "PROVIDERS = ${signedInUser?.providerData.map((e) => e.providerId).toList()}",
-      );
+final user = FirebaseAuth.instance.currentUser;
 
+await user?.reload();
+
+final refreshed = FirebaseAuth.instance.currentUser;
+
+debugPrint("LOGIN UID = ${refreshed?.uid}");
+debugPrint("LOGIN EMAIL = ${refreshed?.email}");
+debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
+
+      final signedInUser = userCredential.user;
       if (signedInUser == null) {
         return {
           'isAuthenticated': false,
@@ -700,13 +706,19 @@ class _AuthPageState extends State<AuthPage> {
 
       userId = signedInUser.uid;
 
-      Map<String, dynamic> userData = await _fetchUserDataIsolate(userId);
-
       await signedInUser.reload();
 
-      debugPrint(
-        "FIREBASE VERIFIED = ${FirebaseAuth.instance.currentUser?.emailVerified}",
-      );
+      final reloadedUser = FirebaseAuth.instance.currentUser;
+      final firebaseEmailVerified = reloadedUser?.emailVerified == true;
+      final providers = (reloadedUser ?? signedInUser).providerData
+          .map((provider) => provider.providerId)
+          .toList(growable: false);
+
+      debugPrint("PROVIDERS = $providers");
+
+      debugPrint("FIREBASE VERIFIED = ${reloadedUser?.emailVerified}");
+
+      Map<String, dynamic> userData = await _fetchUserDataIsolate(userId);
 
       debugPrint("FIRESTORE VERIFIED = ${userData['emailVerified']}");
 
@@ -718,7 +730,7 @@ class _AuthPageState extends State<AuthPage> {
           'city': '',
           'district': '',
           'isPremium': trimmedEmail == 'durbinistanbul@gmail.com',
-          'emailVerified': false,
+          'emailVerified': firebaseEmailVerified,
           'profileCompleted': false,
           'createdAt': DateTime.now().toIso8601String(),
         };
@@ -729,12 +741,43 @@ class _AuthPageState extends State<AuthPage> {
             .set(userData, SetOptions(merge: true));
       }
 
-      if (userData['emailVerified'] == false &&
-          userData['phoneVerified'] != true) {
+      final firestoreEmailVerified = userData['emailVerified'] == true;
+      final firestorePhoneVerified = userData['phoneVerified'] == true;
+
+      if (firebaseEmailVerified && !firestoreEmailVerified) {
+        userData['emailVerified'] = true;
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(userId).set({
+            'emailVerified': true,
+          }, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint('AuthPage - Best-effort emailVerified sync failed: $e');
+        }
+      }
+
+      final isVerified =
+          firebaseEmailVerified ||
+          firestoreEmailVerified ||
+          firestorePhoneVerified;
+
+      if (!isVerified) {
         debugPrint(
           "BLOCK LOGIN -> emailVerified=${userData['emailVerified']} "
           "phoneVerified=${userData['phoneVerified']}",
         );
+        AuthenticationDiagnostics.captureFailure(
+          operation: 'sign_in',
+          reason: 'email_verification_required',
+          error: 'email_verification_required',
+          data: <String, dynamic>{
+            'firebaseEmailVerified': firebaseEmailVerified,
+            'firestoreEmailVerified': firestoreEmailVerified,
+            'firestorePhoneVerified': firestorePhoneVerified,
+            'providers': providers,
+            'blockReason': 'email_not_verified',
+          },
+        );
+        await FirebaseAuth.instance.signOut();
 
         return {
           'isAuthenticated': false,
