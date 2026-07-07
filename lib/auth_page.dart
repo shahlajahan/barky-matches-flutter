@@ -26,6 +26,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'verify_phone_page.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_events.dart';
+import 'package:barky_matches_fixed/core/debug/authentication_diagnostics.dart';
+import 'package:barky_matches_fixed/core/debug/diagnostics_navigation_tracker.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -307,7 +309,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         await FirebaseAuth.instance.currentUser?.reload();
         await AnalyticsService.emailVerified();
 
-
         if (!mounted) return;
 
         ScaffoldMessenger.of(
@@ -459,7 +460,7 @@ class SimpleTestPage extends StatelessWidget {
   }
 }
 
-class AuthPage extends StatefulWidget {
+class AuthPage extends StatefulWidget implements DiagnosticsScreenDescriptor {
   final bool isLogin;
 
   final VoidCallback? onAuthSuccess; // 👈 برای login/signup
@@ -476,6 +477,15 @@ class AuthPage extends StatefulWidget {
     required this.favoriteDogs,
     required this.onToggleFavorite,
   });
+
+  @override
+  String get diagnosticsScreenName => 'auth';
+
+  @override
+  String get diagnosticsFeature => 'authentication';
+
+  @override
+  String get diagnosticsRouteName => '/auth';
 
   @override
   _AuthPageState createState() => _AuthPageState();
@@ -785,7 +795,13 @@ class _AuthPageState extends State<AuthPage> {
         'userId': userId,
         'username': username,
       };
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (e, stackTrace) {
+      AuthenticationDiagnostics.captureFailure(
+        operation: 'sign_in',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       switch (e.code) {
         case 'user-not-found':
           errorMessage = l10n.userNotFound;
@@ -965,7 +981,13 @@ class _AuthPageState extends State<AuthPage> {
         'requestId': requestId,
         'errorMessage': null,
       };
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (e, stackTrace) {
+      AuthenticationDiagnostics.captureFailure(
+        operation: 'sign_up',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       String msg;
 
       switch (e.code) {
@@ -1122,13 +1144,24 @@ class _AuthPageState extends State<AuthPage> {
                           }
 
                           try {
-                            await http.post(
+                            final response = await http.post(
                               Uri.parse(
                                 "https://europe-west3-barkymatches-new.cloudfunctions.net/sendPasswordResetCustom",
                               ),
                               headers: {"Content-Type": "application/json"},
                               body: jsonEncode({"email": email}),
                             );
+
+                            if (response.statusCode >= 400) {
+                              AuthenticationDiagnostics.captureFailure(
+                                operation: 'forgot_password',
+                                error: 'password_reset_http',
+                                reason: 'password_reset_http',
+                                data: <String, dynamic>{
+                                  'statusCode': response.statusCode,
+                                },
+                              );
+                            }
 
                             Navigator.pop(context);
 
@@ -1137,7 +1170,13 @@ class _AuthPageState extends State<AuthPage> {
                                 content: Text(l10n.passwordResetEmailSent),
                               ),
                             );
-                          } catch (e) {
+                          } catch (e, stackTrace) {
+                            AuthenticationDiagnostics.captureFailure(
+                              operation: 'forgot_password',
+                              error: e,
+                              stackTrace: stackTrace,
+                            );
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(l10n.errorOccurred(e.toString())),
@@ -1172,50 +1211,50 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   Future<void> _logout() async {
-  final l10n = AppLocalizations.of(context)!;
-  debugPrint('AuthPage - Logging out...');
+    final l10n = AppLocalizations.of(context)!;
+    debugPrint('AuthPage - Logging out...');
 
-  try {
-    AuthTrap.signOut(reason: 'session_expired');
+    try {
+      AuthTrap.signOut(reason: 'session_expired');
 
-    await AnalyticsService.userLogout();
+      await AnalyticsService.userLogout();
 
-    debugPrint('AuthPage - Signed out from Firebase');
+      debugPrint('AuthPage - Signed out from Firebase');
 
-    final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
-    final currentUserBox = Hive.box<String>('currentUserBox');
-    final dogsBox = Hive.box<Dog>('dogsBox');
+      final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
+      final currentUserBox = Hive.box<String>('currentUserBox');
+      final dogsBox = Hive.box<Dog>('dogsBox');
 
-    currentUserBox.clear();
-    userDataBox.clear();
-    dogsBox.clear();
+      currentUserBox.clear();
+      userDataBox.clear();
+      dogsBox.clear();
 
-    debugPrint('AuthPage - Cleared userBox, userDataBox, and dogsBox');
+      debugPrint('AuthPage - Cleared userBox, userDataBox, and dogsBox');
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
 
-    debugPrint('AuthPage - Cleared saved credentials from SharedPreferences');
+      debugPrint('AuthPage - Cleared saved credentials from SharedPreferences');
 
-    if (mounted && context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/welcome',
-        (Route<dynamic> route) => false,
-      );
+      if (mounted && context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/welcome',
+          (Route<dynamic> route) => false,
+        );
 
-      debugPrint('AuthPage - Navigated to WelcomePage after logout');
-    }
-  } catch (e) {
-    debugPrint('AuthPage - Error during logout: $e');
+        debugPrint('AuthPage - Navigated to WelcomePage after logout');
+      }
+    } catch (e) {
+      debugPrint('AuthPage - Error during logout: $e');
 
-    if (mounted && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
-      );
+      if (mounted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
+        );
+      }
     }
   }
-}
 
   void _submit() async {
     final l10n = AppLocalizations.of(context)!;
@@ -2135,50 +2174,41 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   InputDecoration _authInputDecoration({
-  required String label,
-  required IconData icon,
-  Widget? suffixIcon,
-}) {
-  const Color darkPink = Color(0xFF9E1B4F);
+    required String label,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    const Color darkPink = Color(0xFF9E1B4F);
 
-  return InputDecoration(
-    labelText: label,
-    labelStyle: GoogleFonts.poppins(
-      color: Colors.black54,
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-    ),
-    prefixIcon: Icon(icon, color: darkPink, size: 21),
-    suffixIcon: suffixIcon,
-
-    // 👇 این دو خط را اینجا اضافه کن
-    errorMaxLines: 3,
-    errorStyle: GoogleFonts.poppins(
-      fontSize: 12,
-      height: 1.3,
-    ),
-
-    filled: true,
-    fillColor: const Color(0xFFFFF3F7),
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: 14,
-      vertical: 15,
-    ),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide.none,
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: Colors.pink.withOpacity(0.10)),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(
-        color: Color(0xFFFFC107),
-        width: 1.6,
+    return InputDecoration(
+      labelText: label,
+      labelStyle: GoogleFonts.poppins(
+        color: Colors.black54,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
       ),
-    ),
-  );
-}
+      prefixIcon: Icon(icon, color: darkPink, size: 21),
+      suffixIcon: suffixIcon,
+
+      // 👇 این دو خط را اینجا اضافه کن
+      errorMaxLines: 3,
+      errorStyle: GoogleFonts.poppins(fontSize: 12, height: 1.3),
+
+      filled: true,
+      fillColor: const Color(0xFFFFF3F7),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.pink.withOpacity(0.10)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFFFC107), width: 1.6),
+      ),
+    );
+  }
 }
