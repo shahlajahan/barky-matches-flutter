@@ -32,7 +32,9 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
 //import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
+import 'package:barky_matches_fixed/appointments/pages/appointment_status_page.dart';
 import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
+import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
 import 'package:barky_matches_fixed/ui/setting/delete_account_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/pet_hotel/pet_hotel_dashboard_page.dart';
@@ -957,6 +959,41 @@ _phoneController.text = phone;
     super.dispose();
   }
 
+  Widget _buildAppointmentSubPage(AppState appState) {
+    final service = appState.selectedAppointmentService;
+    final status = appState.selectedAppointmentStatus;
+
+    Widget child;
+    switch (appState.profileSubPage) {
+      case ProfileSubPage.appointmentStatus:
+        child = service == null
+            ? const ServiceCategoriesPage()
+            : AppointmentStatusPage(service: service);
+        break;
+      case ProfileSubPage.appointmentHistory:
+        child = service == null || status == null
+            ? const ServiceCategoriesPage()
+            : AppointmentHistoryPage(
+                service: service.type,
+                status: status.type,
+              );
+        break;
+      case ProfileSubPage.appointments:
+      default:
+        child = const ServiceCategoriesPage();
+        break;
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.read<AppState>().backFromAppointmentFlow();
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
@@ -985,9 +1022,11 @@ _phoneController.text = phone;
     if (appState.profileSubPage == ProfileSubPage.businessRegister) {
       return const BusinessRegisterPage();
     }
-    if (appState.profileSubPage == ProfileSubPage.appointments) {
-  return const ServiceCategoriesPage();
-}
+    if (appState.profileSubPage == ProfileSubPage.appointments ||
+        appState.profileSubPage == ProfileSubPage.appointmentStatus ||
+        appState.profileSubPage == ProfileSubPage.appointmentHistory) {
+      return _buildAppointmentSubPage(appState);
+    }
 
     if (appState.profileSubPage == ProfileSubPage.myOrders) {
       return const MyOrdersPage();
