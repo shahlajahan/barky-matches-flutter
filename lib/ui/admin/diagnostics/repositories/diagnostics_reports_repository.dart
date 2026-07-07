@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/diagnostics_report_detail.dart';
 import '../models/diagnostics_report_list_item.dart';
@@ -33,12 +34,16 @@ abstract class DiagnosticsReportsRepository {
 
 class FirestoreDiagnosticsReportsRepository
     implements DiagnosticsReportsRepository {
-  FirestoreDiagnosticsReportsRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreDiagnosticsReportsRepository({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
-  static const String _collectionPath = 'diagnostic_reports';
+  static const String _collectionPath = 'debug_reports';
 
   final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
   @override
   Future<DiagnosticsReportsPage> fetchReports(
@@ -185,17 +190,28 @@ class FirestoreDiagnosticsReportsRepository
 
   @override
   Future<void> markResolved(String reportId) async {
-    await _updateStatus(reportId, 'resolved');
+    await _updateStatus(
+      reportId,
+      status: 'resolved',
+      timestampField: 'resolvedAt',
+    );
   }
 
   @override
   Future<void> reopen(String reportId) async {
-    await _updateStatus(reportId, 'open');
+    await _reportsCollection.doc(reportId).update(<String, Object?>{
+      'status': 'open',
+      'adminUid': _auth.currentUser?.uid,
+    });
   }
 
   @override
   Future<void> ignore(String reportId) async {
-    await _updateStatus(reportId, 'ignored');
+    await _updateStatus(
+      reportId,
+      status: 'ignored',
+      timestampField: 'ignoredAt',
+    );
   }
 
   CollectionReference<Map<String, dynamic>> get _reportsCollection =>
@@ -207,9 +223,15 @@ class FirestoreDiagnosticsReportsRepository
     return snapshot.count ?? 0;
   }
 
-  Future<void> _updateStatus(String reportId, String status) async {
+  Future<void> _updateStatus(
+    String reportId, {
+    required String status,
+    required String timestampField,
+  }) async {
     await _reportsCollection.doc(reportId).update(<String, Object?>{
       'status': status,
+      timestampField: FieldValue.serverTimestamp(),
+      'adminUid': _auth.currentUser?.uid,
     });
   }
 
@@ -270,6 +292,11 @@ class FirestoreDiagnosticsReportsRepository
     final device = _mapValue(clientReport['device']);
     final screen = _mapValue(clientReport['screen']);
     final user = _mapValue(clientReport['user']);
+    final logs = _listValue(
+      clientReport['logs'],
+    ).map(_logEntryFromValue).toList(growable: false);
+    final stackTrace =
+        _stringValue(clientReport['stackTrace']) ?? _combinedStackTrace(logs);
 
     return DiagnosticsReportDetail(
       reportId: _stringValue(data['reportId']) ?? document.id,
@@ -278,6 +305,8 @@ class FirestoreDiagnosticsReportsRepository
       severity: _stringValue(clientReport['severity']) ?? '',
       reason: _stringValue(clientReport['reason']) ?? '',
       status: _stringValue(data['status']) ?? 'open',
+      message: _stringValue(clientReport['message']) ?? _firstLogMessage(logs),
+      stackTrace: stackTrace,
       platform: _stringValue(device['platform']),
       version: _stringValue(app['version']),
       buildNumber: _stringValue(app['buildNumber']),
@@ -295,14 +324,19 @@ class FirestoreDiagnosticsReportsRepository
       feature: _stringValue(screen['feature']),
       screenName: _stringValue(screen['screenName']),
       route: _stringValue(screen['route']),
+      widgetName:
+          _stringValue(screen['widget']) ??
+          _stringValue(screen['widgetName']) ??
+          _stringValue(screen['screenName']),
       receivedAt:
           _dateValue(data['receivedAt']) ??
           _dateValue(clientReport['createdAt']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
       createdAt: _dateValue(clientReport['createdAt']),
-      logs: _listValue(
-        clientReport['logs'],
-      ).map(_logEntryFromValue).toList(growable: false),
+      resolvedAt: _dateValue(data['resolvedAt']),
+      ignoredAt: _dateValue(data['ignoredAt']),
+      adminUid: _stringValue(data['adminUid']),
+      logs: logs,
       rawJson: _jsonMapValue(data),
     );
   }
@@ -318,8 +352,35 @@ class FirestoreDiagnosticsReportsRepository
       category: _stringValue(log['category']) ?? '',
       message: _stringValue(log['message']) ?? '',
       data: _nullableMapValue(log['data']),
-      stackTrace: _stringValue(log['stackTrace']),
+      stackTrace:
+          _stringValue(log['stackTrace']) ??
+          _stringValue(_mapValue(log['data'])['stackTrace']),
     );
+  }
+
+  String? _firstLogMessage(List<DiagnosticsReportLogEntry> logs) {
+    for (final log in logs.reversed) {
+      if (log.message.trim().isNotEmpty) {
+        return log.message;
+      }
+    }
+
+    return null;
+  }
+
+  String? _combinedStackTrace(List<DiagnosticsReportLogEntry> logs) {
+    final stackTraces = logs
+        .map((log) => log.stackTrace?.trim())
+        .whereType<String>()
+        .where((stackTrace) => stackTrace.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    if (stackTraces.isEmpty) {
+      return null;
+    }
+
+    return stackTraces.join('\n\n');
   }
 
   Map<String, dynamic> _mapValue(Object? value) {

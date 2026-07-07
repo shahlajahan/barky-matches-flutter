@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/core/debug/diagnostics_navigation_tracker.dart';
 import 'package:barky_matches_fixed/ui/admin/admin_approval_page.dart';
 import 'suspended_businesses_page.dart';
 import '../../business/approved_businesses_page.dart';
@@ -112,6 +113,12 @@ class AdminHubPage extends StatelessWidget {
             title: "Admin Dashboard",
             subtitle: "Platform overview",
             pageBuilder: () => const AdminDashboardPage(),
+            diagnosticsMetadata: const DiagnosticsRouteMetadata(
+              feature: 'admin',
+              screenName: 'admin_dashboard',
+              routeName: '/admin/dashboard',
+              widgetName: 'AdminDashboardPage',
+            ),
           ),
           _AdminItem(
             icon: Icons.map,
@@ -175,12 +182,14 @@ class _AdminItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget Function() pageBuilder;
+  final DiagnosticsRouteMetadata? diagnosticsMetadata;
 
   const _AdminItem({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.pageBuilder,
+    this.diagnosticsMetadata,
   });
 
   @override
@@ -191,9 +200,13 @@ class _AdminItem extends StatelessWidget {
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
+        final page = pageBuilder();
+        final metadata = diagnosticsMetadata;
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => pageBuilder()),
+          metadata == null
+              ? MaterialPageRoute(builder: (_) => page)
+              : DiagnosticsPageRoute(page: page, metadata: metadata),
         );
       },
     );

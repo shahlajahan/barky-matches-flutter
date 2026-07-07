@@ -90,9 +90,15 @@ class _DiagnosticsReportDetailsView extends StatelessWidget {
           rows: [
             _DetailsRow('Severity', report.severity),
             _DetailsRow('Reason', report.reason),
+            _DetailsRow('Status', report.status),
+            _DetailsRow('Message', report.message),
             _DetailsRow('Feature', report.feature),
+            _DetailsRow('Screen', report.screenName),
+            _DetailsRow('Route', report.route),
+            _DetailsRow('Widget', report.widgetName),
             _DetailsRow('Platform', report.platform),
             _DetailsRow('Version', report.version),
+            _DetailsRow('Build Number', report.buildNumber),
             _DetailsRow('Received At', report.receivedAt.toLocal().toString()),
           ],
         ),
@@ -101,8 +107,12 @@ class _DiagnosticsReportDetailsView extends StatelessWidget {
           title: 'Client',
           rows: [
             _DetailsRow('User Id', report.uid),
+            _DetailsRow('Session Id', report.sessionId),
             _DetailsRow('App Version', report.version),
             _DetailsRow('Build Number', report.buildNumber),
+            _DetailsRow('Resolved At', report.resolvedAt?.toLocal().toString()),
+            _DetailsRow('Ignored At', report.ignoredAt?.toLocal().toString()),
+            _DetailsRow('Admin UID', report.adminUid),
           ],
         ),
         _DetailsSection(
@@ -110,9 +120,11 @@ class _DiagnosticsReportDetailsView extends StatelessWidget {
           rows: [
             _DetailsRow('OS', report.osVersion),
             _DetailsRow('Device Model', report.model),
+            _DetailsRow('Platform', report.platform),
             _DetailsRow('Locale', report.locale),
           ],
         ),
+        _StackTraceSection(stackTrace: report.stackTrace),
         _LogsSection(logs: report.logs),
         _RawJsonSection(rawJson: report.rawJson),
       ],
@@ -148,7 +160,7 @@ class _ActionsSection extends StatelessWidget {
             else ...[
               ElevatedButton(
                 onPressed: actionInProgress ? null : controller.markResolved,
-                child: const Text('Mark Resolved'),
+                child: const Text('Resolve'),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
@@ -156,6 +168,35 @@ class _ActionsSection extends StatelessWidget {
                 child: const Text('Ignore'),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StackTraceSection extends StatelessWidget {
+  const _StackTraceSection({required this.stackTrace});
+
+  final String? stackTrace;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = stackTrace?.trim();
+    if (value == null || value.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Stack Trace', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            SelectableText(value),
           ],
         ),
       ),
@@ -269,6 +310,10 @@ class _LogEntryRow extends StatelessWidget {
           Text(log.timestamp.toLocal().toString()),
           Text('${log.level} / ${log.category}'),
           Text(log.message),
+          if (log.stackTrace?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            SelectableText(log.stackTrace!),
+          ],
         ],
       ),
     );

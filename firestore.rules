@@ -664,6 +664,10 @@ match /story_replies/{replyId} {
       allow read, create, update, delete: if isAdmin();
     }
 
+    match /debug_reports/{reportId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
     match /admin_stats/{statId} {
       allow read, create, update, delete: if isAdmin();
     }

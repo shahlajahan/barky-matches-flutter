@@ -6,6 +6,11 @@ import 'widgets/admin_activity_feed.dart';
 import 'package:barky_matches_fixed/telegram_lab_page.dart';
 import 'package:barky_matches_fixed/telegram_users_page.dart';
 
+import 'package:barky_matches_fixed/ui/admin/diagnostics/pages/diagnostics_reports_page.dart'
+    as diagnostics_ui;
+import 'package:barky_matches_fixed/ui/admin/diagnostics/controllers/diagnostics_reports_controller.dart';
+import 'package:barky_matches_fixed/ui/admin/diagnostics/repositories/diagnostics_reports_repository.dart';
+
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
 
@@ -187,6 +192,28 @@ class AdminDashboardPage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => const TelegramLabPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.bug_report, color: Colors.red),
+                    title: const Text("Diagnostics"),
+                    subtitle: const Text("Crash reports & startup diagnostics"),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => diagnostics_ui.DiagnosticsReportsPage(
+                            controller: DiagnosticsReportsController(
+                              repository:
+                                  FirestoreDiagnosticsReportsRepository(),
+                            ),
+                          ),
                         ),
                       );
                     },

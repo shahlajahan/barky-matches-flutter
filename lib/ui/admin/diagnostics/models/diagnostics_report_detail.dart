@@ -11,6 +11,8 @@ class DiagnosticsReportDetail {
     required this.rawJson,
     this.clientReportId,
     this.sessionId,
+    this.message,
+    this.stackTrace,
     this.platform,
     this.version,
     this.buildNumber,
@@ -28,7 +30,11 @@ class DiagnosticsReportDetail {
     this.feature,
     this.screenName,
     this.route,
+    this.widgetName,
     this.createdAt,
+    this.resolvedAt,
+    this.ignoredAt,
+    this.adminUid,
   });
 
   final String reportId;
@@ -37,6 +43,8 @@ class DiagnosticsReportDetail {
   final String severity;
   final String reason;
   final String status;
+  final String? message;
+  final String? stackTrace;
   final String? platform;
   final String? version;
   final String? buildNumber;
@@ -54,8 +62,12 @@ class DiagnosticsReportDetail {
   final String? feature;
   final String? screenName;
   final String? route;
+  final String? widgetName;
   final DateTime receivedAt;
   final DateTime? createdAt;
+  final DateTime? resolvedAt;
+  final DateTime? ignoredAt;
+  final String? adminUid;
   final List<DiagnosticsReportLogEntry> logs;
   final Map<String, dynamic> rawJson;
 }
