@@ -31,6 +31,12 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
     _loadMarkers();
   }
 
+  @override
+  void dispose() {
+    mapController?.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadIcons() async {
     businessIcon = BitmapDescriptor.defaultMarkerWithHue(
       BitmapDescriptor.hueBlue,
