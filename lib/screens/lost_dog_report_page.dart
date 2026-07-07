@@ -17,6 +17,7 @@ import 'package:barky_matches_fixed/debug/auth_trap.dart';
 
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/core/debug/application_diagnostics.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -429,6 +430,18 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
     } catch (e, s) {
       debugPrint('LostDogReportPage - Error submitting report: $e');
       debugPrint('$s');
+      ApplicationDiagnostics.captureException(
+        feature: 'lost_pet',
+        operation: 'submit_report',
+        exception: e,
+        stackTrace: s,
+        metadata: <String, dynamic>{
+          'petType': _selectedPetType,
+          'hasSelectedImage': _selectedImage != null,
+          'hasCurrentPosition': _currentPosition != null,
+          'contactType': _selectedContactType,
+        },
+      );
 
       if (!mounted) return;
 

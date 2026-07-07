@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:barky_matches_fixed/core/debug/application_diagnostics.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
 import 'package:barky_matches_fixed/services/pet_taxi_pricing_service.dart';
@@ -225,6 +226,20 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
     } catch (e, stack) {
       debugPrint('[PetTaxiBooking] estimation failure reason=${e.toString()}');
       debugPrint('[PetTaxiBooking] estimation failure stack=$stack');
+      ApplicationDiagnostics.captureException(
+        feature: 'pet_taxi',
+        operation: 'estimate_route_and_price',
+        exception: e,
+        stackTrace: stack,
+        metadata: <String, dynamic>{
+          'tripType': _tripType,
+          'serviceReason': _serviceReason,
+          'petSize': _petSize,
+          'largeDog': _largeDog,
+          'cageRequired': _cageRequired,
+          'specialAssistance': _specialAssistance,
+        },
+      );
 
       if (!mounted) {
         debugPrint('[PetTaxiBooking] failure ignored: widget unmounted');

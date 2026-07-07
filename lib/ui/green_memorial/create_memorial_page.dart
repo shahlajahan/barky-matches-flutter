@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/add_dog_page.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/core/debug/application_diagnostics.dart';
 import 'package:barky_matches_fixed/core/debug/diagnostics_events.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
@@ -320,7 +321,19 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      ApplicationDiagnostics.captureException(
+        feature: 'green_memorial',
+        operation: 'create_memorial',
+        exception: e,
+        stackTrace: stackTrace,
+        metadata: <String, dynamic>{
+          'treeType': _treeType,
+          'visibility': _visibility,
+          'hasSelectedPet': _selectedPet != null,
+          'hasSelectedPosition': _selectedPosition != null,
+        },
+      );
       if (!mounted) return;
       _showMessage('Could not create memorial. Please try again.');
     } finally {
