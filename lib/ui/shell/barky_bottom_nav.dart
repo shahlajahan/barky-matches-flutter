@@ -12,6 +12,10 @@ class BarkyBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
+      'BarkyBottomNav.build currentTab=$currentTab',
+    );
     final appState = context.watch<AppState>();
 
     return AnimatedSlide(

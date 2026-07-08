@@ -137,6 +137,7 @@ class _AdoptionPageState extends State<AdoptionPage> {
   // ================================
 
   Widget _buildCentersSection() {
+    debugPrint("🔥 CENTERS STREAM BUILDER");
     final l10n = AppLocalizations.of(context)!;
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -518,68 +519,85 @@ class _AdoptionPageState extends State<AdoptionPage> {
   // 🏗 Build
   // ================================
 
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    if (_loading || _isFirstLoad) {
-      return _buildSkeleton();
+@override
+Widget build(BuildContext context) {
+  debugPrint(
+    'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
+    'AdoptionPage.build hash=${identityHashCode(this)}',
+  );
+  debugPrint("🔥 ADOPTION PAGE BUILD");
+final sw = Stopwatch()..start();
+  final adoptionDogOverlayId = context.select<AppState, String?>(
+    (s) => s.adoptionDogOverlayId,
+  );
+
+  final adoptionDogOverlayDog = context.select<AppState, Dog?>(
+    (s) => s.adoptionDogOverlayDog,
+  );
+
+  final centerDogsId = context.select<AppState, String?>(
+    (s) => s.centerDogsId,
+  );
+
+  if (_loading || _isFirstLoad) {
+    return _buildSkeleton();
+  }
+
+  // 🐶 DOG OVERLAY
+  if (adoptionDogOverlayId != null) {
+    final dog =
+        adoptionDogOverlayDog ??
+        _adoptionDogs
+            .where((d) => d.id == adoptionDogOverlayId)
+            .firstOrNull;
+
+    if (dog == null) {
+      return const SizedBox.shrink();
     }
 
-    // 🐶 DOG OVERLAY (جدید)
-    if (appState.adoptionDogOverlayId != null) {
-      final dog =
-          appState.adoptionDogOverlayDog ??
-          _adoptionDogs
-              .where((d) => d.id == appState.adoptionDogOverlayId)
-              .firstOrNull;
+    return _AdoptionDogOverlay(dog: dog);
+  }
 
-      if (dog == null) {
-        return const SizedBox.shrink();
-      }
-
-      return _AdoptionDogOverlay(dog: dog);
-    }
-
-    // 👤 OWNER OVERLAY (فعلی تو)
-    if (_adoptionOwnerId != null) {
-      return _AdoptionOwnerOverlay(
-        ownerId: _adoptionOwnerId!,
-        onClose: () {
-          setState(() {
-            _adoptionOwnerId = null;
-          });
-        },
-      );
-    }
-
-    if (appState.centerDogsId != null) {
-      return _CenterDogsSubPage(centerId: appState.centerDogsId!);
-    }
-
-    // 🧱 MAIN PAGE
-    return SafeArea(
-      top: false,
-      child: Stack(
-        children: [
-          Container(
-            color: AppTheme.bg,
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                _buildToggle(),
-                Expanded(
-                  child: _selectedView == AdoptionViewType.centers
-                      ? _buildCentersSection()
-                      : _buildDogsSection(),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+  // 👤 OWNER OVERLAY
+  if (_adoptionOwnerId != null) {
+    return _AdoptionOwnerOverlay(
+      ownerId: _adoptionOwnerId!,
+      onClose: () {
+        setState(() {
+          _adoptionOwnerId = null;
+        });
+      },
     );
   }
 
+  // 🏢 CENTER DOGS
+  if (centerDogsId != null) {
+    return _CenterDogsSubPage(centerId: centerDogsId);
+  }
+debugPrint("BUILD TIME = ${sw.elapsedMilliseconds} ms");
+  // 🧱 MAIN PAGE
+  return SafeArea(
+    top: false,
+    child: Stack(
+      children: [
+        Container(
+          color: AppTheme.bg,
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              _buildToggle(),
+              Expanded(
+                child: _selectedView == AdoptionViewType.centers
+                    ? _buildCentersSection()
+                    : _buildDogsSection(),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
   Widget _buildSkeleton() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),

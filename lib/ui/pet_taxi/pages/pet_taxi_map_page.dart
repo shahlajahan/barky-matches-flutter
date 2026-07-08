@@ -57,27 +57,36 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
     );
     _loadDriverMarker();
     _driversSubscription = _driversStream().listen(_handleDriversSnapshot);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeMyLocation();
-    });
+    Future.delayed(const Duration(seconds: 1), () {
+  if (!mounted) return;
+  _initializeMyLocation();
+});
   }
 
   Future<void> _initializeMyLocation() async {
-    if (!mounted) {
-      return;
-    }
+  debugPrint("🚀 initializeMyLocation START");
 
-    final granted = await _permissionService.ensureForegroundPermission(
-      context,
-    );
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _myLocationEnabled = granted;
-    });
+  if (!mounted) {
+    debugPrint("❌ Widget not mounted");
+    return;
   }
+
+  final granted =
+      await _permissionService.ensureForegroundPermission(context);
+
+  debugPrint("📍 Permission result = $granted");
+
+  if (!mounted) {
+    debugPrint("❌ Widget unmounted after permission");
+    return;
+  }
+
+  setState(() {
+    _myLocationEnabled = granted;
+  });
+
+  debugPrint("✅ myLocationEnabled = $_myLocationEnabled");
+}
 
   @override
   void dispose() {

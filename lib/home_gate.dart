@@ -137,6 +137,10 @@ class _HomeGateState extends State<HomeGate> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
+      'HomeGate.build hash=${identityHashCode(this)}',
+    );
     debugPrint('🧱 HomeGate build hash=${identityHashCode(this)}');
     return const _HomeBody();
   }
@@ -158,6 +162,34 @@ class _HomeBodyState extends State<_HomeBody> {
   bool _isTransitioning = false;
   final bool _firstLoad = true;
   NavTab? _lastTab;
+  final Map<String, Object?> _previousSelectorValues = <String, Object?>{};
+
+  void _debugSelectorValue(String name, Object? value) {
+    final hadPrevious = _previousSelectorValues.containsKey(name);
+    final previous = _previousSelectorValues[name];
+    final equal = hadPrevious ? previous == value : null;
+
+    debugPrint(
+      'SELECTOR_PROBE ${DateTime.now().microsecondsSinceEpoch} $name\n'
+      'old=${hadPrevious ? _debugValue(previous) : '<unset>'}\n'
+      'new=${_debugValue(value)}\n'
+      'equal=$equal',
+    );
+
+    _previousSelectorValues[name] = value;
+  }
+
+  String _debugValue(Object? value) {
+    if (value == null) return 'null';
+    if (value is List) {
+      return 'List#${identityHashCode(value)}(length=${value.length})';
+    }
+    if (value is Map) {
+      return 'Map#${identityHashCode(value)}(length=${value.length})';
+    }
+    return '$value#${identityHashCode(value)}';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -279,16 +311,36 @@ class _HomeBodyState extends State<_HomeBody> {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    debugPrint(
+      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
+      '_HomeBody.build hash=${identityHashCode(this)}',
+    );
+    final selectedAppointmentId = context.select<AppState, String?>(
+      (s) => s.selectedAppointmentId,
+    );
+    _debugSelectorValue('selectedAppointmentId', selectedAppointmentId);
+
+    final selectedAppointmentCollection = context.select<AppState, String?>(
+      (s) => s.selectedAppointmentCollection,
+    );
+    _debugSelectorValue(
+      'selectedAppointmentCollection',
+      selectedAppointmentCollection,
+    );
+
+    final currentTab = context.select<AppState, NavTab>((s) => s.currentTab);
+    _debugSelectorValue('currentTab', currentTab);
+
+    final appState = context.read<AppState>();
 
     // ==========================
     // 🔥 APPOINTMENT PAYMENT NAVIGATION
     // ==========================
-    if (appState.selectedAppointmentId != null) {
+    if (selectedAppointmentId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final appointmentId = appState.selectedAppointmentId!;
+        final appointmentId = selectedAppointmentId;
         final collection =
-            appState.selectedAppointmentCollection ?? 'vet_appointments';
+            selectedAppointmentCollection ?? 'vet_appointments';
         final isPetTaxi = collection == 'pet_taxi_bookings';
         final isGroomy = collection == 'groomy_appointments';
         final isHotel = collection == 'hotel_bookings';
@@ -340,7 +392,6 @@ class _HomeBodyState extends State<_HomeBody> {
         appState.consumeSelectedAppointment();
       });
     }
-    var currentTab = appState.currentTab;
 
     if (_lastTab != null && _lastTab != currentTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -360,16 +411,20 @@ if (appState.isGuest) {
     final currentUserId = context.select<AppState, String?>(
       (s) => s.currentUserId,
     );
+    _debugSelectorValue('currentUserId', currentUserId);
 
     final unreadNotifications = context.select<AppState, int>(
       (s) => s.unreadNotificationsCount,
     );
+    _debugSelectorValue('unreadNotificationsCount', unreadNotifications);
 
     final allDogs = context.select<AppState, List<Dog>>((s) => s.allDogs);
+    _debugSelectorValue('allDogs', allDogs);
 
     final favoriteDogs = context.select<AppState, List<Dog>>(
       (s) => s.favoriteDogs,
     );
+    _debugSelectorValue('favoriteDogs', favoriteDogs);
 
     final onToggleFavorite = context.read<AppState>().onToggleFavorite;
 

@@ -139,6 +139,7 @@ class AppState with ChangeNotifier {
     // ---------- USER DATA ----------
     _myDogs.clear();
     _allDogs.clear();
+    _invalidateAllDogsView();
 
     _favoriteDogs.clear();
     favoriteDogsNotifier.value = [];
@@ -714,9 +715,14 @@ class AppState with ChangeNotifier {
   // ─────────────────────────────
   List<Dog> _myDogs = [];
   List<Dog> _allDogs = [];
+  List<Dog>? _allDogsView;
 
   List<Dog> get myDogs => List.unmodifiable(_myDogs);
-  List<Dog> get allDogs => List.unmodifiable(_allDogs);
+  List<Dog> get allDogs => _allDogsView ??= List.unmodifiable(_allDogs);
+
+  void _invalidateAllDogsView() {
+    _allDogsView = null;
+  }
 
   // AppState fields
   Dog? editingDog; // یا فقط editingDogId اگر ترجیح میدی
@@ -739,6 +745,7 @@ class AppState with ChangeNotifier {
         );
       }
     }
+    _invalidateAllDogsView();
   }
 
   void sortDogsByDistance() {
@@ -747,6 +754,7 @@ class AppState with ChangeNotifier {
       final db = b.distanceKm ?? 9999;
       return da.compareTo(db);
     });
+    _invalidateAllDogsView();
   }
 
   Future<T> _firestoreRetry<T>(
@@ -951,6 +959,7 @@ class AppState with ChangeNotifier {
 
   void setAllDogs(List<Dog> dogs) {
     _allDogs = dogs; // 🔥 این مهمه
+    _invalidateAllDogsView();
     notifyListeners();
   }
 
@@ -1031,6 +1040,7 @@ class AppState with ChangeNotifier {
     final allIndex = _allDogs.indexWhere((d) => d.id == updatedDog.id);
     if (allIndex != -1) {
       _allDogs[allIndex] = updatedDog;
+      _invalidateAllDogsView();
     }
 
     editingDog = null;
@@ -1254,6 +1264,7 @@ class AppState with ChangeNotifier {
 
     debugPrint('🌐 DEGRADED STARTUP CACHE MODE → discovery dogs');
     _allDogs = dogs;
+    _invalidateAllDogsView();
     const userLat = 41.0082;
     const userLng = 28.9784;
     calculateDistances(userLat, userLng);
@@ -1307,6 +1318,7 @@ class AppState with ChangeNotifier {
     _favoriteParks.clear();
     _myDogs.clear();
     _allDogs.clear();
+    _invalidateAllDogsView();
     _savedParksLoaded = false;
 
     favoriteDogsNotifier.value = [];
@@ -2856,6 +2868,7 @@ class AppState with ChangeNotifier {
       debugPrint("🐕 Guest mode → clear discovery dogs");
 
       _allDogs.clear();
+      _invalidateAllDogsView();
 
       _savedParksLoaded = true;
 
@@ -2872,6 +2885,7 @@ class AppState with ChangeNotifier {
       if (!usedCache) {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → discovery dogs empty');
         _allDogs = [];
+        _invalidateAllDogsView();
         notifyListeners();
       }
       return;
@@ -2898,6 +2912,7 @@ class AppState with ChangeNotifier {
           .toList();
 
       _allDogs = dogs;
+      _invalidateAllDogsView();
       // محاسبه فاصله (موقعیت موقت)
       const userLat = 41.0082;
       const userLng = 28.9784;
@@ -2911,6 +2926,7 @@ class AppState with ChangeNotifier {
       if (!usedCache) {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → discovery dogs empty');
         _allDogs = [];
+        _invalidateAllDogsView();
       }
     }
   }

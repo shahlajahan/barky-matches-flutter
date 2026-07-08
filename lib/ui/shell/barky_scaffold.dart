@@ -224,6 +224,11 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
+      'BarkyScaffold.build hash=${identityHashCode(this)} '
+      'currentTab=${widget.currentTab}',
+    );
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {

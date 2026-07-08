@@ -1920,6 +1920,11 @@ class _AdoptionCenterDetailsOverlayState
 
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
+      'AdoptionCenterDetailsOverlay.build '
+      'hash=${identityHashCode(this)} businessId=${widget.data.id}',
+    );
     return Stack(
       children: [
         Positioned.fill(
