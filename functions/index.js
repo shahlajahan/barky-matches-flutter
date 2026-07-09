@@ -153,9 +153,51 @@ function getIsbankCallbackValue(payload, key) {
   return Array.isArray(value) ? normalizeIsbankValue(value[0]) : normalizeIsbankValue(value);
 }
 
-function buildIsbankBase64Sha1Hash(value) {
+function normalizeIsbankHashFields(fields = {}) {
+  return Object.entries(fields || {}).reduce((normalized, [key, value]) => {
+    const normalizedKey = normalizeIsbankValue(key);
+    if (!normalizedKey) return normalized;
+
+    normalized[normalizedKey] = Array.isArray(value)
+      ? normalizeIsbankValue(value[0])
+      : normalizeIsbankValue(value);
+
+    return normalized;
+  }, {});
+}
+
+function isIsbankHashSourceField(key) {
+  const normalizedKey = normalizeIsbankValue(key).toLowerCase();
+  return normalizedKey && normalizedKey !== "hash" && normalizedKey !== "encoding";
+}
+
+function escapeIsbankHashValue(value) {
+  return normalizeIsbankValue(value)
+    .replaceAll("\\", "\\\\")
+    .replaceAll("|", "\\|");
+}
+
+function buildIsbankHashSource({ fields, storeKey }) {
+  const normalizedFields = normalizeIsbankHashFields(fields);
+  const values = Object.keys(normalizedFields)
+    .filter(isIsbankHashSourceField)
+    .sort((left, right) => {
+      const leftLower = left.toLowerCase();
+      const rightLower = right.toLowerCase();
+      if (leftLower < rightLower) return -1;
+      if (leftLower > rightLower) return 1;
+      if (left < right) return -1;
+      if (left > right) return 1;
+      return 0;
+    })
+    .map((key) => escapeIsbankHashValue(normalizedFields[key]));
+
+  return [...values, escapeIsbankHashValue(storeKey)].join("|");
+}
+
+function buildIsbankBase64Sha512Hash(value) {
   return crypto
-    .createHash("sha1")
+    .createHash("sha512")
     .update(String(value), "utf8")
     .digest("base64");
 }
@@ -170,52 +212,30 @@ function buildIsbank3DHash({
   installment,
   random,
   storeKey,
+  fields,
 }) {
-  const hashSource = [
-    normalizeIsbankValue(clientId),
-    normalizeIsbankValue(orderId),
-    normalizeIsbankAmount(amount),
-    normalizeIsbankValue(successUrl),
-    normalizeIsbankValue(failUrl),
-    normalizeIsbankValue(transactionType),
-    normalizeIsbankInstallment(installment),
-    normalizeIsbankValue(random),
-    normalizeIsbankValue(storeKey),
-  ].join("");
-
-  return buildIsbankBase64Sha1Hash(hashSource);
-}
-
-function buildIsbankCallbackHash({ payload, storeKey }) {
-  const normalizedPayload = normalizeIsbankCallbackPayload(payload);
-  const hashParams = getIsbankCallbackValue(normalizedPayload, "HASHPARAMS");
-
-  if (!hashParams) return "";
-
-  const hashSource = hashParams
-    .split(":")
-    .filter(Boolean)
-    .map((key) => getIsbankCallbackValue(normalizedPayload, key))
-    .join("") + normalizeIsbankValue(storeKey);
-
-  return buildIsbankBase64Sha1Hash(hashSource);
-}
-
-function isIsbankHashValid({ payload, storeKey }) {
-  const normalizedPayload = normalizeIsbankCallbackPayload(payload);
-  const expectedHash = buildIsbankCallbackHash({
-    payload: normalizedPayload,
+  const hashFields = fields || {
+    clientid: clientId,
+    oid: orderId,
+    amount: normalizeIsbankAmount(amount),
+    okUrl: successUrl,
+    failUrl,
+    TranType: transactionType,
+    Instalment: normalizeIsbankInstallment(installment),
+    rnd: random,
+    hashAlgorithm: "ver3",
+  };
+  const hashSource = buildIsbankHashSource({
+    fields: hashFields,
     storeKey,
   });
-  const receivedHash = getIsbankCallbackValue(normalizedPayload, "HASH");
 
-  if (!expectedHash || !receivedHash) return false;
-
-  const expected = Buffer.from(expectedHash, "utf8");
-  const received = Buffer.from(receivedHash, "utf8");
-
-  return expected.length === received.length && crypto.timingSafeEqual(expected, received);
+  return buildIsbankBase64Sha512Hash(hashSource);
 }
+
+// TODO(isbank-callback): Implement callback validation only after confirming
+// whether Is Bank expects Hash V3 GenericVer3ResponseHandler behavior or the
+// HASHPARAMS / HASHPARAMSVAL / HASH flow from 3D Pay Hosting section 2.3.
 
 function escapeIsbankHtmlAttribute(value) {
   return normalizeIsbankValue(value)
