@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../pet_taxi_location_picker_page.dart';
 import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
-import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:provider/provider.dart';
+import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/dog.dart';
 
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_page.dart';
@@ -54,11 +53,7 @@ class _PetTaxiBottomSheetState extends State<PetTaxiBottomSheet> {
   }
 
   void _loadDogs() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    final box = Hive.box<Dog>('dogsBox');
-
-    final dogs = box.values.where((dog) => dog.ownerId == uid).toList();
+    final dogs = context.read<AppState>().myDogs;
 
     setState(() {
       _dogs = dogs;
@@ -147,24 +142,48 @@ class _PetTaxiBottomSheetState extends State<PetTaxiBottomSheet> {
 
               const SizedBox(height: 14),
 
-              GestureDetector(
-                onTap: () async {
-                  final dog = await showModalBottomSheet<Dog>(
-                    context: context,
-                    builder: (_) {
-                      return ListView(
-                        children: _dogs.map((dog) {
-                          return ListTile(
-                            leading: const Icon(Icons.pets),
-                            title: Text(dog.name),
-                            onTap: () {
-                              Navigator.pop(context, dog);
-                            },
+                GestureDetector(
+                  onTap: () async {
+                    final dog = await showModalBottomSheet<Dog>(
+                      context: context,
+                      builder: (_) {
+                        if (_dogs.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'No pets found',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Add a pet to request a Pet Taxi ride.',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
                           );
-                        }).toList(),
-                      );
-                    },
-                  );
+                        }
+
+                        return ListView(
+                          children: _dogs.map((dog) {
+                            return ListTile(
+                              leading: const Icon(Icons.pets),
+                              title: Text(dog.name),
+                              onTap: () {
+                                Navigator.pop(context, dog);
+                              },
+                            );
+                          }).toList(),
+                        );
+                      },
+                    );
 
                   if (dog != null) {
                     setState(() {

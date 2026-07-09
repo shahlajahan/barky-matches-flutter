@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/core/debug/application_diagnostics.dart';
@@ -12,6 +11,7 @@ import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
 import 'package:barky_matches_fixed/services/pet_taxi_pricing_service.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'pet_taxi_location_picker_page.dart';
 import 'pet_taxi_booking_detail_page.dart';
 
@@ -410,11 +410,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   Widget build(BuildContext context) {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-    final dogs = Hive.isBoxOpen('dogsBox') && currentUserId != null
-        ? Hive.box<Dog>('dogsBox').values.where((dog) {
-            return dog.ownerId == currentUserId;
-          }).toList()
-        : <Dog>[];
+    final dogs = DogsBoxManager.instance.getDogsForOwner(currentUserId);
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

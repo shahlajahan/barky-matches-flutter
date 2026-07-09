@@ -50,6 +50,7 @@ import 'package:barky_matches_fixed/social/pages/petplore_page.dart';
 
 import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
 import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
+import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
 
 // ─────────────────────────────────────────────
 // HomeGate
@@ -66,6 +67,7 @@ class _HomeGateState extends State<HomeGate> {
   @override
   void initState() {
     super.initState();
+    StartupBenchmark.markOnce('HomeGate.initState');
     _handleInitialNotification();
     debugPrint('🧩 HomeGate initState hash=${identityHashCode(this)}');
   }
@@ -137,6 +139,7 @@ class _HomeGateState extends State<HomeGate> {
 
   @override
   Widget build(BuildContext context) {
+    StartupBenchmark.markOnce('HomeGate.build');
     debugPrint(
       'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
       'HomeGate.build hash=${identityHashCode(this)}',
@@ -158,7 +161,7 @@ class _HomeBody extends StatefulWidget {
 }
 
 class _HomeBodyState extends State<_HomeBody> {
-  //late final List<Widget> _pages;
+  late final List<Widget> _pages;
   bool _isTransitioning = false;
   final bool _firstLoad = true;
   NavTab? _lastTab;
@@ -193,6 +196,15 @@ class _HomeBodyState extends State<_HomeBody> {
   @override
   void initState() {
     super.initState();
+
+    _pages = const [
+  HomePage(key: PageStorageKey('home')),
+  FavoritesPage(key: PageStorageKey('favorites')),
+  VetPage(key: PageStorageKey('vet')),
+  GroomyPage(key: PageStorageKey('groomy')),
+  PetHotelPage(key: PageStorageKey('petHotel')),
+  PetTaxiPage(key: PageStorageKey('petTaxi')),
+];
 
     // 🔥 FIRST LOAD SPINNER
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -311,6 +323,7 @@ class _HomeBodyState extends State<_HomeBody> {
 
   @override
   Widget build(BuildContext context) {
+    StartupBenchmark.markOnce('Home Ready');
     debugPrint(
       'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
       '_HomeBody.build hash=${identityHashCode(this)}',
@@ -447,15 +460,23 @@ if (appState.isGuest) {
       body: Stack(
         children: [
           // 🟢 MAIN
-          if (currentUserId != null && currentUserId.isNotEmpty)
-            _buildCurrentTab(
-              currentTab,
-              currentUserId,
-              allDogs,
-              favoriteDogs,
-              onToggleFavorite,
-            )
-          else
+         if (currentUserId != null && currentUserId.isNotEmpty)
+  switch (currentTab) {
+    NavTab.home => _pages[0],
+    NavTab.favorites => _pages[1],
+    NavTab.vet => _pages[2],
+    NavTab.groomy => _pages[3],
+    NavTab.petHotel => _pages[4],
+    NavTab.petTaxi => _pages[5],
+    _ => _buildCurrentTab(
+      currentTab,
+      currentUserId,
+      allDogs,
+      favoriteDogs,
+      onToggleFavorite,
+    ),
+  }
+else
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
