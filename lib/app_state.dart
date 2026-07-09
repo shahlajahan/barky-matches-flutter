@@ -29,6 +29,7 @@ import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/models/product.dart';
+import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
@@ -104,7 +105,9 @@ class AppState with ChangeNotifier {
         'authUid=${FirebaseAuth.instance.currentUser?.uid ?? '<null>'} '
         'appUid=${_currentUserId ?? '<null>'} route=$diagnosticCurrentRoute',
       );
-      debugPrint('WEB_DIAG APPSTATE_NOTIFY_STACK #$sequence\n${StackTrace.current}');
+      debugPrint(
+        'WEB_DIAG APPSTATE_NOTIFY_STACK #$sequence\n${StackTrace.current}',
+      );
     }
     super.notifyListeners();
   }
@@ -737,12 +740,19 @@ class AppState with ChangeNotifier {
   // ─────────────────────────────
   // DOGS STATE (SINGLE SOURCE)
   // ─────────────────────────────
+  DogsSnapshot _dogsSnapshot = const DogsSnapshot.loading();
   List<Dog> _myDogs = [];
   List<Dog> _allDogs = [];
   List<Dog>? _allDogsView;
+  Object? _dogsError;
+  bool _isDogsLoading = true;
 
   List<Dog> get myDogs => List.unmodifiable(_myDogs);
   List<Dog> get allDogs => _allDogsView ??= List.unmodifiable(_allDogs);
+  List<Dog> get discoveryDogs => allDogs;
+  bool get isDogsLoading => _isDogsLoading;
+  bool get hasDogs => _myDogs.isNotEmpty || _allDogs.isNotEmpty;
+  Object? get dogsError => _dogsError;
 
   void _invalidateAllDogsView() {
     _allDogsView = null;
@@ -1309,10 +1319,9 @@ class AppState with ChangeNotifier {
   }
 
   bool _applyCachedMyDogs(String uid) {
-    if (!Hive.isBoxOpen('dogsBox')) return false;
-    final dogs = Hive.box<Dog>(
-      'dogsBox',
-    ).values.where((dog) => dog.ownerId == uid).toList();
+    if (_dogsSnapshot.isLoading) return false;
+
+    final dogs = DogsBoxManager.instance.getCachedMyDogs(uid);
     if (dogs.isEmpty) return false;
 
     debugPrint('🌐 DEGRADED STARTUP CACHE MODE → my dogs');
@@ -1321,16 +1330,9 @@ class AppState with ChangeNotifier {
   }
 
   bool _applyCachedDiscoveryDogs(String uid) {
-    if (!Hive.isBoxOpen('dogsBox')) return false;
-    final dogs = Hive.box<Dog>('dogsBox').values
-        .where(
-          (dog) =>
-              dog.ownerId != uid &&
-              !dog.isHidden &&
-              dog.dogProfileVisible &&
-              dog.ownerProfileVisible,
-        )
-        .toList();
+    if (_dogsSnapshot.isLoading) return false;
+
+    final dogs = DogsBoxManager.instance.getCachedDiscoveryDogs(uid);
     if (dogs.isEmpty) return false;
 
     debugPrint('🌐 DEGRADED STARTUP CACHE MODE → discovery dogs');
@@ -1789,9 +1791,7 @@ class AppState with ChangeNotifier {
       }
     }
 
-    if (Hive.isBoxOpen('dogsBox')) {
-      await Hive.box<Dog>('dogsBox').clear();
-    }
+    await DogsBoxManager.instance.clearIfReady();
 
     if (Hive.isBoxOpen('favoritesBox')) {
       await Hive.box<Dog>('favoritesBox').clear();
@@ -4145,6 +4145,7 @@ class AppState with ChangeNotifier {
 
     _currentUserId = value;
     _savedParksLoaded = false;
+    _syncDogsFromManager();
     notifyListeners();
   }
 
@@ -4280,13 +4281,9 @@ class AppState with ChangeNotifier {
   }
 
   Future<void> reloadMyDogs() async {
-    final box = Hive.box<Dog>('dogsBox');
     final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    final dogs = box.values.where((d) => d.ownerId == uid).toList();
-
-    setMyDogs(dogs); // ✅ درست
-    notifyListeners(); // ✅ خیلی مهم
+    _currentUserId = uid;
+    _syncDogsFromManager();
   }
 
   void setSelectedRequesterDogId(String? dogId) {
@@ -4332,6 +4329,52 @@ class AppState with ChangeNotifier {
   void setMyDogs(List<Dog> dogs) {
     _myDogs = List<Dog>.from(dogs);
     notifyListeners();
+  }
+
+  void _handleDogsSnapshotChanged() {
+    _syncDogsFromManager();
+  }
+
+  void _syncDogsFromManager({bool notify = true}) {
+    _dogsSnapshot = DogsBoxManager.instance.snapshot;
+
+    if (_dogsSnapshot.isLoading) {
+      _isDogsLoading = true;
+      _dogsError = null;
+      _myDogs.clear();
+      _allDogs.clear();
+      _invalidateAllDogsView();
+      if (notify) notifyListeners();
+      return;
+    }
+
+    if (_dogsSnapshot.phase == DogsSnapshotPhase.error) {
+      _isDogsLoading = false;
+      _dogsError = _dogsSnapshot.error;
+      _myDogs.clear();
+      _allDogs.clear();
+      _invalidateAllDogsView();
+      if (notify) notifyListeners();
+      return;
+    }
+
+    _isDogsLoading = false;
+    _dogsError = null;
+
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty || isGuest) {
+      _myDogs.clear();
+      _allDogs.clear();
+      _invalidateAllDogsView();
+      if (notify) notifyListeners();
+      return;
+    }
+
+    _myDogs = DogsBoxManager.instance.getDogsForOwner(uid);
+    _allDogs = DogsBoxManager.instance.getCachedDiscoveryDogs(uid);
+    _invalidateAllDogsView();
+
+    if (notify) notifyListeners();
   }
 
   void setPendingNotificationNavigation(Map<String, dynamic> data) {
@@ -4515,7 +4558,10 @@ class AppState with ChangeNotifier {
        _currentUserName = currentUserName,
 
        _selectedRequesterDogId = selectedRequesterDogId,
-       _isPremium = isPremium;
+       _isPremium = isPremium {
+    DogsBoxManager.instance.addListener(_handleDogsSnapshotChanged);
+    _syncDogsFromManager(notify: false);
+  }
 
   static AppState of(BuildContext context) {
     return Provider.of<AppState>(context, listen: false);
@@ -4545,6 +4591,7 @@ class AppState with ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _startupSessionGeneration++;
+    DogsBoxManager.instance.removeListener(_handleDogsSnapshotChanged);
 
     _unreadNotificationsSub?.cancel();
     _unreadNotificationsSub = null;

@@ -29,6 +29,7 @@ import 'package:barky_matches_fixed/home/widgets/homepage_responsive_photo_image
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
 import 'package:barky_matches_fixed/models/featured_deal.dart';
+import 'package:barky_matches_fixed/services/dog_sync_service.dart';
 /*
 class FeaturedDeal {
   final String shopName;
@@ -61,6 +62,7 @@ class _HomePageState extends State<HomePage>
         AutomaticKeepAliveClientMixin,
         SingleTickerProviderStateMixin,
         LocalizationUtils {
+  static const DogSyncService _dogSyncService = DogSyncService();
   late Box<String> userBox;
   String? _currentUserId;
   late Box<List<String>> savedParksBox;
@@ -73,7 +75,6 @@ class _HomePageState extends State<HomePage>
   Animation<double>? _scaleAnim;
   //String _username = 'User';
   late Box<Dog> dogsBox;
-
   List<Dog> _filteredDogs = [];
   List<Dog> _userDogs = [];
 
@@ -87,12 +88,6 @@ class _HomePageState extends State<HomePage>
   bool? selectedNeutered;
   String? selectedHealthStatus;
   String _searchQuery = "";
-
-  bool _toBool(dynamic v) {
-    if (v is bool) return v;
-    if (v is num) return v != 0;
-    return false;
-  }
 
   static String _normalizeSearchText(dynamic value) {
     return (value ?? '').toString().toLowerCase().trim().replaceAll(
@@ -387,54 +382,15 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _syncDogsWithFirestore() async {
     try {
-      final dogsSnapshot = await FirebaseFirestore.instance
-          .collection('dogs')
-          .get();
-      final Map<String, Dog> uniqueDogs = {};
+      final appState = context.read<app.AppState>();
+      final canonicalDogs = await _dogSyncService.fetchCanonicalDogs();
+      final uniqueDogs = {for (final dog in canonicalDogs) dog.id: dog};
 
-      for (var doc in dogsSnapshot.docs) {
-        final data = doc.data();
-
-        final dog = Dog(
-          id: doc.id,
-          name: data['name'] ?? '',
-          breed: data['breed'] ?? '',
-          age: data['age'] ?? 0,
-          gender: data['gender'] ?? '',
-          healthStatus: data['healthStatus'] ?? '',
-          isNeutered: _toBool(data['isNeutered']),
-          description: data['description'] ?? '',
-          traits: List<String>.from(data['traits'] ?? []),
-          ownerGender: data['ownerGender'] ?? '',
-          imagePaths: List<String>.from(data['imagePaths'] ?? []),
-          isAvailableForAdoption: _toBool(data['isAvailableForAdoption']),
-          isOwner: _toBool(data['isOwner']),
-          ownerId: (data['ownerId']?.toString() ?? ''),
-          latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
-          longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
-        );
-
-        if (!uniqueDogs.containsKey(dog.id)) {
-          uniqueDogs[dog.id] = dog;
-          debugPrint(
-            'HomePage - Loaded dog: ${dog.name}, id: ${dog.id}, ownerId: ${dog.ownerId}',
-          );
-        } else {
-          debugPrint(
-            'HomePage - Skipped duplicate dog: ${dog.name}, id: ${dog.id}',
-          );
-          await FirebaseFirestore.instance
-              .collection('dogs')
-              .doc(doc.id)
-              .delete();
-          debugPrint(
-            'HomePage - Deleted duplicate dog from Firestore: ${doc.id}',
-          );
-        }
-      }
-
+      final dogsBox = Hive.box<Dog>('dogsBox');
       await dogsBox.clear();
       await dogsBox.putAll(uniqueDogs);
+
+      appState.setAllDogs(canonicalDogs);
       debugPrint(
         'HomePage - Synced ${uniqueDogs.length} unique dogs from Firestore to Hive',
       );
@@ -553,7 +509,9 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _loadLikesForDogs() async {
-    for (var dog in dogsBox.values) {
+    final appState = context.read<app.AppState>();
+
+    for (var dog in appState.allDogs) {
       await Future.delayed(const Duration(milliseconds: 100));
       if (!mounted) return;
       await _fetchLikesForDog(dog.id);
@@ -660,7 +618,7 @@ class _HomePageState extends State<HomePage>
     }
 
     /// 🐶 DOG DATA
-    final sourceDogs = dogsBox.values.toList();
+    final sourceDogs = appState.allDogs;
 
     final dogsData = sourceDogs
         .map(
@@ -1152,24 +1110,26 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openFilterPage() async {
-    final filters = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => FilterPage(
-          dogsList: dogsBox.values.toList(),
-          selectedBreed: selectedBreed,
-          selectedGender: selectedGender,
-          ageRange: ageRange ?? const RangeValues(0, 15),
-          maxDistance: _maxDistance,
-          isPremium: _isPremium,
-        ),
-      ),
-    );
+  final appState = context.read<app.AppState>();
 
-    if (filters != null) {
-      await _applyFiltersAsync(filters: filters);
-    }
+  final filters = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => FilterPage(
+        dogsList: appState.allDogs,
+        selectedBreed: selectedBreed,
+        selectedGender: selectedGender,
+        ageRange: ageRange ?? const RangeValues(0, 15),
+        maxDistance: _maxDistance,
+        isPremium: _isPremium,
+      ),
+    ),
+  );
+
+  if (filters != null) {
+    await _applyFiltersAsync(filters: filters);
   }
+}
 
   @override
   void dispose() {

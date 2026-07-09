@@ -38,6 +38,7 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _driversSubscription;
   BitmapDescriptor? _driverMarker;
   final _permissionService = const PetTaxiLocationPermissionService();
+  bool _pageReady = false;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _driversStream() {
     return FirebaseFirestore.instance
@@ -55,16 +56,35 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
         'page': 'PetTaxiMapPage',
       },
     );
-    _loadDriverMarker();
-    _driversSubscription = _driversStream().listen(_handleDriversSnapshot);
-    Future.delayed(const Duration(seconds: 1), () {
-  if (!mounted) return;
-  _initializeMyLocation();
-});
+    _initializePage();
   }
 
+ Future<void> _initializePage() async {
+  try {
+    await _initializeMyLocation();
+
+    if (!mounted) return;
+
+    await _loadDriverMarker();
+
+    if (!mounted) return;
+
+    _driversSubscription =
+        _driversStream().listen(_handleDriversSnapshot);
+  } catch (e, stackTrace) {
+    debugPrint('PetTaxi initialization failed: $e');
+    debugPrintStack(stackTrace: stackTrace);
+  } finally {
+    if (!mounted) return;
+
+    setState(() {
+      _pageReady = true;
+    });
+  }
+}
+
   Future<void> _initializeMyLocation() async {
-  debugPrint("🚀 initializeMyLocation START");
+
 
   if (!mounted) {
     debugPrint("❌ Widget not mounted");
@@ -74,7 +94,7 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
   final granted =
       await _permissionService.ensureForegroundPermission(context);
 
-  debugPrint("📍 Permission result = $granted");
+  
 
   if (!mounted) {
     debugPrint("❌ Widget unmounted after permission");
@@ -85,7 +105,7 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
     _myLocationEnabled = granted;
   });
 
-  debugPrint("✅ myLocationEnabled = $_myLocationEnabled");
+ 
 }
 
   @override
@@ -239,6 +259,11 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
 
   @override
   Widget build(BuildContext context) {
+    if (!_pageReady) {
+  return const Center(
+    child: CircularProgressIndicator(),
+  );
+}
     return Stack(
       children: [
         Positioned.fill(

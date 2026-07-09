@@ -35,6 +35,8 @@ import 'ui/shell/nav_tab.dart';
 import 'home_gate.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
+import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
+import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
@@ -227,20 +229,26 @@ Future<void> ensureFirebaseInitialized() async {
   debugPrint('🌐 FIREBASE INIT START');
   debugPrint('🌐 FIREBASE APP COUNT → before=${Firebase.apps.length}');
   if (Firebase.apps.isEmpty) {
+    StartupBenchmark.mark('Before Firebase.initializeApp');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    StartupBenchmark.mark('After Firebase.initializeApp');
     debugPrint('🌐 Firebase.initializeApp executed from Dart');
   } else {
+    StartupBenchmark.mark('Before Firebase.initializeApp');
+    StartupBenchmark.mark('After Firebase.initializeApp');
     debugPrint('🌐 Firebase.initializeApp skipped; existing app detected');
   }
 
   debugPrint('🌐 FIREBASE APP COUNT → after=${Firebase.apps.length}');
   await _activateAppCheck();
+  StartupBenchmark.mark('AppCheck');
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
+  StartupBenchmark.mark('Firestore.settings');
 
   unawaited(
     FirebaseFirestore.instance
@@ -253,13 +261,16 @@ Future<void> ensureFirebaseInitialized() async {
           debugPrint('🌐 FIRESTORE NETWORK ENABLE FAILED → $e');
         }),
   );
+  StartupBenchmark.mark('Firestore.enableNetwork scheduled');
   debugPrint('🌐 FIRESTORE INSTANCE CREATED → settings configured');
   FirestoreReadinessGate.instance.markFirebaseInitialized();
+  StartupBenchmark.mark('FirestoreReadinessGate.markFirebaseInitialized');
 
   debugPrint("🔥 Firebase initialized");
 
   debugPrint('🌐 FIREBASE INIT COMPLETE');
   debugPrint('🔥 Firebase ready');
+  StartupBenchmark.mark('ensureFirebaseInitialized complete');
 }
 
 Future<void> _activateAppCheck() async {
@@ -953,8 +964,13 @@ void main() async {
     debugPrint('Main - Starting main function...');
   }
 
+  StartupBenchmark.start();
   WidgetsFlutterBinding.ensureInitialized();
+  StartupBenchmark.mark('WidgetsFlutterBinding');
+
   await Hive.initFlutter();
+  StartupBenchmark.mark('Hive.initFlutter');
+
   DiagnosticsQueue().enablePersistence();
   if (kDebugMode && kIsWeb) {
     // TEMP WEB LIFECYCLE DIAGNOSTICS: preserve framework timing/assertions.
@@ -964,10 +980,14 @@ void main() async {
     //debugPrintMarkNeedsPaintStacks = true;
   }
   await DiagnosticsBootstrap.initialize();
+  StartupBenchmark.mark('DiagnosticsBootstrap');
   GoogleFonts.config.allowRuntimeFetching = true;
+  StartupBenchmark.mark('GoogleFonts.config');
   //await waitForInternet();
   await ensureFirebaseInitialized();
+  StartupBenchmark.mark('After ensureFirebaseInitialized');
   FcmTokenService.attachRefreshListener();
+  StartupBenchmark.mark('FcmTokenService.attachRefreshListener');
   _authFcmSub ??= FirebaseAuth.instance.authStateChanges().listen((user) {
     if (user == null) {
       debugPrint('🔥 FCM AUTH LISTENER: signed out');
@@ -983,11 +1003,15 @@ void main() async {
       }),
     );
   });
+  StartupBenchmark.mark('FirebaseAuth.authStateChanges listener attached');
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  StartupBenchmark.mark('FirebaseMessaging.onBackgroundMessage');
   _fcmForegroundSub ??= FirebaseMessaging.onMessage.listen(
     _firebaseMessagingForegroundHandler,
   );
+  StartupBenchmark.mark('FirebaseMessaging.onMessage listener attached');
   logStartupEnvironmentDiagnostics();
+  StartupBenchmark.mark('logStartupEnvironmentDiagnostics');
   //await FirebaseAuth.instance.signOut();
   //await AuthTrap.signOut(reason: 'manual_logout');
 
@@ -1006,19 +1030,28 @@ void main() async {
   //}
 
   debugPrint('🌐 NOTIFICATION INIT DELAYED → startup auth gate not ready');
+
   Hive.registerAdapter(DogAdapter());
+  StartupBenchmark.mark('Hive.registerAdapter(DogAdapter)');
 
   final dogsBoxFuture = Hive.openBox<Dog>('dogsBox');
   final favoritesBoxFuture = Hive.openBox<Dog>('favoritesBox');
   final currentUserBoxFuture = Hive.openBox<String>('currentUserBox');
   final userBoxFuture = Hive.openBox<String>('userBox');
   final userDataBoxFuture = Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
+  StartupBenchmark.mark('Hive.openBox futures created');
 
   dogsBox = await dogsBoxFuture;
+  DogsBoxManager.instance.attach(dogsBox);
+  StartupBenchmark.mark('Hive.openBox dogsBox');
   favoritesBox = await favoritesBoxFuture;
+  StartupBenchmark.mark('Hive.openBox favoritesBox');
   currentUserBox = await currentUserBoxFuture;
+  StartupBenchmark.mark('Hive.openBox currentUserBox');
   userBox = await userBoxFuture;
+  StartupBenchmark.mark('Hive.openBox userBox');
   userDataBox = await userDataBoxFuture;
+  StartupBenchmark.mark('Hive.openBox userDataBox');
 
   if (kDebugMode) {
     debugPrint('Main - Hive initialized, dogsBox size: ${dogsBox.length}');
@@ -1136,9 +1169,11 @@ void main() async {
     AuthTrap.signOut(reason: 'session_expired');
   } // 👈 فقط برای تست
 
+  StartupBenchmark.mark('Before runApp');
   runApp(
     ChangeNotifierProvider(
       create: (context) {
+        StartupBenchmark.markOnce('Provider.create AppState');
         final appState = AppState(
           favoriteDogs: favoriteDogs,
 
@@ -1167,6 +1202,7 @@ void main() async {
         });
 
         appState.markFirebaseInitialized();
+        StartupBenchmark.markOnce('AppState.markFirebaseInitialized');
 
         // ❗️ خیلی مهم: فقط این
         if (kIsWeb) {
@@ -1174,6 +1210,7 @@ void main() async {
         } else {
           appState.startAuthListener();
         }
+        StartupBenchmark.markOnce('AppState.startAuthListener');
         //AuthTrap.start();
         // AuthTrap.scheduleTokenDiagnostics();
         IapService.instance.setSubscriptionActivatedCallback(() async {
@@ -1186,6 +1223,10 @@ void main() async {
       child: const MyApp(),
     ),
   );
+  StartupBenchmark.mark('After runApp');
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    StartupBenchmark.finish('First frame');
+  });
   debugPrint('🧨 startAuthListener fired');
 }
 
@@ -1194,6 +1235,7 @@ class AppEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    StartupBenchmark.markOnce('AppEntry.build');
     // طبق خواسته‌ات: همیشه اول Welcome (Greeting)
     return const WelcomePage();
   }
