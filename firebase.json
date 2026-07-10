@@ -15,6 +15,12 @@
             "**/.*",
             "**/node_modules/**"
         ],
+        "rewrites": [
+            {
+                "source": "/isbank/3d-callback",
+                "function": "isbank3DPayHostingCallback"
+            }
+        ],
         "cleanUrls": true,
         "trailingSlash": false
     },

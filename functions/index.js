@@ -384,6 +384,51 @@ function requireIsbankAbsoluteUrl(value, fieldName) {
   return normalizedUrl;
 }
 
+function parseIsbankCallbackForm(req) {
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+  const entries = [];
+
+  if (Buffer.isBuffer(req.rawBody) && req.rawBody.length > 0) {
+    const rawBody = req.rawBody.toString("utf8");
+    const params = new URLSearchParams(rawBody);
+    for (const [name, value] of params.entries()) {
+      entries.push([name, value]);
+    }
+  } else if (typeof req.body === "string") {
+    const params = new URLSearchParams(req.body);
+    for (const [name, value] of params.entries()) {
+      entries.push([name, value]);
+    }
+  } else if (
+    req.body &&
+    typeof req.body === "object" &&
+    contentType.includes("application/x-www-form-urlencoded")
+  ) {
+    for (const [name, value] of Object.entries(req.body)) {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => entries.push([name, String(entry)]));
+      } else {
+        entries.push([name, value === undefined || value === null ? "" : String(value)]);
+      }
+    }
+  }
+
+  const fields = {};
+  for (const [name, value] of entries) {
+    if (Object.prototype.hasOwnProperty.call(fields, name)) {
+      if (Array.isArray(fields[name])) {
+        fields[name].push(value);
+      } else {
+        fields[name] = [fields[name], value];
+      }
+    } else {
+      fields[name] = value;
+    }
+  }
+
+  return { fields, entries };
+}
+
 function normalizeTurkishText(value) {
   if (!value) return "";
 
@@ -495,6 +540,43 @@ exports.createIsbank3DPayHostingCheckout = onCall(
       hashAlgorithm: "ver3",
       html: checkout.html,
     };
+  }
+);
+
+exports.isbank3DPayHostingCallback = onRequest(
+  {
+    region: "europe-west3",
+  },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.set("Allow", "POST");
+      res.status(405).send(
+        "<!doctype html><html><body><h1>Method Not Allowed</h1></body></html>"
+      );
+      return;
+    }
+
+    const callback = parseIsbankCallbackForm(req);
+    const fieldNames = callback.entries.map(([name]) => name);
+    const hasHash = fieldNames.some(
+      (name) => String(name).toLowerCase() === "hash"
+    );
+    const oid = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "oid") ||
+        getIsbankCallbackValue(callback.fields, "ReturnOid") ||
+        req.query?.oid
+    );
+
+    logger.info("isbank_3d_callback_received", {
+      oid: oid || null,
+      fieldCount: callback.entries.length,
+      hasHash,
+    });
+
+    // Patch 5 will add hash validation, payment verification, and finalization.
+    res.status(200).send(
+      "<!doctype html><html><head><meta charset=\"utf-8\"><title>Callback Received</title></head><body><h1>Callback received</h1></body></html>"
+    );
   }
 );
 
