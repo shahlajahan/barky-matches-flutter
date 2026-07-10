@@ -486,12 +486,7 @@ function normalizeTurkishText(value) {
     .replace(/\s+/g, " ");
 }
 
-exports.createIsbank3DPayHostingCheckout = onCall(
-  {
-    region: "europe-west3",
-    secrets: [ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
-  },
-  async (request) => {
+async function createIsbank3DPayHostingCheckoutResult(request) {
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "Login required");
@@ -509,8 +504,13 @@ exports.createIsbank3DPayHostingCheckout = onCall(
       throw new HttpsError("invalid-argument", "Valid amount required");
     }
 
-    const paymentConfig = getPaymentProviderConfig();
-    const isbankConfig = paymentConfig.isbank;
+    const isbankConfig = {
+      gatewayUrl: ISBANK_GATEWAY_URL.value(),
+      callbackBaseUrl: ISBANK_CALLBACK_BASE_URL.value(),
+      storeType: ISBANK_STORE_TYPE.value(),
+      currencyCode: ISBANK_CURRENCY_CODE.value(),
+      installment: ISBANK_INSTALLMENT.value(),
+    };
     const clientId = normalizeIsbankValue(ISBANK_CLIENT_ID.value());
     const storeKey = normalizeIsbankValue(ISBANK_STORE_KEY.value());
 
@@ -576,7 +576,14 @@ exports.createIsbank3DPayHostingCheckout = onCall(
       hashAlgorithm: "ver3",
       html: checkout.html,
     };
-  }
+}
+
+exports.createIsbank3DPayHostingCheckout = onCall(
+  {
+    region: "europe-west3",
+    secrets: [ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
+  },
+  async (request) => createIsbank3DPayHostingCheckoutResult(request)
 );
 
 exports.isbank3DPayHostingCallback = onRequest(
@@ -9513,7 +9520,12 @@ exports.createCheckoutSession = onCall(
     region: "europe-west3",
     memory: "512MiB",
     timeoutSeconds: 60,
-    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+    secrets: [
+      IYZICO_API_KEY,
+      IYZICO_SECRET_KEY,
+      ISBANK_CLIENT_ID,
+      ISBANK_STORE_KEY,
+    ],
   },
 
   async (request) => {
@@ -9522,6 +9534,16 @@ exports.createCheckoutSession = onCall(
       const auth = request.auth;
       const data = request.data || {};
       const db = admin.firestore();
+      const paymentProvider = String(PAYMENT_PROVIDER.value() || "")
+        .trim()
+        .toLowerCase();
+
+      if (paymentProvider !== "iyzico" && paymentProvider !== "isbank") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Unsupported payment provider"
+        );
+      }
 
       if (!auth?.uid) {
         throw new HttpsError("unauthenticated", "User must be logged in.");
@@ -9905,6 +9927,354 @@ exports.createCheckoutSession = onCall(
       const grandTotal = roundMoney(subtotal + shippingTotal + taxTotal);
       const platformNet = roundMoney(totalCommission);
 
+      async function persistCheckoutSessionLifecycle(provider, paymentDetails = {}) {
+        logger.info("🧾 ROOT ORDER BEFORE SAVE DEBUG", {
+          orderId,
+          buyerName,
+          buyerSurname,
+          identityNumber: buyer.identityNumber || null,
+          billingAddressInput,
+        });
+
+        const paymentSnapshot =
+          provider === "iyzico"
+            ? {
+                ...(orderData.payment || {}),
+                status: "pending",
+                provider: "iyzico",
+                conversationId: paymentDetails.conversationId,
+                token: paymentDetails.checkoutToken,
+                checkoutToken: paymentDetails.checkoutToken,
+                checkoutUrl: paymentDetails.checkoutUrl,
+                currency,
+                successUrlFromClient: paymentDetails.successUrlFromClient,
+                cancelUrlFromClient: paymentDetails.cancelUrlFromClient,
+              }
+            : {
+                status: "pending",
+                provider: "isbank",
+                oid: paymentDetails.oid || orderId,
+                orderId,
+                storeType: paymentDetails.storeType || null,
+                hashAlgorithm: paymentDetails.hashAlgorithm || "ver3",
+                currency,
+              };
+
+        await orderRef.set(
+          {
+            status: "payment_pending",
+            paymentStatus: "pending",
+            currency,
+            pricing: {
+              subtotal,
+              shippingTotal,
+              taxTotal,
+              grandTotal,
+            },
+            financial: {
+              grossAmount: grandTotal,
+              commissionAmount: totalCommission,
+              platformNet,
+            },
+            documents: {
+              ...(orderData.documents || {}),
+              invoiceStatus: "pending_seller_uploads",
+              invoiceRequired: true,
+            },
+            payment: paymentSnapshot,
+            shipping: {
+              ...(orderData.shipping || {}),
+              carrier: selectedCarrier || null,
+            },
+            buyerUid: orderData.buyerUid || auth.uid,
+            buyerName: orderData.buyerName || buyerName,
+            buyerEmail: orderData.buyerEmail || buyerEmail,
+            buyerPhone: orderData.buyerPhone || buyerPhone,
+            items: normalizedItems,
+            invoiceSummary: {
+              sellerInvoiceCountExpected: grouped.size,
+              sellerInvoiceCountUploaded: 0,
+              status: "pending_seller_uploads",
+            },
+            buyer: {
+              name: buyerName,
+              surname: buyerSurname,
+              email: buyerEmail,
+              phone: buyerPhone,
+              identityNumber: buyer.identityNumber || null,
+              city: buyer.city || null,
+            },
+            billing: {
+              invoiceType: billingAddressInput.invoiceType || "individual",
+              name: billingName,
+              surname: billingSurname,
+              contactName: `${billingName} ${billingSurname}`.trim(),
+              identityNumber: buyerIdentityNumber || null,
+              city: billingAddressInput.city || null,
+              district: billingAddressInput.district || null,
+              address: billingAddressInput.address || null,
+              companyName: billingAddressInput.companyName || null,
+              taxNumber: billingAddressInput.taxNumber || null,
+              taxOffice: billingAddressInput.taxOffice || null,
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            timeline: admin.firestore.FieldValue.arrayUnion({
+              status: "payment_pending",
+              at: new Date().toISOString(),
+              by: "system",
+            }),
+          },
+          { merge: true }
+        );
+
+        const rootAfterSaveSnap = await orderRef.get();
+        logger.info("🧾 ROOT ORDER AFTER SAVE DEBUG", {
+          orderId,
+          buyer: rootAfterSaveSnap.data()?.buyer || null,
+          billing: rootAfterSaveSnap.data()?.billing || null,
+          buyerName: rootAfterSaveSnap.data()?.buyerName || null,
+          buyerSurname: rootAfterSaveSnap.data()?.buyerSurname || null,
+        });
+
+        const sellerOrdersSnap = await db
+          .collection("sellerOrders")
+          .where("rootOrderId", "==", orderId)
+          .get();
+
+        const sellerBatch = db.batch();
+        const nowIso = new Date().toISOString();
+        for (const doc of sellerOrdersSnap.docs) {
+          const sellerData = doc.data() || {};
+          const sellerBusinessId = String(
+            sellerData.businessId || sellerData.shopId || ""
+          ).trim();
+
+          const sellerPricing = sellerPricingMap.get(sellerBusinessId) || {
+            subtotal: 0,
+            shippingTotal: 0,
+            taxTotal: 0,
+            grandTotal: 0,
+          };
+          const sellerInvoiceData = sellerInvoiceMap.get(sellerBusinessId) || {
+            items: [],
+            pricing: {
+              subtotal: 0,
+              shippingTotal: 0,
+              taxTotal: 0,
+              grandTotal: 0,
+            },
+          };
+
+          const existingShipping = sellerData.shipping || {};
+
+          const freshOrderSnap = await orderRef.get();
+          const freshOrderData = freshOrderSnap.data() || {};
+
+          const orderBilling = freshOrderData.billing || {};
+
+          logger.info("🧾 FIXED ORDER BILLING DEBUG", {
+            orderBilling,
+          });
+
+          logger.info("🧾 SELLER ORDER BILLING SOURCE DEBUG", {
+            sellerOrderId: doc.id,
+            orderId,
+            orderBillingFromOldOrderData: orderBilling,
+            buyerName,
+            buyerSurname,
+            buyerIdentityNumber: buyer.identityNumber || null,
+            billingAddressInput,
+          });
+
+          const billingSnapshot = {
+            invoiceType: orderBilling.invoiceType || "individual",
+            name: orderBilling.name || billingName || buyerName,
+            surname: orderBilling.surname || billingSurname || buyerSurname,
+            contactName:
+              orderBilling.contactName ||
+              `${orderBilling.name || billingName || buyerName} ${orderBilling.surname || billingSurname || buyerSurname}`.trim(),
+            identityNumber:
+              orderBilling.identityNumber ||
+              buyerIdentityNumber ||
+              billingAddressInput.identityNumber ||
+              null,
+            taxNumber:
+              orderBilling.taxNumber ||
+              billingAddressInput.taxNumber ||
+              null,
+            taxOffice:
+              orderBilling.taxOffice ||
+              billingAddressInput.taxOffice ||
+              null,
+            companyName:
+              orderBilling.companyName ||
+              billingAddressInput.companyName ||
+              null,
+            city: orderBilling.city || billingAddressInput.city || null,
+            district: orderBilling.district || billingAddressInput.district || null,
+            address: orderBilling.address || billingAddressInput.address || null,
+          };
+
+          logger.info("🔥 SELLER ORDER DATA", {
+            sellerOrderId: doc.id,
+            rootOrderId: orderId,
+            billing: billingSnapshot,
+          });
+
+          let sellerSnapshot = sellerData.sellerSnapshot || null;
+
+          if (!sellerSnapshot) {
+            const businessSnap = await db
+              .collection("businesses")
+              .doc(sellerBusinessId)
+              .get();
+
+            const businessData = businessSnap.exists ? businessSnap.data() : {};
+
+            sellerSnapshot = {
+              businessId: sellerBusinessId,
+              ownerUid: businessData?.ownerUid || null,
+              businessName:
+                businessData?.profile?.businessName ||
+                businessData?.profile?.name ||
+                null,
+              taxNumber: businessData?.legal?.taxNumber || null,
+              mersisNumber: businessData?.legal?.mersisNumber || null,
+              city: businessData?.contact?.city || null,
+              addressLine: businessData?.contact?.addressLine || null,
+            };
+          }
+
+          const initialInvoice = buildInitialInvoiceObject({
+            billingSnapshot,
+            sellerSnapshot,
+            pricing: sellerInvoiceData.pricing,
+            nowIso,
+          });
+
+          const initialCompliance = buildInitialComplianceObject(nowIso);
+
+          const sellerNetAmount = roundMoney(
+            sellerPricing.grandTotal - sellerPricing.commissionAmount
+          );
+
+          sellerBatch.set(
+            doc.ref,
+            {
+              status: "payment_pending",
+              paymentStatus: "pending",
+              currency,
+              pricing: sellerPricing,
+              billing: billingSnapshot,
+              invoice: {
+                ...initialInvoice,
+                items: sellerInvoiceData.items,
+              },
+              compliance: initialCompliance,
+              deadlines: {
+                invoiceUploadDeadlineAt: initialInvoice.uploadDeadlineAt,
+                lastInvoiceReminderAt: null,
+              },
+              financial: {
+                grossAmount: sellerPricing.grandTotal,
+                commissionAmount: sellerPricing.commissionAmount,
+                sellerNetAmount,
+                platformNet: sellerPricing.commissionAmount,
+              },
+              payout: {
+                status: "payment_pending",
+                amount: sellerNetAmount,
+                currency,
+                requestedAt: null,
+                readyAt: null,
+                paidAt: null,
+                reference: null,
+                note: null,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              documents: {
+                ...(sellerData.documents || {}),
+                invoiceStatus: "pending_upload",
+                invoiceRequired: true,
+              },
+              shipping: {
+                ...existingShipping,
+                carrier: existingShipping.carrier || selectedCarrier || null,
+              },
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+
+          console.log("📦 ORDER NOTIFICATION DEBUG", {
+            skippedAt: "createCheckoutSession",
+            reason: "seller notification is created only after successful payment",
+            type: "new_order",
+            orderId: String(orderId || ""),
+            sellerOrderId: String(doc.id || ""),
+            businessId: String(sellerBusinessId || ""),
+          });
+        }
+
+        const buyerUid = orderData.buyerUid || buyer.buyerId || auth.uid;
+        if (buyerUid) {
+          const notifRef = db.collection("notifications").doc();
+          sellerBatch.set(notifRef, {
+            recipientUserId: buyerUid,
+            type: "order_created",
+            title: "Order created 🧾",
+            body: "Your order has been created and payment page is ready.",
+            orderId,
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+
+        await sellerBatch.commit();
+
+        logger.info("✅ CHECKOUT SESSION CREATED", {
+          orderId,
+          sellerCount: sellerOrdersSnap.size,
+          subtotal,
+          shippingTotal,
+          taxTotal,
+          grandTotal,
+          selectedCarrier,
+        });
+      }
+
+      if (paymentProvider === "isbank") {
+        const checkout = await createIsbank3DPayHostingCheckoutResult({
+          auth: request.auth,
+          data: {
+            oid: orderId,
+            orderId,
+            amount: grandTotal,
+            price: grandTotal,
+            currencyCode: ISBANK_CURRENCY_CODE.value(),
+            storeType: ISBANK_STORE_TYPE.value(),
+            installment: ISBANK_INSTALLMENT.value(),
+            lang: data.lang || "tr",
+            refreshTime: data.refreshTime || data.refreshtime || "5",
+            billToName: `${buyerName} ${buyerSurname}`.trim(),
+            billToCompany: data.billToCompany,
+          },
+        });
+
+        await persistCheckoutSessionLifecycle("isbank", {
+          oid: checkout.oid,
+          storeType: checkout.storeType,
+          hashAlgorithm: checkout.hashAlgorithm,
+        });
+
+        return {
+          success: true,
+          provider: "isbank",
+          orderId,
+          ...checkout,
+        };
+      }
+
       const iyzi = new Iyzipay({
         apiKey: IYZICO_API_KEY.value(),
         secretKey: IYZICO_SECRET_KEY.value(),
@@ -10104,335 +10474,18 @@ exports.createCheckoutSession = onCall(
           "Missing checkoutUrl or token from iyzico"
         );
       }
-
       const paymentSuccessCallbackUrl =
         `https://app.petsupo.com/payment-callback?orderId=${orderId}&token=${checkoutToken}`;
 
       const paymentCancelCallbackUrl =
         `https://app.petsupo.com/payment-cancel?orderId=${orderId}`;
 
-      logger.info("🧾 ROOT ORDER BEFORE SAVE DEBUG", {
-        orderId,
-        buyerName,
-        buyerSurname,
-        identityNumber: buyer.identityNumber || null,
-        billingAddressInput,
-      });
-      await orderRef.set(
-        {
-          status: "payment_pending",
-          paymentStatus: "pending",
-          currency,
-          pricing: {
-            subtotal,
-            shippingTotal,
-            taxTotal,
-            grandTotal,
-          },
-          financial: {
-            grossAmount: grandTotal,
-            commissionAmount: totalCommission,
-            platformNet,
-          },
-          documents: {
-            ...(orderData.documents || {}),
-            invoiceStatus: "pending_seller_uploads",
-            invoiceRequired: true,
-          },
-          payment: {
-            ...(orderData.payment || {}),
-            status: "pending",
-            provider: "iyzico",
-            conversationId,
-            token: checkoutToken,
-            checkoutToken,
-            checkoutUrl,
-            currency,
-            successUrlFromClient: paymentSuccessCallbackUrl,
-            cancelUrlFromClient: paymentCancelCallbackUrl,
-          },
-          shipping: {
-            ...(orderData.shipping || {}),
-            carrier: selectedCarrier || null,
-          },
-          buyerUid: orderData.buyerUid || auth.uid,
-          buyerName: orderData.buyerName || buyerName,
-          buyerEmail: orderData.buyerEmail || buyerEmail,
-          buyerPhone: orderData.buyerPhone || buyerPhone,
-          items: normalizedItems,
-          invoiceSummary: {
-            sellerInvoiceCountExpected: grouped.size,
-            sellerInvoiceCountUploaded: 0,
-            status: "pending_seller_uploads",
-          },
-          // 🔥🔥🔥 ADD THIS
-          buyer: {
-            name: buyerName,
-            surname: buyerSurname,
-            email: buyerEmail,
-            phone: buyerPhone,
-            identityNumber: buyer.identityNumber || null,
-            city: buyer.city || null,
-          },
-
-          billing: {
-            invoiceType: billingAddressInput.invoiceType || "individual",
-
-            name: billingName,
-            surname: billingSurname,
-            contactName: `${billingName} ${billingSurname}`.trim(),
-
-            identityNumber: buyerIdentityNumber || null,
-
-            city: billingAddressInput.city || null,
-            district: billingAddressInput.district || null,
-            address: billingAddressInput.address || null,
-
-            companyName: billingAddressInput.companyName || null,
-            taxNumber: billingAddressInput.taxNumber || null,
-            taxOffice: billingAddressInput.taxOffice || null,
-          },
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          timeline: admin.firestore.FieldValue.arrayUnion({
-            status: "payment_pending",
-            at: new Date().toISOString(),
-            by: "system",
-          }),
-        },
-        { merge: true }
-      );
-      const rootAfterSaveSnap = await orderRef.get();
-      logger.info("🧾 ROOT ORDER AFTER SAVE DEBUG", {
-        orderId,
-        buyer: rootAfterSaveSnap.data()?.buyer || null,
-        billing: rootAfterSaveSnap.data()?.billing || null,
-        buyerName: rootAfterSaveSnap.data()?.buyerName || null,
-        buyerSurname: rootAfterSaveSnap.data()?.buyerSurname || null,
-      });
-
-      const sellerOrdersSnap = await db
-        .collection("sellerOrders")
-        .where("rootOrderId", "==", orderId)
-        .get();
-
-      const sellerBatch = db.batch();
-      const nowIso = new Date().toISOString();
-      for (const doc of sellerOrdersSnap.docs) {
-        const sellerData = doc.data() || {};
-        const sellerBusinessId = String(
-          sellerData.businessId || sellerData.shopId || ""
-        ).trim();
-
-        const sellerPricing = sellerPricingMap.get(sellerBusinessId) || {
-          subtotal: 0,
-          shippingTotal: 0,
-          taxTotal: 0,
-          grandTotal: 0,
-        };
-        const sellerInvoiceData = sellerInvoiceMap.get(sellerBusinessId) || {
-          items: [],
-          pricing: {
-            subtotal: 0,
-            shippingTotal: 0,
-            taxTotal: 0,
-            grandTotal: 0,
-          },
-        };
-
-
-        const existingShipping = sellerData.shipping || {};
-
-        const freshOrderSnap = await orderRef.get();
-        const freshOrderData = freshOrderSnap.data() || {};
-
-        const orderBilling = freshOrderData.billing || {};
-
-        logger.info("🧾 FIXED ORDER BILLING DEBUG", {
-          orderBilling,
-        });
-
-        logger.info("🧾 SELLER ORDER BILLING SOURCE DEBUG", {
-          sellerOrderId: doc.id,
-          orderId,
-          orderBillingFromOldOrderData: orderBilling,
-          buyerName,
-          buyerSurname,
-          buyerIdentityNumber: buyer.identityNumber || null,
-          billingAddressInput,
-        });
-
-        const billingSnapshot = {
-          invoiceType: orderBilling.invoiceType || "individual",
-
-          name: orderBilling.name || billingName || buyerName,
-          surname: orderBilling.surname || billingSurname || buyerSurname,
-
-          contactName:
-            orderBilling.contactName ||
-            `${orderBilling.name || billingName || buyerName} ${orderBilling.surname || billingSurname || buyerSurname}`.trim(),
-
-          identityNumber:
-            orderBilling.identityNumber ||
-            buyerIdentityNumber ||
-            billingAddressInput.identityNumber ||
-            null,
-
-          taxNumber:
-            orderBilling.taxNumber ||
-            billingAddressInput.taxNumber ||
-            null,
-
-          taxOffice:
-            orderBilling.taxOffice ||
-            billingAddressInput.taxOffice ||
-            null,
-
-          companyName:
-            orderBilling.companyName ||
-            billingAddressInput.companyName ||
-            null,
-
-          city: orderBilling.city || billingAddressInput.city || null,
-          district: orderBilling.district || billingAddressInput.district || null,
-          address: orderBilling.address || billingAddressInput.address || null,
-        };
-
-        logger.info("🔥 SELLER ORDER DATA", {
-          sellerOrderId: doc.id,
-          rootOrderId: orderId,
-          billing: billingSnapshot,
-        });
-
-        // اگر از قبل snapshot تو sellerOrder ذخیره شده
-        let sellerSnapshot = sellerData.sellerSnapshot || null;
-
-        if (!sellerSnapshot) {
-          const businessSnap = await db
-            .collection("businesses")
-            .doc(sellerBusinessId)
-            .get();
-
-          const businessData = businessSnap.exists ? businessSnap.data() : {};
-
-          sellerSnapshot = {
-            businessId: sellerBusinessId,
-            ownerUid: businessData?.ownerUid || null,
-            businessName:
-              businessData?.profile?.businessName ||
-              businessData?.profile?.name ||
-              null,
-            taxNumber: businessData?.legal?.taxNumber || null,
-            mersisNumber: businessData?.legal?.mersisNumber || null,
-            city: businessData?.contact?.city || null,
-            addressLine: businessData?.contact?.addressLine || null,
-          };
-        }
-
-        const initialInvoice = buildInitialInvoiceObject({
-          billingSnapshot,
-          sellerSnapshot,
-          pricing: sellerInvoiceData.pricing,
-          nowIso,
-        });
-
-        const initialCompliance = buildInitialComplianceObject(nowIso);
-
-        const sellerNetAmount = roundMoney(
-          sellerPricing.grandTotal - sellerPricing.commissionAmount
-        );
-
-        sellerBatch.set(
-          doc.ref,
-          {
-            status: "payment_pending",
-            paymentStatus: "pending",
-            currency,
-
-            pricing: sellerPricing,
-
-            billing: billingSnapshot,
-
-            invoice: {
-              ...initialInvoice,
-              items: sellerInvoiceData.items,
-            },
-
-            compliance: initialCompliance,
-
-            deadlines: {
-              invoiceUploadDeadlineAt: initialInvoice.uploadDeadlineAt,
-              lastInvoiceReminderAt: null,
-            },
-
-            financial: {
-              grossAmount: sellerPricing.grandTotal,
-              commissionAmount: sellerPricing.commissionAmount,
-              sellerNetAmount,
-              platformNet: sellerPricing.commissionAmount,
-            },
-
-            payout: {
-              status: "payment_pending",
-              amount: sellerNetAmount,
-              currency,
-              requestedAt: null,
-              readyAt: null,
-              paidAt: null,
-              reference: null,
-              note: null,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-
-            documents: {
-              ...(sellerData.documents || {}),
-              invoiceStatus: "pending_upload",
-              invoiceRequired: true,
-            },
-
-            shipping: {
-              ...existingShipping,
-              carrier: existingShipping.carrier || selectedCarrier || null,
-            },
-
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-        console.log("📦 ORDER NOTIFICATION DEBUG", {
-          skippedAt: "createCheckoutSession",
-          reason: "seller notification is created only after successful payment",
-          type: "new_order",
-          orderId: String(orderId || ""),
-          sellerOrderId: String(doc.id || ""),
-          businessId: String(sellerBusinessId || ""),
-        });
-      }
-
-      const buyerUid = orderData.buyerUid || buyer.buyerId || auth.uid;
-      if (buyerUid) {
-        const notifRef = db.collection("notifications").doc();
-        sellerBatch.set(notifRef, {
-          recipientUserId: buyerUid,
-          type: "order_created",
-          title: "Order created 🧾",
-          body: "Your order has been created and payment page is ready.",
-          orderId,
-          isRead: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-
-      await sellerBatch.commit();
-
-      logger.info("✅ CHECKOUT SESSION CREATED", {
-        orderId,
-        sellerCount: sellerOrdersSnap.size,
-        subtotal,
-        shippingTotal,
-        taxTotal,
-        grandTotal,
-        selectedCarrier,
+      await persistCheckoutSessionLifecycle("iyzico", {
+        conversationId,
+        checkoutToken,
+        checkoutUrl,
+        successUrlFromClient: paymentSuccessCallbackUrl,
+        cancelUrlFromClient: paymentCancelCallbackUrl,
       });
 
       return {
