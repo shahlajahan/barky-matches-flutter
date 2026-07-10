@@ -487,95 +487,95 @@ function normalizeTurkishText(value) {
 }
 
 async function createIsbank3DPayHostingCheckoutResult(request) {
-    const uid = request.auth?.uid;
-    if (!uid) {
-      throw new HttpsError("unauthenticated", "Login required");
-    }
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Login required");
+  }
 
-    const data = request.data || {};
-    const orderId = normalizeIsbankValue(data.oid || data.orderId);
-    if (!orderId) {
-      throw new HttpsError("invalid-argument", "oid required");
-    }
+  const data = request.data || {};
+  const orderId = normalizeIsbankValue(data.oid || data.orderId);
+  if (!orderId) {
+    throw new HttpsError("invalid-argument", "oid required");
+  }
 
-    const rawAmount = Number(data.amount || data.price);
-    const amount = normalizeIsbankAmount(rawAmount);
-    if (!amount || !Number.isFinite(rawAmount) || rawAmount <= 0) {
-      throw new HttpsError("invalid-argument", "Valid amount required");
-    }
+  const rawAmount = Number(data.amount || data.price);
+  const amount = normalizeIsbankAmount(rawAmount);
+  if (!amount || !Number.isFinite(rawAmount) || rawAmount <= 0) {
+    throw new HttpsError("invalid-argument", "Valid amount required");
+  }
 
-    const isbankConfig = {
-      gatewayUrl: ISBANK_GATEWAY_URL.value(),
-      callbackBaseUrl: ISBANK_CALLBACK_BASE_URL.value(),
-      storeType: ISBANK_STORE_TYPE.value(),
-      currencyCode: ISBANK_CURRENCY_CODE.value(),
-      installment: ISBANK_INSTALLMENT.value(),
-    };
-    const clientId = normalizeIsbankValue(ISBANK_CLIENT_ID.value());
-    const storeKey = normalizeIsbankValue(ISBANK_STORE_KEY.value());
+  const isbankConfig = {
+    gatewayUrl: ISBANK_GATEWAY_URL.value(),
+    callbackBaseUrl: ISBANK_CALLBACK_BASE_URL.value(),
+    storeType: ISBANK_STORE_TYPE.value(),
+    currencyCode: ISBANK_CURRENCY_CODE.value(),
+    installment: ISBANK_INSTALLMENT.value(),
+  };
+  const clientId = normalizeIsbankValue(ISBANK_CLIENT_ID.value());
+  const storeKey = normalizeIsbankValue(ISBANK_STORE_KEY.value());
 
-    if (!clientId || !storeKey) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Is Bank clientId/storeKey is not configured"
-      );
-    }
-
-    const callbackBaseUrl = requireIsbankAbsoluteUrl(
-      isbankConfig.callbackBaseUrl,
-      "ISBANK_CALLBACK_BASE_URL"
-    ).replace(/\/+$/, "");
-    const encodedOrderId = encodeURIComponent(orderId);
-    const successUrl = requireIsbankAbsoluteUrl(
-      normalizeIsbankValue(data.successUrl) ||
-        `${callbackBaseUrl}/isbank/3d-success?oid=${encodedOrderId}`,
-      "successUrl"
+  if (!clientId || !storeKey) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Is Bank clientId/storeKey is not configured"
     );
-    const failUrl = requireIsbankAbsoluteUrl(
-      normalizeIsbankValue(data.failUrl) ||
-        `${callbackBaseUrl}/isbank/3d-fail?oid=${encodedOrderId}`,
-      "failUrl"
-    );
-    const callbackUrl = requireIsbankAbsoluteUrl(
-      normalizeIsbankValue(data.callbackUrl) ||
-        `${callbackBaseUrl}/isbank/3d-callback?oid=${encodedOrderId}`,
-      "callbackUrl"
-    );
-    const random = normalizeIsbankValue(data.rnd || data.random) ||
-      crypto.randomBytes(10).toString("hex");
-    const gatewayUrl = requireIsbankAbsoluteUrl(
-      isbankConfig.gatewayUrl,
-      "ISBANK_GATEWAY_URL"
-    );
-    const storeType = normalizeIsbankValue(data.storeType || isbankConfig.storeType);
+  }
 
-    const checkout = buildIsbank3DPayHostingCheckoutHtml({
-      gatewayUrl,
-      clientId,
-      storeKey,
-      orderId,
-      amount,
-      successUrl,
-      failUrl,
-      callbackUrl,
-      random,
-      currencyCode: data.currencyCode || isbankConfig.currencyCode,
-      storeType,
-      installment: data.installment || isbankConfig.installment,
-      lang: data.lang || "tr",
-      billToName: data.billToName || data.buyerName,
-      billToCompany: data.billToCompany,
-      refreshTime: data.refreshTime || data.refreshtime || "5",
-    });
+  const callbackBaseUrl = requireIsbankAbsoluteUrl(
+    isbankConfig.callbackBaseUrl,
+    "ISBANK_CALLBACK_BASE_URL"
+  ).replace(/\/+$/, "");
+  const encodedOrderId = encodeURIComponent(orderId);
+  const successUrl = requireIsbankAbsoluteUrl(
+    normalizeIsbankValue(data.successUrl) ||
+    `${callbackBaseUrl}/isbank/3d-success?oid=${encodedOrderId}`,
+    "successUrl"
+  );
+  const failUrl = requireIsbankAbsoluteUrl(
+    normalizeIsbankValue(data.failUrl) ||
+    `${callbackBaseUrl}/isbank/3d-fail?oid=${encodedOrderId}`,
+    "failUrl"
+  );
+  const callbackUrl = requireIsbankAbsoluteUrl(
+    normalizeIsbankValue(data.callbackUrl) ||
+    `${callbackBaseUrl}/isbank/3d-callback?oid=${encodedOrderId}`,
+    "callbackUrl"
+  );
+  const random = normalizeIsbankValue(data.rnd || data.random) ||
+    crypto.randomBytes(10).toString("hex");
+  const gatewayUrl = requireIsbankAbsoluteUrl(
+    isbankConfig.gatewayUrl,
+    "ISBANK_GATEWAY_URL"
+  );
+  const storeType = normalizeIsbankValue(data.storeType || isbankConfig.storeType);
 
-    return {
-      provider: "isbank",
-      oid: orderId,
-      gatewayUrl,
-      storeType,
-      hashAlgorithm: "ver3",
-      html: checkout.html,
-    };
+  const checkout = buildIsbank3DPayHostingCheckoutHtml({
+    gatewayUrl,
+    clientId,
+    storeKey,
+    orderId,
+    amount,
+    successUrl,
+    failUrl,
+    callbackUrl,
+    random,
+    currencyCode: data.currencyCode || isbankConfig.currencyCode,
+    storeType,
+    installment: data.installment || isbankConfig.installment,
+    lang: data.lang || "tr",
+    billToName: data.billToName || data.buyerName,
+    billToCompany: data.billToCompany,
+    refreshTime: data.refreshTime || data.refreshtime || "5",
+  });
+
+  return {
+    provider: "isbank",
+    oid: orderId,
+    gatewayUrl,
+    storeType,
+    hashAlgorithm: "ver3",
+    html: checkout.html,
+  };
 }
 
 exports.createIsbank3DPayHostingCheckout = onCall(
@@ -607,8 +607,8 @@ exports.isbank3DPayHostingCallback = onRequest(
     );
     const oid = normalizeIsbankValue(
       getIsbankCallbackValue(callback.fields, "oid") ||
-        getIsbankCallbackValue(callback.fields, "ReturnOid") ||
-        req.query?.oid
+      getIsbankCallbackValue(callback.fields, "ReturnOid") ||
+      req.query?.oid
     );
     const storeKey = normalizeIsbankValue(ISBANK_STORE_KEY.value());
     if (!storeKey) {
@@ -7405,7 +7405,7 @@ exports.resolveBusinessRequest = onCall(
 exports.migrateAdoptionCentersToBusinesses = onRequest(
   {
     region: "europe-west3",
-    invoker: "admin",
+    invoker: "private",
   },
   async (req, res) => {
     const dryRun = req.query.dryRun !== "false"; // default = true
@@ -9939,26 +9939,26 @@ exports.createCheckoutSession = onCall(
         const paymentSnapshot =
           provider === "iyzico"
             ? {
-                ...(orderData.payment || {}),
-                status: "pending",
-                provider: "iyzico",
-                conversationId: paymentDetails.conversationId,
-                token: paymentDetails.checkoutToken,
-                checkoutToken: paymentDetails.checkoutToken,
-                checkoutUrl: paymentDetails.checkoutUrl,
-                currency,
-                successUrlFromClient: paymentDetails.successUrlFromClient,
-                cancelUrlFromClient: paymentDetails.cancelUrlFromClient,
-              }
+              ...(orderData.payment || {}),
+              status: "pending",
+              provider: "iyzico",
+              conversationId: paymentDetails.conversationId,
+              token: paymentDetails.checkoutToken,
+              checkoutToken: paymentDetails.checkoutToken,
+              checkoutUrl: paymentDetails.checkoutUrl,
+              currency,
+              successUrlFromClient: paymentDetails.successUrlFromClient,
+              cancelUrlFromClient: paymentDetails.cancelUrlFromClient,
+            }
             : {
-                status: "pending",
-                provider: "isbank",
-                oid: paymentDetails.oid || orderId,
-                orderId,
-                storeType: paymentDetails.storeType || null,
-                hashAlgorithm: paymentDetails.hashAlgorithm || "ver3",
-                currency,
-              };
+              status: "pending",
+              provider: "isbank",
+              oid: paymentDetails.oid || orderId,
+              orderId,
+              storeType: paymentDetails.storeType || null,
+              hashAlgorithm: paymentDetails.hashAlgorithm || "ver3",
+              currency,
+            };
 
         await orderRef.set(
           {
