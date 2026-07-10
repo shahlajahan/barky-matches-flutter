@@ -149,13 +149,13 @@ class ProfileHeader extends StatelessWidget {
         const SizedBox(height: 6),
 
         if (phone.trim().isNotEmpty)
-  Text(
-    phone,
-    style: GoogleFonts.poppins(
-      fontSize: 15,
-      color: const Color(0xFF9E1B4F),
-    ),
-  ),
+          Text(
+            phone,
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              color: const Color(0xFF9E1B4F),
+            ),
+          ),
         if (_locationText.isNotEmpty)
           Text(
             _locationText,
@@ -260,6 +260,67 @@ class ProfileTile extends StatelessWidget {
   }
 }
 
+class ProfileQuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const ProfileQuickActionCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFF9E1B4F).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: const Color(0xFF9E1B4F), size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  color: const Color(0xFF9E1B4F),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ────────────────────────────────────────────────
 //               کلاس اصلی صفحه
 // ────────────────────────────────────────────────
@@ -305,6 +366,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final List<Dog> _cachedAdoptionDogs = [];
   String _city = '';
   String _district = '';
+  final GlobalKey _myPetsSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -431,6 +493,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
           ],
         ),
       ),
+    );
+  }
+
+  void _scrollToMyPetsSection() {
+    final context = _myPetsSectionKey.currentContext;
+    if (context == null) return;
+
+    Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
     );
   }
 
@@ -703,15 +776,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
           'kDebugMode=$kDebugMode '
           'cachedRole=${cachedData['role']}',
         );
-       
-       // final savedParks = List<String>.from(cachedData['savedParks'] ?? []);
+
+        // final savedParks = List<String>.from(cachedData['savedParks'] ?? []);
 
         setState(() {
           final loc = AppLocalizations.of(context)!;
           _usernameController.text = cachedData['username'] ?? loc.unknownUser;
           _emailController.text = cachedData['email'] ?? '';
           final phone = (cachedData['phone'] ?? '').toString();
-_phoneController.text = phone;
+          _phoneController.text = phone;
           _city = (cachedData['city'] ?? '').toString();
           _district = (cachedData['district'] ?? '').toString();
         });
@@ -751,8 +824,7 @@ _phoneController.text = phone;
 
             _emailController.text = cleaned['email'] ?? '';
 
-           _phoneController.text =
-    (cleaned['phone'] ?? '').toString();
+            _phoneController.text = (cleaned['phone'] ?? '').toString();
           });
         }
       }
@@ -763,9 +835,9 @@ _phoneController.text = phone;
       }
       debugPrint('UserProfilePage - Firebase error: $e');
     } catch (e, st) {
-  debugPrint('UserProfilePage - Error loading user info: $e');
-  debugPrint(st.toString());
-}
+      debugPrint('UserProfilePage - Error loading user info: $e');
+      debugPrint(st.toString());
+    }
   }
 
   Future<void> _saveDogToHive(Map<String, dynamic> data) async {
@@ -1068,11 +1140,11 @@ _phoneController.text = phone;
             child: Stack(
               children: [
                 UpgradePage(
-  onClose: () {
-    debugPrint("🔥 UserProfilePage onClose");
-    context.read<AppState>().closeProfileSubPage();
-  },
-),
+                  onClose: () {
+                    debugPrint("🔥 UserProfilePage onClose");
+                    context.read<AppState>().closeProfileSubPage();
+                  },
+                ),
 
                 Positioned(
                   top: 8,
@@ -1255,200 +1327,117 @@ _phoneController.text = phone;
 
               const SizedBox(height: 32),
 
-              // 2. Activity
               ProfileSection(
-                title: AppLocalizations.of(context)!.userProfileActivity,
+                title: 'Quick Actions',
                 children: [
-                  ProfileTile(
-                    icon: Icons.bookmark,
-                    title: AppLocalizations.of(context)!.userProfileSavedParks,
-                    onTap: () => context.read<AppState>().openSavedParks(),
-                  ),
-
-                  ProfileTile(
-                    icon: Icons.favorite,
-                    title: AppLocalizations.of(context)!.userProfileMatches,
-                    onTap: () {
-                      context.read<AppState>().setCurrentTab(NavTab.playdate);
-                    },
-                  ),
-
-                  ProfileTile(
-                    icon: Icons.shopping_bag,
-                    title: AppLocalizations.of(context)!.userProfileMyOrders,
-                    onTap: () {
-                      context.read<AppState>().openProfileSubPage(
-                        ProfileSubPage.myOrders,
-                      );
-                    },
-                  ),
-
-                  ProfileTile(
-                    icon: Icons.event_available,
-                    title: AppLocalizations.of(context)!.myAppointments,
-                    onTap: () {
-                      context.read<AppState>().openProfileSubPage(
-                        ProfileSubPage.appointments,
-                      );
-                    },
-                  ),
-
-                  ProfileTile(
-                    icon: Icons.pets,
-                    title: AppLocalizations.of(
-                      context,
-                    )!.userProfileAdoptionRequests,
-                    onTap: () => context.read<AppState>().openAdoptionInbox(),
-                  ),
-                ],
-              ),
-              // 3. Business Section (logic اصلی حفظ شده)
-              ProfileSection(
-                title: AppLocalizations.of(context)!.userProfileBusiness,
-                children: [
-                  if (appState.hasApprovedBusiness)
-                    _ApprovedBusinessCard()
-                  else if (appState.hasPendingBusiness)
-                    _WaitingForApprovalCard()
-                  else if (appState.businessStatus == 'rejected')
-                    _RejectedBusinessCard()
-                  else
-                    _buildRegisterBusinessButton(),
-                ],
-              ),
-              if (appState.isAdmin)
-                ProfileSection(
-                  title: AppLocalizations.of(context)!.userProfileAdmin,
-                  children: [_AdminPanelCard()],
-                ),
-              // 4. Support (Feedback اضافه شد)
-              ProfileSection(
-                title: AppLocalizations.of(context)!.userProfileSupport,
-                children: [
-                  ProfileTile(
-                    icon: Icons.feedback,
-                    title: AppLocalizations.of(
-                      context,
-                    )!.userProfileSendFeedback,
-                    onTap: () {
-                      context.read<AppState>().openProfileSubPage(
-                        ProfileSubPage.feedback,
-                      );
-                    },
-                  ),
-                  ProfileTile(
-                    icon: Icons.help,
-                    title: AppLocalizations.of(context)!.userProfileHelpCenter,
-                    onTap: () {
-                      context.read<AppState>().openProfileSubPage(
-                        ProfileSubPage.helpCenter,
-                      );
-                    },
-                  ),
-
-                  ProfileTile(
-                    icon: Icons.privacy_tip,
-                    title: AppLocalizations.of(context)!.userProfilePrivacy,
-                    onTap: () {
-                      context.read<AppState>().openProfileSubPage(
-                        ProfileSubPage.privacy,
-                      );
-                    },
-                  ),
-
-                  ProfileTile(
-                    icon: Icons.bug_report,
-                    title: AppLocalizations.of(
-                      context,
-                    )!.userProfileReportProblem,
-                    onTap: () {
-                      context.read<AppState>().openProfileSubPage(
-                        ProfileSubPage.reportProblem,
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              // 5. Settings (Language + Theme + Logout)
-              if (isOwnProfile)
-                ProfileSection(
-                  title: AppLocalizations.of(context)!.settings,
-                  children: [
-                    ProfileTile(
-                      icon: Icons.workspace_premium,
-                      title: AppLocalizations.of(
-                        context,
-                      )!.userProfileSubscriptionPlans,
-                      onTap: () {
-                        context.read<AppState>().openProfileSubPage(
-                          ProfileSubPage.upgrade,
-                        );
-                      },
-                    ),
-                    ProfileTile(
-                      icon: Icons.language,
-                      title: AppLocalizations.of(context)!.userProfileLanguage,
-                      onTap: () {
-                        _showLanguageSelector(context);
-                      },
-                    ),
-                    ProfileTile(
-                      icon: Icons.dark_mode,
-                      title: AppLocalizations.of(context)!.userProfileTheme,
-                      onTap: () {
-                        // بعداً پیاده‌سازی
-                      },
-                    ),
-                    /*
-                    ProfileTile(
-                      icon: Icons.notifications_active,
-                      title: _generatingFcmToken
-                          ? 'Generating FCM Token...'
-                          : 'Generate FCM Token',
-                      onTap: _generatingFcmToken
-                          ? () {}
-                          : _generateFcmTokenDebug,
-                    ),
-                    */
-                    ProfileTile(
-                      icon: Icons.lock,
-                      title: AppLocalizations.of(
-                        context,
-                      )!.userProfileChangePassword,
-                      onTap: () {
-                        context.read<AppState>().openProfileSubPage(
-                          ProfileSubPage.changePassword,
-                        );
-                      },
-                    ),
-                    if (kDebugMode && appState.isAdmin)
-                      ProfileTile(
-                        icon: Icons.developer_mode,
-                        title: 'Developer Tools',
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 2.25,
+                    children: [
+                      ProfileQuickActionCard(
+                        icon: Icons.pets,
+                        title: loc.myDogs,
+                        onTap: _scrollToMyPetsSection,
+                      ),
+                      ProfileQuickActionCard(
+                        icon: Icons.event_available,
+                        title: AppLocalizations.of(context)!.myAppointments,
                         onTap: () {
-                          Navigator.of(context).pushNamed('/developerTools');
+                          context.read<AppState>().openProfileSubPage(
+                            ProfileSubPage.appointments,
+                          );
                         },
                       ),
-                    ProfileTile(
-                      icon: Icons.logout,
-                      title: AppLocalizations.of(context)!.logoutMenuItem,
-                      onTap: _logout,
-                    ),
-                    ProfileTile(
-                      icon: Icons.delete_forever,
-                      title: AppLocalizations.of(context)!.deleteAccount,
-                      onTap: () {
-                        context.read<AppState>().openProfileSubPage(
-                          ProfileSubPage.deleteAccount,
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                      ProfileQuickActionCard(
+                        icon: Icons.shopping_bag,
+                        title: AppLocalizations.of(
+                          context,
+                        )!.userProfileMyOrders,
+                        onTap: () {
+                          context.read<AppState>().openProfileSubPage(
+                            ProfileSubPage.myOrders,
+                          );
+                        },
+                      ),
+                      ProfileQuickActionCard(
+                        icon: Icons.store,
+                        title: AppLocalizations.of(
+                          context,
+                        )!.userProfileBusiness,
+                        onTap: () async {
+                          if (appState.hasApprovedBusiness) {
+                            final appState = context.read<AppState>();
+                            debugPrint(
+                              "OPEN DASHBOARD with businessId = ${appState.businessId}",
+                            );
+                            appState.openProfileSubPage(
+                              ProfileSubPage.businessDashboard,
+                            );
+                          } else if (appState.hasPendingBusiness) {
+                            return;
+                          } else if (appState.businessStatus == 'rejected') {
+                            final appState = context.read<AppState>();
 
-              // 6. My Dogs (بدون تغییر در محتوا)
+                            if (!appState.canRegisterBusiness) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.userProfileUpgradeToGoldToContinue,
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            appState.openProfileSubPage(
+                              ProfileSubPage.businessRegister,
+                            );
+                          } else {
+                            await Future.delayed(
+                              const Duration(milliseconds: 300),
+                            );
+                            if (!context.mounted) return;
+
+                            final appState = Provider.of<AppState>(
+                              context,
+                              listen: false,
+                            );
+
+                            debugPrint('🔥 REGISTER CHECK');
+                            debugPrint('🔥 GOLD=${appState.isGold}');
+                            debugPrint('🔥 PLAN=${appState.subscription.plan}');
+                            debugPrint(
+                              '🔥 STATUS=${appState.subscription.status}',
+                            );
+                            debugPrint(
+                              '🔥 CAN REGISTER=${appState.canRegisterBusiness}',
+                            );
+
+                            if (!appState.canRegisterBusiness) {
+                              _showUpgradeRequiredSheet(context);
+                              return;
+                            }
+
+                            appState.openProfileSubPage(
+                              ProfileSubPage.businessRegister,
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              // 2. My Dogs (بدون تغییر در محتوا)
               ProfileSection(
+                key: _myPetsSectionKey,
                 title: loc.myDogs,
                 children: [
                   if (isOwnProfile)
@@ -1518,6 +1507,181 @@ _phoneController.text = phone;
                   ),
                 ],
               ),
+
+              // 3. Activity
+              ProfileSection(
+                title: AppLocalizations.of(context)!.userProfileActivity,
+                children: [
+                  ProfileTile(
+                    icon: Icons.bookmark,
+                    title: AppLocalizations.of(context)!.userProfileSavedParks,
+                    onTap: () => context.read<AppState>().openSavedParks(),
+                  ),
+
+                  ProfileTile(
+                    icon: Icons.favorite,
+                    title: AppLocalizations.of(context)!.userProfileMatches,
+                    onTap: () {
+                      context.read<AppState>().setCurrentTab(NavTab.playdate);
+                    },
+                  ),
+
+                  ProfileTile(
+                    icon: Icons.pets,
+                    title: AppLocalizations.of(
+                      context,
+                    )!.userProfileAdoptionRequests,
+                    onTap: () => context.read<AppState>().openAdoptionInbox(),
+                  ),
+                ],
+              ),
+              // 4. Business Section (logic اصلی حفظ شده)
+              ProfileSection(
+                title: AppLocalizations.of(context)!.userProfileBusiness,
+                children: [
+                  if (appState.hasApprovedBusiness)
+                    _ApprovedBusinessCard()
+                  else if (appState.hasPendingBusiness)
+                    _WaitingForApprovalCard()
+                  else if (appState.businessStatus == 'rejected')
+                    _RejectedBusinessCard()
+                  else
+                    _buildRegisterBusinessButton(),
+                ],
+              ),
+              // 5. Support (Feedback اضافه شد)
+              ProfileSection(
+                title: AppLocalizations.of(context)!.userProfileSupport,
+                children: [
+                  ProfileTile(
+                    icon: Icons.feedback,
+                    title: AppLocalizations.of(
+                      context,
+                    )!.userProfileSendFeedback,
+                    onTap: () {
+                      context.read<AppState>().openProfileSubPage(
+                        ProfileSubPage.feedback,
+                      );
+                    },
+                  ),
+                  ProfileTile(
+                    icon: Icons.help,
+                    title: AppLocalizations.of(context)!.userProfileHelpCenter,
+                    onTap: () {
+                      context.read<AppState>().openProfileSubPage(
+                        ProfileSubPage.helpCenter,
+                      );
+                    },
+                  ),
+
+                  ProfileTile(
+                    icon: Icons.privacy_tip,
+                    title: AppLocalizations.of(context)!.userProfilePrivacy,
+                    onTap: () {
+                      context.read<AppState>().openProfileSubPage(
+                        ProfileSubPage.privacy,
+                      );
+                    },
+                  ),
+
+                  ProfileTile(
+                    icon: Icons.bug_report,
+                    title: AppLocalizations.of(
+                      context,
+                    )!.userProfileReportProblem,
+                    onTap: () {
+                      context.read<AppState>().openProfileSubPage(
+                        ProfileSubPage.reportProblem,
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              // 6. Settings (Language + Theme + Logout)
+              if (isOwnProfile)
+                ProfileSection(
+                  title: AppLocalizations.of(context)!.settings,
+                  children: [
+                    ProfileTile(
+                      icon: Icons.workspace_premium,
+                      title: AppLocalizations.of(
+                        context,
+                      )!.userProfileSubscriptionPlans,
+                      onTap: () {
+                        context.read<AppState>().openProfileSubPage(
+                          ProfileSubPage.upgrade,
+                        );
+                      },
+                    ),
+                    ProfileTile(
+                      icon: Icons.language,
+                      title: AppLocalizations.of(context)!.userProfileLanguage,
+                      onTap: () {
+                        _showLanguageSelector(context);
+                      },
+                    ),
+                    ProfileTile(
+                      icon: Icons.dark_mode,
+                      title: AppLocalizations.of(context)!.userProfileTheme,
+                      onTap: () {
+                        // بعداً پیاده‌سازی
+                      },
+                    ),
+                    /*
+                    ProfileTile(
+                      icon: Icons.notifications_active,
+                      title: _generatingFcmToken
+                          ? 'Generating FCM Token...'
+                          : 'Generate FCM Token',
+                      onTap: _generatingFcmToken
+                          ? () {}
+                          : _generateFcmTokenDebug,
+                    ),
+                    */
+                    ProfileTile(
+                      icon: Icons.lock,
+                      title: AppLocalizations.of(
+                        context,
+                      )!.userProfileChangePassword,
+                      onTap: () {
+                        context.read<AppState>().openProfileSubPage(
+                          ProfileSubPage.changePassword,
+                        );
+                      },
+                    ),
+                    ProfileTile(
+                      icon: Icons.logout,
+                      title: AppLocalizations.of(context)!.logoutMenuItem,
+                      onTap: _logout,
+                    ),
+                    ProfileTile(
+                      icon: Icons.delete_forever,
+                      title: AppLocalizations.of(context)!.deleteAccount,
+                      onTap: () {
+                        context.read<AppState>().openProfileSubPage(
+                          ProfileSubPage.deleteAccount,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
+              if (appState.isAdmin)
+                ProfileSection(
+                  title: AppLocalizations.of(context)!.userProfileAdmin,
+                  children: [
+                    _AdminPanelCard(),
+                    if (kDebugMode && appState.isAdmin)
+                      ProfileTile(
+                        icon: Icons.developer_mode,
+                        title: 'Developer Tools',
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/developerTools');
+                        },
+                      ),
+                  ],
+                ),
 
               const SizedBox(height: 80), // فضای پایین برای FAB
             ],
@@ -2352,21 +2516,24 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
     final phoneRegex = RegExp(r'^[0-9+\s()-]*$');
 
     if (username.isNotEmpty) {
-  if (username.length < 3) {
-    usernameError =
-        AppLocalizations.of(context)!.userProfileUsernameMinLength;
-  } else if (username.length > 20) {
-    usernameError =
-        AppLocalizations.of(context)!.userProfileUsernameMaxLength;
-  } else if (username.contains(' ')) {
-    usernameError =
-        AppLocalizations.of(context)!.userProfileUsernameNoSpaces;
-  }
-}
+      if (username.length < 3) {
+        usernameError = AppLocalizations.of(
+          context,
+        )!.userProfileUsernameMinLength;
+      } else if (username.length > 20) {
+        usernameError = AppLocalizations.of(
+          context,
+        )!.userProfileUsernameMaxLength;
+      } else if (username.contains(' ')) {
+        usernameError = AppLocalizations.of(
+          context,
+        )!.userProfileUsernameNoSpaces;
+      }
+    }
 
     if (email.isNotEmpty && !emailRegex.hasMatch(email)) {
-  emailError = AppLocalizations.of(context)!.emailInvalid;
-}
+      emailError = AppLocalizations.of(context)!.emailInvalid;
+    }
 
     if (phone.isNotEmpty && !phoneRegex.hasMatch(phone)) {
       phoneError = AppLocalizations.of(
@@ -2442,26 +2609,23 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
           _photoUrl = finalPhotoUrl;
         });
       }
-final currentDoc = await FirebaseFirestore.instance
-    .collection('users')
-    .doc(widget.userId)
-    .get();
+      final currentDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
 
-final currentData = currentDoc.data() ?? {};
-      final username =
-    widget.usernameController.text.trim().isEmpty
-        ? (currentData['username'] ?? '').toString()
-        : widget.usernameController.text.trim();
+      final currentData = currentDoc.data() ?? {};
+      final username = widget.usernameController.text.trim().isEmpty
+          ? (currentData['username'] ?? '').toString()
+          : widget.usernameController.text.trim();
 
-final email =
-    widget.emailController.text.trim().isEmpty
-        ? (currentData['email'] ?? '').toString()
-        : widget.emailController.text.trim();
+      final email = widget.emailController.text.trim().isEmpty
+          ? (currentData['email'] ?? '').toString()
+          : widget.emailController.text.trim();
 
-final phone =
-    widget.phoneController.text.trim().isEmpty
-        ? (currentData['phone'] ?? '').toString()
-        : widget.phoneController.text.trim();
+      final phone = widget.phoneController.text.trim().isEmpty
+          ? (currentData['phone'] ?? '').toString()
+          : widget.phoneController.text.trim();
       final city = _normalizeLocationText(_cityController.text);
       final district = _normalizeLocationText(_districtController.text);
 
@@ -2472,18 +2636,16 @@ final phone =
           .get();
 
       if (username.isNotEmpty &&
-    username != (currentData['username'] ?? '') &&
-    usernameCheck.docs.isNotEmpty &&
-    usernameCheck.docs.first.id != widget.userId) {
+          username != (currentData['username'] ?? '') &&
+          usernameCheck.docs.isNotEmpty &&
+          usernameCheck.docs.first.id != widget.userId) {
         _showSnack(l10n.userProfileUsernameAlreadyTaken);
         setState(() => _isSaving = false);
         return;
       }
 
       // ✅ FIX 3: Email change + reauth + error handling
-      if (user != null &&
-    email.isNotEmpty &&
-    user.email != email) {
+      if (user != null && email.isNotEmpty && user.email != email) {
         try {
           // ⚠️ TODO: بعداً password واقعی بگیر
           final credential = EmailAuthProvider.credential(
