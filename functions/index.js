@@ -56,7 +56,7 @@ const ISBANK_CALLBACK_BASE_URL = defineString("ISBANK_CALLBACK_BASE_URL", {
   default: "https://app.petsupo.com",
 });
 const ISBANK_STORE_TYPE = defineString("ISBANK_STORE_TYPE", {
-  default: "3d_pay_hosting",
+  default: "3D_PAY_HOSTING",
 });
 const ISBANK_CURRENCY_CODE = defineString("ISBANK_CURRENCY_CODE", {
   default: "949",
@@ -258,6 +258,132 @@ function buildIsbank3DHtmlForm({ actionUrl, fields }) {
   return `<!doctype html><html><head><meta charset="utf-8"><title>Payment</title></head><body><form id="isbank-3d-form" method="post" action="${escapeIsbankHtmlAttribute(actionUrl)}">${inputs}</form><script>document.getElementById("isbank-3d-form").submit();</script></body></html>`;
 }
 
+function buildIsbank3DPayHostingRequest({
+  clientId,
+  storeKey,
+  orderId,
+  amount,
+  successUrl,
+  failUrl,
+  callbackUrl,
+  random,
+  currencyCode,
+  storeType,
+  installment,
+  lang,
+  billToName,
+  billToCompany,
+  refreshTime,
+}) {
+  const fields = {
+    clientid: clientId,
+    amount: normalizeIsbankAmount(amount),
+    okurl: successUrl,
+    failUrl,
+    TranType: "Auth",
+    Instalment: normalizeIsbankInstallment(installment),
+    callbackUrl,
+    currency: normalizeIsbankValue(currencyCode || "949"),
+    oid: orderId,
+    rnd: random,
+    storetype: normalizeIsbankValue(storeType || "3D_PAY_HOSTING"),
+    lang: normalizeIsbankValue(lang || "tr"),
+    hashAlgorithm: "ver3",
+    refreshtime: normalizeIsbankValue(refreshTime || "5"),
+  };
+
+  const normalizedBillToName = normalizeIsbankValue(billToName);
+  if (normalizedBillToName) {
+    fields.BillToName = normalizedBillToName;
+  }
+
+  const normalizedBillToCompany = normalizeIsbankValue(billToCompany);
+  if (normalizedBillToCompany) {
+    fields.BillToCompany = normalizedBillToCompany;
+  }
+
+  fields.hash = buildIsbank3DHash({
+    storeKey,
+    fields,
+  });
+
+  return fields;
+}
+
+function buildIsbank3DPayHostingCheckoutHtml({
+  gatewayUrl,
+  clientId,
+  storeKey,
+  orderId,
+  amount,
+  successUrl,
+  failUrl,
+  callbackUrl,
+  random,
+  currencyCode,
+  storeType,
+  installment,
+  lang,
+  billToName,
+  billToCompany,
+  refreshTime,
+}) {
+  const fields = buildIsbank3DPayHostingRequest({
+    clientId,
+    storeKey,
+    orderId,
+    amount,
+    successUrl,
+    failUrl,
+    callbackUrl,
+    random,
+    currencyCode,
+    storeType,
+    installment,
+    lang,
+    billToName,
+    billToCompany,
+    refreshTime,
+  });
+
+  return {
+    fields,
+    html: buildIsbank3DHtmlForm({
+      actionUrl: gatewayUrl,
+      fields,
+    }),
+  };
+}
+
+function requireIsbankAbsoluteUrl(value, fieldName) {
+  const normalizedUrl = normalizeIsbankValue(value);
+  if (!normalizedUrl) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${fieldName} is not configured`
+    );
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedUrl);
+  } catch (error) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${fieldName} must be an absolute http(s) URL`
+    );
+  }
+
+  if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+    throw new HttpsError(
+      "failed-precondition",
+      `${fieldName} must be an absolute http(s) URL`
+    );
+  }
+
+  return normalizedUrl;
+}
+
 function normalizeTurkishText(value) {
   if (!value) return "";
 
@@ -278,6 +404,99 @@ function normalizeTurkishText(value) {
     .replaceAll("Ç", "c")
     .replace(/\s+/g, " ");
 }
+
+exports.createIsbank3DPayHostingCheckout = onCall(
+  {
+    region: "europe-west3",
+    secrets: [ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const data = request.data || {};
+    const orderId = normalizeIsbankValue(data.oid || data.orderId);
+    if (!orderId) {
+      throw new HttpsError("invalid-argument", "oid required");
+    }
+
+    const rawAmount = Number(data.amount || data.price);
+    const amount = normalizeIsbankAmount(rawAmount);
+    if (!amount || !Number.isFinite(rawAmount) || rawAmount <= 0) {
+      throw new HttpsError("invalid-argument", "Valid amount required");
+    }
+
+    const paymentConfig = getPaymentProviderConfig();
+    const isbankConfig = paymentConfig.isbank;
+    const clientId = normalizeIsbankValue(ISBANK_CLIENT_ID.value());
+    const storeKey = normalizeIsbankValue(ISBANK_STORE_KEY.value());
+
+    if (!clientId || !storeKey) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Is Bank clientId/storeKey is not configured"
+      );
+    }
+
+    const callbackBaseUrl = requireIsbankAbsoluteUrl(
+      isbankConfig.callbackBaseUrl,
+      "ISBANK_CALLBACK_BASE_URL"
+    ).replace(/\/+$/, "");
+    const encodedOrderId = encodeURIComponent(orderId);
+    const successUrl = requireIsbankAbsoluteUrl(
+      normalizeIsbankValue(data.successUrl) ||
+        `${callbackBaseUrl}/isbank/3d-success?oid=${encodedOrderId}`,
+      "successUrl"
+    );
+    const failUrl = requireIsbankAbsoluteUrl(
+      normalizeIsbankValue(data.failUrl) ||
+        `${callbackBaseUrl}/isbank/3d-fail?oid=${encodedOrderId}`,
+      "failUrl"
+    );
+    const callbackUrl = requireIsbankAbsoluteUrl(
+      normalizeIsbankValue(data.callbackUrl) ||
+        `${callbackBaseUrl}/isbank/3d-callback?oid=${encodedOrderId}`,
+      "callbackUrl"
+    );
+    const random = normalizeIsbankValue(data.rnd || data.random) ||
+      crypto.randomBytes(10).toString("hex");
+    const gatewayUrl = requireIsbankAbsoluteUrl(
+      isbankConfig.gatewayUrl,
+      "ISBANK_GATEWAY_URL"
+    );
+    const storeType = normalizeIsbankValue(data.storeType || isbankConfig.storeType);
+
+    const checkout = buildIsbank3DPayHostingCheckoutHtml({
+      gatewayUrl,
+      clientId,
+      storeKey,
+      orderId,
+      amount,
+      successUrl,
+      failUrl,
+      callbackUrl,
+      random,
+      currencyCode: data.currencyCode || isbankConfig.currencyCode,
+      storeType,
+      installment: data.installment || isbankConfig.installment,
+      lang: data.lang || "tr",
+      billToName: data.billToName || data.buyerName,
+      billToCompany: data.billToCompany,
+      refreshTime: data.refreshTime || data.refreshtime || "5",
+    });
+
+    return {
+      provider: "isbank",
+      oid: orderId,
+      gatewayUrl,
+      storeType,
+      hashAlgorithm: "ver3",
+      html: checkout.html,
+    };
+  }
+);
 
 function addHoursToIso(hours) {
   const d = new Date();
