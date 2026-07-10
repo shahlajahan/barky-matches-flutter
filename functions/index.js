@@ -153,14 +153,15 @@ function getIsbankCallbackValue(payload, key) {
   return Array.isArray(value) ? normalizeIsbankValue(value[0]) : normalizeIsbankValue(value);
 }
 
-function normalizeIsbankHashFields(fields = {}) {
+function normalizeIsbankHashFields(fields = {}, { trimValues = true } = {}) {
   return Object.entries(fields || {}).reduce((normalized, [key, value]) => {
     const normalizedKey = normalizeIsbankValue(key);
     if (!normalizedKey) return normalized;
 
-    normalized[normalizedKey] = Array.isArray(value)
-      ? normalizeIsbankValue(value[0])
-      : normalizeIsbankValue(value);
+    const fieldValue = Array.isArray(value) ? value[0] : value;
+    normalized[normalizedKey] = trimValues
+      ? normalizeIsbankValue(fieldValue)
+      : String(fieldValue === undefined || fieldValue === null ? "" : fieldValue);
 
     return normalized;
   }, {});
@@ -171,14 +172,22 @@ function isIsbankHashSourceField(key) {
   return normalizedKey && normalizedKey !== "hash" && normalizedKey !== "encoding";
 }
 
-function escapeIsbankHashValue(value) {
-  return normalizeIsbankValue(value)
+function escapeIsbankHashValue(value, { trim = true } = {}) {
+  const normalizedValue = trim
+    ? normalizeIsbankValue(value)
+    : String(value === undefined || value === null ? "" : value);
+
+  return normalizedValue
     .replaceAll("\\", "\\\\")
     .replaceAll("|", "\\|");
 }
 
-function buildIsbankHashSource({ fields, storeKey }) {
-  const normalizedFields = normalizeIsbankHashFields(fields);
+function buildIsbankHashSource({
+  fields,
+  storeKey,
+  trimValues = true,
+}) {
+  const normalizedFields = normalizeIsbankHashFields(fields, { trimValues });
   const values = Object.keys(normalizedFields)
     .filter(isIsbankHashSourceField)
     .sort((left, right) => {
@@ -190,7 +199,7 @@ function buildIsbankHashSource({ fields, storeKey }) {
       if (left > right) return 1;
       return 0;
     })
-    .map((key) => escapeIsbankHashValue(normalizedFields[key]));
+    .map((key) => escapeIsbankHashValue(normalizedFields[key], { trim: trimValues }));
 
   return [...values, escapeIsbankHashValue(storeKey)].join("|");
 }
@@ -200,6 +209,33 @@ function buildIsbankBase64Sha512Hash(value) {
     .createHash("sha512")
     .update(String(value), "utf8")
     .digest("base64");
+}
+
+function isEqualIsbankHash(left, right) {
+  const normalizedLeft = normalizeIsbankValue(left);
+  const normalizedRight = normalizeIsbankValue(right);
+  if (!normalizedLeft || !normalizedRight) return false;
+
+  const leftBuffer = Buffer.from(normalizedLeft, "utf8");
+  const rightBuffer = Buffer.from(normalizedRight, "utf8");
+  if (leftBuffer.length !== rightBuffer.length) return false;
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function validateIsbankGenericVer3CallbackHash({ fields, storeKey }) {
+  const retrievedHash = getIsbankCallbackValue(fields, "HASH");
+  if (!retrievedHash) {
+    return false;
+  }
+
+  const hashSource = buildIsbankHashSource({
+    fields,
+    storeKey,
+    trimValues: false,
+  });
+  const actualHash = buildIsbankBase64Sha512Hash(hashSource);
+  return isEqualIsbankHash(retrievedHash, actualHash);
 }
 
 function buildIsbank3DHash({
@@ -546,6 +582,7 @@ exports.createIsbank3DPayHostingCheckout = onCall(
 exports.isbank3DPayHostingCallback = onRequest(
   {
     region: "europe-west3",
+    secrets: [ISBANK_STORE_KEY],
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -566,16 +603,41 @@ exports.isbank3DPayHostingCallback = onRequest(
         getIsbankCallbackValue(callback.fields, "ReturnOid") ||
         req.query?.oid
     );
+    const storeKey = normalizeIsbankValue(ISBANK_STORE_KEY.value());
+    if (!storeKey) {
+      logger.error("isbank_3d_callback_hash_config_missing", {
+        oid: oid || null,
+        fieldCount: callback.entries.length,
+        hasHash,
+      });
+      res.status(500).send(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Callback Error</title></head><body><h1>Callback error</h1></body></html>"
+      );
+      return;
+    }
+
+    const hashValid = validateIsbankGenericVer3CallbackHash({
+      fields: callback.fields,
+      storeKey,
+    });
 
     logger.info("isbank_3d_callback_received", {
       oid: oid || null,
       fieldCount: callback.entries.length,
       hasHash,
+      hashValid,
     });
 
-    // Patch 5 will add hash validation, payment verification, and finalization.
+    if (!hashValid) {
+      res.status(400).send(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Callback Rejected</title></head><body><h1>Callback rejected</h1></body></html>"
+      );
+      return;
+    }
+
+    // Patch 6 will add payment verification and finalization.
     res.status(200).send(
-      "<!doctype html><html><head><meta charset=\"utf-8\"><title>Callback Received</title></head><body><h1>Callback received</h1></body></html>"
+      "<!doctype html><html><head><meta charset=\"utf-8\"><title>Callback Verified</title></head><body><h1>Callback verified</h1></body></html>"
     );
   }
 );
