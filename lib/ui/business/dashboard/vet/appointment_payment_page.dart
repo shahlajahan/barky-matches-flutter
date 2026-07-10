@@ -11,7 +11,8 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
-import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
+import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
+import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
 
 class AppointmentPaymentPage extends StatefulWidget {
   final String appointmentId;
@@ -317,24 +318,22 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         'appointmentType': widget.appointmentType,
       });
 
-      final orderId = res.data['orderId'];
-      final checkoutUrl = res.data['checkoutUrl'];
+      final session = CheckoutSessionResult.fromJson(
+        Map<String, dynamic>.from(res.data as Map),
+      );
+      final orderId = session.orderId;
 
       debugPrint("💳 ORDER → $orderId");
-      debugPrint("🌐 URL → $checkoutUrl");
+      debugPrint("🌐 PROVIDER → ${session.provider}");
 
       if (!mounted) return;
 
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PetshopCheckoutWebViewPage(
-            checkoutUrl: checkoutUrl,
-            successUrlPrefix: "payment-success",
-            cancelUrlPrefix: "payment-cancel",
-            orderId: orderId,
-          ),
-        ),
+      final result = await presentCheckoutSession(
+        context: context,
+        session: session,
+        orderId: orderId,
+        successUrlPrefix: "payment-success",
+        cancelUrlPrefix: "payment-cancel",
       );
 
       if (result == "verify") {

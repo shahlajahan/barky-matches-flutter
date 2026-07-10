@@ -8,13 +8,12 @@ import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
 import 'package:barky_matches_fixed/services/order_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-//import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:barky_matches_fixed/utils/carrier_mapper.dart';
-
-import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CheckoutPage extends StatefulWidget {
   final List<CartItem> items;
@@ -524,7 +523,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         };
       }).toList();
 
-      final result = await _orderService.createMarketplaceOrderV2(
+      final orderResult = await _orderService.createMarketplaceOrderV2(
         buyer: {"name": buyerName, "email": buyerEmail, "phone": buyerPhone},
         billing: {
           // 🔥🔥🔥 این دو خط رو اضافه کن
@@ -556,8 +555,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         items: orderItems,
       );
 
-      final orderId = result["orderId"];
-      final orderNumber = result["orderNumber"];
+      final orderId = orderResult["orderId"];
+      final orderNumber = orderResult["orderNumber"];
 
       debugPrint("🧪 WAITING FOR ORDER VISIBILITY...");
 
@@ -600,42 +599,46 @@ class _CheckoutPageState extends State<CheckoutPage> {
           backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
         });
       }
-      debugPrint("🔥 BACKEND RESPONSE: ${session.checkoutUrl}");
+      debugPrint("🔥 BACKEND RESPONSE: provider=${session.provider}");
       debugPrint("🌐 CHECKOUT URL: ${session.checkoutUrl}");
+      debugPrint("🧾 CHECKOUT HTML PRESENT: ${session.html != null}");
 
       debugPrint("💰 REAL TOTAL FROM BACKEND: ${pricing?['grandTotal']}");
 
       if (!mounted) return;
 
-      /// -------------------------
-      /// 3) WEBVIEW
-      /// -------------------------
       await Future.delayed(const Duration(milliseconds: 300));
       FocusScope.of(context).unfocus();
 
-      final checkoutUri = Uri.parse(session.checkoutUrl);
-
-      final launched = await launchUrl(
-        checkoutUri,
-        mode: LaunchMode.externalApplication, // 🔥 مهم
+      final checkoutResult = await presentCheckoutSession(
+        context: context,
+        session: session,
+        orderId: orderId,
+        successUrlPrefix:
+            'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
+        cancelUrlPrefix: 'barkymatches://payment-cancel?orderId=$orderId',
       );
 
-      if (!launched) {
-        throw Exception("Could not launch checkout URL");
+      if (!mounted) return;
+
+      if (checkoutResult == 'verify') {
+        final verified = await verifyPayment(orderId);
+        if (!mounted) return;
+
+        if (verified) {
+          _showError(
+            AppLocalizations.of(context)!.checkoutPaymentCompletedSuccessfully,
+          );
+        } else {
+          _showError(
+            AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
+          );
+        }
+      } else {
+        _showError(
+          AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
+        );
       }
-
-      if (!mounted) return;
-
-      // debugPrint("🔁 RESULT: $result");
-
-      /// -------------------------
-      /// 4) VERIFY
-      /// -------------------------
-      if (!mounted) return;
-
-      _showError(
-        AppLocalizations.of(context)!.checkoutPaymentPageOpenedMessage,
-      );
     } catch (e) {
       debugPrint("❌ CHECKOUT ERROR: $e");
       if (!mounted) return;

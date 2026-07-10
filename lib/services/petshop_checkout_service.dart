@@ -3,24 +3,30 @@ import 'package:flutter/foundation.dart';
 
 class CheckoutSessionResult {
   final String orderId;
-  final String checkoutUrl;
   final String provider;
+  final String? checkoutUrl;
+  final String? html;
   final String? token;
-  final Map<String, dynamic>? pricing; // 🔥 اضافه کن
+  final Map<String, dynamic>? pricing;
 
   const CheckoutSessionResult({
     required this.orderId,
-    required this.checkoutUrl,
     required this.provider,
-    required this.token,
+    this.checkoutUrl,
+    this.html,
+    this.token,
     this.pricing,
   });
+
+  bool get isIsbank => provider.trim().toLowerCase() == "isbank";
+  bool get isIyziCo => provider.trim().toLowerCase() == "iyzico";
 
   factory CheckoutSessionResult.fromJson(Map<String, dynamic> json) {
     return CheckoutSessionResult(
       orderId: (json['orderId'] ?? '') as String,
-      checkoutUrl: (json['checkoutUrl'] ?? '') as String,
       provider: (json['provider'] ?? 'iyzico') as String,
+      checkoutUrl: json['checkoutUrl']?.toString(),
+      html: json['html']?.toString(),
       token: json['token'] as String?,
       pricing: json['pricing'] != null
           ? Map<String, dynamic>.from(json['pricing'])

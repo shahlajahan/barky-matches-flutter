@@ -5,7 +5,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
-import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
+import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
+import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
 import 'widgets/live_trip_status_card.dart';
 
 class PetTaxiBookingDetailPage extends StatefulWidget {
@@ -87,24 +88,21 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
         'appointmentCollection': 'pet_taxi_bookings',
         'appointmentType': 'pet_taxi',
       });
-      final data = Map<String, dynamic>.from(res.data as Map);
-      final orderId = data['orderId']?.toString();
-      final checkoutUrl = data['checkoutUrl']?.toString();
-      if (orderId == null || checkoutUrl == null || checkoutUrl.isEmpty) {
-        throw StateError('Payment order did not return checkout URL');
+      final session = CheckoutSessionResult.fromJson(
+        Map<String, dynamic>.from(res.data as Map),
+      );
+      final orderId = session.orderId;
+      if (orderId.isEmpty) {
+        throw StateError('Payment order did not return orderId');
       }
 
       if (!mounted) return;
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PetshopCheckoutWebViewPage(
-            checkoutUrl: checkoutUrl,
-            successUrlPrefix: 'payment-success',
-            cancelUrlPrefix: 'payment-cancel',
-            orderId: orderId,
-          ),
-        ),
+      final result = await presentCheckoutSession(
+        context: context,
+        session: session,
+        orderId: orderId,
+        successUrlPrefix: 'payment-success',
+        cancelUrlPrefix: 'payment-cancel',
       );
 
       if (result == 'verify') {

@@ -3,11 +3,11 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
+import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
 
 import 'package:barky_matches_fixed/services/order_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:barky_matches_fixed/ui/petshop/petshop_checkout_webview_page.dart';
 
 class CheckoutButton extends StatefulWidget {
   final List<CartItem> items;
@@ -102,24 +102,20 @@ class _CheckoutButtonState extends State<CheckoutButton> {
               throw Exception("createCheckoutSession timeout");
             },
           );
-      debugPrint("✅ SESSION RECEIVED: ${session.checkoutUrl}");
+      debugPrint("✅ SESSION RECEIVED: provider=${session.provider}");
       if (!mounted) return;
 
-      final result = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PetshopCheckoutWebViewPage(
-            checkoutUrl: session.checkoutUrl,
-            successUrlPrefix: 'https://barkymatches.app/payment-success',
-            cancelUrlPrefix: 'https://barkymatches.app/payment-cancel',
-            orderId: orderId,
-          ),
-        ),
+      final result = await presentCheckoutSession(
+        context: context,
+        session: session,
+        orderId: orderId,
+        successUrlPrefix: 'https://barkymatches.app/payment-success',
+        cancelUrlPrefix: 'https://barkymatches.app/payment-cancel',
       );
 
       if (!mounted) return;
 
-      if (result == true) {
+      if (result == 'verify') {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

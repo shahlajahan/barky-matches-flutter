@@ -265,8 +265,17 @@ function buildIsbank3DHash({
     fields: hashFields,
     storeKey,
   });
+  const hash = buildIsbankBase64Sha512Hash(hashSource);
 
-  return buildIsbankBase64Sha512Hash(hashSource);
+  logger.info("🔐 ISBANK HASH SOURCE", {
+    hashSource,
+  });
+
+  logger.info("🔐 ISBANK HASH RESULT", {
+    hash,
+  });
+
+  return hash;
 }
 
 // TODO(isbank-callback): Implement callback validation only after confirming
@@ -338,9 +347,17 @@ function buildIsbank3DPayHostingRequest({
     fields.BillToCompany = normalizedBillToCompany;
   }
 
+  logger.info("🧾 ISBANK FIELDS BEFORE HASH", {
+    fields: { ...fields },
+  });
+
   fields.hash = buildIsbank3DHash({
     storeKey,
     fields,
+  });
+
+  logger.info("🧾 ISBANK FIELDS AFTER HASH", {
+    fields: { ...fields },
   });
 
   return fields;
