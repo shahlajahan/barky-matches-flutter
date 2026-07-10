@@ -9538,6 +9538,11 @@ exports.createCheckoutSession = onCall(
         .trim()
         .toLowerCase();
 
+      logger.info("🔥 PAYMENT_PROVIDER DEBUG", {
+        envValue: PAYMENT_PROVIDER.value(),
+        paymentProvider,
+      });
+
       if (paymentProvider !== "iyzico" && paymentProvider !== "isbank") {
         throw new HttpsError(
           "failed-precondition",
