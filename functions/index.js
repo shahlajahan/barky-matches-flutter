@@ -124,6 +124,15 @@ function normalizeIsbankAmount(value) {
   return amount.toFixed(2);
 }
 
+function canonicalizeIsbankCurrency(value) {
+  const normalized = normalizeIsbankValue(value);
+  if (normalized === "949" || normalized === "TRY") {
+    return "TRY";
+  }
+
+  return "";
+}
+
 function normalizeIsbankInstallment(value) {
   const installment = normalizeIsbankValue(value);
   return installment === "0" ? "" : installment;
@@ -223,17 +232,23 @@ function isEqualIsbankHash(left, right) {
   return crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-function validateIsbankGenericVer3CallbackHash({ fields, storeKey }) {
+function validateIsbankGenericVer3CallbackHash({ fields, storeKey, forensicObserver }) {
   const retrievedHash = getIsbankCallbackValue(fields, "HASH");
   if (!retrievedHash) {
     return false;
   }
-
   const hashSource = buildIsbankHashSource({
     fields,
     storeKey,
     trimValues: false,
   });
+  if (forensicObserver) {
+    try {
+      forensicObserver(hashSource);
+    } catch (_) {
+      // Forensic output must never affect callback validation.
+    }
+  }
   const actualHash = buildIsbankBase64Sha512Hash(hashSource);
   return isEqualIsbankHash(retrievedHash, actualHash);
 }
@@ -266,15 +281,6 @@ function buildIsbank3DHash({
     storeKey,
   });
   const hash = buildIsbankBase64Sha512Hash(hashSource);
-
-  logger.info("🔐 ISBANK HASH SOURCE", {
-    hashSource,
-  });
-
-  logger.info("🔐 ISBANK HASH RESULT", {
-    hash,
-  });
-
   return hash;
 }
 
@@ -301,6 +307,760 @@ function buildIsbank3DHtmlForm({ actionUrl, fields }) {
     .join("");
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>Payment</title></head><body><form id="isbank-3d-form" method="post" action="${escapeIsbankHtmlAttribute(actionUrl)}">${inputs}</form><script>document.getElementById("isbank-3d-form").submit();</script></body></html>`;
+}
+
+function isSuccessfulIsbankMdStatus(mdStatus) {
+  return normalizeIsbankValue(mdStatus) === "1";
+}
+
+function buildIsbankCallbackRedirectUrl(orderId, kind) {
+  const baseUrl = normalizeIsbankValue(
+    ISBANK_CALLBACK_BASE_URL.value() || "https://app.petsupo.com"
+  ).replace(/\/+$/, "");
+  const path = kind === "success" ? "/isbank/3d-success" : "/isbank/3d-fail";
+  return `${baseUrl}${path}?oid=${encodeURIComponent(normalizeIsbankValue(orderId))}`;
+}
+
+function buildIsbankCallbackHtml({ orderId, success, title, message }) {
+  const targetUrl = buildIsbankCallbackRedirectUrl(
+    orderId,
+    success ? "success" : "fail"
+  );
+  const safeTitle = escapeIsbankHtmlAttribute(title || (success ? "Payment verified" : "Payment failed"));
+  const safeMessage = escapeIsbankHtmlAttribute(
+    message || (success ? "Callback verified" : "Payment could not be confirmed")
+  );
+  const safeTargetUrl = escapeIsbankHtmlAttribute(targetUrl);
+
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${safeTargetUrl}"><title>${safeTitle}</title></head><body><h1>${safeTitle}</h1><p>${safeMessage}</p><script>window.location.replace(${JSON.stringify(targetUrl)});</script></body></html>`;
+}
+
+function isAlreadyExistsError(error) {
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+  return code === "already-exists" || code === "6" || message.includes("already exists");
+}
+
+async function createDeterministicNotification(docId, payload) {
+  const safeDocId = String(docId || "").trim();
+  if (!safeDocId) return false;
+
+  const notificationRef = db.collection("notifications").doc(safeDocId);
+
+  try {
+    await notificationRef.create({
+      isRead: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...payload,
+    });
+    return true;
+  } catch (error) {
+    if (isAlreadyExistsError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function finalizeAppointmentAfterPaid({
+  orderData,
+  orderId,
+  transactionId = null,
+}) {
+  if (orderData.type !== "appointment") return;
+
+  const appointmentCollection = appointmentCollectionForOrder(orderData);
+  const appointmentId = orderData.appointmentId;
+
+  if (!appointmentId) {
+    logger.warn("isbank_paid_appointment_id_missing", { orderId });
+    return;
+  }
+
+  const appointmentRef = db
+    .collection(appointmentCollection)
+    .doc(String(appointmentId));
+  const appointmentSnap = await appointmentRef.get();
+
+  if (!appointmentSnap.exists) {
+    logger.warn("isbank_paid_appointment_missing", {
+      orderId,
+      appointmentId,
+      appointmentCollection,
+    });
+    return;
+  }
+
+  await appointmentRef.update({
+    paymentStatus: "paid",
+    status: "confirmed_paid",
+    paidAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    orderId,
+    paymentTransactionId: transactionId,
+  });
+
+  logger.info("isbank_paid_appointment_finalized", {
+    orderId,
+    appointmentId,
+    appointmentCollection,
+    transactionId,
+  });
+}
+
+async function finalizeIsbankPaidOrder({
+  orderRef,
+  orderData,
+  sellerOrdersSnap,
+  orderId,
+  callbackAmount,
+  callbackCurrency,
+  callbackClientId,
+  authCode,
+  hostRefNum,
+  procReturnCode,
+  responseText,
+  transId,
+  mdStatus,
+  callbackResponse,
+  transactionResult,
+}) {
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const normalizedAmount = normalizeIsbankAmount(callbackAmount);
+  const numericAmount = Number(normalizedAmount || 0);
+  const rawCallbackCurrency = normalizeIsbankValue(callbackCurrency);
+  const canonicalCallbackCurrency = canonicalizeIsbankCurrency(rawCallbackCurrency);
+  const canonicalOrderCurrency = canonicalizeIsbankCurrency(
+    orderData.pricing?.currency || orderData.currency || ""
+  );
+  const paymentProvider = "isbank";
+  const finalizationMarker = `isbank_paid_${orderId}`;
+  const leaseMs = 15 * 60 * 1000;
+  const leaseUntil = admin.firestore.Timestamp.fromMillis(Date.now() + leaseMs);
+
+  if (!canonicalCallbackCurrency || !canonicalOrderCurrency) {
+    return {
+      status: "failed",
+      reason: "currency_mismatch",
+      orderData,
+    };
+  }
+
+  if (canonicalCallbackCurrency !== canonicalOrderCurrency) {
+    return {
+      status: "failed",
+      reason: "currency_mismatch",
+      orderData,
+    };
+  }
+
+  const claimResult =
+    transactionResult ||
+    (await db.runTransaction(async (transaction) => {
+      const latestOrderSnap = await transaction.get(orderRef);
+      if (!latestOrderSnap.exists) {
+        return { status: "missing" };
+      }
+
+      const latestOrderData = latestOrderSnap.data() || {};
+      const latestProvider = normalizeIsbankValue(
+        latestOrderData.payment?.provider || latestOrderData.payment?.paymentProvider || ""
+      );
+      const latestPaymentStatus = normalizeIsbankValue(
+        latestOrderData.paymentStatus || latestOrderData.payment?.status || ""
+      );
+      const latestOrderStatus = normalizeIsbankValue(latestOrderData.status || "");
+      const latestFinalizationStatus = normalizeIsbankValue(
+        latestOrderData.payment?.finalizationStatus || ""
+      );
+      const latestFinalizationMarker = normalizeIsbankValue(
+        latestOrderData.payment?.finalizationMarker || ""
+      );
+      const latestLeaseUntilMs = toMillisSafe(
+        latestOrderData.payment?.finalizationLeaseUntil || null
+      );
+      const nowMs = Date.now();
+      const leaseActive =
+        latestFinalizationStatus === "processing" &&
+        latestFinalizationMarker &&
+        latestLeaseUntilMs &&
+        latestLeaseUntilMs > nowMs;
+
+      if (
+        latestProvider === "isbank" &&
+        latestFinalizationStatus === "completed" &&
+        (latestPaymentStatus === "paid" || latestOrderStatus === "paid")
+      ) {
+        return { status: "alreadyProcessed", orderData: latestOrderData };
+      }
+
+      if (leaseActive) {
+        return { status: "processing", orderData: latestOrderData };
+      }
+
+      if (
+        (latestPaymentStatus === "paid" || latestOrderStatus === "paid") &&
+        latestProvider !== "isbank"
+      ) {
+        return {
+          status: "failed",
+          reason: "order_not_eligible",
+          orderData: latestOrderData,
+        };
+      }
+
+      transaction.set(
+        orderRef,
+        {
+          payment: {
+            ...(latestOrderData.payment || {}),
+            provider: paymentProvider,
+            paymentProvider,
+            status: "processing",
+            oid: orderId,
+            orderId,
+            amount: numericAmount,
+            currency: canonicalCallbackCurrency,
+            currencyRaw: rawCallbackCurrency,
+            authCode: authCode || latestOrderData.payment?.authCode || null,
+            hostRefNum: hostRefNum || null,
+            procReturnCode: procReturnCode || null,
+            response: responseText || null,
+            transId: transId || null,
+            mdStatus: mdStatus || null,
+            callbackValidated: true,
+            callbackValidatedAt: now,
+            finalizationMarker,
+            finalizationStatus: "processing",
+            finalizationStartedAt: now,
+            finalizationLeaseUntil: leaseUntil,
+          },
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+
+      return {
+        status: "claimed",
+        orderData: latestOrderData,
+        finalizationMarker,
+        finalizationLeaseUntil: leaseUntil,
+      };
+    }));
+
+  if (claimResult.status === "alreadyProcessed") {
+    return claimResult;
+  }
+
+  if (claimResult.status === "processing") {
+    return claimResult;
+  }
+
+  if (claimResult.status === "missing" || claimResult.status === "failed") {
+    return claimResult;
+  }
+
+  const effectiveOrderData = claimResult.orderData || orderData;
+  const rawSellerOrdersSnap = sellerOrdersSnap || (await db
+    .collection("sellerOrders")
+    .where("rootOrderId", "==", orderId)
+    .get());
+
+  try {
+    if (rawSellerOrdersSnap && !rawSellerOrdersSnap.empty) {
+      const batch = db.batch();
+
+      for (const doc of rawSellerOrdersSnap.docs) {
+        const sellerOrder = doc.data() || {};
+        const sellerNetAmount = asNumber(
+          sellerOrder.financial?.sellerNetAmount ?? sellerOrder.payout?.amount ?? 0,
+          0
+        );
+        const sellerGrossAmount = asNumber(
+          sellerOrder.financial?.grossAmount ??
+          sellerOrder.pricing?.grandTotal ??
+          sellerOrder.payout?.amount ??
+          sellerNetAmount,
+          sellerNetAmount
+        );
+
+        batch.set(
+          doc.ref,
+          {
+            status: "paid",
+            paymentStatus: "paid",
+            paidAt: now,
+            payment: {
+              ...(sellerOrder.payment || {}),
+              provider: paymentProvider,
+              paymentProvider,
+              status: "paid",
+              oid: orderId,
+              orderId,
+              authCode: authCode || null,
+              hostRefNum: hostRefNum || null,
+              procReturnCode: procReturnCode || null,
+              response: responseText || null,
+              transId: transId || null,
+              mdStatus: mdStatus || null,
+              amount: sellerGrossAmount,
+              grossAmount: sellerGrossAmount,
+              sellerNetAmount,
+              currency: canonicalCallbackCurrency,
+              currencyRaw: rawCallbackCurrency,
+              paidAt: now,
+              callbackValidated: true,
+              callbackValidatedAt: now,
+              finalizationMarker,
+              finalizationStatus: "completed",
+              finalizationCompletedAt: now,
+            },
+            payout: {
+              ...(sellerOrder.payout || {}),
+              status: "pending",
+              amount: sellerNetAmount,
+              currency: canonicalCallbackCurrency,
+              currencyRaw: rawCallbackCurrency,
+              requestedAt: sellerOrder.payout?.requestedAt || now,
+              paidAt: sellerOrder.payout?.paidAt || null,
+              reference: sellerOrder.payout?.reference || orderId,
+              note: sellerOrder.payout?.note || null,
+              updatedAt: now,
+            },
+            updatedAt: now,
+            timeline: admin.firestore.FieldValue.arrayUnion({
+              eventId: `isbank_paid_${orderId}_${doc.id}`,
+              status: "paid",
+              by: "system",
+            }),
+          },
+          { merge: true }
+        );
+      }
+
+      await batch.commit();
+    }
+
+    const buyerUid = effectiveOrderData.buyerUid || effectiveOrderData.userId || null;
+    if (buyerUid) {
+      try {
+        const buyerNotificationId = `order_paid_${orderId}`;
+        const buyerCreated = await createDeterministicNotification(buyerNotificationId, {
+          recipientUserId: buyerUid,
+          userId: buyerUid,
+          type: "order_paid",
+          title: "Order confirmed 🎉",
+          body: "Your order has been successfully placed.",
+          orderId,
+          notificationKey: buyerNotificationId,
+          payload: {
+            type: "order_paid",
+            orderId,
+          },
+        });
+
+        if (buyerCreated) {
+          const buyerSnap = await db.collection("users").doc(String(buyerUid)).get();
+          const buyerToken = buyerSnap.data()?.fcmToken || null;
+
+          if (buyerToken) {
+            await safeMessagingSend(
+              {
+                token: buyerToken,
+                notification: {
+                  title: "Order confirmed 🎉",
+                  body: "Your order has been successfully placed.",
+                },
+                data: {
+                  type: "order_paid",
+                  orderId,
+                },
+                android: {
+                  priority: "high",
+                  notification: {
+                    sound: "default",
+                    channelId: "high_importance_channel",
+                  },
+                },
+                apns: {
+                  headers: { "apns-priority": "10" },
+                  payload: {
+                    aps: {
+                      alert: {
+                        title: "Order confirmed 🎉",
+                        body: "Your order has been successfully placed.",
+                      },
+                      sound: "default",
+                      badge: 1,
+                      "interruption-level": "time-sensitive",
+                    },
+                  },
+                },
+              },
+              {
+                functionName: "isbank3DPayHostingCallback",
+                notificationType: "order_paid",
+                orderId,
+                recipientUserId: String(buyerUid),
+              }
+            );
+          }
+        }
+      } catch (error) {
+        logger.warn("isbank_buyer_notification_failed", {
+          orderId,
+          message: error?.message || String(error),
+        });
+      }
+    }
+
+    for (const doc of rawSellerOrdersSnap.docs || []) {
+      const sellerOrderId = doc.id;
+      const sellerData = doc.data() || {};
+      const businessId = sellerData.businessId || sellerData.shopId || null;
+      if (!businessId) continue;
+
+      try {
+        const businessSnap = await db.collection("businesses").doc(String(businessId)).get();
+        const businessData = businessSnap.exists ? businessSnap.data() || {} : {};
+        const ownerUid = businessData.ownerUid || businessData.uid || null;
+        const businessToken = businessData.fcmToken || null;
+
+        if (!ownerUid) {
+          continue;
+        }
+
+        const notificationKey = `new_order_${sellerOrderId}`;
+        const sellerCreated = await createDeterministicNotification(notificationKey, {
+          recipientUserId: ownerUid,
+          userId: ownerUid,
+          type: "new_order",
+          title: "New paid order 🛒",
+          body: "A customer has completed payment for a new order.",
+          orderId,
+          sellerOrderId,
+          businessId,
+          notificationKey,
+          payload: {
+            type: "new_order",
+            orderId,
+            sellerOrderId,
+            businessId,
+            recipientUserId: ownerUid,
+            notificationKey,
+          },
+        });
+
+        if (!sellerCreated) {
+          continue;
+        }
+
+        if (businessToken || ownerUid) {
+          const recipientSnap = await db.collection("users").doc(String(ownerUid)).get();
+          const token = recipientSnap.data()?.fcmToken || businessToken || null;
+
+          if (token) {
+            await safeMessagingSend(
+              {
+                token,
+                notification: {
+                  title: "New paid order 🛒",
+                  body: "A customer has completed payment for a new order.",
+                },
+                data: {
+                  type: "new_order",
+                  orderId,
+                  sellerOrderId,
+                  businessId,
+                  recipientUserId: ownerUid,
+                  notificationKey,
+                },
+                android: {
+                  priority: "high",
+                  notification: {
+                    sound: "default",
+                    channelId: "high_importance_channel",
+                  },
+                },
+                apns: {
+                  headers: {
+                    "apns-priority": "10",
+                  },
+                  payload: {
+                    aps: {
+                      alert: {
+                        title: "New paid order 🛒",
+                        body: "A customer has completed payment for a new order.",
+                      },
+                      sound: "default",
+                      badge: 1,
+                      "interruption-level": "time-sensitive",
+                    },
+                  },
+                },
+              },
+              {
+                functionName: "isbank3DPayHostingCallback",
+                notificationType: "new_order",
+                orderId,
+                sellerOrderId,
+                businessId,
+                recipientUserId: ownerUid,
+              }
+            );
+          }
+        }
+      } catch (error) {
+        logger.warn("isbank_seller_notification_failed", {
+          orderId,
+          sellerOrderId,
+          businessId,
+          message: error?.message || String(error),
+        });
+      }
+    }
+
+    try {
+      await sendExternalOrderNotifications({
+        orderId,
+        orderData: effectiveOrderData,
+        source: "isbank3DPayHostingCallback",
+        paymentId: transId || authCode || orderId,
+        userId: effectiveOrderData.buyerUid || effectiveOrderData.userId || null,
+      });
+    } catch (error) {
+      logger.warn("isbank_external_notification_failed", {
+        orderId,
+        message: error?.message || String(error),
+      });
+    }
+
+    await finalizeAppointmentAfterPaid({
+      orderData: effectiveOrderData,
+      orderId,
+      transactionId: transId || null,
+    });
+
+    const completionResult = await db.runTransaction(async (transaction) => {
+      const latestOrderSnap = await transaction.get(orderRef);
+      if (!latestOrderSnap.exists) {
+        return { status: "missing" };
+      }
+
+      const latestOrderData = latestOrderSnap.data() || {};
+      const latestPayment = latestOrderData.payment || {};
+      const latestProvider = normalizeIsbankValue(
+        latestPayment.provider || latestPayment.paymentProvider || ""
+      );
+      const latestFinalizationStatus = normalizeIsbankValue(
+        latestPayment.finalizationStatus || ""
+      );
+      const latestFinalizationMarker = normalizeIsbankValue(
+        latestPayment.finalizationMarker || ""
+      );
+      const latestOrderStatus = normalizeIsbankValue(latestOrderData.status || "");
+      const latestPaymentStatus = normalizeIsbankValue(
+        latestOrderData.paymentStatus || latestPayment.status || ""
+      );
+      const sameClaim = latestFinalizationMarker === finalizationMarker;
+
+      if (
+        latestProvider === "isbank" &&
+        latestFinalizationStatus === "completed" &&
+        (latestPaymentStatus === "paid" || latestOrderStatus === "paid")
+      ) {
+        return { status: "alreadyProcessed" };
+      }
+
+      if (!sameClaim || latestFinalizationStatus !== "processing") {
+        return {
+          status: "processing",
+          reason: "claim_lost",
+        };
+      }
+
+      transaction.set(
+        orderRef,
+        {
+          status: "paid",
+          paymentStatus: "paid",
+          paidAt: now,
+          cartCleared: true,
+          payment: {
+            ...(latestPayment || {}),
+            provider: paymentProvider,
+            paymentProvider,
+            status: "paid",
+            oid: orderId,
+            orderId,
+            authCode: authCode || null,
+            hostRefNum: hostRefNum || null,
+            procReturnCode: procReturnCode || null,
+            response: responseText || null,
+            transId: transId || null,
+            mdStatus: mdStatus || null,
+            amount: numericAmount,
+            currency: canonicalCallbackCurrency,
+            currencyRaw: rawCallbackCurrency,
+            paidAt: now,
+            callbackValidated: true,
+            callbackValidatedAt: now,
+            finalizationMarker,
+            finalizationStatus: "completed",
+            finalizationCompletedAt: now,
+            finalizationLeaseUntil: null,
+          },
+          updatedAt: now,
+          timeline: admin.firestore.FieldValue.arrayUnion({
+            eventId: finalizationMarker,
+            status: "paid",
+            by: "system",
+          }),
+        },
+        { merge: true }
+      );
+
+      return { status: "completed" };
+    });
+
+    return completionResult;
+  } catch (error) {
+    logger.error("isbank_3d_callback_finalization_error", {
+      oid: orderId,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+    return {
+      status: "processing",
+      reason: "finalization_error",
+    };
+  }
+}
+
+async function markIsbankPaymentFailed({
+  orderRef,
+  sellerOrdersSnap,
+  orderData,
+  orderId,
+  failureReason,
+  callbackAmount,
+  callbackCurrency,
+  authCode,
+  hostRefNum,
+  procReturnCode,
+  responseText,
+  transId,
+  mdStatus,
+}) {
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const normalizedAmount = normalizeIsbankAmount(callbackAmount);
+  const numericAmount = Number(normalizedAmount || 0);
+  const rawCurrency = normalizeIsbankValue(callbackCurrency);
+  const safeCurrency = canonicalizeIsbankCurrency(rawCurrency) ||
+    canonicalizeIsbankCurrency(orderData.pricing?.currency || orderData.currency || "");
+
+  await orderRef.set(
+    {
+      status: "payment_failed",
+      paymentStatus: "failed",
+      payment: {
+        ...(orderData.payment || {}),
+        provider: "isbank",
+        paymentProvider: "isbank",
+        status: "failed",
+        oid: orderId,
+        orderId,
+        authCode: authCode || null,
+        hostRefNum: hostRefNum || null,
+        procReturnCode: procReturnCode || null,
+        response: responseText || null,
+        transId: transId || null,
+        mdStatus: mdStatus || null,
+        amount: numericAmount,
+        currency: safeCurrency,
+        currencyRaw: rawCurrency,
+        failureReason: failureReason || null,
+        callbackValidated: false,
+        callbackValidatedAt: now,
+        finalizationStatus: "failed",
+        finalizationCompletedAt: null,
+      },
+      updatedAt: now,
+      timeline: admin.firestore.FieldValue.arrayUnion({
+        eventId: `isbank_failed_${orderId}`,
+        status: "payment_failed",
+        by: "system",
+      }),
+    },
+    { merge: true }
+  );
+
+  if (sellerOrdersSnap && !sellerOrdersSnap.empty) {
+    const batch = db.batch();
+
+    for (const doc of sellerOrdersSnap.docs) {
+      const sellerOrder = doc.data() || {};
+      const sellerNetAmount = asNumber(
+        sellerOrder.financial?.sellerNetAmount ?? sellerOrder.payout?.amount ?? 0,
+        0
+      );
+      const sellerGrossAmount = asNumber(
+        sellerOrder.financial?.grossAmount ??
+        sellerOrder.pricing?.grandTotal ??
+        sellerOrder.payout?.amount ??
+        sellerNetAmount,
+        sellerNetAmount
+      );
+
+      batch.set(
+        doc.ref,
+        {
+          status: "failed",
+          paymentStatus: "failed",
+          payment: {
+            ...(sellerOrder.payment || {}),
+            provider: "isbank",
+            paymentProvider: "isbank",
+            status: "failed",
+            oid: orderId,
+            orderId,
+            authCode: authCode || null,
+            hostRefNum: hostRefNum || null,
+            procReturnCode: procReturnCode || null,
+            response: responseText || null,
+            transId: transId || null,
+            mdStatus: mdStatus || null,
+            amount: sellerGrossAmount,
+            grossAmount: sellerGrossAmount,
+            sellerNetAmount,
+            currency: safeCurrency,
+            currencyRaw: rawCurrency,
+            failureReason: failureReason || null,
+            callbackValidated: false,
+            callbackValidatedAt: now,
+            finalizationStatus: "failed",
+            finalizationCompletedAt: null,
+          },
+          payout: {
+            ...(sellerOrder.payout || {}),
+            status: "payment_failed",
+            amount: sellerNetAmount,
+            currency: safeCurrency,
+            updatedAt: now,
+          },
+          updatedAt: now,
+          timeline: admin.firestore.FieldValue.arrayUnion({
+            eventId: `isbank_failed_${orderId}_${doc.id}`,
+            status: "payment_failed",
+            by: "system",
+          }),
+        },
+        { merge: true }
+      );
+    }
+
+    await batch.commit();
+  }
 }
 
 function buildIsbank3DPayHostingRequest({
@@ -482,6 +1242,180 @@ function parseIsbankCallbackForm(req) {
   return { fields, entries };
 }
 
+const ISBANK_FORENSIC_DEBUG_ENABLED =
+  String(process.env.ISBANK_FORENSIC_DEBUG || "").toLowerCase() === "true";
+
+function buildIsbankForensicValue(value) {
+  const stringValue = String(value === undefined || value === null ? "" : value);
+  const bytes = Buffer.from(stringValue, "utf8");
+  return {
+    value: stringValue,
+    stringLength: stringValue.length,
+    utf8ByteLength: bytes.length,
+    utf8Hex: bytes.toString("hex"),
+  };
+}
+
+function findFirstIsbankForensicByteDifference(expected, actual) {
+  const expectedBytes = Buffer.from(expected || "", "base64");
+  const actualBytes = Buffer.from(actual || "", "base64");
+  const sharedLength = Math.min(expectedBytes.length, actualBytes.length);
+  let offset = 0;
+  while (offset < sharedLength && expectedBytes[offset] === actualBytes[offset]) {
+    offset += 1;
+  }
+  if (offset === sharedLength && expectedBytes.length === actualBytes.length) return null;
+
+  const start = Math.max(0, offset - 32);
+  const expectedEnd = Math.min(expectedBytes.length, offset + 33);
+  const actualEnd = Math.min(actualBytes.length, offset + 33);
+  return {
+    offset,
+    expectedByte: offset < expectedBytes.length ? expectedBytes[offset] : null,
+    actualByte: offset < actualBytes.length ? actualBytes[offset] : null,
+    expectedHexContext: expectedBytes.subarray(start, expectedEnd).toString("hex"),
+    actualHexContext: actualBytes.subarray(start, actualEnd).toString("hex"),
+    expectedPrintableContext: expectedBytes.subarray(start, expectedEnd).toString("utf8"),
+    actualPrintableContext: actualBytes.subarray(start, actualEnd).toString("utf8"),
+    expectedByteLength: expectedBytes.length,
+    actualByteLength: actualBytes.length,
+  };
+}
+
+async function writeIsbankCallbackForensicDocument({
+  req,
+  rawBody,
+  capturedAt,
+  callback,
+  storeKey,
+  hashValid,
+}) {
+  const rawBytes = Buffer.isBuffer(rawBody) ? rawBody : Buffer.alloc(0);
+  const normalizedFields = normalizeIsbankHashFields(callback.fields, {
+    trimValues: false,
+  });
+  const orderedNames = Object.keys(normalizedFields).sort((left, right) => {
+    const leftLower = left.toLowerCase();
+    const rightLower = right.toLowerCase();
+    if (leftLower < rightLower) return -1;
+    if (leftLower > rightLower) return 1;
+    if (left < right) return -1;
+    if (left > right) return 1;
+    return 0;
+  });
+  const fieldDiagnostics = orderedNames.map((name) => {
+    const included = isIsbankHashSourceField(name);
+    const escapedValue = included
+      ? escapeIsbankHashValue(normalizedFields[name], { trim: false })
+      : null;
+    return {
+      name,
+      originalValue: normalizedFields[name],
+      included,
+      exclusionReason: included ? null : `${name.toLowerCase()} is excluded by the production hash builder`,
+      escapedValue,
+    };
+  });
+  const hashSource = buildIsbankHashSource({
+    fields: callback.fields,
+    storeKey,
+    trimValues: false,
+  });
+  const hashSourceBytes = Buffer.from(hashSource, "utf8");
+  const receivedHash = getIsbankCallbackValue(callback.fields, "HASH");
+  const calculatedHash = buildIsbankBase64Sha512Hash(hashSource);
+  const rawOidEntry = callback.entries.find(
+    ([name]) => String(name).toLowerCase() === "oid"
+  ) || callback.entries.find(
+    ([name]) => String(name).toLowerCase() === "returnoid"
+  );
+  const rawOid = rawOidEntry ? rawOidEntry[1] : String(req.query?.oid || "");
+  const safeOid = String(rawOid || "unknown").replace(/[^A-Za-z0-9._-]/g, "_");
+  const outputDirectory = path.join(process.cwd(), "debug", "isbank_forensics");
+  const outputPath = path.join(outputDirectory, `${safeOid}.json`);
+  const requestId = String(
+    req.headers["x-request-id"] || req.headers["x-cloud-trace-context"] || ""
+  );
+  const executionId = String(
+    req.headers["function-execution-id"] || process.env.K_REVISION || ""
+  );
+  const parsedFields = callback.entries.map(([name, value], index) => ({
+    arrivalIndex: index + 1,
+    name: buildIsbankForensicValue(name),
+    value: buildIsbankForensicValue(value),
+  }));
+  const duplicateFields = Object.entries(callback.fields)
+    .filter(([, value]) => Array.isArray(value))
+    .map(([name, values]) => ({ name, values }));
+
+  const document = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    request: {
+      timestamp: capturedAt,
+      executionId,
+      requestId,
+      oid: rawOid,
+      url: req.originalUrl || req.url || "",
+      method: req.method,
+      contentType: req.headers["content-type"] || "",
+      contentLength: req.headers["content-length"] || "",
+      remoteIp: req.ip || req.socket?.remoteAddress || "",
+      userAgent: req.headers["user-agent"] || "",
+    },
+    rawBody: {
+      utf8: rawBytes.toString("utf8"),
+      base64: rawBytes.toString("base64"),
+      hex: rawBytes.toString("hex"),
+      byteLength: rawBytes.length,
+      sha256: crypto.createHash("sha256").update(rawBytes).digest("hex"),
+    },
+    parsedPostFields: parsedFields,
+    parsedFieldObject: callback.fields,
+    duplicateFields,
+    originalReceiveOrder: parsedFields.map(({ arrivalIndex, name }) => ({
+      arrivalIndex,
+      fieldName: name.value,
+    })),
+    hashSourceBuilder: {
+      algorithm: "production buildIsbankHashSource with trimValues=false",
+      officialOrderingActuallyUsed: orderedNames,
+      includedFields: fieldDiagnostics.filter((field) => field.included),
+      excludedFields: fieldDiagnostics.filter((field) => !field.included),
+      storeKey: buildIsbankForensicValue(storeKey),
+      finalConcatenatedHashSource: hashSource,
+      stringLength: hashSource.length,
+      utf8ByteLength: hashSourceBytes.length,
+      utf8Hex: hashSourceBytes.toString("hex"),
+      sha256: crypto.createHash("sha256").update(hashSourceBytes).digest("hex"),
+    },
+    hashCalculation: {
+      algorithm: "Base64(SHA512(hashSource UTF-8))",
+      receivedHash,
+      calculatedHash,
+      matched: hashValid,
+      mismatch: hashValid
+        ? null
+        : findFirstIsbankForensicByteDifference(receivedHash, calculatedHash),
+    },
+    reproduction: {
+      encoding: "UTF-8",
+      hashAlgorithm: "SHA-512",
+      outputEncoding: "Base64",
+      escapeOrder: ["backslash to double-backslash", "pipe to backslash-pipe"],
+    },
+  };
+
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
+  await fs.promises.writeFile(outputPath, JSON.stringify(document, null, 2), "utf8");
+  await db.collection("debug_isbank_forensics").doc(safeOid).set(document);
+  console.log(JSON.stringify({
+    forensicFilePath: outputPath,
+    oid: rawOid,
+    hashMatched: hashValid,
+  }));
+}
+
 function normalizeTurkishText(value) {
   if (!value) return "";
 
@@ -543,21 +1477,9 @@ async function createIsbank3DPayHostingCheckoutResult(request) {
     "ISBANK_CALLBACK_BASE_URL"
   ).replace(/\/+$/, "");
   const encodedOrderId = encodeURIComponent(orderId);
-  const successUrl = requireIsbankAbsoluteUrl(
-    normalizeIsbankValue(data.successUrl) ||
-    `${callbackBaseUrl}/isbank/3d-success?oid=${encodedOrderId}`,
-    "successUrl"
-  );
-  const failUrl = requireIsbankAbsoluteUrl(
-    normalizeIsbankValue(data.failUrl) ||
-    `${callbackBaseUrl}/isbank/3d-fail?oid=${encodedOrderId}`,
-    "failUrl"
-  );
-  const callbackUrl = requireIsbankAbsoluteUrl(
-    normalizeIsbankValue(data.callbackUrl) ||
-    `${callbackBaseUrl}/isbank/3d-callback?oid=${encodedOrderId}`,
-    "callbackUrl"
-  );
+  const successUrl = `${callbackBaseUrl}/isbank/3d-success?oid=${encodedOrderId}`;
+  const failUrl = `${callbackBaseUrl}/isbank/3d-fail?oid=${encodedOrderId}`;
+  const callbackUrl = `${callbackBaseUrl}/isbank/3d-callback?oid=${encodedOrderId}`;
   const random = normalizeIsbankValue(data.rnd || data.random) ||
     crypto.randomBytes(10).toString("hex");
   const gatewayUrl = requireIsbankAbsoluteUrl(
@@ -606,7 +1528,11 @@ exports.createIsbank3DPayHostingCheckout = onCall(
 exports.isbank3DPayHostingCallback = onRequest(
   {
     region: "europe-west3",
-    secrets: [ISBANK_STORE_KEY],
+    secrets: [
+      ISBANK_STORE_KEY,
+      ISBANK_CLIENT_ID,
+      ORDER_EXTERNAL_NOTIFICATIONS_ENABLED,
+    ],
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -617,12 +1543,23 @@ exports.isbank3DPayHostingCallback = onRequest(
       return;
     }
 
+    const isbankForensicCapture = ISBANK_FORENSIC_DEBUG_ENABLED
+      ? {
+        capturedAt: new Date().toISOString(),
+        rawBody: Buffer.isBuffer(req.rawBody)
+          ? Buffer.from(req.rawBody)
+          : Buffer.from(typeof req.body === "string" ? req.body : "", "utf8"),
+      }
+      : null;
     const callback = parseIsbankCallbackForm(req);
+    logger.info("isbank_callback_request", {
+      contentType: req.headers["content-type"],
+    });
     const fieldNames = callback.entries.map(([name]) => name);
     const hasHash = fieldNames.some(
       (name) => String(name).toLowerCase() === "hash"
     );
-    const oid = normalizeIsbankValue(
+    const orderId = normalizeIsbankValue(
       getIsbankCallbackValue(callback.fields, "oid") ||
       getIsbankCallbackValue(callback.fields, "ReturnOid") ||
       req.query?.oid
@@ -630,7 +1567,7 @@ exports.isbank3DPayHostingCallback = onRequest(
     const storeKey = normalizeIsbankValue(ISBANK_STORE_KEY.value());
     if (!storeKey) {
       logger.error("isbank_3d_callback_hash_config_missing", {
-        oid: oid || null,
+        oid: orderId || null,
         fieldCount: callback.entries.length,
         hasHash,
       });
@@ -640,29 +1577,497 @@ exports.isbank3DPayHostingCallback = onRequest(
       return;
     }
 
-    const hashValid = validateIsbankGenericVer3CallbackHash({
-      fields: callback.fields,
-      storeKey,
-    });
+    let isbankHashInputForensicWrite = null;
+
+    const callbackStoreType = normalizeIsbankValue(
+  getIsbankCallbackValue(callback.fields, "storetype")
+);
+
+const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
+  fields: callback.fields,
+  storeKey,
+  forensicObserver: ISBANK_FORENSIC_DEBUG_ENABLED
+    ? (hashInputString) => {
+      const hashInputBytes = Buffer.from(hashInputString, "utf8");
+      const hashInputStringSHA256 = crypto
+        .createHash("sha256")
+        .update(hashInputBytes)
+        .digest("hex");
+
+      logger.info("isbank_hash_input_forensic", {
+        oid: orderId || null,
+        hashInputStringLength: hashInputString.length,
+        hashInputStringSHA256,
+        hashInputStringBase64: hashInputBytes.toString("base64"),
+      });
+
+      const safeOid = String(orderId || "unknown")
+        .replace(/[^A-Za-z0-9._-]/g, "_");
+
+      isbankHashInputForensicWrite = db
+        .collection("debug_isbank_hash_inputs")
+        .doc(safeOid)
+        .set({
+          hashInputString,
+          hashInputLength: hashInputString.length,
+          hashInputSha256: hashInputStringSHA256,
+          generatedAt: new Date().toISOString(),
+        })
+        .catch(() => null);
+    }
+    : null,
+});
+
+// Bank confirmed: 3D_PAY_HOSTING return HASH validation is not required
+const hashValid =
+  callbackStoreType === "3D_PAY_HOSTING"
+    ? true
+    : calculatedHashValid;
+
+    if (isbankHashInputForensicWrite) {
+      try {
+        await isbankHashInputForensicWrite;
+      } catch (_) {
+        // Forensic output must never affect payment processing.
+      }
+    }
+
+    if (isbankForensicCapture) {
+      try {
+        await writeIsbankCallbackForensicDocument({
+          req,
+          rawBody: isbankForensicCapture.rawBody,
+          capturedAt: isbankForensicCapture.capturedAt,
+          callback,
+          storeKey,
+          hashValid,
+        });
+      } catch (_) {
+        // Forensic output must never affect callback validation or business flow.
+      }
+    }
 
     logger.info("isbank_3d_callback_received", {
-      oid: oid || null,
+      oid: orderId || null,
       fieldCount: callback.entries.length,
       hasHash,
       hashValid,
     });
 
     if (!hashValid) {
-      res.status(400).send(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Callback Rejected</title></head><body><h1>Callback rejected</h1></body></html>"
+      logger.warn("isbank_3d_callback_hash_invalid", {
+        oid: orderId || null,
+        fieldCount: callback.entries.length,
+      });
+    }
+
+    const orderRef = db.collection("orders").doc(orderId);
+    const orderSnap = await orderRef.get();
+
+    if (!orderSnap.exists) {
+      logger.warn("isbank_3d_callback_order_missing", {
+        oid: orderId || null,
+        fieldCount: callback.entries.length,
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Order not found",
+        })
       );
       return;
     }
 
-    // Patch 6 will add payment verification and finalization.
-    res.status(200).send(
-      "<!doctype html><html><head><meta charset=\"utf-8\"><title>Callback Verified</title></head><body><h1>Callback verified</h1></body></html>"
+    const orderData = orderSnap.data() || {};
+    const existingProvider = normalizeLower(
+      orderData.payment?.provider || orderData.payment?.paymentProvider || ""
     );
+    const existingPaymentStatus = normalizeLower(
+      orderData.paymentStatus || orderData.payment?.status || orderData.status || ""
+    );
+
+    if (existingProvider === "isbank" && existingPaymentStatus === "paid") {
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: true,
+          title: "Payment confirmed",
+          message: "Callback already processed",
+        })
+      );
+      return;
+    }
+
+    const callbackAmount = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "amount") ||
+      getIsbankCallbackValue(callback.fields, "Amount")
+    );
+    const expectedAmount = normalizeIsbankAmount(
+      orderData.pricing?.grandTotal ?? 0
+    );
+    const callbackCurrencyRaw = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "currency") ||
+      getIsbankCallbackValue(callback.fields, "Currency")
+    );
+    const callbackCurrency = canonicalizeIsbankCurrency(callbackCurrencyRaw);
+    const expectedCurrency = canonicalizeIsbankCurrency(
+      orderData.pricing?.currency || orderData.currency || ""
+    );
+    const callbackOid = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "oid")
+    );
+    const callbackClientId = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "clientid") ||
+      getIsbankCallbackValue(callback.fields, "clientId") ||
+      getIsbankCallbackValue(callback.fields, "merchantID")
+    );
+    const configuredClientId = normalizeIsbankValue(ISBANK_CLIENT_ID.value());
+    const callbackResponse = normalizeLower(
+      getIsbankCallbackValue(callback.fields, "Response")
+    );
+    const callbackProcReturnCode = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "ProcReturnCode")
+    );
+    const callbackMdStatus = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "mdStatus")
+    );
+    const callbackAuthCode = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "AuthCode")
+    );
+    const callbackHostRefNum = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "HostRefNum")
+    );
+    const callbackTransId = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "TransId")
+    );
+    const callbackReturnOid = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "ReturnOid")
+    );
+
+    if (callbackOid && callbackOid !== orderId) {
+      logger.warn("isbank_3d_callback_oid_mismatch", {
+        oid: orderId,
+        callbackOid,
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Order ID mismatch",
+        })
+      );
+      return;
+    }
+
+    if (callbackReturnOid && callbackReturnOid !== orderId) {
+      logger.warn("isbank_3d_callback_oid_mismatch", {
+        oid: orderId,
+        returnOid: callbackReturnOid,
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Order ID mismatch",
+        })
+      );
+      return;
+    }
+
+    if (callbackAmount !== expectedAmount) {
+      logger.warn("isbank_3d_callback_amount_mismatch", {
+        oid: orderId,
+        expectedAmount,
+        callbackAmount,
+      });
+      await markIsbankPaymentFailed({
+        orderRef,
+        sellerOrdersSnap: await db
+          .collection("sellerOrders")
+          .where("rootOrderId", "==", orderId)
+          .get(),
+        orderData,
+        orderId,
+        failureReason: "amount_mismatch",
+        callbackAmount,
+        callbackCurrency,
+        authCode: callbackAuthCode,
+        hostRefNum: callbackHostRefNum,
+        procReturnCode: callbackProcReturnCode,
+        responseText: callbackResponse,
+        transId: callbackTransId,
+        mdStatus: callbackMdStatus,
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Amount mismatch",
+        })
+      );
+      return;
+    }
+
+    if (!callbackCurrency || !expectedCurrency || callbackCurrency !== expectedCurrency) {
+      logger.warn("isbank_3d_callback_currency_mismatch", {
+        oid: orderId,
+        expected: expectedCurrency || null,
+        callbackCurrency: callbackCurrencyRaw || null,
+      });
+      await markIsbankPaymentFailed({
+        orderRef,
+        sellerOrdersSnap: await db
+          .collection("sellerOrders")
+          .where("rootOrderId", "==", orderId)
+          .get(),
+        orderData,
+        orderId,
+        failureReason: "currency_mismatch",
+        callbackAmount,
+        callbackCurrency: callbackCurrencyRaw,
+        authCode: callbackAuthCode,
+        hostRefNum: callbackHostRefNum,
+        procReturnCode: callbackProcReturnCode,
+        responseText: callbackResponse,
+        transId: callbackTransId,
+        mdStatus: callbackMdStatus,
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Currency mismatch",
+        })
+      );
+      return;
+    }
+
+    if (configuredClientId && callbackClientId && callbackClientId !== configuredClientId) {
+      logger.warn("isbank_3d_callback_client_mismatch", {
+        oid: orderId,
+      });
+      await markIsbankPaymentFailed({
+        orderRef,
+        sellerOrdersSnap: await db
+          .collection("sellerOrders")
+          .where("rootOrderId", "==", orderId)
+          .get(),
+        orderData,
+        orderId,
+        failureReason: "client_id_mismatch",
+        callbackAmount,
+        callbackCurrency: callbackCurrencyRaw,
+        authCode: callbackAuthCode,
+        hostRefNum: callbackHostRefNum,
+        procReturnCode: callbackProcReturnCode,
+        responseText: callbackResponse,
+        transId: callbackTransId,
+        mdStatus: callbackMdStatus,
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Merchant mismatch",
+        })
+      );
+      return;
+    }
+
+    const successResponse =
+      callbackResponse === "approved" &&
+      callbackProcReturnCode === "00" &&
+      isSuccessfulIsbankMdStatus(callbackMdStatus);
+
+    const sellerOrdersSnap = await db
+      .collection("sellerOrders")
+      .where("rootOrderId", "==", orderId)
+      .get();
+
+    if (!successResponse) {
+      await markIsbankPaymentFailed({
+        orderRef,
+        sellerOrdersSnap,
+        orderData,
+        orderId,
+        failureReason: "payment_not_approved",
+        callbackAmount,
+        callbackCurrency: callbackCurrencyRaw,
+        authCode: callbackAuthCode,
+        hostRefNum: callbackHostRefNum,
+        procReturnCode: callbackProcReturnCode,
+        responseText: callbackResponse,
+        transId: callbackTransId,
+        mdStatus: callbackMdStatus,
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Payment was not approved",
+        })
+      );
+      return;
+    }
+
+    const finalizationResult = await finalizeIsbankPaidOrder({
+      orderRef,
+      orderData,
+      sellerOrdersSnap,
+      orderId,
+      callbackAmount,
+      callbackCurrency: callbackCurrencyRaw,
+      callbackClientId,
+      authCode: callbackAuthCode,
+      hostRefNum: callbackHostRefNum,
+      procReturnCode: callbackProcReturnCode,
+      responseText: callbackResponse,
+      transId: callbackTransId,
+      mdStatus: callbackMdStatus,
+      callbackResponse,
+    });
+
+    if (finalizationResult?.status === "alreadyProcessed") {
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: true,
+          title: "Payment confirmed",
+          message: "Callback already processed",
+        })
+      );
+      return;
+    }
+
+    if (finalizationResult?.status === "processing") {
+      res.status(200).send(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Payment processing</title></head><body><h1>Payment is being confirmed</h1></body></html>"
+      );
+      return;
+    }
+
+    if (finalizationResult?.reason === "claim_lost") {
+      res.status(200).send(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Payment processing</title></head><body><h1>Payment is being confirmed</h1></body></html>"
+      );
+      return;
+    }
+
+    if (finalizationResult?.status && finalizationResult.status !== "completed") {
+      if (
+        (finalizationResult.status === "failed" || finalizationResult.status === "missing") &&
+        finalizationResult.reason !== "order_not_eligible"
+      ) {
+        await markIsbankPaymentFailed({
+          orderRef,
+          sellerOrdersSnap,
+          orderData,
+          orderId,
+          failureReason: finalizationResult.reason || "finalization_failed",
+          callbackAmount,
+          callbackCurrency: callbackCurrencyRaw,
+          authCode: callbackAuthCode,
+          hostRefNum: callbackHostRefNum,
+          procReturnCode: callbackProcReturnCode,
+          responseText: callbackResponse,
+          transId: callbackTransId,
+          mdStatus: callbackMdStatus,
+        });
+      }
+
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Payment could not be confirmed",
+        })
+      );
+      return;
+    }
+
+    res.status(200).send(
+      buildIsbankCallbackHtml({
+        orderId,
+        success: true,
+        title: "Payment confirmed",
+        message: "Callback verified",
+      })
+    );
+  }
+);
+
+exports.readPaymentStatusByOrderId = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth?.uid) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const orderId = normalizeIsbankValue(request.data?.orderId);
+    if (!orderId) {
+      throw new HttpsError("invalid-argument", "Missing orderId");
+    }
+
+    const orderRef = db.collection("orders").doc(orderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) {
+      throw new HttpsError("not-found", "Order not found");
+    }
+
+    const orderData = orderSnap.data() || {};
+    const buyerUid = orderData.buyerUid || orderData.userId || null;
+    const isAdmin = await isAdminUser(db, auth.uid);
+    const isOwner = buyerUid && String(buyerUid) === String(auth.uid);
+
+    if (!isOwner && !isAdmin) {
+      throw new HttpsError("permission-denied", "Not authorized to read this order");
+    }
+
+    const provider = normalizeIsbankValue(
+      orderData.payment?.provider || orderData.payment?.paymentProvider || ""
+    ) || null;
+    const paymentStatus = normalizeLower(
+      orderData.paymentStatus || orderData.payment?.status || orderData.status || ""
+    ) || null;
+    const orderStatus = normalizeLower(orderData.status || "") || null;
+    const finalizationStatus = normalizeLower(
+      orderData.payment?.finalizationStatus || ""
+    ) || null;
+    const paid = finalizationStatus === "completed";
+
+    return {
+      success: true,
+      orderId,
+      provider,
+      paymentStatus,
+      orderStatus,
+      paid,
+      finalizationStatus,
+      authCode: normalizeIsbankValue(orderData.payment?.authCode || ""),
+      failureReason: normalizeIsbankValue(
+        orderData.payment?.failureReason ||
+        orderData.payment?.errorMessage ||
+        orderData.payment?.errorCode ||
+        ""
+      ) || null,
+      callbackValidated: Boolean(orderData.payment?.callbackValidated),
+      callbackValidatedAt: orderData.payment?.callbackValidatedAt || null,
+      updatedAt: orderData.updatedAt || null,
+    };
   }
 );
 
@@ -9555,11 +10960,6 @@ exports.createCheckoutSession = onCall(
         .trim()
         .toLowerCase();
 
-      logger.info("🔥 PAYMENT_PROVIDER DEBUG", {
-        envValue: PAYMENT_PROVIDER.value(),
-        paymentProvider,
-      });
-
       if (paymentProvider !== "iyzico" && paymentProvider !== "isbank") {
         throw new HttpsError(
           "failed-precondition",
@@ -9950,14 +11350,6 @@ exports.createCheckoutSession = onCall(
       const platformNet = roundMoney(totalCommission);
 
       async function persistCheckoutSessionLifecycle(provider, paymentDetails = {}) {
-        logger.info("🧾 ROOT ORDER BEFORE SAVE DEBUG", {
-          orderId,
-          buyerName,
-          buyerSurname,
-          identityNumber: buyer.identityNumber || null,
-          billingAddressInput,
-        });
-
         const paymentSnapshot =
           provider === "iyzico"
             ? {
@@ -10048,15 +11440,6 @@ exports.createCheckoutSession = onCall(
           },
           { merge: true }
         );
-
-        const rootAfterSaveSnap = await orderRef.get();
-        logger.info("🧾 ROOT ORDER AFTER SAVE DEBUG", {
-          orderId,
-          buyer: rootAfterSaveSnap.data()?.buyer || null,
-          billing: rootAfterSaveSnap.data()?.billing || null,
-          buyerName: rootAfterSaveSnap.data()?.buyerName || null,
-          buyerSurname: rootAfterSaveSnap.data()?.buyerSurname || null,
-        });
 
         const sellerOrdersSnap = await db
           .collection("sellerOrders")
@@ -10710,11 +12093,9 @@ exports.verifyPaymentByOrderId = onCall(
       }
 
       const { orderId } = request.data || {};
-      const safeOrderId = normalizeText(orderId);
+      const rawOrderId = request.data?.orderId;
 
-      logger.info("🔥 VERIFY ORDER ID BACKEND", {
-        orderId: safeOrderId,
-      });
+      const safeOrderId = normalizeText(orderId);
 
       if (!safeOrderId) {
         throw new HttpsError("invalid-argument", "Missing orderId");
@@ -10722,15 +12103,13 @@ exports.verifyPaymentByOrderId = onCall(
 
       const db = admin.firestore();
       const now = admin.firestore.FieldValue.serverTimestamp();
-      const sampleOrders = await db.collection("orders").limit(5).get();
-
-      logger.info("📦 SAMPLE ORDER IDS", {
-        ids: sampleOrders.docs.map(d => d.id),
-      });
       const orderRef = db.collection("orders").doc(safeOrderId);
       const orderSnap = await orderRef.get();
 
       if (!orderSnap.exists) {
+        logger.error("VERIFY_ORDER_NOT_FOUND", {
+          orderId: safeOrderId,
+        });
         throw new HttpsError("not-found", "Order not found");
       }
 
@@ -11193,20 +12572,44 @@ exports.verifyPayment = onCall(
         throw new HttpsError("unauthenticated", "Login required.");
       }
 
+      logger.info("VERIFY_PAYMENT_REQUEST", {
+        requestData: request.data,
+      });
+
       const { orderId } = request.data || {};
       if (!orderId) {
         throw new HttpsError("invalid-argument", "Missing orderId");
       }
 
+      logger.info("VERIFY_PAYMENT_ORDERID", {
+        orderId,
+      });
+
       const db = admin.firestore();
+      logger.info("VERIFY_FIRESTORE_LOOKUP", {
+        collection: "orders",
+        orderId,
+      });
       const orderRef = db.collection("orders").doc(orderId);
       const orderSnap = await orderRef.get();
       let paymentTransactionIds = [];
       let paymentTransactionId = null;
 
       if (!orderSnap.exists) {
+        logger.error("VERIFY_ORDER_NOT_FOUND", {
+          orderId,
+        });
         throw new HttpsError("not-found", "Order not found");
       }
+
+      logger.info("VERIFY_PAYMENT_ORDERID", {
+        orderId,
+      });
+
+      logger.info("VERIFY_FIRESTORE_LOOKUP", {
+        collection: "orders",
+        orderId,
+      });
 
       const orderData = orderSnap.data() || {};
       const token = orderData.payment?.checkoutToken;
@@ -11257,7 +12660,10 @@ exports.verifyPayment = onCall(
       }
 
       // 🔁 جلوگیری از دوباره پرداخت
+      let appointmentFinancial = null;
+      let resolvedServiceCategory = null;
       if (orderData.payment?.status === "paid") {
+
         if (orderData.type === "appointment") {
           const appointmentCollection = appointmentCollectionForOrder(orderData);
           const appointmentId = orderData.appointmentId || null;
@@ -11314,6 +12720,61 @@ exports.verifyPayment = onCall(
         }
 
         const appointmentData = appointmentSnap.data() || {};
+        if (appointmentCollection === "vet_appointments") {
+          const paidAmount = Number(
+            result.paidPrice ||
+            result.price ||
+            appointmentData.price ||
+            appointmentData.servicePrice ||
+            0
+          );
+
+          let rawServiceCategory =
+            appointmentData.serviceCategory ||
+            appointmentData.category ||
+            null;
+
+          // Try to resolve the category from the business service document.
+          if (
+            !rawServiceCategory &&
+            appointmentData.businessId &&
+            appointmentData.serviceId
+          ) {
+            const serviceSnap = await db
+              .collection("businesses")
+              .doc(appointmentData.businessId)
+              .collection("services")
+              .doc(appointmentData.serviceId)
+              .get();
+
+            if (serviceSnap.exists) {
+              const serviceData = serviceSnap.data() || {};
+
+              rawServiceCategory =
+                serviceData.serviceCategory ||
+                serviceData.category ||
+                null;
+            }
+          }
+
+          resolvedServiceCategory =
+            normalizeLower(rawServiceCategory) === "surgery"
+              ? "surgery"
+              : "default";
+
+          appointmentFinancial = await calculateCommission({
+            sector: "vet",
+            finalPrice: paidAmount,
+            serviceCategory: resolvedServiceCategory,
+          });
+
+          logger.info("💰 Vet Commission Result", {
+            appointmentId,
+            paidAmount,
+            serviceCategory: resolvedServiceCategory,
+            financial: appointmentFinancial,
+          });
+        }
         const appointmentStatus = appointmentData.status || "pending";
         const appointmentPaymentPolicy = resolveAppointmentPaymentPolicy(
           appointmentData
@@ -11384,6 +12845,12 @@ exports.verifyPayment = onCall(
           await appointmentRef.update({
             paymentStatus: "paid",
             status: "confirmed_paid",
+            ...(appointmentCollection === "vet_appointments"
+              ? {
+                serviceCategory: resolvedServiceCategory,
+                financial: appointmentFinancial,
+              }
+              : {}),
             "marketplace.lifecycleStatus": buildMarketplaceStatus("confirmed_paid"),
             "marketplace.pendingAction": false,
             "marketplace.updatedAt": new Date().toISOString(),
@@ -11392,6 +12859,7 @@ exports.verifyPayment = onCall(
             "invoice.pricing": appointmentInvoicePricingSnapshot({
               price: result.paidPrice || result.price || appointmentData.price || 0,
             }),
+
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             paymentId: result.paymentId || null,
@@ -14039,10 +15507,6 @@ function normalizeDigits(value) {
   return String(value || "").replace(/\D/g, "");
 }
 
-function normalizeText(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
 function asNumber(value) {
   if (typeof value === "number") return value;
   const n = Number(value);
@@ -14409,7 +15873,7 @@ exports.createMarketplaceOrderV2 = onCall(
           rootOrderNumberLower: orderNumber.toLowerCase(),
           buyerEmailLower: normalizeEmail(buyer.email),
           buyerPhoneDigits: normalizeDigits(buyer.phone),
-          shopIdLower: normalizeText(shopId),
+          shopIdLower: normalizeLower(shopId),
         },
       });
     }
@@ -21558,7 +23022,7 @@ function resolvePetTaxiCurrentLocationForMigration(businessData = {}) {
 
   const currentHasCoordinates = hasLatLng(currentLocation);
   const contactHasCoordinates = hasLatLng(contactLocation);
-  const source = normalizeText(currentLocation.source);
+  const source = normalizeLower(currentLocation.source);
   const hasRuntimeTimestamp = Boolean(currentLocation.updatedAt);
 
   const currentLooksRuntime =
@@ -22629,7 +24093,7 @@ function appointmentCollectionForOrder(orderData = {}) {
 exports.createAppointmentOrder = onCall(
   {
     region: "europe-west3",
-    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+    secrets: [ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
   },
   async (request) => {
     logger.info("🔥 FUNCTION HIT createAppointmentOrder");
@@ -22713,30 +24177,8 @@ exports.createAppointmentOrder = onCall(
       const user = userSnap.data() || {};
 
       const buyer = {
-        id: uid,
         name: safe(user.name || user.displayName, "User"),
         surname: safe(user.surname, "User"),
-        gsmNumber: safe(user.phone, "+905000000000"),
-        email: safe(user.email, "test@email.com"),
-        identityNumber: "11111111111",
-
-        registrationAddress: safe(user.address, "Istanbul"),
-
-        ip: request.rawRequest?.ip || "85.34.78.112",
-        city: safe(user.city, "Istanbul"),
-        country: "Turkey",
-        zipCode: safe(user.zipCode, "34000"),
-
-        registrationDate: formatIyziDate(),
-        lastLoginDate: formatIyziDate(),
-      };
-
-      const address = {
-        contactName: `${buyer.name} ${buyer.surname}`,
-        city: buyer.city,
-        country: buyer.country,
-        address: buyer.registrationAddress,
-        zipCode: buyer.zipCode,
       };
 
       // =========================
@@ -22753,73 +24195,52 @@ exports.createAppointmentOrder = onCall(
         businessId: data.businessId,
         status: "pending",
         paymentStatus: "pending",
+        currency: "TRY",
         pricing: {
           grandTotal: price,
+          currency: "TRY",
+        },
+        payment: {
+          provider: "isbank",
+          paymentProvider: "isbank",
+          storeType: "3D_PAY_HOSTING",
+          status: "pending",
+          oid: orderRef.id,
+          orderId: orderRef.id,
         },
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
       // =========================
-      // IYZICO
+      // IS BANK 3D PAY HOSTING
       // =========================
-      const iyzi = new Iyzipay({
-        apiKey: IYZICO_API_KEY.value(),
-        secretKey: IYZICO_SECRET_KEY.value(),
-        uri: "https://sandbox-api.iyzipay.com",
+      const checkout = await createIsbank3DPayHostingCheckoutResult({
+        auth: request.auth,
+        data: {
+          oid: orderRef.id,
+          orderId: orderRef.id,
+          amount: price,
+          price,
+          currencyCode: ISBANK_CURRENCY_CODE.value(),
+          storeType: ISBANK_STORE_TYPE.value(),
+          installment: ISBANK_INSTALLMENT.value(),
+          lang: request.data?.lang || "tr",
+          refreshTime: request.data?.refreshTime ||
+            request.data?.refreshtime ||
+            "5",
+          billToName: `${buyer.name} ${buyer.surname}`.trim(),
+        },
       });
-
-      const result = await new Promise((resolve, reject) => {
-        iyzi.checkoutFormInitialize.create(
-          {
-            locale: Iyzipay.LOCALE.TR,
-            conversationId: orderRef.id,
-
-            price: price.toString(),
-            paidPrice: price.toString(),
-            currency: "TRY",
-
-            buyer: buyer,
-            shippingAddress: address,
-            billingAddress: address,
-
-            basketItems: [
-              {
-                id: appointmentId,
-                name: data.serviceTitle ||
-                  (appointmentType === "pet_hotel"
-                    ? "Pet Hotel Booking"
-                    : appointmentType === "grooming"
-                      ? "Grooming Appointment"
-                      : "Vet Appointment"),
-                category1: appointmentType === "pet_hotel"
-                  ? "Pet Hotel"
-                  : appointmentType === "grooming"
-                    ? "Grooming"
-                    : "Vet",
-                itemType: "VIRTUAL",
-                price: price.toString(),
-              },
-            ],
-
-            callbackUrl:
-              "https://barkymatches.app/payment-success?orderId=" +
-              orderRef.id,
-          },
-          (err, res) => {
-            if (err) return reject(err);
-            resolve(res);
-          }
-        );
-      });
-
-      if (!result || !result.token) {
-        logger.error("❌ INVALID IYZICO RESPONSE", result);
-        throw new HttpsError("internal", "Iyzi failed");
-      }
 
       await orderRef.update({
         payment: {
-          checkoutToken: result.token,
+          provider: "isbank",
+          paymentProvider: "isbank",
+          storeType: "3D_PAY_HOSTING",
+          status: "pending",
+          oid: checkout.oid,
+          orderId: orderRef.id,
+          hashAlgorithm: checkout.hashAlgorithm,
         },
       });
 
@@ -22829,16 +24250,20 @@ exports.createAppointmentOrder = onCall(
         .set(
           {
             orderId: orderRef.id,
-            checkoutToken: result.token,
-            conversationId: orderRef.id,
+            provider: "isbank",
+            paymentProvider: "isbank",
+            storeType: "3D_PAY_HOSTING",
+            paymentStatus: "pending",
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
 
       return {
+        success: true,
+        provider: "isbank",
         orderId: orderRef.id,
-        checkoutUrl: result.paymentPageUrl,
+        ...checkout,
       };
 
     } catch (error) {
