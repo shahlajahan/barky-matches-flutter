@@ -153,7 +153,9 @@ class _AllProductsPageState extends State<AllProductsPage> {
 
   Future<void> _loadCartFromFirestore() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null || FirebaseAuth.instance.currentUser?.isAnonymous == true) {
+      return;
+    }
 
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -445,7 +447,9 @@ class _AllProductsPageState extends State<AllProductsPage> {
 
   Future<void> _syncCartToFirestore() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null || FirebaseAuth.instance.currentUser?.isAnonymous == true) {
+      return;
+    }
 
     final cartRef = FirebaseFirestore.instance
         .collection('users')
@@ -562,7 +566,8 @@ class _AllProductsPageState extends State<AllProductsPage> {
         actions: [
           /// FAVORITES
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseAuth.instance.currentUser == null
+            stream: FirebaseAuth.instance.currentUser == null ||
+                    FirebaseAuth.instance.currentUser!.isAnonymous
                 ? null
                 : FirebaseFirestore.instance
                       .collection('users')

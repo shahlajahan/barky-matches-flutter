@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:barky_matches_fixed/ui/petshop/petshop_products_page.dart';
+import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 class PetShopListPage extends StatelessWidget {
   const PetShopListPage({super.key});
@@ -13,9 +14,25 @@ class PetShopListPage extends StatelessWidget {
 
       body: StreamBuilder<QuerySnapshot>(
         // 🔥 IMPORTANT: بدون where (چون دیتات structure متفاوت داره)
-        stream: FirebaseFirestore.instance.collection('businesses').snapshots(),
+        stream: (() {
+          final query = FirebaseFirestore.instance.collection('businesses');
+          FirestoreQueryTrace.log(
+            file: 'lib/ui/common/pages/petshop_list_page.dart',
+            method: 'build',
+            line: 16,
+            collection: 'businesses',
+            clauses: const [],
+            terminalCall: 'snapshots()',
+            query: query,
+          );
+          return query.snapshots();
+        })(),
 
         builder: (context, snapshot) {
+          debugPrint(
+            'PETSHOP_STREAM_BUILDER hasData=${snapshot.hasData} '
+            'hasError=${snapshot.hasError} state=${snapshot.connectionState}',
+          );
           if (snapshot.hasError) {
             return const Center(child: Text("Error loading pet shops"));
           }

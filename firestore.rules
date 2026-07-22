@@ -3,7 +3,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
-      return request.auth != null;
+      return isRegisteredUser();
+    }
+
+    function isAnonymousUser() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isRegisteredUser() {
+      return request.auth != null && !isAnonymousUser();
     }
 
     function isAdmin() {
@@ -303,7 +312,11 @@ allow read: if isAdmin() || (
     match /dogs/{dogId} {
 
       allow read:
-        if isSignedIn();
+        if isRegisteredUser()
+        || (
+          isAnonymousUser()
+          && resource.data.isAvailableForAdoption == true
+        );
 
       allow create:
         if isSignedIn() &&
@@ -406,9 +419,13 @@ match /dogs/{dogId}/visits/{visitId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
-    }
+   }
    match /businesses/{businessId} {
-  allow read: if isSignedIn();
+  allow read: if isSignedIn() || (
+    resource.data.status == 'approved' &&
+    resource.data.sectors is list &&
+    resource.data.sectors.hasAny(['adoption_center'])
+  );
   allow create: if isAdmin() || (
     isSignedIn() &&
     request.resource.data.ownerUid == request.auth.uid
@@ -439,7 +456,7 @@ isBusinessOwner(businessId);
 
     match /featured_deals/{dealId} {
 
-  allow read: if isSignedIn();
+  allow read: if isRegisteredUser() || isAnonymousUser();
 
   allow write: if isAdmin();
 
@@ -447,7 +464,7 @@ isBusinessOwner(businessId);
 
     match /{path=**}/products/{productId} {
 
-  allow read: if isSignedIn();
+  allow read: if isRegisteredUser() || isAnonymousUser();
 
   allow create:
     if isAdmin() ||
@@ -465,12 +482,12 @@ isBusinessOwner(businessId);
 }
 
     match /global_products/{productId} {
-      allow read: if isSignedIn();
+      allow read: if isRegisteredUser() || isAnonymousUser();
       allow write: if isAdmin();
     }
 
     match /global_product_aggregates/{aggregateId} {
-      allow read: if isSignedIn();
+      allow read: if isRegisteredUser() || isAnonymousUser();
       allow write: if isAdmin();
     }
 
@@ -512,67 +529,59 @@ isBusinessOwner(businessId);
     }
 
     match /stories/{storyId} {
-      allow read: if request.auth != null;
+      allow read: if isRegisteredUser();
 
-      allow create: if request.auth != null
+      allow create: if isRegisteredUser()
         && request.resource.data.userId == request.auth.uid;
 
-      allow update: if request.auth != null;
+      allow update: if isRegisteredUser();
 
-      allow delete: if request.auth != null
+      allow delete: if isRegisteredUser()
         && (
           resource.data.userId == request.auth.uid
           || isAdmin()
         );
 
       match /views/{viewerId} {
-        allow read: if request.auth != null;
-        allow create: if request.auth != null
+        allow read: if isRegisteredUser();
+        allow create: if isRegisteredUser()
           && viewerId == request.auth.uid;
         allow update, delete: if false;
       }
     }
 
     match /story_likes/{likeId} {
+      allow read: if isRegisteredUser();
+      allow create: if isRegisteredUser()
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if isRegisteredUser();
+      allow update: if false;
+    }
 
-  allow read: if request.auth != null;
-
-  allow create: if request.auth != null
-    && request.resource.data.userId == request.auth.uid;
-
-  allow delete: if request.auth != null;
-
-  allow update: if false;
-}
-
-match /story_replies/{replyId} {
-
-  allow read: if request.auth != null;
-
-  allow create: if request.auth != null
-    && request.resource.data.senderId == request.auth.uid;
-
-  allow update: if false;
-
-  allow delete: if false;
-}
+    match /story_replies/{replyId} {
+      allow read: if isRegisteredUser();
+      allow create: if isRegisteredUser()
+        && request.resource.data.senderId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
 
     match /followers/{userId}/userFollowers/{followerUserId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
+      allow read: if isRegisteredUser();
+      allow create: if isRegisteredUser()
         && followerUserId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
-      allow delete: if request.auth != null
+      allow delete: if isRegisteredUser()
         && followerUserId == request.auth.uid;
       allow update: if false;
     }
 
     match /following/{userId}/userFollowing/{followingUserId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
+      allow read: if isRegisteredUser();
+      allow create: if isRegisteredUser()
         && userId == request.auth.uid
         && request.resource.data.userId == followingUserId;
-      allow delete: if request.auth != null
+      allow delete: if isRegisteredUser()
         && userId == request.auth.uid;
       allow update: if false;
     }
@@ -623,7 +632,7 @@ match /story_replies/{replyId} {
     }
 
     match /businessDrafts/{draftId} {
-  allow read, write: if request.auth != null
+  allow read, write: if isRegisteredUser()
     && (
       isAdmin()
       || request.auth.uid == draftId
@@ -708,7 +717,7 @@ match /story_replies/{replyId} {
     }
 
     match /order_returns/{returnId} {
-      allow read: if request.auth != null && (
+      allow read: if isRegisteredUser() && (
         resource.data.buyerUid == request.auth.uid ||
         resource.data.sellerUid == request.auth.uid ||
         (
@@ -722,13 +731,13 @@ match /story_replies/{replyId} {
     }
 
     match /vet_appointments/{appointmentId} {
-      allow read: if request.auth != null && (
+      allow read: if isRegisteredUser() && (
         isAppointmentOwner(resource.data) ||
         isBusinessOwner(resource.data.businessId) ||
         isAdmin()
       );
 
-      allow update: if request.auth != null && (
+      allow update: if isRegisteredUser() && (
         (
           isAppointmentOwner(resource.data) &&
           isStatusOnlyUpdate() &&
@@ -748,14 +757,14 @@ match /story_replies/{replyId} {
 // ===============================
 match /chats/{chatId} {
 
-  allow get: if request.auth != null;
+  allow get: if isRegisteredUser();
 
-  allow list: if request.auth != null
+  allow list: if isRegisteredUser()
     && request.auth.uid in resource.data.participants;
 
-  allow create: if request.auth != null;
+  allow create: if isRegisteredUser();
 
-  allow update: if request.auth != null
+  allow update: if isRegisteredUser()
     && request.auth.uid in resource.data.participants;
 
   allow delete: if false;
@@ -765,18 +774,18 @@ match /chats/{chatId} {
   // ===============================
   match /messages/{messageId} {
 
-    allow read: if request.auth != null
+    allow read: if isRegisteredUser()
       && request.auth.uid in get(
         /databases/$(database)/documents/chats/$(chatId)
       ).data.participants;
 
-    allow create: if request.auth != null
+    allow create: if isRegisteredUser()
       && request.auth.uid in get(
         /databases/$(database)/documents/chats/$(chatId)
       ).data.participants
       && request.resource.data.senderId == request.auth.uid;
 
-    allow update: if request.auth != null
+    allow update: if isRegisteredUser()
       && request.auth.uid in get(
         /databases/$(database)/documents/chats/$(chatId)
       ).data.participants;
@@ -787,7 +796,7 @@ match /chats/{chatId} {
 match /business_chats/{chatId} {
 
   allow read, create, update:
-      if request.auth != null;
+      if isRegisteredUser();
 
   allow delete:
       if false;
@@ -795,7 +804,7 @@ match /business_chats/{chatId} {
 match /business_chats/{chatId}/messages/{messageId} {
 
   allow read, create, update:
-      if request.auth != null;
+      if isRegisteredUser();
 
   allow delete:
       if false;
@@ -803,22 +812,22 @@ match /business_chats/{chatId}/messages/{messageId} {
 
 match /vet_chats/{chatId} {
 
-  allow read: if request.auth != null;
+  allow read: if isRegisteredUser();
 
-  allow create: if request.auth != null;
+  allow create: if isRegisteredUser();
 
-  allow update: if request.auth != null;
+  allow update: if isRegisteredUser();
 
   allow delete: if false;
 }
     match /groomy_appointments/{appointmentId} {
-      allow read: if request.auth != null && (
+      allow read: if isRegisteredUser() && (
         isAppointmentOwner(resource.data) ||
         isBusinessOwner(resource.data.businessId) ||
         isAdmin()
       );
 
-      allow update: if request.auth != null && (
+      allow update: if isRegisteredUser() && (
         (
           isAppointmentOwner(resource.data) &&
           isStatusOnlyUpdate() &&
@@ -834,13 +843,13 @@ match /vet_chats/{chatId} {
       allow create, delete: if false;
     }
     match /hotel_bookings/{bookingId} {
-      allow read: if request.auth != null && (
+      allow read: if isRegisteredUser() && (
         isAppointmentOwner(resource.data) ||
         isBusinessOwner(resource.data.businessId) ||
         isAdmin()
       );
 
-      allow update: if request.auth != null && (
+      allow update: if isRegisteredUser() && (
         (
           isAppointmentOwner(resource.data) &&
           isStatusOnlyUpdate() &&
@@ -857,20 +866,20 @@ match /vet_chats/{chatId} {
     }
 
     match /pet_taxi_bookings/{bookingId} {
-      allow read: if request.auth != null && (
+      allow read: if isRegisteredUser() && (
         isAppointmentOwner(resource.data) ||
         isBusinessOwner(resource.data.businessId) ||
         isAdmin()
       );
 
       allow create: if isAdmin() || (
-  request.auth != null
+  isRegisteredUser()
   && request.resource.data.userId == request.auth.uid
   && request.resource.data.status == 'pending'
   && request.resource.data.paymentMethod == 'in_app'
 );
 
-      allow update: if request.auth != null
+      allow update: if isRegisteredUser()
         && request.resource.data.userId == resource.data.userId
         && request.resource.data.businessId == resource.data.businessId
         && isPetTaxiStatusOnlyUpdate()
@@ -900,35 +909,35 @@ match /social_posts/{postId} {
 
   allow read: if true;
 
-  allow create: if request.auth != null
+  allow create: if isRegisteredUser()
     && request.resource.data.userId == request.auth.uid;
 
-  allow update: if request.auth != null;
+  allow update: if isRegisteredUser();
 
-  allow delete: if request.auth != null
+  allow delete: if isRegisteredUser()
     && (
       resource.data.userId == request.auth.uid
       || isAdmin()
     );
 }
-    match /green_memorials/{memorialId} {
+match /green_memorials/{memorialId} {
 
   allow read: if true;
 
-  allow create: if request.auth != null
+  allow create: if isRegisteredUser()
     && request.resource.data.ownerId == request.auth.uid;
 
-  allow update, delete: if request.auth != null
+  allow update, delete: if isRegisteredUser()
     && resource.data.ownerId == request.auth.uid;
 }
 match /post_likes/{likeId} {
 
   allow read: if isSignedIn();
 
-  allow create: if request.auth != null
+  allow create: if isRegisteredUser()
     && request.resource.data.userId == request.auth.uid;
 
-  allow delete: if request.auth != null;
+  allow delete: if isRegisteredUser();
 
   allow update: if false;
 }
@@ -936,21 +945,21 @@ match /post_comments/{commentId} {
 
   allow read: if isSignedIn();
 
-  allow create: if request.auth != null
+  allow create: if isRegisteredUser()
     && request.resource.data.userId == request.auth.uid;
 
-  allow delete: if request.auth != null;
+  allow delete: if isRegisteredUser();
 
   allow update: if false;
 }
 match /saved_posts/{saveId} {
 
-  allow read: if request.auth != null;
+  allow read: if isRegisteredUser();
 
-  allow create: if request.auth != null
+  allow create: if isRegisteredUser()
     && request.resource.data.userId == request.auth.uid;
 
-  allow delete: if request.auth != null;
+  allow delete: if isRegisteredUser();
 
   allow update: if false;
 }
@@ -961,15 +970,15 @@ match /stories/{storyId} {
   allow read: if true;
 
   // CREATE
-  allow create: if request.auth != null
+  allow create: if isRegisteredUser()
     && request.resource.data.userId
         == request.auth.uid;
 
   // UPDATE
-  allow update: if request.auth != null;
+  allow update: if isRegisteredUser();
 
   // DELETE
-  allow delete: if request.auth != null
+  allow delete: if isRegisteredUser()
     && (
       resource.data.userId
           == request.auth.uid
@@ -979,9 +988,9 @@ match /stories/{storyId} {
   // STORY VIEWS
   match /views/{viewerId} {
 
-    allow read: if request.auth != null;
+    allow read: if isRegisteredUser();
 
-    allow create: if request.auth != null
+    allow create: if isRegisteredUser()
       && viewerId == request.auth.uid;
 
     allow update, delete: if false;

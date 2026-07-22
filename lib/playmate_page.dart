@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive/hive.dart';
 import 'dog_card.dart';
 //import 'filter_page.dart';
 import 'adoption_page.dart';
@@ -63,7 +62,6 @@ class _PlaymatePageState extends State<PlaymatePage>
   String? selectedHealthStatus;
   List<Dog> _filteredDogs = [];
   List<Dog> _allDogs = [];
-  late Box<Dog> dogsBox;
   double? _userLatitude;
   double? _userLongitude;
   double _maxDistance = 50.0;
@@ -101,8 +99,6 @@ class _PlaymatePageState extends State<PlaymatePage>
   @override
   void initState() {
     super.initState();
-
-    dogsBox = Hive.box<Dog>('dogsBox');
 
     final appState = context.read<AppState>();
     final followService = FollowService();
@@ -855,106 +851,17 @@ class _PlaymatePageState extends State<PlaymatePage>
 
     if (!mounted) return;
 
-    final appState = context.read<AppState>();
-
     setState(() {
       _isLoading = true;
     });
 
     try {
       // ===============================
-      // 🟣 PREMIUM
-      // ===============================
-      bool isPremium = false;
-      double maxDistance = 50.0;
-
-      try {
-        final user = FirebaseAuth.instance.currentUser;
-
-        if (user != null) {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-
-          if (!mounted) return;
-
-          isPremium = userDoc.data()?['isPremium'] ?? false;
-          maxDistance = isPremium ? 100.0 : 50.0;
-
-          if (kDebugMode) {
-            debugPrint(
-              'PlaymatePage - Premium: $isPremium | maxDistance: $maxDistance',
-            );
-          }
-        }
-      } catch (e) {
-        debugPrint('❌ premium load error: $e');
-      }
-
-      // ===============================
-      // 📍 LOCATION (SAFE — NO PERMISSION)
-      // ===============================
-      double? userLatitude;
-      double? userLongitude;
-
-      try {
-        final lastPosition = await Geolocator.getLastKnownPosition();
-
-        if (lastPosition != null) {
-          userLatitude = lastPosition.latitude;
-          userLongitude = lastPosition.longitude;
-
-          if (kDebugMode) {
-            debugPrint('📍 Using last known location');
-          }
-        } else {
-          // ❗ NO requestPermission here
-          userLatitude = null;
-          userLongitude = null;
-
-          if (kDebugMode) {
-            debugPrint('⚠️ No cached location → waiting for user action');
-          }
-        }
-      } catch (e) {
-        debugPrint('❌ location read error: $e');
-
-        userLatitude = null;
-        userLongitude = null;
-      }
-
-      // ===============================
-      // 🧹 HIVE SYNC
-      // ===============================
-      if (!isSelectMode) {
-        final existingKeys = dogsBox.keys.cast<String>().toList();
-
-        for (final key in existingKeys) {
-          if (!_allDogs.any((d) => d.id == key)) {
-            await dogsBox.delete(key);
-          }
-        }
-
-        for (final dog in _allDogs) {
-          await dogsBox.put(dog.id, dog);
-        }
-
-        if (kDebugMode) {
-          debugPrint('🧠 Hive sync done → ${dogsBox.length}');
-        }
-      }
-
-      // ===============================
       // ✅ FINAL STATE
       // ===============================
       if (!mounted) return;
 
       setState(() {
-        _isPremium = isPremium;
-        _maxDistance = maxDistance;
-        _userLatitude = userLatitude;
-        _userLongitude = userLongitude;
         _filteredDogs = _sourceDogs;
         _isPremiumLoaded = true;
         _isLoading = false;
@@ -996,7 +903,23 @@ class _PlaymatePageState extends State<PlaymatePage>
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final appState = context.read<AppState>();
+    final appState = context.watch<AppState>();
+    final isPremium = appState.isPremium;
+
+    if (!_isPremiumLoaded) {
+      _isPremium = isPremium;
+      _maxDistance = isPremium ? 100.0 : 50.0;
+      _isPremiumLoaded = true;
+    } else if (_isPremium != isPremium) {
+      final previousMaxDistance = _maxDistance;
+      _isPremium = isPremium;
+
+      if (!isPremium && _maxDistance > 50.0) {
+        _maxDistance = 50.0;
+      } else if (isPremium && previousMaxDistance == 50.0) {
+        _maxDistance = 100.0;
+      }
+    }
 
     if (appState.playmateFilters != null &&
         appState.playmateFilters != _lastAppliedFilters) {

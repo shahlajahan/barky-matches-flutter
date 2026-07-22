@@ -53,7 +53,6 @@ import 'developer_tools/developer_tools_page.dart';
 import 'package:app_links/app_links.dart';
 import 'ui/appointments/my_appointments_page.dart';
 import 'ui/business/dashboard/vet/appointment_payment_page.dart';
-
 import 'ui/orders/order_detail_page.dart';
 import 'ui/chat/chat_detail_page.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
@@ -240,6 +239,16 @@ Future<void> ensureFirebaseInitialized() async {
     StartupBenchmark.mark('After Firebase.initializeApp');
     debugPrint('🌐 Firebase.initializeApp skipped; existing app detected');
   }
+  debugPrint("======== FIREBASE ========");
+  debugPrint("ProjectId : ${Firebase.app().options.projectId}");
+  debugPrint("AppId     : ${Firebase.app().options.appId}");
+  debugPrint("ApiKey    : ${Firebase.app().options.apiKey}");
+  debugPrint("==========================");
+
+  final user = FirebaseAuth.instance.currentUser;
+  debugPrint("UID = ${user?.uid}");
+  debugPrint("Anonymous = ${user?.isAnonymous}");
+  debugPrint("LoggedIn = ${user != null}");
 
   debugPrint('🌐 FIREBASE APP COUNT → after=${Firebase.apps.length}');
   await _activateAppCheck();
@@ -989,7 +998,7 @@ void main() async {
   FcmTokenService.attachRefreshListener();
   StartupBenchmark.mark('FcmTokenService.attachRefreshListener');
   _authFcmSub ??= FirebaseAuth.instance.authStateChanges().listen((user) {
-    if (user == null) {
+    if (user == null || user.isAnonymous) {
       debugPrint('🔥 FCM AUTH LISTENER: signed out');
       return;
     }
@@ -1041,9 +1050,21 @@ void main() async {
   final userDataBoxFuture = Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
   StartupBenchmark.mark('Hive.openBox futures created');
 
-  dogsBox = await dogsBoxFuture;
-  DogsBoxManager.instance.attach(dogsBox);
-  StartupBenchmark.mark('Hive.openBox dogsBox');
+  unawaited(
+    dogsBoxFuture.then((box) {
+      dogsBox = box;
+      DogsBoxManager.instance.attach(dogsBox);
+      StartupBenchmark.mark('Hive.openBox dogsBox');
+
+      if (kDebugMode) {
+        debugPrint('Main - Hive initialized, dogsBox size: ${dogsBox.length}');
+      }
+    }).catchError((Object error, StackTrace stackTrace) {
+      DogsBoxManager.instance.markError(error, stackTrace);
+      debugPrint('Main - Error opening dogsBox: $error');
+    }),
+  );
+
   favoritesBox = await favoritesBoxFuture;
   StartupBenchmark.mark('Hive.openBox favoritesBox');
   currentUserBox = await currentUserBoxFuture;
@@ -1052,10 +1073,6 @@ void main() async {
   StartupBenchmark.mark('Hive.openBox userBox');
   userDataBox = await userDataBoxFuture;
   StartupBenchmark.mark('Hive.openBox userDataBox');
-
-  if (kDebugMode) {
-    debugPrint('Main - Hive initialized, dogsBox size: ${dogsBox.length}');
-  }
 
   List<Dog> firestoreDogs = [];
   final favoriteDogs = favoritesBox.isOpen
@@ -1211,7 +1228,7 @@ void main() async {
           appState.startAuthListener();
         }
         StartupBenchmark.markOnce('AppState.startAuthListener');
-        //AuthTrap.start();
+        // AuthTrap.start();
         // AuthTrap.scheduleTokenDiagnostics();
         IapService.instance.setSubscriptionActivatedCallback(() async {
           await appState.loadSubscriptionFromFirestore();

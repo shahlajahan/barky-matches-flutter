@@ -7,9 +7,14 @@ class DogSyncService {
   const DogSyncService();
 
   Future<List<Dog>> fetchCanonicalDogs() async {
-    final dogsSnapshot = await FirebaseFirestore.instance
-        .collection('dogs')
-        .get();
+    late final QuerySnapshot<Map<String, dynamic>> dogsSnapshot;
+    try {
+      dogsSnapshot = await FirebaseFirestore.instance
+          .collection('dogs')
+          .get();
+    } on FirebaseException catch (e) {
+      rethrow;
+    }
     final Map<String, Dog> uniqueDogs = {};
 
     for (var doc in dogsSnapshot.docs) {

@@ -13,6 +13,7 @@ import '../services/pet_taxi_location_permission_service.dart';
 import '../widgets/current_location_button.dart';
 import '../widgets/pet_taxi_bottom_sheet.dart';
 import '../pet_taxi_driver_location_resolver.dart';
+import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 class PetTaxiMapPage extends StatefulWidget {
   const PetTaxiMapPage({super.key});
@@ -41,10 +42,19 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
   bool _pageReady = false;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _driversStream() {
-    return FirebaseFirestore.instance
+    final query = FirebaseFirestore.instance
         .collection('businesses')
-        .where('status', isEqualTo: 'approved')
-        .snapshots();
+        .where('status', isEqualTo: 'approved');
+    FirestoreQueryTrace.log(
+      file: 'lib/ui/pet_taxi/pages/pet_taxi_map_page.dart',
+      method: '_driversStream',
+      line: 45,
+      collection: 'businesses',
+      clauses: const ["where(status, isEqualTo: approved)"],
+      terminalCall: 'snapshots()',
+      query: query,
+    );
+    return query.snapshots();
   }
 
   @override
@@ -182,6 +192,10 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
   }
 
   void _handleDriversSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
+  debugPrint(
+    'PET_TAXI_DRIVERS_SNAPSHOT fromCache=${snapshot.metadata.isFromCache} '
+    'docs=${snapshot.docs.length}',
+  );
   final markers = <Marker>{};
 
   for (final doc in snapshot.docs) {

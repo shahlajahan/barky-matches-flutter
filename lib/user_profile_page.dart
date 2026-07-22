@@ -352,7 +352,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   String? _businessDashboardFutureBusinessId;
   late AppState _appState;
   String _currentUserId = '';
-  Box<Dog>? _dogsBox;
   final List<Dog> _userDogs = [];
   final List<Dog> _adoptionDogs = [];
   final TextEditingController _usernameController = TextEditingController();
@@ -399,11 +398,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _initializeData() async {
     try {
       // Hive box ممکنه هنوز باز نشده باشه
-      if (!Hive.isBoxOpen('dogsBox')) {
-        debugPrint('UserProfilePage - dogsBox is not open yet!');
-      }
-      Box<Dog>? dogsBox;
-
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         debugPrint('👤 Guest mode → skipping auth redirect');
@@ -709,10 +703,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _fixDogsWithNullOwnerId() async {
     try {
-      final box = _dogsBox;
-      if (box == null) return;
-
-      final dogsToFix = box.values
+      final dogsToFix = _appState.allDogs
           .where(
             (dog) =>
                 (dog.ownerId == null || dog.ownerId!.isEmpty) &&
@@ -724,7 +715,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       for (var dog in dogsToFix) {
         final updatedDog = dog.copy(ownerId: _currentUserId);
 
-        await box.put(dog.id, updatedDog);
+        await _appState.addDogToLocalState(updatedDog);
 
         await FirebaseFirestore.instance.collection('dogs').doc(dog.id).set({
           'id': dog.id,
@@ -841,10 +832,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _saveDogToHive(Map<String, dynamic> data) async {
-    final box = _dogsBox ?? Hive.box<Dog>('dogsBox');
     final dog = data['dog'] as Dog;
 
-    await box.put(dog.id, dog);
+    await _appState.addDogToLocalState(dog);
     await FirebaseFirestore.instance.collection('dogs').doc(dog.id).set({
       'id': dog.id,
       'name': dog.name,
@@ -978,7 +968,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void _logout() async {
     try {
       AuthTrap.signOut(reason: 'session_expired');
-      Hive.box<Dog>('dogsBox').clear();
+      await context.read<AppState>().clearDogLocalState();
       Hive.box<Map<dynamic, dynamic>>('userDataBox').clear();
 
       if (!mounted) return;

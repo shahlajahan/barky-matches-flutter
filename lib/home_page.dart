@@ -29,7 +29,6 @@ import 'package:barky_matches_fixed/home/widgets/homepage_responsive_photo_image
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
 import 'package:barky_matches_fixed/models/featured_deal.dart';
-import 'package:barky_matches_fixed/services/dog_sync_service.dart';
 /*
 class FeaturedDeal {
   final String shopName;
@@ -62,7 +61,6 @@ class _HomePageState extends State<HomePage>
         AutomaticKeepAliveClientMixin,
         SingleTickerProviderStateMixin,
         LocalizationUtils {
-  static const DogSyncService _dogSyncService = DogSyncService();
   late Box<String> userBox;
   String? _currentUserId;
   late Box<List<String>> savedParksBox;
@@ -219,6 +217,10 @@ class _HomePageState extends State<HomePage>
       });
 
       debugPrint("🔥 SETSTATE DONE");
+    } on FirebaseException catch (e, stack) {
+      debugPrint("❌ FEATURED ERROR = $e");
+
+      debugPrint("❌ STACK = $stack");
     } catch (e, stack) {
       debugPrint("❌ FEATURED ERROR = $e");
       debugPrint("❌ STACK = $stack");
@@ -249,7 +251,7 @@ class _HomePageState extends State<HomePage>
 
         debugPrint("STEP 1");
 
-        await _syncDogsWithFirestore();
+        await context.read<app.AppState>().refreshDogs();
 
         debugPrint("STEP 2");
 
@@ -378,25 +380,6 @@ class _HomePageState extends State<HomePage>
     debugPrint('🚀 HomePage loadDataOnce start');
 
     _dataLoaded = true; // ✅ فقط بعد از اتمام
-  }
-
-  Future<void> _syncDogsWithFirestore() async {
-    try {
-      final appState = context.read<app.AppState>();
-      final canonicalDogs = await _dogSyncService.fetchCanonicalDogs();
-      final uniqueDogs = {for (final dog in canonicalDogs) dog.id: dog};
-
-      final dogsBox = Hive.box<Dog>('dogsBox');
-      await dogsBox.clear();
-      await dogsBox.putAll(uniqueDogs);
-
-      appState.setAllDogs(canonicalDogs);
-      debugPrint(
-        'HomePage - Synced ${uniqueDogs.length} unique dogs from Firestore to Hive',
-      );
-    } catch (e) {
-      debugPrint('HomePage - Error syncing dogs with Firestore: $e');
-    }
   }
 
   Future<void> _loadLocationAndFilters() async {
@@ -671,9 +654,8 @@ class _HomePageState extends State<HomePage>
     if (!mounted) return;
 
     /// 🏪 BUSINESS DATA
-    final snapshot = await FirebaseFirestore.instance
-        .collection('businesses')
-        .get();
+    final businessesQuery = FirebaseFirestore.instance.collection('businesses');
+    final snapshot = await businessesQuery.get();
 
     if (!mounted) return;
 

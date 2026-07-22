@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
@@ -13,10 +14,19 @@ import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_locat
 
 class PetTaxiBusinessRepository {
   Future<List<BusinessCardData>> loadBusinesses() async {
-    final snapshot = await FirebaseFirestore.instance
+    final query = FirebaseFirestore.instance
         .collection('businesses')
-        .where('status', isEqualTo: 'approved')
-        .get();
+        .where('status', isEqualTo: 'approved');
+    FirestoreQueryTrace.log(
+      file: 'lib/ui/pet_taxi/repositories/pet_taxi_business_repository.dart',
+      method: 'loadBusinesses',
+      line: 17,
+      collection: 'businesses',
+      clauses: const ["where(status, isEqualTo: approved)"],
+      terminalCall: 'get()',
+      query: query,
+    );
+    final snapshot = await query.get();
 
     final businesses = snapshot.docs
         .map((doc) => mapPetTaxiBusiness(doc.id, doc.data()))

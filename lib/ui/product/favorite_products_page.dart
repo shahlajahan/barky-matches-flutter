@@ -14,8 +14,9 @@ class FavoriteProductsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final isAnonymous = FirebaseAuth.instance.currentUser?.isAnonymous == true;
 
-    if (uid == null) {
+    if (uid == null || isAnonymous) {
       return Container(
         color: AppTheme.bg,
 

@@ -15,29 +15,34 @@ enum DogsSnapshotPhase {
 @immutable
 class DogsSnapshot {
   final DogsSnapshotPhase phase;
+  final List<Dog> dogs;
   final int dogCount;
   final Object? error;
   final StackTrace? stackTrace;
 
-  const DogsSnapshot._({
+  DogsSnapshot._({
     required this.phase,
-    this.dogCount = 0,
+    List<Dog> dogs = const <Dog>[],
+    int? dogCount,
     this.error,
     this.stackTrace,
-  });
+  }) : dogs = List<Dog>.unmodifiable(dogs),
+       dogCount = dogCount ?? dogs.length;
 
-  const DogsSnapshot.loading() : this._(phase: DogsSnapshotPhase.loading);
+  DogsSnapshot.loading() : this._(phase: DogsSnapshotPhase.loading);
 
-  const DogsSnapshot.readyEmpty() : this._(phase: DogsSnapshotPhase.readyEmpty);
+  DogsSnapshot.readyEmpty()
+    : this._(phase: DogsSnapshotPhase.readyEmpty, dogs: const <Dog>[]);
 
-  const DogsSnapshot.readyData({required int dogCount})
-      : this._(phase: DogsSnapshotPhase.readyData, dogCount: dogCount);
+  DogsSnapshot.readyData({required List<Dog> dogs})
+    : this._(phase: DogsSnapshotPhase.readyData, dogs: dogs);
 
-  const DogsSnapshot.error({
+  DogsSnapshot.error({
     required Object error,
     StackTrace? stackTrace,
   }) : this._(
           phase: DogsSnapshotPhase.error,
+          dogs: const <Dog>[],
           error: error,
           stackTrace: stackTrace,
         );
@@ -61,7 +66,7 @@ class DogsBoxManager extends ChangeNotifier {
   final Completer<Box<Dog>> _readyCompleter = Completer<Box<Dog>>();
 
   Box<Dog>? _box;
-  DogsSnapshot _snapshot = const DogsSnapshot.loading();
+  DogsSnapshot _snapshot = DogsSnapshot.loading();
 
   /// Internal migration snapshot used by AppState in later phases.
   ///
@@ -105,10 +110,11 @@ class DogsBoxManager extends ChangeNotifier {
     }
 
     final dogCount = box.length;
+    final dogs = box.values.toList();
     _setSnapshot(
       dogCount == 0
-          ? const DogsSnapshot.readyEmpty()
-          : DogsSnapshot.readyData(dogCount: dogCount),
+          ? DogsSnapshot.readyEmpty()
+          : DogsSnapshot.readyData(dogs: dogs),
     );
   }
 
@@ -123,48 +129,50 @@ class DogsBoxManager extends ChangeNotifier {
     ));
   }
 
-  List<Dog> getDogsForOwner(String? userId) {
-    final box = _box;
-    if (box == null || !box.isOpen) {
-      return const <Dog>[];
-    }
-
-    final uid = (userId ?? '').trim();
-    return box.values
-        .where((dog) => (dog.ownerId ?? '').trim() == uid)
-        .toList();
-  }
-
-  List<Dog> getCachedMyDogs(String userId) {
-    return getDogsForOwner(userId);
-  }
-
-  List<Dog> getCachedDiscoveryDogs(String userId) {
-    final box = _box;
-    if (box == null || !box.isOpen) {
-      return const <Dog>[];
-    }
-
-    final uid = userId.trim();
-    return box.values
-        .where(
-          (dog) =>
-              (dog.ownerId ?? '').trim() != uid &&
-              !dog.isHidden &&
-              dog.dogProfileVisible &&
-              dog.ownerProfileVisible,
-        )
-        .toList();
-  }
-
   Future<void> clearIfReady() async {
-    final box = _box;
-    if (box == null || !box.isOpen) {
-      return;
+    final box = await ready();
+
+    if (!box.isOpen) {
+      throw StateError('dogsBox is not open');
     }
 
     await box.clear();
-    _setSnapshot(const DogsSnapshot.readyEmpty());
+    _setSnapshot(DogsSnapshot.readyEmpty());
+  }
+
+  Future<void> replaceAllCanonicalDogs(List<Dog> dogs) async {
+    final box = _box;
+    if (box == null || !box.isOpen) {
+      throw StateError('dogsBox is not open');
+    }
+
+    final uniqueDogs = {for (final dog in dogs) dog.id: dog};
+
+    await box.clear();
+    await box.putAll(uniqueDogs);
+
+    _setSnapshot(
+      uniqueDogs.isEmpty
+          ? DogsSnapshot.readyEmpty()
+          : DogsSnapshot.readyData(dogs: uniqueDogs.values.toList()),
+    );
+  }
+
+  Future<void> upsertDog(Dog dog) async {
+    final box = await ready();
+
+    if (!box.isOpen) {
+      throw StateError('dogsBox is not open');
+    }
+
+    await box.put(dog.id, dog);
+
+    final dogs = box.values.toList();
+    _setSnapshot(
+      dogs.isEmpty
+          ? DogsSnapshot.readyEmpty()
+          : DogsSnapshot.readyData(dogs: dogs),
+    );
   }
 
   void _setSnapshot(DogsSnapshot newState) {

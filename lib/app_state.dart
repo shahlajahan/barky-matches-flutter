@@ -30,6 +30,7 @@ import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/dogs_box_manager.dart';
+import 'package:barky_matches_fixed/services/dog_sync_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
@@ -87,6 +88,7 @@ enum GlobalRoute { none, feedback, reportProblem, privacy }
 class AppState with ChangeNotifier {
   static const Duration _firestoreReadTimeout = Duration(seconds: 20);
   static const Duration _startupProbeTimeout = Duration(seconds: 12);
+  static const DogSyncService _dogSyncService = DogSyncService();
 
   bool _disposed = false;
   int _webNotifySequence = 0;
@@ -164,6 +166,7 @@ class AppState with ChangeNotifier {
     // ---------- USER DATA ----------
     _myDogs.clear();
     _allDogs.clear();
+    _discoveryDogs.clear();
     _invalidateAllDogsView();
 
     _favoriteDogs.clear();
@@ -185,6 +188,48 @@ class AppState with ChangeNotifier {
     _isUserProfileReady = true;
 
     notifyListeners();
+  }
+
+  void _activateGuestSessionState() {
+    _clearAuthMemoryState();
+    _suppressGuestModeOnce = false;
+    _hasSeenAuthenticatedUser = true;
+    setGuestUser();
+    if (Hive.isBoxOpen('currentUserBox')) {
+      unawaited(
+        Hive.box<String>('currentUserBox').put('currentUserId', 'guest'),
+      );
+    }
+    FirestoreReadinessGate.instance.markAuthStabilized('guest');
+    _completeNoncriticalGate(false);
+  }
+
+  Future<void> enterGuestMode() async {
+    final auth = FirebaseAuth.instance;
+    final currentUser = auth.currentUser;
+
+    if (currentUser?.isAnonymous == true) {
+      _activateGuestSessionState();
+      return;
+    }
+
+    if (currentUser != null && !currentUser.isAnonymous) {
+      _suppressGuestModeOnce = true;
+      await auth.signOut();
+    }
+
+    if (auth.currentUser == null) {
+      final credential = await auth.signInAnonymously();
+      if (credential.user == null) {
+        throw StateError('Anonymous sign-in returned null user');
+      }
+    }
+
+    if (auth.currentUser?.isAnonymous != true) {
+      throw StateError('Anonymous session was not established');
+    }
+
+    _activateGuestSessionState();
   }
 
   void setLocale(String languageCode) {
@@ -740,22 +785,26 @@ class AppState with ChangeNotifier {
   // ─────────────────────────────
   // DOGS STATE (SINGLE SOURCE)
   // ─────────────────────────────
-  DogsSnapshot _dogsSnapshot = const DogsSnapshot.loading();
+  DogsSnapshot _dogsSnapshot = DogsSnapshot.loading();
   List<Dog> _myDogs = [];
   List<Dog> _allDogs = [];
+  List<Dog> _discoveryDogs = [];
   List<Dog>? _allDogsView;
+  List<Dog>? _discoveryDogsView;
   Object? _dogsError;
   bool _isDogsLoading = true;
 
   List<Dog> get myDogs => List.unmodifiable(_myDogs);
   List<Dog> get allDogs => _allDogsView ??= List.unmodifiable(_allDogs);
-  List<Dog> get discoveryDogs => allDogs;
+  List<Dog> get discoveryDogs =>
+      _discoveryDogsView ??= List.unmodifiable(_discoveryDogs);
   bool get isDogsLoading => _isDogsLoading;
   bool get hasDogs => _myDogs.isNotEmpty || _allDogs.isNotEmpty;
   Object? get dogsError => _dogsError;
 
   void _invalidateAllDogsView() {
     _allDogsView = null;
+    _discoveryDogsView = null;
   }
 
   // AppState fields
@@ -769,7 +818,7 @@ class AppState with ChangeNotifier {
   }
 
   void calculateDistances(double userLat, double userLng) {
-    for (final dog in _allDogs) {
+    for (final dog in _discoveryDogs) {
       if (dog.latitude != null && dog.longitude != null) {
         dog.distanceKm = LocationUtils.calculateDistanceKm(
           userLat,
@@ -783,7 +832,7 @@ class AppState with ChangeNotifier {
   }
 
   void sortDogsByDistance() {
-    _allDogs.sort((a, b) {
+    _discoveryDogs.sort((a, b) {
       final da = a.distanceKm ?? 9999;
       final db = b.distanceKm ?? 9999;
       return da.compareTo(db);
@@ -996,6 +1045,31 @@ class AppState with ChangeNotifier {
     _allDogs = dogs; // 🔥 این مهمه
     _invalidateAllDogsView();
     notifyListeners();
+  }
+
+  Future<void> refreshDogs() async {
+    try {
+      if (isGuest) {
+        debugPrint('AppState - Skipping canonical dog refresh for guest');
+        return;
+      }
+
+      final canonicalDogs = await _dogSyncService.fetchCanonicalDogs();
+      await DogsBoxManager.instance.replaceAllCanonicalDogs(canonicalDogs);
+      debugPrint(
+        'AppState - Synced ${canonicalDogs.length} unique dogs from Firestore to Hive',
+      );
+    } catch (e) {
+      debugPrint('AppState - Error syncing dogs with Firestore: $e');
+    }
+  }
+
+  Future<void> addDogToLocalState(Dog dog) async {
+    await DogsBoxManager.instance.upsertDog(dog);
+  }
+
+  Future<void> clearDogLocalState() async {
+    await DogsBoxManager.instance.clearIfReady();
   }
 
   void openEditDog(Dog dog) {
@@ -1321,7 +1395,9 @@ class AppState with ChangeNotifier {
   bool _applyCachedMyDogs(String uid) {
     if (_dogsSnapshot.isLoading) return false;
 
-    final dogs = DogsBoxManager.instance.getCachedMyDogs(uid);
+    final dogs = _dogsSnapshot.dogs
+        .where((dog) => (dog.ownerId ?? '').trim() == uid)
+        .toList();
     if (dogs.isEmpty) return false;
 
     debugPrint('🌐 DEGRADED STARTUP CACHE MODE → my dogs');
@@ -1332,11 +1408,19 @@ class AppState with ChangeNotifier {
   bool _applyCachedDiscoveryDogs(String uid) {
     if (_dogsSnapshot.isLoading) return false;
 
-    final dogs = DogsBoxManager.instance.getCachedDiscoveryDogs(uid);
+    final dogs = _dogsSnapshot.dogs
+        .where(
+          (dog) =>
+              (dog.ownerId ?? '').trim() != uid &&
+              !dog.isHidden &&
+              dog.dogProfileVisible &&
+              dog.ownerProfileVisible,
+        )
+        .toList();
     if (dogs.isEmpty) return false;
 
     debugPrint('🌐 DEGRADED STARTUP CACHE MODE → discovery dogs');
-    _allDogs = dogs;
+    _discoveryDogs = dogs;
     _invalidateAllDogsView();
     const userLat = 41.0082;
     const userLng = 28.9784;
@@ -1395,6 +1479,7 @@ class AppState with ChangeNotifier {
     _cartItems.clear();
     _dogLikes.clear();
     likesNotifier.value = <String, List<String>>{};
+    _discoveryDogs.clear();
     _invalidateAllDogsView();
     _savedParksLoaded = false;
 
@@ -1921,7 +2006,7 @@ class AppState with ChangeNotifier {
               '⚠️ Auth state changed to NULL after authenticated session',
             );
           } else {
-            debugPrint('ℹ️ Auth state is NULL on startup → guest mode');
+            debugPrint('ℹ️ Auth state is NULL on startup → signed out');
           }
 
           if (FirebaseAuth.instance.currentUser != null) {
@@ -1939,22 +2024,21 @@ class AppState with ChangeNotifier {
             return;
           }
 
-          stopFirestoreListeners();
-
-          _initializedForUid = null;
-          _initializingForUid = null;
-
-          // 🔥🔥🔥 THIS IS THE FIX
-          setGuestUser();
-
           _clearAuthMemoryState();
 
-          FirestoreReadinessGate.instance.markAuthStabilized('guest');
+          return;
+        }
 
-          _completeNoncriticalGate(false);
-
-          debugPrint("👤 Guest mode activated from auth listener");
-
+        if (user.isAnonymous) {
+          _authRecoveryAttempted = false;
+          _suppressGuestModeOnce = false;
+          _hasSeenAuthenticatedUser = true;
+          _resetStartupReadiness();
+          debugPrint(
+            '👤 ANONYMOUS AUTH DETECTED → uid=${user.uid} source=${AuthTrap.authProbeMinimalMode ? "authStateChanges" : "idTokenChanges"}',
+          );
+          _activateGuestSessionState();
+          debugPrint("👤 Guest mode activated from anonymous auth");
           return;
         }
 
@@ -2040,6 +2124,10 @@ class AppState with ChangeNotifier {
     if (!_isValidStartupGeneration(generation)) return;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (user.isAnonymous) {
+      _activateGuestSessionState();
+      return;
+    }
     if (_currentUserId == user.uid ||
         _initializedForUid == user.uid ||
         _initializingForUid == user.uid ||
@@ -2059,6 +2147,11 @@ class AppState with ChangeNotifier {
     User user, {
     required String source,
   }) async {
+    if (user.isAnonymous) {
+      _activateGuestSessionState();
+      return;
+    }
+
     final generation = _startupSessionGeneration;
     final restoredSession =
         _startupAuthWasRestored &&
@@ -2311,6 +2404,12 @@ class AppState with ChangeNotifier {
   Future<void> initUser({User? authUser}) async {
     final user = authUser ?? FirebaseAuth.instance.currentUser;
     final uid = user?.uid;
+
+    if (user?.isAnonymous == true) {
+      _activateGuestSessionState();
+      debugPrint('🌐 INITUSER SKIPPED → anonymous guest session');
+      return;
+    }
 
     if (uid != null && _initializingForUid == uid) {
       debugPrint('🌐 INITUSER DUPLICATE SKIPPED → uid=$uid');
@@ -2750,9 +2849,10 @@ class AppState with ChangeNotifier {
         '🌐 CORE DATA PROBE $label → collection=$collectionName source=cache',
       );
       try {
-        final cacheSnap = await ref
-            .limit(5)
-            .get(const GetOptions(source: Source.cache));
+        final cacheQuery = ref.limit(5);
+        final cacheSnap = await cacheQuery.get(
+          const GetOptions(source: Source.cache),
+        );
         debugPrint(
           '🌐 CORE DATA PROBE $label → cache docs=${cacheSnap.size} empty=${cacheSnap.docs.isEmpty}',
         );
@@ -2777,7 +2877,8 @@ class AppState with ChangeNotifier {
         '🌐 ${label.toUpperCase()} COLLECTION SAMPLE → collection=$collectionName source=default',
       );
       try {
-        final defaultSnap = await ref.limit(3).get();
+        final defaultQuery = ref.limit(3);
+        final defaultSnap = await defaultQuery.get();
         debugPrint(
           '🌐 ${label.toUpperCase()} COLLECTION SAMPLE → default docs=${defaultSnap.size} empty=${defaultSnap.docs.isEmpty}',
         );
@@ -3095,7 +3196,7 @@ class AppState with ChangeNotifier {
     if (_suppressPassiveStartupRead('loadAllDogsForDiscovery')) {
       if (!usedCache) {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → discovery dogs empty');
-        _allDogs = [];
+        _discoveryDogs = [];
         _invalidateAllDogsView();
         notifyListeners();
       }
@@ -3124,7 +3225,7 @@ class AppState with ChangeNotifier {
           .where((dog) => dog.ownerId != uid)
           .toList();
 
-      _allDogs = dogs;
+      _discoveryDogs = dogs;
       _invalidateAllDogsView();
       // محاسبه فاصله (موقعیت موقت)
       const userLat = 41.0082;
@@ -3132,14 +3233,14 @@ class AppState with ChangeNotifier {
       calculateDistances(userLat, userLng);
       sortDogsByDistance();
 
-      debugPrint('🐕 Loaded ${_allDogs.length} discovery dogs');
+      debugPrint('🐕 Loaded ${_discoveryDogs.length} discovery dogs');
       notifyListeners();
     } catch (e) {
       if (!isUserSessionCurrent(uid, generation)) return;
       debugPrint('❌ loadAllDogsForDiscovery failed: $e');
       if (!usedCache) {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → discovery dogs empty');
-        _allDogs = [];
+        _discoveryDogs = [];
         _invalidateAllDogsView();
       }
     }
@@ -4343,6 +4444,7 @@ class AppState with ChangeNotifier {
       _dogsError = null;
       _myDogs.clear();
       _allDogs.clear();
+      _discoveryDogs.clear();
       _invalidateAllDogsView();
       if (notify) notifyListeners();
       return;
@@ -4353,6 +4455,7 @@ class AppState with ChangeNotifier {
       _dogsError = _dogsSnapshot.error;
       _myDogs.clear();
       _allDogs.clear();
+      _discoveryDogs.clear();
       _invalidateAllDogsView();
       if (notify) notifyListeners();
       return;
@@ -4365,13 +4468,25 @@ class AppState with ChangeNotifier {
     if (uid == null || uid.isEmpty || isGuest) {
       _myDogs.clear();
       _allDogs.clear();
+      _discoveryDogs.clear();
       _invalidateAllDogsView();
       if (notify) notifyListeners();
       return;
     }
 
-    _myDogs = DogsBoxManager.instance.getDogsForOwner(uid);
-    _allDogs = DogsBoxManager.instance.getCachedDiscoveryDogs(uid);
+    _allDogs = List<Dog>.from(_dogsSnapshot.dogs);
+    _myDogs = _allDogs
+        .where((dog) => (dog.ownerId ?? '').trim() == uid)
+        .toList();
+    _discoveryDogs = _allDogs
+        .where(
+          (dog) =>
+              (dog.ownerId ?? '').trim() != uid &&
+              !dog.isHidden &&
+              dog.dogProfileVisible &&
+              dog.ownerProfileVisible,
+        )
+        .toList();
     _invalidateAllDogsView();
 
     if (notify) notifyListeners();

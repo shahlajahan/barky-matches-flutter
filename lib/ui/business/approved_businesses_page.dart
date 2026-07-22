@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../admin/pages/business_admin_detail_page.dart';
+import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 class ApprovedBusinessesPage extends StatefulWidget {
   const ApprovedBusinessesPage({super.key});
@@ -44,12 +45,31 @@ class _ApprovedBusinessesPageState extends State<ApprovedBusinessesPage> {
           // 📦 LIST
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection("businesses")
-                  .where("status", isEqualTo: "approved")
-                  .orderBy("createdAt", descending: true)
-                  .snapshots(),
+              stream: (() {
+                final query = FirebaseFirestore.instance
+                    .collection("businesses")
+                    .where("status", isEqualTo: "approved")
+                    .orderBy("createdAt", descending: true);
+                FirestoreQueryTrace.log(
+                  file: 'lib/ui/business/approved_businesses_page.dart',
+                  method: 'build',
+                  line: 46,
+                  collection: 'businesses',
+                  clauses: const [
+                    "where(status, isEqualTo: approved)",
+                    "orderBy(createdAt, descending: true)",
+                  ],
+                  terminalCall: 'snapshots()',
+                  query: query,
+                );
+                return query.snapshots();
+              })(),
               builder: (context, snapshot) {
+                debugPrint(
+                  'APPROVED_BUSINESSES_BUILDER hasData=${snapshot.hasData} '
+                  'hasError=${snapshot.hasError} '
+                  'state=${snapshot.connectionState}',
+                );
                 // 🔥 DEBUG INDEX ERROR
                 if (snapshot.hasError) {
                   debugPrint("🔥 Firestore error:");

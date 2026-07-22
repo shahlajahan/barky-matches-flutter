@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dog.dart';
-import 'package:hive/hive.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
+
+import 'app_state.dart';
 
 class DogDetailsPage extends StatefulWidget {
   final Dog? dog;
@@ -38,7 +40,6 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
   String? selectedOwnerGender;
   List<String> imagePaths = [];
   bool isAvailableForAdoption = false;
-  late Box<Dog> dogsBox;
   final List<String> breeds = [
     'breedPekingese',
     'breedLabradorRetriever',
@@ -50,7 +51,6 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
   @override
   void initState() {
     super.initState();
-    dogsBox = Hive.box<Dog>('dogsBox');
     nameController = TextEditingController(text: widget.dog?.name ?? '');
     breedController = TextEditingController(text: widget.dog?.breed ?? '');
     ageController = TextEditingController(
@@ -547,12 +547,14 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () {
-                    final existingDog = dogsBox.values.firstWhere(
+                  onPressed: () async {
+                    final appState = context.read<AppState>();
+                    final allDogs = appState.allDogs;
+                    final currentUserId = appState.currentUserId ?? '';
+                    final existingDog = allDogs.firstWhere(
                       (dog) =>
                           dog.name == nameController.text &&
-                          dog.ownerId ==
-                              Hive.box<String>('userBox').get('currentUserId'),
+                          dog.ownerId == currentUserId,
                       orElse: () => Dog(
                         id: '',
                         name: '',
@@ -571,17 +573,17 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                       ),
                     );
                     if (existingDog.name.isNotEmpty) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        AppLocalizations.of(context)!.dogNameAlreadyExists(
-          nameController.text,
-        ),
-      ),
-    ),
-  );
-  return;
-}
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.dogNameAlreadyExists(nameController.text),
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     final newDog = Dog(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
                       name: nameController.text,
@@ -596,17 +598,15 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                       imagePaths: imagePaths,
                       isAvailableForAdoption: isAvailableForAdoption,
                       isOwner: true,
-                      ownerId:
-                          Hive.box<String>('userBox').get('currentUserId') ??
-                          '',
+                      ownerId: currentUserId,
                     );
-                    dogsBox.add(newDog);
+                    await appState.addDogToLocalState(newDog);
                     widget.onDogAdded(newDog);
                     debugPrint(
                       'DogDetailsPage - New dog added: Name=${newDog.name}, OwnerId=${newDog.ownerId}',
                     );
                     debugPrint(
-                      'DogDetailsPage - Total dogs in Hive: ${dogsBox.values.length}',
+                      'DogDetailsPage - Total dogs in AppState: ${allDogs.length}',
                     );
                     Navigator.pop(context);
                   },

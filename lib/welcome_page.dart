@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'dog.dart';
 import 'auth_page.dart';
 import 'offers_manager.dart';
@@ -204,7 +203,7 @@ Future<void> debugFirestoreRestOffers() async {
     final appState = context.read<app.AppState>();
     final navigator = Navigator.of(context);
 
-    appState.setGuestUser();
+    await appState.enterGuestMode();
     appState.setCurrentTab(NavTab.adoption);
 
     await Future.delayed(const Duration(milliseconds: 300));
@@ -222,12 +221,7 @@ Future<void> debugFirestoreRestOffers() async {
       final appState = context.read<app.AppState>();
       final navigator = Navigator.of(context);
 
-      await FirebaseAuth.instance.signOut();
-
-      final currentUserBox = Hive.box<String>('currentUserBox');
-      await currentUserBox.put('currentUserId', 'guest');
-
-      appState.setGuestUser();
+      await appState.enterGuestMode();
 
       debugPrint('🚫 Guest mode → no notification permission');
 

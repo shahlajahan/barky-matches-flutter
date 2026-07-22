@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,8 +10,10 @@ import 'dog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
+import 'package:barky_matches_fixed/app_state.dart';
 
 enum AddDogMode { ownerPet, adoptionCenter }
 
@@ -620,7 +621,6 @@ class _AddDogPageState extends State<AddDogPage> {
             .id;
         debugPrint('AddDogPage - Generated dogId: $dogId');
 
-        final dogsBox = Hive.box<Dog>('dogsBox');
         final doc = await FirebaseFirestore.instance
             .collection('dogs')
             .doc(dogId)
@@ -676,7 +676,7 @@ class _AddDogPageState extends State<AddDogPage> {
         debugPrint(
           'AddDogPage - Saving dog to Hive: dogId=$dogId, ownerId=$userId',
         );
-        await dogsBox.put(dogId, newDog);
+        await context.read<AppState>().addDogToLocalState(newDog);
         debugPrint(
           'AddDogPage - Dog added to Hive: ${newDog.name}, ID: $dogId',
         );
