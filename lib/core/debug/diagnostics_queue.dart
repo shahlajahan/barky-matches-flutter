@@ -14,18 +14,33 @@ class DiagnosticsQueue {
   static const int _maxQueueSize = 30;
 
   Box? _box;
+  bool _persistenceEnabled = false;
 
-  Future<void> initialize() async {
+  /// Enables Hive persistence after application startup has configured Hive.
+  void enablePersistence() {
+    _persistenceEnabled = true;
+  }
+
+  Future<bool> initialize() async {
     if (_box?.isOpen == true) {
-      return;
+      return true;
+    }
+    if (!_persistenceEnabled) {
+      return false;
     }
 
-    _box = await Hive.openBox(_boxName);
-    await _ensureStorage();
+    try {
+      _box = await Hive.openBox(_boxName);
+      await _ensureStorage();
+      return true;
+    } catch (_) {
+      _box = null;
+      return false;
+    }
   }
 
   Future<void> enqueue(DiagnosticsReport report) async {
-    await initialize();
+    if (!await initialize()) return;
 
     final List<Map<String, dynamic>> reports = await _readReports();
     reports.add(report.toStorageMap());
@@ -38,7 +53,7 @@ class DiagnosticsQueue {
   }
 
   Future<List<DiagnosticsReport>> pendingReports() async {
-    await initialize();
+    if (!await initialize()) return <DiagnosticsReport>[];
 
     final List<Map<String, dynamic>> reports = await _readReports();
     return reports
@@ -47,7 +62,7 @@ class DiagnosticsQueue {
   }
 
   Future<void> remove(String reportId) async {
-    await initialize();
+    if (!await initialize()) return;
 
     final List<Map<String, dynamic>> reports = await _readReports();
     reports.removeWhere(
@@ -58,7 +73,7 @@ class DiagnosticsQueue {
   }
 
   Future<void> clear() async {
-    await initialize();
+    if (!await initialize()) return;
     await _box!.put(_reportsKey, <Map<String, dynamic>>[]);
   }
 

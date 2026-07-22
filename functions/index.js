@@ -68,6 +68,10 @@ const ISBANK_INSTALLMENT = defineString("ISBANK_INSTALLMENT", {
 const {
   calculateCommission,
 } = require("./commission/commissionEngine");
+const {
+  calculateAppointmentFinancial,
+  positiveNumber: positiveFinancialNumber,
+} = require("./commission/paymentFinancialSnapshot");
 
 const { Resend } = require("resend");
 
@@ -391,6 +395,40 @@ async function finalizeAppointmentAfterPaid({
     return;
   }
 
+  const appointmentData = appointmentSnap.data() || {};
+  let resolvedVetServiceCategory = null;
+  if (appointmentCollection === "vet_appointments") {
+    let rawCategory = appointmentData.serviceCategory || appointmentData.category || null;
+    if (!rawCategory && appointmentData.businessId && appointmentData.serviceId) {
+      const serviceSnap = await db
+        .collection("businesses")
+        .doc(String(appointmentData.businessId))
+        .collection("services")
+        .doc(String(appointmentData.serviceId))
+        .get();
+      rawCategory = serviceSnap.exists
+        ? serviceSnap.data()?.serviceCategory || serviceSnap.data()?.category || null
+        : null;
+    }
+    resolvedVetServiceCategory = normalizeLower(rawCategory) === "surgery"
+      ? "surgery"
+      : "default";
+  }
+
+  const paidAmount = positiveFinancialNumber(
+    orderData.pricing?.grandTotal,
+    orderData.payment?.amount,
+    appointmentData.price,
+    appointmentData.servicePrice,
+    appointmentData.finalPrice
+  );
+  const financial = await calculateAppointmentFinancial({
+    collectionName: appointmentCollection,
+    record: appointmentData,
+    paidAmount,
+    resolvedVetServiceCategory,
+  });
+
   await appointmentRef.update({
     paymentStatus: "paid",
     status: "confirmed_paid",
@@ -398,6 +436,10 @@ async function finalizeAppointmentAfterPaid({
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     orderId,
     paymentTransactionId: transactionId,
+    ...(resolvedVetServiceCategory
+      ? { serviceCategory: resolvedVetServiceCategory }
+      : {}),
+    financial,
   });
 
   logger.info("isbank_paid_appointment_finalized", {
@@ -11090,16 +11132,6 @@ exports.createCheckoutSession = onCall(
 
       for (const [businessId, sellerItems] of grouped.entries()) {
         logger.info("💸 COMMISSION BLOCK ENTERED", { businessId });
-        // 🔥 COMMISSION RATE
-        logger.info("🧠 COMMISSION FETCH START", {
-          businessId,
-        });
-        const commissionRate = await getCommissionRate(db, businessId);
-
-        logger.info("💸 COMMISSION RATE", {
-          businessId,
-          commissionRate,
-        });
         const businessSnap = await db.collection("businesses").doc(businessId).get();
         const business = businessSnap.data();
 
@@ -11228,8 +11260,25 @@ exports.createCheckoutSession = onCall(
             rawItem.imageUrl ||
             null;
 
+          const referenceUnitPrice = positiveFinancialNumber(
+            productData.price,
+            productData.referencePrice,
+            serverUnitPrice
+          );
+          const rawProductCategory = normalizeLower(productData.category);
+          const productCategory = rawProductCategory.includes("food")
+            ? "food"
+            : "non_food";
+          const itemFinancial = await calculateCommission({
+            sector: "petshop",
+            referencePrice: referenceUnitPrice,
+            sellerPrice: serverUnitPrice,
+            productCategory,
+          });
           const itemSubtotal = roundMoney(serverUnitPrice * quantity);
-          const itemCommission = roundMoney(itemSubtotal * commissionRate);
+          const itemCommission = roundMoney(
+            itemFinancial.commissionAmount * quantity
+          );
           sellerCommissionTotal += itemCommission;
           const itemTaxTotal = roundMoney(itemSubtotal * (kdvRate / 100));
 
@@ -11248,6 +11297,11 @@ exports.createCheckoutSession = onCall(
 
             lineTotal: roundMoney(itemSubtotal + itemTaxTotal),
             imageUrl,
+            financialSnapshot: {
+              ...itemFinancial,
+              quantity,
+              lineCommissionAmount: itemCommission,
+            },
           });
           const shippingCalc = calculateShippingForItem({
             item: {
@@ -11581,10 +11635,34 @@ exports.createCheckoutSession = onCall(
                 lastInvoiceReminderAt: null,
               },
               financial: {
+                version: 1,
+                sector: "petshop",
+                finalPrice: sellerPricing.grandTotal,
                 grossAmount: sellerPricing.grandTotal,
                 commissionAmount: sellerPricing.commissionAmount,
+                businessNetAmount: sellerNetAmount,
                 sellerNetAmount,
+                platformRevenue: sellerPricing.commissionAmount,
+                businessReceivable: sellerNetAmount,
                 platformNet: sellerPricing.commissionAmount,
+                commissionType: "product_category_snapshot",
+                commissionRate: null,
+                ruleSnapshot: {
+                  source: "server_product_pricing",
+                  recalculatedInClient: false,
+                },
+                payoutStatus: "payment_pending",
+                calculatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                settlement: {
+                  status: "payment_pending",
+                  eligibleAt: null,
+                  scheduledPayoutDate: null,
+                  processingAt: null,
+                  paidAt: null,
+                  bankReference: null,
+                  attempts: 0,
+                  lastError: null,
+                },
               },
               payout: {
                 status: "payment_pending",
@@ -12720,14 +12798,22 @@ exports.verifyPayment = onCall(
         }
 
         const appointmentData = appointmentSnap.data() || {};
-        if (appointmentCollection === "vet_appointments") {
-          const paidAmount = Number(
-            result.paidPrice ||
-            result.price ||
-            appointmentData.price ||
-            appointmentData.servicePrice ||
-            0
+        const paidAmount = positiveFinancialNumber(
+          result.paidPrice,
+          result.price,
+          orderData.pricing?.grandTotal,
+          appointmentData.price,
+          appointmentData.servicePrice
+        );
+
+        if (!paidAmount) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Verified payment amount is missing or invalid"
           );
+        }
+
+        if (appointmentCollection === "vet_appointments") {
 
           let rawServiceCategory =
             appointmentData.serviceCategory ||
@@ -12762,19 +12848,21 @@ exports.verifyPayment = onCall(
               ? "surgery"
               : "default";
 
-          appointmentFinancial = await calculateCommission({
-            sector: "vet",
-            finalPrice: paidAmount,
-            serviceCategory: resolvedServiceCategory,
-          });
-
-          logger.info("💰 Vet Commission Result", {
-            appointmentId,
-            paidAmount,
-            serviceCategory: resolvedServiceCategory,
-            financial: appointmentFinancial,
-          });
         }
+
+        appointmentFinancial = await calculateAppointmentFinancial({
+          collectionName: appointmentCollection,
+          record: appointmentData,
+          paidAmount,
+          resolvedVetServiceCategory: resolvedServiceCategory,
+        });
+
+        logger.info("paid_appointment_financial_snapshot_calculated", {
+          appointmentId,
+          appointmentCollection,
+          sector: appointmentFinancial.sector,
+          financialVersion: appointmentFinancial.version,
+        });
         const appointmentStatus = appointmentData.status || "pending";
         const appointmentPaymentPolicy = resolveAppointmentPaymentPolicy(
           appointmentData
@@ -12846,11 +12934,9 @@ exports.verifyPayment = onCall(
             paymentStatus: "paid",
             status: "confirmed_paid",
             ...(appointmentCollection === "vet_appointments"
-              ? {
-                serviceCategory: resolvedServiceCategory,
-                financial: appointmentFinancial,
-              }
+              ? { serviceCategory: resolvedServiceCategory }
               : {}),
+            financial: appointmentFinancial,
             "marketplace.lifecycleStatus": buildMarketplaceStatus("confirmed_paid"),
             "marketplace.pendingAction": false,
             "marketplace.updatedAt": new Date().toISOString(),

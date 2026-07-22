@@ -7,6 +7,7 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_driver_location_resolver.dart';
 
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 
 class LiveTripStatusCard extends StatelessWidget {
@@ -106,23 +107,24 @@ Widget build(BuildContext context) {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Live Driver',
-                        style: AppTheme.bodyMedium().copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        driver['fullName']?.toString() ?? 'Driver',
-                        style: AppTheme.body(color: AppTheme.muted),
-                      ),
-                    ],
-                  ),
-                ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        AppLocalizations.of(context)!.liveDriver,
+        style: AppTheme.bodyMedium().copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        driver['fullName']?.toString() ??
+            AppLocalizations.of(context)!.driver,
+        style: AppTheme.body(color: AppTheme.muted),
+      ),
+    ],
+  ),
+),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,

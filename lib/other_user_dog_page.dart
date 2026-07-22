@@ -58,67 +58,90 @@ class OtherUserDogPage extends StatelessWidget {
     // ─────────────────────────
     // 🐶 Main Page
     // ─────────────────────────
-    return Container(
-      color: AppTheme.bg,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
+    // ─────────────────────────
+// 🐶 Main Page
+// ─────────────────────────
+return Center(
+  child: FractionallySizedBox(
+    widthFactor: 0.78,
+    heightFactor: 0.78,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: Material(
+        color: AppTheme.bg,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
 
-            // 🔙 Header (Vet style spacing)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    color: AppTheme.primary,
-                    onPressed: () {
-                      context.read<AppState>().closePlaymateProfile();
-                    },
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    localizations.dogsOfThisUser ?? "Dogs of this User",
-                    style: AppTheme.h1(),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                itemCount: userDogs.length,
-                itemBuilder: (context, index) {
-                  final dog = userDogs[index];
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: DogCard(
-                      key: ValueKey(dog.id),
-                      dog: dog,
-                      mode: DogCardMode.normal,
-                      allDogs: dogsList,
-                      currentUserId: appState.currentUserId ?? '',
-                      favoriteDogs: favoriteDogs,
-                      onToggleFavorite:
-                          onToggleFavorite ?? appState.toggleFavorite,
-                      likers: appState.dogLikes[dog.id] ?? [],
+              // 🔙 Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      color: AppTheme.primary,
+                      onPressed: () {
+                        context.read<AppState>().closePlaymateProfile();
+                      },
                     ),
-                  );
-                },
+                    const SizedBox(width: 4),
+
+                    Expanded(
+                      child: Text(
+                        localizations.dogsOfThisUser ??
+                            'Dogs of this User',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.h1(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 8),
+
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 18),
+                  itemCount: userDogs.length,
+                  itemBuilder: (context, index) {
+                    final dog = userDogs[index];
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: DogCard(
+                        key: ValueKey(dog.id),
+                        dog: dog,
+                        mode: DogCardMode.normal,
+                        allDogs: dogsList,
+                        currentUserId: appState.currentUserId ?? '',
+                        favoriteDogs: favoriteDogs,
+                        onToggleFavorite:
+                            onToggleFavorite ?? appState.toggleFavorite,
+
+                        // Overlay را قبل از رفتن به Schedule ببند
+                        onScheduleTap: () {
+                          debugPrint("AAAAAAAAAAAA");
+  debugPrint("CLOSING PROFILE");
+  context.read<AppState>().closePlaymateProfile();
+},
+
+                        likers: appState.dogLikes[dog.id] ?? [],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

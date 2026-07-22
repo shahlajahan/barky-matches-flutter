@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -180,17 +181,16 @@ class _OnboardingPageState extends State<OnboardingPage> {
               const SizedBox(height: 12),
 
               TextButton(
-                onPressed: _finish,
-                child: const Text(
-                  "Skip",
-                  style: TextStyle(
-                    color: Color(0xFFE91E63),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-
+  onPressed: _finish,
+  child: Text(
+    AppLocalizations.of(context)!.skip,
+    style: const TextStyle(
+      color: Color(0xFFE91E63),
+      fontSize: 18,
+      fontWeight: FontWeight.w700,
+    ),
+  ),
+),
               const SizedBox(height: 8),
             ],
           ),

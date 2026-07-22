@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -112,6 +113,8 @@ class _AllProductsPageState extends State<AllProductsPage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+
+    _syncCartToFirestore();
   }
 
   void _changeQuantity(CartItem item, int delta) {
@@ -576,7 +579,8 @@ class _AllProductsPageState extends State<AllProductsPage> {
                     context,
 
                     MaterialPageRoute(
-                      builder: (_) => const FavoriteProductsPage(),
+                      builder: (_) =>
+                          FavoriteProductsPage(onAddToBasket: _addToBasket),
                     ),
                   );
                 },
@@ -633,36 +637,44 @@ class _AllProductsPageState extends State<AllProductsPage> {
               children: [
                 const Icon(LucideIcons.shoppingBag, color: Colors.white),
 
-                if (_cartCount > 0)
-                  Positioned(
-                    right: -6,
-                    top: -6,
-
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
+                Positioned(
+                  right: -6,
+                  top: -6,
+                  child: AnimatedScale(
+                    scale: _cartCount > 0 ? 1 : 0,
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutBack,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 260),
+                      transitionBuilder: (child, animation) => ScaleTransition(
+                        scale: CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutBack,
+                        ),
+                        child: child,
                       ),
-
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFC107),
-
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-
-                      child: Text(
-                        _cartCount.toString(),
-
-                        style: const TextStyle(
-                          fontSize: 10,
-
-                          fontWeight: FontWeight.w800,
-
-                          color: Colors.black,
+                      child: Container(
+                        key: ValueKey(_cartCount),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFC107),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          _cartCount.toString(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                ),
               ],
             ),
           ),
@@ -927,8 +939,10 @@ class _AllProductsPageState extends State<AllProductsPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      ProductDetailPage(product: product),
+                                  builder: (_) => ProductDetailPage(
+                                    product: product,
+                                    onAddToBasket: _addToBasket,
+                                  ),
                                 ),
                               );
                             },
@@ -942,6 +956,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                                     builder: (_) => SellerProfilePage(
                                       sellerId: product.businessId,
                                       sellerName: product.businessName,
+                                      onAddToBasket: _addToBasket,
                                     ),
                                   ),
                                 );
@@ -1013,7 +1028,7 @@ class _TopDropDown<T> extends StatelessWidget {
   }
 }
 
-class _CompactProductCard extends StatelessWidget {
+class _CompactProductCard extends StatefulWidget {
   final Product product;
   final VoidCallback onAddToBasket;
   final VoidCallback onOpenSeller;
@@ -1023,6 +1038,26 @@ class _CompactProductCard extends StatelessWidget {
     required this.onAddToBasket,
     required this.onOpenSeller,
   });
+
+  @override
+  State<_CompactProductCard> createState() => _CompactProductCardState();
+}
+
+class _CompactProductCardState extends State<_CompactProductCard> {
+  bool _showAdded = false;
+
+  Product get product => widget.product;
+  VoidCallback get onAddToBasket => widget.onAddToBasket;
+  VoidCallback get onOpenSeller => widget.onOpenSeller;
+
+  Future<void> _handleAdd() async {
+    if (_showAdded) return;
+    onAddToBasket();
+    HapticFeedback.lightImpact();
+    setState(() => _showAdded = true);
+    await Future<void>.delayed(const Duration(milliseconds: 950));
+    if (mounted) setState(() => _showAdded = false);
+  }
 
   bool _isUsableUrl(String? url) {
     if (url == null) return false;
@@ -1442,19 +1477,40 @@ class _CompactProductCard extends StatelessWidget {
                     Expanded(
                       child: SizedBox(
                         height: 24,
-                        child: ElevatedButton.icon(
-                          onPressed: product.stock > 0 ? onAddToBasket : null,
-                          icon: const Icon(Icons.add_shopping_cart, size: 13),
-                          label: Text(
-                            l10n.addButton,
-                            style: const TextStyle(fontSize: 10),
-                          ),
+                        child: ElevatedButton(
+                          onPressed: product.stock > 0 && !_showAdded
+                              ? _handleAdd
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFC107),
                             foregroundColor: Colors.black,
                             padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            transitionBuilder: (child, animation) =>
+                                ScaleTransition(scale: animation, child: child),
+                            child: Row(
+                              key: ValueKey(_showAdded),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _showAdded
+                                      ? Icons.check_rounded
+                                      : Icons.add_shopping_cart,
+                                  size: 13,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _showAdded
+                                      ? l10n.addedToCart
+                                      : l10n.addButton,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                              ],
                             ),
                           ),
                         ),

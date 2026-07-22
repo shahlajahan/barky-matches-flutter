@@ -15,6 +15,11 @@ class FcmTokenService {
   static Future<String?> generateAndSaveForCurrentUser({
     String source = 'manual',
   }) async {
+    if (kIsWeb) {
+      debugPrint('🔥 MOBILE FCM TOKEN INIT SKIPPED ON WEB ($source)');
+      return null;
+    }
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -74,6 +79,7 @@ class FcmTokenService {
   }
 
   static void attachRefreshListener() {
+    if (kIsWeb) return;
     if (_refreshSub != null) return;
 
     _refreshSub = FirebaseMessaging.instance.onTokenRefresh.listen(

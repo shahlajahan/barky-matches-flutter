@@ -7,7 +7,9 @@ import 'package:barky_matches_fixed/ui/product/product_detail_page.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
 class FavoriteProductsPage extends StatelessWidget {
-  const FavoriteProductsPage({super.key});
+  final ValueChanged<Product> onAddToBasket;
+
+  const FavoriteProductsPage({super.key, required this.onAddToBasket});
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +111,10 @@ class FavoriteProductsPage extends StatelessWidget {
                       context,
 
                       MaterialPageRoute(
-                        builder: (_) => ProductDetailPage(product: product),
+                        builder: (_) => ProductDetailPage(
+                          product: product,
+                          onAddToBasket: onAddToBasket,
+                        ),
                       ),
                     );
                   },

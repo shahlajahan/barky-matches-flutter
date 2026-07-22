@@ -329,7 +329,8 @@ class _GroomyPageState extends State<GroomyPage>
             child: TextField(
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Search ${l10n.groomyTitle.toLowerCase()}...',
+                hintText:
+    '${l10n.search} ${l10n.groomyTitle.toLowerCase()}...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,

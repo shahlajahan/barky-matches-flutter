@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
 import 'dog.dart';
@@ -26,7 +27,6 @@ import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
@@ -86,6 +86,28 @@ enum GlobalRoute { none, feedback, reportProblem, privacy }
 class AppState with ChangeNotifier {
   static const Duration _firestoreReadTimeout = Duration(seconds: 20);
   static const Duration _startupProbeTimeout = Duration(seconds: 12);
+
+  bool _disposed = false;
+  int _webNotifySequence = 0;
+
+  @visibleForTesting
+  bool get isDisposed => _disposed;
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    if (kDebugMode && kIsWeb) {
+      final sequence = ++_webNotifySequence;
+      debugPrint(
+        'WEB_DIAG APPSTATE_NOTIFY #$sequence '
+        'at=${DateTime.now().toIso8601String()} '
+        'authUid=${FirebaseAuth.instance.currentUser?.uid ?? '<null>'} '
+        'appUid=${_currentUserId ?? '<null>'} route=$diagnosticCurrentRoute',
+      );
+      debugPrint('WEB_DIAG APPSTATE_NOTIFY_STACK #$sequence\n${StackTrace.current}');
+    }
+    super.notifyListeners();
+  }
 
   bool _showBottomNav = true;
 
@@ -662,6 +684,8 @@ class AppState with ChangeNotifier {
   bool _startupAuthWasRestored = false;
   bool _startupAuthRestoreDelayApplied = false;
   String? _scheduledInitUserForUid;
+  String? _transitioningToUid;
+  Future<void>? _authenticatedSessionTransition;
   bool _startupSuccessFinalized = false;
   int _startupSessionGeneration = 0;
   Completer<bool>? _noncriticalReadsCompleter;
@@ -806,7 +830,8 @@ class AppState with ChangeNotifier {
           await FirestorePermissionDiagnostics.reportIfNeeded(
             e,
             failurePath: '_criticalFirestoreRetry:$operationName',
-            message: 'Firestore permission denied during critical retry operation',
+            message:
+                'Firestore permission denied during critical retry operation',
           );
           if (!FirestoreRecovery.isConnectivityError(e)) rethrow;
           if (attempt < 3) {
@@ -974,102 +999,100 @@ class AppState with ChangeNotifier {
   }
 
   Future<void> saveEditedDog(
-  Dog updatedDog, {
-  bool avatarChanged = false,
-}) async {
-  try {
-    final user = FirebaseAuth.instance.currentUser;
+    Dog updatedDog, {
+    bool avatarChanged = false,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null) {
-      throw Exception("User not authenticated");
-    }
+      if (user == null) {
+        throw Exception("User not authenticated");
+      }
 
-    final uid = user.uid;
+      final uid = user.uid;
 
-    debugPrint("🐶 saveEditedDog START");
-    debugPrint("🐶 currentUserUid => $uid");
-    debugPrint("🐶 dogId => ${updatedDog.id}");
+      debugPrint("🐶 saveEditedDog START");
+      debugPrint("🐶 currentUserUid => $uid");
+      debugPrint("🐶 dogId => ${updatedDog.id}");
 
-    final docRef = FirebaseFirestore.instance
-        .collection('dogs')
-        .doc(updatedDog.id);
+      final docRef = FirebaseFirestore.instance
+          .collection('dogs')
+          .doc(updatedDog.id);
 
-    final snapshot = await docRef.get();
+      final snapshot = await docRef.get();
 
-    if (!snapshot.exists) {
-      throw Exception("Dog document not found");
-    }
+      if (!snapshot.exists) {
+        throw Exception("Dog document not found");
+      }
 
-    final data = snapshot.data()!;
+      final data = snapshot.data()!;
 
-    final ownerUid = data['ownerUid'] ?? data['ownerId'];
+      final ownerUid = data['ownerUid'] ?? data['ownerId'];
 
-    debugPrint("🐶 ownerUid in document => $ownerUid");
+      debugPrint("🐶 ownerUid in document => $ownerUid");
 
-    if (ownerUid != uid) {
-      throw Exception("User is not owner of this dog");
-    }
+      if (ownerUid != uid) {
+        throw Exception("User is not owner of this dog");
+      }
 
-    await docRef.update({
-      'name': updatedDog.name,
-      'petName': updatedDog.name,
-      'age': updatedDog.age,
-      'healthStatus': updatedDog.healthStatus,
-      'isNeutered': updatedDog.isNeutered,
-      'description': updatedDog.description,
-      'traits': updatedDog.traits,
-      'ownerGender': updatedDog.ownerGender,
-      'imagePaths': updatedDog.imagePaths,
-      'isAvailableForAdoption': updatedDog.isAvailableForAdoption,
+      await docRef.update({
+        'name': updatedDog.name,
+        'petName': updatedDog.name,
+        'age': updatedDog.age,
+        'healthStatus': updatedDog.healthStatus,
+        'isNeutered': updatedDog.isNeutered,
+        'description': updatedDog.description,
+        'traits': updatedDog.traits,
+        'ownerGender': updatedDog.ownerGender,
+        'imagePaths': updatedDog.imagePaths,
+        'isAvailableForAdoption': updatedDog.isAvailableForAdoption,
 
-      // 🔐 برای عبور از rules
-      'ownerUid': ownerUid,
-      'ownerRole': data['ownerRole'],
-      'centerId': data['centerId'],
-    });
+        // 🔐 برای عبور از rules
+        'ownerUid': ownerUid,
+        'ownerRole': data['ownerRole'],
+        'centerId': data['centerId'],
+      });
 
-    debugPrint(
-      '🐾 PET NAME SYNC → name=${updatedDog.name} petName=${updatedDog.name}',
-    );
-
-    final myIndex = _myDogs.indexWhere((d) => d.id == updatedDog.id);
-    if (myIndex != -1) {
-      _myDogs[myIndex] = updatedDog;
-    }
-
-    final allIndex = _allDogs.indexWhere((d) => d.id == updatedDog.id);
-    if (allIndex != -1) {
-      _allDogs[allIndex] = updatedDog;
-      _invalidateAllDogsView();
-    }
-
-    editingDog = null;
-
-    notifyListeners();
-
-    // ✅ Analytics (only after successful update)
-    if (avatarChanged) {
-      await AnalyticsService.petAvatarChanged(
-        petType: updatedDog.petType,
+      debugPrint(
+        '🐾 PET NAME SYNC → name=${updatedDog.name} petName=${updatedDog.name}',
       );
-    } else {
-      await AnalyticsService.petUpdated(
-        petType: updatedDog.petType,
-        breed: updatedDog.breed,
-        age: updatedDog.age,
-        gender: updatedDog.gender.toLowerCase() == 'male'
-            ? AnalyticsValues.male
-            : AnalyticsValues.female,
-      );
-    }
 
-    debugPrint("✅ Dog updated safely");
-  } catch (e, stack) {
-    debugPrint("❌ saveEditedDog error: $e");
-    debugPrint("STACK: $stack");
-    rethrow;
+      final myIndex = _myDogs.indexWhere((d) => d.id == updatedDog.id);
+      if (myIndex != -1) {
+        _myDogs[myIndex] = updatedDog;
+      }
+
+      final allIndex = _allDogs.indexWhere((d) => d.id == updatedDog.id);
+      if (allIndex != -1) {
+        _allDogs[allIndex] = updatedDog;
+        _invalidateAllDogsView();
+      }
+
+      editingDog = null;
+
+      notifyListeners();
+
+      // ✅ Analytics (only after successful update)
+      if (avatarChanged) {
+        await AnalyticsService.petAvatarChanged(petType: updatedDog.petType);
+      } else {
+        await AnalyticsService.petUpdated(
+          petType: updatedDog.petType,
+          breed: updatedDog.breed,
+          age: updatedDog.age,
+          gender: updatedDog.gender.toLowerCase() == 'male'
+              ? AnalyticsValues.male
+              : AnalyticsValues.female,
+        );
+      }
+
+      debugPrint("✅ Dog updated safely");
+    } catch (e, stack) {
+      debugPrint("❌ saveEditedDog error: $e");
+      debugPrint("STACK: $stack");
+      rethrow;
+    }
   }
-}
 
   String? _initializedForUid;
   String? _initializingForUid;
@@ -1078,15 +1101,27 @@ class AppState with ChangeNotifier {
     final uid = _currentUserId;
     if (uid == null) return;
 
+    final generation = _startupSessionGeneration;
+
     debugPrint('🔄 subscription reload started');
+
     final usedCache =
         FirestoreRecovery.passiveMode && _applyCachedSubscription(uid);
-    if (usedCache) notifyListeners();
+
+    if (usedCache) {
+      if (!isUserSessionCurrent(uid, generation)) {
+        debugPrint('🛑 SKIP cached subscription notify → old session');
+        return;
+      }
+
+      notifyListeners();
+    }
 
     try {
       debugPrint(
         '🌐 SERVER-FORCED READ SKIPPED → loadSubscriptionFromFirestore',
       );
+
       final doc = await _criticalFirestoreRetry(
         () => FirebaseFirestore.instance
             .collection('users')
@@ -1096,10 +1131,17 @@ class AppState with ChangeNotifier {
         operationName: 'loadSubscriptionFromFirestore',
       );
 
+      if (!isUserSessionCurrent(uid, generation)) {
+        debugPrint('🛑 SKIP subscription update → old session');
+        return;
+      }
+
       final data = doc.data();
+
       debugPrint('🔥 firestore subscription fetched');
 
       final subscriptionData = data?['subscription'];
+
       if (data == null) {
         _subscription = UserSubscription.normal();
       } else if (subscriptionData is Map) {
@@ -1114,13 +1156,26 @@ class AppState with ChangeNotifier {
       }
 
       _isPremium = _subscription.plan.isPaid && _subscription.status.isActive;
+
       await _refreshSubscriptionHiveCache(uid);
 
+      if (!isUserSessionCurrent(uid, generation)) {
+        debugPrint('🛑 SKIP after hive refresh → old session');
+        return;
+      }
+
       debugPrint(
-        '💳 Loaded subscription → ${_subscription.plan} / ${_subscription.status}',
+        '💳 Loaded subscription → '
+        '${_subscription.plan} / ${_subscription.status}',
       );
+
       debugPrint('✅ app state updated');
     } catch (e) {
+      if (!isUserSessionCurrent(uid, generation)) {
+        debugPrint('🛑 SKIP fallback → old session');
+        return;
+      }
+
       debugPrint('⚠️ subscription fallback → $e');
 
       if (!usedCache) {
@@ -1129,8 +1184,24 @@ class AppState with ChangeNotifier {
       }
     }
 
-    notifyListeners();
-    debugPrint('📣 notifyListeners triggered');
+    // آخرین guard مخصوص Flutter Web
+    if (!isUserSessionCurrent(uid, generation)) {
+      debugPrint('🛑 FINAL SKIP notify → old session');
+      return;
+    }
+
+    if (kIsWeb) {
+      notifyListeners();
+      debugPrint('📣 subscription listeners notified');
+      return;
+    }
+
+    // Preserve the existing mobile post-frame notification timing.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed || !isUserSessionCurrent(uid, generation)) return;
+      notifyListeners();
+      debugPrint('📣 subscription listeners notified');
+    });
   }
 
   Future<void> _refreshSubscriptionHiveCache(String uid) async {
@@ -1295,11 +1366,12 @@ class AppState with ChangeNotifier {
     return true;
   }
 
-  void _clearAuthMemoryState() {
+  void _clearAuthMemoryState({bool notify = true}) {
     stopFirestoreListeners();
 
     _initializedForUid = null;
     _initializingForUid = null;
+    _scheduledInitUserForUid = null;
     _currentUserId = null;
     _currentUserName = null;
     _username = null;
@@ -1318,12 +1390,15 @@ class AppState with ChangeNotifier {
     _favoriteParks.clear();
     _myDogs.clear();
     _allDogs.clear();
+    _cartItems.clear();
+    _dogLikes.clear();
+    likesNotifier.value = <String, List<String>>{};
     _invalidateAllDogsView();
     _savedParksLoaded = false;
 
     favoriteDogsNotifier.value = [];
 
-    notifyListeners();
+    if (notify) notifyListeners();
 
     _unreadNotificationsCount = 0;
     _selectedPark = null;
@@ -1686,9 +1761,18 @@ class AppState with ChangeNotifier {
     unawaited(_loadRemainingDataInBackground(generation));
   }
 
-  Future<void> _clearAuthDependentCaches() async {
+  Future<void> _clearAuthDependentCaches([String? previousUid]) async {
     if (Hive.isBoxOpen('currentUserBox')) {
-      await Hive.box<String>('currentUserBox').clear();
+      final box = Hive.box<String>('currentUserBox');
+      await box.delete('currentUserId');
+      await box.delete('emailVerified');
+      await box.delete('savedEmail');
+      await box.delete('savedPassword');
+      await box.delete('rememberMe');
+      await box.delete('receiveNews');
+      if (previousUid != null) {
+        await box.delete('username_$previousUid');
+      }
     }
 
     if (Hive.isBoxOpen('userBox')) {
@@ -1696,7 +1780,13 @@ class AppState with ChangeNotifier {
     }
 
     if (Hive.isBoxOpen('userDataBox')) {
-      await Hive.box<Map<dynamic, dynamic>>('userDataBox').clear();
+      final box = Hive.box<Map<dynamic, dynamic>>('userDataBox');
+      if (previousUid == null) {
+        await box.clear();
+      } else {
+        await box.delete(previousUid);
+        await box.delete(previousUid.toLowerCase());
+      }
     }
 
     if (Hive.isBoxOpen('dogsBox')) {
@@ -1706,9 +1796,80 @@ class AppState with ChangeNotifier {
     if (Hive.isBoxOpen('favoritesBox')) {
       await Hive.box<Dog>('favoritesBox').clear();
     }
+  }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+  bool synchronizeAuthenticatedUid(String authoritativeUid) {
+    if (_currentUserId == authoritativeUid) return false;
+
+    final previousUid = _currentUserId;
+    final changedAuthenticatedUser =
+        previousUid != null && previousUid != 'guest';
+
+    if (changedAuthenticatedUser) {
+      _clearAuthMemoryState(notify: false);
+    }
+
+    _currentUserId = authoritativeUid;
+    _savedParksLoaded = false;
+    notifyListeners();
+    return changedAuthenticatedUser;
+  }
+
+  @visibleForTesting
+  bool isUserSessionCurrent(String uid, int generation) {
+    return _currentUserId == uid && _startupSessionGeneration == generation;
+  }
+
+  Future<void> initializeAuthenticatedUser(
+    User user, {
+    String source = 'freshLogin',
+  }) async {
+    if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+      throw StateError(
+        'Firebase authentication changed before initialization.',
+      );
+    }
+
+    final pending = _authenticatedSessionTransition;
+    if (pending != null && _transitioningToUid == user.uid) {
+      await pending;
+      return;
+    }
+
+    if (_initializedForUid == user.uid) return;
+
+    final previousUid = _currentUserId;
+    final uidChanged = synchronizeAuthenticatedUid(user.uid);
+    await _coordinateAuthenticatedSession(
+      user,
+      previousUid: uidChanged ? previousUid : null,
+      source: source,
+    );
+  }
+
+  Future<void> _coordinateAuthenticatedSession(
+    User user, {
+    required String source,
+    String? previousUid,
+  }) {
+    final pending = _authenticatedSessionTransition;
+    if (pending != null && _transitioningToUid == user.uid) return pending;
+
+    late final Future<void> trackedTransition;
+    trackedTransition =
+        _startAuthenticatedSessionAfterUidSync(
+          user,
+          previousUid: previousUid,
+          source: source,
+        ).whenComplete(() {
+          if (identical(_authenticatedSessionTransition, trackedTransition)) {
+            _authenticatedSessionTransition = null;
+            _transitioningToUid = null;
+          }
+        });
+    _transitioningToUid = user.uid;
+    _authenticatedSessionTransition = trackedTransition;
+    return trackedTransition;
   }
 
   Future<void> resetAuthSessionForDiagnostics({required String reason}) async {
@@ -1800,12 +1961,17 @@ class AppState with ChangeNotifier {
         // ─────────────────────────────
         // USER LOGGED IN
         // ─────────────────────────────
-        if (_initializedForUid == user.uid || _initializingForUid == user.uid) {
+        final previousUid = _currentUserId;
+        final uidChanged = synchronizeAuthenticatedUid(user.uid);
+
+        if (!uidChanged &&
+            (_initializedForUid == user.uid ||
+                _initializingForUid == user.uid)) {
           debugPrint('🌐 INITUSER DUPLICATE SKIPPED → uid=${user.uid}');
           return;
         }
 
-        if (_scheduledInitUserForUid == user.uid) {
+        if (!uidChanged && _scheduledInitUserForUid == user.uid) {
           debugPrint('🌐 INITUSER DUPLICATE SKIPPED → uid=${user.uid}');
           return;
         }
@@ -1813,7 +1979,7 @@ class AppState with ChangeNotifier {
         _authRecoveryAttempted = false;
         _suppressGuestModeOnce = false;
         _hasSeenAuthenticatedUser = true;
-        _resetStartupReadiness();
+        if (!uidChanged) _resetStartupReadiness();
         final now = DateTime.now().toIso8601String();
         debugPrint(
           '🌐 AUTH USER DETECTED → uid=${user.uid} source=authStateChanges time=$now',
@@ -1826,7 +1992,13 @@ class AppState with ChangeNotifier {
 
         _scheduledInitUserForUid = user.uid;
         debugPrint('🌐 INITUSER SCHEDULED → uid=${user.uid}');
-        unawaited(_startAuthenticatedSession(user, source: 'authStateChanges'));
+        unawaited(
+          _coordinateAuthenticatedSession(
+            user,
+            previousUid: uidChanged ? previousUid : null,
+            source: 'authStateChanges',
+          ),
+        );
       },
       onError: (e, stack) {
         debugPrint('⚠️ idTokenChanges listener error → $e');
@@ -1834,6 +2006,32 @@ class AppState with ChangeNotifier {
     );
 
     unawaited(_resyncAuthAfterHotRestart());
+  }
+
+  Future<void> _startAuthenticatedSessionAfterUidSync(
+    User user, {
+    required String source,
+    String? previousUid,
+  }) async {
+    if (previousUid != null) {
+      await _clearAuthDependentCaches(previousUid);
+    }
+
+    if (_currentUserId != user.uid ||
+        FirebaseAuth.instance.currentUser?.uid != user.uid) {
+      debugPrint('🌐 AUTH SESSION START ABORTED → stale uid=${user.uid}');
+      return;
+    }
+
+    if (previousUid != null && Hive.isBoxOpen('currentUserBox')) {
+      await Hive.box<String>('currentUserBox').put('currentUserId', user.uid);
+      if (_currentUserId != user.uid ||
+          FirebaseAuth.instance.currentUser?.uid != user.uid) {
+        return;
+      }
+    }
+
+    await _startAuthenticatedSession(user, source: source);
   }
 
   Future<void> _resyncAuthAfterHotRestart() async {
@@ -2214,6 +2412,7 @@ class AppState with ChangeNotifier {
       }());
 
       final currentUid = _currentUserId!;
+      final currentGeneration = _startupSessionGeneration;
       _userDocSub?.cancel();
       _userDocSub = FirebaseFirestore.instance
           .collection('users')
@@ -2221,6 +2420,9 @@ class AppState with ChangeNotifier {
           .snapshots()
           .listen(
             (doc) {
+              if (!isUserSessionCurrent(currentUid, currentGeneration)) {
+                return;
+              }
               final business = doc.data()?['business'];
               final newStatus = business?['status'];
               final newId = business?['businessId'];
@@ -2734,6 +2936,7 @@ class AppState with ChangeNotifier {
   Future<bool> loadUsernameFromFirebase() async {
     final uid = _currentUserId;
     if (uid == null || uid.isEmpty) return false;
+    final generation = _startupSessionGeneration;
 
     final usedCache =
         FirestoreRecovery.passiveMode && _applyCachedUserProfile(uid);
@@ -2754,6 +2957,8 @@ class AppState with ChangeNotifier {
             .timeout(_firestoreReadTimeout),
         operationName: 'loadUsernameFromFirebase',
       );
+
+      if (!isUserSessionCurrent(uid, generation)) return false;
 
       final data = doc.data();
       var loadedFromNetwork = false;
@@ -2780,6 +2985,7 @@ class AppState with ChangeNotifier {
       notifyListeners();
       return loadedFromNetwork || usedCache;
     } catch (e) {
+      if (!isUserSessionCurrent(uid, generation)) return false;
       debugPrint('❌ loadUsernameFromFirebase failed: $e');
       if (!usedCache) {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → profile unavailable');
@@ -2822,6 +3028,7 @@ class AppState with ChangeNotifier {
 
       return;
     }
+    final generation = _startupSessionGeneration;
 
     final usedCache = FirestoreRecovery.passiveMode && _applyCachedMyDogs(uid);
     if (usedCache) notifyListeners();
@@ -2837,12 +3044,15 @@ class AppState with ChangeNotifier {
         operationName: 'loadMyDogs',
       );
 
+      if (!isUserSessionCurrent(uid, generation)) return;
+
       _myDogs = snapshot.docs.map((doc) => Dog.fromFirestore(doc)).toList();
 
       debugPrint('🐾 Loaded ${_myDogs.length} my dogs');
 
       notifyListeners();
     } catch (e) {
+      if (!isUserSessionCurrent(uid, generation)) return;
       debugPrint('❌ loadMyDogs failed: $e');
 
       if (!usedCache) {
@@ -2876,6 +3086,7 @@ class AppState with ChangeNotifier {
 
       return;
     }
+    final generation = _startupSessionGeneration;
 
     final usedCache =
         FirestoreRecovery.passiveMode && _applyCachedDiscoveryDogs(uid);
@@ -2905,6 +3116,8 @@ class AppState with ChangeNotifier {
         operationName: 'loadAllDogsForDiscovery',
       );
 
+      if (!isUserSessionCurrent(uid, generation)) return;
+
       final dogs = snapshot.docs
           .map((doc) => Dog.fromFirestore(doc))
           .whereType<Dog>()
@@ -2922,6 +3135,7 @@ class AppState with ChangeNotifier {
       debugPrint('🐕 Loaded ${_allDogs.length} discovery dogs');
       notifyListeners();
     } catch (e) {
+      if (!isUserSessionCurrent(uid, generation)) return;
       debugPrint('❌ loadAllDogsForDiscovery failed: $e');
       if (!usedCache) {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → discovery dogs empty');
@@ -2985,11 +3199,11 @@ class AppState with ChangeNotifier {
   }
 
   void closeProfileSubPage() {
-  debugPrint("🔥 closeProfileSubPage()");
-  _clearAppointmentFlowSelection();
-  _profileSubPage = ProfileSubPage.none;
-  notifyListeners();
-}
+    debugPrint("🔥 closeProfileSubPage()");
+    _clearAppointmentFlowSelection();
+    _profileSubPage = ProfileSubPage.none;
+    notifyListeners();
+  }
 
   void openOtherUserProfile(String userId) {
     _otherUserProfileId = userId;
@@ -3977,6 +4191,7 @@ class AppState with ChangeNotifier {
       debugPrint('🌐 RECOVERY LOOP SUPPRESSED → unread listener before gate');
       return;
     }
+    final generation = _startupSessionGeneration;
 
     if (isGuest || uid == null || uid.isEmpty) {
       debugPrint("🚫 Notifications listener skipped (guest)");
@@ -3992,6 +4207,7 @@ class AppState with ChangeNotifier {
         .snapshots()
         .listen(
           (snapshot) {
+            if (!isUserSessionCurrent(uid, generation)) return;
             final newCount = snapshot.docs.length;
 
             // 🛑 اگر عدد تغییر نکرده → هیچ کاری نکن
@@ -4007,6 +4223,7 @@ class AppState with ChangeNotifier {
           },
 
           onError: (error) {
+            if (!isUserSessionCurrent(uid, generation)) return;
             debugPrint('❌ Unread notifications listener error: $error');
             _unreadNotificationsCount = 0;
             notifyListeners();
@@ -4081,10 +4298,28 @@ class AppState with ChangeNotifier {
     Map<String, dynamic>? activePlaydatePark,
     String? selectedRequesterDogId,
   }) {
+    debugPrint(
+      '🧹 CLOSE PROFILE BEFORE SCHEDULE → '
+      'userId=$playmateProfileUserId',
+    );
+
+    // بستن هر دو Overlay:
+    // barky_scaffold.dart و playmate_page.dart
+    playmateProfileUserId = null;
+    playmateDogsSnapshot = null;
+
+    // اولین close بعدی نباید اشتباهی ignore شود
+    _ignoreNextClose = false;
+
     _activePlaydatePark = activePlaydatePark;
     _selectedRequesterDogId = selectedRequesterDogId;
     _currentTab = NavTab.playdateScheduling;
-    debugPrint('🧭 currentTab NOW → $_currentTab');
+
+    debugPrint(
+      '🧭 currentTab NOW → $_currentTab | '
+      'profileUserId=$playmateProfileUserId',
+    );
+
     notifyListeners();
   }
 
@@ -4193,6 +4428,7 @@ class AppState with ChangeNotifier {
       _savedParksLoaded = true;
       return;
     }
+    final generation = _startupSessionGeneration;
 
     final usedCache =
         FirestoreRecovery.passiveMode && _applyCachedSavedParks(uid);
@@ -4224,6 +4460,8 @@ class AppState with ChangeNotifier {
         operationName: 'loadSavedParks',
       );
 
+      if (!isUserSessionCurrent(uid, generation)) return;
+
       final data = doc.data();
       final List<dynamic>? parks = data?['savedParks'];
 
@@ -4239,14 +4477,17 @@ class AppState with ChangeNotifier {
 
       debugPrint('🏞 Loaded ${_favoriteParks.length} saved parks');
     } catch (e) {
+      if (!isUserSessionCurrent(uid, generation)) return;
       debugPrint('❌ loadSavedParksFromFirebase failed: $e');
       if (!usedCache) {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → saved parks empty');
         _favoriteParks.clear();
       }
     } finally {
-      _savedParksLoaded = true;
-      notifyListeners();
+      if (isUserSessionCurrent(uid, generation)) {
+        _savedParksLoaded = true;
+        notifyListeners();
+      }
     }
   }
 
@@ -4289,12 +4530,22 @@ class AppState with ChangeNotifier {
   }
 
   void updateUserId(String? newId) {
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    if (authUid != null) {
+      synchronizeAuthenticatedUid(authUid);
+      return;
+    }
+
     currentUserId = newId;
   }
 
   // ─── dispose تمیز کردن subscription ───
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _startupSessionGeneration++;
+
     _unreadNotificationsSub?.cancel();
     _unreadNotificationsSub = null;
 
@@ -4373,6 +4624,7 @@ class AppState with ChangeNotifier {
   Future<void> loadUnreadNotificationsCount() async {
     final uid = _currentUserId;
     if (uid == null) return;
+    final generation = _startupSessionGeneration;
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -4381,6 +4633,8 @@ class AppState with ChangeNotifier {
           .where('isRead', isEqualTo: false)
           .get();
 
+      if (!isUserSessionCurrent(uid, generation)) return;
+
       _unreadNotificationsCount = snapshot.docs.length;
       notifyListeners();
 
@@ -4388,6 +4642,7 @@ class AppState with ChangeNotifier {
         '🔔 AppState unreadNotificationsCount = $_unreadNotificationsCount',
       );
     } catch (e) {
+      if (!isUserSessionCurrent(uid, generation)) return;
       debugPrint('❌ Error loading unread notifications: $e');
       _unreadNotificationsCount = 0;
       notifyListeners();

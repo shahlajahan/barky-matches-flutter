@@ -18,6 +18,7 @@ import 'package:barky_matches_fixed/ui/medical_records/medical_record_flow_butto
 import 'package:barky_matches_fixed/ui/medical_records/medical_records_page.dart';
 import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
@@ -999,7 +1000,9 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                             child: TextField(
                               onChanged: _onSearchChanged,
                               decoration: InputDecoration(
-                                hintText: "Search veterinary clinics...",
+                                hintText: AppLocalizations.of(context)!.searchService(
+    AppLocalizations.of(context)!.veterinaryClinics,
+  ),
                                 prefixIcon: const Icon(Icons.search),
                                 filled: true,
                                 fillColor: Colors.white,
@@ -1017,14 +1020,14 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                           Expanded(
                             child: _filteredVets.isEmpty
                                 ? const Center(
-                                    child: Text(
-                                      'No veterinary clinics found.',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black54,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                                   child: Text(
+  AppLocalizations.of(context)!.noVeterinaryClinicsFound,
+  style: const TextStyle(
+    fontSize: 14,
+    color: Colors.black54,
+    fontWeight: FontWeight.w500,
+  ),
+),
                                   )
                                 : ListView.builder(
                                     padding: const EdgeInsets.fromLTRB(

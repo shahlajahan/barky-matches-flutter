@@ -14,6 +14,7 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 enum ReviewSortType { mostRelevant, newest }
 
@@ -1077,13 +1078,13 @@ await AnalyticsService.vetBookingStarted(
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Services could not be loaded.',
-              style: AppTheme.caption(color: Colors.black54),
-            ),
-          );
-        }
+  return Center(
+    child: Text(
+      AppLocalizations.of(context)!.servicesCouldNotBeLoaded,
+      style: AppTheme.caption(color: Colors.black54),
+    ),
+  );
+}
 
         final docs = snapshot.data?.docs ?? [];
 

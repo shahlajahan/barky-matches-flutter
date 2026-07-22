@@ -28,6 +28,7 @@ import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_events.dart';
 import 'package:barky_matches_fixed/core/debug/authentication_diagnostics.dart';
 import 'package:barky_matches_fixed/core/debug/diagnostics_navigation_tracker.dart';
+import 'package:barky_matches_fixed/services/phone_signup_profile_finalizer.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -504,6 +505,7 @@ class _AuthPageState extends State<AuthPage> {
   final _phoneFocusNode = FocusNode();
   bool _isLogin = false;
   bool _usePhoneSignup = false;
+  bool _usePhoneLogin = false;
   String _selectedCountryCode = '+90';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -521,6 +523,14 @@ class _AuthPageState extends State<AuthPage> {
     final currentUserBox = Hive.box<String>('currentUserBox');
     _isLogin = widget.isLogin;
     _loadSavedCredentials();
+  }
+
+  @override
+  void deactivate() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG AuthPage deactivate hash=${identityHashCode(this)}');
+    }
+    super.deactivate();
   }
 
   @override
@@ -642,6 +652,9 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   void dispose() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG AuthPage dispose hash=${identityHashCode(this)}');
+    }
     _usernameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -684,15 +697,15 @@ class _AuthPageState extends State<AuthPage> {
       final userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: trimmedEmail, password: password);
 
-final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseAuth.instance.currentUser;
 
-await user?.reload();
+      await user?.reload();
 
-final refreshed = FirebaseAuth.instance.currentUser;
+      final refreshed = FirebaseAuth.instance.currentUser;
 
-debugPrint("LOGIN UID = ${refreshed?.uid}");
-debugPrint("LOGIN EMAIL = ${refreshed?.email}");
-debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
+      debugPrint("LOGIN UID = ${refreshed?.uid}");
+      debugPrint("LOGIN EMAIL = ${refreshed?.email}");
+      debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
 
       final signedInUser = userCredential.user;
       if (signedInUser == null) {
@@ -1328,6 +1341,67 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
 
     try {
       if (_isLogin) {
+        // 📱 PHONE LOGIN
+        if (_usePhoneLogin) {
+          final phone = _phoneController.text.trim();
+
+          if (phone.isEmpty) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Phone number required')),
+              );
+            }
+
+            setState(() {
+              _isLoading = false;
+            });
+
+            return;
+          }
+
+          final fullPhone = '$_selectedCountryCode$phone';
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VerifyPhonePage(phone: fullPhone),
+            ),
+          ).then((verifiedUid) async {
+            if (verifiedUid is! String) return;
+
+            if (!mounted || !context.mounted) return;
+
+            final authUser = FirebaseAuth.instance.currentUser;
+
+            if (authUser == null || authUser.uid != verifiedUid) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Phone verification failed.')),
+              );
+              return;
+            }
+
+            final appState = Provider.of<AppState>(context, listen: false);
+
+            await appState.initializeAuthenticatedUser(authUser);
+
+            await Hive.box<String>(
+              'currentUserBox',
+            ).put('currentUserId', verifiedUid);
+
+            await AnalyticsService.userLogin();
+
+            if (!mounted) return;
+
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomeGate()),
+              (route) => false,
+            );
+          });
+
+          return;
+        }
+
+        // 📧 EMAIL LOGIN (existing)
         final email = _emailController.text.trim();
         final password = _passwordController.text.trim();
 
@@ -1337,30 +1411,42 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
         );
 
         if (!mounted) return;
+
         setState(() {
           _isLoading = false;
         });
 
         final bool isAuthenticated = result['isAuthenticated'] ?? false;
+
         final String? errorMessage = result['errorMessage'];
+
         final String userId = result['userId'] ?? '';
 
         if (isAuthenticated && userId.isNotEmpty && mounted) {
           await AnalyticsService.userLogin();
-          final appState = context.read<AppState>();
-          appState.updateUserId(userId);
 
-          // فقط یک‌بار init
-          await appState.initUser();
+          final appState = context.read<AppState>();
+
+          final authUser = FirebaseAuth.instance.currentUser;
+          if (authUser == null || authUser.uid != userId) {
+            throw StateError(
+              'Authenticated user changed before initialization.',
+            );
+          }
+
+          await appState.initializeAuthenticatedUser(authUser);
+
           await _askNotificationPermissionAfterLogin();
 
           if (!mounted) return;
+
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const HomeGate()),
             (route) => false,
           );
         } else if (errorMessage != null && mounted && context.mounted) {
           debugPrint('AuthPage - Sign-in failed: $errorMessage');
+
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(errorMessage)));
@@ -1425,18 +1511,29 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
           _isLoading = false;
         });
 
-        if (success && userId != null && mounted && context.mounted) {
+        if (success &&
+            (_usePhoneSignup || userId != null) &&
+            mounted &&
+            context.mounted) {
           await AnalyticsService.userSignup();
-          final currentUserBoxStorage = Hive.box<String>('currentUserBox');
-
-          await currentUserBoxStorage.put(
-            'receiveNews',
-            _receiveNews.toString(),
-          );
-
-          debugPrint('AuthPage - Receive news preference saved: $_receiveNews');
+          if (!_usePhoneSignup) {
+            await Hive.box<String>(
+              'currentUserBox',
+            ).put('receiveNews', _receiveNews.toString());
+            debugPrint(
+              'AuthPage - Receive news preference saved: $_receiveNews',
+            );
+          }
 
           if (_usePhoneSignup) {
+            final phoneSignupProfile = PhoneSignupProfileInput(
+              username: username,
+              email: email,
+              phone: phone ?? '',
+              city: city,
+              district: district,
+              receiveNews: _receiveNews,
+            );
             debugPrint('========== SIGNUP START ==========');
 
             debugPrint(
@@ -1451,33 +1548,58 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
             debugPrint('=================================');
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => VerifyPhonePage(phone: phone!, userId: userId),
-              ),
-            ).then((verified) async {
-              if (verified == true) {
-                await Hive.box<String>(
-                  'currentUserBox',
-                ).put('currentUserId', userId);
+              MaterialPageRoute(builder: (_) => VerifyPhonePage(phone: phone!)),
+            ).then((verifiedUid) async {
+              if (verifiedUid is! String) return;
+              if (!mounted || !context.mounted) return;
 
-                Provider.of<AppState>(
-                  context,
-                  listen: false,
-                ).updateUserId(userId);
-
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const HomeGate()),
-                  (route) => false,
+              final authUser = FirebaseAuth.instance.currentUser;
+              if (authUser == null || verifiedUid != authUser.uid) {
+                if (!mounted || !context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Phone sign-in did not match the authenticated account.',
+                    ),
+                  ),
                 );
+                return;
               }
+
+              final appState = Provider.of<AppState>(context, listen: false);
+              await finalizePhoneSignupBeforeInitialization(
+                authenticatedUid: verifiedUid,
+                input: phoneSignupProfile,
+                finalizeProfile: (uid, input) => finalizePhoneSignupProfile(
+                  authenticatedUid: uid,
+                  input: input,
+                ),
+                initializeUserB: () async {
+                  await appState.initializeAuthenticatedUser(authUser);
+                  await appState.loadUsernameFromFirebase();
+                },
+              );
+
+              if (FirebaseAuth.instance.currentUser?.uid != verifiedUid) return;
+              await Hive.box<String>('currentUserBox').putAll({
+                'currentUserId': verifiedUid,
+                'receiveNews': _receiveNews.toString(),
+              });
+
+              if (!mounted || !context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomeGate()),
+                (route) => false,
+              );
             });
           } else {
+            final emailUserId = userId!;
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => VerifyEmailPage(
                   email: email,
-                  userId: userId,
+                  userId: emailUserId,
                   requestId: requestId!,
                 ),
               ),
@@ -1485,12 +1607,12 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
               if (isVerified == true) {
                 await Hive.box<String>(
                   'currentUserBox',
-                ).put('currentUserId', userId);
+                ).put('currentUserId', emailUserId);
 
                 Provider.of<AppState>(
                   context,
                   listen: false,
-                ).updateUserId(userId);
+                ).updateUserId(emailUserId);
 
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const HomeGate()),
@@ -1636,18 +1758,23 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
 
                     const SizedBox(height: 28),
 
-                    if (!_isLogin) ...[
+                    if (_isLogin || !_isLogin) ...[
                       Row(
                         children: [
                           Expanded(
                             child: ChoiceChip(
                               label: const Text('Email'),
-
-                              selected: !_usePhoneSignup,
+                              selected: _isLogin
+                                  ? !_usePhoneLogin
+                                  : !_usePhoneSignup,
 
                               onSelected: (_) {
                                 setState(() {
-                                  _usePhoneSignup = false;
+                                  if (_isLogin) {
+                                    _usePhoneLogin = false;
+                                  } else {
+                                    _usePhoneSignup = false;
+                                  }
                                 });
                               },
                             ),
@@ -1658,12 +1785,17 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
                           Expanded(
                             child: ChoiceChip(
                               label: const Text('Phone'),
-
-                              selected: _usePhoneSignup,
+                              selected: _isLogin
+                                  ? _usePhoneLogin
+                                  : _usePhoneSignup,
 
                               onSelected: (_) {
                                 setState(() {
-                                  _usePhoneSignup = true;
+                                  if (_isLogin) {
+                                    _usePhoneLogin = true;
+                                  } else {
+                                    _usePhoneSignup = true;
+                                  }
                                 });
                               },
                             ),
@@ -1763,7 +1895,8 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
                             const SizedBox(height: 14),
                           ],
 
-                          if (!_usePhoneSignup) ...[
+                          if ((_isLogin && !_usePhoneLogin) ||
+                              (!_isLogin && !_usePhoneSignup)) ...[
                             TextFormField(
                               controller: _emailController,
                               decoration: _authInputDecoration(
@@ -1796,7 +1929,8 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
                             const SizedBox(height: 14),
                           ],
 
-                          if (!_isLogin && _usePhoneSignup) ...[
+                          if ((_isLogin && _usePhoneLogin) ||
+                              (!_isLogin && _usePhoneSignup)) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,

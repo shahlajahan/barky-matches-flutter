@@ -46,6 +46,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
   static const Color primary = Color(0xFF9E1B4F);
   static const Color accent = Color(0xFFFFC107);
   static const Color bg = Color(0xFFFFF6F8);
+  final PetshopCheckoutService _paymentService = PetshopCheckoutService();
 
   Map<String, dynamic>? appointment;
   bool loading = true;
@@ -357,9 +358,41 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         ).showSnackBar(const SnackBar(content: Text("Payment successful")));
 
         await _refreshAppointment();
+      } else if (result == "isbank_success_redirect") {
+        final paymentState = await _paymentService.waitForPaymentConfirmation(
+          orderId,
+        );
+        if (!mounted) return;
+
+        final paymentStatus =
+            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ?? '';
+        final orderStatus =
+            paymentState?['orderStatus']?.toString().trim().toLowerCase() ?? '';
+        final paid = paymentState?['paid'] == true ||
+            paymentStatus == 'paid' ||
+            orderStatus == 'paid';
+        final failed = paymentStatus == 'failed' || orderStatus == 'payment_failed';
+
+        if (paid) {
+          await _syncClientRecordAfterPayment();
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("Payment successful")));
+          await _refreshAppointment();
+        } else if (failed) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("Payment cancelled")));
+          await _refreshAppointment();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context)!.processingLabel)),
+          );
+        }
       }
 
-      if (result == "cancel") {
+      if (result == "cancel" || result == "isbank_cancel") {
         debugPrint("❌ PAYMENT CANCELLED");
 
         if (!mounted) return;

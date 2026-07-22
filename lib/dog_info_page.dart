@@ -457,12 +457,14 @@ class DogInfoPage extends StatelessWidget {
                       icon: const Icon(Icons.thumb_up, color: Colors.green),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${l10n?.dogInfoLiked ?? 'You liked'} ${dog.name}',
-                            ),
-                          ),
-                        );
+  SnackBar(
+    content: Text(
+      AppLocalizations.of(context)!.dogInfoLiked(
+        dog.name,
+      ),
+    ),
+  ),
+);
                         if (kDebugMode) {
                           debugPrint('DogInfoPage - Liked dog: ${dog.name}');
                         }

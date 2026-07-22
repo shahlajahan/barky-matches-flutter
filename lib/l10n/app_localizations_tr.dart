@@ -840,7 +840,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String dogNameAlreadyExists(Object name) {
-    return '$name adında bir köpek zaten mevcut!';
+    return '\"$name\" isimli köpek zaten mevcut';
   }
 
   @override
@@ -2085,8 +2085,8 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String dogInfoLiked(Object dogName) {
-    return '$dogName beğenildi!';
+  String dogInfoLiked(Object name) {
+    return '$name adlı köpeği beğendiniz';
   }
 
   @override
@@ -5067,4 +5067,256 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get refundRejectedStatusLabel => 'İade reddedildi';
+
+  @override
+  String get locationUpdatedSuccessfully => 'Konum başarıyla güncellendi';
+
+  @override
+  String get centersLoadError => 'Merkezler yüklenemedi';
+
+  @override
+  String get noAppointments => 'Randevu bulunamadı.';
+
+  @override
+  String get noAppointmentsFound => 'Randevu bulunamadı.';
+
+  @override
+  String appointmentsCount(Object count) {
+    return '$count randevu';
+  }
+
+  @override
+  String get any => 'Fark etmez';
+
+  @override
+  String get search => 'Ara...';
+
+  @override
+  String get accessDenied => 'Erişim Reddedildi';
+
+  @override
+  String get skip => 'Atla';
+
+  @override
+  String searchService(Object service) {
+    return '$service ara...';
+  }
+
+  @override
+  String get petHotels => 'Pet Otelleri';
+
+  @override
+  String noItemsYet(Object title) {
+    return 'Henüz $title yok';
+  }
+
+  @override
+  String get noSavedPostsYet => 'Henüz kaydedilmiş gönderi yok';
+
+  @override
+  String uploadedAt(Object date) {
+    return 'Yüklenme: $date';
+  }
+
+  @override
+  String get productDetails => 'Ürün Detayları';
+
+  @override
+  String get servicesCouldNotBeLoaded => 'Hizmetler yüklenemedi.';
+
+  @override
+  String get veterinaryClinics => 'Veteriner klinikleri';
+
+  @override
+  String get noVeterinaryClinicsFound => 'Veteriner kliniği bulunamadı.';
+
+  @override
+  String get securePayment => 'Güvenli Ödeme';
+
+  @override
+  String get liveDriver => 'Canlı Sürücü';
+
+  @override
+  String get driver => 'Sürücü';
+
+  @override
+  String get myRides => 'Yolculuklarım';
+
+  @override
+  String get clientMessages => 'Müşteri Mesajları';
+
+  @override
+  String get preVisitForm => 'Muayene Öncesi Formu';
+
+  @override
+  String get vetRevenueTitle => 'Gelir';
+
+  @override
+  String get vetRevenueDescription => 'Tamamlanan veteriner işlemlerine ait doğrulanmış ödeme ve mutabakat verileri.';
+
+  @override
+  String get vetRevenueRange7Days => '7 gün';
+
+  @override
+  String get vetRevenueRange30Days => '30 gün';
+
+  @override
+  String get vetRevenueRange90Days => '90 gün';
+
+  @override
+  String get vetRevenueRangeThisYear => 'Bu yıl';
+
+  @override
+  String get vetRevenueRangeAllTime => 'Tüm zamanlar';
+
+  @override
+  String get vetRevenueGrossRevenue => 'Brüt Gelir';
+
+  @override
+  String get vetRevenuePetsupoCommission => 'PetSupo Komisyonu';
+
+  @override
+  String get vetRevenueNetRevenue => 'Net Gelir';
+
+  @override
+  String get vetRevenuePendingSettlement => 'Bekleyen Mutabakat';
+
+  @override
+  String get vetRevenuePaidTransactions => 'Ödenen İşlemler';
+
+  @override
+  String get vetRevenuePendingPayments => 'Bekleyen Ödemeler';
+
+  @override
+  String get vetRevenueRefunded => 'İade Edilen';
+
+  @override
+  String get vetRevenueExpiredOpportunities => 'Süresi Dolan Fırsatlar';
+
+  @override
+  String get vetRevenueMissingFinancialData => 'Eksik Finansal Veri';
+
+  @override
+  String vetRevenueMissingFinancialWarning(int count) {
+    return '$count ödenmiş kaydın finansal verisi eksik veya hatalı olduğundan toplamlara dahil edilmedi.';
+  }
+
+  @override
+  String get vetRevenueMixedCurrencyWarning => 'Birden fazla para birimi mevcut. Tutarlar ayrı gösterilir; dönüştürülmez veya birleştirilmez.';
+
+  @override
+  String get vetRevenueNoAppointmentsTitle => 'Henüz randevu yok';
+
+  @override
+  String get vetRevenueNoAppointmentsMessage => 'Veteriner randevuları oluşturulduğunda gelir analizi burada görünür.';
+
+  @override
+  String get vetRevenueNoRangeTitle => 'Bu dönemde kayıt yok';
+
+  @override
+  String get vetRevenueNoRangeMessage => 'Daha eski işlemler için daha geniş bir tarih aralığı seçin.';
+
+  @override
+  String get vetRevenueLoadErrorTitle => 'Gelir verisi kullanılamıyor';
+
+  @override
+  String get vetRevenueLoadErrorMessage => 'Bağlantıyı kontrol edip tekrar deneyin. Mevcut ödeme kayıtları değiştirilmedi.';
+
+  @override
+  String get vetRevenueRetry => 'Tekrar dene';
+
+  @override
+  String get vetRevenueTrendTitle => 'Gelir Eğilimi';
+
+  @override
+  String get vetRevenueMixedCurrencyChartHidden => 'Seçilen dönemde birden fazla para birimi olduğundan birleşik grafik gizlendi.';
+
+  @override
+  String get vetRevenueNoRecognizedRevenue => 'Bu dönemde doğrulanmış ödenmiş gelir yok.';
+
+  @override
+  String get vetRevenueTopServices => 'Brüt Gelire Göre En İyi Hizmetler';
+
+  @override
+  String get vetRevenueTransactions => 'İşlemler';
+
+  @override
+  String get vetRevenueUncategorized => 'Kategorisiz';
+
+  @override
+  String get vetRevenueSearchHint => 'Müşteri, evcil hayvan, hizmet veya işlem ara';
+
+  @override
+  String get vetRevenueAllPayments => 'Tüm ödemeler';
+
+  @override
+  String get vetRevenuePaid => 'Ödendi';
+
+  @override
+  String get vetRevenuePending => 'Bekliyor';
+
+  @override
+  String get vetRevenueExpired => 'Süresi doldu';
+
+  @override
+  String get vetRevenueMissingFinancial => 'Finansal veri eksik';
+
+  @override
+  String get vetRevenueSortDate => 'Tarihe göre sırala';
+
+  @override
+  String get vetRevenueSortDirection => 'Sıralama yönünü değiştir';
+
+  @override
+  String get vetRevenueDate => 'Tarih';
+
+  @override
+  String get vetRevenueCustomer => 'Müşteri';
+
+  @override
+  String get vetRevenuePet => 'Evcil Hayvan';
+
+  @override
+  String get vetRevenueService => 'Hizmet';
+
+  @override
+  String get vetRevenueGross => 'Brüt';
+
+  @override
+  String get vetRevenueCommission => 'Komisyon';
+
+  @override
+  String get vetRevenueNet => 'Net';
+
+  @override
+  String get vetRevenuePayment => 'Ödeme';
+
+  @override
+  String get vetRevenueSettlement => 'Mutabakat';
+
+  @override
+  String get vetRevenueInvoice => 'Fatura';
+
+  @override
+  String get vetRevenueTransactionReference => 'İşlem referansı';
+
+  @override
+  String get vetRevenueNoMatchingTransactions => 'Arama ve filtreyle eşleşen işlem yok.';
+
+  @override
+  String vetRevenuePageOf(int page, int total) {
+    return 'Sayfa $page / $total';
+  }
+
+  @override
+  String get vetWebOverviewSubtitle => 'Klinik performansı ve operasyon özeti';
+
+  @override
+  String get vetWebAppointmentsSubtitle => 'Veteriner randevularını inceleyin ve yönetin';
+
+  @override
+  String get vetWebRevenueSubtitle => 'Doğrulanmış ödeme, komisyon ve mutabakat analizi';
+
+  @override
+  String get vetWebVeterinaryLabel => 'Veteriner';
 }

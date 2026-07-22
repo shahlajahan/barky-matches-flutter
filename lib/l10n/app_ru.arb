@@ -1194,5 +1194,135 @@
   "shippingResponsibilityContractCarrierLabel": "Только если перевозчик по договору",
   "returnCarrierLabel": "Перевозчик возврата",
   "returnImagesAdded": "Изображения добавлены",
-  "refundRejectedStatusLabel": "Возврат отклонён"
+  "refundRejectedStatusLabel": "Возврат отклонён",
+  "locationUpdatedSuccessfully": "Местоположение успешно обновлено",
+  "centersLoadError": "Не удалось загрузить центры",
+  "noAppointments": "Записей на приём нет.",
+  "noAppointmentsFound": "Записи на приём не найдены.",
+  "appointmentsCount": "{count} записей",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"dogNameAlreadyExists": "Собака с именем \"{name}\" уже существует",
+"@dogNameAlreadyExists": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"appointmentsCount": "{count} записей на приём",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"appointmentsCount": "{count} записей на приём",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"any": "Любой",
+"yes": "Да",
+"no": "Нет",
+"dogInfoLiked": "Вам понравилась собака {name}",
+"@dogInfoLiked": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"search": "Поиск",
+"accessDenied": "Доступ запрещён",
+"skip": "Пропустить",
+"searchService": "Поиск: {service}...",
+"@searchService": {
+  "placeholders": {
+    "service": {}
+  }
+},
+"petHotels": "Зоогостиницы",
+"noItemsYet": "Пока нет: {title}",
+"@noItemsYet": {
+  "placeholders": {
+    "title": {}
+  }
+},
+"noSavedPostsYet": "Пока нет сохранённых публикаций",
+"uploadedAt": "Загружено: {date}",
+"@uploadedAt": {
+  "placeholders": {
+    "date": {}
+  }
+},
+"noSavedPostsYet": "Пока нет сохранённых публикаций",
+"productDetails": "Информация о товаре",
+"servicesCouldNotBeLoaded": "Не удалось загрузить услуги.",
+"search": "Поиск...",
+"veterinaryClinics": "Ветеринарные клиники",
+"noVeterinaryClinicsFound": "Ветеринарные клиники не найдены.",
+"securePayment": "Безопасная оплата",
+"liveDriver": "Водитель онлайн",
+"driver": "Водитель",
+"myRides": "Мои поездки",
+"clientMessages": "Сообщения клиентов",
+"preVisitForm": "Форма перед визитом",
+"vetRevenueTitle": "Выручка",
+"vetRevenueDescription": "Проверенные данные платежей и расчётов по завершённым ветеринарным операциям.",
+"vetRevenueRange7Days": "7 дней",
+"vetRevenueRange30Days": "30 дней",
+"vetRevenueRange90Days": "90 дней",
+"vetRevenueRangeThisYear": "Этот год",
+"vetRevenueRangeAllTime": "Всё время",
+"vetRevenueGrossRevenue": "Валовая выручка",
+"vetRevenuePetsupoCommission": "Комиссия PetSupo",
+"vetRevenueNetRevenue": "Чистая выручка",
+"vetRevenuePendingSettlement": "Ожидает расчёта",
+"vetRevenuePaidTransactions": "Оплаченные операции",
+"vetRevenuePendingPayments": "Ожидающие платежи",
+"vetRevenueRefunded": "Возвращено",
+"vetRevenueExpiredOpportunities": "Истёкшие возможности",
+"vetRevenueMissingFinancialData": "Нет финансовых данных",
+"vetRevenueMissingFinancialWarning": "У {count} оплаченных записей отсутствуют или повреждены финансовые данные; они исключены из итогов.",
+"@vetRevenueMissingFinancialWarning": {"placeholders": {"count": {"type": "int"}}},
+"vetRevenueMixedCurrencyWarning": "Обнаружено несколько валют. Суммы показаны отдельно и не конвертируются и не складываются.",
+"vetRevenueNoAppointmentsTitle": "Записей пока нет",
+"vetRevenueNoAppointmentsMessage": "Аналитика появится после создания ветеринарных записей.",
+"vetRevenueNoRangeTitle": "В этом периоде нет данных",
+"vetRevenueNoRangeMessage": "Выберите больший диапазон дат для просмотра ранних операций.",
+"vetRevenueLoadErrorTitle": "Данные о выручке недоступны",
+"vetRevenueLoadErrorMessage": "Проверьте соединение и повторите попытку. Платёжные записи не изменены.",
+"vetRevenueRetry": "Повторить",
+"vetRevenueTrendTitle": "Динамика выручки",
+"vetRevenueMixedCurrencyChartHidden": "Общий график скрыт, поскольку период содержит несколько валют.",
+"vetRevenueNoRecognizedRevenue": "В этом периоде нет подтверждённой оплаченной выручки.",
+"vetRevenueTopServices": "Лучшие услуги по валовой выручке",
+"vetRevenueTransactions": "Операции",
+"vetRevenueUncategorized": "Без категории",
+"vetRevenueSearchHint": "Поиск клиента, питомца, услуги или операции",
+"vetRevenueAllPayments": "Все платежи",
+"vetRevenuePaid": "Оплачено",
+"vetRevenuePending": "Ожидается",
+"vetRevenueExpired": "Истёк",
+"vetRevenueMissingFinancial": "Нет финансовых данных",
+"vetRevenueSortDate": "Сортировать по дате",
+"vetRevenueSortDirection": "Изменить направление сортировки",
+"vetRevenueDate": "Дата",
+"vetRevenueCustomer": "Клиент",
+"vetRevenuePet": "Питомец",
+"vetRevenueService": "Услуга",
+"vetRevenueGross": "Валовая",
+"vetRevenueCommission": "Комиссия",
+"vetRevenueNet": "Чистая",
+"vetRevenuePayment": "Платёж",
+"vetRevenueSettlement": "Расчёт",
+"vetRevenueInvoice": "Счёт",
+"vetRevenueTransactionReference": "Ссылка операции",
+"vetRevenueNoMatchingTransactions": "Нет операций, соответствующих поиску и фильтру.",
+"vetRevenuePageOf": "Страница {page} из {total}",
+"@vetRevenuePageOf": {"placeholders": {"page": {"type": "int"}, "total": {"type": "int"}}},
+"vetWebOverviewSubtitle": "Обзор работы и показателей клиники",
+"vetWebAppointmentsSubtitle": "Просмотр и управление ветеринарными записями",
+"vetWebRevenueSubtitle": "Проверенная аналитика платежей, комиссии и расчётов",
+"vetWebVeterinaryLabel": "Ветеринария"
 }

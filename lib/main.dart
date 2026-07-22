@@ -9,6 +9,8 @@ import 'dart:io'
         HttpClient;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'
+    show debugPrintMarkNeedsLayoutStacks, debugPrintMarkNeedsPaintStacks;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -41,6 +43,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import 'package:app_links/app_links.dart';
 import 'core/debug/diagnostics_bootstrap.dart';
+import 'core/debug/diagnostics_queue.dart';
 import 'core/debug/diagnostics_navigation_tracker.dart';
 import 'core/debug/diagnostics_uploader.dart';
 import 'developer_tools/developer_tools_page.dart';
@@ -63,6 +66,43 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// TEMP WEB LIFECYCLE DIAGNOSTICS: remove after the first trigger is captured.
+String diagnosticCurrentRoute = '<none>';
+
+class WebLifecycleNavigatorObserver extends NavigatorObserver {
+  void _log(String event, Route<dynamic>? route, Route<dynamic>? previous) {
+    if (!kDebugMode || !kIsWeb) return;
+    diagnosticCurrentRoute = route == null
+        ? '<none>'
+        : '${route.settings.name ?? '<unnamed>'}:${route.runtimeType}';
+    debugPrint(
+      'WEB_DIAG NAV $event route=$diagnosticCurrentRoute '
+      'previous=${previous?.settings.name ?? '<unnamed>'}:'
+      '${previous?.runtimeType} at=${DateTime.now().toIso8601String()}',
+    );
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _log('didPush', route, previousRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _log('didPop', previousRoute, route);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _log('didRemove', previousRoute, route);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _log('didReplace', newRoute, oldRoute);
+  }
+}
 
 class _DeveloperToolsAccessDeniedPage extends StatefulWidget {
   const _DeveloperToolsAccessDeniedPage();
@@ -106,12 +146,12 @@ class _DeveloperToolsAccessDeniedPageState
       );
     }
 
-    return const Scaffold(
+    return Scaffold(
       body: Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'Access Denied',
+            AppLocalizations.of(context)!.accessDenied,
             textAlign: TextAlign.center,
           ),
         ),
@@ -149,6 +189,8 @@ Future<void> saveIosPushDebug({
   String? fcmToken,
   String? error,
 }) async {
+  if (kIsWeb) return;
+
   try {
     await FirebaseFirestore.instance
         .collection('debug_tokens')
@@ -233,7 +275,7 @@ void logStartupEnvironmentDiagnostics() {
     debugPrint('🌐 RELEASE MODE DETECTED');
   }
 
-  if (Platform.isIOS) {
+  if (!kIsWeb && Platform.isIOS) {
     debugPrint('🌐 IOS RUNTIME DETECTED');
     if (kDebugMode) {
       debugPrint('🌐 WIRELESS DEBUG DETECTED → iOS debug runtime');
@@ -303,14 +345,15 @@ Future<T> retry<T>(Future<T> Function() run) async {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await ensureFirebaseInitialized();
-  await MobileAds.instance.initialize();
+  if (!kIsWeb) {
+    await MobileAds.instance.initialize();
+  }
   WidgetsBinding.instance.addPostFrameCallback((_) {
     FirestoreReadinessGate.instance.markFirstFrameReady();
   });
 
   final data = message.data;
   final user = FirebaseAuth.instance.currentUser;
-  
 }
 
 Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
@@ -355,6 +398,11 @@ Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
   // 🔹 2️⃣ جلوگیری از duplicate در iOS
   // اگر iOS هست و message.notification وجود دارد،
   // سیستم خودش alert را نشان می‌دهد → local نساز
+  if (kIsWeb) {
+    debugPrint('🌐 Web push presentation handled by the browser');
+    return;
+  }
+
   if (Platform.isIOS && notification != null) {
     debugPrint(
       '🔔 Foreground handling path: iOS system presentation notification=${notification.title}',
@@ -471,6 +519,11 @@ Future<void> testHttps() async {
 
 Future<void> setupFCM() async {
   debugPrint('🌐 FCM INIT START');
+  if (kIsWeb) {
+    debugPrint('🌐 MOBILE FCM SETUP SKIPPED ON WEB');
+    return;
+  }
+
   final context = navigatorKey.currentContext;
   final appState = context?.read<AppState>();
 
@@ -803,6 +856,11 @@ Future<void> _openChatFromPayload(Map<String, dynamic> payload) async {
 }
 
 Future<void> _initializeNotificationsAfterStartup(AppState appState) async {
+  if (kIsWeb) {
+    debugPrint('🌐 MOBILE NOTIFICATION INIT SKIPPED ON WEB');
+    return;
+  }
+
   if (appState.isGuestUser || !appState.authUserDetected) {
     debugPrint('🌐 NOTIFICATION INIT DELAYED → waiting for auth user');
     return;
@@ -896,6 +954,15 @@ void main() async {
   }
 
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  DiagnosticsQueue().enablePersistence();
+  if (kDebugMode && kIsWeb) {
+    // TEMP WEB LIFECYCLE DIAGNOSTICS: preserve framework timing/assertions.
+    //debugPrintRebuildDirtyWidgets = true;
+    //debugPrintScheduleBuildForStacks = true;
+    //debugPrintMarkNeedsLayoutStacks = true;
+    //debugPrintMarkNeedsPaintStacks = true;
+  }
   await DiagnosticsBootstrap.initialize();
   GoogleFonts.config.allowRuntimeFetching = true;
   //await waitForInternet();
@@ -939,8 +1006,6 @@ void main() async {
   //}
 
   debugPrint('🌐 NOTIFICATION INIT DELAYED → startup auth gate not ready');
-  await Hive.initFlutter();
-
   Hive.registerAdapter(DogAdapter());
 
   final dogsBoxFuture = Hive.openBox<Dog>('dogsBox');
@@ -1104,7 +1169,11 @@ void main() async {
         appState.markFirebaseInitialized();
 
         // ❗️ خیلی مهم: فقط این
-        appState.startAuthListener();
+        if (kIsWeb) {
+          scheduleMicrotask(appState.startAuthListener);
+        } else {
+          appState.startAuthListener();
+        }
         //AuthTrap.start();
         // AuthTrap.scheduleTokenDiagnostics();
         IapService.instance.setSubscriptionActivatedCallback(() async {
@@ -1149,6 +1218,11 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   StreamSubscription<Uri>? _sub;
   Uri? _lastHandledLink;
   final DiagnosticsUploader _diagnosticsUploader = DiagnosticsUploader();
+  final DiagnosticsNavigationTracker _navigationTracker =
+      DiagnosticsNavigationTracker();
+  final WebLifecycleNavigatorObserver _webLifecycleNavigatorObserver =
+      WebLifecycleNavigatorObserver();
+  AppState? _appState;
 
   //Locale _locale = const Locale('en');
 
@@ -1172,6 +1246,12 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _appState = context.read<AppState>();
+  }
+
   void _handleDeepLinkOnce(Uri uri, String label) {
     if (_lastHandledLink == uri) return;
     _lastHandledLink = uri;
@@ -1183,15 +1263,17 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
+    _appState = null;
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && mounted) {
       debugPrint('🔄 App resumed');
 
-      final appState = context.read<AppState>();
+      final appState = _appState;
+      if (appState == null) return;
 
       appState.ignoreNotificationIconTapFor(const Duration(milliseconds: 600));
       _triggerDiagnosticsUpload();
@@ -1208,7 +1290,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final locale = context.watch<AppState>().locale;
+    final locale = context.select<AppState, Locale>((state) => state.locale);
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -1225,7 +1307,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
         navigatorObservers: <NavigatorObserver>[
-          DiagnosticsNavigationTracker(),
+          _navigationTracker,
+          _webLifecycleNavigatorObserver,
         ],
         theme: AppTheme.theme(locale: locale),
         locale: locale,

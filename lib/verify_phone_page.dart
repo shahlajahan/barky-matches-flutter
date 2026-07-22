@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:barky_matches_fixed/services/phone_credential_sign_in.dart';
 
 class VerifyPhonePage extends StatefulWidget {
   final String phone;
 
-  final String userId;
-
-  const VerifyPhonePage({super.key, required this.phone, required this.userId});
+  const VerifyPhonePage({super.key, required this.phone});
 
   @override
   State<VerifyPhonePage> createState() => _VerifyPhonePageState();
@@ -20,6 +20,10 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
   bool _loading = false;
 
   String? verificationId;
+
+  void _debugPhoneAuth(String message) {
+    if (kDebugMode) debugPrint('PHONE_AUTH_FLOW: $message');
+  }
 
   @override
   void initState() {
@@ -41,13 +45,9 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
       'SENDER ID: ${FirebaseAuth.instance.app.options.messagingSenderId}',
     );
 
-    debugPrint('PHONE AUTH: ${widget.phone}');
-
     debugPrint('===========================');
 
     debugPrint('VERIFY PAGE SEND CODE CALLED');
-
-    debugPrint('PHONE => ${widget.phone}');
 
     final auth = FirebaseAuth.instance;
 
@@ -55,7 +55,7 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
     debugPrint("currentUser: ${auth.currentUser?.uid}");
     debugPrint("providerData: ${auth.currentUser?.providerData}");
     debugPrint("isAnonymous: ${auth.currentUser?.isAnonymous}");
-    debugPrint("phone: ${auth.currentUser?.phoneNumber}");
+    debugPrint("phonePresent: ${auth.currentUser?.phoneNumber != null}");
     debugPrint("email: ${auth.currentUser?.email}");
 
     try {
@@ -67,78 +67,166 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
 
     debugPrint("===========================================");
 
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: widget.phone,
+    _debugPhoneAuth('verifyPhoneNumber start');
+    try {
+      debugPrint('============= VERIFY REQUEST =============');
+debugPrint('Phone Number: ${widget.phone}');
+debugPrint('Current User: ${FirebaseAuth.instance.currentUser?.uid}');
+debugPrint('Firebase App: ${FirebaseAuth.instance.app.name}');
+debugPrint('Project: ${FirebaseAuth.instance.app.options.projectId}');
+debugPrint('AppId: ${FirebaseAuth.instance.app.options.appId}');
+debugPrint('API Key: ${FirebaseAuth.instance.app.options.apiKey}');
+debugPrint('==========================================');
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: widget.phone,
 
-      verificationCompleted: (credential) {},
+        verificationCompleted: (credential) {
+          _debugPhoneAuth(
+            'verificationCompleted callback; credentialPresent=true',
+          );
+        },
 
-      verificationFailed: (e) {
-        debugPrint('PHONE VERIFY FAILED: ${e.code}');
+        verificationFailed: (FirebaseAuthException e) {
+  _debugPhoneAuth('verificationFailed callback');
 
-        debugPrint('PHONE VERIFY MESSAGE: ${e.message}');
+  debugPrint('');
+  debugPrint('================ PHONE AUTH FAILED ================');
+  debugPrint('TIME: ${DateTime.now()}');
+  debugPrint('CODE: ${e.code}');
+  debugPrint('MESSAGE: ${e.message}');
+  debugPrint('PLUGIN: ${e.plugin}');
+  debugPrint('EMAIL: ${e.email}');
+  debugPrint('PHONE: ${widget.phone}');
+  debugPrint('TENANT ID: ${e.tenantId}');
+  debugPrint('CREDENTIAL: ${e.credential}');
+  debugPrint('TOSTRING: ${e.toString()}');
+  debugPrint('STACK TRACE:');
+  debugPrint('${e.stackTrace}');
+  debugPrint('===================================================');
+  debugPrint('');
 
-        debugPrint('PHONE VERIFY FULL: $e');
+  FlutterError.reportError(
+    FlutterErrorDetails(
+      exception: e,
+      stack: e.stackTrace,
+      library: 'phone_auth',
+      context: ErrorDescription('verificationFailed callback'),
+    ),
+  );
 
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('${e.code}\n${e.message}')));
-        }
-      },
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 8),
+        content: SingleChildScrollView(
+          child: Text(
+            '''
+Code: ${e.code}
 
-      codeSent: (id, resend) {
-        verificationId = id;
+Message:
+${e.message}
 
-        debugPrint('CODE SENT');
-
-        debugPrint('VERIFICATION ID = $id');
-      },
-
-      codeAutoRetrievalTimeout: (id) {
-        verificationId = id;
-
-        debugPrint('TIMEOUT ID = $id');
-      },
+${e.toString()}
+''',
+          ),
+        ),
+      ),
     );
+  }
+},
+
+        codeSent: (id, resend) {
+          verificationId = id;
+
+          _debugPhoneAuth(
+            'codeSent callback; verificationIdPresent=${id.isNotEmpty}; '
+            'resendTokenPresent=${resend != null}',
+          );
+          debugPrint('CODE SENT');
+        },
+
+        codeAutoRetrievalTimeout: (id) {
+          verificationId = id;
+
+          _debugPhoneAuth(
+            'codeAutoRetrievalTimeout callback; '
+            'verificationIdPresent=${id.isNotEmpty}',
+          );
+        },
+      );
+      _debugPhoneAuth('verifyPhoneNumber returned without synchronous error');
+    } on FirebaseAuthException catch (e) {
+      _debugPhoneAuth('verifyPhoneNumber threw; code=${e.code}');
+      rethrow;
+    } catch (e) {
+      _debugPhoneAuth(
+        'verifyPhoneNumber threw non-Firebase exception; type=${e.runtimeType}',
+      );
+      rethrow;
+    }
   }
 
   Future<void> _verify() async {
-    if (verificationId == null || _codeController.text.length != 6) return;
+    final hasVerificationId = verificationId?.isNotEmpty == true;
+    final hasExpectedCodeLength = _codeController.text.length == 6;
+    _debugPhoneAuth(
+      'SMS submit tapped; verificationIdPresent=$hasVerificationId; '
+      'codeLengthValid=$hasExpectedCodeLength',
+    );
+    if (!hasVerificationId || !hasExpectedCodeLength) {
+      _debugPhoneAuth('SMS submit stopped by local precondition');
+      return;
+    }
 
     setState(() => _loading = true);
 
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: verificationId!,
+      late final PhoneAuthCredential credential;
+      try {
+        credential = PhoneAuthProvider.credential(
+          verificationId: verificationId!,
 
-        smsCode: _codeController.text.trim(),
+          smsCode: _codeController.text.trim(),
+        );
+        _debugPhoneAuth('PhoneAuthCredential creation success');
+      } catch (e) {
+        _debugPhoneAuth(
+          'PhoneAuthCredential creation failed; type=${e.runtimeType}',
+        );
+        rethrow;
+      }
+
+      final auth = FirebaseAuth.instance;
+      final verifiedUid = await signInToIndependentPhoneAccount(
+        signIn: () async {
+          _debugPhoneAuth('signInWithCredential start');
+          try {
+            final result = await auth.signInWithCredential(credential);
+            _debugPhoneAuth(
+              'signInWithCredential success; userPresent=${result.user != null}; '
+              'currentUserMatches=${result.user?.uid == auth.currentUser?.uid}',
+            );
+            return result.user?.uid;
+          } on FirebaseAuthException catch (e) {
+            _debugPhoneAuth('signInWithCredential exception; code=${e.code}');
+            rethrow;
+          } catch (e) {
+            _debugPhoneAuth(
+              'signInWithCredential non-Firebase exception; '
+              'type=${e.runtimeType}',
+            );
+            rethrow;
+          }
+        },
+        readAuthenticatedUid: () => auth.currentUser?.uid,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      final authUser = FirebaseAuth.instance.currentUser!;
-
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(authUser.uid)
+          .doc(verifiedUid)
           .set({
-            'uid': authUser.uid,
+            'uid': verifiedUid,
 
-            'phone': widget.phone,
-
-            'phoneVerified': true,
-
-            'createdAt': FieldValue.serverTimestamp(),
-
-            'username': '',
-
-            'email': '',
-          }, SetOptions(merge: true));
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(authUser.uid)
-          .set({
             'phone': widget.phone,
 
             'phoneVerified': true,
@@ -148,14 +236,43 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
 
       if (!mounted) return;
 
-      Navigator.pop(context, true);
-    } catch (e) {
+      Navigator.pop(context, verifiedUid);
+    } on FirebaseAuthException catch (e) {
+      _debugPhoneAuth('SMS submit FirebaseAuthException; code=${e.code}');
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ).showSnackBar(SnackBar(content: Text(_phoneSignInErrorMessage(e))));
+    } on PhoneSignInIdentityException catch (e) {
+      _debugPhoneAuth('SMS submit identity mismatch after sign-in');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      _debugPhoneAuth('SMS submit failed; type=${e.runtimeType}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone verification could not be completed.'),
+        ),
+      );
     }
 
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
+  }
+
+  String _phoneSignInErrorMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'invalid-verification-code':
+        return 'The verification code is invalid.';
+      case 'session-expired':
+        return 'The verification session expired. Request a new code.';
+      case 'user-disabled':
+        return 'This phone account has been disabled.';
+      default:
+        return error.message ?? 'Phone verification could not be completed.';
+    }
   }
 
   @override

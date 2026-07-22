@@ -2816,5 +2816,135 @@
   "shippingResponsibilityContractCarrierLabel": "فقط در صورت حمل‌کننده قراردادی",
   "returnCarrierLabel": "حمل‌کننده بازگشت",
   "returnImagesAdded": "تصاویر اضافه شدند",
-  "refundRejectedStatusLabel": "بازگشت وجه رد شد"
+  "refundRejectedStatusLabel": "بازگشت وجه رد شد",
+  "locationUpdatedSuccessfully": "موقعیت مکانی با موفقیت به‌روزرسانی شد",
+  "centersLoadError": "بارگذاری مراکز انجام نشد",
+  "noAppointments": "هیچ نوبتی وجود ندارد.",
+  "noAppointmentsFound": "هیچ نوبتی پیدا نشد.",
+  "appointmentsCount": "{count} نوبت",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"dogNameAlreadyExists": "سگی با نام \"{name}\" قبلاً وجود دارد",
+"@dogNameAlreadyExists": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"appointmentsCount": "{count} نوبت",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"appointmentsCount": "{count} نوبت",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"any": "فرقی ندارد",
+"yes": "بله",
+"no": "خیر",
+"dogInfoLiked": "شما سگ {name} را پسندیدید",
+"@dogInfoLiked": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"search": "جستجو",
+"accessDenied": "دسترسی رد شد",
+"skip": "رد کردن",
+"searchService": "جستجوی {service}...",
+"@searchService": {
+  "placeholders": {
+    "service": {}
+  }
+},
+"petHotels": "هتل حیوانات",
+"noItemsYet": "هنوز {title} وجود ندارد",
+"@noItemsYet": {
+  "placeholders": {
+    "title": {}
+  }
+},
+"noSavedPostsYet": "هنوز پست ذخیره‌شده‌ای وجود ندارد",
+"uploadedAt": "تاریخ بارگذاری: {date}",
+"@uploadedAt": {
+  "placeholders": {
+    "date": {}
+  }
+},
+"noSavedPostsYet": "هنوز پست ذخیره‌شده‌ای وجود ندارد",
+"productDetails": "جزئیات محصول",
+"servicesCouldNotBeLoaded": "بارگذاری خدمات انجام نشد.",
+"search": "جستجو...",
+"veterinaryClinics": "کلینیک‌های دامپزشکی",
+"noVeterinaryClinicsFound": "هیچ کلینیک دامپزشکی پیدا نشد.",
+"securePayment": "پرداخت امن",
+"liveDriver": "راننده آنلاین",
+"driver": "راننده",
+"myRides": "سفرهای من",
+"clientMessages": "پیام‌های مشتریان",
+"preVisitForm": "فرم پیش از مراجعه",
+"vetRevenueTitle": "درآمد",
+"vetRevenueDescription": "داده‌های تأییدشده پرداخت و تسویه تراکنش‌های دامپزشکی تکمیل‌شده.",
+"vetRevenueRange7Days": "۷ روز",
+"vetRevenueRange30Days": "۳۰ روز",
+"vetRevenueRange90Days": "۹۰ روز",
+"vetRevenueRangeThisYear": "امسال",
+"vetRevenueRangeAllTime": "همه زمان‌ها",
+"vetRevenueGrossRevenue": "درآمد ناخالص",
+"vetRevenuePetsupoCommission": "کمیسیون PetSupo",
+"vetRevenueNetRevenue": "درآمد خالص",
+"vetRevenuePendingSettlement": "تسویه در انتظار",
+"vetRevenuePaidTransactions": "تراکنش‌های پرداخت‌شده",
+"vetRevenuePendingPayments": "پرداخت‌های در انتظار",
+"vetRevenueRefunded": "بازپرداخت‌شده",
+"vetRevenueExpiredOpportunities": "فرصت‌های منقضی‌شده",
+"vetRevenueMissingFinancialData": "داده مالی مفقود",
+"vetRevenueMissingFinancialWarning": "داده مالی {count} رکورد پرداخت‌شده ناقص یا نامعتبر است و در مجموع محاسبه نشده است.",
+"@vetRevenueMissingFinancialWarning": {"placeholders": {"count": {"type": "int"}}},
+"vetRevenueMixedCurrencyWarning": "چند ارز وجود دارد. مبالغ جداگانه نمایش داده می‌شوند و تبدیل یا جمع نمی‌شوند.",
+"vetRevenueNoAppointmentsTitle": "هنوز نوبتی وجود ندارد",
+"vetRevenueNoAppointmentsMessage": "با ایجاد نوبت دامپزشکی، تحلیل درآمد اینجا نمایش داده می‌شود.",
+"vetRevenueNoRangeTitle": "در این بازه رکوردی نیست",
+"vetRevenueNoRangeMessage": "برای مشاهده تراکنش‌های قدیمی‌تر بازه بزرگ‌تری انتخاب کنید.",
+"vetRevenueLoadErrorTitle": "داده درآمد در دسترس نیست",
+"vetRevenueLoadErrorMessage": "اتصال را بررسی و دوباره تلاش کنید. رکوردهای پرداخت تغییر نکرده‌اند.",
+"vetRevenueRetry": "تلاش دوباره",
+"vetRevenueTrendTitle": "روند درآمد",
+"vetRevenueMixedCurrencyChartHidden": "به دلیل وجود چند ارز، نمودار ترکیبی نمایش داده نمی‌شود.",
+"vetRevenueNoRecognizedRevenue": "در این بازه درآمد پرداخت‌شده تأییدشده‌ای نیست.",
+"vetRevenueTopServices": "خدمات برتر بر اساس درآمد ناخالص",
+"vetRevenueTransactions": "تراکنش‌ها",
+"vetRevenueUncategorized": "بدون دسته‌بندی",
+"vetRevenueSearchHint": "جستجوی مشتری، حیوان، خدمت یا تراکنش",
+"vetRevenueAllPayments": "همه پرداخت‌ها",
+"vetRevenuePaid": "پرداخت‌شده",
+"vetRevenuePending": "در انتظار",
+"vetRevenueExpired": "منقضی‌شده",
+"vetRevenueMissingFinancial": "داده مالی مفقود",
+"vetRevenueSortDate": "مرتب‌سازی بر اساس تاریخ",
+"vetRevenueSortDirection": "تغییر جهت مرتب‌سازی",
+"vetRevenueDate": "تاریخ",
+"vetRevenueCustomer": "مشتری",
+"vetRevenuePet": "حیوان",
+"vetRevenueService": "خدمت",
+"vetRevenueGross": "ناخالص",
+"vetRevenueCommission": "کمیسیون",
+"vetRevenueNet": "خالص",
+"vetRevenuePayment": "پرداخت",
+"vetRevenueSettlement": "تسویه",
+"vetRevenueInvoice": "فاکتور",
+"vetRevenueTransactionReference": "مرجع تراکنش",
+"vetRevenueNoMatchingTransactions": "تراکنشی مطابق جستجو و فیلتر نیست.",
+"vetRevenuePageOf": "صفحه {page} از {total}",
+"@vetRevenuePageOf": {"placeholders": {"page": {"type": "int"}, "total": {"type": "int"}}},
+"vetWebOverviewSubtitle": "نمای کلی عملکرد و عملیات کلینیک",
+"vetWebAppointmentsSubtitle": "بررسی و مدیریت نوبت‌های دامپزشکی",
+"vetWebRevenueSubtitle": "تحلیل تأییدشده پرداخت، کمیسیون و تسویه",
+"vetWebVeterinaryLabel": "دامپزشکی"
 }

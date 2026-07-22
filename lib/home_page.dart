@@ -24,11 +24,10 @@ import 'package:barky_matches_fixed/ui/petshop/all_products_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/home/widgets/home_image_card.dart';
 import 'package:barky_matches_fixed/home/widgets/home_search_result_card.dart';
+import 'package:barky_matches_fixed/home/widgets/homepage_responsive_photo_image.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
-import 'package:barky_matches_fixed/widgets/ads/native_ad_widget.dart';
-
 import 'package:barky_matches_fixed/models/featured_deal.dart';
 /*
 class FeaturedDeal {
@@ -163,13 +162,19 @@ class _HomePageState extends State<HomePage>
 */
 
   Future<void> _loadFeaturedDeals() async {
+    if (!mounted) {
+      debugPrint("🔥 FEATURED LOAD SKIPPED → NOT MOUNTED");
+      return;
+    }
+
     debugPrint("🔥 FEATURED LOAD START");
 
+    // Capture context-dependent values before the Firestore async gap.
+    final language = Localizations.localeOf(context).languageCode;
+
+    debugPrint("🔥 LANGUAGE = $language");
+
     try {
-      final language = Localizations.localeOf(context).languageCode;
-
-      debugPrint("🔥 LANGUAGE = $language");
-
       final query = FirebaseFirestore.instance
           .collection("featured_deals")
           .orderBy("order");
@@ -178,13 +183,16 @@ class _HomePageState extends State<HomePage>
 
       final snapshot = await query.get();
 
-      debugPrint("🔥 SNAPSHOT RECEIVED");
+      if (!mounted) {
+        debugPrint("🔥 FEATURED LOAD CANCELLED → DISPOSED AFTER QUERY");
+        return;
+      }
 
+      debugPrint("🔥 SNAPSHOT RECEIVED");
       debugPrint("🔥 DOC COUNT = ${snapshot.docs.length}");
 
       for (final doc in snapshot.docs) {
         debugPrint("🔥 DOC ID = ${doc.id}");
-
         debugPrint("🔥 DOC DATA = ${doc.data()}");
       }
 
@@ -204,12 +212,10 @@ class _HomePageState extends State<HomePage>
           .toList();
 
       debugPrint("🔥 DEAL PARSE FINISHED");
-
       debugPrint("🔥 DEAL COUNT FINAL = ${deals.length}");
 
       if (!mounted) {
-        debugPrint("🔥 NOT MOUNTED");
-
+        debugPrint("🔥 FEATURED SETSTATE SKIPPED → NOT MOUNTED");
         return;
       }
 
@@ -220,7 +226,6 @@ class _HomePageState extends State<HomePage>
       debugPrint("🔥 SETSTATE DONE");
     } catch (e, stack) {
       debugPrint("❌ FEATURED ERROR = $e");
-
       debugPrint("❌ STACK = $stack");
     }
   }
@@ -302,7 +307,7 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _initMapIfNeeded() async {
-    if (!Platform.isIOS) {
+    if (kIsWeb || !Platform.isIOS) {
       _isMapReady = true;
       return;
     }
@@ -513,6 +518,8 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _fetchLikesForDog(String dogId) async {
+    if (!mounted) return;
+    final l = AppLocalizations.of(context)!;
     try {
       final likesSnapshot = await FirebaseFirestore.instance
           .collection('likes')
@@ -528,10 +535,10 @@ class _HomePageState extends State<HomePage>
             .get();
         final username = userSnapshot.exists
             ? userSnapshot['username']
-            : 'Unknown';
+            : l.unknownUser;
         final email = userSnapshot.exists
             ? userSnapshot['email']
-            : 'Unknown Email';
+            : l.notProvided;
         likers.add({'username': username, 'email': email});
       }
 
@@ -548,6 +555,7 @@ class _HomePageState extends State<HomePage>
   Future<void> _loadLikesForDogs() async {
     for (var dog in dogsBox.values) {
       await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
       await _fetchLikesForDog(dog.id);
     }
   }
@@ -1186,7 +1194,11 @@ class _HomePageState extends State<HomePage>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           /// 🔸 LOGO
-          Image.asset("assets/image/logo.png", height: 50),
+          Image.asset(
+            "assets/image/logo.png",
+            height: 50,
+            fit: kIsWeb ? BoxFit.contain : null,
+          ),
 
           const SizedBox(width: 12),
 
@@ -1226,8 +1238,8 @@ class _HomePageState extends State<HomePage>
         children: [
           /// HERO PETPLORE
           _BigPhotoHomeCard(
-            title: "Petplore",
-            subtitle: "Share moments with pet lovers",
+            title: l.communityHub,
+            subtitle: l.socialAndPlay,
             imagePath: "assets/home/heroes/petplore_hero.png",
             imageAlignment: const Alignment(0.2, -0.45),
             onTap: () {
@@ -1244,8 +1256,8 @@ class _HomePageState extends State<HomePage>
               children: [
                 Expanded(
                   child: _SmallPhotoHomeCard(
-                    title: "Playmate",
-                    subtitle: "Help your pet make new friends",
+                    title: l.playmateService,
+                    subtitle: l.signInToFindFriends,
                     imagePath: "assets/home/playmate.png",
                     onTap: () {
                       context.read<app.AppState>().setCurrentTab(
@@ -1291,6 +1303,7 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _greenMemorialCard() {
+    final l = AppLocalizations.of(context)!;
     return SizedBox(
       height: 120,
       child: Material(
@@ -1305,9 +1318,9 @@ class _HomePageState extends State<HomePage>
             children: [
               /// 🔹 BACKGROUND IMAGE
               Positioned.fill(
-                child: Image.asset(
-                  "assets/home/memorial.png",
-                  fit: BoxFit.cover,
+                child: buildHomepageResponsivePhotoImage(
+                  assetPath: "assets/home/memorial.png",
+                  coverAlignment: Alignment.center,
                 ),
               ),
 
@@ -1328,7 +1341,7 @@ class _HomePageState extends State<HomePage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Green Memorial",
+                      l.homeGreenMemorialTitle,
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 24,
@@ -1339,7 +1352,7 @@ class _HomePageState extends State<HomePage>
                     const SizedBox(height: 4),
 
                     Text(
-                      "Love lives in memories",
+                      l.createMemoriesTogether,
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 13,
@@ -1390,6 +1403,7 @@ class _HomePageState extends State<HomePage>
                       onPressed: () async {
                         Navigator.pop(context);
                         await requestLocationFromUser();
+                        if (!mounted) return;
                         context.read<app.AppState>().setCurrentTab(NavTab.vet);
                       },
                       child: Text(
@@ -1583,7 +1597,7 @@ class _HomePageState extends State<HomePage>
                       Row(
                         children: [
                           Text(
-                            "🔥 ${l.featuredDeal}",
+                            l.featuredDeal,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
@@ -1662,7 +1676,7 @@ class _HomePageState extends State<HomePage>
                     borderRadius: BorderRadius.circular(18),
                   ),
                   padding: const EdgeInsets.all(8),
-                  child: Image.asset(deal.logoAsset, fit: BoxFit.contain),
+                  child: _buildFeaturedDealLogo(deal.logoAsset),
                 ),
               ],
             ),
@@ -1675,6 +1689,35 @@ class _HomePageState extends State<HomePage>
   String _localizedDealShopName(FeaturedDeal deal) => deal.shopName;
 
   String _localizedDealDescription(FeaturedDeal deal) => deal.description;
+
+  Widget _buildFeaturedDealLogo(String source) {
+    if (!kIsWeb) {
+      return Image.asset(source, fit: BoxFit.contain);
+    }
+
+    if (source.trim().isEmpty) {
+      return const Icon(Icons.storefront, color: Colors.white, size: 30);
+    }
+
+    final uri = Uri.tryParse(source);
+    final isNetworkImage =
+        uri != null && (uri.scheme == 'https' || uri.scheme == 'http');
+    final imageProvider = isNetworkImage
+        ? NetworkImage(source) as ImageProvider<Object>
+        : AssetImage(source);
+
+    return Image(
+      image: imageProvider,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return const SizedBox.expand();
+      },
+      errorBuilder: (context, error, stackTrace) =>
+          const Icon(Icons.storefront, color: Colors.white, size: 30),
+    );
+  }
 
   Widget _accessPill(String text) {
     return Container(
@@ -1900,7 +1943,7 @@ class _HomePageState extends State<HomePage>
                   if (_featuredDeals.isNotEmpty) ...[
                     const SizedBox(height: _sectionGap),
 
-                    _buildSectionHeader("🔥 Featured Deal"),
+                    _buildSectionHeader(l.featuredDeal),
 
                     const SizedBox(height: 12),
 
@@ -1912,13 +1955,13 @@ class _HomePageState extends State<HomePage>
 
                   const SizedBox(height: _sectionGap),
 
-                  _buildSectionHeader("Community"),
+                  _buildSectionHeader(l.communityHub),
                   const SizedBox(height: 12),
                   _buildMainFeaturesGrid(),
 
                   const SizedBox(height: _sectionGap),
 
-                  _buildSectionHeader("Social Impact"),
+                  _buildSectionHeader(l.socialAndPlay),
                   const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2412,10 +2455,9 @@ class _BigPhotoHomeCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                alignment: imageAlignment,
+              buildHomepageResponsivePhotoImage(
+                assetPath: imagePath,
+                coverAlignment: imageAlignment,
               ),
 
               Container(
@@ -2507,10 +2549,9 @@ class _SmallPhotoHomeCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                alignment: imageAlignment,
+              buildHomepageResponsivePhotoImage(
+                assetPath: imagePath,
+                coverAlignment: imageAlignment,
               ),
               Container(
                 decoration: const BoxDecoration(

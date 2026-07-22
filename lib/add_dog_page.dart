@@ -405,11 +405,13 @@ class _AddDogPageState extends State<AddDogPage> {
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location updated successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+  SnackBar(
+    content: Text(
+      AppLocalizations.of(context)!.locationUpdatedSuccessfully,
+    ),
+    duration: const Duration(seconds: 2),
+  ),
+);
       }
     } catch (e) {
       debugPrint('AddDogPage - Error getting location: $e');

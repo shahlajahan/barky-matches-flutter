@@ -39,55 +39,32 @@ class _IsbankCheckoutWebViewPageState extends State<IsbankCheckoutWebViewPage> {
   @override
   void initState() {
     super.initState();
-    debugPrint('🧾 ISBANK CHECKOUT WEBVIEW OPENED → orderId=${widget.orderId}');
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
-          
           onPageStarted: (url) {
-            debugPrint('🌐 ISBANK WEBVIEW START: $url');
             if (mounted) {
               setState(() => _isLoading = true);
             }
           },
           onPageFinished: (url) async {
-  debugPrint('✅ ISBANK WEBVIEW FINISH: $url');
-
-  try {
-    final html = await _controller.runJavaScriptReturningResult(
-      'document.documentElement.outerHTML',
-    );
-
-    debugPrint(
-  html.toString(),
-  wrapWidth: 100000,
-);
-  } catch (e) {
-    debugPrint('❌ HTML READ ERROR: $e');
-  }
-
-  if (mounted) {
-    setState(() => _isLoading = false);
-  }
-},
-          onWebResourceError: (error) {
-  debugPrint(
-    '❌ ISBANK WEBVIEW ERROR: ${error.errorCode} ${error.description}',
-  );
-},
+            if (mounted) {
+              setState(() => _isLoading = false);
+            }
+          },
+          onWebResourceError: (_) {},
           onNavigationRequest: (request) {
             final url = request.url;
-            debugPrint('🌐 ISBANK WEBVIEW NAV URL: $url');
 
             if (_matchesPath(url, _successPath)) {
-              _finish('verify');
+              _finish('isbank_success_redirect');
               return NavigationDecision.prevent;
             }
 
             if (_matchesPath(url, _failPath)) {
-              _finish('cancel');
+              _finish('isbank_cancel');
               return NavigationDecision.prevent;
             }
 
@@ -108,6 +85,6 @@ class _IsbankCheckoutWebViewPageState extends State<IsbankCheckoutWebViewPage> {
           if (_isLoading) const Center(child: CircularProgressIndicator()),
         ],
       ),
-    );
+      );
   }
 }

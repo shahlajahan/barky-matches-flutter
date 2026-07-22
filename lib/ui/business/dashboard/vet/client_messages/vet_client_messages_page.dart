@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/client_messages/vet_inbox_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/client_messages/quick_replies/vet_quick_replies_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetClientMessagesPage extends StatelessWidget {
   final String businessId;
@@ -15,7 +16,9 @@ class VetClientMessagesPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Client Messages'),
+    title: Text(
+      AppLocalizations.of(context)!.clientMessages,
+    ),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.of(context).pop(),

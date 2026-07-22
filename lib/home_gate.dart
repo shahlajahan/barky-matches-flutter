@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
@@ -68,6 +69,30 @@ class _HomeGateState extends State<HomeGate> {
     super.initState();
     _handleInitialNotification();
     debugPrint('🧩 HomeGate initState hash=${identityHashCode(this)}');
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG HomeGate activate hash=${identityHashCode(this)}');
+    }
+  }
+
+  @override
+  void deactivate() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG HomeGate deactivate hash=${identityHashCode(this)}');
+    }
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG HomeGate dispose hash=${identityHashCode(this)}');
+    }
+    super.dispose();
   }
 
   Future<void> _handleInitialNotification() async {

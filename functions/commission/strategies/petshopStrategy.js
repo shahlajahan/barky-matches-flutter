@@ -52,9 +52,7 @@ function calculate({
             sellerPrice
         );
 
-    const rules = Object.values(category.rules);
-
-    const rule = rules.find((r) => {
+    const ruleEntry = Object.entries(category.rules).find(([, r]) => {
         const c = r.conditions;
 
         return (
@@ -63,11 +61,13 @@ function calculate({
         );
     });
 
-    if (!rule) {
+    if (!ruleEntry) {
         throw new Error(
             `No commission rule found for ${productCategory}`
         );
     }
+
+    const [ruleId, rule] = ruleEntry;
 
     if (rule.type !== COMMISSION_TYPES.PERCENTAGE) {
         throw new Error(
@@ -105,6 +105,16 @@ function calculate({
         commissionAmount,
 
         businessNetAmount,
+
+        ruleSnapshot: {
+            configVersion: config.version,
+            ruleId,
+            productCategory,
+            commissionType: rule.type,
+            commissionRate: rule.commissionRate,
+            discountFrom: rule.conditions.discountFrom,
+            discountTo: rule.conditions.discountTo,
+        },
     });
 }
 

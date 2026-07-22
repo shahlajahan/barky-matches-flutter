@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -790,6 +793,13 @@ class _OffersContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode && kIsWeb) {
+      debugPrint(
+        'WEB_DIAG OffersContent build '
+        '(offers uses ValueListenableBuilder; no StreamBuilder exists here) '
+        'hash=${identityHashCode(this)} at=${DateTime.now().toIso8601String()}',
+      );
+    }
     debugPrint("🔥 PROJECT CHECK: ${FirebaseFirestore.instance.app.name}");
 
     /// 🛑 اگر هیچ آفر نداریم
@@ -848,27 +858,113 @@ class _OffersContent extends StatelessWidget {
     return hasMultiple
         ? SizedBox(
             height: 168,
-            child: CarouselSlider(
-              options: CarouselOptions(
-                height: 168,
-                autoPlay: true,
-                autoPlayInterval: const Duration(seconds: 4),
-                autoPlayAnimationDuration: const Duration(milliseconds: 700),
-                viewportFraction: 1.0,
-              ),
-              items: visibleOffers
-                  .map(
-                    (offer) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: OffersManager._buildOfferCard(context, offer),
+            child: kIsWeb
+                ? _WebOffersCarousel(offers: visibleOffers)
+                : CarouselSlider(
+                    options: CarouselOptions(
+                      height: 168,
+                      autoPlay: true,
+                      autoPlayInterval: const Duration(seconds: 4),
+                      autoPlayAnimationDuration: const Duration(
+                        milliseconds: 700,
+                      ),
+                      viewportFraction: 1.0,
                     ),
-                  )
-                  .toList(),
-            ),
+                    items: visibleOffers
+                        .map(
+                          (offer) => Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: OffersManager._buildOfferCard(
+                              context,
+                              offer,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
           )
         : SizedBox(
             height: 168,
             child: OffersManager._buildOfferCard(context, visibleOffers.first),
           );
+  }
+}
+
+class _WebOffersCarousel extends StatefulWidget {
+  final List<Map<String, dynamic>> offers;
+
+  const _WebOffersCarousel({required this.offers});
+
+  @override
+  State<_WebOffersCarousel> createState() => _WebOffersCarouselState();
+}
+
+class _WebOffersCarouselState extends State<_WebOffersCarousel> {
+  final PageController _controller = PageController();
+  Timer? _timer;
+  int _page = 0;
+  bool _active = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_active || !_controller.hasClients) return;
+      _page = (_page + 1) % widget.offers.length;
+      _controller.animateToPage(
+        _page,
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.fastOutSlowIn,
+      );
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _WebOffersCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_page >= widget.offers.length) {
+      _page = 0;
+      if (_controller.hasClients) _controller.jumpToPage(0);
+    }
+  }
+
+  @override
+  void deactivate() {
+    _active = false;
+    _timer?.cancel();
+    _timer = null;
+    super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _active = true;
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _active = false;
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: _controller,
+      itemCount: widget.offers.length,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: OffersManager._buildOfferCard(context, widget.offers[index]),
+      ),
+    );
   }
 }

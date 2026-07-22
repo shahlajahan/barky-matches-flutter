@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/appointment_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AppointmentServiceCard extends StatelessWidget {
   const AppointmentServiceCard({
@@ -62,12 +63,14 @@ class AppointmentServiceCard extends StatelessWidget {
 
                     const SizedBox(height: 6),
 
-                    Text(
-                      '${service.totalCount} appointments',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                      ),
-                    ),
+                   Text(
+  AppLocalizations.of(context)!.appointmentsCount(
+    service.totalCount,
+  ),
+  style: theme.textTheme.bodySmall?.copyWith(
+    color: Colors.grey,
+  ),
+),
                   ],
                 ),
               ),

@@ -71,20 +71,23 @@ function calculate({
             commissionAmount
         );
 
-    return {
+    return buildFinancial({
+        sector: config.sector,
         finalPrice,
-
-        serviceCategory,
-
+        sellerPrice: finalPrice,
         commissionType: rule.type,
-
-        commissionRate:
-            rule.commissionRate ?? null,
-
+        commissionRate: rule.commissionRate ?? null,
         commissionAmount,
-
         businessNetAmount,
-    };
+        ruleSnapshot: {
+            configVersion: config.version,
+            ruleId: serviceCategory === "surgery" ? "surgery" : "default",
+            serviceCategory,
+            commissionType: rule.type,
+            commissionRate: rule.commissionRate ?? null,
+            amount: rule.amount ?? null,
+        },
+    });
 }
 
 module.exports = {

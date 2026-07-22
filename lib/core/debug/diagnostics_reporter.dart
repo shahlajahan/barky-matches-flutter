@@ -18,9 +18,7 @@ class DiagnosticsReporter {
       DiagnosticsContextProvider();
 
   /// Captures the current diagnostics buffer into an immutable report.
-  Future<void> captureCriticalError({
-    required String reason,
-  }) async {
+  Future<void> captureCriticalError({required String reason}) async {
     await _capture(
       reason: reason,
       severity: DiagnosticsReport.criticalSeverity,
@@ -32,33 +30,30 @@ class DiagnosticsReporter {
     required String reason,
     String severity = 'warning',
   }) async {
-    await _capture(
-      reason: reason,
-      severity: severity,
-    );
+    await _capture(reason: reason, severity: severity);
   }
 
   Future<void> _capture({
     required String reason,
     required String severity,
   }) async {
-    final DiagnosticsContext context = await _contextProvider.current();
-    final DiagnosticsReport report = DiagnosticsReport(
-      sessionId: SessionManager.sessionId,
-      createdAt: DateTime.now(),
-      reason: reason,
-      severity: severity,
-      app: context.app,
-      device: context.device,
-      user: context.user,
-      screen: context.screen,
-      logs: AppLog.buffer.snapshot(),
-    );
-
     try {
+      final DiagnosticsContext context = await _contextProvider.current();
+      final DiagnosticsReport report = DiagnosticsReport(
+        sessionId: SessionManager.sessionId,
+        createdAt: DateTime.now(),
+        reason: reason,
+        severity: severity,
+        app: context.app,
+        device: context.device,
+        user: context.user,
+        screen: context.screen,
+        logs: AppLog.buffer.snapshot(),
+      );
+
       await DiagnosticsQueue().enqueue(report);
     } catch (_) {
-      // Queue persistence is best-effort until uploader lifecycle is added.
+      // Diagnostics are best-effort and must never become a second failure.
     }
   }
 }

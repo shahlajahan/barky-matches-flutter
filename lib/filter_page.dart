@@ -5,6 +5,7 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 // اضافه کردن برای localizations
 import 'package:barky_matches_fixed/utils/localization_utils.dart'; // اضافه کردن برای استفاده از getDogBreeds
 
+
 class FilterPage extends StatefulWidget {
   final List<Dog> dogsList;
   final String? selectedBreed;
@@ -295,20 +296,24 @@ class _FilterPageState extends State<FilterPage> with LocalizationUtils {
                       style: GoogleFonts.poppins(color: Colors.white),
                       iconEnabledColor: Colors.white,
                       items: [
-                        const DropdownMenuItem<bool>(
-                          value: null,
-                          child: Text('Any'),
-                        ),
-                        ..._neuteredOptions.map((neutered) {
-                          return DropdownMenuItem<bool>(
-                            value: neutered,
-                            child: Text(
-                              neutered ? 'Yes' : 'No',
-                              style: GoogleFonts.poppins(),
-                            ),
-                          );
-                        }),
-                      ],
+  DropdownMenuItem<bool>(
+    value: null,
+    child: Text(
+      AppLocalizations.of(context)!.any,
+    ),
+  ),
+  ..._neuteredOptions.map((neutered) {
+    return DropdownMenuItem<bool>(
+      value: neutered,
+      child: Text(
+        neutered
+            ? AppLocalizations.of(context)!.yes
+            : AppLocalizations.of(context)!.no,
+        style: GoogleFonts.poppins(),
+      ),
+    );
+  }),
+],
                       onChanged: (value) {
                         setState(() {
                           _selectedNeutered = value;

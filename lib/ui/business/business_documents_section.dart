@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../admin/admin_section.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessDocumentsSection extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -90,10 +91,15 @@ class _DocumentCard extends StatelessWidget {
                 const SizedBox(height: 6),
 
                 if (uploadedAt != null)
-                  Text(
-                    "Uploaded: ${uploadedAt.toDate()}",
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
+  Text(
+    AppLocalizations.of(context)!.uploadedAt(
+      uploadedAt.toDate().toString(),
+    ),
+    style: const TextStyle(
+      fontSize: 12,
+      color: Colors.black54,
+    ),
+  ),
               ],
             ),
           ),

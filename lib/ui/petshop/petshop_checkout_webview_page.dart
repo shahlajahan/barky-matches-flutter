@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetshopCheckoutWebViewPage extends StatefulWidget {
   final String checkoutUrl;
@@ -76,16 +77,20 @@ class _PetshopCheckoutWebViewPageState
       ..loadRequest(Uri.parse(widget.checkoutUrl));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Secure Payment')),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading) const Center(child: CircularProgressIndicator()),
-        ],
+ @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(
+        AppLocalizations.of(context)!.securePayment,
       ),
-    );
-  }
+    ),
+    body: Stack(
+      children: [
+        WebViewWidget(controller: _controller),
+        if (_isLoading) const Center(child: CircularProgressIndicator()),
+      ],
+    ),
+  );
+}
 }

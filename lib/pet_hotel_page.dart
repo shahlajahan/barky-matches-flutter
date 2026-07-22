@@ -10,6 +10,7 @@ import 'ui/business/business_card_data.dart';
 import 'ui/business/pet_hotel/pet_hotel_booking_page.dart';
 import 'package:barky_matches_fixed/ui/vet/vet_card.dart';
 import 'package:barky_matches_fixed/ui/vet/vet_card_data.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetHotelPage extends StatefulWidget {
   const PetHotelPage({super.key});
@@ -310,7 +311,7 @@ class _PetHotelPageState extends State<PetHotelPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
+    final l10n = AppLocalizations.of(context)!;
     final appState = context.watch<app.AppState>();
     final businessAppointment = appState.businessAppointment;
 
@@ -336,7 +337,9 @@ class _PetHotelPageState extends State<PetHotelPage>
             child: TextField(
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Search pet hotels...',
+                hintText: l10n.searchService(
+  l10n.petHotels,
+),
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,

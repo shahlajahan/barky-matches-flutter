@@ -840,7 +840,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String dogNameAlreadyExists(Object name) {
-    return 'A dog with the name $name already exists!';
+    return 'Dog name \"$name\" already exists';
   }
 
   @override
@@ -2085,8 +2085,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String dogInfoLiked(Object dogName) {
-    return 'Liked $dogName!';
+  String dogInfoLiked(Object name) {
+    return 'You liked $name';
   }
 
   @override
@@ -5067,4 +5067,256 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refundRejectedStatusLabel => 'Refund rejected';
+
+  @override
+  String get locationUpdatedSuccessfully => 'Location updated successfully';
+
+  @override
+  String get centersLoadError => 'Unable to load centers';
+
+  @override
+  String get noAppointments => 'No appointments.';
+
+  @override
+  String get noAppointmentsFound => 'No appointments found.';
+
+  @override
+  String appointmentsCount(Object count) {
+    return '$count appointments';
+  }
+
+  @override
+  String get any => 'Any';
+
+  @override
+  String get search => 'Search...';
+
+  @override
+  String get accessDenied => 'Access Denied';
+
+  @override
+  String get skip => 'Skip';
+
+  @override
+  String searchService(Object service) {
+    return 'Search $service...';
+  }
+
+  @override
+  String get petHotels => 'Pet Hotels';
+
+  @override
+  String noItemsYet(Object title) {
+    return 'No $title yet';
+  }
+
+  @override
+  String get noSavedPostsYet => 'No saved posts yet';
+
+  @override
+  String uploadedAt(Object date) {
+    return 'Uploaded: $date';
+  }
+
+  @override
+  String get productDetails => 'Product Details';
+
+  @override
+  String get servicesCouldNotBeLoaded => 'Services could not be loaded.';
+
+  @override
+  String get veterinaryClinics => 'Veterinary clinics';
+
+  @override
+  String get noVeterinaryClinicsFound => 'No veterinary clinics found.';
+
+  @override
+  String get securePayment => 'Secure Payment';
+
+  @override
+  String get liveDriver => 'Live Driver';
+
+  @override
+  String get driver => 'Driver';
+
+  @override
+  String get myRides => 'My Rides';
+
+  @override
+  String get clientMessages => 'Client Messages';
+
+  @override
+  String get preVisitForm => 'Pre-visit form';
+
+  @override
+  String get vetRevenueTitle => 'Revenue';
+
+  @override
+  String get vetRevenueDescription => 'Verified payment and settlement data from completed veterinary transactions.';
+
+  @override
+  String get vetRevenueRange7Days => '7 days';
+
+  @override
+  String get vetRevenueRange30Days => '30 days';
+
+  @override
+  String get vetRevenueRange90Days => '90 days';
+
+  @override
+  String get vetRevenueRangeThisYear => 'This year';
+
+  @override
+  String get vetRevenueRangeAllTime => 'All time';
+
+  @override
+  String get vetRevenueGrossRevenue => 'Gross Revenue';
+
+  @override
+  String get vetRevenuePetsupoCommission => 'PetSupo Commission';
+
+  @override
+  String get vetRevenueNetRevenue => 'Net Revenue';
+
+  @override
+  String get vetRevenuePendingSettlement => 'Pending Settlement';
+
+  @override
+  String get vetRevenuePaidTransactions => 'Paid Transactions';
+
+  @override
+  String get vetRevenuePendingPayments => 'Pending Payments';
+
+  @override
+  String get vetRevenueRefunded => 'Refunded';
+
+  @override
+  String get vetRevenueExpiredOpportunities => 'Expired Opportunities';
+
+  @override
+  String get vetRevenueMissingFinancialData => 'Missing Financial Data';
+
+  @override
+  String vetRevenueMissingFinancialWarning(int count) {
+    return '$count paid record(s) have missing or malformed financial data and are excluded from totals.';
+  }
+
+  @override
+  String get vetRevenueMixedCurrencyWarning => 'Multiple currencies are present. Amounts are shown separately and are never converted or combined.';
+
+  @override
+  String get vetRevenueNoAppointmentsTitle => 'No appointments yet';
+
+  @override
+  String get vetRevenueNoAppointmentsMessage => 'Revenue analytics will appear when veterinary appointments are created.';
+
+  @override
+  String get vetRevenueNoRangeTitle => 'No records in this period';
+
+  @override
+  String get vetRevenueNoRangeMessage => 'Choose a wider date range to review earlier transactions.';
+
+  @override
+  String get vetRevenueLoadErrorTitle => 'Revenue data is unavailable';
+
+  @override
+  String get vetRevenueLoadErrorMessage => 'Check the connection and try again. Existing payment records were not changed.';
+
+  @override
+  String get vetRevenueRetry => 'Retry';
+
+  @override
+  String get vetRevenueTrendTitle => 'Revenue Trend';
+
+  @override
+  String get vetRevenueMixedCurrencyChartHidden => 'The combined trend is hidden because the selected period contains multiple currencies.';
+
+  @override
+  String get vetRevenueNoRecognizedRevenue => 'No verified paid revenue in this period.';
+
+  @override
+  String get vetRevenueTopServices => 'Top Services by Gross Revenue';
+
+  @override
+  String get vetRevenueTransactions => 'Transactions';
+
+  @override
+  String get vetRevenueUncategorized => 'Uncategorized';
+
+  @override
+  String get vetRevenueSearchHint => 'Search customer, pet, service or transaction';
+
+  @override
+  String get vetRevenueAllPayments => 'All payments';
+
+  @override
+  String get vetRevenuePaid => 'Paid';
+
+  @override
+  String get vetRevenuePending => 'Pending';
+
+  @override
+  String get vetRevenueExpired => 'Expired';
+
+  @override
+  String get vetRevenueMissingFinancial => 'Financial data missing';
+
+  @override
+  String get vetRevenueSortDate => 'Sort by date';
+
+  @override
+  String get vetRevenueSortDirection => 'Change sort direction';
+
+  @override
+  String get vetRevenueDate => 'Date';
+
+  @override
+  String get vetRevenueCustomer => 'Customer';
+
+  @override
+  String get vetRevenuePet => 'Pet';
+
+  @override
+  String get vetRevenueService => 'Service';
+
+  @override
+  String get vetRevenueGross => 'Gross';
+
+  @override
+  String get vetRevenueCommission => 'Commission';
+
+  @override
+  String get vetRevenueNet => 'Net';
+
+  @override
+  String get vetRevenuePayment => 'Payment';
+
+  @override
+  String get vetRevenueSettlement => 'Settlement';
+
+  @override
+  String get vetRevenueInvoice => 'Invoice';
+
+  @override
+  String get vetRevenueTransactionReference => 'Transaction reference';
+
+  @override
+  String get vetRevenueNoMatchingTransactions => 'No transactions match the current search and filter.';
+
+  @override
+  String vetRevenuePageOf(int page, int total) {
+    return 'Page $page of $total';
+  }
+
+  @override
+  String get vetWebOverviewSubtitle => 'Clinic performance and operational overview';
+
+  @override
+  String get vetWebAppointmentsSubtitle => 'Review and manage veterinary appointments';
+
+  @override
+  String get vetWebRevenueSubtitle => 'Verified payment, commission and settlement analytics';
+
+  @override
+  String get vetWebVeterinaryLabel => 'Veterinary';
 }

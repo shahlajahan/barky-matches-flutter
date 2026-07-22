@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -5,26 +6,66 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../app_state.dart';
 import 'nav_tab.dart';
 
-class BarkyBottomNav extends StatelessWidget {
+class BarkyBottomNav extends StatefulWidget {
   final NavTab currentTab;
 
   const BarkyBottomNav({super.key, required this.currentTab});
 
   @override
+  State<BarkyBottomNav> createState() => _BarkyBottomNavState();
+}
+
+class _BarkyBottomNavState extends State<BarkyBottomNav> {
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyBottomNav initState hash=${identityHashCode(this)}');
+    }
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyBottomNav activate hash=${identityHashCode(this)}');
+    }
+  }
+
+  @override
+  void deactivate() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyBottomNav deactivate hash=${identityHashCode(this)}');
+    }
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyBottomNav dispose hash=${identityHashCode(this)}');
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     debugPrint(
       'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
-      'BarkyBottomNav.build currentTab=$currentTab',
+      'BarkyBottomNav.build currentTab=${widget.currentTab}',
     );
-    final appState = context.watch<AppState>();
+    final showBottomNav = kIsWeb
+        ? context.select<AppState, bool>((state) => state.showBottomNav)
+        : context.watch<AppState>().showBottomNav;
+    final appState = context.read<AppState>();
 
     return AnimatedSlide(
       duration: const Duration(milliseconds: 250),
-      offset: appState.showBottomNav ? Offset.zero : const Offset(0, 1.5),
+      offset: showBottomNav ? Offset.zero : const Offset(0, 1.5),
       curve: Curves.easeInOut,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 250),
-        opacity: appState.showBottomNav ? 1 : 0,
+        opacity: showBottomNav ? 1 : 0,
         child: SizedBox(
           height: 65,
           child: Stack(
@@ -75,7 +116,7 @@ class BarkyBottomNav extends StatelessWidget {
                 top: -10,
                 child: GestureDetector(
                   onTap: () {
-                    if (currentTab == NavTab.vet) return;
+                    if (widget.currentTab == NavTab.vet) return;
 
                     appState.closeNotifications();
 
@@ -88,7 +129,7 @@ class BarkyBottomNav extends StatelessWidget {
                     width: 64,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: currentTab == NavTab.vet
+                      color: widget.currentTab == NavTab.vet
                           ? const Color(0xFFFFC107)
                           : Colors.white,
                       boxShadow: [
@@ -101,7 +142,7 @@ class BarkyBottomNav extends StatelessWidget {
                     ),
                     child: Icon(
                       LucideIcons.stethoscope,
-                      color: currentTab == NavTab.vet
+                      color: widget.currentTab == NavTab.vet
                           ? Colors.black
                           : Colors.pink,
                       size: 30,
@@ -123,7 +164,7 @@ class BarkyBottomNav extends StatelessWidget {
     required NavTab tab,
   }) {
     final appState = context.read<AppState>();
-    final isActive = tab == currentTab;
+    final isActive = tab == widget.currentTab;
 
     return GestureDetector(
       onTap: () {

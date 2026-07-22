@@ -1,0 +1,19 @@
+[
+    {
+        "origin": [
+            "http://localhost:5000",
+            "https://petsupo.com",
+            "https://www.petsupo.com",
+            "http://localhost:5001"
+        ],
+        "method": [
+            "GET",
+            "HEAD"
+        ],
+        "responseHeader": [
+            "Content-Type",
+            "Content-Length"
+        ],
+        "maxAgeSeconds": 3600
+    }
+]

@@ -571,15 +571,17 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                       ),
                     );
                     if (existingDog.name.isNotEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Dog name "${nameController.text}" already exists',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        AppLocalizations.of(context)!.dogNameAlreadyExists(
+          nameController.text,
+        ),
+      ),
+    ),
+  );
+  return;
+}
                     final newDog = Dog(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),
                       name: nameController.text,

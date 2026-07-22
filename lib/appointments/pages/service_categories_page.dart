@@ -5,6 +5,7 @@ import 'package:barky_matches_fixed/app_state.dart';
 import '../models/appointment_service.dart';
 import '../services/appointment_repository.dart';
 import '../widgets/appointment_service_card.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ServiceCategoriesPage extends StatefulWidget {
   const ServiceCategoriesPage({super.key});
@@ -69,8 +70,12 @@ Widget build(BuildContext context) {
           final services = snapshot.data ?? [];
 
           if (services.isEmpty) {
-            return const Center(child: Text('No appointments found.'));
-          }
+  return Center(
+    child: Text(
+      AppLocalizations.of(context)!.noAppointmentsFound,
+    ),
+  );
+}
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),

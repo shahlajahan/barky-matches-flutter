@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -83,11 +84,39 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
   void initState() {
     super.initState();
 
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyScaffold initState hash=${identityHashCode(this)}');
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
       context.read<AppState>().setBottomNavVisibility(true);
     });
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyScaffold activate hash=${identityHashCode(this)}');
+    }
+  }
+
+  @override
+  void deactivate() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyScaffold deactivate hash=${identityHashCode(this)}');
+    }
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    if (kDebugMode && kIsWeb) {
+      debugPrint('WEB_DIAG BarkyScaffold dispose hash=${identityHashCode(this)}');
+    }
+    super.dispose();
   }
 
   @override
@@ -689,15 +718,16 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
 
                           // 🐶 Center Card
                           Center(
-                            child: Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.all(24),
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF9E1B4F),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: SingleChildScrollView(
+  child: FractionallySizedBox(
+    widthFactor: 0.88,
+    heightFactor: 0.82,
+    child: Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF9E1B4F),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: SingleChildScrollView(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -770,6 +800,7 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                                       ),
                                   ],
                                 ),
+                              ),
                               ),
                             ),
                           ),

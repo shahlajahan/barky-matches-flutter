@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class LocationPickerSheet<T> extends StatefulWidget {
   const LocationPickerSheet({
@@ -41,13 +42,13 @@ class _LocationPickerSheetState<T> extends State<LocationPickerSheet<T>> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _searchCtrl,
-              decoration: const InputDecoration(
-                hintText: "Search...",
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (v) => setState(() => _query = v),
-            ),
+  controller: _searchCtrl,
+  decoration: InputDecoration(
+    hintText: AppLocalizations.of(context)!.search,
+    prefixIcon: const Icon(Icons.search),
+  ),
+  onChanged: (v) => setState(() => _query = v),
+),
             const SizedBox(height: 12),
             Flexible(
               child: ListView.separated(

@@ -1695,10 +1695,10 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get save;
 
-  /// Error message for duplicate dog name
+  /// No description provided for @dogNameAlreadyExists.
   ///
   /// In en, this message translates to:
-  /// **'A dog with the name {name} already exists!'**
+  /// **'Dog name \"{name}\" already exists'**
   String dogNameAlreadyExists(Object name);
 
   /// Validation message for missing location
@@ -3879,11 +3879,11 @@ abstract class AppLocalizations {
   /// **'Scheduled a play date with {dogName}!'**
   String dogInfoPlaydateScheduled(Object dogName);
 
-  /// Message for liking dog in info page
+  /// No description provided for @dogInfoLiked.
   ///
   /// In en, this message translates to:
-  /// **'Liked {dogName}!'**
-  String dogInfoLiked(Object dogName);
+  /// **'You liked {name}'**
+  String dogInfoLiked(Object name);
 
   /// Message for disliking dog in info page
   ///
@@ -9518,6 +9518,486 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Refund rejected'**
   String get refundRejectedStatusLabel;
+
+  /// No description provided for @locationUpdatedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Location updated successfully'**
+  String get locationUpdatedSuccessfully;
+
+  /// No description provided for @centersLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to load centers'**
+  String get centersLoadError;
+
+  /// No description provided for @noAppointments.
+  ///
+  /// In en, this message translates to:
+  /// **'No appointments.'**
+  String get noAppointments;
+
+  /// No description provided for @noAppointmentsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No appointments found.'**
+  String get noAppointmentsFound;
+
+  /// No description provided for @appointmentsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} appointments'**
+  String appointmentsCount(Object count);
+
+  /// No description provided for @any.
+  ///
+  /// In en, this message translates to:
+  /// **'Any'**
+  String get any;
+
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search...'**
+  String get search;
+
+  /// No description provided for @accessDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Access Denied'**
+  String get accessDenied;
+
+  /// No description provided for @skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get skip;
+
+  /// No description provided for @searchService.
+  ///
+  /// In en, this message translates to:
+  /// **'Search {service}...'**
+  String searchService(Object service);
+
+  /// No description provided for @petHotels.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Hotels'**
+  String get petHotels;
+
+  /// No description provided for @noItemsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No {title} yet'**
+  String noItemsYet(Object title);
+
+  /// No description provided for @noSavedPostsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved posts yet'**
+  String get noSavedPostsYet;
+
+  /// No description provided for @uploadedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded: {date}'**
+  String uploadedAt(Object date);
+
+  /// No description provided for @productDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Product Details'**
+  String get productDetails;
+
+  /// No description provided for @servicesCouldNotBeLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Services could not be loaded.'**
+  String get servicesCouldNotBeLoaded;
+
+  /// No description provided for @veterinaryClinics.
+  ///
+  /// In en, this message translates to:
+  /// **'Veterinary clinics'**
+  String get veterinaryClinics;
+
+  /// No description provided for @noVeterinaryClinicsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No veterinary clinics found.'**
+  String get noVeterinaryClinicsFound;
+
+  /// No description provided for @securePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure Payment'**
+  String get securePayment;
+
+  /// No description provided for @liveDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Driver'**
+  String get liveDriver;
+
+  /// No description provided for @driver.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver'**
+  String get driver;
+
+  /// No description provided for @myRides.
+  ///
+  /// In en, this message translates to:
+  /// **'My Rides'**
+  String get myRides;
+
+  /// No description provided for @clientMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Client Messages'**
+  String get clientMessages;
+
+  /// No description provided for @preVisitForm.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-visit form'**
+  String get preVisitForm;
+
+  /// No description provided for @vetRevenueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue'**
+  String get vetRevenueTitle;
+
+  /// No description provided for @vetRevenueDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified payment and settlement data from completed veterinary transactions.'**
+  String get vetRevenueDescription;
+
+  /// No description provided for @vetRevenueRange7Days.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get vetRevenueRange7Days;
+
+  /// No description provided for @vetRevenueRange30Days.
+  ///
+  /// In en, this message translates to:
+  /// **'30 days'**
+  String get vetRevenueRange30Days;
+
+  /// No description provided for @vetRevenueRange90Days.
+  ///
+  /// In en, this message translates to:
+  /// **'90 days'**
+  String get vetRevenueRange90Days;
+
+  /// No description provided for @vetRevenueRangeThisYear.
+  ///
+  /// In en, this message translates to:
+  /// **'This year'**
+  String get vetRevenueRangeThisYear;
+
+  /// No description provided for @vetRevenueRangeAllTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get vetRevenueRangeAllTime;
+
+  /// No description provided for @vetRevenueGrossRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross Revenue'**
+  String get vetRevenueGrossRevenue;
+
+  /// No description provided for @vetRevenuePetsupoCommission.
+  ///
+  /// In en, this message translates to:
+  /// **'PetSupo Commission'**
+  String get vetRevenuePetsupoCommission;
+
+  /// No description provided for @vetRevenueNetRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Revenue'**
+  String get vetRevenueNetRevenue;
+
+  /// No description provided for @vetRevenuePendingSettlement.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Settlement'**
+  String get vetRevenuePendingSettlement;
+
+  /// No description provided for @vetRevenuePaidTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid Transactions'**
+  String get vetRevenuePaidTransactions;
+
+  /// No description provided for @vetRevenuePendingPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Payments'**
+  String get vetRevenuePendingPayments;
+
+  /// No description provided for @vetRevenueRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get vetRevenueRefunded;
+
+  /// No description provided for @vetRevenueExpiredOpportunities.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired Opportunities'**
+  String get vetRevenueExpiredOpportunities;
+
+  /// No description provided for @vetRevenueMissingFinancialData.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing Financial Data'**
+  String get vetRevenueMissingFinancialData;
+
+  /// No description provided for @vetRevenueMissingFinancialWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} paid record(s) have missing or malformed financial data and are excluded from totals.'**
+  String vetRevenueMissingFinancialWarning(int count);
+
+  /// No description provided for @vetRevenueMixedCurrencyWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple currencies are present. Amounts are shown separately and are never converted or combined.'**
+  String get vetRevenueMixedCurrencyWarning;
+
+  /// No description provided for @vetRevenueNoAppointmentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No appointments yet'**
+  String get vetRevenueNoAppointmentsTitle;
+
+  /// No description provided for @vetRevenueNoAppointmentsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue analytics will appear when veterinary appointments are created.'**
+  String get vetRevenueNoAppointmentsMessage;
+
+  /// No description provided for @vetRevenueNoRangeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No records in this period'**
+  String get vetRevenueNoRangeTitle;
+
+  /// No description provided for @vetRevenueNoRangeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a wider date range to review earlier transactions.'**
+  String get vetRevenueNoRangeMessage;
+
+  /// No description provided for @vetRevenueLoadErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue data is unavailable'**
+  String get vetRevenueLoadErrorTitle;
+
+  /// No description provided for @vetRevenueLoadErrorMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the connection and try again. Existing payment records were not changed.'**
+  String get vetRevenueLoadErrorMessage;
+
+  /// No description provided for @vetRevenueRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get vetRevenueRetry;
+
+  /// No description provided for @vetRevenueTrendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue Trend'**
+  String get vetRevenueTrendTitle;
+
+  /// No description provided for @vetRevenueMixedCurrencyChartHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'The combined trend is hidden because the selected period contains multiple currencies.'**
+  String get vetRevenueMixedCurrencyChartHidden;
+
+  /// No description provided for @vetRevenueNoRecognizedRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'No verified paid revenue in this period.'**
+  String get vetRevenueNoRecognizedRevenue;
+
+  /// No description provided for @vetRevenueTopServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Services by Gross Revenue'**
+  String get vetRevenueTopServices;
+
+  /// No description provided for @vetRevenueTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get vetRevenueTransactions;
+
+  /// No description provided for @vetRevenueUncategorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncategorized'**
+  String get vetRevenueUncategorized;
+
+  /// No description provided for @vetRevenueSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search customer, pet, service or transaction'**
+  String get vetRevenueSearchHint;
+
+  /// No description provided for @vetRevenueAllPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'All payments'**
+  String get vetRevenueAllPayments;
+
+  /// No description provided for @vetRevenuePaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get vetRevenuePaid;
+
+  /// No description provided for @vetRevenuePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get vetRevenuePending;
+
+  /// No description provided for @vetRevenueExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get vetRevenueExpired;
+
+  /// No description provided for @vetRevenueMissingFinancial.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial data missing'**
+  String get vetRevenueMissingFinancial;
+
+  /// No description provided for @vetRevenueSortDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by date'**
+  String get vetRevenueSortDate;
+
+  /// No description provided for @vetRevenueSortDirection.
+  ///
+  /// In en, this message translates to:
+  /// **'Change sort direction'**
+  String get vetRevenueSortDirection;
+
+  /// No description provided for @vetRevenueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get vetRevenueDate;
+
+  /// No description provided for @vetRevenueCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer'**
+  String get vetRevenueCustomer;
+
+  /// No description provided for @vetRevenuePet.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet'**
+  String get vetRevenuePet;
+
+  /// No description provided for @vetRevenueService.
+  ///
+  /// In en, this message translates to:
+  /// **'Service'**
+  String get vetRevenueService;
+
+  /// No description provided for @vetRevenueGross.
+  ///
+  /// In en, this message translates to:
+  /// **'Gross'**
+  String get vetRevenueGross;
+
+  /// No description provided for @vetRevenueCommission.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission'**
+  String get vetRevenueCommission;
+
+  /// No description provided for @vetRevenueNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net'**
+  String get vetRevenueNet;
+
+  /// No description provided for @vetRevenuePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment'**
+  String get vetRevenuePayment;
+
+  /// No description provided for @vetRevenueSettlement.
+  ///
+  /// In en, this message translates to:
+  /// **'Settlement'**
+  String get vetRevenueSettlement;
+
+  /// No description provided for @vetRevenueInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice'**
+  String get vetRevenueInvoice;
+
+  /// No description provided for @vetRevenueTransactionReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction reference'**
+  String get vetRevenueTransactionReference;
+
+  /// No description provided for @vetRevenueNoMatchingTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'No transactions match the current search and filter.'**
+  String get vetRevenueNoMatchingTransactions;
+
+  /// No description provided for @vetRevenuePageOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Page {page} of {total}'**
+  String vetRevenuePageOf(int page, int total);
+
+  /// No description provided for @vetWebOverviewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clinic performance and operational overview'**
+  String get vetWebOverviewSubtitle;
+
+  /// No description provided for @vetWebAppointmentsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and manage veterinary appointments'**
+  String get vetWebAppointmentsSubtitle;
+
+  /// No description provided for @vetWebRevenueSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified payment, commission and settlement analytics'**
+  String get vetWebRevenueSubtitle;
+
+  /// No description provided for @vetWebVeterinaryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Veterinary'**
+  String get vetWebVeterinaryLabel;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

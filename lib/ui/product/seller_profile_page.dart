@@ -12,8 +12,14 @@ import 'package:barky_matches_fixed/ui/product/product_detail_page.dart';
 class SellerProfilePage extends StatelessWidget {
   final String sellerId;
   final String? sellerName;
+  final ValueChanged<Product> onAddToBasket;
 
-  const SellerProfilePage({super.key, required this.sellerId, this.sellerName});
+  const SellerProfilePage({
+    super.key,
+    required this.sellerId,
+    this.sellerName,
+    required this.onAddToBasket,
+  });
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
@@ -644,7 +650,10 @@ class SellerProfilePage extends StatelessWidget {
                                     ),
                                 itemBuilder: (context, index) {
                                   final product = products[index];
-                                  return _SellerProductCard(product: product);
+                                  return _SellerProductCard(
+                                    product: product,
+                                    onAddToBasket: onAddToBasket,
+                                  );
                                 },
                               ),
                             );
@@ -836,8 +845,12 @@ class _InfoChip extends StatelessWidget {
 
 class _SellerProductCard extends StatelessWidget {
   final Product product;
+  final ValueChanged<Product> onAddToBasket;
 
-  const _SellerProductCard({required this.product});
+  const _SellerProductCard({
+    required this.product,
+    required this.onAddToBasket,
+  });
 
   bool _isUsableUrl(String? url) {
     if (url == null) return false;
@@ -862,7 +875,10 @@ class _SellerProductCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ProductDetailPage(product: product),
+            builder: (_) => ProductDetailPage(
+              product: product,
+              onAddToBasket: onAddToBasket,
+            ),
           ),
         );
       },

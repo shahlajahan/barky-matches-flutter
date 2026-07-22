@@ -73,14 +73,6 @@ class _CheckoutButtonState extends State<CheckoutButton> {
             },
           );
 
-      debugPrint("🟢 AFTER createOrder → orderId: $orderId");
-
-      for (final item in widget.items) {
-        debugPrint("🔥 ITEM JSON → ${item.toJson()}");
-      }
-
-      debugPrint("🚀 CALLING CHECKOUT SESSION...");
-
       final session = await _service
           .createCheckoutSession(
             orderId: orderId,
@@ -102,7 +94,6 @@ class _CheckoutButtonState extends State<CheckoutButton> {
               throw Exception("createCheckoutSession timeout");
             },
           );
-      debugPrint("✅ SESSION RECEIVED: provider=${session.provider}");
       if (!mounted) return;
 
       final result = await presentCheckoutSession(
@@ -122,6 +113,34 @@ class _CheckoutButtonState extends State<CheckoutButton> {
               AppLocalizations.of(
                 context,
               )!.checkoutPaymentCompletedSuccessfully,
+            ),
+          ),
+        );
+      } else if (result == 'isbank_success_redirect') {
+        final paymentState = await _service.waitForPaymentConfirmation(orderId);
+        if (!mounted) return;
+
+        final paymentStatus =
+            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ?? '';
+        final orderStatus =
+            paymentState?['orderStatus']?.toString().trim().toLowerCase() ?? '';
+        final paid = paymentState?['paid'] == true ||
+            paymentStatus == 'paid' ||
+            orderStatus == 'paid';
+        final failed = paymentStatus == 'failed' || orderStatus == 'payment_failed';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              paid
+                  ? AppLocalizations.of(
+                      context,
+                    )!.checkoutPaymentCompletedSuccessfully
+                  : failed
+                      ? AppLocalizations.of(
+                          context,
+                        )!.checkoutPaymentCancelledOrIncomplete
+                  : AppLocalizations.of(context)!.processingLabel,
             ),
           ),
         );

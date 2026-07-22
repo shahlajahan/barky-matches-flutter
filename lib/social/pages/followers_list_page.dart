@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class FollowersListPage extends StatelessWidget {
   final String userId;
@@ -210,17 +211,19 @@ class FollowUsersListPage extends StatelessWidget {
                   final ids = docs.map((doc) => doc.id).toList();
 
                   if (ids.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No ${title.toLowerCase()} yet',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.56),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    );
-                  }
+  final l10n = AppLocalizations.of(context)!;
+
+  return Center(
+  child: Text(
+    l10n.noItemsYet(title),
+    style: TextStyle(
+      color: Colors.white.withValues(alpha: 0.56),
+      fontSize: 15,
+      fontWeight: FontWeight.w700,
+    ),
+  ),
+);
+}
 
                   return FutureBuilder<Map<String, FollowUserProfile>>(
                     future: _loadUsers(ids),

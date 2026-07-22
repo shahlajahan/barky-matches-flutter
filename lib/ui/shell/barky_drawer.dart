@@ -61,13 +61,13 @@ class BarkyDrawer extends StatelessWidget {
             _sectionTitle("Main"),
 
             _tile(
-              context,
-              LucideIcons.home,
-              "Playmate",
-              onTap: () {
-                context.read<AppState>().setCurrentTab(NavTab.playmates);
-              },
-            ),
+  context,
+  LucideIcons.home,
+  "Home",
+  onTap: () {
+    context.read<AppState>().setCurrentTab(NavTab.home);
+  },
+),
 
             const Divider(height: 32),
 

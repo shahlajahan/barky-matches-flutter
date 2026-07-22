@@ -44,163 +44,182 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
-
-      decoration: const BoxDecoration(
-        color: Colors.black,
-
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-
-          Container(
-            width: 46,
-            height: 5,
-
-            decoration: BoxDecoration(
-              color: Colors.grey[700],
-
-              borderRadius: BorderRadius.circular(20),
-            ),
+      child: FractionallySizedBox(
+        heightFactor: 0.82,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
 
-          const SizedBox(height: 16),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
 
-          const Text(
-            'Comments',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+              Container(
+                width: 46,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
 
-          const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-          Expanded(
-            child: StreamBuilder(
-              stream: _commentService.streamComments(widget.post.id),
+              const Text(
+                'Comments',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
 
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  debugPrint('🔥 COMMENTS ERROR: ${snapshot.error}');
+              const SizedBox(height: 16),
 
-                  return Center(
-                    child: Text(
-                      'Comments error: ${snapshot.error}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+              Expanded(
+                child: StreamBuilder(
+                  stream: _commentService.streamComments(widget.post.id),
 
-                final comments = snapshot.data ?? [];
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      debugPrint('🔥 COMMENTS ERROR: ${snapshot.error}');
 
-                if (comments.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No comments yet',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: comments.length,
-
-                  itemBuilder: (context, index) {
-                    final comment = comments[index];
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.grey[800],
-
-                        backgroundImage: comment.userPhotoUrl != null
-                            ? NetworkImage(comment.userPhotoUrl!)
-                            : null,
-
-                        child: comment.userPhotoUrl == null
-                            ? const Icon(Icons.person, color: Colors.white)
-                            : null,
-                      ),
-
-                      title: Text(
-                        comment.username,
-
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                      return Center(
+                        child: Text(
+                          'Comments error: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.white),
                         ),
-                      ),
+                      );
+                    }
 
-                      subtitle: Text(
-                        comment.text,
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                        style: const TextStyle(color: Colors.white70),
-                      ),
+                    final comments = snapshot.data ?? [];
+
+                    if (comments.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No comments yet',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: comments.length,
+
+                      itemBuilder: (context, index) {
+                        final comment = comments[index];
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.grey[800],
+
+                            backgroundImage: comment.userPhotoUrl != null
+                                ? NetworkImage(comment.userPhotoUrl!)
+                                : null,
+
+                            child: comment.userPhotoUrl == null
+                                ? const Icon(Icons.person, color: Colors.white)
+                                : null,
+                          ),
+
+                          title: Text(
+                            comment.username,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          subtitle: Text(
+                            comment.text,
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
+                ),
+              ),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
 
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
 
-                      style: const TextStyle(color: Colors.white),
+                          minLines: 1,
+                          maxLines: 4,
 
-                      decoration: InputDecoration(
-                        hintText: 'Write a comment...',
+                          textInputAction: TextInputAction.newline,
 
-                        hintStyle: TextStyle(color: Colors.grey[500]),
+                          style: const TextStyle(color: Colors.white),
 
-                        filled: true,
+                          decoration: InputDecoration(
+                            hintText: 'Write a comment...',
 
-                        fillColor: Colors.grey[900],
+                            hintStyle: TextStyle(color: Colors.grey[500]),
 
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
+                            filled: true,
 
-                          borderSide: BorderSide.none,
+                            fillColor: Colors.grey[900],
+
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+
+                      const SizedBox(width: 10),
+
+                      IconButton(
+                        onPressed: _sending ? null : _sendComment,
+
+                        icon: _sending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.send, color: Colors.white),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(width: 10),
-
-                  IconButton(
-                    onPressed: _sending ? null : _sendComment,
-
-                    icon: _sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send, color: Colors.white),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

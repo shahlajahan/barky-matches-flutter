@@ -2815,5 +2815,135 @@
   "shippingResponsibilityContractCarrierLabel": "Sadece anlaşmalı taşıyıcı varsa satıcı",
   "returnCarrierLabel": "İade Taşıyıcısı",
   "returnImagesAdded": "Görseller eklendi",
-  "refundRejectedStatusLabel": "İade reddedildi"
+  "refundRejectedStatusLabel": "İade reddedildi",
+  "locationUpdatedSuccessfully": "Konum başarıyla güncellendi",
+  "centersLoadError": "Merkezler yüklenemedi",
+  "noAppointments": "Randevu bulunamadı.",
+  "noAppointmentsFound": "Randevu bulunamadı.",
+  "appointmentsCount": "{count} randevu",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"dogNameAlreadyExists": "\"{name}\" isimli köpek zaten mevcut",
+"@dogNameAlreadyExists": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"appointmentsCount": "{count} randevu",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"appointmentsCount": "{count} randevu",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"any": "Fark etmez",
+"yes": "Evet",
+"no": "Hayır",
+"dogInfoLiked": "{name} adlı köpeği beğendiniz",
+"@dogInfoLiked": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"search": "Ara",
+"accessDenied": "Erişim Reddedildi",
+"skip": "Atla",
+"searchService": "{service} ara...",
+"@searchService": {
+  "placeholders": {
+    "service": {}
+  }
+},
+"petHotels": "Pet Otelleri",
+"noItemsYet": "Henüz {title} yok",
+"@noItemsYet": {
+  "placeholders": {
+    "title": {}
+  }
+},
+"noSavedPostsYet": "Henüz kaydedilmiş gönderi yok",
+"uploadedAt": "Yüklenme: {date}",
+"@uploadedAt": {
+  "placeholders": {
+    "date": {}
+  }
+},
+"noSavedPostsYet": "Henüz kaydedilmiş gönderi yok",
+"productDetails": "Ürün Detayları",
+"servicesCouldNotBeLoaded": "Hizmetler yüklenemedi.",
+"search": "Ara...",
+"veterinaryClinics": "Veteriner klinikleri",
+"noVeterinaryClinicsFound": "Veteriner kliniği bulunamadı.",
+"securePayment": "Güvenli Ödeme",
+"liveDriver": "Canlı Sürücü",
+"driver": "Sürücü",
+"myRides": "Yolculuklarım",
+"clientMessages": "Müşteri Mesajları",
+"preVisitForm": "Muayene Öncesi Formu",
+"vetRevenueTitle": "Gelir",
+"vetRevenueDescription": "Tamamlanan veteriner işlemlerine ait doğrulanmış ödeme ve mutabakat verileri.",
+"vetRevenueRange7Days": "7 gün",
+"vetRevenueRange30Days": "30 gün",
+"vetRevenueRange90Days": "90 gün",
+"vetRevenueRangeThisYear": "Bu yıl",
+"vetRevenueRangeAllTime": "Tüm zamanlar",
+"vetRevenueGrossRevenue": "Brüt Gelir",
+"vetRevenuePetsupoCommission": "PetSupo Komisyonu",
+"vetRevenueNetRevenue": "Net Gelir",
+"vetRevenuePendingSettlement": "Bekleyen Mutabakat",
+"vetRevenuePaidTransactions": "Ödenen İşlemler",
+"vetRevenuePendingPayments": "Bekleyen Ödemeler",
+"vetRevenueRefunded": "İade Edilen",
+"vetRevenueExpiredOpportunities": "Süresi Dolan Fırsatlar",
+"vetRevenueMissingFinancialData": "Eksik Finansal Veri",
+"vetRevenueMissingFinancialWarning": "{count} ödenmiş kaydın finansal verisi eksik veya hatalı olduğundan toplamlara dahil edilmedi.",
+"@vetRevenueMissingFinancialWarning": {"placeholders": {"count": {"type": "int"}}},
+"vetRevenueMixedCurrencyWarning": "Birden fazla para birimi mevcut. Tutarlar ayrı gösterilir; dönüştürülmez veya birleştirilmez.",
+"vetRevenueNoAppointmentsTitle": "Henüz randevu yok",
+"vetRevenueNoAppointmentsMessage": "Veteriner randevuları oluşturulduğunda gelir analizi burada görünür.",
+"vetRevenueNoRangeTitle": "Bu dönemde kayıt yok",
+"vetRevenueNoRangeMessage": "Daha eski işlemler için daha geniş bir tarih aralığı seçin.",
+"vetRevenueLoadErrorTitle": "Gelir verisi kullanılamıyor",
+"vetRevenueLoadErrorMessage": "Bağlantıyı kontrol edip tekrar deneyin. Mevcut ödeme kayıtları değiştirilmedi.",
+"vetRevenueRetry": "Tekrar dene",
+"vetRevenueTrendTitle": "Gelir Eğilimi",
+"vetRevenueMixedCurrencyChartHidden": "Seçilen dönemde birden fazla para birimi olduğundan birleşik grafik gizlendi.",
+"vetRevenueNoRecognizedRevenue": "Bu dönemde doğrulanmış ödenmiş gelir yok.",
+"vetRevenueTopServices": "Brüt Gelire Göre En İyi Hizmetler",
+"vetRevenueTransactions": "İşlemler",
+"vetRevenueUncategorized": "Kategorisiz",
+"vetRevenueSearchHint": "Müşteri, evcil hayvan, hizmet veya işlem ara",
+"vetRevenueAllPayments": "Tüm ödemeler",
+"vetRevenuePaid": "Ödendi",
+"vetRevenuePending": "Bekliyor",
+"vetRevenueExpired": "Süresi doldu",
+"vetRevenueMissingFinancial": "Finansal veri eksik",
+"vetRevenueSortDate": "Tarihe göre sırala",
+"vetRevenueSortDirection": "Sıralama yönünü değiştir",
+"vetRevenueDate": "Tarih",
+"vetRevenueCustomer": "Müşteri",
+"vetRevenuePet": "Evcil Hayvan",
+"vetRevenueService": "Hizmet",
+"vetRevenueGross": "Brüt",
+"vetRevenueCommission": "Komisyon",
+"vetRevenueNet": "Net",
+"vetRevenuePayment": "Ödeme",
+"vetRevenueSettlement": "Mutabakat",
+"vetRevenueInvoice": "Fatura",
+"vetRevenueTransactionReference": "İşlem referansı",
+"vetRevenueNoMatchingTransactions": "Arama ve filtreyle eşleşen işlem yok.",
+"vetRevenuePageOf": "Sayfa {page} / {total}",
+"@vetRevenuePageOf": {"placeholders": {"page": {"type": "int"}, "total": {"type": "int"}}},
+"vetWebOverviewSubtitle": "Klinik performansı ve operasyon özeti",
+"vetWebAppointmentsSubtitle": "Veteriner randevularını inceleyin ve yönetin",
+"vetWebRevenueSubtitle": "Doğrulanmış ödeme, komisyon ve mutabakat analizi",
+"vetWebVeterinaryLabel": "Veteriner"
 }

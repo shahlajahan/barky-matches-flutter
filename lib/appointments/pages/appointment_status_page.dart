@@ -6,6 +6,8 @@ import '../models/appointment_service.dart';
 import '../models/appointment_status.dart';
 import '../services/appointment_repository.dart';
 import '../widgets/appointment_status_card.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+
 
 class AppointmentStatusPage extends StatefulWidget {
   const AppointmentStatusPage({super.key, required this.service});
@@ -55,9 +57,13 @@ class _AppointmentStatusPageState extends State<AppointmentStatusPage> {
 
           final statuses = snapshot.data ?? [];
 
-          if (statuses.isEmpty) {
-            return const Center(child: Text('No appointments.'));
-          }
+         if (statuses.isEmpty) {
+  return Center(
+    child: Text(
+      AppLocalizations.of(context)!.noAppointments,
+    ),
+  );
+}
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),

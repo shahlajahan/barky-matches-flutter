@@ -50,6 +50,7 @@ class DogCard extends StatefulWidget {
   final bool enablePlaydate;
   final bool disableTap;
 
+
   final VoidCallback? onCardTap; // ✅ اینجا
 
   const DogCard({
@@ -72,8 +73,9 @@ class DogCard extends StatefulWidget {
     this.enableEdit = true,
     this.enablePlaydate = true,
     this.mode = DogCardMode.normal,
-    this.onCardTap, // ✅ اینجا
+    this.onCardTap, 
     this.disableTap = false,
+    
   });
 
   @override
@@ -150,96 +152,99 @@ class _DogCardState extends State<DogCard>
   }
 
   Widget _buildActionButtons({
-    required bool isOwner,
-    required bool isFavorite,
-    Color? iconColor,
-  }) {
-    final color = iconColor ?? AppTheme.primary;
+  required bool isOwner,
+  required bool isFavorite,
+  Color? iconColor,
+}) {
+  final color = iconColor ?? AppTheme.primary;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        // ❤️ Like
-        if (!isOwner && widget.enableLike)
-          IconButton(
-            icon: Icon(
-              isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? AppTheme.primary : AppTheme.muted,
-            ),
-            onPressed: () => widget.onToggleFavorite?.call(widget.dog),
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    children: [
+      // ❤️ Like
+      if (!isOwner && widget.enableLike)
+        IconButton(
+          icon: Icon(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: isFavorite ? AppTheme.primary : AppTheme.muted,
           ),
+          onPressed: () => widget.onToggleFavorite?.call(widget.dog),
+        ),
 
-        // 📅 Playdate
-        if (!isOwner &&
-            widget.enablePlaydate &&
-            !widget.dog.isAvailableForAdoption)
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
-            color: color,
-            onPressed: () {
-              context.read<AppState>().openPlaydateScheduling(
-                selectedRequesterDogId: widget.dog.id,
+      // 📅 Playdate
+      // 📅 Playdate
+if (!isOwner &&
+    widget.enablePlaydate &&
+    !widget.dog.isAvailableForAdoption)
+  IconButton(
+    icon: const Icon(Icons.calendar_today),
+    color: color,
+    onPressed: () {
+      context.read<AppState>().openPlaydateScheduling(
+        selectedRequesterDogId: widget.dog.id,
+      );
+    },
+  ),
+
+      // 💬 Chat
+      if (!isOwner && widget.enableChat)
+        IconButton(
+          icon: const Icon(Icons.chat_bubble_outline),
+          color: color,
+          onPressed: () async {
+            try {
+              final currentUserId = widget.currentUserId;
+
+              debugPrint("💬 widget.currentUserId = ${widget.currentUserId}");
+              debugPrint(
+                "💬 FirebaseAuth uid = ${FirebaseAuth.instance.currentUser?.uid}",
               );
-            },
-          ),
 
-        // 💬 Chat
-        if (!isOwner && widget.enableChat)
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
-            color: color,
-            onPressed: () async {
-              try {
-                final currentUserId = widget.currentUserId;
-                debugPrint("💬 widget.currentUserId = ${widget.currentUserId}");
-                debugPrint(
-                  "💬 FirebaseAuth uid = ${FirebaseAuth.instance.currentUser?.uid}",
-                );
-                final otherUserId = widget.dog.ownerId;
+              final otherUserId = widget.dog.ownerId;
 
-                if (otherUserId == null || otherUserId.isEmpty) {
-                  return;
-                }
-
-                debugPrint("💬 BEFORE GET OR CREATE CHAT");
-
-                final chatId = await ChatService.instance.getOrCreateChat(
-                  currentUserId: currentUserId,
-                  otherUserId: otherUserId,
-
-                  currentUserName: 'You',
-                  otherUserName: widget.dog.name,
-
-                  currentUserPhoto: null,
-                  otherUserPhoto: widget.dog.imagePaths.isNotEmpty
-                      ? widget.dog.imagePaths.first
-                      : null,
-                );
-
-                if (!mounted) return;
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChatDetailPage(
-                      chatId: chatId,
-                      otherUserId: otherUserId,
-                      otherUserName: widget.dog.name,
-                    ),
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) return;
-
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Chat error: $e')));
+              if (otherUserId == null || otherUserId.isEmpty) {
+                return;
               }
-            },
-          ),
-      ],
-    );
-  }
+
+              debugPrint("💬 BEFORE GET OR CREATE CHAT");
+
+              final chatId = await ChatService.instance.getOrCreateChat(
+                currentUserId: currentUserId,
+                otherUserId: otherUserId,
+                currentUserName: 'You',
+                otherUserName: widget.dog.name,
+                currentUserPhoto: null,
+                otherUserPhoto: widget.dog.imagePaths.isNotEmpty
+                    ? widget.dog.imagePaths.first
+                    : null,
+              );
+
+              if (!mounted) return;
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatDetailPage(
+                    chatId: chatId,
+                    otherUserId: otherUserId,
+                    otherUserName: widget.dog.name,
+                  ),
+                ),
+              );
+            } catch (e) {
+              if (!mounted) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Chat error: $e'),
+                ),
+              );
+            }
+          },
+        ),
+    ],
+  );
+}
 
   Widget _buildCompactDogCard(BuildContext context) {
     final isOwner = widget.dog.ownerId == widget.currentUserId;

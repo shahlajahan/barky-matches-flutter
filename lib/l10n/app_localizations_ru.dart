@@ -840,7 +840,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dogNameAlreadyExists(Object name) {
-    return 'A dog with the name $name already exists!';
+    return 'Собака с именем \"$name\" уже существует';
   }
 
   @override
@@ -2085,8 +2085,8 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String dogInfoLiked(Object dogName) {
-    return 'Liked $dogName!';
+  String dogInfoLiked(Object name) {
+    return 'Вам понравилась собака $name';
   }
 
   @override
@@ -5069,4 +5069,256 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get refundRejectedStatusLabel => 'Возврат отклонён';
+
+  @override
+  String get locationUpdatedSuccessfully => 'Местоположение успешно обновлено';
+
+  @override
+  String get centersLoadError => 'Не удалось загрузить центры';
+
+  @override
+  String get noAppointments => 'Записей на приём нет.';
+
+  @override
+  String get noAppointmentsFound => 'Записи на приём не найдены.';
+
+  @override
+  String appointmentsCount(Object count) {
+    return '$count записей на приём';
+  }
+
+  @override
+  String get any => 'Любой';
+
+  @override
+  String get search => 'Поиск...';
+
+  @override
+  String get accessDenied => 'Доступ запрещён';
+
+  @override
+  String get skip => 'Пропустить';
+
+  @override
+  String searchService(Object service) {
+    return 'Поиск: $service...';
+  }
+
+  @override
+  String get petHotels => 'Зоогостиницы';
+
+  @override
+  String noItemsYet(Object title) {
+    return 'Пока нет: $title';
+  }
+
+  @override
+  String get noSavedPostsYet => 'Пока нет сохранённых публикаций';
+
+  @override
+  String uploadedAt(Object date) {
+    return 'Загружено: $date';
+  }
+
+  @override
+  String get productDetails => 'Информация о товаре';
+
+  @override
+  String get servicesCouldNotBeLoaded => 'Не удалось загрузить услуги.';
+
+  @override
+  String get veterinaryClinics => 'Ветеринарные клиники';
+
+  @override
+  String get noVeterinaryClinicsFound => 'Ветеринарные клиники не найдены.';
+
+  @override
+  String get securePayment => 'Безопасная оплата';
+
+  @override
+  String get liveDriver => 'Водитель онлайн';
+
+  @override
+  String get driver => 'Водитель';
+
+  @override
+  String get myRides => 'Мои поездки';
+
+  @override
+  String get clientMessages => 'Сообщения клиентов';
+
+  @override
+  String get preVisitForm => 'Форма перед визитом';
+
+  @override
+  String get vetRevenueTitle => 'Выручка';
+
+  @override
+  String get vetRevenueDescription => 'Проверенные данные платежей и расчётов по завершённым ветеринарным операциям.';
+
+  @override
+  String get vetRevenueRange7Days => '7 дней';
+
+  @override
+  String get vetRevenueRange30Days => '30 дней';
+
+  @override
+  String get vetRevenueRange90Days => '90 дней';
+
+  @override
+  String get vetRevenueRangeThisYear => 'Этот год';
+
+  @override
+  String get vetRevenueRangeAllTime => 'Всё время';
+
+  @override
+  String get vetRevenueGrossRevenue => 'Валовая выручка';
+
+  @override
+  String get vetRevenuePetsupoCommission => 'Комиссия PetSupo';
+
+  @override
+  String get vetRevenueNetRevenue => 'Чистая выручка';
+
+  @override
+  String get vetRevenuePendingSettlement => 'Ожидает расчёта';
+
+  @override
+  String get vetRevenuePaidTransactions => 'Оплаченные операции';
+
+  @override
+  String get vetRevenuePendingPayments => 'Ожидающие платежи';
+
+  @override
+  String get vetRevenueRefunded => 'Возвращено';
+
+  @override
+  String get vetRevenueExpiredOpportunities => 'Истёкшие возможности';
+
+  @override
+  String get vetRevenueMissingFinancialData => 'Нет финансовых данных';
+
+  @override
+  String vetRevenueMissingFinancialWarning(int count) {
+    return 'У $count оплаченных записей отсутствуют или повреждены финансовые данные; они исключены из итогов.';
+  }
+
+  @override
+  String get vetRevenueMixedCurrencyWarning => 'Обнаружено несколько валют. Суммы показаны отдельно и не конвертируются и не складываются.';
+
+  @override
+  String get vetRevenueNoAppointmentsTitle => 'Записей пока нет';
+
+  @override
+  String get vetRevenueNoAppointmentsMessage => 'Аналитика появится после создания ветеринарных записей.';
+
+  @override
+  String get vetRevenueNoRangeTitle => 'В этом периоде нет данных';
+
+  @override
+  String get vetRevenueNoRangeMessage => 'Выберите больший диапазон дат для просмотра ранних операций.';
+
+  @override
+  String get vetRevenueLoadErrorTitle => 'Данные о выручке недоступны';
+
+  @override
+  String get vetRevenueLoadErrorMessage => 'Проверьте соединение и повторите попытку. Платёжные записи не изменены.';
+
+  @override
+  String get vetRevenueRetry => 'Повторить';
+
+  @override
+  String get vetRevenueTrendTitle => 'Динамика выручки';
+
+  @override
+  String get vetRevenueMixedCurrencyChartHidden => 'Общий график скрыт, поскольку период содержит несколько валют.';
+
+  @override
+  String get vetRevenueNoRecognizedRevenue => 'В этом периоде нет подтверждённой оплаченной выручки.';
+
+  @override
+  String get vetRevenueTopServices => 'Лучшие услуги по валовой выручке';
+
+  @override
+  String get vetRevenueTransactions => 'Операции';
+
+  @override
+  String get vetRevenueUncategorized => 'Без категории';
+
+  @override
+  String get vetRevenueSearchHint => 'Поиск клиента, питомца, услуги или операции';
+
+  @override
+  String get vetRevenueAllPayments => 'Все платежи';
+
+  @override
+  String get vetRevenuePaid => 'Оплачено';
+
+  @override
+  String get vetRevenuePending => 'Ожидается';
+
+  @override
+  String get vetRevenueExpired => 'Истёк';
+
+  @override
+  String get vetRevenueMissingFinancial => 'Нет финансовых данных';
+
+  @override
+  String get vetRevenueSortDate => 'Сортировать по дате';
+
+  @override
+  String get vetRevenueSortDirection => 'Изменить направление сортировки';
+
+  @override
+  String get vetRevenueDate => 'Дата';
+
+  @override
+  String get vetRevenueCustomer => 'Клиент';
+
+  @override
+  String get vetRevenuePet => 'Питомец';
+
+  @override
+  String get vetRevenueService => 'Услуга';
+
+  @override
+  String get vetRevenueGross => 'Валовая';
+
+  @override
+  String get vetRevenueCommission => 'Комиссия';
+
+  @override
+  String get vetRevenueNet => 'Чистая';
+
+  @override
+  String get vetRevenuePayment => 'Платёж';
+
+  @override
+  String get vetRevenueSettlement => 'Расчёт';
+
+  @override
+  String get vetRevenueInvoice => 'Счёт';
+
+  @override
+  String get vetRevenueTransactionReference => 'Ссылка операции';
+
+  @override
+  String get vetRevenueNoMatchingTransactions => 'Нет операций, соответствующих поиску и фильтру.';
+
+  @override
+  String vetRevenuePageOf(int page, int total) {
+    return 'Страница $page из $total';
+  }
+
+  @override
+  String get vetWebOverviewSubtitle => 'Обзор работы и показателей клиники';
+
+  @override
+  String get vetWebAppointmentsSubtitle => 'Просмотр и управление ветеринарными записями';
+
+  @override
+  String get vetWebRevenueSubtitle => 'Проверенная аналитика платежей, комиссии и расчётов';
+
+  @override
+  String get vetWebVeterinaryLabel => 'Ветеринария';
 }

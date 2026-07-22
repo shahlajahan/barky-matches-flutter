@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'social_post_detail_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+
 class SavedPostsPage extends StatelessWidget {
   const SavedPostsPage({super.key});
 
@@ -29,14 +31,15 @@ class SavedPostsPage extends StatelessWidget {
           final savedDocs = snapshot.data!.docs;
 
           if (savedDocs.isEmpty) {
-            return const Center(
-              child: Text(
-                'No saved posts yet',
-
-                style: TextStyle(color: Colors.white70),
-              ),
-            );
-          }
+  return Center(
+    child: Text(
+      AppLocalizations.of(context)!.noSavedPostsYet,
+      style: const TextStyle(
+        color: Colors.white70,
+      ),
+    ),
+  );
+}
 
           final postIds = savedDocs.map((e) => e['postId'] as String).toList();
 

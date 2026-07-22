@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
@@ -22,6 +23,7 @@ class PetTaxiBookingDetailPage extends StatefulWidget {
 class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
   bool _updating = false;
   bool _paying = false;
+  final PetshopCheckoutService _paymentService = PetshopCheckoutService();
 
   Future<void> _cancel() async {
     final ok = await showDialog<bool>(
@@ -115,7 +117,35 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
             context,
           ).showSnackBar(const SnackBar(content: Text('Payment successful')));
         }
-      } else if (result == 'cancel' && mounted) {
+      } else if (result == 'isbank_success_redirect') {
+        final paymentState = await _paymentService.waitForPaymentConfirmation(
+          orderId,
+        );
+        if (!mounted) return;
+
+        final paymentStatus =
+            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ?? '';
+        final orderStatus =
+            paymentState?['orderStatus']?.toString().trim().toLowerCase() ?? '';
+        final paid = paymentState?['paid'] == true ||
+            paymentStatus == 'paid' ||
+            orderStatus == 'paid';
+        final failed = paymentStatus == 'failed' || orderStatus == 'payment_failed';
+
+        if (paid) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Payment successful')));
+        } else if (failed) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Payment cancelled')));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context)!.processingLabel)),
+          );
+        }
+      } else if ((result == 'cancel' || result == 'isbank_cancel') && mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Payment cancelled')));

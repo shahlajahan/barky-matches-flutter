@@ -599,12 +599,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
           backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
         });
       }
-      debugPrint("🔥 BACKEND RESPONSE: provider=${session.provider}");
-      debugPrint("🌐 CHECKOUT URL: ${session.checkoutUrl}");
-      debugPrint("🧾 CHECKOUT HTML PRESENT: ${session.html != null}");
-
-      debugPrint("💰 REAL TOTAL FROM BACKEND: ${pricing?['grandTotal']}");
-
       if (!mounted) return;
 
       await Future.delayed(const Duration(milliseconds: 300));
@@ -633,6 +627,32 @@ class _CheckoutPageState extends State<CheckoutPage> {
           _showError(
             AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
           );
+        }
+      } else if (checkoutResult == 'isbank_success_redirect') {
+        final paymentState = await _checkoutService.waitForPaymentConfirmation(
+          orderId,
+        );
+        if (!mounted) return;
+
+        final paymentStatus =
+            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ?? '';
+        final orderStatus =
+            paymentState?['orderStatus']?.toString().trim().toLowerCase() ?? '';
+        final paid = paymentState?['paid'] == true ||
+            paymentStatus == 'paid' ||
+            orderStatus == 'paid';
+        final failed = paymentStatus == 'failed' || orderStatus == 'payment_failed';
+
+        if (paid) {
+          _showError(
+            AppLocalizations.of(context)!.checkoutPaymentCompletedSuccessfully,
+          );
+        } else if (failed) {
+          _showError(
+            AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
+          );
+        } else {
+          _showError(AppLocalizations.of(context)!.processingLabel);
         }
       } else {
         _showError(

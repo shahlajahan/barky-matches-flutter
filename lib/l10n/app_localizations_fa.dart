@@ -840,7 +840,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String dogNameAlreadyExists(Object name) {
-    return 'سگی با نام $name قبلاً وجود دارد!';
+    return 'سگی با نام \"$name\" قبلاً وجود دارد';
   }
 
   @override
@@ -2085,8 +2085,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String dogInfoLiked(Object dogName) {
-    return '$dogName را لایک کردید!';
+  String dogInfoLiked(Object name) {
+    return 'شما سگ $name را پسندیدید';
   }
 
   @override
@@ -5067,4 +5067,256 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get refundRejectedStatusLabel => 'بازگشت وجه رد شد';
+
+  @override
+  String get locationUpdatedSuccessfully => 'موقعیت مکانی با موفقیت به‌روزرسانی شد';
+
+  @override
+  String get centersLoadError => 'بارگذاری مراکز انجام نشد';
+
+  @override
+  String get noAppointments => 'هیچ نوبتی وجود ندارد.';
+
+  @override
+  String get noAppointmentsFound => 'هیچ نوبتی پیدا نشد.';
+
+  @override
+  String appointmentsCount(Object count) {
+    return '$count نوبت';
+  }
+
+  @override
+  String get any => 'فرقی ندارد';
+
+  @override
+  String get search => 'جستجو...';
+
+  @override
+  String get accessDenied => 'دسترسی رد شد';
+
+  @override
+  String get skip => 'رد کردن';
+
+  @override
+  String searchService(Object service) {
+    return 'جستجوی $service...';
+  }
+
+  @override
+  String get petHotels => 'هتل حیوانات';
+
+  @override
+  String noItemsYet(Object title) {
+    return 'هنوز $title وجود ندارد';
+  }
+
+  @override
+  String get noSavedPostsYet => 'هنوز پست ذخیره‌شده‌ای وجود ندارد';
+
+  @override
+  String uploadedAt(Object date) {
+    return 'تاریخ بارگذاری: $date';
+  }
+
+  @override
+  String get productDetails => 'جزئیات محصول';
+
+  @override
+  String get servicesCouldNotBeLoaded => 'بارگذاری خدمات انجام نشد.';
+
+  @override
+  String get veterinaryClinics => 'کلینیک‌های دامپزشکی';
+
+  @override
+  String get noVeterinaryClinicsFound => 'هیچ کلینیک دامپزشکی پیدا نشد.';
+
+  @override
+  String get securePayment => 'پرداخت امن';
+
+  @override
+  String get liveDriver => 'راننده آنلاین';
+
+  @override
+  String get driver => 'راننده';
+
+  @override
+  String get myRides => 'سفرهای من';
+
+  @override
+  String get clientMessages => 'پیام‌های مشتریان';
+
+  @override
+  String get preVisitForm => 'فرم پیش از مراجعه';
+
+  @override
+  String get vetRevenueTitle => 'درآمد';
+
+  @override
+  String get vetRevenueDescription => 'داده‌های تأییدشده پرداخت و تسویه تراکنش‌های دامپزشکی تکمیل‌شده.';
+
+  @override
+  String get vetRevenueRange7Days => '۷ روز';
+
+  @override
+  String get vetRevenueRange30Days => '۳۰ روز';
+
+  @override
+  String get vetRevenueRange90Days => '۹۰ روز';
+
+  @override
+  String get vetRevenueRangeThisYear => 'امسال';
+
+  @override
+  String get vetRevenueRangeAllTime => 'همه زمان‌ها';
+
+  @override
+  String get vetRevenueGrossRevenue => 'درآمد ناخالص';
+
+  @override
+  String get vetRevenuePetsupoCommission => 'کمیسیون PetSupo';
+
+  @override
+  String get vetRevenueNetRevenue => 'درآمد خالص';
+
+  @override
+  String get vetRevenuePendingSettlement => 'تسویه در انتظار';
+
+  @override
+  String get vetRevenuePaidTransactions => 'تراکنش‌های پرداخت‌شده';
+
+  @override
+  String get vetRevenuePendingPayments => 'پرداخت‌های در انتظار';
+
+  @override
+  String get vetRevenueRefunded => 'بازپرداخت‌شده';
+
+  @override
+  String get vetRevenueExpiredOpportunities => 'فرصت‌های منقضی‌شده';
+
+  @override
+  String get vetRevenueMissingFinancialData => 'داده مالی مفقود';
+
+  @override
+  String vetRevenueMissingFinancialWarning(int count) {
+    return 'داده مالی $count رکورد پرداخت‌شده ناقص یا نامعتبر است و در مجموع محاسبه نشده است.';
+  }
+
+  @override
+  String get vetRevenueMixedCurrencyWarning => 'چند ارز وجود دارد. مبالغ جداگانه نمایش داده می‌شوند و تبدیل یا جمع نمی‌شوند.';
+
+  @override
+  String get vetRevenueNoAppointmentsTitle => 'هنوز نوبتی وجود ندارد';
+
+  @override
+  String get vetRevenueNoAppointmentsMessage => 'با ایجاد نوبت دامپزشکی، تحلیل درآمد اینجا نمایش داده می‌شود.';
+
+  @override
+  String get vetRevenueNoRangeTitle => 'در این بازه رکوردی نیست';
+
+  @override
+  String get vetRevenueNoRangeMessage => 'برای مشاهده تراکنش‌های قدیمی‌تر بازه بزرگ‌تری انتخاب کنید.';
+
+  @override
+  String get vetRevenueLoadErrorTitle => 'داده درآمد در دسترس نیست';
+
+  @override
+  String get vetRevenueLoadErrorMessage => 'اتصال را بررسی و دوباره تلاش کنید. رکوردهای پرداخت تغییر نکرده‌اند.';
+
+  @override
+  String get vetRevenueRetry => 'تلاش دوباره';
+
+  @override
+  String get vetRevenueTrendTitle => 'روند درآمد';
+
+  @override
+  String get vetRevenueMixedCurrencyChartHidden => 'به دلیل وجود چند ارز، نمودار ترکیبی نمایش داده نمی‌شود.';
+
+  @override
+  String get vetRevenueNoRecognizedRevenue => 'در این بازه درآمد پرداخت‌شده تأییدشده‌ای نیست.';
+
+  @override
+  String get vetRevenueTopServices => 'خدمات برتر بر اساس درآمد ناخالص';
+
+  @override
+  String get vetRevenueTransactions => 'تراکنش‌ها';
+
+  @override
+  String get vetRevenueUncategorized => 'بدون دسته‌بندی';
+
+  @override
+  String get vetRevenueSearchHint => 'جستجوی مشتری، حیوان، خدمت یا تراکنش';
+
+  @override
+  String get vetRevenueAllPayments => 'همه پرداخت‌ها';
+
+  @override
+  String get vetRevenuePaid => 'پرداخت‌شده';
+
+  @override
+  String get vetRevenuePending => 'در انتظار';
+
+  @override
+  String get vetRevenueExpired => 'منقضی‌شده';
+
+  @override
+  String get vetRevenueMissingFinancial => 'داده مالی مفقود';
+
+  @override
+  String get vetRevenueSortDate => 'مرتب‌سازی بر اساس تاریخ';
+
+  @override
+  String get vetRevenueSortDirection => 'تغییر جهت مرتب‌سازی';
+
+  @override
+  String get vetRevenueDate => 'تاریخ';
+
+  @override
+  String get vetRevenueCustomer => 'مشتری';
+
+  @override
+  String get vetRevenuePet => 'حیوان';
+
+  @override
+  String get vetRevenueService => 'خدمت';
+
+  @override
+  String get vetRevenueGross => 'ناخالص';
+
+  @override
+  String get vetRevenueCommission => 'کمیسیون';
+
+  @override
+  String get vetRevenueNet => 'خالص';
+
+  @override
+  String get vetRevenuePayment => 'پرداخت';
+
+  @override
+  String get vetRevenueSettlement => 'تسویه';
+
+  @override
+  String get vetRevenueInvoice => 'فاکتور';
+
+  @override
+  String get vetRevenueTransactionReference => 'مرجع تراکنش';
+
+  @override
+  String get vetRevenueNoMatchingTransactions => 'تراکنشی مطابق جستجو و فیلتر نیست.';
+
+  @override
+  String vetRevenuePageOf(int page, int total) {
+    return 'صفحه $page از $total';
+  }
+
+  @override
+  String get vetWebOverviewSubtitle => 'نمای کلی عملکرد و عملیات کلینیک';
+
+  @override
+  String get vetWebAppointmentsSubtitle => 'بررسی و مدیریت نوبت‌های دامپزشکی';
+
+  @override
+  String get vetWebRevenueSubtitle => 'تحلیل تأییدشده پرداخت، کمیسیون و تسویه';
+
+  @override
+  String get vetWebVeterinaryLabel => 'دامپزشکی';
 }

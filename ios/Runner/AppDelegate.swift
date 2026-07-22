@@ -13,39 +13,31 @@ import FirebaseAuth
 @objc class AppDelegate: FlutterAppDelegate {
 
   override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
+  _ application: UIApplication,
+  didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+) -> Bool {
 
     GMSServices.provideAPIKey("AIzaSyCN_Y8FNV_XI7Ru4S4UKKckrBi7HkI-GcY")
     GMSServices.setMetalRendererEnabled(false)
 
-    print("🌐 FIREBASE INIT START (native AppDelegate)")
-    print("🌐 FIREBASE APP COUNT (native before) = \(FirebaseApp.allApps?.count ?? 0)")
-
-    FirebaseApp.configure()
-
-    print("🌐 FIREBASE INIT COMPLETE (native AppDelegate)")
-    print("🌐 FIREBASE APP COUNT (native after) = \(FirebaseApp.allApps?.count ?? 0)")
-
-    UNUserNotificationCenter.current().delegate = self
-
-    print("🌐 APNS TOKEN STATE (native) = registering")
-    application.registerForRemoteNotifications()
-
     GeneratedPluginRegistrant.register(with: self)
 
+    print("🌐 Firebase initialization delegated to FlutterFire/Dart")
+
+    UNUserNotificationCenter.current().delegate = self
+    application.registerForRemoteNotifications()
+
     FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
-  self,
-  factoryId: "listTile",
-  nativeAdFactory: NativeAdFactoryExample()
-)
+        self,
+        factoryId: "listTile",
+        nativeAdFactory: NativeAdFactoryExample()
+    )
 
     return super.application(
       application,
       didFinishLaunchingWithOptions: launchOptions
     )
-  }
+}
 
   override func application(
 _ application: UIApplication,
@@ -54,17 +46,18 @@ didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
 
 print("🌐 APNS TOKEN STATE (native) = received")
 
-Messaging.messaging().apnsToken = deviceToken
-
-Auth.auth().setAPNSToken(
-deviceToken,
-type: .unknown
-)
-
 super.application(
 application,
 didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
 )
+
+if FirebaseApp.app() != nil {
+  Messaging.messaging().apnsToken = deviceToken
+  Auth.auth().setAPNSToken(
+    deviceToken,
+    type: .unknown
+  )
+}
 
 }
 

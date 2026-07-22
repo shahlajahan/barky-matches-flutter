@@ -2796,5 +2796,135 @@
   "shippingResponsibilityContractCarrierLabel": "Seller if contracted carrier",
   "returnCarrierLabel": "Return Carrier",
   "returnImagesAdded": "Images added",
-  "refundRejectedStatusLabel": "Refund rejected"
+  "refundRejectedStatusLabel": "Refund rejected",
+  "locationUpdatedSuccessfully": "Location updated successfully",
+  "centersLoadError": "Unable to load centers",
+  "noAppointments": "No appointments.",
+  "noAppointmentsFound": "No appointments found.",
+  "appointmentsCount": "{count} appointments",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"dogNameAlreadyExists": "Dog name \"{name}\" already exists",
+"@dogNameAlreadyExists": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"appointmentsCount": "{count} appointments",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"appointmentsCount": "{count} appointments",
+"@appointmentsCount": {
+  "placeholders": {
+    "count": {}
+  }
+},
+"any": "Any",
+"yes": "Yes",
+"no": "No",
+"dogInfoLiked": "You liked {name}",
+"@dogInfoLiked": {
+  "placeholders": {
+    "name": {}
+  }
+},
+"search": "Search",
+"accessDenied": "Access Denied",
+"skip": "Skip",
+"searchService": "Search {service}...",
+"@searchService": {
+  "placeholders": {
+    "service": {}
+  }
+},
+"petHotels": "Pet Hotels",
+"noItemsYet": "No {title} yet",
+"@noItemsYet": {
+  "placeholders": {
+    "title": {}
+  }
+},
+"noSavedPostsYet": "No saved posts yet",
+"uploadedAt": "Uploaded: {date}",
+"@uploadedAt": {
+  "placeholders": {
+    "date": {}
+  }
+},
+"noSavedPostsYet": "No saved posts yet",
+"productDetails": "Product Details",
+"servicesCouldNotBeLoaded": "Services could not be loaded.",
+"search": "Search...",
+"veterinaryClinics": "Veterinary clinics",
+"noVeterinaryClinicsFound": "No veterinary clinics found.",
+"securePayment": "Secure Payment",
+"liveDriver": "Live Driver",
+"driver": "Driver",
+"myRides": "My Rides",
+"clientMessages": "Client Messages",
+"preVisitForm": "Pre-visit form",
+"vetRevenueTitle": "Revenue",
+"vetRevenueDescription": "Verified payment and settlement data from completed veterinary transactions.",
+"vetRevenueRange7Days": "7 days",
+"vetRevenueRange30Days": "30 days",
+"vetRevenueRange90Days": "90 days",
+"vetRevenueRangeThisYear": "This year",
+"vetRevenueRangeAllTime": "All time",
+"vetRevenueGrossRevenue": "Gross Revenue",
+"vetRevenuePetsupoCommission": "PetSupo Commission",
+"vetRevenueNetRevenue": "Net Revenue",
+"vetRevenuePendingSettlement": "Pending Settlement",
+"vetRevenuePaidTransactions": "Paid Transactions",
+"vetRevenuePendingPayments": "Pending Payments",
+"vetRevenueRefunded": "Refunded",
+"vetRevenueExpiredOpportunities": "Expired Opportunities",
+"vetRevenueMissingFinancialData": "Missing Financial Data",
+"vetRevenueMissingFinancialWarning": "{count} paid record(s) have missing or malformed financial data and are excluded from totals.",
+"@vetRevenueMissingFinancialWarning": {"placeholders": {"count": {"type": "int"}}},
+"vetRevenueMixedCurrencyWarning": "Multiple currencies are present. Amounts are shown separately and are never converted or combined.",
+"vetRevenueNoAppointmentsTitle": "No appointments yet",
+"vetRevenueNoAppointmentsMessage": "Revenue analytics will appear when veterinary appointments are created.",
+"vetRevenueNoRangeTitle": "No records in this period",
+"vetRevenueNoRangeMessage": "Choose a wider date range to review earlier transactions.",
+"vetRevenueLoadErrorTitle": "Revenue data is unavailable",
+"vetRevenueLoadErrorMessage": "Check the connection and try again. Existing payment records were not changed.",
+"vetRevenueRetry": "Retry",
+"vetRevenueTrendTitle": "Revenue Trend",
+"vetRevenueMixedCurrencyChartHidden": "The combined trend is hidden because the selected period contains multiple currencies.",
+"vetRevenueNoRecognizedRevenue": "No verified paid revenue in this period.",
+"vetRevenueTopServices": "Top Services by Gross Revenue",
+"vetRevenueTransactions": "Transactions",
+"vetRevenueUncategorized": "Uncategorized",
+"vetRevenueSearchHint": "Search customer, pet, service or transaction",
+"vetRevenueAllPayments": "All payments",
+"vetRevenuePaid": "Paid",
+"vetRevenuePending": "Pending",
+"vetRevenueExpired": "Expired",
+"vetRevenueMissingFinancial": "Financial data missing",
+"vetRevenueSortDate": "Sort by date",
+"vetRevenueSortDirection": "Change sort direction",
+"vetRevenueDate": "Date",
+"vetRevenueCustomer": "Customer",
+"vetRevenuePet": "Pet",
+"vetRevenueService": "Service",
+"vetRevenueGross": "Gross",
+"vetRevenueCommission": "Commission",
+"vetRevenueNet": "Net",
+"vetRevenuePayment": "Payment",
+"vetRevenueSettlement": "Settlement",
+"vetRevenueInvoice": "Invoice",
+"vetRevenueTransactionReference": "Transaction reference",
+"vetRevenueNoMatchingTransactions": "No transactions match the current search and filter.",
+"vetRevenuePageOf": "Page {page} of {total}",
+"@vetRevenuePageOf": {"placeholders": {"page": {"type": "int"}, "total": {"type": "int"}}},
+"vetWebOverviewSubtitle": "Clinic performance and operational overview",
+"vetWebAppointmentsSubtitle": "Review and manage veterinary appointments",
+"vetWebRevenueSubtitle": "Verified payment, commission and settlement analytics",
+"vetWebVeterinaryLabel": "Veterinary"
 }

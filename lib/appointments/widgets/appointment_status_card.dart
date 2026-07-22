@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/appointment_status.dart';
 
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+
 class AppointmentStatusCard extends StatelessWidget {
   const AppointmentStatusCard({
     super.key,
@@ -65,12 +67,13 @@ class AppointmentStatusCard extends StatelessWidget {
                     const SizedBox(height: 6),
 
                     Text(
-                      '${status.count} appointments',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(
-                        color: Colors.grey,
-                      ),
-                    ),
+  AppLocalizations.of(context)!.appointmentsCount(
+    status.count,
+  ),
+  style: theme.textTheme.bodySmall?.copyWith(
+    color: Colors.grey,
+  ),
+),
                   ],
                 ),
               ),
