@@ -18,6 +18,7 @@ import 'package:barky_matches_fixed/ui/medical_records/medical_record_flow_butto
 import 'package:barky_matches_fixed/ui/medical_records/medical_records_page.dart';
 import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
@@ -479,10 +480,19 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
   Future<void> _loadVetsFromFirestore() async {
     List<VetCardData> vets = [];
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final query = FirebaseFirestore.instance
           .collection('businesses')
-          .where('status', isEqualTo: 'approved')
-          .get();
+          .where('status', isEqualTo: 'approved');
+      FirestoreQueryTrace.log(
+        file: 'lib/vet_page.dart',
+        method: '_loadVetsFromFirestore',
+        line: 483,
+        collection: 'businesses',
+        clauses: const ["where(status, isEqualTo: approved)"],
+        terminalCall: 'get()',
+        query: query,
+      );
+      final snapshot = await query.get();
       if (!mounted) return;
 
       vets = snapshot.docs

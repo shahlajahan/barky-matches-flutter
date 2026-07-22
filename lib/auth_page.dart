@@ -1266,11 +1266,10 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
 
       final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
       final currentUserBox = Hive.box<String>('currentUserBox');
-      final dogsBox = Hive.box<Dog>('dogsBox');
 
       currentUserBox.clear();
       userDataBox.clear();
-      dogsBox.clear();
+      await context.read<AppState>().clearDogLocalState();
 
       debugPrint('AuthPage - Cleared userBox, userDataBox, and dogsBox');
 
@@ -2168,15 +2167,8 @@ debugPrint("LOGIN VERIFIED = ${refreshed?.emailVerified}");
                     TextButton(
                       onPressed: () async {
                         try {
-                          await FirebaseAuth.instance.signOut();
-
-                          final currentUserBox = Hive.box<String>(
-                            'currentUserBox',
-                          );
-                          await currentUserBox.put('currentUserId', 'guest');
-
                           final appState = context.read<AppState>();
-                          appState.setGuestUser();
+                          await appState.enterGuestMode();
 
                           debugPrint(
                             '🚫 Guest mode → no notification permission',

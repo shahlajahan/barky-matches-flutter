@@ -13,7 +13,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dog.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
@@ -61,8 +60,7 @@ class _PlayDateSchedulingPageState extends State<PlayDateSchedulingPage> {
     final requestedDogId = appState.selectedRequesterDogId;
 
     if (requestedDogId != null) {
-      final box = Hive.box<Dog>('dogsBox');
-      final allDogs = box.values.toList();
+      final allDogs = appState.allDogs;
 
       try {
         final selectedDog = allDogs.firstWhere((d) => d.id == requestedDogId);

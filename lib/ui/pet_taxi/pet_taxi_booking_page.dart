@@ -5,17 +5,17 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/core/debug/application_diagnostics.dart';
 import 'package:barky_matches_fixed/dog.dart';
-import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
 import 'package:barky_matches_fixed/services/pet_taxi_pricing_service.dart';
+import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
-import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'pet_taxi_location_picker_page.dart';
 import 'pet_taxi_booking_detail_page.dart';
 
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 class PetTaxiBookingPage extends StatefulWidget {
   final BusinessCardData business;
@@ -408,9 +408,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-    final dogs = DogsBoxManager.instance.getDogsForOwner(currentUserId);
+    final dogs = context.watch<AppState>().myDogs;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

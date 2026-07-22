@@ -16,6 +16,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 enum AdoptionViewType { centers, dogs }
 
@@ -46,6 +48,8 @@ class _AdoptionPageState extends State<AdoptionPage> {
   void initState() {
     super.initState();
 
+    _logAdoptionCentersQueryOnce();
+
     Future.microtask(() async {
       _loadCurrentUserId();
 
@@ -58,6 +62,33 @@ class _AdoptionPageState extends State<AdoptionPage> {
         _isFirstLoad = false;
       });
     });
+  }
+
+  Future<void> _logAdoptionCentersQueryOnce() async {
+    try {
+      final query = FirebaseFirestore.instance
+          .collection('businesses')
+          .where('sectors', arrayContains: 'adoption_center')
+          .where('status', isEqualTo: 'approved')
+          .orderBy('updatedAt', descending: true);
+      FirestoreQueryTrace.log(
+        file: 'lib/adoption_page.dart',
+        method: '_logAdoptionCentersQueryOnce',
+        line: 69,
+        collection: 'businesses',
+        clauses: const [
+          "where(sectors, arrayContains: adoption_center)",
+          "where(status, isEqualTo: approved)",
+          "orderBy(updatedAt, descending: true)",
+        ],
+        terminalCall: 'get()',
+        query: query,
+      );
+      final snapshot = await query.get();
+      debugPrint('ADOPTION_GET SUCCESS count=${snapshot.docs.length}');
+    } catch (e) {
+      debugPrint('ADOPTION_GET ERROR $e');
+    }
   }
 
   void _loadCurrentUserId() {
@@ -139,15 +170,57 @@ class _AdoptionPageState extends State<AdoptionPage> {
   Widget _buildCentersSection() {
     debugPrint("🔥 CENTERS STREAM BUILDER");
     final l10n = AppLocalizations.of(context)!;
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses')
-          .where('sectors', arrayContains: 'adoption_center')
-          .where('status', isEqualTo: 'approved')
-          .orderBy('updatedAt', descending: true)
-          .snapshots(),
+    final authUser = FirebaseAuth.instance.currentUser;
+    debugPrint(
+      'ADOPTION_CENTERS_DIAG projectId=${Firebase.app().options.projectId}',
+    );
+    debugPrint(
+      'ADOPTION_CENTERS_DIAG currentUserUid=${authUser?.uid}',
+    );
+    debugPrint(
+      'ADOPTION_CENTERS_DIAG currentUserIsAnonymous=${authUser?.isAnonymous}',
+    );
+    debugPrint(
+      'ADOPTION_CENTERS_DIAG currentUserIsNull=${authUser == null}',
+    );
+    authUser?.getIdToken().then((token) {
+  debugPrint(
+    'ADOPTION_CENTERS_DIAG token_present=${token?.isNotEmpty == true}',
+  );
+}).catchError((_) {
+  debugPrint('ADOPTION_CENTERS_DIAG token_present=false');
+});
+    debugPrint('ADOPTION_CENTERS_QUERY collection=businesses');
+    debugPrint('ADOPTION_CENTERS_QUERY sectors=adoption_center');
+    debugPrint('ADOPTION_CENTERS_QUERY status=approved');
+    debugPrint('ADOPTION_CENTERS_QUERY orderBy=updatedAt desc');
+    final query = FirebaseFirestore.instance
+        .collection('businesses')
+        .where('sectors', arrayContains: 'adoption_center')
+        .where('status', isEqualTo: 'approved')
+        .orderBy('updatedAt', descending: true);
+    FirestoreQueryTrace.log(
+      file: 'lib/adoption_page.dart',
+      method: '_buildCentersSection',
+      line: 186,
+      collection: 'businesses',
+      clauses: const [
+        "where(sectors, arrayContains: adoption_center)",
+        "where(status, isEqualTo: approved)",
+        "orderBy(updatedAt, descending: true)",
+      ],
+      terminalCall: 'snapshots()',
+      query: query,
+    );
+    return FutureBuilder<QuerySnapshot>(
+      future: query.get(),
       builder: (context, snapshot) {
-        debugPrint("🐶 ADOPTION SNAPSHOT ERROR = ${snapshot.error}");
+        debugPrint(
+          'ADOPTION_FUTURE_BUILDER queryHash=${query.hashCode} '
+          'hasData=${snapshot.hasData} hasError=${snapshot.hasError} '
+          'state=${snapshot.connectionState}',
+        );
+        debugPrint("🐶 ADOPTION FUTURE ERROR = ${snapshot.error}");
         debugPrint("🐶 DOC COUNT = ${snapshot.data?.docs.length}");
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -155,11 +228,8 @@ class _AdoptionPageState extends State<AdoptionPage> {
         }
 
         if (snapshot.hasError) {
-          debugPrint("❌ CENTERS STREAM ERROR = ${snapshot.error}");
+          debugPrint("❌ CENTERS GET ERROR = ${snapshot.error}");
           return Center(child: Text("ERROR: ${snapshot.error}"));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
