@@ -23,12 +23,11 @@ import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
-import 'verify_phone_page.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
-import 'package:barky_matches_fixed/services/analytics/analytics_events.dart';
 import 'package:barky_matches_fixed/core/debug/authentication_diagnostics.dart';
 import 'package:barky_matches_fixed/core/debug/diagnostics_navigation_tracker.dart';
-import 'package:barky_matches_fixed/services/phone_signup_profile_finalizer.dart';
+import 'package:barky_matches_fixed/services/social_auth_service.dart';
+import 'package:barky_matches_fixed/social_profile_completion_page.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -462,6 +461,9 @@ class SimpleTestPage extends StatelessWidget {
 }
 
 class AuthPage extends StatefulWidget implements DiagnosticsScreenDescriptor {
+  // TODO: Re-enable after Apple Developer organization migration completes and the provisioning profile includes Sign in with Apple.
+  static const bool appleSignInEnabled = false;
+
   final bool isLogin;
 
   final VoidCallback? onAuthSuccess; // 👈 برای login/signup
@@ -496,23 +498,19 @@ class _AuthPageState extends State<AuthPage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _cityController = TextEditingController();
   final _districtController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _scrollController = ScrollController();
-  final _phoneFocusNode = FocusNode();
   bool _isLogin = false;
-  bool _usePhoneSignup = false;
-  bool _usePhoneLogin = false;
-  String _selectedCountryCode = '+90';
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _rememberMe = false;
   bool _agreeToTerms = false;
   bool _receiveNews = false;
   bool _isLoading = false;
+  SocialAuthProvider? _socialProviderLoading;
   late bool isLoginMode;
   String? _emailVerificationRequestId;
 
@@ -599,7 +597,6 @@ class _AuthPageState extends State<AuthPage> {
           _emailController.text = '';
           _passwordController.text = '';
           _usernameController.text = '';
-          _phoneController.text = '';
           _cityController.text = '';
           _districtController.text = '';
           _rememberMe = false;
@@ -615,7 +612,6 @@ class _AuthPageState extends State<AuthPage> {
         _emailController.text = '';
         _passwordController.text = '';
         _usernameController.text = '';
-        _phoneController.text = '';
         _cityController.text = '';
         _districtController.text = '';
         _rememberMe = false;
@@ -657,13 +653,11 @@ class _AuthPageState extends State<AuthPage> {
     }
     _usernameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _cityController.dispose();
     _districtController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _scrollController.dispose();
-    _phoneFocusNode.dispose();
     super.dispose();
   }
 
@@ -928,17 +922,6 @@ class _AuthPageState extends State<AuthPage> {
       await ensureFirebase();
 
       final trimmedEmail = email.trim().toLowerCase();
-      if (_usePhoneSignup) {
-        return {
-          'success': true,
-
-          'userId': FirebaseAuth.instance.currentUser?.uid,
-
-          'requestId': null,
-
-          'errorMessage': null,
-        };
-      }
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: trimmedEmail,
         password: password,
@@ -1340,66 +1323,6 @@ class _AuthPageState extends State<AuthPage> {
 
     try {
       if (_isLogin) {
-        // 📱 PHONE LOGIN
-        if (_usePhoneLogin) {
-          final phone = _phoneController.text.trim();
-
-          if (phone.isEmpty) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Phone number required')),
-              );
-            }
-
-            setState(() {
-              _isLoading = false;
-            });
-
-            return;
-          }
-
-          final fullPhone = '$_selectedCountryCode$phone';
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => VerifyPhonePage(phone: fullPhone),
-            ),
-          ).then((verifiedUid) async {
-            if (verifiedUid is! String) return;
-
-            if (!mounted || !context.mounted) return;
-
-            final authUser = FirebaseAuth.instance.currentUser;
-
-            if (authUser == null || authUser.uid != verifiedUid) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Phone verification failed.')),
-              );
-              return;
-            }
-
-            final appState = Provider.of<AppState>(context, listen: false);
-
-            await appState.initializeAuthenticatedUser(authUser);
-
-            await Hive.box<String>(
-              'currentUserBox',
-            ).put('currentUserId', verifiedUid);
-
-            await AnalyticsService.userLogin();
-
-            if (!mounted) return;
-
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const HomeGate()),
-              (route) => false,
-            );
-          });
-
-          return;
-        }
-
         // 📧 EMAIL LOGIN (existing)
         final email = _emailController.text.trim();
         final password = _passwordController.text.trim();
@@ -1465,27 +1388,25 @@ class _AuthPageState extends State<AuthPage> {
         }
 
         final username = _usernameController.text.trim();
-        final email = _usePhoneSignup ? '' : _emailController.text.trim();
+        final email = _emailController.text.trim();
         final password = _passwordController.text.trim(); // ✅ باید اینجا باشه
         if (kDebugMode) {
           debugPrint("👤 USERNAME PROVIDED = ${username.isNotEmpty}");
         }
-        final phone = _phoneController.text.trim().isEmpty
-            ? null
-            : '$_selectedCountryCode${_phoneController.text.trim()}';
+        const String? phone = null;
         final city = _normalizeLocationText(_cityController.text);
         final district = _normalizeLocationText(_districtController.text);
 
         await Future.delayed(const Duration(milliseconds: 500));
 
-        if (!_usePhoneSignup && email.isEmpty) {
+        if (email.isEmpty) {
           setState(() {
             _isLoading = false;
           });
 
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Email required')));
+          ).showSnackBar(SnackBar(content: Text(l10n.emailRequired)));
 
           return;
         }
@@ -1510,120 +1431,45 @@ class _AuthPageState extends State<AuthPage> {
           _isLoading = false;
         });
 
-        if (success &&
-            (_usePhoneSignup || userId != null) &&
-            mounted &&
-            context.mounted) {
+        if (success && userId != null && mounted && context.mounted) {
           await AnalyticsService.userSignup();
-          if (!_usePhoneSignup) {
-            await Hive.box<String>(
-              'currentUserBox',
-            ).put('receiveNews', _receiveNews.toString());
-            debugPrint(
-              'AuthPage - Receive news preference saved: $_receiveNews',
-            );
-          }
+          await Hive.box<String>(
+            'currentUserBox',
+          ).put('receiveNews', _receiveNews.toString());
+          debugPrint('AuthPage - Receive news preference saved: $_receiveNews');
+          final emailUserId = userId;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VerifyEmailPage(
+                email: email,
+                userId: emailUserId,
+                requestId: requestId!,
+              ),
+            ),
+          ).then((isVerified) async {
+            if (isVerified == true) {
+              await Hive.box<String>(
+                'currentUserBox',
+              ).put('currentUserId', emailUserId);
 
-          if (_usePhoneSignup) {
-            final phoneSignupProfile = PhoneSignupProfileInput(
-              username: username,
-              email: email,
-              phone: phone ?? '',
-              city: city,
-              district: district,
-              receiveNews: _receiveNews,
-            );
-            debugPrint('========== SIGNUP START ==========');
+              if (!context.mounted) return;
+              Provider.of<AppState>(
+                context,
+                listen: false,
+              ).updateUserId(emailUserId);
 
-            debugPrint(
-              'Firebase currentUser = ${FirebaseAuth.instance.currentUser?.uid}',
-            );
-
-            debugPrint(
-              'AppState currentUserId = '
-              '${context.read<AppState>().currentUserId}',
-            );
-
-            debugPrint('=================================');
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => VerifyPhonePage(phone: phone!)),
-            ).then((verifiedUid) async {
-              if (verifiedUid is! String) return;
-              if (!mounted || !context.mounted) return;
-
-              final authUser = FirebaseAuth.instance.currentUser;
-              if (authUser == null || verifiedUid != authUser.uid) {
-                if (!mounted || !context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Phone sign-in did not match the authenticated account.',
-                    ),
-                  ),
-                );
-                return;
-              }
-
-              final appState = Provider.of<AppState>(context, listen: false);
-              await finalizePhoneSignupBeforeInitialization(
-                authenticatedUid: verifiedUid,
-                input: phoneSignupProfile,
-                finalizeProfile: (uid, input) => finalizePhoneSignupProfile(
-                  authenticatedUid: uid,
-                  input: input,
-                ),
-                initializeUserB: () async {
-                  await appState.initializeAuthenticatedUser(authUser);
-                  await appState.loadUsernameFromFirebase();
-                },
-              );
-
-              if (FirebaseAuth.instance.currentUser?.uid != verifiedUid) return;
-              await Hive.box<String>('currentUserBox').putAll({
-                'currentUserId': verifiedUid,
-                'receiveNews': _receiveNews.toString(),
-              });
-
-              if (!mounted || !context.mounted) return;
+              if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const HomeGate()),
                 (route) => false,
               );
-            });
-          } else {
-            final emailUserId = userId!;
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => VerifyEmailPage(
-                  email: email,
-                  userId: emailUserId,
-                  requestId: requestId!,
-                ),
-              ),
-            ).then((isVerified) async {
-              if (isVerified == true) {
-                await Hive.box<String>(
-                  'currentUserBox',
-                ).put('currentUserId', emailUserId);
-
-                Provider.of<AppState>(
-                  context,
-                  listen: false,
-                ).updateUserId(emailUserId);
-
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const HomeGate()),
-                  (route) => false,
-                );
-              }
-            });
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-              });
             }
+          });
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
           }
         } else if (errorMessage != null && mounted && context.mounted) {
           debugPrint('AuthPage - Registration failed: $errorMessage');
@@ -1644,6 +1490,112 @@ class _AuthPageState extends State<AuthPage> {
           SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
         );
       }
+    }
+  }
+
+  Future<void> _authenticateSocial(SocialAuthProvider provider) async {
+    if (_isLoading || _socialProviderLoading != null) return;
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _socialProviderLoading = provider);
+    try {
+      final service = SocialAuthService();
+      final result = provider == SocialAuthProvider.google
+          ? await service.signInWithGoogle()
+          : await service.signInWithApple();
+      final profile = Map<String, dynamic>.from(result.profile);
+
+      if (result.isNewProfile && !_isLogin) {
+        final additions = <String, dynamic>{
+          if (_usernameController.text.trim().isNotEmpty)
+            'username': _usernameController.text.trim(),
+          if (_cityController.text.trim().isNotEmpty)
+            'city': _normalizeLocationText(_cityController.text),
+          if (_districtController.text.trim().isNotEmpty)
+            'district': _normalizeLocationText(_districtController.text),
+          if (_agreeToTerms) ...{
+            'termsAccepted': true,
+            'termsAcceptedAt': FieldValue.serverTimestamp(),
+          },
+          'receiveNews': _receiveNews,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(result.user.uid)
+            .set(additions, SetOptions(merge: true));
+        profile.addAll(additions);
+      }
+
+      if (socialProfileMissingFields(
+        profile,
+        requireTerms: result.isNewProfile,
+      ).isNotEmpty) {
+        if (!mounted) return;
+        final completed = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => SocialProfileCompletionPage(profile: profile),
+          ),
+        );
+        if (completed != true) {
+          await FirebaseAuth.instance.signOut();
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.authenticationCancelled)));
+          return;
+        }
+      }
+
+      await Hive.box<String>(
+        'currentUserBox',
+      ).put('currentUserId', result.user.uid);
+      if (result.isNewProfile) {
+        await AnalyticsService.userSignup();
+      } else {
+        await AnalyticsService.userLogin();
+      }
+      if (!mounted) return;
+      final appState = context.read<AppState>();
+      await appState.initializeAuthenticatedUser(result.user);
+      await appState.loadUsernameFromFirebase();
+      await _askNotificationPermissionAfterLogin();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeGate()),
+        (route) => false,
+      );
+    } on SocialAuthCancelled {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.authenticationCancelled)));
+    } on FirebaseAuthException catch (error, stackTrace) {
+      AuthenticationDiagnostics.captureFailure(
+        operation: 'social_auth',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      final collision =
+          error.code == 'account-exists-with-different-credential' ||
+          error.code == 'email-already-in-use' ||
+          error.code == 'credential-already-in-use';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            collision
+                ? l10n.emailRegisteredWithAnotherProvider
+                : l10n.unableToSignIn,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.unableToSignIn)));
+    } finally {
+      if (mounted) setState(() => _socialProviderLoading = null);
     }
   }
 
@@ -1757,54 +1709,6 @@ class _AuthPageState extends State<AuthPage> {
 
                     const SizedBox(height: 28),
 
-                    if (_isLogin || !_isLogin) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Text('Email'),
-                              selected: _isLogin
-                                  ? !_usePhoneLogin
-                                  : !_usePhoneSignup,
-
-                              onSelected: (_) {
-                                setState(() {
-                                  if (_isLogin) {
-                                    _usePhoneLogin = false;
-                                  } else {
-                                    _usePhoneSignup = false;
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Text('Phone'),
-                              selected: _isLogin
-                                  ? _usePhoneLogin
-                                  : _usePhoneSignup,
-
-                              onSelected: (_) {
-                                setState(() {
-                                  if (_isLogin) {
-                                    _usePhoneLogin = true;
-                                  } else {
-                                    _usePhoneSignup = true;
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-                    ],
-
                     Container(
                       padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
                       decoration: BoxDecoration(
@@ -1894,125 +1798,36 @@ class _AuthPageState extends State<AuthPage> {
                             const SizedBox(height: 14),
                           ],
 
-                          if ((_isLogin && !_usePhoneLogin) ||
-                              (!_isLogin && !_usePhoneSignup)) ...[
-                            TextFormField(
-                              controller: _emailController,
-                              decoration: _authInputDecoration(
-                                label: l10n.emailLabel,
-                                icon: LucideIcons.mail,
-                              ),
-                              style: GoogleFonts.poppins(
-                                color: Colors.black87,
-                                fontSize: 14,
-                              ),
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (value) {
-                                final email = value?.trim() ?? '';
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: _authInputDecoration(
+                              label: l10n.emailLabel,
+                              icon: LucideIcons.mail,
+                            ),
+                            style: GoogleFonts.poppins(
+                              color: Colors.black87,
+                              fontSize: 14,
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              final email = value?.trim() ?? '';
 
-                                if (email.isEmpty) {
-                                  return null;
-                                }
-
-                                final emailRegex = RegExp(
-                                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                                );
-
-                                if (!emailRegex.hasMatch(email)) {
-                                  return l10n.emailInvalid;
-                                }
-
+                              if (email.isEmpty) {
                                 return null;
-                              },
-                            ),
-                            const SizedBox(height: 14),
-                          ],
+                              }
 
-                          if ((_isLogin && _usePhoneLogin) ||
-                              (!_isLogin && _usePhoneSignup)) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF3F7),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.pink.withOpacity(0.12),
-                                ),
-                              ),
-                              child: DropdownButton<String>(
-                                value: _selectedCountryCode,
-                                icon: const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  color: darkPink,
-                                ),
-                                underline: const SizedBox(),
-                                isExpanded: true,
-                                dropdownColor: Colors.white,
-                                style: GoogleFonts.poppins(
-                                  color: Colors.black87,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                items: countryCodes.map((country) {
-                                  return DropdownMenuItem<String>(
-                                    value: country['code']!,
-                                    child: Text(
-                                      '${country['name']} (${country['code']})',
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  if (mounted) {
-                                    setState(() {
-                                      _selectedCountryCode = value!;
-                                      debugPrint(
-                                        'Country code changed to: $_selectedCountryCode',
-                                      );
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 14),
+                              final emailRegex = RegExp(
+                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                              );
 
-                            TextFormField(
-                              controller: _phoneController,
-                              focusNode: _phoneFocusNode,
-                              decoration: _authInputDecoration(
-                                label: l10n.phoneLabel,
-                                icon: LucideIcons.phone,
-                              ),
-                              style: GoogleFonts.poppins(
-                                color: Colors.black87,
-                                fontSize: 14,
-                              ),
-                              keyboardType: TextInputType.phone,
-                              textInputAction: TextInputAction.done,
-                              validator: (value) {
-                                final text = value?.trim() ?? '';
-                                if (text.isEmpty) return null;
+                              if (!emailRegex.hasMatch(email)) {
+                                return l10n.emailInvalid;
+                              }
 
-                                final digits = text.replaceAll(
-                                  RegExp(r'[^0-9]'),
-                                  '',
-                                );
-
-                                if (digits.length < 7) {
-                                  return l10n.phoneNumberTooShort;
-                                }
-
-                                return null;
-                              },
-                              onChanged: (value) {
-                                debugPrint('AuthPage - Phone input: $value');
-                              },
-                            ),
-                            const SizedBox(height: 14),
-                          ],
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
 
                           TextFormField(
                             controller: _passwordController,
@@ -2270,7 +2085,51 @@ class _AuthPageState extends State<AuthPage> {
                             ),
                           ),
 
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
+
+                          Row(
+                            children: [
+                              const Expanded(child: Divider()),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Text(
+                                  l10n.orContinueWith,
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.black54,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const Expanded(child: Divider()),
+                            ],
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          _socialButton(
+                            provider: SocialAuthProvider.google,
+                            label: l10n.continueWithGoogle,
+                            icon: const _GoogleMark(),
+                          ),
+
+                          if (AuthPage.appleSignInEnabled &&
+                              SocialAuthService.supportsApple) ...[
+                            const SizedBox(height: 10),
+                            _socialButton(
+                              provider: SocialAuthProvider.apple,
+                              label: l10n.continueWithApple,
+                              icon: const Icon(
+                                Icons.apple,
+                                color: Colors.black,
+                                size: 24,
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 8),
 
                           TextButton(
                             onPressed: () {
@@ -2342,6 +2201,42 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 
+  Widget _socialButton({
+    required SocialAuthProvider provider,
+    required String label,
+    required Widget icon,
+  }) {
+    final loading = _socialProviderLoading == provider;
+    final disabled = _isLoading || _socialProviderLoading != null;
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
+        onPressed: disabled ? null : () => _authenticateSocial(provider),
+        icon: loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.2),
+              )
+            : SizedBox(width: 24, height: 24, child: Center(child: icon)),
+        label: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.black87,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
   InputDecoration _authInputDecoration({
     required String label,
     required IconData icon,
@@ -2380,4 +2275,56 @@ class _AuthPageState extends State<AuthPage> {
       ),
     );
   }
+}
+
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CustomPaint(
+      size: Size.square(22),
+      painter: _GoogleMarkPainter(),
+    );
+  }
+}
+
+class _GoogleMarkPainter extends CustomPainter {
+  const _GoogleMarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final stroke = size.width * 0.18;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.butt;
+    final arcRect = rect.deflate(stroke / 2);
+
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(arcRect, -0.15, 1.75, false, paint);
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(arcRect, 1.60, 1.20, false, paint);
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(arcRect, 2.80, 0.85, false, paint);
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(arcRect, 3.65, 1.20, false, paint);
+
+    paint
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTWH(
+        size.width * 0.52,
+        size.height * 0.45,
+        size.width * 0.43,
+        stroke,
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GoogleMarkPainter oldDelegate) => false;
 }

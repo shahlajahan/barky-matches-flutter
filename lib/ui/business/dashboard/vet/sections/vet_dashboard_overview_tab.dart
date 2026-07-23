@@ -13,6 +13,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_schedule_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_patients_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_settings_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_gallery_management_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
 
 class VetDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -281,112 +282,37 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         ),
 
         const SizedBox(height: 10),
-        _emptyBox("No services added"),
-
-        const SizedBox(height: 24),
-
-        /// ================= QUICK ACTIONS =================
-        _SectionTitle("Quick Actions"),
-        const SizedBox(height: 10),
-
-        Row(
-          children: [
-            Expanded(
-              child: _ActionBtn(
-                "Schedule",
-                LucideIcons.calendar,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => VetSchedulePage(businessId: businessId),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(width: 10),
-
-            Expanded(
-              child: _ActionBtn(
-                "Patients",
-                LucideIcons.users,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => VetPatientsPage(businessId: businessId),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(width: 10),
-
-            Expanded(
-              child: _ActionBtn(
-                "Gallery",
-                LucideIcons.image,
-
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          VetGalleryManagementPage(businessId: businessId),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(width: 10),
-
-            Expanded(
-              child: _ActionBtn(
-                "Settings",
-                LucideIcons.settings,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => VetSettingsPage(businessId: businessId),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-
-        /// ================= SERVICES LIST =================
-        _SectionTitle("Your Services"),
-        const SizedBox(height: 10),
-
         _KeepAliveWrapper(
           child: RepaintBoundary(
             child: StreamBuilder<QuerySnapshot>(
               stream: _servicesStream,
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  debugPrint(
+                    '❌ VET SERVICES STREAM ERROR → '
+                    'businessId=$businessId error=${snapshot.error}',
+                  );
+                  return _servicesErrorState();
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const _ServicesLoadingState();
+                }
+
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const _ServicesLoadingState();
                 }
 
                 final docs = snapshot.data!.docs;
-
-                if (docs.isEmpty) {
-                  return _emptyBox("No services yet");
-                }
-
                 final newServices = docs
-                    .map((e) => (e.data() as Map)['title'] as String)
+                    .map(
+                      (doc) => ((doc.data() as Map)['title'] ?? '').toString(),
+                    )
+                    .where((title) => title.isNotEmpty)
                     .toList();
-
                 final appState = context.read<AppState>();
 
-                // 🔥 فقط اگر تغییر کرده update کن
                 if (!listEquals(appState.existingServices, newServices)) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (context.mounted) {
@@ -394,6 +320,11 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
                     }
                   });
                 }
+
+                if (docs.isEmpty) {
+                  return const _ServicesEmptyState();
+                }
+
                 return Column(
                   children: docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
@@ -404,7 +335,106 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
             ),
           ),
         ),
+
+        const SizedBox(height: 24),
+
+        BusinessQuickActionsSection(
+          title: "Quick Actions",
+          actions: [
+            BusinessQuickActionItem(
+              label: "Schedule",
+              icon: LucideIcons.calendar,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VetSchedulePage(businessId: businessId),
+                  ),
+                );
+              },
+            ),
+            BusinessQuickActionItem(
+              label: "Patients",
+              icon: LucideIcons.users,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VetPatientsPage(businessId: businessId),
+                  ),
+                );
+              },
+            ),
+            BusinessQuickActionItem(
+              label: "Gallery",
+              icon: LucideIcons.image,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        VetGalleryManagementPage(businessId: businessId),
+                  ),
+                );
+              },
+            ),
+            BusinessQuickActionItem(
+              label: "Settings",
+              icon: LucideIcons.settings,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VetSettingsPage(businessId: businessId),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ],
+    );
+  }
+
+  Widget _servicesErrorState() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.danger.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              LucideIcons.alertCircle,
+              color: AppTheme.danger,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Services couldn't be loaded",
+                  style: AppTheme.body(weight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Please check your connection and try again.",
+                  style: AppTheme.caption(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -636,21 +666,38 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         children: [
           Row(
             children: [
-              Expanded(child: Text(data['title']?.toString() ?? '')),
-              GestureDetector(
-                onTap: () {
+              Expanded(
+                child: Text(
+                  data['title']?.toString() ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.body(weight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: "Edit service",
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+                onPressed: () {
                   context.read<AppState>().openAddServiceDetail(
                     data['title']?.toString() ?? '',
                     serviceId: id,
                     existingData: data,
                   );
                 },
-                child: const Icon(LucideIcons.edit2, size: 18),
+                icon: const Icon(LucideIcons.edit2, size: 19),
               ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () => _deleteService(context, businessId, id),
-                child: const Icon(LucideIcons.trash2, size: 18),
+              IconButton(
+                tooltip: "Delete service",
+                constraints: const BoxConstraints.tightFor(
+                  width: 48,
+                  height: 48,
+                ),
+                onPressed: () => _deleteService(context, businessId, id),
+                icon: const Icon(LucideIcons.trash2, size: 19),
               ),
             ],
           ),
@@ -1051,6 +1098,120 @@ class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
   }
 }
 
+class _ServicesLoadingState extends StatelessWidget {
+  const _ServicesLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        2,
+        (index) => Container(
+          height: 78,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFEDE6E9)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: index == 0 ? 132 : 164,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEDE8EA),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 96,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2EDEF),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 72,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2EDEF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServicesEmptyState extends StatelessWidget {
+  const _ServicesEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE9E1E4)),
+        boxShadow: AppTheme.cardShadow(opacity: 0.035),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.card.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              LucideIcons.stethoscope,
+              color: AppTheme.card,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "No services added yet",
+                  style: AppTheme.body(weight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Add your first service to make it available for pet owners.",
+                  style: AppTheme.caption().copyWith(height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// ================= COMPONENTS =================
 
 class _SectionTitle extends StatelessWidget {
@@ -1094,36 +1255,6 @@ class _KpiCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(value, style: AppTheme.h2(weight: FontWeight.w800)),
             Text(title, style: AppTheme.caption()),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _ActionBtn(this.text, this.icon, {this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFF9E1B4F)),
-            const SizedBox(height: 6),
-            Text(text),
           ],
         ),
       ),

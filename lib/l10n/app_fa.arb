@@ -38,7 +38,7 @@
   "checkoutDeliveryAddressTitle": "آدرس تحویل",
   "checkoutFullNameLabel": "نام و نام خانوادگی",
   "checkoutFullNameHint": "نام و نام خانوادگی",
-  "checkoutPhoneHint": "5XXXXXXXXX",
+  "checkoutPhoneHint": "شماره به شکل 5XXXXXXXXX",
   "checkoutCityLabel": "شهر",
   "checkoutCityHint": "استانبول",
   "checkoutDistrictLabel": "منطقه",
@@ -132,7 +132,7 @@
   "requestAppointment": "درخواست نوبت",
   "requestSentTitle": "درخواست ارسال شد 🐾",
   "requestSentMessage": "درخواست نوبت شما به کلینیک ارسال شد.",
-  "okButton": "OK",
+  "okButton": "تأیید",
   "somethingWentWrong": "مشکلی پیش آمد",
   "alreadyBookedAtThisTime": "شما در این زمان از قبل رزرو دارید. لطفاً زمان دیگری انتخاب کنید.",
   "invalidBookingData": "داده‌های رزرو نامعتبر است. لطفاً دوباره تلاش کنید.",
@@ -877,7 +877,7 @@
 
   "featuredDeal": "پیشنهاد ویژه",
   "premiumLabel": "پریمیوم",
-  "goldLabel": "گلد",
+  "goldLabel": "PetSupo Partner",
 
   "discountOff": "%{percent} تخفیف",
   "@discountOff": {
@@ -944,9 +944,9 @@
 
   "petShopDealName": "پت شاپ A",
   "petShopDealDesc": "۱۵٪ تخفیف روی تمام غذاها",
-  "groomyDealName": "Groomy Studio",
+  "groomyDealName": "استودیوی Groomy",
   "groomyDealDesc": "۲۰٪ تخفیف آرایش این هفته",
-  "vetDealName": "VetPlus",
+  "vetDealName": "پیشنهاد VetPlus",
   "vetDealDesc": "برای اعضای گلد، چکاپ رایگان",
 
   "removedFromFavorites": "{dogName} از علاقه‌مندی‌ها حذف شد!",
@@ -1240,7 +1240,7 @@
   "playmateFiltersTitle": "فیلترها",
   "@playmateFiltersTitle": { "description": "عنوان پنل فیلترهای پلی‌میت" },
 
-  "playmateBreedPremiumHint": "نژاد (Gold)",
+  "playmateBreedPremiumHint": "نژاد (PetSupo Partner)",
   "@playmateBreedPremiumHint": { "description": "متن راهنمای قفل‌شده نژاد برای کاربران غیر Gold" },
 
   "playmateOwnerGenderPremiumHint": "جنسیت صاحب (Premium)",
@@ -1488,18 +1488,18 @@
   "boostVisibilityDescription": "در جست‌وجوی Playmates بیشتر دیده شوید.",
   "boost24HoursTitle": "ارتقای 24 ساعته",
   "boostQuickVisibilitySubtitle": "برای دیده شدن سریع مناسب است",
-  "boostPrice29": "₺29",
+  "boostPrice29": "۲۹ لیر",
   "boost3DaysTitle": "ارتقای 3 روزه",
   "boostBetterExposureSubtitle": "نمایش بهتر برای جست‌وجوی فعال",
-  "boostPrice69": "₺69",
+  "boostPrice69": "۶۹ لیر",
   "boost7DaysTitle": "ارتقای 7 روزه",
   "boostBestValueSubtitle": "بهترین ارزش برای بیشترین دسترسی",
-  "boostPrice129": "₺129",
+  "boostPrice129": "۱۲۹ لیر",
   "boostActivated": "ارتقا فعال شد 🚀",
   "boostFailed": "ارتقا ناموفق بود: {error}",
   "@boostFailed": { "placeholders": { "error": {} } },
   "errorOpeningEdit": "خطا در باز کردن ویرایش",
-  "boostBadge": "BOOSTED",
+  "boostBadge": "ارتقایافته",
   "boostButton": "ارتقا",
   "blockComingSoon": "قابلیت مسدودسازی به‌زودی می‌آید",
   "blockMenuItem": "مسدود کردن کاربر",
@@ -2197,7 +2197,7 @@
   "businessRegisterDocumentVerifiedSuccessfully": "مدرک با موفقیت تأیید شد",
   "businessRegisterCouldNotReadDocument": "مدرک خوانده نشد، لطفاً دوباره بارگذاری کنید",
   "businessRegisterVeterinary": "دامپزشکی",
-  "businessRegisterGroomy": "Groomy",
+  "businessRegisterGroomy": "آرایش حیوانات (Groomy)",
   "businessRegisterStepOfFour": "مرحله {step} از ۴",
   "businessRegisterLegalConfirmation": "تأیید قانونی",
   "businessRegisterAcceptTermsKvkk": "شرایط پلتفرم و سیاست حفاظت از داده‌های KVKK را می‌پذیرم.",
@@ -2267,8 +2267,8 @@
   "userProfileLanguagePersian": "فارسی",
   "userProfileLanguageTurkish": "ترکی",
   "userProfileUnlockBusinessFeatures": "باز کردن قابلیت‌های کسب‌وکار 🚀",
-  "userProfileUpgradeBusinessDescription": "برای ثبت کسب‌وکار و شروع دریافت مشتری به Gold ارتقا دهید.",
-  "userProfileUpgradeToGold": "ارتقا به Gold",
+  "userProfileUpgradeBusinessDescription": "برای ثبت کسب‌وکار و شروع دریافت مشتری به PetSupo Partner ارتقا دهید.",
+  "userProfileUpgradeToGold": "ارتقا به PetSupo Partner",
   "userProfileManageAdoptionCenter": "مدیریت مرکز پذیرش",
   "userProfileOverview": "نمای کلی",
   "userProfileDogs": "سگ‌ها",
@@ -2284,7 +2284,7 @@
   "userProfileApplicationRejected": "درخواست رد شد",
   "userProfileRejectionReason": "دلیل: {reason}",
   "@userProfileRejectionReason": { "placeholders": { "reason": {} } },
-  "userProfileUpgradeToGoldToContinue": "برای ادامه به Gold ارتقا دهید",
+  "userProfileUpgradeToGoldToContinue": "برای ادامه به PetSupo Partner ارتقا دهید",
   "userProfileReApply": "درخواست دوباره",
   "userProfileBusinessStatus": "وضعیت کسب‌وکار",
   "userProfileUnknownStatus": "نامشخص",
@@ -2307,7 +2307,7 @@
   "userProfileBioHint": "کمی درباره خودتان به دیگران بگویید",
   "unnamedProduct": "محصول بدون نام",
   "barcodeLabel": "بارکد: {barcode}",
-  "skuLabel": "SKU: {sku}",
+  "skuLabel": "شناسه کالا: {sku}",
   "dealBadge": "💸 تخفیف",
   "lowStockBadge": "⚡ کم",
   "saveAmountLabel": "صرفه‌جویی {amount}",
@@ -2373,7 +2373,7 @@
   "oversizeLabel": "بزرگ‌ابعاد",
   "originLabel": "مبدأ: {city}",
   "carriersCountLabel": "{count} حامل",
-  "kdvRateLabel": "KDV {percent}%",
+  "kdvRateLabel": "مالیات بر ارزش افزوده {percent}٪",
   "myOrdersLoginRequired": "لطفاً برای مشاهده سفارش‌های خود وارد شوید",
   "myOrdersTitle": "سفارش‌های من",
   "ordersTitle": "سفارش‌ها",
@@ -2485,7 +2485,7 @@
   "premiumPlanFeatureAdvancedMatchingFilters": "فیلترهای پیشرفته تطابق",
   "premiumPlanFeatureExclusivePetOffers": "پیشنهادهای اختصاصی حیوانات خانگی",
   "premiumPlanFeatureBetterProfileExperience": "تجربه بهتر پروفایل",
-  "goldPlanSubtitle": "برای کسب‌وکارهای حیوانات خانگی و کاربران حرفه‌ای",
+  "goldPlanSubtitle": "برای متخصصان و کسب‌وکارهای مراقبت از حیوانات خانگی",
   "mostPopularLabel": "محبوب‌ترین",
   "goldPlanFeatureEverythingInPremium": "همه چیز در پریمیوم",
   "goldPlanFeatureBusinessRegistrationAccess": "دسترسی به ثبت کسب‌وکار",
@@ -2503,7 +2503,7 @@
   "loadingLabel": "در حال بارگذاری...",
   "privacyPolicyLabel": "حریم خصوصی",
   "termsOfUseLabel": "شرایط استفاده",
-  "adoptionRequestSubtitle": "• {dogName}",
+  "adoptionRequestSubtitle": "• سگ: {dogName}",
   "adoptionStepPersonalInfoTitle": "1️⃣ اطلاعات شخصی",
   "adoptionFullNameLabel": "نام و نام خانوادگی",
   "adoptionFullNameHint": "نام و نام خانوادگی خود را وارد کنید",
@@ -2514,10 +2514,10 @@
   "adoptionEnterValidPhone": "شماره تلفن معتبر وارد کنید",
   "adoptionIncomeRangeLabel": "بازه درآمد ماهانه",
   "adoptionSelectIncomeRange": "بازه درآمد را انتخاب کنید",
-  "adoptionIncomeRange0_2000": "0 - 2,000",
-  "adoptionIncomeRange2000_5000": "2,000 - 5,000",
-  "adoptionIncomeRange5000_10000": "5,000 - 10,000",
-  "adoptionIncomeRange10000Plus": "10,000+",
+  "adoptionIncomeRange0_2000": "۰ تا ۲٬۰۰۰",
+  "adoptionIncomeRange2000_5000": "۲٬۰۰۰ تا ۵٬۰۰۰",
+  "adoptionIncomeRange5000_10000": "۵٬۰۰۰ تا ۱۰٬۰۰۰",
+  "adoptionIncomeRange10000Plus": "۱۰٬۰۰۰ به بالا",
   "adoptionStepHousingTitle": "2️⃣ مسکن",
   "adoptionHousingTypeLabel": "نوع مسکن",
   "adoptionHousingApartment": "آپارتمان",
@@ -2533,7 +2533,7 @@
   "adoptionEnterValidFenceHeight": "1..400 را وارد کنید",
   "adoptionStepExperienceTitle": "3️⃣ تجربه",
   "adoptionYearsOfExperienceLabel": "سال‌های تجربه",
-  "adoptionYearsOfExperienceHint": "0..60",
+  "adoptionYearsOfExperienceHint": "۰ تا ۶۰",
   "adoptionEnterYearsOfExperience": "0..60 را وارد کنید",
   "adoptionPreviousDogQuestion": "قبلاً سگ داشته‌اید؟ (بله/خیر)",
   "adoptionPreviousDogReasonLabel": "دلیل اینکه سگ قبلی دیگر با شما نیست",
@@ -2584,18 +2584,18 @@
   "marketSourceNoneLabel": "داده‌ای از بازار نیست",
   "marketSourceInvalidPricesLabel": "قیمت‌های نامعتبر",
   "marketSourceErrorLabel": "خطا",
-  "discountRate1Label": "1%",
-  "discountRate10Label": "10%",
-  "discountRate20Label": "20%",
-  "carrierYurticiKargo": "Yurtiçi Kargo",
-  "carrierArasKargo": "Aras Kargo",
-  "carrierMngKargo": "MNG Kargo",
-  "carrierSuratKargo": "Sürat Kargo",
-  "carrierPttKargo": "PTT Kargo",
-  "carrierHepsiJet": "HepsiJET",
-  "carrierKolayGelsin": "Kolay Gelsin",
-  "carrierUpsTurkiye": "UPS Türkiye",
-  "carrierDhlExpress": "DHL Express",
+  "discountRate1Label": "۱٪ تخفیف",
+  "discountRate10Label": "۱۰٪ تخفیف",
+  "discountRate20Label": "۲۰٪ تخفیف",
+  "carrierYurticiKargo": "پست Yurtiçi Kargo",
+  "carrierArasKargo": "پست Aras Kargo",
+  "carrierMngKargo": "پست MNG Kargo",
+  "carrierSuratKargo": "پست Sürat Kargo",
+  "carrierPttKargo": "پست PTT Kargo",
+  "carrierHepsiJet": "پست HepsiJET",
+  "carrierKolayGelsin": "پست Kolay Gelsin",
+  "carrierUpsTurkiye": "پست UPS ترکیه",
+  "carrierDhlExpress": "ارسال سریع DHL",
   "categoryFood": "غذا",
   "categoryAccessories": "لوازم جانبی",
   "categoryHealth": "سلامت",
@@ -2946,5 +2946,46 @@
 "vetWebOverviewSubtitle": "نمای کلی عملکرد و عملیات کلینیک",
 "vetWebAppointmentsSubtitle": "بررسی و مدیریت نوبت‌های دامپزشکی",
 "vetWebRevenueSubtitle": "تحلیل تأییدشده پرداخت، کمیسیون و تسویه",
-"vetWebVeterinaryLabel": "دامپزشکی"
+"vetWebVeterinaryLabel": "دامپزشکی",
+"petShopsTitle": "فروشگاه‌های حیوانات",
+"searchPetShopsHint": "جستجوی فروشگاه حیوانات",
+"noPetShopsFound": "فروشگاه حیوانات پیدا نشد",
+"noPetShopsFoundDescription": "جستجوی دیگری را امتحان کنید یا بعداً دوباره بررسی کنید.",
+"loadingPetShops": "در حال یافتن فروشگاه‌های نزدیک شما…",
+"petShopsLoadError": "فروشگاه‌ها بارگیری نشدند. دوباره تلاش کنید.",
+"retryButton": "تلاش دوباره",
+"shopInformationTitle": "اطلاعات فروشگاه",
+"noShopDescriptionAvailable": "توضیحی برای فروشگاه موجود نیست.",
+"locationNotAvailable": "موقعیت مکانی موجود نیست",
+"getDirectionsLabel": "مسیریابی",
+"connectLabel": "ارتباط",
+"callLabel": "تماس",
+"whatsappLabel": "واتساپ",
+"websiteLabel": "وب‌سایت",
+"signInToContactShop": "برای تماس با این فروشگاه وارد شوید.",
+"petShopUnavailable": "فروشگاه در دسترس نیست",
+"petShopUnavailableDescription": "این فروشگاه حیوانات دیگر در دسترس نیست.",
+"reviewsCouldNotBeLoaded": "نظرها بارگیری نشدند.",
+"noProductsAvailableFromShop": "محصولی از این فروشگاه موجود نیست"
+,"petShopLocationNeededMessage": "برای نمایش فروشگاه‌های حیوانات نزدیک از موقعیت شما استفاده می‌کنیم"
+,"infoTitle": "اطلاعات"
+,"processTitle": "فرآیند"
+,"categoriesTitle": "دسته‌بندی‌ها"
+,"contactTitle": "تماس"
+,"openFullProfile": "نمایش پروفایل کامل"
+,"noShopCategoriesAvailable": "دسته‌بندی فروشگاه موجود نیست."
+,"browseShopProductsDescription": "محصولات موجود در این فروشگاه حیوانات را ببینید."
+,"viewAllProducts": "مشاهده همه محصولات"
+,"continueWithGoogle": "ادامه با گوگل"
+,"continueWithApple": "ادامه با اپل"
+,"orContinueWith": "یا ادامه با"
+,"authenticationCancelled": "احراز هویت لغو شد"
+,"unableToSignIn": "ورود امکان‌پذیر نیست"
+,"emailRegisteredWithAnotherProvider": "این ایمیل با روش ورود دیگری ثبت شده است"
+,"completeYourProfile": "پروفایل خود را کامل کنید"
+,"cityLabel": "شهر"
+,"districtLabel": "منطقه"
+,"cityRequired": "لطفاً شهر خود را وارد کنید"
+,"districtRequired": "لطفاً منطقه خود را وارد کنید"
+,"continueLabel": "ادامه"
 }

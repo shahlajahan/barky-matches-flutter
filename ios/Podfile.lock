@@ -1190,6 +1190,18 @@ PODS:
   - abseil/xcprivacy (1.20240722.0)
   - app_links (7.0.0):
     - Flutter
+  - AppAuth (1.7.6):
+    - AppAuth/Core (= 1.7.6)
+    - AppAuth/ExternalUserAgent (= 1.7.6)
+  - AppAuth/Core (1.7.6)
+  - AppAuth/ExternalUserAgent (1.7.6):
+    - AppAuth/Core
+  - AppCheckCore (11.3.1):
+    - GoogleUtilities/Environment (~> 8.0)
+    - GoogleUtilities/UserDefaults (~> 8.0)
+    - PromisesObjC (~> 2.4)
+    - PromisesSwift (~> 2.4)
+    - RecaptchaInterop (~> 101.0)
   - BoringSSL-GRPC (0.0.37):
     - BoringSSL-GRPC/Implementation (= 0.0.37)
     - BoringSSL-GRPC/Interface (= 0.0.37)
@@ -1389,6 +1401,12 @@ PODS:
     - Flutter
     - Google-Mobile-Ads-SDK (~> 12.2.0)
     - webview_flutter_wkwebview
+  - google_sign_in_ios (0.0.1):
+    - AppAuth (>= 1.7.4)
+    - Flutter
+    - FlutterMacOS
+    - GoogleSignIn (~> 8.0)
+    - GTMSessionFetcher (>= 3.4.0)
   - GoogleAdsOnDeviceConversion (3.2.0):
     - GoogleUtilities/Environment (~> 8.1)
     - GoogleUtilities/Logger (~> 8.1)
@@ -1422,6 +1440,11 @@ PODS:
   - GoogleMaps (9.4.0):
     - GoogleMaps/Maps (= 9.4.0)
   - GoogleMaps/Maps (9.4.0)
+  - GoogleSignIn (8.0.0):
+    - AppAuth (< 2.0, >= 1.7.3)
+    - AppCheckCore (~> 11.0)
+    - GTMAppAuth (< 5.0, >= 4.1.1)
+    - GTMSessionFetcher/Core (~> 3.3)
   - GoogleUserMessagingPlatform (3.1.0)
   - GoogleUtilities/AppDelegateSwizzler (8.1.2):
     - GoogleUtilities/Environment
@@ -1542,7 +1565,14 @@ PODS:
     - gRPC-Core/Privacy (= 1.69.0)
   - gRPC-Core/Interface (1.69.0)
   - gRPC-Core/Privacy (1.69.0)
-  - GTMSessionFetcher/Core (5.3.0)
+  - GTMAppAuth (4.1.1):
+    - AppAuth/Core (~> 1.7)
+    - GTMSessionFetcher/Core (< 4.0, >= 3.3)
+  - GTMSessionFetcher (3.5.0):
+    - GTMSessionFetcher/Full (= 3.5.0)
+  - GTMSessionFetcher/Core (3.5.0)
+  - GTMSessionFetcher/Full (3.5.0):
+    - GTMSessionFetcher/Core
   - image_picker_ios (0.0.1):
     - Flutter
   - in_app_purchase_storekit (0.0.1):
@@ -1577,6 +1607,8 @@ PODS:
   - permission_handler_apple (9.3.0):
     - Flutter
   - PromisesObjC (2.4.1)
+  - PromisesSwift (2.4.1):
+    - PromisesObjC (= 2.4.1)
   - RecaptchaEnterprise (18.9.1):
     - RecaptchaEnterpriseSDK (= 18.9.1)
     - RecaptchaInterop (~> 101.0.0)
@@ -1590,6 +1622,8 @@ PODS:
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - sign_in_with_apple (0.0.1):
+    - Flutter
   - speech_to_text (7.2.0):
     - CwlCatchException
     - Flutter
@@ -1628,6 +1662,7 @@ DEPENDENCIES:
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
   - google_maps_flutter_ios (from `.symlinks/plugins/google_maps_flutter_ios/ios`)
   - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
+  - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - in_app_purchase_storekit (from `.symlinks/plugins/in_app_purchase_storekit/darwin`)
   - mobile_scanner (from `.symlinks/plugins/mobile_scanner/darwin`)
@@ -1637,6 +1672,7 @@ DEPENDENCIES:
   - RecaptchaEnterprise (~> 18.9)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
   - speech_to_text (from `.symlinks/plugins/speech_to_text/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
@@ -1647,6 +1683,8 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - abseil
+    - AppAuth
+    - AppCheckCore
     - BoringSSL-GRPC
     - CwlCatchException
     - CwlCatchExceptionSupport
@@ -1674,15 +1712,18 @@ SPEC REPOS:
     - GoogleAppMeasurement
     - GoogleDataTransport
     - GoogleMaps
+    - GoogleSignIn
     - GoogleUserMessagingPlatform
     - GoogleUtilities
     - "gRPC-C++"
     - gRPC-Core
+    - GTMAppAuth
     - GTMSessionFetcher
     - leveldb-library
     - libwebp
     - nanopb
     - PromisesObjC
+    - PromisesSwift
     - RecaptchaEnterprise
     - RecaptchaEnterpriseSDK
     - RecaptchaInterop
@@ -1724,6 +1765,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/google_maps_flutter_ios/ios"
   google_mobile_ads:
     :path: ".symlinks/plugins/google_mobile_ads/ios"
+  google_sign_in_ios:
+    :path: ".symlinks/plugins/google_sign_in_ios/darwin"
   image_picker_ios:
     :path: ".symlinks/plugins/image_picker_ios/ios"
   in_app_purchase_storekit:
@@ -1740,6 +1783,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/share_plus/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  sign_in_with_apple:
+    :path: ".symlinks/plugins/sign_in_with_apple/ios"
   speech_to_text:
     :path: ".symlinks/plugins/speech_to_text/darwin"
   sqflite_darwin:
@@ -1756,6 +1801,8 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   abseil: a05cc83bf02079535e17169a73c5be5ba47f714b
   app_links: a754cbec3c255bd4bbb4d236ecc06f28cd9a7ce8
+  AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
+  AppCheckCore: e215d35177a9cf469927863e69c13e220df32a8b
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
   cloud_firestore: 45532e0c1fd1f6a5720af8aa0312470c366b73d2
   cloud_functions: 8d86e6aa7e6171502bd72b28c46134f75c2e96f1
@@ -1795,15 +1842,18 @@ SPEC CHECKSUMS:
   Google-Mobile-Ads-SDK: 1dfb0c3cb46c7e2b00b0f4de74a1e06d9ea25d67
   google_maps_flutter_ios: 0291eb2aa252298a769b04d075e4a9d747ff7264
   google_mobile_ads: 535223588a6791b7a3cc3513a1bc7b89d12f3e62
+  google_sign_in_ios: b48bb9af78576358a168361173155596c845f0b9
   GoogleAdsOnDeviceConversion: d68c69dd9581a0f5da02617b6f377e5be483970f
   GoogleAppMeasurement: 3bf40aff49a601af5da1c3345702fcb4991d35ee
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleMaps: 0608099d4870cac8754bdba9b6953db543432438
+  GoogleSignIn: ce8c89bb9b37fb624b92e7514cc67335d1e277e4
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   GoogleUtilities: 766ace00c6b10d8148408f329d10c4f051931850
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
   gRPC-Core: 860978b7db482de8b4f5e10677216309b5ff6330
-  GTMSessionFetcher: 127211aeec0b1e904fc49f4f6f895dcc535b0ecf
+  GTMAppAuth: f69bd07d68cd3b766125f7e072c45d7340dea0de
+  GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
   in_app_purchase_storekit: 22cca7d08eebca9babdf4d07d0baccb73325d3c8
   leveldb-library: cc8b8f8e013647a295ad3f8cd2ddf49a6f19be19
@@ -1814,12 +1864,14 @@ SPEC CHECKSUMS:
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
+  PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
   RecaptchaEnterprise: a28429a5366cc0f687ac5e93a44c5caa2c685aa9
   RecaptchaEnterpriseSDK: 72239ea30c486d9093918c7b31eb85629eff1a50
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
   speech_to_text: 3b313d98516d3d0406cea424782ec25470c59d19
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4

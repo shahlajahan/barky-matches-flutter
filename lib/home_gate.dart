@@ -9,6 +9,7 @@ import 'package:barky_matches_fixed/vet_page.dart';
 import 'package:barky_matches_fixed/groomy_page.dart';
 import 'package:barky_matches_fixed/pet_hotel_page.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_page.dart';
+import 'package:barky_matches_fixed/ui/common/pages/petshop_list_page.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_detail_page.dart';
 import 'package:barky_matches_fixed/ui/green_memorial/green_memorial_page.dart';
 import 'package:barky_matches_fixed/play_date_requests_page_new.dart';
@@ -223,13 +224,14 @@ class _HomeBodyState extends State<_HomeBody> {
     super.initState();
 
     _pages = const [
-  HomePage(key: PageStorageKey('home')),
-  FavoritesPage(key: PageStorageKey('favorites')),
-  VetPage(key: PageStorageKey('vet')),
-  GroomyPage(key: PageStorageKey('groomy')),
-  PetHotelPage(key: PageStorageKey('petHotel')),
-  PetTaxiPage(key: PageStorageKey('petTaxi')),
-];
+      HomePage(key: PageStorageKey('home')),
+      FavoritesPage(key: PageStorageKey('favorites')),
+      VetPage(key: PageStorageKey('vet')),
+      PetShopListPage(key: PageStorageKey('petShop')),
+      GroomyPage(key: PageStorageKey('groomy')),
+      PetHotelPage(key: PageStorageKey('petHotel')),
+      PetTaxiPage(key: PageStorageKey('petTaxi')),
+    ];
 
     // 🔥 FIRST LOAD SPINNER
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -253,6 +255,9 @@ class _HomeBodyState extends State<_HomeBody> {
 
       case NavTab.vet:
         return const VetPage(key: PageStorageKey('vet'));
+
+      case NavTab.petShop:
+        return const PetShopListPage(key: PageStorageKey('petShop'));
 
       case NavTab.groomy:
         return const GroomyPage(key: PageStorageKey('groomy'));
@@ -377,8 +382,7 @@ class _HomeBodyState extends State<_HomeBody> {
     if (selectedAppointmentId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final appointmentId = selectedAppointmentId;
-        final collection =
-            selectedAppointmentCollection ?? 'vet_appointments';
+        final collection = selectedAppointmentCollection ?? 'vet_appointments';
         final isPetTaxi = collection == 'pet_taxi_bookings';
         final isGroomy = collection == 'groomy_appointments';
         final isHotel = collection == 'hotel_bookings';
@@ -485,23 +489,24 @@ if (appState.isGuest) {
       body: Stack(
         children: [
           // 🟢 MAIN
-         if (currentUserId != null && currentUserId.isNotEmpty)
-  switch (currentTab) {
-    NavTab.home => _pages[0],
-    NavTab.favorites => _pages[1],
-    NavTab.vet => _pages[2],
-    NavTab.groomy => _pages[3],
-    NavTab.petHotel => _pages[4],
-    NavTab.petTaxi => _pages[5],
-    _ => _buildCurrentTab(
-      currentTab,
-      currentUserId,
-      allDogs,
-      favoriteDogs,
-      onToggleFavorite,
-    ),
-  }
-else
+          if (currentUserId != null && currentUserId.isNotEmpty)
+            switch (currentTab) {
+              NavTab.home => _pages[0],
+              NavTab.favorites => _pages[1],
+              NavTab.vet => _pages[2],
+              NavTab.petShop => _pages[3],
+              NavTab.groomy => _pages[4],
+              NavTab.petHotel => _pages[5],
+              NavTab.petTaxi => _pages[6],
+              _ => _buildCurrentTab(
+                currentTab,
+                currentUserId,
+                allDogs,
+                favoriteDogs,
+                onToggleFavorite,
+              ),
+            }
+          else
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -549,14 +554,17 @@ int _tabToIndex(NavTab tab) {
     case NavTab.vet:
       return 2;
 
-    case NavTab.groomy:
+    case NavTab.petShop:
       return 3;
 
-    case NavTab.petHotel:
+    case NavTab.groomy:
       return 4;
 
+    case NavTab.petHotel:
+      return 5;
+
     case NavTab.petTaxi:
-      return 4;
+      return 6;
 
     case NavTab.playdate:
       return 5;
@@ -730,13 +738,13 @@ class _ProfileTab extends StatelessWidget {
 
     // 🟢 Upgrade
     if (subPage == ProfileSubPage.upgrade) {
-  return UpgradePage(
-    onClose: () {
-      debugPrint("🔥 PROFILE onClose");
-      context.read<AppState>().closeProfileSubPage();
-    },
-  );
-}
+      return UpgradePage(
+        onClose: () {
+          debugPrint("🔥 PROFILE onClose");
+          context.read<AppState>().closeProfileSubPage();
+        },
+      );
+    }
 
     // 🟢 Change Password
     if (subPage == ProfileSubPage.changePassword) {

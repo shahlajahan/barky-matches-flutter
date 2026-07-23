@@ -197,9 +197,34 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
                       onPressed: _cart.isEmpty
                           ? null
                           : () {
+                              final checkoutItems = List<CartItem>.from(_cart);
                               Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
-                                  builder: (_) => CheckoutPage(items: _cart),
+                                  builder: (_) => CheckoutPage(
+                                    items: checkoutItems,
+                                    onPaymentVerified: () async {
+                                      if (!mounted) return;
+                                      setState(() {
+                                        for (final purchased in checkoutItems) {
+                                          final index = _cart.indexWhere(
+                                            (item) =>
+                                                item.productId ==
+                                                purchased.productId,
+                                          );
+                                          if (index == -1) continue;
+                                          final remaining =
+                                              _cart[index].quantity -
+                                              purchased.quantity;
+                                          if (remaining > 0) {
+                                            _cart[index] = _cart[index]
+                                                .copyWith(quantity: remaining);
+                                          } else {
+                                            _cart.removeAt(index);
+                                          }
+                                        }
+                                      });
+                                    },
+                                  ),
                                 ),
                               );
                             },

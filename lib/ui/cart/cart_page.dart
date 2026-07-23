@@ -145,11 +145,17 @@ class _CartSummary extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {
                 final appState = context.read<AppState>();
+                final checkoutItems = List<CartItem>.from(appState.cartItems);
 
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => CheckoutPage(items: appState.cartItems),
+                    builder: (_) => CheckoutPage(
+                      items: checkoutItems,
+                      onPaymentVerified: () async {
+                        appState.removePurchasedCartItems(checkoutItems);
+                      },
+                    ),
                   ),
                 );
               },

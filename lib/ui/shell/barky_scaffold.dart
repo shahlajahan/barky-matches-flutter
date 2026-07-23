@@ -85,7 +85,9 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
     super.initState();
 
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyScaffold initState hash=${identityHashCode(this)}');
+      debugPrint(
+        'WEB_DIAG BarkyScaffold initState hash=${identityHashCode(this)}',
+      );
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -99,14 +101,18 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
   void activate() {
     super.activate();
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyScaffold activate hash=${identityHashCode(this)}');
+      debugPrint(
+        'WEB_DIAG BarkyScaffold activate hash=${identityHashCode(this)}',
+      );
     }
   }
 
   @override
   void deactivate() {
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyScaffold deactivate hash=${identityHashCode(this)}');
+      debugPrint(
+        'WEB_DIAG BarkyScaffold deactivate hash=${identityHashCode(this)}',
+      );
     }
     super.deactivate();
   }
@@ -114,7 +120,9 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
   @override
   void dispose() {
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyScaffold dispose hash=${identityHashCode(this)}');
+      debugPrint(
+        'WEB_DIAG BarkyScaffold dispose hash=${identityHashCode(this)}',
+      );
     }
     super.dispose();
   }
@@ -718,89 +726,94 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
 
                           // 🐶 Center Card
                           Center(
-  child: FractionallySizedBox(
-    widthFactor: 0.88,
-    heightFactor: 0.82,
-    child: Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: SingleChildScrollView(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.close,
-                                            color: Colors.white,
-                                          ),
-                                          onPressed:
-                                              appState.closePlaymateProfile,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                            AppLocalizations.of(
-                                              context,
-                                            )!.dogsOfThisUser,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
+                            child: FractionallySizedBox(
+                              widthFactor: 0.88,
+                              heightFactor: 0.82,
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF9E1B4F),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.close,
                                               color: Colors.white,
+                                            ),
+                                            onPressed:
+                                                appState.closePlaymateProfile,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.dogsOfThisUser,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          if (targetUserId !=
+                                              appState.currentUserId) ...[
+                                            const SizedBox(width: 10),
+                                            _PlaymateFollowButton(
+                                              targetUserId: targetUserId,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _PlaymateFollowStatsRow(
+                                        targetUserId: targetUserId,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      if (userDogs.isEmpty)
+                                        Text(
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.noDogsFound,
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        )
+                                      else
+                                        ...userDogs.map(
+                                          (dog) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 14,
+                                            ),
+                                            child: DogCard(
+                                              dog: dog,
+                                              mode: DogCardMode.playdate,
+                                              allDogs: appState.allDogs,
+                                              currentUserId:
+                                                  appState.currentUserId ?? '',
+                                              favoriteDogs:
+                                                  appState.favoriteDogs,
+                                              onToggleFavorite:
+                                                  appState.toggleFavorite,
+                                              likers:
+                                                  appState.dogLikes[dog.id] ??
+                                                  [],
+                                              enableEdit: false,
                                             ),
                                           ),
                                         ),
-                                        if (targetUserId !=
-                                            appState.currentUserId) ...[
-                                          const SizedBox(width: 10),
-                                          _PlaymateFollowButton(
-                                            targetUserId: targetUserId,
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _PlaymateFollowStatsRow(
-                                      targetUserId: targetUserId,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    if (userDogs.isEmpty)
-                                      Text(
-                                        AppLocalizations.of(
-                                          context,
-                                        )!.noDogsFound,
-                                        style: TextStyle(color: Colors.white70),
-                                      )
-                                    else
-                                      ...userDogs.map(
-                                        (dog) => Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 14,
-                                          ),
-                                          child: DogCard(
-                                            dog: dog,
-                                            mode: DogCardMode.playdate,
-                                            allDogs: appState.allDogs,
-                                            currentUserId:
-                                                appState.currentUserId ?? '',
-                                            favoriteDogs: appState.favoriteDogs,
-                                            onToggleFavorite:
-                                                appState.toggleFavorite,
-                                            likers:
-                                                appState.dogLikes[dog.id] ?? [],
-                                            enableEdit: false,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
                               ),
                             ),
                           ),
@@ -822,19 +835,18 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                     if (!isOpen) return const SizedBox.shrink();
 
                     final appState = context.read<AppState>();
- debugPrint("🔥 BARKY OVERLAY BUILD");
+                    debugPrint("🔥 BARKY OVERLAY BUILD");
                     return Positioned.fill(
                       child: Material(
                         color: const Color(0xFF120914),
                         child: Stack(
                           children: [
-                            
-                           UpgradePage(
-  onClose: () {
-    debugPrint("🔥 BARKY onClose");
-    appState.closeUpgradePage();
-  },
-),
+                            UpgradePage(
+                              onClose: () {
+                                debugPrint("🔥 BARKY onClose");
+                                appState.closeUpgradePage();
+                              },
+                            ),
                             SafeArea(
                               child: Align(
                                 alignment: Alignment.topLeft,
@@ -874,6 +886,8 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
         return AppLocalizations.of(context)!.favoritesNavItem;
       case NavTab.vet:
         return AppLocalizations.of(context)!.vetTitle;
+      case NavTab.petShop:
+        return AppLocalizations.of(context)!.petShopsTitle;
       case NavTab.groomy:
         return AppLocalizations.of(context)!.groomyTitle;
       case NavTab.petHotel:

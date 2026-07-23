@@ -1092,26 +1092,26 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _openFilterPage() async {
-  final appState = context.read<app.AppState>();
+    final appState = context.read<app.AppState>();
 
-  final filters = await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => FilterPage(
-        dogsList: appState.allDogs,
-        selectedBreed: selectedBreed,
-        selectedGender: selectedGender,
-        ageRange: ageRange ?? const RangeValues(0, 15),
-        maxDistance: _maxDistance,
-        isPremium: _isPremium,
+    final filters = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FilterPage(
+          dogsList: appState.allDogs,
+          selectedBreed: selectedBreed,
+          selectedGender: selectedGender,
+          ageRange: ageRange ?? const RangeValues(0, 15),
+          maxDistance: _maxDistance,
+          isPremium: _isPremium,
+        ),
       ),
-    ),
-  );
+    );
 
-  if (filters != null) {
-    await _applyFiltersAsync(filters: filters);
+    if (filters != null) {
+      await _applyFiltersAsync(filters: filters);
+    }
   }
-}
 
   @override
   void dispose() {
@@ -1389,7 +1389,30 @@ class _HomePageState extends State<HomePage>
                   imageAlignment: Alignment.centerRight,
                   textAlignment: Alignment.topLeft,
                   onTap: () {
-                    appState.setCurrentTab(NavTab.favorites);
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: Text(l.homeLocationNeededTitle),
+                        content: Text(l.petShopLocationNeededMessage),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(l.cancel),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await requestLocationFromUser();
+                              if (!mounted) return;
+                              context.read<app.AppState>().setCurrentTab(
+                                NavTab.petShop,
+                              );
+                            },
+                            child: Text(l.homeAllowButton),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 ),
               ),

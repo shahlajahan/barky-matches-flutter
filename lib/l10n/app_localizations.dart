@@ -64,7 +64,8 @@ import 'app_localizations_tr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -72,7 +73,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -84,19 +86,20 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('fa'),
     Locale('ru'),
-    Locale('tr')
+    Locale('tr'),
   ];
 
   /// Message shown when user is not logged in and is redirected to login page
@@ -2449,7 +2452,10 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{requesterDog} wants to play with {requestedDog}!'**
-  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog);
+  String playdateRequestNotificationBody(
+    Object requesterDog,
+    Object requestedDog,
+  );
 
   /// Success message for creating request
   ///
@@ -3102,7 +3108,7 @@ abstract class AppLocalizations {
   /// Locked breed hint for non-Gold users
   ///
   /// In en, this message translates to:
-  /// **'Breed (Gold)'**
+  /// **'Breed (PetSupo Partner)'**
   String get playmateBreedPremiumHint;
 
   /// Locked owner gender hint for non-Premium users
@@ -3637,7 +3643,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Play date scheduled for {day}/{month}/{year} at {time}!'**
-  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time);
+  String dogViewPlayDateScheduled(
+    Object day,
+    Object month,
+    Object year,
+    Object time,
+  );
 
   /// Success message for sending adoption request in dog view
   ///
@@ -5058,7 +5069,7 @@ abstract class AppLocalizations {
   /// No description provided for @goldLabel.
   ///
   /// In en, this message translates to:
-  /// **'Gold'**
+  /// **'PetSupo Partner'**
   String get goldLabel;
 
   /// No description provided for @discountOff.
@@ -5352,7 +5363,7 @@ abstract class AppLocalizations {
   /// No description provided for @vetDealDesc.
   ///
   /// In en, this message translates to:
-  /// **'Gold members: free checkup'**
+  /// **'PetSupo Partner members: free checkup'**
   String get vetDealDesc;
 
   /// CTA label for opening WhatsApp for an offer
@@ -6342,13 +6353,13 @@ abstract class AppLocalizations {
   /// No description provided for @userProfileUpgradeBusinessDescription.
   ///
   /// In en, this message translates to:
-  /// **'Upgrade to Gold to register your business and start receiving customers.'**
+  /// **'Upgrade to PetSupo Partner to register your business and start receiving customers.'**
   String get userProfileUpgradeBusinessDescription;
 
   /// No description provided for @userProfileUpgradeToGold.
   ///
   /// In en, this message translates to:
-  /// **'Upgrade to Gold'**
+  /// **'Upgrade to PetSupo Partner'**
   String get userProfileUpgradeToGold;
 
   /// No description provided for @userProfileManageAdoptionCenter.
@@ -6438,7 +6449,7 @@ abstract class AppLocalizations {
   /// No description provided for @userProfileUpgradeToGoldToContinue.
   ///
   /// In en, this message translates to:
-  /// **'Upgrade to Gold to continue'**
+  /// **'Upgrade to PetSupo Partner to continue'**
   String get userProfileUpgradeToGoldToContinue;
 
   /// No description provided for @userProfileReApply.
@@ -7608,7 +7619,7 @@ abstract class AppLocalizations {
   /// No description provided for @goldPlanSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'For pet businesses and power users'**
+  /// **'For pet-care professionals and businesses'**
   String get goldPlanSubtitle;
 
   /// No description provided for @mostPopularLabel.
@@ -8647,7 +8658,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} by {brand} is a useful accessory in the {subCategory} category.'**
-  String smartDescriptionAccessories(Object brand, Object name, Object subCategory);
+  String smartDescriptionAccessories(
+    Object brand,
+    Object name,
+    Object subCategory,
+  );
 
   /// No description provided for @smartDescriptionHealth.
   ///
@@ -9998,9 +10013,256 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Veterinary'**
   String get vetWebVeterinaryLabel;
+
+  /// No description provided for @petShopsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Shops'**
+  String get petShopsTitle;
+
+  /// No description provided for @searchPetShopsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search pet shops'**
+  String get searchPetShopsHint;
+
+  /// No description provided for @noPetShopsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No pet shops found'**
+  String get noPetShopsFound;
+
+  /// No description provided for @noPetShopsFoundDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another search or check again later.'**
+  String get noPetShopsFoundDescription;
+
+  /// No description provided for @loadingPetShops.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding pet shops near you…'**
+  String get loadingPetShops;
+
+  /// No description provided for @petShopsLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet shops could not be loaded. Please try again.'**
+  String get petShopsLoadError;
+
+  /// No description provided for @retryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retryButton;
+
+  /// No description provided for @shopInformationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop information'**
+  String get shopInformationTitle;
+
+  /// No description provided for @noShopDescriptionAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No shop description is available.'**
+  String get noShopDescriptionAvailable;
+
+  /// No description provided for @locationNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Location not available'**
+  String get locationNotAvailable;
+
+  /// No description provided for @getDirectionsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Get directions'**
+  String get getDirectionsLabel;
+
+  /// No description provided for @connectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get connectLabel;
+
+  /// No description provided for @callLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Call'**
+  String get callLabel;
+
+  /// No description provided for @whatsappLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp'**
+  String get whatsappLabel;
+
+  /// No description provided for @websiteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get websiteLabel;
+
+  /// No description provided for @signInToContactShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to contact this shop.'**
+  String get signInToContactShop;
+
+  /// No description provided for @petShopUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop unavailable'**
+  String get petShopUnavailable;
+
+  /// No description provided for @petShopUnavailableDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This pet shop is no longer available.'**
+  String get petShopUnavailableDescription;
+
+  /// No description provided for @reviewsCouldNotBeLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews could not be loaded.'**
+  String get reviewsCouldNotBeLoaded;
+
+  /// No description provided for @noProductsAvailableFromShop.
+  ///
+  /// In en, this message translates to:
+  /// **'No products available from this shop'**
+  String get noProductsAvailableFromShop;
+
+  /// No description provided for @petShopLocationNeededMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'We use your location to show nearby pet shops'**
+  String get petShopLocationNeededMessage;
+
+  /// No description provided for @infoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get infoTitle;
+
+  /// No description provided for @processTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Process'**
+  String get processTitle;
+
+  /// No description provided for @categoriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get categoriesTitle;
+
+  /// No description provided for @contactTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact'**
+  String get contactTitle;
+
+  /// No description provided for @openFullProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Open full profile'**
+  String get openFullProfile;
+
+  /// No description provided for @noShopCategoriesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No shop categories are available.'**
+  String get noShopCategoriesAvailable;
+
+  /// No description provided for @browseShopProductsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse products available from this pet shop.'**
+  String get browseShopProductsDescription;
+
+  /// No description provided for @viewAllProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'View all products'**
+  String get viewAllProducts;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @continueWithApple.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Apple'**
+  String get continueWithApple;
+
+  /// No description provided for @orContinueWith.
+  ///
+  /// In en, this message translates to:
+  /// **'or continue with'**
+  String get orContinueWith;
+
+  /// No description provided for @authenticationCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication cancelled'**
+  String get authenticationCancelled;
+
+  /// No description provided for @unableToSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to sign in'**
+  String get unableToSignIn;
+
+  /// No description provided for @emailRegisteredWithAnotherProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'This email is already registered with another sign-in method'**
+  String get emailRegisteredWithAnotherProvider;
+
+  /// No description provided for @completeYourProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete your profile'**
+  String get completeYourProfile;
+
+  /// No description provided for @cityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get cityLabel;
+
+  /// No description provided for @districtLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'District'**
+  String get districtLabel;
+
+  /// No description provided for @cityRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your city'**
+  String get cityRequired;
+
+  /// No description provided for @districtRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your district'**
+  String get districtRequired;
+
+  /// No description provided for @continueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueLabel;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -10009,27 +10271,30 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en': return AppLocalizationsEn();
-    case 'fa': return AppLocalizationsFa();
-    case 'ru': return AppLocalizationsRu();
-    case 'tr': return AppLocalizationsTr();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'fa':
+      return AppLocalizationsFa();
+    case 'ru':
+      return AppLocalizationsRu();
+    case 'tr':
+      return AppLocalizationsTr();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }

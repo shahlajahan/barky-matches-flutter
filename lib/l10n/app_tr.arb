@@ -38,7 +38,7 @@
   "checkoutDeliveryAddressTitle": "Teslimat Adresi",
   "checkoutFullNameLabel": "Ad Soyad",
   "checkoutFullNameHint": "Ad Soyad",
-  "checkoutPhoneHint": "5XXXXXXXXX",
+  "checkoutPhoneHint": "5XXXXXXXXX biçiminde telefon",
   "checkoutCityLabel": "Şehir",
   "checkoutCityHint": "İstanbul",
   "checkoutDistrictLabel": "İlçe",
@@ -56,7 +56,7 @@
   "checkoutTaxOfficeLabel": "Vergi Dairesi",
   "checkoutCargoUpdatesTitle": "Fatura ve Kargo Güncellemeleri",
   "checkoutCargoUpdatesQuestion": "Fatura ve kargo takip güncellemelerini nasıl gönderelim?",
-  "checkoutSmsOption": "SMS",
+  "checkoutSmsOption": "Kısa mesaj (SMS)",
   "checkoutEmailOption": "E-posta",
   "checkoutSmsEmailOption": "SMS + E-posta",
   "checkoutAgreementsTitle": "Sözleşmeler",
@@ -132,7 +132,7 @@
   "requestAppointment": "Randevu Talep Et",
   "requestSentTitle": "İstek Gönderildi 🐾",
   "requestSentMessage": "Randevu talebiniz kliniğe gönderildi.",
-  "okButton": "OK",
+  "okButton": "Tamam",
   "somethingWentWrong": "Bir şeyler ters gitti",
   "alreadyBookedAtThisTime": "Bu saatte zaten bir rezervasyonunuz var. Lütfen başka bir saat seçin.",
   "invalidBookingData": "Geçersiz rezervasyon verisi. Lütfen tekrar deneyin.",
@@ -147,7 +147,7 @@
   "aboutTitle": "Hakkında",
   "workingHoursTitle": "Çalışma Saatleri",
   "locationTitle": "Konum",
-  "instagramTitle": "Instagram",
+  "instagramTitle": "Instagram Sayfası",
   "noClinicDescriptionAvailable": "Klinik açıklaması mevcut değil.",
   "instagramNotAvailable": "Instagram mevcut değil.",
   "workingHoursNotAvailable": "Çalışma saatleri mevcut değil",
@@ -240,7 +240,7 @@
   "noDogsAddedYet": "Henüz köpek eklenmedi.",
   "@noDogsAddedYet": { "description": "Kullanıcı tarafından köpek eklenmediğinde mesaj" },
 
-  "appTitle": "PetSupo",
+  "appTitle": "PetSupo Uygulaması",
   "@appTitle": { "description": "Uygulama başlığı" },
 
   "loadingUserData": "Kullanıcı verileri yükleniyor...",
@@ -713,13 +713,13 @@
   "genderOther": "Diğer",
   "@genderOther": { "description": "Diğer cinsiyet için etiket" },
 
-  "breedPersian": "Persian",
+  "breedPersian": "İran Kedisi",
   "@breedPersian": { "description": "Persian kedi ırkı seçeneği" },
   "breedSiamese": "Siyam",
   "@breedSiamese": { "description": "Siyam kedi ırkı seçeneği" },
-  "breedMaineCoon": "Maine Coon",
+  "breedMaineCoon": "Maine Coon Kedisi",
   "@breedMaineCoon": { "description": "Maine Coon kedi ırkı seçeneği" },
-  "breedBritishShorthair": "British Shorthair",
+  "breedBritishShorthair": "Britanya Kısa Tüylüsü",
   "@breedBritishShorthair": { "description": "British Shorthair kedi ırkı seçeneği" },
   "breedParrot": "Papağan",
   "@breedParrot": { "description": "Papağan ırkı seçeneği" },
@@ -731,7 +731,7 @@
   "@breedArabian": { "description": "Arap atı ırkı seçeneği" },
   "breedThoroughbred": "Safkan",
   "@breedThoroughbred": { "description": "Safkan at ırkı seçeneği" },
-  "breedMustang": "Mustang",
+  "breedMustang": "Mustang Atı",
   "@breedMustang": { "description": "Mustang at ırkı seçeneği" },
 
   "filterByBreed": "Irka Göre Filtrele",
@@ -812,10 +812,10 @@
   "quickLocations": "Hızlı Konumlar",
   "@quickLocations": { "description": "Hızlı konum seçenekleri için etiket" },
 
-  "parkA": "Park A",
+  "parkA": "A Parkı",
   "@parkA": { "description": "Park A konumu için etiket" },
 
-  "parkB": "Park B",
+  "parkB": "B Parkı",
   "@parkB": { "description": "Park B konumu için etiket" },
 
   "confirm": "Onayla",
@@ -873,12 +873,12 @@
   "bookGrooming": "Bakım randevusu al",
   "pamperYourPet": "Dostunuzu şımartın",
 
-  "petShopTitle": "Pet Shop",
+  "petShopTitle": "Evcil Hayvan Mağazası",
   "shopNearYou": "Yakındaki ürünleri keşfet",
 
   "featuredDeal": "Öne Çıkan Fırsat",
-  "premiumLabel": "Premium",
-  "goldLabel": "Gold",
+  "premiumLabel": "Ayrıcalıklı",
+  "goldLabel": "PetSupo Partner",
 
   "discountOff": "%{percent} İndirim",
   "@discountOff": {
@@ -943,12 +943,12 @@
   "homeSponsoredLabel": "Sponsorlu",
   "homeShopButton": "Mağaza",
 
-  "petShopDealName": "Pet Shop A",
+  "petShopDealName": "Pet Shop A Fırsatı",
   "petShopDealDesc": "Tüm mamalarda %15 indirim",
-  "groomyDealName": "Groomy Studio",
+  "groomyDealName": "Groomy Stüdyosu",
   "groomyDealDesc": "Bu hafta bakımda %20 indirim",
-  "vetDealName": "VetPlus",
- "vetDealDesc": "Gold üyeler için ücretsiz kontrol",
+  "vetDealName": "VetPlus Fırsatı",
+ "vetDealDesc": "PetSupo Partner üyelerine ücretsiz kontrol",
 
   "removedFromFavorites": "{dogName} favorilerden kaldırıldı!",
   "@removedFromFavorites": { "description": "Köpek favorilerden kaldırıldığında mesaj", "placeholders": { "dogName": {} } },
@@ -1241,7 +1241,7 @@
   "playmateFiltersTitle": "Filtreler",
   "@playmateFiltersTitle": { "description": "Oyun arkadaşı filtreler katmanı başlığı" },
 
-  "playmateBreedPremiumHint": "Irk (Gold)",
+  "playmateBreedPremiumHint": "Irk (PetSupo Partner)",
   "@playmateBreedPremiumHint": { "description": "Gold olmayan kullanıcılar için kilitli ırk ipucu" },
 
   "playmateOwnerGenderPremiumHint": "Sahip Cinsiyeti (Premium)",
@@ -1392,7 +1392,7 @@
   "@dogParkPermissionRequired": { "description": "Köpek parkları için konum izni gerektiğini belirten mesaj" },
 
   "dogParkRecommendedBadge": "⭐ Önerilen",
-  "dogParkPremiumBadge": "🔒 Premium",
+  "dogParkPremiumBadge": "🔒 Ayrıcalıklı",
   "dogParkSavedBadge": "❤️ Kaydedildi",
   "dogParkRecommendedForPlaydates": "Oyun buluşmaları için önerilir",
   "dogParkSavedToFavorites": "Favorilere kaydedildi",
@@ -1459,7 +1459,7 @@
   "dogViewLikeTooltip": "Beğen",
   "@dogViewLikeTooltip": { "description": "Köpek görünümünde beğen düğmesi için araç ipucu" },
 
-  "dogViewDislikeTooltip": "Dislike",
+  "dogViewDislikeTooltip": "Beğenme",
   "@dogViewDislikeTooltip": { "description": "Köpek görünümünde dislike düğmesi için araç ipucu" },
 
   "dogViewAddFavoriteTooltip": "Favorilere Ekle",
@@ -1489,19 +1489,19 @@
   "boostVisibilityDescription": "Playmates keşfinde daha fazla görünürlük elde edin.",
   "boost24HoursTitle": "24 Saatlik Boost",
   "boostQuickVisibilitySubtitle": "Hızlı görünürlük için iyi",
-  "boostPrice29": "₺29",
+  "boostPrice29": "29 ₺",
   "boost3DaysTitle": "3 Günlük Boost",
   "boostBetterExposureSubtitle": "Aktif keşif için daha iyi görünürlük",
-  "boostPrice69": "₺69",
+  "boostPrice69": "69 ₺",
   "boost7DaysTitle": "7 Günlük Boost",
   "boostBestValueSubtitle": "Maksimum erişim için en iyi değer",
-  "boostPrice129": "₺129",
+  "boostPrice129": "129 ₺",
   "boostActivated": "Boost etkinleştirildi 🚀",
   "boostFailed": "Boost başarısız: {error}",
   "@boostFailed": { "placeholders": { "error": {} } },
   "errorOpeningEdit": "Düzenleme açılırken hata oluştu",
-  "boostBadge": "BOOSTED",
-  "boostButton": "Boost",
+  "boostBadge": "ÖNE ÇIKARILDI",
+  "boostButton": "Öne Çıkar",
   "blockComingSoon": "Engelleme yakında geliyor",
   "blockMenuItem": "Kullanıcıyı Engelle",
   "sendAdoptionRequest": "Sahiplenme Talebi Gönder",
@@ -1545,7 +1545,7 @@
   "dogInfoLikeTooltip": "Beğen",
   "@dogInfoLikeTooltip": { "description": "Bilgi sayfasında beğen düğmesi için araç ipucu" },
 
-  "dogInfoDislikeTooltip": "Dislike",
+  "dogInfoDislikeTooltip": "Beğenme",
   "@dogInfoDislikeTooltip": { "description": "Bilgi sayfasında dislike düğmesi için araç ipucu" },
 
   "dogInfoChatTooltip": "Sohbet",
@@ -1674,10 +1674,10 @@
   "breedAfghanHound": "Afgan Tazısı",
   "@breedAfghanHound": { "description": "Afgan Tazısı için ırk etiketi" },
 
-  "breedAiredaleTerrier": "Airedale Terrier",
+  "breedAiredaleTerrier": "Airedale Teriyeri",
   "@breedAiredaleTerrier": { "description": "Airedale Terrier için ırk etiketi" },
 
-  "breedAkita": "Akita",
+  "breedAkita": "Akita Köpeği",
   "@breedAkita": { "description": "Akita için ırk etiketi" },
 
   "breedAlaskanMalamute": "Alaska Malamutu",
@@ -1695,10 +1695,10 @@
   "breedAustralianShepherd": "Avustralya Çoban Köpeği",
   "@breedAustralianShepherd": { "description": "Avustralya Çoban Köpeği için ırk etiketi" },
 
-  "breedBassetHound": "Basset Hound",
+  "breedBassetHound": "Basset Tazısı",
   "@breedBassetHound": { "description": "Basset Hound için ırk etiketi" },
 
-  "breedBeagle": "Beagle",
+  "breedBeagle": "Bigıl",
   "@breedBeagle": { "description": "Beagle için ırk etiketi" },
 
   "breedBelgianMalinois": "Belçika Malinois",
@@ -1707,55 +1707,55 @@
   "breedBerneseMountainDog": "Bernese Dağ Köpeği",
   "@breedBerneseMountainDog": { "description": "Bernese Dağ Köpeği için ırk etiketi" },
 
-  "breedBichonFrise": "Bichon Frise",
+  "breedBichonFrise": "Bişon Frize",
   "@breedBichonFrise": { "description": "Bichon Frise için ırk etiketi" },
 
-  "breedBloodhound": "Bloodhound",
+  "breedBloodhound": "Kan Tazısı",
   "@breedBloodhound": { "description": "Bloodhound için ırk etiketi" },
 
-  "breedBorderCollie": "Border Collie",
+  "breedBorderCollie": "Sınır Kolisi",
   "@breedBorderCollie": { "description": "Border Collie için ırk etiketi" },
 
-  "breedBostonTerrier": "Boston Terrier",
+  "breedBostonTerrier": "Boston Teriyeri",
   "@breedBostonTerrier": { "description": "Boston Terrier için ırk etiketi" },
 
-  "breedBoxer": "Boxer",
+  "breedBoxer": "Boksör",
   "@breedBoxer": { "description": "Boxer için ırk etiketi" },
 
-  "breedBulldog": "Bulldog",
+  "breedBulldog": "Buldozer Köpeği",
   "@breedBulldog": { "description": "Bulldog için ırk etiketi" },
 
-  "breedBullmastiff": "Bullmastiff",
+  "breedBullmastiff": "Bullmastif",
   "@breedBullmastiff": { "description": "Bullmastiff için ırk etiketi" },
 
-  "breedCairnTerrier": "Cairn Terrier",
+  "breedCairnTerrier": "Cairn Teriyeri",
   "@breedCairnTerrier": { "description": "Cairn Terrier için ırk etiketi" },
 
-  "breedCaneCorso": "Cane Corso",
+  "breedCaneCorso": "İtalyan Cane Corso",
   "@breedCaneCorso": { "description": "Cane Corso için ırk etiketi" },
 
-  "breedCavalierKingCharlesSpaniel": "Cavalier King Charles Spaniel",
+  "breedCavalierKingCharlesSpaniel": "Cavalier King Charles Spanyeli",
   "@breedCavalierKingCharlesSpaniel": { "description": "Cavalier King Charles Spaniel için ırk etiketi" },
 
-  "breedChihuahua": "Chihuahua",
+  "breedChihuahua": "Şivava",
   "@breedChihuahua": { "description": "Chihuahua için ırk etiketi" },
 
-  "breedChowChow": "Chow Chow",
+  "breedChowChow": "Çov Çov",
   "@breedChowChow": { "description": "Chow Chow için ırk etiketi" },
 
-  "breedCockerSpaniel": "Cocker Spaniel",
+  "breedCockerSpaniel": "Cocker Spanyel",
   "@breedCockerSpaniel": { "description": "Cocker Spaniel için ırk etiketi" },
 
-  "breedCollie": "Collie",
+  "breedCollie": "Koli Çoban Köpeği",
   "@breedCollie": { "description": "Collie için ırk etiketi" },
 
-  "breedDachshund": "Dachshund",
+  "breedDachshund": "Dakhund",
   "@breedDachshund": { "description": "Dachshund için ırk etiketi" },
 
   "breedDalmatian": "Dalmaçyalı",
   "@breedDalmatian": { "description": "Dalmaçyalı için ırk etiketi" },
 
-  "breedDobermanPinscher": "Doberman Pinscher",
+  "breedDobermanPinscher": "Doberman Pinşer",
   "@breedDobermanPinscher": { "description": "Doberman Pinscher için ırk etiketi" },
 
   "breedEnglishSpringerSpaniel": "İngiliz Springer Spaniel",
@@ -1770,7 +1770,7 @@
   "breedGermanShorthairedPointer": "Alman Kısasakal Pointer",
   "@breedGermanShorthairedPointer": { "description": "Alman Kısasakal Pointer için ırk etiketi" },
 
-  "breedGoldenRetriever": "Golden Retriever",
+  "breedGoldenRetriever": "Golden Getirici",
   "@breedGoldenRetriever": { "description": "Golden Retriever için ırk etiketi" },
 
   "breedGreatDane": "Büyük Dane",
@@ -1779,7 +1779,7 @@
   "breedGreatPyrenees": "Büyük Pirene",
   "@breedGreatPyrenees": { "description": "Büyük Pirene için ırk etiketi" },
 
-  "breedHavanese": "Havanese",
+  "breedHavanese": "Havana Bişonu",
   "@breedHavanese": { "description": "Havanese için ırk etiketi" },
 
   "breedIrishSetter": "İrlanda Setter",
@@ -1788,73 +1788,73 @@
   "breedIrishWolfhound": "İrlanda Kurt Köpeği",
   "@breedIrishWolfhound": { "description": "İrlanda Kurt Köpeği için ırk etiketi" },
 
-  "breedJackRussellTerrier": "Jack Russell Terrier",
+  "breedJackRussellTerrier": "Jack Russell Teriyeri",
   "@breedJackRussellTerrier": { "description": "Jack Russell Terrier için ırk etiketi" },
 
-  "breedLabradorRetriever": "Labrador Retriever",
+  "breedLabradorRetriever": "Labrador Getirici",
   "@breedLabradorRetriever": { "description": "Labrador Retriever için ırk etiketi" },
 
-  "breedLhasaApso": "Lhasa Apso",
+  "breedLhasaApso": "Lhasa Apso Köpeği",
   "@breedLhasaApso": { "description": "Lhasa Apso için ırk etiketi" },
 
   "breedMaltese": "Malta Köpeği",
   "@breedMaltese": { "description": "Malta Köpeği için ırk etiketi" },
 
-  "breedMastiff": "Mastiff",
+  "breedMastiff": "Mastif",
   "@breedMastiff": { "description": "Mastiff için ırk etiketi" },
 
   "breedMiniatureSchnauzer": "Minik Schnauzer",
   "@breedMiniatureSchnauzer": { "description": "Minik Schnauzer için ırk etiketi" },
 
-  "breedNewfoundland": "Newfoundland",
+  "breedNewfoundland": "Newfoundland Köpeği",
   "@breedNewfoundland": { "description": "Newfoundland için ırk etiketi" },
 
-  "breedPapillon": "Papillon",
+  "breedPapillon": "Papillon Köpeği",
   "@breedPapillon": { "description": "Papillon için ırk etiketi" },
 
   "breedPekingese": "Pekinez",
   "@breedPekingese": { "description": "Pekinez için ırk etiketi" },
 
-  "breedPomeranian": "Pomeranian",
+  "breedPomeranian": "Pomeranya Köpeği",
   "@breedPomeranian": { "description": "Pomeranian için ırk etiketi" },
 
   "breedPoodle": "Kaniş",
   "@breedPoodle": { "description": "Kaniş için ırk etiketi" },
 
-  "breedPug": "Pug",
+  "breedPug": "Mops",
   "@breedPug": { "description": "Pug için ırk etiketi" },
 
-  "breedRottweiler": "Rottweiler",
+  "breedRottweiler": "Rotvayler",
   "@breedRottweiler": { "description": "Rottweiler için ırk etiketi" },
 
-  "breedSaintBernard": "Saint Bernard",
+  "breedSaintBernard": "Sen Bernar",
   "@breedSaintBernard": { "description": "Saint Bernard için ırk etiketi" },
 
-  "breedSamoyed": "Samoyed",
+  "breedSamoyed": "Samoyed Köpeği",
   "@breedSamoyed": { "description": "Samoyed için ırk etiketi" },
 
   "breedShetlandSheepdog": "Shetland Çoban Köpeği",
   "@breedShetlandSheepdog": { "description": "Shetland Çoban Köpeği için ırk etiketi" },
 
-  "breedShihTzu": "Shih Tzu",
+  "breedShihTzu": "Şih Tzu",
   "@breedShihTzu": { "description": "Shih Tzu için ırk etiketi" },
 
   "breedSiberianHusky": "Sibirya Kurdu",
   "@breedSiberianHusky": { "description": "Sibirya Kurdu için ırk etiketi" },
 
-  "breedStaffordshireBullTerrier": "Staffordshire Bull Terrier",
+  "breedStaffordshireBullTerrier": "Staffordshire Bull Teriyeri",
   "@breedStaffordshireBullTerrier": { "description": "Staffordshire Bull Terrier için ırk etiketi" },
 
-  "breedVizsla": "Vizsla",
+  "breedVizsla": "Macar Vizslası",
   "@breedVizsla": { "description": "Vizsla için ırk etiketi" },
 
-  "breedWeimaraner": "Weimaraner",
+  "breedWeimaraner": "Weimar Av Köpeği",
   "@breedWeimaraner": { "description": "Weimaraner için ırk etiketi" },
 
   "breedWestHighlandWhiteTerrier": "Batı Highland Beyaz Terrier",
   "@breedWestHighlandWhiteTerrier": { "description": "Batı Highland Beyaz Terrier için ırk etiketi" },
 
-  "breedYorkshireTerrier": "Yorkshire Terrier",
+  "breedYorkshireTerrier": "Yorkshire Teriyeri",
   "@breedYorkshireTerrier": { "description": "Yorkshire Terrier için ırk etiketi" },
 
   "settings": "Ayarlar",
@@ -1947,7 +1947,7 @@
   "removeDislike": "Dislike'ı Kaldır",
   "@removeDislike": { "description": "Dislike kaldırma için araç ipucu" },
 
-  "dislike": "Dislike",
+  "dislike": "Beğenme",
   "@dislike": { "description": "Köpeği dislike etme için araç ipucu" },
 
   "errorTogglingDislike": "Dislike değiştirme hatası: {error}",
@@ -2051,7 +2051,7 @@
   "offerHotDeal": "🔥 Fırsat",
   "@offerHotDeal": { "description": "Sponsorlu teklifler için rozet metni" },
 
-  "offerPremiumBadge": "Premium",
+  "offerPremiumBadge": "Ayrıcalıklı",
   "@offerPremiumBadge": { "description": "Sadece premium teklifler için rozet metni" },
 
   "offerFallbackTitle": "PetSupo kullanıcılarına özel teklif",
@@ -2093,10 +2093,10 @@
   "offerOpenWebsite": "Web Sitesini Aç",
   "@offerOpenWebsite": { "description": "Teklif web sitesini açma CTA etiketi" },
 
-  "offerInstagram": "Instagram",
+  "offerInstagram": "Instagram'da Aç",
   "@offerInstagram": { "description": "Teklif için Instagram açma CTA etiketi" },
 
-  "offerWhatsApp": "WhatsApp",
+  "offerWhatsApp": "WhatsApp'ta Aç",
   "@offerWhatsApp": { "description": "Teklif için WhatsApp açma CTA etiketi" },
 
   "offerCodeCopied": "Kod kopyalandı: {code}",
@@ -2175,8 +2175,8 @@
   "businessRegisterPickLocation": "Konum Seç",
   "businessRegisterLocationSelected": "Konum seçildi",
   "businessRegisterTaxPlate": "Vergi Levhası",
-  "businessRegisterTradeRegistryGazette": "Ticaret Sicil Gazetesi",
-  "businessRegisterAuthorizedSignatureDocument": "Yetkili İmza Belgesi",
+  "businessRegisterTradeRegistryGazette": "Ticaret Sicili Gazetesi",
+  "businessRegisterAuthorizedSignatureDocument": "Yetkili İmza Evrakı",
   "businessRegisterTaxNumberVkn": "Vergi Numarası (VKN)",
   "businessRegisterAutoFilledFromDocument": "Belgeden otomatik dolduruldu",
   "businessRegisterDocumentVerificationInconsistencies": "Belge doğrulamasında tutarsızlıklar var. Yönetici incelemesi gerekiyor.",
@@ -2198,7 +2198,7 @@
   "businessRegisterDocumentVerifiedSuccessfully": "Belge başarıyla doğrulandı",
   "businessRegisterCouldNotReadDocument": "Belge okunamadı, lütfen tekrar yükleyin",
   "businessRegisterVeterinary": "Veteriner",
-  "businessRegisterGroomy": "Groomy",
+  "businessRegisterGroomy": "Groomy Kuaför",
   "businessRegisterStepOfFour": "4 adımdan {step}. adım",
   "businessRegisterLegalConfirmation": "Yasal Onay",
   "businessRegisterAcceptTermsKvkk": "Platform Şartları'nı ve KVKK Aydınlatma Metni'ni kabul ediyorum.",
@@ -2251,7 +2251,7 @@
   "dogTypeLabel": "köpek",
   "userProfileAdoptionRequests": "Sahiplenme Talepleri",
   "userProfileBusiness": "İşletme",
-  "userProfileAdmin": "Admin",
+  "userProfileAdmin": "Yönetici",
   "userProfileSupport": "Destek",
   "userProfileSendFeedback": "Geri Bildirim Gönder",
   "userProfileHelpCenter": "Yardım Merkezi",
@@ -2268,8 +2268,8 @@
   "userProfileLanguagePersian": "Farsça",
   "userProfileLanguageTurkish": "Türkçe",
   "userProfileUnlockBusinessFeatures": "İşletme Özelliklerini Aç 🚀",
-  "userProfileUpgradeBusinessDescription": "İşletmenizi kaydetmek ve müşteri almaya başlamak için Gold'a yükseltin.",
-  "userProfileUpgradeToGold": "Gold'a Yükselt",
+  "userProfileUpgradeBusinessDescription": "İşletmenizi kaydetmek ve müşteri almaya başlamak için PetSupo Partner'a yükseltin.",
+  "userProfileUpgradeToGold": "PetSupo Partner'a Yükselt",
   "userProfileManageAdoptionCenter": "Sahiplenme Merkezini Yönet",
   "userProfileOverview": "Genel Bakış",
   "userProfileDogs": "Köpekler",
@@ -2285,7 +2285,7 @@
   "userProfileApplicationRejected": "Başvuru Reddedildi",
   "userProfileRejectionReason": "Neden: {reason}",
   "@userProfileRejectionReason": { "placeholders": { "reason": {} } },
-  "userProfileUpgradeToGoldToContinue": "Devam etmek için Gold'a yükseltin",
+  "userProfileUpgradeToGoldToContinue": "Devam etmek için PetSupo Partner'a yükseltin",
   "userProfileReApply": "Yeniden Başvur",
   "userProfileBusinessStatus": "İşletme Durumu",
   "userProfileUnknownStatus": "Bilinmiyor",
@@ -2308,7 +2308,7 @@
   "userProfileBioHint": "Kendinizden biraz bahsedin",
   "unnamedProduct": "Adsız Ürün",
   "barcodeLabel": "Barkod: {barcode}",
-  "skuLabel": "SKU: {sku}",
+  "skuLabel": "Stok kodu: {sku}",
   "dealBadge": "💸 İndirim",
   "lowStockBadge": "⚡ Az",
   "saveAmountLabel": "{amount} tasarruf",
@@ -2486,7 +2486,7 @@
   "premiumPlanFeatureAdvancedMatchingFilters": "Gelişmiş eşleşme filtreleri",
   "premiumPlanFeatureExclusivePetOffers": "Özel evcil hayvan teklifleri",
   "premiumPlanFeatureBetterProfileExperience": "Daha iyi profil deneyimi",
-  "goldPlanSubtitle": "Evcil hayvan işletmeleri ve yoğun kullanıcılar için",
+  "goldPlanSubtitle": "Evcil hayvan bakım uzmanları ve işletmeleri için",
   "mostPopularLabel": "EN POPÜLER",
   "goldPlanFeatureEverythingInPremium": "Premium'daki her şey",
   "goldPlanFeatureBusinessRegistrationAccess": "İşletme kaydı erişimi",
@@ -2504,7 +2504,7 @@
   "loadingLabel": "Yükleniyor...",
   "privacyPolicyLabel": "Gizlilik Politikası",
   "termsOfUseLabel": "Kullanım Şartları",
-  "adoptionRequestSubtitle": "• {dogName}",
+  "adoptionRequestSubtitle": "• Köpek: {dogName}",
   "adoptionStepPersonalInfoTitle": "1️⃣ Kişisel Bilgiler",
   "adoptionFullNameLabel": "Ad Soyad",
   "adoptionFullNameHint": "Adınızı ve soyadınızı girin",
@@ -2523,7 +2523,7 @@
   "adoptionHousingTypeLabel": "Konut tipi",
   "adoptionHousingApartment": "Daire",
   "adoptionHousingHouse": "Ev",
-  "adoptionHousingVilla": "Villa",
+  "adoptionHousingVilla": "Müstakil Villa",
   "adoptionOwnershipLabel": "Sahip / Kiralık",
   "adoptionOwnershipOwned": "Sahip",
   "adoptionOwnershipRented": "Kiralık",
@@ -2534,7 +2534,7 @@
   "adoptionEnterValidFenceHeight": "1..400 girin",
   "adoptionStepExperienceTitle": "3️⃣ Deneyim",
   "adoptionYearsOfExperienceLabel": "Deneyim yılı",
-  "adoptionYearsOfExperienceHint": "0..60",
+  "adoptionYearsOfExperienceHint": "0 ile 60 arası",
   "adoptionEnterYearsOfExperience": "0..60 girin",
   "adoptionPreviousDogQuestion": "Daha önce köpeğiniz oldu mu? (Evet/Hayır)",
   "adoptionPreviousDogReasonLabel": "Önceki köpeğiniz artık neden sizinle değil?",
@@ -2585,18 +2585,18 @@
   "marketSourceNoneLabel": "Piyasa verisi yok",
   "marketSourceInvalidPricesLabel": "Geçersiz fiyatlar",
   "marketSourceErrorLabel": "Hata",
-  "discountRate1Label": "1%",
-  "discountRate10Label": "10%",
-  "discountRate20Label": "20%",
-  "carrierYurticiKargo": "Yurtiçi Kargo",
-  "carrierArasKargo": "Aras Kargo",
-  "carrierMngKargo": "MNG Kargo",
-  "carrierSuratKargo": "Sürat Kargo",
-  "carrierPttKargo": "PTT Kargo",
-  "carrierHepsiJet": "HepsiJET",
-  "carrierKolayGelsin": "Kolay Gelsin",
-  "carrierUpsTurkiye": "UPS Türkiye",
-  "carrierDhlExpress": "DHL Express",
+  "discountRate1Label": "%1 indirim",
+  "discountRate10Label": "%10 indirim",
+  "discountRate20Label": "%20 indirim",
+  "carrierYurticiKargo": "Yurtiçi Kargo ile gönderim",
+  "carrierArasKargo": "Aras Kargo ile gönderim",
+  "carrierMngKargo": "MNG Kargo ile gönderim",
+  "carrierSuratKargo": "Sürat Kargo ile gönderim",
+  "carrierPttKargo": "PTT Kargo ile gönderim",
+  "carrierHepsiJet": "HepsiJET ile gönderim",
+  "carrierKolayGelsin": "Kolay Gelsin ile gönderim",
+  "carrierUpsTurkiye": "UPS Türkiye ile gönderim",
+  "carrierDhlExpress": "DHL Express ile gönderim",
   "categoryFood": "Yiyecek",
   "categoryAccessories": "Aksesuarlar",
   "categoryHealth": "Sağlık",
@@ -2753,7 +2753,7 @@
   "updateProductTitle": "Ürünü Güncelle",
   "sellInstantlyButtonLabel": "Hemen sat",
   "shippingEstimateTitle": "Kargo tahmini",
-  "desiLabel": "Desi: {value}",
+  "desiLabel": "Hacimsel ağırlık: {value}",
   "billableLabel": "Faturalandırılabilir: {value}",
   "basePriceLabel": "Temel: {value} {currency}",
   "extraLabel": "Ek: {value} {currency}",
@@ -2934,7 +2934,7 @@
 "vetRevenueService": "Hizmet",
 "vetRevenueGross": "Brüt",
 "vetRevenueCommission": "Komisyon",
-"vetRevenueNet": "Net",
+"vetRevenueNet": "Net Tutar",
 "vetRevenuePayment": "Ödeme",
 "vetRevenueSettlement": "Mutabakat",
 "vetRevenueInvoice": "Fatura",
@@ -2945,5 +2945,46 @@
 "vetWebOverviewSubtitle": "Klinik performansı ve operasyon özeti",
 "vetWebAppointmentsSubtitle": "Veteriner randevularını inceleyin ve yönetin",
 "vetWebRevenueSubtitle": "Doğrulanmış ödeme, komisyon ve mutabakat analizi",
-"vetWebVeterinaryLabel": "Veteriner"
+"vetWebVeterinaryLabel": "Veteriner",
+"petShopsTitle": "Evcil Hayvan Mağazaları",
+"searchPetShopsHint": "Evcil hayvan mağazalarında ara",
+"noPetShopsFound": "Evcil hayvan mağazası bulunamadı",
+"noPetShopsFoundDescription": "Başka bir arama deneyin veya daha sonra tekrar kontrol edin.",
+"loadingPetShops": "Yakınınızdaki mağazalar bulunuyor…",
+"petShopsLoadError": "Mağazalar yüklenemedi. Lütfen tekrar deneyin.",
+"retryButton": "Tekrar dene",
+"shopInformationTitle": "Mağaza bilgileri",
+"noShopDescriptionAvailable": "Mağaza açıklaması bulunmuyor.",
+"locationNotAvailable": "Konum bilgisi yok",
+"getDirectionsLabel": "Yol tarifi al",
+"connectLabel": "İletişime geç",
+"callLabel": "Ara",
+"whatsappLabel": "WhatsApp",
+"websiteLabel": "Web sitesi",
+"signInToContactShop": "Bu mağazayla iletişim kurmak için giriş yapın.",
+"petShopUnavailable": "Mağaza kullanılamıyor",
+"petShopUnavailableDescription": "Bu evcil hayvan mağazası artık kullanılamıyor.",
+"reviewsCouldNotBeLoaded": "Yorumlar yüklenemedi.",
+"noProductsAvailableFromShop": "Bu mağazada kullanılabilir ürün yok"
+,"petShopLocationNeededMessage": "Yakındaki evcil hayvan mağazalarını göstermek için konumunuzu kullanıyoruz"
+,"infoTitle": "Bilgi"
+,"processTitle": "Süreç"
+,"categoriesTitle": "Kategoriler"
+,"contactTitle": "İletişim"
+,"openFullProfile": "Tam profili aç"
+,"noShopCategoriesAvailable": "Mağaza kategorisi bulunmuyor."
+,"browseShopProductsDescription": "Bu evcil hayvan mağazasındaki ürünlere göz atın."
+,"viewAllProducts": "Tüm ürünleri görüntüle"
+,"continueWithGoogle": "Google ile devam et"
+,"continueWithApple": "Apple ile devam et"
+,"orContinueWith": "veya şununla devam et"
+,"authenticationCancelled": "Kimlik doğrulama iptal edildi"
+,"unableToSignIn": "Giriş yapılamadı"
+,"emailRegisteredWithAnotherProvider": "Bu e-posta başka bir giriş yöntemiyle kayıtlı"
+,"completeYourProfile": "Profilini tamamla"
+,"cityLabel": "Şehir"
+,"districtLabel": "İlçe"
+,"cityRequired": "Lütfen şehrinizi girin"
+,"districtRequired": "Lütfen ilçenizi girin"
+,"continueLabel": "Devam et"
 }

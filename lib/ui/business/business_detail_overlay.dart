@@ -7,6 +7,9 @@ import '../../app_state.dart';
 // ✅ NEW imports (sector-based)
 import 'sector_overlays/vet_overlay_content.dart';
 import 'sector_overlays/adoption_overlay_content.dart';
+import 'sector_overlays/pet_shop_overlay_content.dart';
+import 'package:barky_matches_fixed/ui/petshop/all_products_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'pet_hotel/pet_hotel_details_page.dart';
 
@@ -62,7 +65,8 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
     if (widget.data.type == BusinessType.vet ||
         widget.data.type == BusinessType.groomer ||
         widget.data.type == BusinessType.adoptionCenter ||
-        widget.data.type == BusinessType.petHotel) {
+        widget.data.type == BusinessType.petHotel ||
+        widget.data.type == BusinessType.petShop) {
       _tabs.add(_BusinessTab.action);
     }
 
@@ -172,19 +176,28 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
   }
 
   String _tabTitle(_BusinessTab tab) {
+    final l10n = AppLocalizations.of(context)!;
     switch (tab) {
       case _BusinessTab.info:
-        return 'Info';
+        return l10n.infoTitle;
       case _BusinessTab.services:
-        return widget.data.type == BusinessType.adoptionCenter
-            ? 'Process'
-            : 'Services';
+        if (widget.data.type == BusinessType.adoptionCenter) {
+          return l10n.processTitle;
+        }
+        if (widget.data.type == BusinessType.petShop) {
+          return l10n.categoriesTitle;
+        }
+        return l10n.servicesTitle;
       case _BusinessTab.action:
-        return widget.data.type == BusinessType.adoptionCenter
-            ? 'Adoption'
-            : 'Appointment';
+        if (widget.data.type == BusinessType.adoptionCenter) {
+          return l10n.adoptionTitle;
+        }
+        if (widget.data.type == BusinessType.petShop) {
+          return l10n.shopTitle;
+        }
+        return l10n.appointmentTitle;
       case _BusinessTab.contact:
-        return 'Contact';
+        return l10n.contactTitle;
     }
   }
 
@@ -355,6 +368,33 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
           onCall: widget.onCall,
           onWhatsApp: widget.onWhatsApp,
           onClose: widget.onClose,
+        );
+
+      case BusinessType.petShop:
+        return PetShopOverlayContent(
+          data: widget.data,
+          showInfo: info,
+          showServices: services,
+          showAction: action,
+          onOpenFullProfile: () {
+            final appState = context.read<AppState>();
+            appState.closeBusinessDetails();
+            appState.openPetShopDetails(widget.data);
+          },
+          onBuyNow: () {
+            final ownerId =
+                widget.data.rawData?['_productOwnerId']?.toString().trim() ??
+                '';
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AllProductsPage(
+                  initialSellerId: ownerId,
+                  initialSellerName: widget.data.name,
+                ),
+              ),
+            );
+          },
         );
 
       default:

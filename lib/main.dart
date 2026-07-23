@@ -1554,11 +1554,6 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       if (!context.mounted) return;
 
-      final appState = context.read<AppState>();
-
-      /// 🧹 پاک کردن cart
-      appState.clearCart();
-
       /// 🏠 reset navigation stack
       navigatorKey.currentState?.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeGate()),

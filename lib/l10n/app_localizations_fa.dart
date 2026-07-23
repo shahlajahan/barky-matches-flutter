@@ -9,7 +9,8 @@ class AppLocalizationsFa extends AppLocalizations {
   AppLocalizationsFa([String locale = 'fa']) : super(locale);
 
   @override
-  String get userNotLoggedIn => 'کاربر وارد نشده است. در حال انتقال به صفحه ورود...';
+  String get userNotLoggedIn =>
+      'کاربر وارد نشده است. در حال انتقال به صفحه ورود...';
 
   @override
   String errorLoadingUserInfo(Object error) {
@@ -76,7 +77,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutFullNameHint => 'نام و نام خانوادگی';
 
   @override
-  String get checkoutPhoneHint => '5XXXXXXXXX';
+  String get checkoutPhoneHint => 'شماره به شکل 5XXXXXXXXX';
 
   @override
   String get checkoutCityLabel => 'شهر';
@@ -127,7 +128,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutCargoUpdatesTitle => 'به‌روزرسانی فاکتور و ارسال';
 
   @override
-  String get checkoutCargoUpdatesQuestion => 'به‌روزرسانی‌های فاکتور و پیگیری ارسال را چگونه برایتان بفرستیم؟';
+  String get checkoutCargoUpdatesQuestion =>
+      'به‌روزرسانی‌های فاکتور و پیگیری ارسال را چگونه برایتان بفرستیم؟';
 
   @override
   String get checkoutSmsOption => 'پیامک';
@@ -151,7 +153,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutPreInfoForm => 'فرم پیش‌اطلاع‌رسانی را می‌پذیرم';
 
   @override
-  String get checkoutDistanceSalesAgreement => 'قرارداد فروش از راه دور را می‌پذیرم';
+  String get checkoutDistanceSalesAgreement =>
+      'قرارداد فروش از راه دور را می‌پذیرم';
 
   @override
   String get checkoutMarketingOptional => 'دریافت پیام‌های بازاریابی (اختیاری)';
@@ -172,7 +175,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutShippingLabel => 'ارسال';
 
   @override
-  String get checkoutPleaseSelectCargoCompany => 'لطفاً یک شرکت حمل‌ونقل را انتخاب کنید';
+  String get checkoutPleaseSelectCargoCompany =>
+      'لطفاً یک شرکت حمل‌ونقل را انتخاب کنید';
 
   @override
   String get checkoutEnterNameSurname => 'نام و نام خانوادگی را وارد کنید';
@@ -208,7 +212,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutAcceptRequiredAgreements => 'توافق‌های الزامی را بپذیرید';
 
   @override
-  String get checkoutPaymentPageOpenedMessage => 'صفحه پرداخت باز شد. پرداخت را کامل کنید و سپس به برنامه برگردید.';
+  String get checkoutPaymentPageOpenedMessage =>
+      'صفحه پرداخت باز شد. پرداخت را کامل کنید و سپس به برنامه برگردید.';
 
   @override
   String get checkoutBackButton => 'بازگشت';
@@ -220,10 +225,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutContinueButton => 'ادامه';
 
   @override
-  String get checkoutPaymentCompletedSuccessfully => 'پرداخت با موفقیت انجام شد';
+  String get checkoutPaymentCompletedSuccessfully =>
+      'پرداخت با موفقیت انجام شد';
 
   @override
-  String get checkoutPaymentCancelledOrIncomplete => 'پرداخت لغو شد یا تکمیل نشد';
+  String get checkoutPaymentCancelledOrIncomplete =>
+      'پرداخت لغو شد یا تکمیل نشد';
 
   @override
   String checkoutFailed(Object error) {
@@ -266,7 +273,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get cancelAppointmentTitle => 'نوبت لغو شود؟';
 
   @override
-  String get cancelAppointmentConfirmation => 'آیا مطمئن هستید که می‌خواهید این نوبت را لغو کنید؟';
+  String get cancelAppointmentConfirmation =>
+      'آیا مطمئن هستید که می‌خواهید این نوبت را لغو کنید؟';
 
   @override
   String get keepAppointmentButton => 'نگه‌داشتن نوبت';
@@ -278,7 +286,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get cancellationNotAllowed => 'لغو برای این نوبت مجاز نیست.';
 
   @override
-  String get cancelAppointmentFailed => 'لغو نوبت ممکن نبود. لطفاً دوباره تلاش کنید.';
+  String get cancelAppointmentFailed =>
+      'لغو نوبت ممکن نبود. لطفاً دوباره تلاش کنید.';
 
   @override
   String get selectService => 'انتخاب خدمت';
@@ -311,16 +320,18 @@ class AppLocalizationsFa extends AppLocalizations {
   String get requestSentMessage => 'درخواست نوبت شما به کلینیک ارسال شد.';
 
   @override
-  String get okButton => 'OK';
+  String get okButton => 'تأیید';
 
   @override
   String get somethingWentWrong => 'مشکلی پیش آمد';
 
   @override
-  String get alreadyBookedAtThisTime => 'شما در این زمان از قبل رزرو دارید. لطفاً زمان دیگری انتخاب کنید.';
+  String get alreadyBookedAtThisTime =>
+      'شما در این زمان از قبل رزرو دارید. لطفاً زمان دیگری انتخاب کنید.';
 
   @override
-  String get invalidBookingData => 'داده‌های رزرو نامعتبر است. لطفاً دوباره تلاش کنید.';
+  String get invalidBookingData =>
+      'داده‌های رزرو نامعتبر است. لطفاً دوباره تلاش کنید.';
 
   @override
   String get serviceDefaultLabel => 'خدمت';
@@ -432,7 +443,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get pleaseLoginFirst => 'لطفاً ابتدا وارد شوید';
 
   @override
-  String get alreadyReviewedThisVet => 'شما قبلاً این دامپزشک را بررسی کرده‌اید';
+  String get alreadyReviewedThisVet =>
+      'شما قبلاً این دامپزشک را بررسی کرده‌اید';
 
   @override
   String get errorSubmittingReview => 'خطا در ارسال نظر';
@@ -490,7 +502,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get deleteAccount => 'حذف حساب';
 
   @override
-  String get deleteAccountConfirmation => 'آیا مطمئن هستید که می‌خواهید حساب خود را حذف کنید؟ این عمل قابل بازگشت نیست.';
+  String get deleteAccountConfirmation =>
+      'آیا مطمئن هستید که می‌خواهید حساب خود را حذف کنید؟ این عمل قابل بازگشت نیست.';
 
   @override
   String get updateProfile => 'به‌روزرسانی پروفایل';
@@ -617,7 +630,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get forgotPasswordDialogTitle => 'فراموشی رمز عبور';
 
   @override
-  String get forgotPasswordDialogMessage => 'لطفاً ایمیل خود را برای بازنشانی رمز عبور وارد کنید.';
+  String get forgotPasswordDialogMessage =>
+      'لطفاً ایمیل خود را برای بازنشانی رمز عبور وارد کنید.';
 
   @override
   String get sendButton => 'ارسال';
@@ -640,13 +654,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get haveAccountSignIn => 'قبلاً حساب دارید؟ وارد شوید';
 
   @override
-  String get userNotFound => 'کاربری با این ایمیل یافت نشد. لطفاً ثبت‌نام کنید.';
+  String get userNotFound =>
+      'کاربری با این ایمیل یافت نشد. لطفاً ثبت‌نام کنید.';
 
   @override
   String get authUserNotFound => 'کاربر یافت نشد';
 
   @override
-  String get pleaseVerifyEmailBeforeSigningIn => 'لطفاً قبل از ورود ایمیل خود را تأیید کنید.';
+  String get pleaseVerifyEmailBeforeSigningIn =>
+      'لطفاً قبل از ورود ایمیل خود را تأیید کنید.';
 
   @override
   String get userCreationFailed => 'ایجاد کاربر ناموفق بود';
@@ -658,10 +674,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get verificationSessionCouldNotBeCreated => 'نشست تأیید ایجاد نشد';
 
   @override
-  String get emailAlreadyRegisteredTryLoggingIn => 'این ایمیل قبلاً ثبت شده است. ورود را امتحان کنید.';
+  String get emailAlreadyRegisteredTryLoggingIn =>
+      'این ایمیل قبلاً ثبت شده است. ورود را امتحان کنید.';
 
   @override
-  String get incorrectPassword => 'رمز عبور نادرست است. لطفاً دوباره امتحان کنید.';
+  String get incorrectPassword =>
+      'رمز عبور نادرست است. لطفاً دوباره امتحان کنید.';
 
   @override
   String get fillAllFields => 'لطفاً همه فیلدها را به درستی پر کنید';
@@ -675,7 +693,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get verifyEmailTitle => 'ایمیل خود را تأیید کنید';
 
   @override
-  String get enterVerificationCodeSentToEmail => 'کد تأیید ارسال‌شده به ایمیل خود را وارد کنید';
+  String get enterVerificationCodeSentToEmail =>
+      'کد تأیید ارسال‌شده به ایمیل خود را وارد کنید';
 
   @override
   String get pleaseEnterSixDigitCode => 'لطفاً کد ۶ رقمی را وارد کنید';
@@ -704,7 +723,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get authCreateAccountSubtitle => 'حساب PetSupo خود را بسازید';
 
   @override
-  String get sessionExpiredPleaseSignInAgain => 'نشست شما منقضی شد. لطفاً دوباره وارد شوید.';
+  String get sessionExpiredPleaseSignInAgain =>
+      'نشست شما منقضی شد. لطفاً دوباره وارد شوید.';
 
   @override
   String get signInToAccessPlaymate => 'لطفاً برای دسترسی به پلی‌میت وارد شوید';
@@ -857,7 +877,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get pleaseFillRequiredFields => 'لطفاً تمام فیلدهای الزامی را به درستی پر کنید';
+  String get pleaseFillRequiredFields =>
+      'لطفاً تمام فیلدهای الزامی را به درستی پر کنید';
 
   @override
   String get addDogButton => 'افزودن حیوان خانگی';
@@ -947,7 +968,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get noDogsMatchFilters => 'هیچ سگی با فیلترهای شما مطابقت ندارد.';
 
   @override
-  String get adjustFiltersSuggestion => 'فیلترهای خود را تنظیم کنید یا فاصله را افزایش دهید.';
+  String get adjustFiltersSuggestion =>
+      'فیلترهای خود را تنظیم کنید یا فاصله را افزایش دهید.';
 
   @override
   String get anyGender => 'هرگونه';
@@ -1025,7 +1047,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get noProductsMatchFilters => 'هیچ محصولی با فیلترهای شما مطابقت ندارد';
+  String get noProductsMatchFilters =>
+      'هیچ محصولی با فیلترهای شما مطابقت ندارد';
 
   @override
   String errorLoadingProducts(Object error) {
@@ -1151,13 +1174,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get filterByHealthStatus => 'فیلتر بر اساس وضعیت سلامتی';
 
   @override
-  String get upgradeToPremiumForMoreFilters => 'برای فیلترهای بیشتر به نسخه پرمیوم ارتقا دهید!';
+  String get upgradeToPremiumForMoreFilters =>
+      'برای فیلترهای بیشتر به نسخه پرمیوم ارتقا دهید!';
 
   @override
   String get upgradeToPremiumTitle => 'ارتقا به پرمیوم';
 
   @override
-  String get upgradeToPremiumSubtitle => 'قابلیت‌های پیشرفته و ابزارهای کسب‌وکار را فعال کنید';
+  String get upgradeToPremiumSubtitle =>
+      'قابلیت‌های پیشرفته و ابزارهای کسب‌وکار را فعال کنید';
 
   @override
   String get apply => 'اعمال';
@@ -1169,7 +1194,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get noFavoriteDogsYet => 'هنوز هیچ سگ مورد علاقه‌ای وجود ندارد!';
 
   @override
-  String get addFavoriteSuggestion => 'به صفحه اصلی برگردید و چند سگ به علاقه‌مندی‌های خود اضافه کنید.';
+  String get addFavoriteSuggestion =>
+      'به صفحه اصلی برگردید و چند سگ به علاقه‌مندی‌های خود اضافه کنید.';
 
   @override
   String get removeFavoriteTooltip => 'حذف از علاقه‌مندی‌ها';
@@ -1199,13 +1225,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get selectFriendsDog => 'سگ دوست را انتخاب کنید';
 
   @override
-  String get pleaseLoginToSchedulePlaydate => 'لطفاً برای برنامه‌ریزی قرار بازی وارد شوید';
+  String get pleaseLoginToSchedulePlaydate =>
+      'لطفاً برای برنامه‌ریزی قرار بازی وارد شوید';
 
   @override
   String get selectLocation => 'انتخاب مکان';
 
   @override
-  String get enterLocation => 'مکان را وارد کنید (مثال: عرض جغرافیایی: ۴۱.۰۱۰۳، طول جغرافیایی: ۲۸.۶۷۲۴ یا آدرس)';
+  String get enterLocation =>
+      'مکان را وارد کنید (مثال: عرض جغرافیایی: ۴۱.۰۱۰۳، طول جغرافیایی: ۲۸.۶۷۲۴ یا آدرس)';
 
   @override
   String get pickOnMap => 'انتخاب از روی نقشه';
@@ -1240,7 +1268,10 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog) {
+  String playdateRequestNotificationBody(
+    Object requesterDog,
+    Object requestedDog,
+  ) {
     return '$requesterDog می‌خواهد با $requestedDog بازی کند!';
   }
 
@@ -1406,7 +1437,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get rejectConfirmation => 'تأیید رد';
 
   @override
-  String get areYouSure => 'آیا مطمئن هستید که می‌خواهید این درخواست را رد کنید؟';
+  String get areYouSure =>
+      'آیا مطمئن هستید که می‌خواهید این درخواست را رد کنید؟';
 
   @override
   String get notificationDeleted => 'اعلان حذف شد';
@@ -1532,7 +1564,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get pleaseLoginToAccept => 'لطفاً برای پذیرش درخواست‌ها وارد شوید';
 
   @override
-  String get requestAcceptedSuccess => 'درخواست پذیرفته شد و به لیست قرارهای بازی اضافه شد.';
+  String get requestAcceptedSuccess =>
+      'درخواست پذیرفته شد و به لیست قرارهای بازی اضافه شد.';
 
   @override
   String errorAcceptingRequest(Object error) {
@@ -1561,13 +1594,15 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get failedToScheduleReminder => 'عدم موفقیت در برنامه‌ریزی یادآور. لطفاً مجوزها را بررسی کنید.';
+  String get failedToScheduleReminder =>
+      'عدم موفقیت در برنامه‌ریزی یادآور. لطفاً مجوزها را بررسی کنید.';
 
   @override
   String get scheduledLabel => 'برنامه‌ریزی‌شده:';
 
   @override
-  String get pleaseLoginToViewPlaydateRequests => 'برای مشاهده درخواست‌های قرار بازی وارد شوید';
+  String get pleaseLoginToViewPlaydateRequests =>
+      'برای مشاهده درخواست‌های قرار بازی وارد شوید';
 
   @override
   String get pleaseLoginToSetReminders => 'لطفاً برای تنظیم یادآور وارد شوید.';
@@ -1603,7 +1638,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get reminderTab => 'یادآور';
 
   @override
-  String get playdateTimeNotScheduledYet => '⏳ زمان قرار بازی هنوز برنامه‌ریزی نشده است';
+  String get playdateTimeNotScheduledYet =>
+      '⏳ زمان قرار بازی هنوز برنامه‌ریزی نشده است';
 
   @override
   String get thirtyMinutesBefore => '30 دقیقه قبل';
@@ -1673,13 +1709,14 @@ class AppLocalizationsFa extends AppLocalizations {
   String get playmateLocationNeededTitle => 'موقعیت لازم است';
 
   @override
-  String get playmateLocationNeededMessage => 'برای نمایش سگ‌های نزدیک از موقعیت شما استفاده می‌کنیم';
+  String get playmateLocationNeededMessage =>
+      'برای نمایش سگ‌های نزدیک از موقعیت شما استفاده می‌کنیم';
 
   @override
   String get playmateFiltersTitle => 'فیلترها';
 
   @override
-  String get playmateBreedPremiumHint => 'نژاد (Gold)';
+  String get playmateBreedPremiumHint => 'نژاد (PetSupo Partner)';
 
   @override
   String get playmateOwnerGenderPremiumHint => 'جنسیت صاحب (Premium)';
@@ -1807,22 +1844,27 @@ class AppLocalizationsFa extends AppLocalizations {
   String get dogParkMoveToMarkers => 'انتقال به نشانگرها';
 
   @override
-  String get dogParkPermissionDenied => 'اجازه مکان رد شد. لطفاً آن را در تنظیمات فعال کنید.';
+  String get dogParkPermissionDenied =>
+      'اجازه مکان رد شد. لطفاً آن را در تنظیمات فعال کنید.';
 
   @override
-  String get dogParkBackgroundPermissionDenied => 'اجازه مکان پس‌زمینه رد شد. برخی قابلیت‌ها ممکن است محدود شوند.';
+  String get dogParkBackgroundPermissionDenied =>
+      'اجازه مکان پس‌زمینه رد شد. برخی قابلیت‌ها ممکن است محدود شوند.';
 
   @override
   String get dogParkLocationServicesDisabled => 'خدمات مکان غیرفعال است.';
 
   @override
-  String get dogParkEnableLocationServices => 'لطفاً خدمات مکان را برای ادامه فعال کنید.';
+  String get dogParkEnableLocationServices =>
+      'لطفاً خدمات مکان را برای ادامه فعال کنید.';
 
   @override
-  String get dogParkPermissionDeniedPermanent => 'اجازه مکان به صورت دائمی رد شد.';
+  String get dogParkPermissionDeniedPermanent =>
+      'اجازه مکان به صورت دائمی رد شد.';
 
   @override
-  String get dogParkPermissionsDenied => 'اجازه‌های مکان به صورت دائمی رد شده‌اند. لطفاً آن‌ها را از تنظیمات فعال کنید.';
+  String get dogParkPermissionsDenied =>
+      'اجازه‌های مکان به صورت دائمی رد شده‌اند. لطفاً آن‌ها را از تنظیمات فعال کنید.';
 
   @override
   String dogParkLocationError(Object error) {
@@ -1830,7 +1872,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get dogParkPermissionRequired => 'اجازه مکان برای نمایش پارک‌های سگ نزدیک الزامی است.';
+  String get dogParkPermissionRequired =>
+      'اجازه مکان برای نمایش پارک‌های سگ نزدیک الزامی است.';
 
   @override
   String get dogParkRecommendedBadge => '⭐ پیشنهادی';
@@ -1842,7 +1885,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get dogParkSavedBadge => '❤️ ذخیره شد';
 
   @override
-  String get dogParkRecommendedForPlaydates => 'برای قرارهای بازی پیشنهاد می‌شود';
+  String get dogParkRecommendedForPlaydates =>
+      'برای قرارهای بازی پیشنهاد می‌شود';
 
   @override
   String get dogParkSavedToFavorites => 'در علاقه‌مندی‌ها ذخیره شد';
@@ -1854,13 +1898,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get dogParkGetDirections => 'مسیر را نشان بده';
 
   @override
-  String get dogParkUserNotReadyYet => 'کاربر هنوز آماده نیست. لطفاً دوباره تلاش کنید.';
+  String get dogParkUserNotReadyYet =>
+      'کاربر هنوز آماده نیست. لطفاً دوباره تلاش کنید.';
 
   @override
   String get dogParkNeedToAddDogFirst => 'ابتدا باید یک سگ اضافه کنید';
 
   @override
-  String get dogParkSchedulePlaydateHere => 'در اینجا قرار بازی را برنامه‌ریزی کنید';
+  String get dogParkSchedulePlaydateHere =>
+      'در اینجا قرار بازی را برنامه‌ریزی کنید';
 
   @override
   String get dogParkSavedParksTitle => 'پارک‌های ذخیره‌شده';
@@ -1875,13 +1921,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get dogParkLocationNeededTitle => 'موقعیت لازم است';
 
   @override
-  String get dogParkUseYourLocationToShowNearbyDogParks => 'برای نمایش پارک‌های سگ نزدیک از موقعیت شما استفاده می‌کنیم';
+  String get dogParkUseYourLocationToShowNearbyDogParks =>
+      'برای نمایش پارک‌های سگ نزدیک از موقعیت شما استفاده می‌کنیم';
 
   @override
   String get allowButton => 'اجازه دادن';
 
   @override
-  String get dogParkBackgroundRecommended => 'اجازه مکان پس‌زمینه توصیه می‌شود. لطفاً آن را در تنظیمات فعال کنید.';
+  String get dogParkBackgroundRecommended =>
+      'اجازه مکان پس‌زمینه توصیه می‌شود. لطفاً آن را در تنظیمات فعال کنید.';
 
   @override
   String get dogParkSettingsAction => 'تنظیمات';
@@ -1952,7 +2000,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get dogViewChatStarted => 'چت شروع شد!';
 
   @override
-  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time) {
+  String dogViewPlayDateScheduled(
+    Object day,
+    Object month,
+    Object year,
+    Object time,
+  ) {
     return 'قرار بازی برای $day/$month/$year در ساعت $time برنامه‌ریزی شد!';
   }
 
@@ -1968,7 +2021,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get boostVisibilityDescription => 'در جست‌وجوی Playmates بیشتر دیده شوید.';
+  String get boostVisibilityDescription =>
+      'در جست‌وجوی Playmates بیشتر دیده شوید.';
 
   @override
   String get boost24HoursTitle => 'ارتقای 24 ساعته';
@@ -1977,7 +2031,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get boostQuickVisibilitySubtitle => 'برای دیده شدن سریع مناسب است';
 
   @override
-  String get boostPrice29 => '₺29';
+  String get boostPrice29 => '۲۹ لیر';
 
   @override
   String get boost3DaysTitle => 'ارتقای 3 روزه';
@@ -1986,7 +2040,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get boostBetterExposureSubtitle => 'نمایش بهتر برای جست‌وجوی فعال';
 
   @override
-  String get boostPrice69 => '₺69';
+  String get boostPrice69 => '۶۹ لیر';
 
   @override
   String get boost7DaysTitle => 'ارتقای 7 روزه';
@@ -1995,7 +2049,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get boostBestValueSubtitle => 'بهترین ارزش برای بیشترین دسترسی';
 
   @override
-  String get boostPrice129 => '₺129';
+  String get boostPrice129 => '۱۲۹ لیر';
 
   @override
   String get boostActivated => 'ارتقا فعال شد 🚀';
@@ -2009,7 +2063,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get errorOpeningEdit => 'خطا در باز کردن ویرایش';
 
   @override
-  String get boostBadge => 'BOOSTED';
+  String get boostBadge => 'ارتقایافته';
 
   @override
   String get boostButton => 'ارتقا';
@@ -2128,13 +2182,16 @@ class AppLocalizationsFa extends AppLocalizations {
   String get playDateStatus_rejected => 'ردشده';
 
   @override
-  String get locationServicesDisabled => 'خدمات مکان غیرفعال است. استفاده از مکان پیش‌فرض.';
+  String get locationServicesDisabled =>
+      'خدمات مکان غیرفعال است. استفاده از مکان پیش‌فرض.';
 
   @override
-  String get locationPermissionRequired => 'اجازه مکان الزامی است. استفاده از مکان پیش‌فرض.';
+  String get locationPermissionRequired =>
+      'اجازه مکان الزامی است. استفاده از مکان پیش‌فرض.';
 
   @override
-  String get locationPermissionPermanentlyDenied => 'اجازه مکان به صورت دائمی رد شده است. استفاده از مکان پیش‌فرض.';
+  String get locationPermissionPermanentlyDenied =>
+      'اجازه مکان به صورت دائمی رد شده است. استفاده از مکان پیش‌فرض.';
 
   @override
   String errorGettingLocation(Object error) {
@@ -2160,7 +2217,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get notificationChannelName => 'اعلان‌های با اهمیت بالا';
 
   @override
-  String get notificationChannelDescription => 'این کانال برای اعلان‌های مهم استفاده می‌شود.';
+  String get notificationChannelDescription =>
+      'این کانال برای اعلان‌های مهم استفاده می‌شود.';
 
   @override
   String get openAppAction => 'باز کردن برنامه';
@@ -2424,16 +2482,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get editDogHealthUnderTreatment => 'تحت درمان';
 
   @override
-  String get noDogFoundForAccount => 'هیچ سگی برای حساب شما یافت نشد. لطفاً ابتدا یک سگ اضافه کنید.';
+  String get noDogFoundForAccount =>
+      'هیچ سگی برای حساب شما یافت نشد. لطفاً ابتدا یک سگ اضافه کنید.';
 
   @override
   String get pleaseSelectYourDog => 'لطفاً یکی از سگ‌های خود را انتخاب کنید';
 
   @override
-  String get cannotScheduleWithOwnDog => 'نمی‌توانید با سگ خودتان قرار بازی ترتیب دهید.';
+  String get cannotScheduleWithOwnDog =>
+      'نمی‌توانید با سگ خودتان قرار بازی ترتیب دهید.';
 
   @override
-  String get cannotScheduleWithTempUser => 'نمی‌توان با کاربر موقت قرار بازی ترتیب داد.';
+  String get cannotScheduleWithTempUser =>
+      'نمی‌توان با کاربر موقت قرار بازی ترتیب داد.';
 
   @override
   String playdateRequestFor(Object dogName) {
@@ -2450,7 +2511,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get notNeutered => 'عقیم‌نشده';
 
   @override
-  String get pleaseSelectDogForPlaydate => 'لطفاً یکی از سگ‌های خود را برای قرار بازی انتخاب کنید';
+  String get pleaseSelectDogForPlaydate =>
+      'لطفاً یکی از سگ‌های خود را برای قرار بازی انتخاب کنید';
 
   @override
   String get years => 'سال';
@@ -2508,7 +2570,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get schedulePlayDate => 'برنامه‌ریزی قرار بازی';
 
   @override
-  String get playdateSchedulingSubtitle => 'تاریخ، زمان، مکان و سگ‌ها را برای قرار بازی انتخاب کنید.';
+  String get playdateSchedulingSubtitle =>
+      'تاریخ، زمان، مکان و سگ‌ها را برای قرار بازی انتخاب کنید.';
 
   @override
   String get errorSelectDateAndTime => 'لطفاً تاریخ و زمان را انتخاب کنید.';
@@ -2517,10 +2580,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get errorMissingLocationCoordinates => 'مختصات مکان پارک موجود نیست.';
 
   @override
-  String get errorPlaydateLeadTime => 'قرار بازی باید حداقل ۱۵ دقیقه زودتر برنامه‌ریزی شود.';
+  String get errorPlaydateLeadTime =>
+      'قرار بازی باید حداقل ۱۵ دقیقه زودتر برنامه‌ریزی شود.';
 
   @override
-  String get playdateTimeConflict => 'این سگ در این زمان نزدیک، از قبل یک قرار بازی دارد 🐾';
+  String get playdateTimeConflict =>
+      'این سگ در این زمان نزدیک، از قبل یک قرار بازی دارد 🐾';
 
   @override
   String coordinatesLatLng(Object lat, Object lng) {
@@ -2586,7 +2651,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get locationNotAcquired => 'مکان دریافت نشد. لطفاً دوباره امتحان کنید.';
+  String get locationNotAcquired =>
+      'مکان دریافت نشد. لطفاً دوباره امتحان کنید.';
 
   @override
   String get retryLocation => 'تلاش مجدد برای دریافت مکان';
@@ -2642,7 +2708,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get offerPremiumRequiredTitle => 'نیاز به پریمیوم';
 
   @override
-  String get offerPremiumRequiredMessage => 'این پیشنهاد فقط برای اعضای پریمیوم است.';
+  String get offerPremiumRequiredMessage =>
+      'این پیشنهاد فقط برای اعضای پریمیوم است.';
 
   @override
   String get offerCancel => 'لغو';
@@ -2657,7 +2724,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get offerChooseContinueTitle => 'انتخاب کنید از کجا ادامه دهید';
 
   @override
-  String get offerChooseContinueSubtitle => 'روش ارتباطی دلخواه خود را برای این پیشنهاد انتخاب کنید.';
+  String get offerChooseContinueSubtitle =>
+      'روش ارتباطی دلخواه خود را برای این پیشنهاد انتخاب کنید.';
 
   @override
   String get offerOpenWebsite => 'باز کردن وب‌سایت';
@@ -2711,7 +2779,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get premiumLabel => 'پریمیوم';
 
   @override
-  String get goldLabel => 'گلد';
+  String get goldLabel => 'PetSupo Partner';
 
   @override
   String discountOff(Object percent) {
@@ -2737,7 +2805,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get reportFoundTitle => 'گزارش پیدا شدن';
 
   @override
-  String get reconnectFamilies => 'به بازگشت حیوانات به خانواده‌هایشان کمک کنید';
+  String get reconnectFamilies =>
+      'به بازگشت حیوانات به خانواده‌هایشان کمک کنید';
 
   @override
   String get lostPetsTitle => 'حیوانات گمشده';
@@ -2826,7 +2895,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get homeLocationNeededTitle => 'موقعیت لازم است';
 
   @override
-  String get homeLocationNeededMessage => 'برای نمایش دامپزشکان نزدیک از موقعیت شما استفاده می‌کنیم';
+  String get homeLocationNeededMessage =>
+      'برای نمایش دامپزشکان نزدیک از موقعیت شما استفاده می‌کنیم';
 
   @override
   String get homeAllowButton => 'اجازه دادن';
@@ -2853,13 +2923,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get petShopDealDesc => '۱۵٪ تخفیف روی تمام غذاها';
 
   @override
-  String get groomyDealName => 'Groomy Studio';
+  String get groomyDealName => 'استودیوی Groomy';
 
   @override
   String get groomyDealDesc => '۲۰٪ تخفیف آرایش این هفته';
 
   @override
-  String get vetDealName => 'VetPlus';
+  String get vetDealName => 'پیشنهاد VetPlus';
 
   @override
   String get vetDealDesc => 'برای اعضای گلد، چکاپ رایگان';
@@ -2876,67 +2946,82 @@ class AppLocalizationsFa extends AppLocalizations {
   String get offerOpenError => 'خطا در باز کردن پیشنهاد';
 
   @override
-  String get businessRegisterLegalCompanyNameRequired => '• نام قانونی شرکت الزامی است.';
+  String get businessRegisterLegalCompanyNameRequired =>
+      '• نام قانونی شرکت الزامی است.';
 
   @override
-  String get businessRegisterPublicDisplayNameRequired => '• نام نمایشی عمومی الزامی است.';
+  String get businessRegisterPublicDisplayNameRequired =>
+      '• نام نمایشی عمومی الزامی است.';
 
   @override
   String get businessRegisterSelectCountry => '• لطفاً یک کشور انتخاب کنید.';
 
   @override
-  String get businessRegisterSelectBusinessCategory => '• لطفاً حداقل یک دسته‌بندی کسب‌وکار انتخاب کنید.';
+  String get businessRegisterSelectBusinessCategory =>
+      '• لطفاً حداقل یک دسته‌بندی کسب‌وکار انتخاب کنید.';
 
   @override
-  String get businessRegisterEnterValidEmail => '• یک ایمیل معتبر وارد کنید (مثال: name@example.com).';
+  String get businessRegisterEnterValidEmail =>
+      '• یک ایمیل معتبر وارد کنید (مثال: name@example.com).';
 
   @override
   String get businessRegisterPhoneIncomplete => '• شماره تلفن ناقص است.';
 
   @override
-  String get businessRegisterSelectCityProvince => '• لطفاً شهر / استان را انتخاب کنید.';
+  String get businessRegisterSelectCityProvince =>
+      '• لطفاً شهر / استان را انتخاب کنید.';
 
   @override
   String get businessRegisterSelectDistrict => '• لطفاً منطقه را انتخاب کنید.';
 
   @override
-  String get businessRegisterBusinessAddressRequired => '• آدرس کسب‌وکار الزامی است.';
+  String get businessRegisterBusinessAddressRequired =>
+      '• آدرس کسب‌وکار الزامی است.';
 
   @override
-  String get businessRegisterAllLegalDocumentsRequired => '• همه مدارک قانونی موردنیاز باید بارگذاری شوند.';
+  String get businessRegisterAllLegalDocumentsRequired =>
+      '• همه مدارک قانونی موردنیاز باید بارگذاری شوند.';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeContinuing => '• مدارک باید قبل از ادامه تأیید شوند.';
+  String get businessRegisterDocumentsVerifiedBeforeContinuing =>
+      '• مدارک باید قبل از ادامه تأیید شوند.';
 
   @override
-  String get businessRegisterAcceptPlatformTerms => '• باید شرایط پلتفرم را بپذیرید.';
+  String get businessRegisterAcceptPlatformTerms =>
+      '• باید شرایط پلتفرم را بپذیرید.';
 
   @override
-  String get businessRegisterAcceptLegalResponsibility => '• باید اظهارنامه مسئولیت قانونی را بپذیرید.';
+  String get businessRegisterAcceptLegalResponsibility =>
+      '• باید اظهارنامه مسئولیت قانونی را بپذیرید.';
 
   @override
-  String get businessRegisterFixHighlightedFields => 'لطفاً فیلدهای مشخص‌شده را اصلاح کنید';
+  String get businessRegisterFixHighlightedFields =>
+      'لطفاً فیلدهای مشخص‌شده را اصلاح کنید';
 
   @override
   String get businessRegisterOk => 'باشه';
 
   @override
-  String get businessRegisterFailedToLoadCountries => 'بارگذاری کشورها ناموفق بود';
+  String get businessRegisterFailedToLoadCountries =>
+      'بارگذاری کشورها ناموفق بود';
 
   @override
   String get businessRegisterFailedToLoadCities => 'بارگذاری شهرها ناموفق بود';
 
   @override
-  String get businessRegisterFailedToLoadDistricts => 'بارگذاری مناطق ناموفق بود';
+  String get businessRegisterFailedToLoadDistricts =>
+      'بارگذاری مناطق ناموفق بود';
 
   @override
-  String get businessRegisterPlatformLegalAgreement => 'توافق‌نامه قانونی پلتفرم';
+  String get businessRegisterPlatformLegalAgreement =>
+      'توافق‌نامه قانونی پلتفرم';
 
   @override
   String get businessRegisterReadAndAccept => 'خواندم و می‌پذیرم';
 
   @override
-  String get businessRegisterLocationPermissionDenied => 'مجوز موقعیت مکانی رد شد';
+  String get businessRegisterLocationPermissionDenied =>
+      'مجوز موقعیت مکانی رد شد';
 
   @override
   String get businessRegisterCouldNotDetectCity => 'شهر قابل تشخیص نبود';
@@ -2972,31 +3057,38 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterCouldNotOpenLegalText => 'متن قانونی باز نشد';
 
   @override
-  String get businessRegisterSelectAtLeastOneBusinessCategory => 'لطفاً حداقل یک دسته‌بندی کسب‌وکار انتخاب کنید';
+  String get businessRegisterSelectAtLeastOneBusinessCategory =>
+      'لطفاً حداقل یک دسته‌بندی کسب‌وکار انتخاب کنید';
 
   @override
-  String get businessRegisterPleaseEnterBusinessAddress => 'لطفاً آدرس کسب‌وکار را وارد کنید';
+  String get businessRegisterPleaseEnterBusinessAddress =>
+      'لطفاً آدرس کسب‌وکار را وارد کنید';
 
   @override
-  String get businessRegisterMustAcceptAllAgreements => 'باید همه توافق‌نامه‌ها را بپذیرید';
+  String get businessRegisterMustAcceptAllAgreements =>
+      'باید همه توافق‌نامه‌ها را بپذیرید';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeSubmission => 'مدارک باید قبل از ارسال تأیید شوند';
+  String get businessRegisterDocumentsVerifiedBeforeSubmission =>
+      'مدارک باید قبل از ارسال تأیید شوند';
 
   @override
-  String get businessRegisterApplicationSubmittedSuccessfully => 'درخواست با موفقیت ارسال شد';
+  String get businessRegisterApplicationSubmittedSuccessfully =>
+      'درخواست با موفقیت ارسال شد';
 
   @override
   String get businessRegisterSubmissionFailed => 'ارسال ناموفق بود';
 
   @override
-  String get businessRegisterUnexpectedErrorOccurred => 'خطای غیرمنتظره‌ای رخ داد';
+  String get businessRegisterUnexpectedErrorOccurred =>
+      'خطای غیرمنتظره‌ای رخ داد';
 
   @override
   String get businessRegisterTitle => 'ثبت کسب‌وکار';
 
   @override
-  String get businessRegisterStepIdentityCategories => 'هویت کسب‌وکار و دسته‌بندی‌ها';
+  String get businessRegisterStepIdentityCategories =>
+      'هویت کسب‌وکار و دسته‌بندی‌ها';
 
   @override
   String get businessRegisterStepContactLocation => 'تماس و موقعیت مکانی';
@@ -3023,7 +3115,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterBusinessIdentity => 'هویت کسب‌وکار';
 
   @override
-  String get businessRegisterBusinessIdentitySubtitle => 'مشخص کنید کسب‌وکار شما چگونه در PetSupo نمایش داده شود.';
+  String get businessRegisterBusinessIdentitySubtitle =>
+      'مشخص کنید کسب‌وکار شما چگونه در PetSupo نمایش داده شود.';
 
   @override
   String get businessRegisterLegalCompanyName => 'نام قانونی شرکت';
@@ -3041,13 +3134,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterBusinessCategories => 'دسته‌بندی‌های کسب‌وکار';
 
   @override
-  String get businessRegisterBusinessCategoriesSubtitle => 'همه بخش‌هایی را که این کسب‌وکار در آن فعالیت می‌کند انتخاب کنید.';
+  String get businessRegisterBusinessCategoriesSubtitle =>
+      'همه بخش‌هایی را که این کسب‌وکار در آن فعالیت می‌کند انتخاب کنید.';
 
   @override
   String get businessRegisterContactLocation => 'تماس و موقعیت مکانی';
 
   @override
-  String get businessRegisterContactLocationSubtitle => 'این اطلاعات به مشتریان کمک می‌کند شما را پیدا کنند و با شما تماس بگیرند.';
+  String get businessRegisterContactLocationSubtitle =>
+      'این اطلاعات به مشتریان کمک می‌کند شما را پیدا کنند و با شما تماس بگیرند.';
 
   @override
   String get businessRegisterPhone => 'تلفن';
@@ -3074,7 +3169,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterDetectCity => 'تشخیص شهر';
 
   @override
-  String get businessRegisterMapPickerComingSoon => 'انتخاب‌گر نقشه به‌زودی اضافه می‌شود';
+  String get businessRegisterMapPickerComingSoon =>
+      'انتخاب‌گر نقشه به‌زودی اضافه می‌شود';
 
   @override
   String get businessRegisterPickLocation => 'انتخاب موقعیت';
@@ -3095,28 +3191,34 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterTaxNumberVkn => 'شماره مالیاتی (VKN)';
 
   @override
-  String get businessRegisterAutoFilledFromDocument => 'به‌صورت خودکار از مدرک پر شد';
+  String get businessRegisterAutoFilledFromDocument =>
+      'به‌صورت خودکار از مدرک پر شد';
 
   @override
-  String get businessRegisterDocumentVerificationInconsistencies => 'در تأیید مدرک ناسازگاری وجود دارد. بررسی مدیر لازم است.';
+  String get businessRegisterDocumentVerificationInconsistencies =>
+      'در تأیید مدرک ناسازگاری وجود دارد. بررسی مدیر لازم است.';
 
   @override
   String get businessRegisterMersisNumber => 'شماره MERSIS';
 
   @override
-  String get businessRegisterDocumentsSecurelyEncrypted => 'مدارک شما به‌صورت امن رمزگذاری و خودکار تأیید می‌شوند';
+  String get businessRegisterDocumentsSecurelyEncrypted =>
+      'مدارک شما به‌صورت امن رمزگذاری و خودکار تأیید می‌شوند';
 
   @override
   String get businessRegisterVerifiedFromDocument => 'از مدرک تأیید شد';
 
   @override
-  String get businessRegisterAutoFilledAfterVerification => 'پس از تأیید مدرک خودکار پر می‌شود';
+  String get businessRegisterAutoFilledAfterVerification =>
+      'پس از تأیید مدرک خودکار پر می‌شود';
 
   @override
-  String get businessRegisterUploadTradeRegistryFirst => 'ابتدا مدرک ثبت تجاری را بارگذاری کنید';
+  String get businessRegisterUploadTradeRegistryFirst =>
+      'ابتدا مدرک ثبت تجاری را بارگذاری کنید';
 
   @override
-  String get businessRegisterWaitingForDocumentVerification => 'در انتظار تأیید مدرک...';
+  String get businessRegisterWaitingForDocumentVerification =>
+      'در انتظار تأیید مدرک...';
 
   @override
   String get businessRegisterSteuernummer => 'شماره مالیاتی';
@@ -3146,16 +3248,18 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterProcessingDocument => 'در حال پردازش مدرک...';
 
   @override
-  String get businessRegisterDocumentVerifiedSuccessfully => 'مدرک با موفقیت تأیید شد';
+  String get businessRegisterDocumentVerifiedSuccessfully =>
+      'مدرک با موفقیت تأیید شد';
 
   @override
-  String get businessRegisterCouldNotReadDocument => 'مدرک خوانده نشد، لطفاً دوباره بارگذاری کنید';
+  String get businessRegisterCouldNotReadDocument =>
+      'مدرک خوانده نشد، لطفاً دوباره بارگذاری کنید';
 
   @override
   String get businessRegisterVeterinary => 'دامپزشکی';
 
   @override
-  String get businessRegisterGroomy => 'Groomy';
+  String get businessRegisterGroomy => 'آرایش حیوانات (Groomy)';
 
   @override
   String businessRegisterStepOfFour(Object step) {
@@ -3166,22 +3270,27 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterLegalConfirmation => 'تأیید قانونی';
 
   @override
-  String get businessRegisterAcceptTermsKvkk => 'شرایط پلتفرم و سیاست حفاظت از داده‌های KVKK را می‌پذیرم.';
+  String get businessRegisterAcceptTermsKvkk =>
+      'شرایط پلتفرم و سیاست حفاظت از داده‌های KVKK را می‌پذیرم.';
 
   @override
   String get businessRegisterReadInsideApp => 'خواندن داخل برنامه';
 
   @override
-  String get businessRegisterOpenOfficialLegalPage => 'باز کردن صفحه قانونی رسمی';
+  String get businessRegisterOpenOfficialLegalPage =>
+      'باز کردن صفحه قانونی رسمی';
 
   @override
-  String get businessRegisterLegalVersion => 'نسخه v1.0 • آخرین به‌روزرسانی مه ۲۰۲۶';
+  String get businessRegisterLegalVersion =>
+      'نسخه v1.0 • آخرین به‌روزرسانی مه ۲۰۲۶';
 
   @override
-  String get businessRegisterAgreementSecurelyStored => 'توافق شما به‌صورت امن ذخیره می‌شود و از نظر قانونی الزام‌آور است';
+  String get businessRegisterAgreementSecurelyStored =>
+      'توافق شما به‌صورت امن ذخیره می‌شود و از نظر قانونی الزام‌آور است';
 
   @override
-  String get businessRegisterLegalResponsibilityDeclaration => 'اعلام می‌کنم همه مدارک ارسال‌شده دقیق هستند و مسئولیت کامل قانونی را طبق قانون تجارت ترکیه می‌پذیرم.';
+  String get businessRegisterLegalResponsibilityDeclaration =>
+      'اعلام می‌کنم همه مدارک ارسال‌شده دقیق هستند و مسئولیت کامل قانونی را طبق قانون تجارت ترکیه می‌پذیرم.';
 
   @override
   String get businessRegisterUploaded => 'بارگذاری شد';
@@ -3190,7 +3299,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterReplaceDocument => 'جایگزینی مدرک';
 
   @override
-  String get businessRegisterReplaceDocumentConfirmation => 'آیا مطمئن هستید می‌خواهید این فایل را جایگزین کنید؟';
+  String get businessRegisterReplaceDocumentConfirmation =>
+      'آیا مطمئن هستید می‌خواهید این فایل را جایگزین کنید؟';
 
   @override
   String get businessRegisterReplace => 'جایگزین کردن';
@@ -3230,7 +3340,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get myAppointments => 'نوبت‌های من';
 
   @override
-  String get myAppointmentsLoginRequired => 'لطفاً برای مشاهده نوبت‌های خود وارد شوید';
+  String get myAppointmentsLoginRequired =>
+      'لطفاً برای مشاهده نوبت‌های خود وارد شوید';
 
   @override
   String get appointmentHistory => 'تاریخچه نوبت‌ها';
@@ -3347,7 +3458,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get userProfileGuestTitle => 'شما به‌عنوان مهمان در حال مرور هستید';
 
   @override
-  String get userProfileGuestSubtitle => 'برای دسترسی به همه قابلیت‌ها وارد شوید';
+  String get userProfileGuestSubtitle =>
+      'برای دسترسی به همه قابلیت‌ها وارد شوید';
 
   @override
   String get userProfileLoginSignUp => 'ورود / ثبت‌نام';
@@ -3362,13 +3474,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get userProfileLanguageTurkish => 'ترکی';
 
   @override
-  String get userProfileUnlockBusinessFeatures => 'باز کردن قابلیت‌های کسب‌وکار 🚀';
+  String get userProfileUnlockBusinessFeatures =>
+      'باز کردن قابلیت‌های کسب‌وکار 🚀';
 
   @override
-  String get userProfileUpgradeBusinessDescription => 'برای ثبت کسب‌وکار و شروع دریافت مشتری به Gold ارتقا دهید.';
+  String get userProfileUpgradeBusinessDescription =>
+      'برای ثبت کسب‌وکار و شروع دریافت مشتری به PetSupo Partner ارتقا دهید.';
 
   @override
-  String get userProfileUpgradeToGold => 'ارتقا به Gold';
+  String get userProfileUpgradeToGold => 'ارتقا به PetSupo Partner';
 
   @override
   String get userProfileManageAdoptionCenter => 'مدیریت مرکز پذیرش';
@@ -3398,7 +3512,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get userProfileApplicationUnderReview => 'درخواست در حال بررسی است';
 
   @override
-  String get userProfileApplicationUnderReviewDescription => 'درخواست کسب‌وکار شما با موفقیت ارسال شده و در حال بررسی است.';
+  String get userProfileApplicationUnderReviewDescription =>
+      'درخواست کسب‌وکار شما با موفقیت ارسال شده و در حال بررسی است.';
 
   @override
   String get userProfileAdminPanel => 'پنل مدیر';
@@ -3415,7 +3530,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get userProfileUpgradeToGoldToContinue => 'برای ادامه به Gold ارتقا دهید';
+  String get userProfileUpgradeToGoldToContinue =>
+      'برای ادامه به PetSupo Partner ارتقا دهید';
 
   @override
   String get userProfileReApply => 'درخواست دوباره';
@@ -3436,22 +3552,28 @@ class AppLocalizationsFa extends AppLocalizations {
   String get userProfileImageSelectionFailed => 'انتخاب عکس ناموفق بود.';
 
   @override
-  String get userProfileUsernameMinLength => 'نام کاربری باید حداقل ۳ کاراکتر باشد';
+  String get userProfileUsernameMinLength =>
+      'نام کاربری باید حداقل ۳ کاراکتر باشد';
 
   @override
-  String get userProfileUsernameMaxLength => 'نام کاربری باید حداکثر ۲۰ کاراکتر باشد';
+  String get userProfileUsernameMaxLength =>
+      'نام کاربری باید حداکثر ۲۰ کاراکتر باشد';
 
   @override
-  String get userProfileUsernameNoSpaces => 'نام کاربری نمی‌تواند فاصله داشته باشد';
+  String get userProfileUsernameNoSpaces =>
+      'نام کاربری نمی‌تواند فاصله داشته باشد';
 
   @override
-  String get userProfilePhoneInvalidCharacters => 'شماره تلفن شامل کاراکتر نامعتبر است';
+  String get userProfilePhoneInvalidCharacters =>
+      'شماره تلفن شامل کاراکتر نامعتبر است';
 
   @override
-  String get userProfileBioMaxLength => 'بیوگرافی باید کمتر از ۱۵۰ کاراکتر باشد';
+  String get userProfileBioMaxLength =>
+      'بیوگرافی باید کمتر از ۱۵۰ کاراکتر باشد';
 
   @override
-  String get userProfileUsernameAlreadyTaken => 'این نام کاربری قبلاً گرفته شده است';
+  String get userProfileUsernameAlreadyTaken =>
+      'این نام کاربری قبلاً گرفته شده است';
 
   @override
   String get userProfileEmailUpdateFailed => 'به‌روزرسانی ایمیل ناموفق بود';
@@ -3487,7 +3609,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String skuLabel(Object sku) {
-    return 'SKU: $sku';
+    return 'شناسه کالا: $sku';
   }
 
   @override
@@ -3542,7 +3664,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessNotFound => 'کسب‌وکار پیدا نشد';
 
   @override
-  String get sectorDashboardNotImplementedYet => 'داشبورد این بخش هنوز پیاده‌سازی نشده است';
+  String get sectorDashboardNotImplementedYet =>
+      'داشبورد این بخش هنوز پیاده‌سازی نشده است';
 
   @override
   String get goBackButton => 'بازگشت';
@@ -3681,22 +3804,26 @@ class AppLocalizationsFa extends AppLocalizations {
   String get catalogStrengthWeakLabel => 'ضعیف';
 
   @override
-  String get catalogStrengthAddItemsMessage => 'برای تقویت کاتالوگ، محصول، توضیحات، رسانه و موجودی اضافه کنید.';
+  String get catalogStrengthAddItemsMessage =>
+      'برای تقویت کاتالوگ، محصول، توضیحات، رسانه و موجودی اضافه کنید.';
 
   @override
-  String get catalogStrengthWeakDetailsMessage => 'جزئیات محصول شما هنوز ضعیف است. رسانه، توضیحات و اطلاعات موجودی بیشتری اضافه کنید.';
+  String get catalogStrengthWeakDetailsMessage =>
+      'جزئیات محصول شما هنوز ضعیف است. رسانه، توضیحات و اطلاعات موجودی بیشتری اضافه کنید.';
 
   @override
   String get catalogStrengthMediumLabel => 'متوسط';
 
   @override
-  String get catalogStrengthMediumMessage => 'شروع خوبی است. برای افزایش دیده‌شدن، توضیحات کامل‌تر و رسانه بیشتر اضافه کنید.';
+  String get catalogStrengthMediumMessage =>
+      'شروع خوبی است. برای افزایش دیده‌شدن، توضیحات کامل‌تر و رسانه بیشتر اضافه کنید.';
 
   @override
   String get catalogStrengthStrongLabel => 'قوی';
 
   @override
-  String get catalogStrengthStrongMessage => 'کیفیت کاتالوگ عالی است. فهرست‌های شما قوی و کامل به نظر می‌رسند.';
+  String get catalogStrengthStrongMessage =>
+      'کیفیت کاتالوگ عالی است. فهرست‌های شما قوی و کامل به نظر می‌رسند.';
 
   @override
   String get shippingCalculatedLabel => 'هزینه ارسال محاسبه می‌شود';
@@ -3719,11 +3846,12 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String kdvRateLabel(Object percent) {
-    return 'KDV $percent%';
+    return 'مالیات بر ارزش افزوده $percent٪';
   }
 
   @override
-  String get myOrdersLoginRequired => 'لطفاً برای مشاهده سفارش‌های خود وارد شوید';
+  String get myOrdersLoginRequired =>
+      'لطفاً برای مشاهده سفارش‌های خود وارد شوید';
 
   @override
   String get myOrdersTitle => 'سفارش‌های من';
@@ -3732,7 +3860,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get ordersTitle => 'سفارش‌ها';
 
   @override
-  String get searchByOrderIdOrProductNameHint => 'جستجو با شماره سفارش یا نام محصول';
+  String get searchByOrderIdOrProductNameHint =>
+      'جستجو با شماره سفارش یا نام محصول';
 
   @override
   String get allFilterLabel => 'همه';
@@ -3809,7 +3938,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get simulateUploadInvoiceButton => 'شبیه‌سازی بارگذاری فاکتور';
 
   @override
-  String get invoiceSimulatedAsUploaded => 'فاکتور به‌عنوان بارگذاری‌شده شبیه‌سازی شد';
+  String get invoiceSimulatedAsUploaded =>
+      'فاکتور به‌عنوان بارگذاری‌شده شبیه‌سازی شد';
 
   @override
   String invoiceError(Object error) {
@@ -3923,7 +4053,8 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get paymentWillBeTransferredByPetsupo => 'پرداخت توسط Petsupo منتقل خواهد شد';
+  String get paymentWillBeTransferredByPetsupo =>
+      'پرداخت توسط Petsupo منتقل خواهد شد';
 
   @override
   String get pendingPayoutLabel => 'پرداخت در انتظار';
@@ -3947,16 +4078,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get returnCarrierRequired => 'حمل‌کننده لازم است';
 
   @override
-  String get returnShippedBackFailed => 'امکان ثبت بازگشت به‌عنوان ارسال‌شده نبود';
+  String get returnShippedBackFailed =>
+      'امکان ثبت بازگشت به‌عنوان ارسال‌شده نبود';
 
   @override
   String get returnTrackingNumberLabel => 'شماره پیگیری بازگشت';
 
   @override
-  String get returnTrackingNumberHelperText => 'شماره پیگیری ارائه‌شده برای ارسال بازگشتی را وارد کنید.';
+  String get returnTrackingNumberHelperText =>
+      'شماره پیگیری ارائه‌شده برای ارسال بازگشتی را وارد کنید.';
 
   @override
-  String get returnCarrierHelperText => 'از همان حمل‌کننده‌ای که برای تحویل اصلی استفاده شده است، استفاده کنید.';
+  String get returnCarrierHelperText =>
+      'از همان حمل‌کننده‌ای که برای تحویل اصلی استفاده شده است، استفاده کنید.';
 
   @override
   String get originalShipmentTrackingLabel => 'پیگیری ارسال اصلی';
@@ -4048,7 +4182,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get upgradeHeroTitle => 'سریع‌تر به تطابق‌های بهتر برسید 🐾';
 
   @override
-  String get upgradeHeroSubtitle => 'امکانات پریمیوم، دیده‌شدن بهتر، پیشنهادهای اختصاصی و ابزارهای کسب‌وکار را فعال کنید.';
+  String get upgradeHeroSubtitle =>
+      'امکانات پریمیوم، دیده‌شدن بهتر، پیشنهادهای اختصاصی و ابزارهای کسب‌وکار را فعال کنید.';
 
   @override
   String get premiumPlanSubtitle => 'برای صاحبان فعال حیوانات خانگی';
@@ -4057,16 +4192,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get premiumPlanFeatureUnlimitedChat => 'گفت‌وگوی نامحدود';
 
   @override
-  String get premiumPlanFeatureAdvancedMatchingFilters => 'فیلترهای پیشرفته تطابق';
+  String get premiumPlanFeatureAdvancedMatchingFilters =>
+      'فیلترهای پیشرفته تطابق';
 
   @override
-  String get premiumPlanFeatureExclusivePetOffers => 'پیشنهادهای اختصاصی حیوانات خانگی';
+  String get premiumPlanFeatureExclusivePetOffers =>
+      'پیشنهادهای اختصاصی حیوانات خانگی';
 
   @override
   String get premiumPlanFeatureBetterProfileExperience => 'تجربه بهتر پروفایل';
 
   @override
-  String get goldPlanSubtitle => 'برای کسب‌وکارهای حیوانات خانگی و کاربران حرفه‌ای';
+  String get goldPlanSubtitle =>
+      'برای متخصصان و کسب‌وکارهای مراقبت از حیوانات خانگی';
 
   @override
   String get mostPopularLabel => 'محبوب‌ترین';
@@ -4075,16 +4213,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get goldPlanFeatureEverythingInPremium => 'همه چیز در پریمیوم';
 
   @override
-  String get goldPlanFeatureBusinessRegistrationAccess => 'دسترسی به ثبت کسب‌وکار';
+  String get goldPlanFeatureBusinessRegistrationAccess =>
+      'دسترسی به ثبت کسب‌وکار';
 
   @override
   String get goldPlanFeatureBoostedVisibility => 'دیده‌شدن بیشتر';
 
   @override
-  String get goldPlanFeatureBusinessDashboardAccess => 'دسترسی به داشبورد کسب‌وکار';
+  String get goldPlanFeatureBusinessDashboardAccess =>
+      'دسترسی به داشبورد کسب‌وکار';
 
   @override
-  String get goldPlanFeaturePremiumChatAndOffers => 'گفت‌وگو و پیشنهادهای پریمیوم';
+  String get goldPlanFeaturePremiumChatAndOffers =>
+      'گفت‌وگو و پیشنهادهای پریمیوم';
 
   @override
   String get storeNotReadyTryAgain => 'فروشگاه آماده نیست. دوباره تلاش کنید.';
@@ -4099,13 +4240,16 @@ class AppLocalizationsFa extends AppLocalizations {
   String get restorePurchases => 'بازیابی خریدها';
 
   @override
-  String get upgradePaymentTerms => 'پرداخت شما هنگام تأیید از حساب App Store شما کسر می‌شود. اشتراک‌ها به‌صورت خودکار تمدید می‌شوند مگر اینکه حداقل 24 ساعت قبل از پایان دوره فعلی لغو شوند.';
+  String get upgradePaymentTerms =>
+      'پرداخت شما هنگام تأیید از حساب App Store شما کسر می‌شود. اشتراک‌ها به‌صورت خودکار تمدید می‌شوند مگر اینکه حداقل 24 ساعت قبل از پایان دوره فعلی لغو شوند.';
 
   @override
-  String get autoRenewableMonthlySubscription => 'اشتراک ماهانه با تمدید خودکار';
+  String get autoRenewableMonthlySubscription =>
+      'اشتراک ماهانه با تمدید خودکار';
 
   @override
-  String get securePaymentNotice => 'پرداخت امن • هر زمان خواستید لغو کنید • برنامه‌ها توسط App Store مدیریت می‌شوند';
+  String get securePaymentNotice =>
+      'پرداخت امن • هر زمان خواستید لغو کنید • برنامه‌ها توسط App Store مدیریت می‌شوند';
 
   @override
   String continueWithPlan(Object plan) {
@@ -4123,7 +4267,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String adoptionRequestSubtitle(Object dogName) {
-    return '• $dogName';
+    return '• سگ: $dogName';
   }
 
   @override
@@ -4157,16 +4301,16 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionSelectIncomeRange => 'بازه درآمد را انتخاب کنید';
 
   @override
-  String get adoptionIncomeRange0_2000 => '0 - 2,000';
+  String get adoptionIncomeRange0_2000 => '۰ تا ۲٬۰۰۰';
 
   @override
-  String get adoptionIncomeRange2000_5000 => '2,000 - 5,000';
+  String get adoptionIncomeRange2000_5000 => '۲٬۰۰۰ تا ۵٬۰۰۰';
 
   @override
-  String get adoptionIncomeRange5000_10000 => '5,000 - 10,000';
+  String get adoptionIncomeRange5000_10000 => '۵٬۰۰۰ تا ۱۰٬۰۰۰';
 
   @override
-  String get adoptionIncomeRange10000Plus => '10,000+';
+  String get adoptionIncomeRange10000Plus => '۱۰٬۰۰۰ به بالا';
 
   @override
   String get adoptionStepHousingTitle => '2️⃣ مسکن';
@@ -4214,7 +4358,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionYearsOfExperienceLabel => 'سال‌های تجربه';
 
   @override
-  String get adoptionYearsOfExperienceHint => '0..60';
+  String get adoptionYearsOfExperienceHint => '۰ تا ۶۰';
 
   @override
   String get adoptionEnterYearsOfExperience => '0..60 را وارد کنید';
@@ -4223,7 +4367,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionPreviousDogQuestion => 'قبلاً سگ داشته‌اید؟ (بله/خیر)';
 
   @override
-  String get adoptionPreviousDogReasonLabel => 'دلیل اینکه سگ قبلی دیگر با شما نیست';
+  String get adoptionPreviousDogReasonLabel =>
+      'دلیل اینکه سگ قبلی دیگر با شما نیست';
 
   @override
   String get adoptionPreviousDogReasonHint => 'کوتاه توضیح دهید';
@@ -4235,7 +4380,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionOtherPetsAtHome => 'حیوانات خانگی دیگری در خانه هستند';
 
   @override
-  String get adoptionDescribeOtherPetsLabel => 'حیوانات خانگی دیگر خود را توصیف کنید';
+  String get adoptionDescribeOtherPetsLabel =>
+      'حیوانات خانگی دیگر خود را توصیف کنید';
 
   @override
   String get adoptionDescribeOtherPetsHint => 'مثال: 2 گربه، واکسینه شده';
@@ -4244,7 +4390,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionRequiredShort => 'الزامی است';
 
   @override
-  String get adoptionDescribeOtherPetsRequired => 'لطفاً حیوانات خانگی دیگر خود را توضیح دهید';
+  String get adoptionDescribeOtherPetsRequired =>
+      'لطفاً حیوانات خانگی دیگر خود را توضیح دهید';
 
   @override
   String get adoptionMotivationMessageLabel => 'پیام انگیزه';
@@ -4256,7 +4403,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionStepFinancialCommitmentTitle => '4️⃣ مالی و تعهد';
 
   @override
-  String get adoptionCanAffordVetExpenses => 'توان پرداخت هزینه‌های دامپزشکی را دارد؟';
+  String get adoptionCanAffordVetExpenses =>
+      'توان پرداخت هزینه‌های دامپزشکی را دارد؟';
 
   @override
   String get adoptionEmergencySavingsAvailable => 'پس‌انداز اضطراری دارد؟';
@@ -4303,10 +4451,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionOptionalLabel => 'اختیاری';
 
   @override
-  String get adoptionAgreeContractRequiredLabel => 'با امضای قرارداد سرپرستی موافقم (الزامی)';
+  String get adoptionAgreeContractRequiredLabel =>
+      'با امضای قرارداد سرپرستی موافقم (الزامی)';
 
   @override
-  String get adoptionAgreeContractRequired => 'باید با قرارداد سرپرستی موافقت کنید';
+  String get adoptionAgreeContractRequired =>
+      'باید با قرارداد سرپرستی موافقت کنید';
 
   @override
   String get adoptionUploadIdPhoto => 'لطفاً یک عکس کارت شناسایی بارگذاری کنید';
@@ -4315,7 +4465,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get adoptionNextButton => 'بعدی';
 
   @override
-  String smartPriceSuggestedRangeLabel(Object currency, Object max, Object min) {
+  String smartPriceSuggestedRangeLabel(
+    Object currency,
+    Object max,
+    Object min,
+  ) {
     return 'بازه پیشنهادی: $min - $max $currency';
   }
 
@@ -4373,40 +4527,40 @@ class AppLocalizationsFa extends AppLocalizations {
   String get marketSourceErrorLabel => 'خطا';
 
   @override
-  String get discountRate1Label => '1%';
+  String get discountRate1Label => '۱٪ تخفیف';
 
   @override
-  String get discountRate10Label => '10%';
+  String get discountRate10Label => '۱۰٪ تخفیف';
 
   @override
-  String get discountRate20Label => '20%';
+  String get discountRate20Label => '۲۰٪ تخفیف';
 
   @override
-  String get carrierYurticiKargo => 'Yurtiçi Kargo';
+  String get carrierYurticiKargo => 'پست Yurtiçi Kargo';
 
   @override
-  String get carrierArasKargo => 'Aras Kargo';
+  String get carrierArasKargo => 'پست Aras Kargo';
 
   @override
-  String get carrierMngKargo => 'MNG Kargo';
+  String get carrierMngKargo => 'پست MNG Kargo';
 
   @override
-  String get carrierSuratKargo => 'Sürat Kargo';
+  String get carrierSuratKargo => 'پست Sürat Kargo';
 
   @override
-  String get carrierPttKargo => 'PTT Kargo';
+  String get carrierPttKargo => 'پست PTT Kargo';
 
   @override
-  String get carrierHepsiJet => 'HepsiJET';
+  String get carrierHepsiJet => 'پست HepsiJET';
 
   @override
-  String get carrierKolayGelsin => 'Kolay Gelsin';
+  String get carrierKolayGelsin => 'پست Kolay Gelsin';
 
   @override
-  String get carrierUpsTurkiye => 'UPS Türkiye';
+  String get carrierUpsTurkiye => 'پست UPS ترکیه';
 
   @override
-  String get carrierDhlExpress => 'DHL Express';
+  String get carrierDhlExpress => 'ارسال سریع DHL';
 
   @override
   String get categoryFood => 'غذا';
@@ -4454,13 +4608,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get productAlreadyExistsTitle => 'محصول از قبل وجود دارد';
 
   @override
-  String get productAlreadyExistsDescription => 'این محصول از قبل وجود دارد. ویرایشگر محصول باز می‌شود.';
+  String get productAlreadyExistsDescription =>
+      'این محصول از قبل وجود دارد. ویرایشگر محصول باز می‌شود.';
 
   @override
   String get continueButton => 'ادامه';
 
   @override
-  String get productNameMustBeAtLeast4Chars => 'نام محصول باید حداقل 4 کاراکتر باشد';
+  String get productNameMustBeAtLeast4Chars =>
+      'نام محصول باید حداقل 4 کاراکتر باشد';
 
   @override
   String get invalidBarcode => 'بارکد نامعتبر است';
@@ -4472,7 +4628,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get invalidWholesalePrice => 'قیمت عمده نامعتبر است';
 
   @override
-  String get wholesaleMinQuantityMustBeAtLeast2 => 'حداقل تعداد عمده باید حداقل 2 باشد';
+  String get wholesaleMinQuantityMustBeAtLeast2 =>
+      'حداقل تعداد عمده باید حداقل 2 باشد';
 
   @override
   String get kdvRateIsRequired => 'یک نرخ مالیات بر ارزش افزوده انتخاب کنید';
@@ -4484,16 +4641,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get invalidDiscountPrice => 'قیمت تخفیف نامعتبر است';
 
   @override
-  String get discountMustBeLowerThanOriginalPrice => 'قیمت تخفیف باید کمتر از قیمت اصلی باشد';
+  String get discountMustBeLowerThanOriginalPrice =>
+      'قیمت تخفیف باید کمتر از قیمت اصلی باشد';
 
   @override
-  String get wholesalePriceMustBeLowerThanRetailPrice => 'قیمت عمده باید کمتر از قیمت خرده‌فروشی باشد';
+  String get wholesalePriceMustBeLowerThanRetailPrice =>
+      'قیمت عمده باید کمتر از قیمت خرده‌فروشی باشد';
 
   @override
   String get invalidStock => 'موجودی نامعتبر است';
 
   @override
-  String get stockMustBeAtLeastWholesaleMinQuantity => 'موجودی باید حداقل برابر حداقل تعداد عمده باشد';
+  String get stockMustBeAtLeastWholesaleMinQuantity =>
+      'موجودی باید حداقل برابر حداقل تعداد عمده باشد';
 
   @override
   String get inventoryStockFieldLabel => 'موجودی';
@@ -4505,7 +4665,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get addAtLeast1Media => 'حداقل 1 رسانه اضافه کنید';
 
   @override
-  String get descriptionMustBeAtLeast10Characters => 'توضیحات باید حداقل 10 کاراکتر باشد';
+  String get descriptionMustBeAtLeast10Characters =>
+      'توضیحات باید حداقل 10 کاراکتر باشد';
 
   @override
   String get selectCategory => 'یک دسته را انتخاب کنید';
@@ -4541,10 +4702,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get invalidMaxDeliveryDays => 'حداکثر روزهای تحویل نامعتبر است';
 
   @override
-  String get selectAtLeast1CargoCarrier => 'حداقل 1 شرکت حمل‌ونقل را انتخاب کنید';
+  String get selectAtLeast1CargoCarrier =>
+      'حداقل 1 شرکت حمل‌ونقل را انتخاب کنید';
 
   @override
-  String get returnWindowCannotBeLessThan14Days => 'بازه بازگشت نمی‌تواند کمتر از 14 روز باشد';
+  String get returnWindowCannotBeLessThan14Days =>
+      'بازه بازگشت نمی‌تواند کمتر از 14 روز باشد';
 
   @override
   String get returnCarrierIsRequired => 'حمل‌کننده بازگشت لازم است';
@@ -4609,7 +4772,11 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String smartDescriptionAccessories(Object brand, Object name, Object subCategory) {
+  String smartDescriptionAccessories(
+    Object brand,
+    Object name,
+    Object subCategory,
+  ) {
     return '$name از $brand یک لوازم جانبی کاربردی در دسته $subCategory است.';
   }
 
@@ -4684,7 +4851,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get searchingProductStatus => 'در حال جستجوی محصول...';
 
   @override
-  String get productAlreadyExistsOpeningEditStatus => 'محصول موجود است، ویرایشگر باز می‌شود...';
+  String get productAlreadyExistsOpeningEditStatus =>
+      'محصول موجود است، ویرایشگر باز می‌شود...';
 
   @override
   String get fetchingProductDataStatus => 'در حال دریافت داده‌های محصول...';
@@ -4743,7 +4911,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get enterBarcodeHint => 'بارکد را وارد یا اسکن کنید';
 
   @override
-  String get noBarcodeSkuHint => 'بارکد اختیاری است. اگر خالی باشد SKU به‌صورت خودکار ایجاد می‌شود.';
+  String get noBarcodeSkuHint =>
+      'بارکد اختیاری است. اگر خالی باشد SKU به‌صورت خودکار ایجاد می‌شود.';
 
   @override
   String get scanButtonLabel => 'اسکن';
@@ -4752,7 +4921,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get skuCodeLabel => 'کد SKU';
 
   @override
-  String get autoGeneratedSkuHint => 'اگر خالی باشد به‌صورت خودکار ایجاد می‌شود';
+  String get autoGeneratedSkuHint =>
+      'اگر خالی باشد به‌صورت خودکار ایجاد می‌شود';
 
   @override
   String get shippingAndDeliverySectionTitle => 'حمل‌ونقل و تحویل';
@@ -4800,7 +4970,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get wholesaleAppliesHint => 'تخفیف عمده از این تعداد اعمال می‌شود';
 
   @override
-  String get visibleOnlyToBusinessAccountsHint => 'فقط برای حساب‌های تجاری قابل مشاهده است';
+  String get visibleOnlyToBusinessAccountsHint =>
+      'فقط برای حساب‌های تجاری قابل مشاهده است';
 
   @override
   String get usersWillSeeDiscountHint => 'کاربران نشان تخفیف را می‌بینند';
@@ -4871,7 +5042,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get buyerOptionLabel => 'خریدار';
 
   @override
-  String get sellerContractedCarrierOnlyLabel => 'فقط در صورت حمل‌کننده قراردادی';
+  String get sellerContractedCarrierOnlyLabel =>
+      'فقط در صورت حمل‌کننده قراردادی';
 
   @override
   String get inventoryTitle => 'موجودی';
@@ -4929,7 +5101,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get returnRequestsTitle => 'درخواست‌های مرجوعی';
 
   @override
-  String get returnAvailableAfterDeliveryMessage => 'امکان ثبت مرجوعی پس از تحویل فعال می‌شود.';
+  String get returnAvailableAfterDeliveryMessage =>
+      'امکان ثبت مرجوعی پس از تحویل فعال می‌شود.';
 
   @override
   String get noReturnsYet => 'هنوز درخواستی برای مرجوعی ثبت نشده است';
@@ -4947,7 +5120,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get returnDescriptionHint => 'مشکل را توضیح دهید...';
 
   @override
-  String get selectReturnItemsLabel => 'مواردی را که می‌خواهید مرجوع کنید انتخاب کنید';
+  String get selectReturnItemsLabel =>
+      'مواردی را که می‌خواهید مرجوع کنید انتخاب کنید';
 
   @override
   String returnRequestLabel(Object id) {
@@ -5057,7 +5231,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get shippingResponsibilityBuyerLabel => 'خریدار';
 
   @override
-  String get shippingResponsibilityContractCarrierLabel => 'فقط در صورت حمل‌کننده قراردادی';
+  String get shippingResponsibilityContractCarrierLabel =>
+      'فقط در صورت حمل‌کننده قراردادی';
 
   @override
   String get returnCarrierLabel => 'حمل‌کننده بازگشت';
@@ -5069,7 +5244,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get refundRejectedStatusLabel => 'بازگشت وجه رد شد';
 
   @override
-  String get locationUpdatedSuccessfully => 'موقعیت مکانی با موفقیت به‌روزرسانی شد';
+  String get locationUpdatedSuccessfully =>
+      'موقعیت مکانی با موفقیت به‌روزرسانی شد';
 
   @override
   String get centersLoadError => 'بارگذاری مراکز انجام نشد';
@@ -5152,7 +5328,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get vetRevenueTitle => 'درآمد';
 
   @override
-  String get vetRevenueDescription => 'داده‌های تأییدشده پرداخت و تسویه تراکنش‌های دامپزشکی تکمیل‌شده.';
+  String get vetRevenueDescription =>
+      'داده‌های تأییدشده پرداخت و تسویه تراکنش‌های دامپزشکی تکمیل‌شده.';
 
   @override
   String get vetRevenueRange7Days => '۷ روز';
@@ -5202,25 +5379,29 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get vetRevenueMixedCurrencyWarning => 'چند ارز وجود دارد. مبالغ جداگانه نمایش داده می‌شوند و تبدیل یا جمع نمی‌شوند.';
+  String get vetRevenueMixedCurrencyWarning =>
+      'چند ارز وجود دارد. مبالغ جداگانه نمایش داده می‌شوند و تبدیل یا جمع نمی‌شوند.';
 
   @override
   String get vetRevenueNoAppointmentsTitle => 'هنوز نوبتی وجود ندارد';
 
   @override
-  String get vetRevenueNoAppointmentsMessage => 'با ایجاد نوبت دامپزشکی، تحلیل درآمد اینجا نمایش داده می‌شود.';
+  String get vetRevenueNoAppointmentsMessage =>
+      'با ایجاد نوبت دامپزشکی، تحلیل درآمد اینجا نمایش داده می‌شود.';
 
   @override
   String get vetRevenueNoRangeTitle => 'در این بازه رکوردی نیست';
 
   @override
-  String get vetRevenueNoRangeMessage => 'برای مشاهده تراکنش‌های قدیمی‌تر بازه بزرگ‌تری انتخاب کنید.';
+  String get vetRevenueNoRangeMessage =>
+      'برای مشاهده تراکنش‌های قدیمی‌تر بازه بزرگ‌تری انتخاب کنید.';
 
   @override
   String get vetRevenueLoadErrorTitle => 'داده درآمد در دسترس نیست';
 
   @override
-  String get vetRevenueLoadErrorMessage => 'اتصال را بررسی و دوباره تلاش کنید. رکوردهای پرداخت تغییر نکرده‌اند.';
+  String get vetRevenueLoadErrorMessage =>
+      'اتصال را بررسی و دوباره تلاش کنید. رکوردهای پرداخت تغییر نکرده‌اند.';
 
   @override
   String get vetRevenueRetry => 'تلاش دوباره';
@@ -5229,10 +5410,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get vetRevenueTrendTitle => 'روند درآمد';
 
   @override
-  String get vetRevenueMixedCurrencyChartHidden => 'به دلیل وجود چند ارز، نمودار ترکیبی نمایش داده نمی‌شود.';
+  String get vetRevenueMixedCurrencyChartHidden =>
+      'به دلیل وجود چند ارز، نمودار ترکیبی نمایش داده نمی‌شود.';
 
   @override
-  String get vetRevenueNoRecognizedRevenue => 'در این بازه درآمد پرداخت‌شده تأییدشده‌ای نیست.';
+  String get vetRevenueNoRecognizedRevenue =>
+      'در این بازه درآمد پرداخت‌شده تأییدشده‌ای نیست.';
 
   @override
   String get vetRevenueTopServices => 'خدمات برتر بر اساس درآمد ناخالص';
@@ -5301,7 +5484,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get vetRevenueTransactionReference => 'مرجع تراکنش';
 
   @override
-  String get vetRevenueNoMatchingTransactions => 'تراکنشی مطابق جستجو و فیلتر نیست.';
+  String get vetRevenueNoMatchingTransactions =>
+      'تراکنشی مطابق جستجو و فیلتر نیست.';
 
   @override
   String vetRevenuePageOf(int page, int total) {
@@ -5319,4 +5503,132 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get vetWebVeterinaryLabel => 'دامپزشکی';
+
+  @override
+  String get petShopsTitle => 'فروشگاه‌های حیوانات';
+
+  @override
+  String get searchPetShopsHint => 'جستجوی فروشگاه حیوانات';
+
+  @override
+  String get noPetShopsFound => 'فروشگاه حیوانات پیدا نشد';
+
+  @override
+  String get noPetShopsFoundDescription =>
+      'جستجوی دیگری را امتحان کنید یا بعداً دوباره بررسی کنید.';
+
+  @override
+  String get loadingPetShops => 'در حال یافتن فروشگاه‌های نزدیک شما…';
+
+  @override
+  String get petShopsLoadError => 'فروشگاه‌ها بارگیری نشدند. دوباره تلاش کنید.';
+
+  @override
+  String get retryButton => 'تلاش دوباره';
+
+  @override
+  String get shopInformationTitle => 'اطلاعات فروشگاه';
+
+  @override
+  String get noShopDescriptionAvailable => 'توضیحی برای فروشگاه موجود نیست.';
+
+  @override
+  String get locationNotAvailable => 'موقعیت مکانی موجود نیست';
+
+  @override
+  String get getDirectionsLabel => 'مسیریابی';
+
+  @override
+  String get connectLabel => 'ارتباط';
+
+  @override
+  String get callLabel => 'تماس';
+
+  @override
+  String get whatsappLabel => 'واتساپ';
+
+  @override
+  String get websiteLabel => 'وب‌سایت';
+
+  @override
+  String get signInToContactShop => 'برای تماس با این فروشگاه وارد شوید.';
+
+  @override
+  String get petShopUnavailable => 'فروشگاه در دسترس نیست';
+
+  @override
+  String get petShopUnavailableDescription =>
+      'این فروشگاه حیوانات دیگر در دسترس نیست.';
+
+  @override
+  String get reviewsCouldNotBeLoaded => 'نظرها بارگیری نشدند.';
+
+  @override
+  String get noProductsAvailableFromShop => 'محصولی از این فروشگاه موجود نیست';
+
+  @override
+  String get petShopLocationNeededMessage =>
+      'برای نمایش فروشگاه‌های حیوانات نزدیک از موقعیت شما استفاده می‌کنیم';
+
+  @override
+  String get infoTitle => 'اطلاعات';
+
+  @override
+  String get processTitle => 'فرآیند';
+
+  @override
+  String get categoriesTitle => 'دسته‌بندی‌ها';
+
+  @override
+  String get contactTitle => 'تماس';
+
+  @override
+  String get openFullProfile => 'نمایش پروفایل کامل';
+
+  @override
+  String get noShopCategoriesAvailable => 'دسته‌بندی فروشگاه موجود نیست.';
+
+  @override
+  String get browseShopProductsDescription =>
+      'محصولات موجود در این فروشگاه حیوانات را ببینید.';
+
+  @override
+  String get viewAllProducts => 'مشاهده همه محصولات';
+
+  @override
+  String get continueWithGoogle => 'ادامه با گوگل';
+
+  @override
+  String get continueWithApple => 'ادامه با اپل';
+
+  @override
+  String get orContinueWith => 'یا ادامه با';
+
+  @override
+  String get authenticationCancelled => 'احراز هویت لغو شد';
+
+  @override
+  String get unableToSignIn => 'ورود امکان‌پذیر نیست';
+
+  @override
+  String get emailRegisteredWithAnotherProvider =>
+      'این ایمیل با روش ورود دیگری ثبت شده است';
+
+  @override
+  String get completeYourProfile => 'پروفایل خود را کامل کنید';
+
+  @override
+  String get cityLabel => 'شهر';
+
+  @override
+  String get districtLabel => 'منطقه';
+
+  @override
+  String get cityRequired => 'لطفاً شهر خود را وارد کنید';
+
+  @override
+  String get districtRequired => 'لطفاً منطقه خود را وارد کنید';
+
+  @override
+  String get continueLabel => 'ادامه';
 }

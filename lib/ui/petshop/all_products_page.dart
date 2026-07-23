@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -45,6 +46,8 @@ class _AllProductsPageState extends State<AllProductsPage> {
 
   final List<CartItem> _cart = [];
 
+  bool get _hasSellerScope => widget.initialSellerId != null;
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +79,22 @@ class _AllProductsPageState extends State<AllProductsPage> {
       _sort = 'recommended';
       _sellerIdFilter = widget.initialSellerId;
     });
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _productsStream() {
+    final sellerId = widget.initialSellerId?.trim();
+    if (_hasSellerScope) {
+      return FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(sellerId!.isEmpty ? '__invalid_shop__' : sellerId)
+          .collection('products')
+          .where('isActive', isEqualTo: true)
+          .snapshots();
+    }
+    return FirebaseFirestore.instance
+        .collectionGroup('products')
+        .where('isActive', isEqualTo: true)
+        .snapshots();
   }
 
   void _addToBasket(Product product) {
@@ -157,12 +176,22 @@ class _AllProductsPageState extends State<AllProductsPage> {
       return;
     }
 
+    try {
+      await FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('reconcileVerifiedPaidCart').call();
+    } catch (error, stackTrace) {
+      debugPrint('Unable to reconcile verified paid cart: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('cart')
         .get();
 
+    if (!mounted) return;
     setState(() {
       _cart.clear();
 
@@ -414,11 +443,14 @@ class _AllProductsPageState extends State<AllProductsPage> {
 
                             // CHECKOUT
                             ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
+                              onPressed: () async {
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CheckoutPage(items: _cart),
+                                    builder: (_) => CheckoutPage(
+                                      items: List<CartItem>.from(_cart),
+                                      onPaymentVerified: _loadCartFromFirestore,
+                                    ),
                                   ),
                                 );
                               },
@@ -566,7 +598,8 @@ class _AllProductsPageState extends State<AllProductsPage> {
         actions: [
           /// FAVORITES
           StreamBuilder<QuerySnapshot>(
-            stream: FirebaseAuth.instance.currentUser == null ||
+            stream:
+                FirebaseAuth.instance.currentUser == null ||
                     FirebaseAuth.instance.currentUser!.isAnonymous
                 ? null
                 : FirebaseFirestore.instance
@@ -687,17 +720,12 @@ class _AllProductsPageState extends State<AllProductsPage> {
           const SizedBox(width: 6),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collectionGroup('products')
-            .where('isActive', isEqualTo: true)
-            .snapshots(),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _productsStream(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             debugPrint("🔥 REAL ERROR: ${snapshot.error}");
-            return Center(
-              child: Text(l10n.errorLoadingProducts(snapshot.error.toString())),
-            );
+            return Center(child: Text(l10n.somethingWentWrong));
           }
 
           if (!snapshot.hasData) {
@@ -707,11 +735,21 @@ class _AllProductsPageState extends State<AllProductsPage> {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return Center(child: Text(l10n.noActiveProductsFound));
+            return Center(
+              child: Text(
+                _hasSellerScope
+                    ? l10n.noProductsAvailableFromShop
+                    : l10n.noActiveProductsFound,
+              ),
+            );
           }
 
           final products = docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = Map<String, dynamic>.from(doc.data());
+            if (_hasSellerScope &&
+                (data['businessId'] ?? '').toString().trim().isEmpty) {
+              data['businessId'] = widget.initialSellerId;
+            }
             return Product.fromJson(doc.id, data);
           }).toList();
 
@@ -736,6 +774,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                       controller: _searchController,
                       decoration: InputDecoration(
                         hintText: l10n.searchProductsHint,
+                        hintStyle: const TextStyle(fontSize: 14),
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _query.isEmpty
                             ? null
@@ -770,142 +809,150 @@ class _AllProductsPageState extends State<AllProductsPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          // =========================
-                          // CATEGORY
-                          // =========================
-                          _TopDropDown<String?>(
-                            width: 110,
-                            value: _selectedCategory,
-                            hint: l10n.categoryLabel,
-                            items: [
-                              DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text(l10n.allCategoriesLabel),
-                              ),
-                              ...categories.map(
-                                (e) => DropdownMenuItem<String?>(
-                                  value: e,
-                                  child: Text(e),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        const spacing = 10.0;
+                        final availableWidth = constraints.maxWidth;
+                        final columns = availableWidth < 600
+                            ? 1
+                            : availableWidth < 900
+                            ? 2
+                            : 4;
+                        final controlWidth =
+                            (availableWidth - (spacing * (columns - 1))) /
+                            columns;
+
+                        return Wrap(
+                          spacing: spacing,
+                          runSpacing: spacing,
+                          children: [
+                            // =========================
+                            // CATEGORY
+                            // =========================
+                            _TopDropDown<String?>(
+                              width: controlWidth,
+                              value: _selectedCategory,
+                              hint: l10n.categoryLabel,
+                              items: [
+                                DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text(l10n.allCategoriesLabel),
                                 ),
-                              ),
-                            ],
-                            onChanged: (v) {
-                              setState(() => _selectedCategory = v);
-                            },
-                          ),
-
-                          const SizedBox(width: 8),
-
-                          // =========================
-                          // SHIPPING
-                          // =========================
-                          _TopDropDown<String?>(
-                            width: 150,
-                            value: _selectedShippingMode,
-                            hint: l10n.shippingLabel,
-                            items: [
-                              DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text(l10n.shippingLabel),
-                              ),
-                              DropdownMenuItem<String?>(
-                                value: "free_shipping",
-                                child: Text(l10n.freeShippingLabel),
-                              ),
-                              DropdownMenuItem<String?>(
-                                value: "seller_absorbs",
-                                child: Text(l10n.sellerPaysCargoLabel),
-                              ),
-                              DropdownMenuItem<String?>(
-                                value: "fixed_price",
-                                child: Text(l10n.fixedCargoLabel),
-                              ),
-                              DropdownMenuItem<String?>(
-                                value: "carrier_calculated",
-                                child: Text(l10n.calculatedCargoLabel),
-                              ),
-                            ],
-                            onChanged: (v) {
-                              setState(() => _selectedShippingMode = v);
-                            },
-                          ),
-
-                          const SizedBox(width: 8),
-
-                          // =========================
-                          // SORT
-                          // =========================
-                          _TopDropDown<String>(
-                            width: 150,
-                            value: _sort,
-                            hint: l10n.sortLabel,
-                            items: [
-                              DropdownMenuItem(
-                                value: "recommended",
-                                child: Text(l10n.recommendedLabel),
-                              ),
-                              DropdownMenuItem(
-                                value: "newest",
-                                child: Text(l10n.newest),
-                              ),
-                              DropdownMenuItem(
-                                value: "price_low",
-                                child: Text(l10n.priceLowLabel),
-                              ),
-                              DropdownMenuItem(
-                                value: "price_high",
-                                child: Text(l10n.priceHighLabel),
-                              ),
-                              DropdownMenuItem(
-                                value: "discount",
-                                child: Text(l10n.bestDiscountLabel),
-                              ),
-                            ],
-                            onChanged: (v) {
-                              if (v != null) {
-                                setState(() => _sort = v);
-                              }
-                            },
-                          ),
-
-                          const SizedBox(width: 8),
-
-                          // =========================
-                          // CLEAR SELLER ONLY
-                          // =========================
-                          if (_sellerIdFilter != null)
-                            ActionChip(
-                              onPressed: () {
-                                setState(() {
-                                  _sellerIdFilter = null;
-                                });
+                                ...categories.map(
+                                  (e) => DropdownMenuItem<String?>(
+                                    value: e,
+                                    child: Text(e),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (v) {
+                                setState(() => _selectedCategory = v);
                               },
-                              avatar: const Icon(
-                                Icons.store_mall_directory_outlined,
-                                size: 18,
-                              ),
-                              label: Text(l10n.sellerLabel),
                             ),
 
-                          const SizedBox(width: 8),
+                            // =========================
+                            // SHIPPING
+                            // =========================
+                            _TopDropDown<String?>(
+                              width: controlWidth,
+                              value: _selectedShippingMode,
+                              hint: l10n.shippingLabel,
+                              items: [
+                                DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text(l10n.shippingLabel),
+                                ),
+                                DropdownMenuItem<String?>(
+                                  value: "free_shipping",
+                                  child: Text(l10n.freeShippingLabel),
+                                ),
+                                DropdownMenuItem<String?>(
+                                  value: "seller_absorbs",
+                                  child: Text(l10n.sellerPaysCargoLabel),
+                                ),
+                                DropdownMenuItem<String?>(
+                                  value: "fixed_price",
+                                  child: Text(l10n.fixedCargoLabel),
+                                ),
+                                DropdownMenuItem<String?>(
+                                  value: "carrier_calculated",
+                                  child: Text(l10n.calculatedCargoLabel),
+                                ),
+                              ],
+                              onChanged: (v) {
+                                setState(() => _selectedShippingMode = v);
+                              },
+                            ),
 
-                          // =========================
-                          // 🔥 RESET ALL FILTERS
-                          // =========================
-                          ActionChip(
-                            onPressed: _resetFilters,
-                            avatar: const Icon(Icons.refresh_rounded, size: 18),
-                            label: Text(l10n.resetFiltersButton),
-                          ),
-                        ],
-                      ),
+                            // =========================
+                            // SORT
+                            // =========================
+                            _TopDropDown<String>(
+                              width: controlWidth,
+                              value: _sort,
+                              hint: l10n.sortLabel,
+                              items: [
+                                DropdownMenuItem(
+                                  value: "recommended",
+                                  child: Text(l10n.recommendedLabel),
+                                ),
+                                DropdownMenuItem(
+                                  value: "newest",
+                                  child: Text(l10n.newest),
+                                ),
+                                DropdownMenuItem(
+                                  value: "price_low",
+                                  child: Text(l10n.priceLowLabel),
+                                ),
+                                DropdownMenuItem(
+                                  value: "price_high",
+                                  child: Text(l10n.priceHighLabel),
+                                ),
+                                DropdownMenuItem(
+                                  value: "discount",
+                                  child: Text(l10n.bestDiscountLabel),
+                                ),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _sort = v);
+                                }
+                              },
+                            ),
+
+                            // =========================
+                            // CLEAR SELLER ONLY
+                            // =========================
+                            if (_sellerIdFilter != null && !_hasSellerScope)
+                              _FilterActionButton(
+                                width: controlWidth,
+                                onPressed: () {
+                                  setState(() {
+                                    _sellerIdFilter = null;
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.store_mall_directory_outlined,
+                                  size: 18,
+                                ),
+                                label: Text(l10n.sellerLabel),
+                              ),
+
+                            // =========================
+                            // 🔥 RESET ALL FILTERS
+                            // =========================
+                            _FilterActionButton(
+                              width: controlWidth,
+                              onPressed: _resetFilters,
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: Text(l10n.resetFiltersButton),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Text(
@@ -998,6 +1045,7 @@ class _TopDropDown<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
+      height: 48,
       child: DropdownButtonFormField<T>(
         initialValue: value,
         isExpanded: true,
@@ -1028,6 +1076,41 @@ class _TopDropDown<T> extends StatelessWidget {
         icon: const Icon(Icons.keyboard_arrow_down_rounded),
         items: items,
         onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _FilterActionButton extends StatelessWidget {
+  final double width;
+  final VoidCallback onPressed;
+  final Widget icon;
+  final Widget label;
+
+  const _FilterActionButton({
+    required this.width,
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: icon,
+        label: label,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.textDark,
+          backgroundColor: Colors.white,
+          alignment: AlignmentDirectional.centerStart,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          side: BorderSide(color: Colors.black.withOpacity(0.06)),
+          shape: const StadiumBorder(),
+        ),
       ),
     );
   }

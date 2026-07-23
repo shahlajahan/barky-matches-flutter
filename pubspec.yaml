@@ -61,6 +61,8 @@ dependencies:
   # Firebase dependencies (اصلاح شده به نسخه‌های پایدار)
   firebase_core: ^4.1.1
   firebase_auth: ^6.1.0
+  google_sign_in: ^6.3.0
+  sign_in_with_apple: ^6.1.4
   cloud_firestore: ^6.0.2
   cloud_functions: ^6.0.2
   firebase_messaging: ^16.0.2

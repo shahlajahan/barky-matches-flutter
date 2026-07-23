@@ -121,7 +121,7 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
                     onPressed: () {
                       _updateSubscription({"plan": "gold", "price": 19.99});
                     },
-                    child: const Text("👑 Upgrade to Gold"),
+                    child: const Text("👑 Upgrade to PetSupo Partner"),
                   ),
 
                 /// GOLD → PREMIUM

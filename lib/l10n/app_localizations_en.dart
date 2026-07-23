@@ -127,7 +127,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutCargoUpdatesTitle => 'Invoice & Cargo Updates';
 
   @override
-  String get checkoutCargoUpdatesQuestion => 'How should we send invoice and cargo tracking updates?';
+  String get checkoutCargoUpdatesQuestion =>
+      'How should we send invoice and cargo tracking updates?';
 
   @override
   String get checkoutSmsOption => 'SMS';
@@ -151,10 +152,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutPreInfoForm => 'I accept the pre-information form';
 
   @override
-  String get checkoutDistanceSalesAgreement => 'I accept the distance sales agreement';
+  String get checkoutDistanceSalesAgreement =>
+      'I accept the distance sales agreement';
 
   @override
-  String get checkoutMarketingOptional => 'Receive marketing messages (optional)';
+  String get checkoutMarketingOptional =>
+      'Receive marketing messages (optional)';
 
   @override
   String get checkoutDeliveryTitle => 'Delivery';
@@ -172,7 +175,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutShippingLabel => 'Shipping';
 
   @override
-  String get checkoutPleaseSelectCargoCompany => 'Please select a cargo company';
+  String get checkoutPleaseSelectCargoCompany =>
+      'Please select a cargo company';
 
   @override
   String get checkoutEnterNameSurname => 'Enter name & surname';
@@ -208,7 +212,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutAcceptRequiredAgreements => 'Accept required agreements';
 
   @override
-  String get checkoutPaymentPageOpenedMessage => 'Payment page opened. Complete the payment, then return to the app.';
+  String get checkoutPaymentPageOpenedMessage =>
+      'Payment page opened. Complete the payment, then return to the app.';
 
   @override
   String get checkoutBackButton => 'Back';
@@ -220,10 +225,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutContinueButton => 'Continue';
 
   @override
-  String get checkoutPaymentCompletedSuccessfully => 'Payment completed successfully';
+  String get checkoutPaymentCompletedSuccessfully =>
+      'Payment completed successfully';
 
   @override
-  String get checkoutPaymentCancelledOrIncomplete => 'Payment was cancelled or not completed';
+  String get checkoutPaymentCancelledOrIncomplete =>
+      'Payment was cancelled or not completed';
 
   @override
   String checkoutFailed(Object error) {
@@ -266,7 +273,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancelAppointmentTitle => 'Cancel Appointment?';
 
   @override
-  String get cancelAppointmentConfirmation => 'Are you sure you want to cancel this appointment?';
+  String get cancelAppointmentConfirmation =>
+      'Are you sure you want to cancel this appointment?';
 
   @override
   String get keepAppointmentButton => 'Keep Appointment';
@@ -275,10 +283,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appointmentCancelled => 'Appointment cancelled';
 
   @override
-  String get cancellationNotAllowed => 'Cancellation is not allowed for this appointment.';
+  String get cancellationNotAllowed =>
+      'Cancellation is not allowed for this appointment.';
 
   @override
-  String get cancelAppointmentFailed => 'Could not cancel appointment. Please try again.';
+  String get cancelAppointmentFailed =>
+      'Could not cancel appointment. Please try again.';
 
   @override
   String get selectService => 'Select Service';
@@ -308,7 +318,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get requestSentTitle => 'Request Sent 🐾';
 
   @override
-  String get requestSentMessage => 'Your appointment request has been sent to the clinic.';
+  String get requestSentMessage =>
+      'Your appointment request has been sent to the clinic.';
 
   @override
   String get okButton => 'OK';
@@ -317,7 +328,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get somethingWentWrong => 'Something went wrong';
 
   @override
-  String get alreadyBookedAtThisTime => 'You already have a booking at this time. Please choose another time.';
+  String get alreadyBookedAtThisTime =>
+      'You already have a booking at this time. Please choose another time.';
 
   @override
   String get invalidBookingData => 'Invalid booking data. Please try again.';
@@ -490,7 +502,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteAccount => 'Delete Account';
 
   @override
-  String get deleteAccountConfirmation => 'Are you sure you want to delete your account? This action cannot be undone.';
+  String get deleteAccountConfirmation =>
+      'Are you sure you want to delete your account? This action cannot be undone.';
 
   @override
   String get updateProfile => 'Update Profile';
@@ -602,7 +615,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get passwordRequired => 'Please enter your password';
 
   @override
-  String get passwordValidation => 'Minimum 8 characters, with a letter and a number.';
+  String get passwordValidation =>
+      'Minimum 8 characters, with a letter and a number.';
 
   @override
   String get passwordMismatch => 'Passwords do not match';
@@ -617,7 +631,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgotPasswordDialogTitle => 'Forgot Password';
 
   @override
-  String get forgotPasswordDialogMessage => 'Please enter your email to reset your password.';
+  String get forgotPasswordDialogMessage =>
+      'Please enter your email to reset your password.';
 
   @override
   String get sendButton => 'Send';
@@ -646,19 +661,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authUserNotFound => 'User not found';
 
   @override
-  String get pleaseVerifyEmailBeforeSigningIn => 'Please verify your email before signing in.';
+  String get pleaseVerifyEmailBeforeSigningIn =>
+      'Please verify your email before signing in.';
 
   @override
   String get userCreationFailed => 'User creation failed';
 
   @override
-  String get verificationEmailCouldNotBeSent => 'Verification email could not be sent';
+  String get verificationEmailCouldNotBeSent =>
+      'Verification email could not be sent';
 
   @override
-  String get verificationSessionCouldNotBeCreated => 'Verification session could not be created';
+  String get verificationSessionCouldNotBeCreated =>
+      'Verification session could not be created';
 
   @override
-  String get emailAlreadyRegisteredTryLoggingIn => 'This email is already registered. Try logging in.';
+  String get emailAlreadyRegisteredTryLoggingIn =>
+      'This email is already registered. Try logging in.';
 
   @override
   String get incorrectPassword => 'Incorrect password. Please try again.';
@@ -675,7 +694,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verifyEmailTitle => 'Verify Your Email';
 
   @override
-  String get enterVerificationCodeSentToEmail => 'Enter the verification code sent to your email';
+  String get enterVerificationCodeSentToEmail =>
+      'Enter the verification code sent to your email';
 
   @override
   String get pleaseEnterSixDigitCode => 'Please enter the 6-digit code';
@@ -704,7 +724,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authCreateAccountSubtitle => 'Create your PetSopu account';
 
   @override
-  String get sessionExpiredPleaseSignInAgain => 'Your session expired. Please sign in again.';
+  String get sessionExpiredPleaseSignInAgain =>
+      'Your session expired. Please sign in again.';
 
   @override
   String get signInToAccessPlaymate => 'Please Sign In to access Playmate';
@@ -857,7 +878,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pleaseFillRequiredFields => 'Please fill all required fields correctly';
+  String get pleaseFillRequiredFields =>
+      'Please fill all required fields correctly';
 
   @override
   String get addDogButton => 'Add Pet';
@@ -923,7 +945,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dogDetailsAdoptionLabel => 'Available for Adoption:';
 
   @override
-  String get editDogPermissionDenied => 'You do not have permission to edit this dog.';
+  String get editDogPermissionDenied =>
+      'You do not have permission to edit this dog.';
 
   @override
   String get editDogEnterName => 'Please enter the dog\'s name';
@@ -947,7 +970,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDogsMatchFilters => 'No dogs match your filters.';
 
   @override
-  String get adjustFiltersSuggestion => 'Try adjusting your filters or increasing the distance.';
+  String get adjustFiltersSuggestion =>
+      'Try adjusting your filters or increasing the distance.';
 
   @override
   String get anyGender => 'Any';
@@ -1151,13 +1175,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterByHealthStatus => 'Filter by Health Status';
 
   @override
-  String get upgradeToPremiumForMoreFilters => 'Upgrade to Premium for more filters!';
+  String get upgradeToPremiumForMoreFilters =>
+      'Upgrade to Premium for more filters!';
 
   @override
   String get upgradeToPremiumTitle => 'Upgrade to Premium';
 
   @override
-  String get upgradeToPremiumSubtitle => 'Unlock advanced features and business tools';
+  String get upgradeToPremiumSubtitle =>
+      'Unlock advanced features and business tools';
 
   @override
   String get apply => 'Apply';
@@ -1169,7 +1195,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noFavoriteDogsYet => 'No favorite dogs yet!';
 
   @override
-  String get addFavoriteSuggestion => 'Go back to the home page and add some dogs to your favorites.';
+  String get addFavoriteSuggestion =>
+      'Go back to the home page and add some dogs to your favorites.';
 
   @override
   String get removeFavoriteTooltip => 'Remove Favorite';
@@ -1199,13 +1226,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectFriendsDog => 'Select Friend\'s Dog';
 
   @override
-  String get pleaseLoginToSchedulePlaydate => 'Please log in to schedule a playdate';
+  String get pleaseLoginToSchedulePlaydate =>
+      'Please log in to schedule a playdate';
 
   @override
   String get selectLocation => 'Select Location';
 
   @override
-  String get enterLocation => 'Enter location (e.g., Latitude: 41.0103, Longitude: 28.6724 or address)';
+  String get enterLocation =>
+      'Enter location (e.g., Latitude: 41.0103, Longitude: 28.6724 or address)';
 
   @override
   String get pickOnMap => 'Pick on Map';
@@ -1240,7 +1269,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog) {
+  String playdateRequestNotificationBody(
+    Object requesterDog,
+    Object requestedDog,
+  ) {
     return '$requesterDog wants to play with $requestedDog!';
   }
 
@@ -1532,7 +1564,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pleaseLoginToAccept => 'Please log in to accept requests';
 
   @override
-  String get requestAcceptedSuccess => 'Request accepted and added to playdates list.';
+  String get requestAcceptedSuccess =>
+      'Request accepted and added to playdates list.';
 
   @override
   String errorAcceptingRequest(Object error) {
@@ -1561,13 +1594,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get failedToScheduleReminder => 'Failed to schedule reminder. Check permissions.';
+  String get failedToScheduleReminder =>
+      'Failed to schedule reminder. Check permissions.';
 
   @override
   String get scheduledLabel => 'Scheduled:';
 
   @override
-  String get pleaseLoginToViewPlaydateRequests => 'Login to view playdate requests';
+  String get pleaseLoginToViewPlaydateRequests =>
+      'Login to view playdate requests';
 
   @override
   String get pleaseLoginToSetReminders => 'Please login to set reminders.';
@@ -1673,13 +1708,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playmateLocationNeededTitle => 'Location needed';
 
   @override
-  String get playmateLocationNeededMessage => 'We use your location to show nearby dogs';
+  String get playmateLocationNeededMessage =>
+      'We use your location to show nearby dogs';
 
   @override
   String get playmateFiltersTitle => 'Filters';
 
   @override
-  String get playmateBreedPremiumHint => 'Breed (Gold)';
+  String get playmateBreedPremiumHint => 'Breed (PetSupo Partner)';
 
   @override
   String get playmateOwnerGenderPremiumHint => 'Owner Gender (Premium)';
@@ -1807,22 +1843,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dogParkMoveToMarkers => 'Move to Markers';
 
   @override
-  String get dogParkPermissionDenied => 'Location permission denied. Please enable it in settings.';
+  String get dogParkPermissionDenied =>
+      'Location permission denied. Please enable it in settings.';
 
   @override
-  String get dogParkBackgroundPermissionDenied => 'Background location permission denied. Some features may be limited.';
+  String get dogParkBackgroundPermissionDenied =>
+      'Background location permission denied. Some features may be limited.';
 
   @override
-  String get dogParkLocationServicesDisabled => 'Location services are disabled.';
+  String get dogParkLocationServicesDisabled =>
+      'Location services are disabled.';
 
   @override
-  String get dogParkEnableLocationServices => 'Please enable location services to continue.';
+  String get dogParkEnableLocationServices =>
+      'Please enable location services to continue.';
 
   @override
-  String get dogParkPermissionDeniedPermanent => 'Location permission permanently denied.';
+  String get dogParkPermissionDeniedPermanent =>
+      'Location permission permanently denied.';
 
   @override
-  String get dogParkPermissionsDenied => 'Location permissions are permanently denied. Please enable them from settings.';
+  String get dogParkPermissionsDenied =>
+      'Location permissions are permanently denied. Please enable them from settings.';
 
   @override
   String dogParkLocationError(Object error) {
@@ -1830,7 +1872,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get dogParkPermissionRequired => 'Location permission is required to show nearby dog parks.';
+  String get dogParkPermissionRequired =>
+      'Location permission is required to show nearby dog parks.';
 
   @override
   String get dogParkRecommendedBadge => '⭐ Recommended';
@@ -1875,13 +1918,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dogParkLocationNeededTitle => 'Location needed';
 
   @override
-  String get dogParkUseYourLocationToShowNearbyDogParks => 'We use your location to show nearby dog parks';
+  String get dogParkUseYourLocationToShowNearbyDogParks =>
+      'We use your location to show nearby dog parks';
 
   @override
   String get allowButton => 'Allow';
 
   @override
-  String get dogParkBackgroundRecommended => 'Background location permission is recommended. Please enable it in settings.';
+  String get dogParkBackgroundRecommended =>
+      'Background location permission is recommended. Please enable it in settings.';
 
   @override
   String get dogParkSettingsAction => 'Settings';
@@ -1952,7 +1997,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dogViewChatStarted => 'Chat started!';
 
   @override
-  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time) {
+  String dogViewPlayDateScheduled(
+    Object day,
+    Object month,
+    Object year,
+    Object time,
+  ) {
     return 'Play date scheduled for $day/$month/$year at $time!';
   }
 
@@ -1968,7 +2018,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get boostVisibilityDescription => 'Get more visibility in Playmates discovery.';
+  String get boostVisibilityDescription =>
+      'Get more visibility in Playmates discovery.';
 
   @override
   String get boost24HoursTitle => '24 Hours Boost';
@@ -1983,7 +2034,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get boost3DaysTitle => '3 Days Boost';
 
   @override
-  String get boostBetterExposureSubtitle => 'Better exposure for active discovery';
+  String get boostBetterExposureSubtitle =>
+      'Better exposure for active discovery';
 
   @override
   String get boostPrice69 => '₺69';
@@ -2128,13 +2180,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playDateStatus_rejected => 'Rejected';
 
   @override
-  String get locationServicesDisabled => 'Location services are disabled. Using default location.';
+  String get locationServicesDisabled =>
+      'Location services are disabled. Using default location.';
 
   @override
-  String get locationPermissionRequired => 'Location permission is required. Using default location.';
+  String get locationPermissionRequired =>
+      'Location permission is required. Using default location.';
 
   @override
-  String get locationPermissionPermanentlyDenied => 'Location permission is permanently denied. Using default location.';
+  String get locationPermissionPermanentlyDenied =>
+      'Location permission is permanently denied. Using default location.';
 
   @override
   String errorGettingLocation(Object error) {
@@ -2160,7 +2215,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationChannelName => 'High Importance Notifications';
 
   @override
-  String get notificationChannelDescription => 'This channel is used for important notifications.';
+  String get notificationChannelDescription =>
+      'This channel is used for important notifications.';
 
   @override
   String get openAppAction => 'Open App';
@@ -2424,16 +2480,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editDogHealthUnderTreatment => 'Under Treatment';
 
   @override
-  String get noDogFoundForAccount => 'No dog found for your account. Please add a dog first.';
+  String get noDogFoundForAccount =>
+      'No dog found for your account. Please add a dog first.';
 
   @override
   String get pleaseSelectYourDog => 'Please select one of your dogs';
 
   @override
-  String get cannotScheduleWithOwnDog => 'You cannot schedule a playdate with your own dog.';
+  String get cannotScheduleWithOwnDog =>
+      'You cannot schedule a playdate with your own dog.';
 
   @override
-  String get cannotScheduleWithTempUser => 'Cannot schedule a playdate with a temporary user.';
+  String get cannotScheduleWithTempUser =>
+      'Cannot schedule a playdate with a temporary user.';
 
   @override
   String playdateRequestFor(Object dogName) {
@@ -2450,7 +2509,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notNeutered => 'Not Neutered';
 
   @override
-  String get pleaseSelectDogForPlaydate => 'Please select one of your dogs for playdate';
+  String get pleaseSelectDogForPlaydate =>
+      'Please select one of your dogs for playdate';
 
   @override
   String get years => 'years';
@@ -2508,19 +2568,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get schedulePlayDate => 'Schedule Play Date';
 
   @override
-  String get playdateSchedulingSubtitle => 'Pick date, time, location and dogs for the playdate.';
+  String get playdateSchedulingSubtitle =>
+      'Pick date, time, location and dogs for the playdate.';
 
   @override
   String get errorSelectDateAndTime => 'Please select date and time.';
 
   @override
-  String get errorMissingLocationCoordinates => 'Park location coordinates missing.';
+  String get errorMissingLocationCoordinates =>
+      'Park location coordinates missing.';
 
   @override
-  String get errorPlaydateLeadTime => 'Playdate must be scheduled at least 15 minutes in advance.';
+  String get errorPlaydateLeadTime =>
+      'Playdate must be scheduled at least 15 minutes in advance.';
 
   @override
-  String get playdateTimeConflict => 'This dog already has a playdate around this time 🐾';
+  String get playdateTimeConflict =>
+      'This dog already has a playdate around this time 🐾';
 
   @override
   String coordinatesLatLng(Object lat, Object lng) {
@@ -2642,7 +2706,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offerPremiumRequiredTitle => 'Premium Required';
 
   @override
-  String get offerPremiumRequiredMessage => 'This offer is only for premium members.';
+  String get offerPremiumRequiredMessage =>
+      'This offer is only for premium members.';
 
   @override
   String get offerCancel => 'Cancel';
@@ -2657,7 +2722,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offerChooseContinueTitle => 'Choose where to continue';
 
   @override
-  String get offerChooseContinueSubtitle => 'Pick your preferred contact option for this offer.';
+  String get offerChooseContinueSubtitle =>
+      'Pick your preferred contact option for this offer.';
 
   @override
   String get offerOpenWebsite => 'Open Website';
@@ -2711,7 +2777,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get premiumLabel => 'Premium';
 
   @override
-  String get goldLabel => 'Gold';
+  String get goldLabel => 'PetSupo Partner';
 
   @override
   String discountOff(Object percent) {
@@ -2826,7 +2892,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeLocationNeededTitle => 'Location needed';
 
   @override
-  String get homeLocationNeededMessage => 'We use your location to show nearby vets';
+  String get homeLocationNeededMessage =>
+      'We use your location to show nearby vets';
 
   @override
   String get homeAllowButton => 'Allow';
@@ -2862,7 +2929,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vetDealName => 'VetPlus';
 
   @override
-  String get vetDealDesc => 'Gold members: free checkup';
+  String get vetDealDesc => 'PetSupo Partner members: free checkup';
 
   @override
   String get offerWhatsApp => 'WhatsApp';
@@ -2876,67 +2943,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offerOpenError => 'Error opening offer';
 
   @override
-  String get businessRegisterLegalCompanyNameRequired => '• Legal Company Name is required.';
+  String get businessRegisterLegalCompanyNameRequired =>
+      '• Legal Company Name is required.';
 
   @override
-  String get businessRegisterPublicDisplayNameRequired => '• Public Display Name is required.';
+  String get businessRegisterPublicDisplayNameRequired =>
+      '• Public Display Name is required.';
 
   @override
   String get businessRegisterSelectCountry => '• Please select a Country.';
 
   @override
-  String get businessRegisterSelectBusinessCategory => '• Please select at least one business category.';
+  String get businessRegisterSelectBusinessCategory =>
+      '• Please select at least one business category.';
 
   @override
-  String get businessRegisterEnterValidEmail => '• Enter a valid email address (example: name@example.com).';
+  String get businessRegisterEnterValidEmail =>
+      '• Enter a valid email address (example: name@example.com).';
 
   @override
   String get businessRegisterPhoneIncomplete => '• Phone number is incomplete.';
 
   @override
-  String get businessRegisterSelectCityProvince => '• Please select City / Province.';
+  String get businessRegisterSelectCityProvince =>
+      '• Please select City / Province.';
 
   @override
   String get businessRegisterSelectDistrict => '• Please select District.';
 
   @override
-  String get businessRegisterBusinessAddressRequired => '• Business Address is required.';
+  String get businessRegisterBusinessAddressRequired =>
+      '• Business Address is required.';
 
   @override
-  String get businessRegisterAllLegalDocumentsRequired => '• All required legal documents must be uploaded.';
+  String get businessRegisterAllLegalDocumentsRequired =>
+      '• All required legal documents must be uploaded.';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeContinuing => '• Documents must be verified before continuing.';
+  String get businessRegisterDocumentsVerifiedBeforeContinuing =>
+      '• Documents must be verified before continuing.';
 
   @override
-  String get businessRegisterAcceptPlatformTerms => '• You must accept the Platform Terms.';
+  String get businessRegisterAcceptPlatformTerms =>
+      '• You must accept the Platform Terms.';
 
   @override
-  String get businessRegisterAcceptLegalResponsibility => '• You must accept legal responsibility declaration.';
+  String get businessRegisterAcceptLegalResponsibility =>
+      '• You must accept legal responsibility declaration.';
 
   @override
-  String get businessRegisterFixHighlightedFields => 'Please fix the highlighted fields';
+  String get businessRegisterFixHighlightedFields =>
+      'Please fix the highlighted fields';
 
   @override
   String get businessRegisterOk => 'OK';
 
   @override
-  String get businessRegisterFailedToLoadCountries => 'Failed to load countries';
+  String get businessRegisterFailedToLoadCountries =>
+      'Failed to load countries';
 
   @override
   String get businessRegisterFailedToLoadCities => 'Failed to load cities';
 
   @override
-  String get businessRegisterFailedToLoadDistricts => 'Failed to load districts';
+  String get businessRegisterFailedToLoadDistricts =>
+      'Failed to load districts';
 
   @override
-  String get businessRegisterPlatformLegalAgreement => 'Platform Legal Agreement';
+  String get businessRegisterPlatformLegalAgreement =>
+      'Platform Legal Agreement';
 
   @override
   String get businessRegisterReadAndAccept => 'I Have Read and Accept';
 
   @override
-  String get businessRegisterLocationPermissionDenied => 'Location permission denied';
+  String get businessRegisterLocationPermissionDenied =>
+      'Location permission denied';
 
   @override
   String get businessRegisterCouldNotDetectCity => 'Could not detect city';
@@ -2969,34 +3051,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterInvalidWebsite => 'Invalid website';
 
   @override
-  String get businessRegisterCouldNotOpenLegalText => 'Could not open legal text';
+  String get businessRegisterCouldNotOpenLegalText =>
+      'Could not open legal text';
 
   @override
-  String get businessRegisterSelectAtLeastOneBusinessCategory => 'Please select at least one business category';
+  String get businessRegisterSelectAtLeastOneBusinessCategory =>
+      'Please select at least one business category';
 
   @override
-  String get businessRegisterPleaseEnterBusinessAddress => 'Please enter business address';
+  String get businessRegisterPleaseEnterBusinessAddress =>
+      'Please enter business address';
 
   @override
-  String get businessRegisterMustAcceptAllAgreements => 'You must accept all agreements';
+  String get businessRegisterMustAcceptAllAgreements =>
+      'You must accept all agreements';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeSubmission => 'Documents must be verified before submission';
+  String get businessRegisterDocumentsVerifiedBeforeSubmission =>
+      'Documents must be verified before submission';
 
   @override
-  String get businessRegisterApplicationSubmittedSuccessfully => 'Application submitted successfully';
+  String get businessRegisterApplicationSubmittedSuccessfully =>
+      'Application submitted successfully';
 
   @override
   String get businessRegisterSubmissionFailed => 'Submission failed';
 
   @override
-  String get businessRegisterUnexpectedErrorOccurred => 'Unexpected error occurred';
+  String get businessRegisterUnexpectedErrorOccurred =>
+      'Unexpected error occurred';
 
   @override
   String get businessRegisterTitle => 'Register Business';
 
   @override
-  String get businessRegisterStepIdentityCategories => 'Business identity and categories';
+  String get businessRegisterStepIdentityCategories =>
+      'Business identity and categories';
 
   @override
   String get businessRegisterStepContactLocation => 'Contact and location';
@@ -3005,7 +3095,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterStepLegalDocuments => 'Legal documents';
 
   @override
-  String get businessRegisterStepAgreementConfirmation => 'Agreement confirmation';
+  String get businessRegisterStepAgreementConfirmation =>
+      'Agreement confirmation';
 
   @override
   String get businessRegisterBack => 'Back';
@@ -3023,7 +3114,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterBusinessIdentity => 'Business identity';
 
   @override
-  String get businessRegisterBusinessIdentitySubtitle => 'Tell us how your business should appear on PetSupo.';
+  String get businessRegisterBusinessIdentitySubtitle =>
+      'Tell us how your business should appear on PetSupo.';
 
   @override
   String get businessRegisterLegalCompanyName => 'Legal Company Name';
@@ -3041,13 +3133,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterBusinessCategories => 'Business categories';
 
   @override
-  String get businessRegisterBusinessCategoriesSubtitle => 'Select all sectors this business operates in.';
+  String get businessRegisterBusinessCategoriesSubtitle =>
+      'Select all sectors this business operates in.';
 
   @override
   String get businessRegisterContactLocation => 'Contact & location';
 
   @override
-  String get businessRegisterContactLocationSubtitle => 'These details help customers find and contact you.';
+  String get businessRegisterContactLocationSubtitle =>
+      'These details help customers find and contact you.';
 
   @override
   String get businessRegisterPhone => 'Phone';
@@ -3074,7 +3168,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterDetectCity => 'Detect City';
 
   @override
-  String get businessRegisterMapPickerComingSoon => 'Map picker will be added soon';
+  String get businessRegisterMapPickerComingSoon =>
+      'Map picker will be added soon';
 
   @override
   String get businessRegisterPickLocation => 'Pick Location';
@@ -3089,34 +3184,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterTradeRegistryGazette => 'Ticaret Sicil Gazetesi';
 
   @override
-  String get businessRegisterAuthorizedSignatureDocument => 'Yetkili İmza Belgesi';
+  String get businessRegisterAuthorizedSignatureDocument =>
+      'Yetkili İmza Belgesi';
 
   @override
   String get businessRegisterTaxNumberVkn => 'Tax Number (VKN)';
 
   @override
-  String get businessRegisterAutoFilledFromDocument => 'Auto-filled from document';
+  String get businessRegisterAutoFilledFromDocument =>
+      'Auto-filled from document';
 
   @override
-  String get businessRegisterDocumentVerificationInconsistencies => 'Document verification has inconsistencies. Admin review required.';
+  String get businessRegisterDocumentVerificationInconsistencies =>
+      'Document verification has inconsistencies. Admin review required.';
 
   @override
   String get businessRegisterMersisNumber => 'MERSIS Number';
 
   @override
-  String get businessRegisterDocumentsSecurelyEncrypted => 'Your documents are securely encrypted and verified automatically';
+  String get businessRegisterDocumentsSecurelyEncrypted =>
+      'Your documents are securely encrypted and verified automatically';
 
   @override
   String get businessRegisterVerifiedFromDocument => 'Verified from document';
 
   @override
-  String get businessRegisterAutoFilledAfterVerification => 'Auto-filled after document verification';
+  String get businessRegisterAutoFilledAfterVerification =>
+      'Auto-filled after document verification';
 
   @override
-  String get businessRegisterUploadTradeRegistryFirst => 'Upload Trade Registry first';
+  String get businessRegisterUploadTradeRegistryFirst =>
+      'Upload Trade Registry first';
 
   @override
-  String get businessRegisterWaitingForDocumentVerification => 'Waiting for document verification...';
+  String get businessRegisterWaitingForDocumentVerification =>
+      'Waiting for document verification...';
 
   @override
   String get businessRegisterSteuernummer => 'Steuernummer';
@@ -3146,10 +3248,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterProcessingDocument => 'Processing document...';
 
   @override
-  String get businessRegisterDocumentVerifiedSuccessfully => 'Document verified successfully';
+  String get businessRegisterDocumentVerifiedSuccessfully =>
+      'Document verified successfully';
 
   @override
-  String get businessRegisterCouldNotReadDocument => 'Could not read document, please re-upload';
+  String get businessRegisterCouldNotReadDocument =>
+      'Could not read document, please re-upload';
 
   @override
   String get businessRegisterVeterinary => 'Veterinary';
@@ -3166,22 +3270,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterLegalConfirmation => 'Legal Confirmation';
 
   @override
-  String get businessRegisterAcceptTermsKvkk => 'I accept the Platform Terms and KVKK Data Protection Policy.';
+  String get businessRegisterAcceptTermsKvkk =>
+      'I accept the Platform Terms and KVKK Data Protection Policy.';
 
   @override
   String get businessRegisterReadInsideApp => 'Read inside app';
 
   @override
-  String get businessRegisterOpenOfficialLegalPage => 'Open official legal page';
+  String get businessRegisterOpenOfficialLegalPage =>
+      'Open official legal page';
 
   @override
-  String get businessRegisterLegalVersion => 'Version v1.0 • Last updated May 2026';
+  String get businessRegisterLegalVersion =>
+      'Version v1.0 • Last updated May 2026';
 
   @override
-  String get businessRegisterAgreementSecurelyStored => 'Your agreement is securely stored and legally binding';
+  String get businessRegisterAgreementSecurelyStored =>
+      'Your agreement is securely stored and legally binding';
 
   @override
-  String get businessRegisterLegalResponsibilityDeclaration => 'I declare that all submitted documents are accurate and I accept full legal responsibility under Turkish Commercial Law.';
+  String get businessRegisterLegalResponsibilityDeclaration =>
+      'I declare that all submitted documents are accurate and I accept full legal responsibility under Turkish Commercial Law.';
 
   @override
   String get businessRegisterUploaded => 'Uploaded';
@@ -3190,7 +3299,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessRegisterReplaceDocument => 'Replace document';
 
   @override
-  String get businessRegisterReplaceDocumentConfirmation => 'Are you sure you want to replace this file?';
+  String get businessRegisterReplaceDocumentConfirmation =>
+      'Are you sure you want to replace this file?';
 
   @override
   String get businessRegisterReplace => 'Replace';
@@ -3230,7 +3340,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myAppointments => 'My Appointments';
 
   @override
-  String get myAppointmentsLoginRequired => 'Please log in to view your appointments';
+  String get myAppointmentsLoginRequired =>
+      'Please log in to view your appointments';
 
   @override
   String get appointmentHistory => 'Appointment History';
@@ -3365,10 +3476,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get userProfileUnlockBusinessFeatures => 'Unlock Business Features 🚀';
 
   @override
-  String get userProfileUpgradeBusinessDescription => 'Upgrade to Gold to register your business and start receiving customers.';
+  String get userProfileUpgradeBusinessDescription =>
+      'Upgrade to PetSupo Partner to register your business and start receiving customers.';
 
   @override
-  String get userProfileUpgradeToGold => 'Upgrade to Gold';
+  String get userProfileUpgradeToGold => 'Upgrade to PetSupo Partner';
 
   @override
   String get userProfileManageAdoptionCenter => 'Manage Adoption Center';
@@ -3398,7 +3510,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get userProfileApplicationUnderReview => 'Application Under Review';
 
   @override
-  String get userProfileApplicationUnderReviewDescription => 'Your business request has been submitted successfully and is currently under review.';
+  String get userProfileApplicationUnderReviewDescription =>
+      'Your business request has been submitted successfully and is currently under review.';
 
   @override
   String get userProfileAdminPanel => 'Admin Panel';
@@ -3415,7 +3528,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get userProfileUpgradeToGoldToContinue => 'Upgrade to Gold to continue';
+  String get userProfileUpgradeToGoldToContinue =>
+      'Upgrade to PetSupo Partner to continue';
 
   @override
   String get userProfileReApply => 'Re-Apply';
@@ -3436,16 +3550,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get userProfileImageSelectionFailed => 'Image selection failed.';
 
   @override
-  String get userProfileUsernameMinLength => 'Username must be at least 3 characters';
+  String get userProfileUsernameMinLength =>
+      'Username must be at least 3 characters';
 
   @override
-  String get userProfileUsernameMaxLength => 'Username must be at most 20 characters';
+  String get userProfileUsernameMaxLength =>
+      'Username must be at most 20 characters';
 
   @override
   String get userProfileUsernameNoSpaces => 'Username cannot contain spaces';
 
   @override
-  String get userProfilePhoneInvalidCharacters => 'Phone contains invalid characters';
+  String get userProfilePhoneInvalidCharacters =>
+      'Phone contains invalid characters';
 
   @override
   String get userProfileBioMaxLength => 'Bio must be under 150 characters';
@@ -3542,7 +3659,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get businessNotFound => 'Business not found';
 
   @override
-  String get sectorDashboardNotImplementedYet => 'This sector dashboard is not implemented yet';
+  String get sectorDashboardNotImplementedYet =>
+      'This sector dashboard is not implemented yet';
 
   @override
   String get goBackButton => 'Go Back';
@@ -3681,22 +3799,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get catalogStrengthWeakLabel => 'Weak';
 
   @override
-  String get catalogStrengthAddItemsMessage => 'Add products, description, media, and stock to strengthen your catalog.';
+  String get catalogStrengthAddItemsMessage =>
+      'Add products, description, media, and stock to strengthen your catalog.';
 
   @override
-  String get catalogStrengthWeakDetailsMessage => 'Your product details are still weak. Add more media, descriptions, and stock info.';
+  String get catalogStrengthWeakDetailsMessage =>
+      'Your product details are still weak. Add more media, descriptions, and stock info.';
 
   @override
   String get catalogStrengthMediumLabel => 'Medium';
 
   @override
-  String get catalogStrengthMediumMessage => 'Good start. Add richer descriptions and more product media to improve visibility.';
+  String get catalogStrengthMediumMessage =>
+      'Good start. Add richer descriptions and more product media to improve visibility.';
 
   @override
   String get catalogStrengthStrongLabel => 'Strong';
 
   @override
-  String get catalogStrengthStrongMessage => 'Great catalog quality. Your listings look strong and complete.';
+  String get catalogStrengthStrongMessage =>
+      'Great catalog quality. Your listings look strong and complete.';
 
   @override
   String get shippingCalculatedLabel => 'Shipping calculated';
@@ -3732,7 +3854,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ordersTitle => 'Orders';
 
   @override
-  String get searchByOrderIdOrProductNameHint => 'Search by order id or product name';
+  String get searchByOrderIdOrProductNameHint =>
+      'Search by order id or product name';
 
   @override
   String get allFilterLabel => 'All';
@@ -3923,7 +4046,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get paymentWillBeTransferredByPetsupo => 'Payment will be transferred by Petsupo';
+  String get paymentWillBeTransferredByPetsupo =>
+      'Payment will be transferred by Petsupo';
 
   @override
   String get pendingPayoutLabel => 'Pending payout';
@@ -3947,16 +4071,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get returnCarrierRequired => 'Carrier is required';
 
   @override
-  String get returnShippedBackFailed => 'Could not mark the return as shipped back';
+  String get returnShippedBackFailed =>
+      'Could not mark the return as shipped back';
 
   @override
   String get returnTrackingNumberLabel => 'Return Tracking Number';
 
   @override
-  String get returnTrackingNumberHelperText => 'Enter the tracking number provided for the return shipment.';
+  String get returnTrackingNumberHelperText =>
+      'Enter the tracking number provided for the return shipment.';
 
   @override
-  String get returnCarrierHelperText => 'Use the same carrier used for the original delivery.';
+  String get returnCarrierHelperText =>
+      'Use the same carrier used for the original delivery.';
 
   @override
   String get originalShipmentTrackingLabel => 'Original Shipment Tracking';
@@ -4048,7 +4175,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get upgradeHeroTitle => 'Find better matches faster 🐾';
 
   @override
-  String get upgradeHeroSubtitle => 'Unlock premium features, better visibility, exclusive offers and business tools.';
+  String get upgradeHeroSubtitle =>
+      'Unlock premium features, better visibility, exclusive offers and business tools.';
 
   @override
   String get premiumPlanSubtitle => 'For active pet owners';
@@ -4057,16 +4185,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get premiumPlanFeatureUnlimitedChat => 'Unlimited chat';
 
   @override
-  String get premiumPlanFeatureAdvancedMatchingFilters => 'Advanced matching filters';
+  String get premiumPlanFeatureAdvancedMatchingFilters =>
+      'Advanced matching filters';
 
   @override
   String get premiumPlanFeatureExclusivePetOffers => 'Exclusive pet offers';
 
   @override
-  String get premiumPlanFeatureBetterProfileExperience => 'Better profile experience';
+  String get premiumPlanFeatureBetterProfileExperience =>
+      'Better profile experience';
 
   @override
-  String get goldPlanSubtitle => 'For pet businesses and power users';
+  String get goldPlanSubtitle => 'For pet-care professionals and businesses';
 
   @override
   String get mostPopularLabel => 'MOST POPULAR';
@@ -4075,13 +4205,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goldPlanFeatureEverythingInPremium => 'Everything in Premium';
 
   @override
-  String get goldPlanFeatureBusinessRegistrationAccess => 'Business registration access';
+  String get goldPlanFeatureBusinessRegistrationAccess =>
+      'Business registration access';
 
   @override
   String get goldPlanFeatureBoostedVisibility => 'Boosted visibility';
 
   @override
-  String get goldPlanFeatureBusinessDashboardAccess => 'Business dashboard access';
+  String get goldPlanFeatureBusinessDashboardAccess =>
+      'Business dashboard access';
 
   @override
   String get goldPlanFeaturePremiumChatAndOffers => 'Premium chat and offers';
@@ -4099,13 +4231,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restorePurchases => 'Restore Purchases';
 
   @override
-  String get upgradePaymentTerms => 'Your payment will be charged to your App Store account at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period.';
+  String get upgradePaymentTerms =>
+      'Your payment will be charged to your App Store account at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period.';
 
   @override
-  String get autoRenewableMonthlySubscription => 'Auto-renewable monthly subscription';
+  String get autoRenewableMonthlySubscription =>
+      'Auto-renewable monthly subscription';
 
   @override
-  String get securePaymentNotice => 'Secure payment • Cancel anytime • Plans are managed by the App Store';
+  String get securePaymentNotice =>
+      'Secure payment • Cancel anytime • Plans are managed by the App Store';
 
   @override
   String continueWithPlan(Object plan) {
@@ -4193,7 +4328,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adoptionOwnershipRented => 'Rented';
 
   @override
-  String get adoptionLandlordPermissionRequired => 'Landlord permission (required)';
+  String get adoptionLandlordPermissionRequired =>
+      'Landlord permission (required)';
 
   @override
   String get adoptionHasGarden => 'Has garden';
@@ -4223,7 +4359,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adoptionPreviousDogQuestion => 'Previous dog? (Yes/No)';
 
   @override
-  String get adoptionPreviousDogReasonLabel => 'Reason previous dog no longer with you';
+  String get adoptionPreviousDogReasonLabel =>
+      'Reason previous dog no longer with you';
 
   @override
   String get adoptionPreviousDogReasonHint => 'Explain briefly';
@@ -4244,22 +4381,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adoptionRequiredShort => 'Required';
 
   @override
-  String get adoptionDescribeOtherPetsRequired => 'Please describe your other pets';
+  String get adoptionDescribeOtherPetsRequired =>
+      'Please describe your other pets';
 
   @override
   String get adoptionMotivationMessageLabel => 'Motivation message';
 
   @override
-  String get adoptionMotivationMinLength => 'Motivation should be at least 20 characters';
+  String get adoptionMotivationMinLength =>
+      'Motivation should be at least 20 characters';
 
   @override
-  String get adoptionStepFinancialCommitmentTitle => '4️⃣ Financial & Commitment';
+  String get adoptionStepFinancialCommitmentTitle =>
+      '4️⃣ Financial & Commitment';
 
   @override
   String get adoptionCanAffordVetExpenses => 'Can afford vet expenses?';
 
   @override
-  String get adoptionEmergencySavingsAvailable => 'Emergency savings available?';
+  String get adoptionEmergencySavingsAvailable =>
+      'Emergency savings available?';
 
   @override
   String get adoptionUploadsSectionTitle => '📷 Uploads';
@@ -4303,10 +4444,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adoptionOptionalLabel => 'Optional';
 
   @override
-  String get adoptionAgreeContractRequiredLabel => 'I agree to sign the adoption contract (required)';
+  String get adoptionAgreeContractRequiredLabel =>
+      'I agree to sign the adoption contract (required)';
 
   @override
-  String get adoptionAgreeContractRequired => 'You must agree to the adoption contract';
+  String get adoptionAgreeContractRequired =>
+      'You must agree to the adoption contract';
 
   @override
   String get adoptionUploadIdPhoto => 'Please upload an ID photo';
@@ -4315,7 +4458,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adoptionNextButton => 'Next';
 
   @override
-  String smartPriceSuggestedRangeLabel(Object currency, Object max, Object min) {
+  String smartPriceSuggestedRangeLabel(
+    Object currency,
+    Object max,
+    Object min,
+  ) {
     return 'Suggested range: $min - $max $currency';
   }
 
@@ -4454,13 +4601,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productAlreadyExistsTitle => 'Product already exists';
 
   @override
-  String get productAlreadyExistsDescription => 'This product already exists. Opening the product editor.';
+  String get productAlreadyExistsDescription =>
+      'This product already exists. Opening the product editor.';
 
   @override
   String get continueButton => 'Continue';
 
   @override
-  String get productNameMustBeAtLeast4Chars => 'Product name must be at least 4 characters';
+  String get productNameMustBeAtLeast4Chars =>
+      'Product name must be at least 4 characters';
 
   @override
   String get invalidBarcode => 'Invalid barcode';
@@ -4472,7 +4621,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidWholesalePrice => 'Invalid wholesale price';
 
   @override
-  String get wholesaleMinQuantityMustBeAtLeast2 => 'Wholesale minimum quantity must be at least 2';
+  String get wholesaleMinQuantityMustBeAtLeast2 =>
+      'Wholesale minimum quantity must be at least 2';
 
   @override
   String get kdvRateIsRequired => 'Select a VAT rate';
@@ -4484,16 +4634,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidDiscountPrice => 'Invalid discount price';
 
   @override
-  String get discountMustBeLowerThanOriginalPrice => 'Discount price must be lower than original price';
+  String get discountMustBeLowerThanOriginalPrice =>
+      'Discount price must be lower than original price';
 
   @override
-  String get wholesalePriceMustBeLowerThanRetailPrice => 'Wholesale price must be lower than retail price';
+  String get wholesalePriceMustBeLowerThanRetailPrice =>
+      'Wholesale price must be lower than retail price';
 
   @override
   String get invalidStock => 'Invalid stock';
 
   @override
-  String get stockMustBeAtLeastWholesaleMinQuantity => 'Stock must be at least the wholesale minimum quantity';
+  String get stockMustBeAtLeastWholesaleMinQuantity =>
+      'Stock must be at least the wholesale minimum quantity';
 
   @override
   String get inventoryStockFieldLabel => 'Stock';
@@ -4505,7 +4658,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addAtLeast1Media => 'Add at least 1 media item';
 
   @override
-  String get descriptionMustBeAtLeast10Characters => 'Description must be at least 10 characters';
+  String get descriptionMustBeAtLeast10Characters =>
+      'Description must be at least 10 characters';
 
   @override
   String get selectCategory => 'Select a category';
@@ -4532,7 +4686,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidShippingFee => 'Invalid shipping fee';
 
   @override
-  String get freeShippingThresholdIsRequired => 'Free shipping threshold is required';
+  String get freeShippingThresholdIsRequired =>
+      'Free shipping threshold is required';
 
   @override
   String get invalidPreparationTime => 'Invalid preparation time';
@@ -4544,7 +4699,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectAtLeast1CargoCarrier => 'Select at least 1 cargo carrier';
 
   @override
-  String get returnWindowCannotBeLessThan14Days => 'Return window cannot be less than 14 days';
+  String get returnWindowCannotBeLessThan14Days =>
+      'Return window cannot be less than 14 days';
 
   @override
   String get returnCarrierIsRequired => 'Return carrier is required';
@@ -4609,7 +4765,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String smartDescriptionAccessories(Object brand, Object name, Object subCategory) {
+  String smartDescriptionAccessories(
+    Object brand,
+    Object name,
+    Object subCategory,
+  ) {
     return '$name by $brand is a useful accessory in the $subCategory category.';
   }
 
@@ -4684,7 +4844,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchingProductStatus => 'Searching product...';
 
   @override
-  String get productAlreadyExistsOpeningEditStatus => 'Product exists, opening editor...';
+  String get productAlreadyExistsOpeningEditStatus =>
+      'Product exists, opening editor...';
 
   @override
   String get fetchingProductDataStatus => 'Fetching product data...';
@@ -4743,7 +4904,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterBarcodeHint => 'Enter or scan the barcode';
 
   @override
-  String get noBarcodeSkuHint => 'Barcode is optional. SKU will be auto-generated if empty.';
+  String get noBarcodeSkuHint =>
+      'Barcode is optional. SKU will be auto-generated if empty.';
 
   @override
   String get scanButtonLabel => 'Scan';
@@ -4794,13 +4956,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wholesalePriceLabel => 'Wholesale price';
 
   @override
-  String get minimumQuantityForWholesaleLabel => 'Minimum quantity for wholesale';
+  String get minimumQuantityForWholesaleLabel =>
+      'Minimum quantity for wholesale';
 
   @override
-  String get wholesaleAppliesHint => 'Wholesale discount applies from this quantity';
+  String get wholesaleAppliesHint =>
+      'Wholesale discount applies from this quantity';
 
   @override
-  String get visibleOnlyToBusinessAccountsHint => 'Visible only to business accounts';
+  String get visibleOnlyToBusinessAccountsHint =>
+      'Visible only to business accounts';
 
   @override
   String get usersWillSeeDiscountHint => 'Users will see the discount badge';
@@ -4826,7 +4991,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get manualDesiOverrideOptionalLabel => 'Manual desi override (optional)';
+  String get manualDesiOverrideOptionalLabel =>
+      'Manual desi override (optional)';
 
   @override
   String get shippingModeLabel => 'Shipping mode';
@@ -4871,7 +5037,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get buyerOptionLabel => 'Buyer';
 
   @override
-  String get sellerContractedCarrierOnlyLabel => 'Seller if contracted carrier only';
+  String get sellerContractedCarrierOnlyLabel =>
+      'Seller if contracted carrier only';
 
   @override
   String get inventoryTitle => 'Inventory';
@@ -4929,7 +5096,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get returnRequestsTitle => 'Return Requests';
 
   @override
-  String get returnAvailableAfterDeliveryMessage => 'Returns become available after delivery.';
+  String get returnAvailableAfterDeliveryMessage =>
+      'Returns become available after delivery.';
 
   @override
   String get noReturnsYet => 'No return requests yet';
@@ -5057,7 +5225,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shippingResponsibilityBuyerLabel => 'Buyer';
 
   @override
-  String get shippingResponsibilityContractCarrierLabel => 'Seller if contracted carrier';
+  String get shippingResponsibilityContractCarrierLabel =>
+      'Seller if contracted carrier';
 
   @override
   String get returnCarrierLabel => 'Return Carrier';
@@ -5152,7 +5321,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vetRevenueTitle => 'Revenue';
 
   @override
-  String get vetRevenueDescription => 'Verified payment and settlement data from completed veterinary transactions.';
+  String get vetRevenueDescription =>
+      'Verified payment and settlement data from completed veterinary transactions.';
 
   @override
   String get vetRevenueRange7Days => '7 days';
@@ -5202,25 +5372,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get vetRevenueMixedCurrencyWarning => 'Multiple currencies are present. Amounts are shown separately and are never converted or combined.';
+  String get vetRevenueMixedCurrencyWarning =>
+      'Multiple currencies are present. Amounts are shown separately and are never converted or combined.';
 
   @override
   String get vetRevenueNoAppointmentsTitle => 'No appointments yet';
 
   @override
-  String get vetRevenueNoAppointmentsMessage => 'Revenue analytics will appear when veterinary appointments are created.';
+  String get vetRevenueNoAppointmentsMessage =>
+      'Revenue analytics will appear when veterinary appointments are created.';
 
   @override
   String get vetRevenueNoRangeTitle => 'No records in this period';
 
   @override
-  String get vetRevenueNoRangeMessage => 'Choose a wider date range to review earlier transactions.';
+  String get vetRevenueNoRangeMessage =>
+      'Choose a wider date range to review earlier transactions.';
 
   @override
   String get vetRevenueLoadErrorTitle => 'Revenue data is unavailable';
 
   @override
-  String get vetRevenueLoadErrorMessage => 'Check the connection and try again. Existing payment records were not changed.';
+  String get vetRevenueLoadErrorMessage =>
+      'Check the connection and try again. Existing payment records were not changed.';
 
   @override
   String get vetRevenueRetry => 'Retry';
@@ -5229,10 +5403,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vetRevenueTrendTitle => 'Revenue Trend';
 
   @override
-  String get vetRevenueMixedCurrencyChartHidden => 'The combined trend is hidden because the selected period contains multiple currencies.';
+  String get vetRevenueMixedCurrencyChartHidden =>
+      'The combined trend is hidden because the selected period contains multiple currencies.';
 
   @override
-  String get vetRevenueNoRecognizedRevenue => 'No verified paid revenue in this period.';
+  String get vetRevenueNoRecognizedRevenue =>
+      'No verified paid revenue in this period.';
 
   @override
   String get vetRevenueTopServices => 'Top Services by Gross Revenue';
@@ -5244,7 +5420,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vetRevenueUncategorized => 'Uncategorized';
 
   @override
-  String get vetRevenueSearchHint => 'Search customer, pet, service or transaction';
+  String get vetRevenueSearchHint =>
+      'Search customer, pet, service or transaction';
 
   @override
   String get vetRevenueAllPayments => 'All payments';
@@ -5301,7 +5478,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vetRevenueTransactionReference => 'Transaction reference';
 
   @override
-  String get vetRevenueNoMatchingTransactions => 'No transactions match the current search and filter.';
+  String get vetRevenueNoMatchingTransactions =>
+      'No transactions match the current search and filter.';
 
   @override
   String vetRevenuePageOf(int page, int total) {
@@ -5309,14 +5487,147 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get vetWebOverviewSubtitle => 'Clinic performance and operational overview';
+  String get vetWebOverviewSubtitle =>
+      'Clinic performance and operational overview';
 
   @override
-  String get vetWebAppointmentsSubtitle => 'Review and manage veterinary appointments';
+  String get vetWebAppointmentsSubtitle =>
+      'Review and manage veterinary appointments';
 
   @override
-  String get vetWebRevenueSubtitle => 'Verified payment, commission and settlement analytics';
+  String get vetWebRevenueSubtitle =>
+      'Verified payment, commission and settlement analytics';
 
   @override
   String get vetWebVeterinaryLabel => 'Veterinary';
+
+  @override
+  String get petShopsTitle => 'Pet Shops';
+
+  @override
+  String get searchPetShopsHint => 'Search pet shops';
+
+  @override
+  String get noPetShopsFound => 'No pet shops found';
+
+  @override
+  String get noPetShopsFoundDescription =>
+      'Try another search or check again later.';
+
+  @override
+  String get loadingPetShops => 'Finding pet shops near you…';
+
+  @override
+  String get petShopsLoadError =>
+      'Pet shops could not be loaded. Please try again.';
+
+  @override
+  String get retryButton => 'Retry';
+
+  @override
+  String get shopInformationTitle => 'Shop information';
+
+  @override
+  String get noShopDescriptionAvailable => 'No shop description is available.';
+
+  @override
+  String get locationNotAvailable => 'Location not available';
+
+  @override
+  String get getDirectionsLabel => 'Get directions';
+
+  @override
+  String get connectLabel => 'Connect';
+
+  @override
+  String get callLabel => 'Call';
+
+  @override
+  String get whatsappLabel => 'WhatsApp';
+
+  @override
+  String get websiteLabel => 'Website';
+
+  @override
+  String get signInToContactShop => 'Sign in to contact this shop.';
+
+  @override
+  String get petShopUnavailable => 'Shop unavailable';
+
+  @override
+  String get petShopUnavailableDescription =>
+      'This pet shop is no longer available.';
+
+  @override
+  String get reviewsCouldNotBeLoaded => 'Reviews could not be loaded.';
+
+  @override
+  String get noProductsAvailableFromShop =>
+      'No products available from this shop';
+
+  @override
+  String get petShopLocationNeededMessage =>
+      'We use your location to show nearby pet shops';
+
+  @override
+  String get infoTitle => 'Info';
+
+  @override
+  String get processTitle => 'Process';
+
+  @override
+  String get categoriesTitle => 'Categories';
+
+  @override
+  String get contactTitle => 'Contact';
+
+  @override
+  String get openFullProfile => 'Open full profile';
+
+  @override
+  String get noShopCategoriesAvailable => 'No shop categories are available.';
+
+  @override
+  String get browseShopProductsDescription =>
+      'Browse products available from this pet shop.';
+
+  @override
+  String get viewAllProducts => 'View all products';
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get continueWithApple => 'Continue with Apple';
+
+  @override
+  String get orContinueWith => 'or continue with';
+
+  @override
+  String get authenticationCancelled => 'Authentication cancelled';
+
+  @override
+  String get unableToSignIn => 'Unable to sign in';
+
+  @override
+  String get emailRegisteredWithAnotherProvider =>
+      'This email is already registered with another sign-in method';
+
+  @override
+  String get completeYourProfile => 'Complete your profile';
+
+  @override
+  String get cityLabel => 'City';
+
+  @override
+  String get districtLabel => 'District';
+
+  @override
+  String get cityRequired => 'Please enter your city';
+
+  @override
+  String get districtRequired => 'Please enter your district';
+
+  @override
+  String get continueLabel => 'Continue';
 }

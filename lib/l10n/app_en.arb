@@ -1154,7 +1154,7 @@
   "playmateFiltersTitle": "Filters",
   "@playmateFiltersTitle": { "description": "Title for the Playmate filters overlay" },
 
-  "playmateBreedPremiumHint": "Breed (Gold)",
+  "playmateBreedPremiumHint": "Breed (PetSupo Partner)",
   "@playmateBreedPremiumHint": { "description": "Locked breed hint for non-Gold users" },
 
   "playmateOwnerGenderPremiumHint": "Owner Gender (Premium)",
@@ -2023,7 +2023,7 @@
   "shopNearYou": "Shop near you",
   "featuredDeal": "Featured Deal",
   "premiumLabel": "Premium",
-  "goldLabel": "Gold",
+  "goldLabel": "PetSupo Partner",
   "discountOff": "{percent}% OFF",
   "@discountOff": {
     "placeholders": {
@@ -2087,7 +2087,7 @@
   "groomyDealName": "Groomy Studio",
   "groomyDealDesc": "20% OFF grooming this week",
   "vetDealName": "VetPlus",
-  "vetDealDesc": "Gold members: free checkup",
+  "vetDealDesc": "PetSupo Partner members: free checkup",
 
   "offerWhatsApp": "WhatsApp",
   "@offerWhatsApp": { "description": "CTA label for opening WhatsApp for an offer" },
@@ -2260,8 +2260,8 @@
   "userProfileLanguagePersian": "Persian",
   "userProfileLanguageTurkish": "Turkish",
   "userProfileUnlockBusinessFeatures": "Unlock Business Features 🚀",
-  "userProfileUpgradeBusinessDescription": "Upgrade to Gold to register your business and start receiving customers.",
-  "userProfileUpgradeToGold": "Upgrade to Gold",
+  "userProfileUpgradeBusinessDescription": "Upgrade to PetSupo Partner to register your business and start receiving customers.",
+  "userProfileUpgradeToGold": "Upgrade to PetSupo Partner",
   "userProfileManageAdoptionCenter": "Manage Adoption Center",
   "userProfileOverview": "Overview",
   "userProfileDogs": "Dogs",
@@ -2277,7 +2277,7 @@
   "userProfileApplicationRejected": "Application Rejected",
   "userProfileRejectionReason": "Reason: {reason}",
   "@userProfileRejectionReason": { "placeholders": { "reason": {} } },
-  "userProfileUpgradeToGoldToContinue": "Upgrade to Gold to continue",
+  "userProfileUpgradeToGoldToContinue": "Upgrade to PetSupo Partner to continue",
   "userProfileReApply": "Re-Apply",
   "userProfileBusinessStatus": "Business Status",
   "userProfileUnknownStatus": "Unknown",
@@ -2478,7 +2478,7 @@
   "premiumPlanFeatureAdvancedMatchingFilters": "Advanced matching filters",
   "premiumPlanFeatureExclusivePetOffers": "Exclusive pet offers",
   "premiumPlanFeatureBetterProfileExperience": "Better profile experience",
-  "goldPlanSubtitle": "For pet businesses and power users",
+  "goldPlanSubtitle": "For pet-care professionals and businesses",
   "mostPopularLabel": "MOST POPULAR",
   "goldPlanFeatureEverythingInPremium": "Everything in Premium",
   "goldPlanFeatureBusinessRegistrationAccess": "Business registration access",
@@ -2926,5 +2926,46 @@
 "vetWebOverviewSubtitle": "Clinic performance and operational overview",
 "vetWebAppointmentsSubtitle": "Review and manage veterinary appointments",
 "vetWebRevenueSubtitle": "Verified payment, commission and settlement analytics",
-"vetWebVeterinaryLabel": "Veterinary"
+"vetWebVeterinaryLabel": "Veterinary",
+"petShopsTitle": "Pet Shops",
+"searchPetShopsHint": "Search pet shops",
+"noPetShopsFound": "No pet shops found",
+"noPetShopsFoundDescription": "Try another search or check again later.",
+"loadingPetShops": "Finding pet shops near you…",
+"petShopsLoadError": "Pet shops could not be loaded. Please try again.",
+"retryButton": "Retry",
+"shopInformationTitle": "Shop information",
+"noShopDescriptionAvailable": "No shop description is available.",
+"locationNotAvailable": "Location not available",
+"getDirectionsLabel": "Get directions",
+"connectLabel": "Connect",
+"callLabel": "Call",
+"whatsappLabel": "WhatsApp",
+"websiteLabel": "Website",
+"signInToContactShop": "Sign in to contact this shop.",
+"petShopUnavailable": "Shop unavailable",
+"petShopUnavailableDescription": "This pet shop is no longer available.",
+"reviewsCouldNotBeLoaded": "Reviews could not be loaded.",
+"noProductsAvailableFromShop": "No products available from this shop"
+,"petShopLocationNeededMessage": "We use your location to show nearby pet shops"
+,"infoTitle": "Info"
+,"processTitle": "Process"
+,"categoriesTitle": "Categories"
+,"contactTitle": "Contact"
+,"openFullProfile": "Open full profile"
+,"noShopCategoriesAvailable": "No shop categories are available."
+,"browseShopProductsDescription": "Browse products available from this pet shop."
+,"viewAllProducts": "View all products"
+,"continueWithGoogle": "Continue with Google"
+,"continueWithApple": "Continue with Apple"
+,"orContinueWith": "or continue with"
+,"authenticationCancelled": "Authentication cancelled"
+,"unableToSignIn": "Unable to sign in"
+,"emailRegisteredWithAnotherProvider": "This email is already registered with another sign-in method"
+,"completeYourProfile": "Complete your profile"
+,"cityLabel": "City"
+,"districtLabel": "District"
+,"cityRequired": "Please enter your city"
+,"districtRequired": "Please enter your district"
+,"continueLabel": "Continue"
 }

@@ -17,8 +17,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 class CheckoutPage extends StatefulWidget {
   final List<CartItem> items;
+  final Future<void> Function()? onPaymentVerified;
 
-  const CheckoutPage({super.key, required this.items});
+  const CheckoutPage({super.key, required this.items, this.onPaymentVerified});
 
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
@@ -567,67 +568,68 @@ class _CheckoutPageState extends State<CheckoutPage> {
           .get(GetOptions(source: Source.server));
 
       debugPrint("✅ NEW ROOT ORDER: $orderId");
-debugPrint("✅ ORDER NUMBER: $orderNumber");
-debugPrint("🟢 ORDER CREATED: $orderId");
+      debugPrint("✅ ORDER NUMBER: $orderNumber");
+      debugPrint("🟢 ORDER CREATED: $orderId");
 
-/// -------------------------
-/// 2) CHECKOUT SESSION
-/// -------------------------
+      /// -------------------------
+      /// 2) CHECKOUT SESSION
+      /// -------------------------
 
-debugPrint("🚀 STEP 1 - Calling createCheckoutSession");
+      debugPrint("🚀 STEP 1 - Calling createCheckoutSession");
 
-final session = await _checkoutService.createCheckoutSession(
-  orderId: orderId,
+      final session = await _checkoutService.createCheckoutSession(
+        orderId: orderId,
 
-  items: widget.items.map((e) => e.toJson()).toList(),
-  currency: 'TRY',
-  carrier: _selectedCarrier!,
+        items: widget.items.map((e) => e.toJson()).toList(),
+        currency: 'TRY',
+        carrier: _selectedCarrier!,
 
-  successUrl:
-      'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
-  cancelUrl: 'barkymatches://payment-cancel?orderId=$orderId',
+        successUrl:
+            'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
+        cancelUrl: 'barkymatches://payment-cancel?orderId=$orderId',
 
-  note: orderId,
-  buyer: buyer,
-  shippingAddress: shippingAddress,
-  billingAddress: billingAddress,
-);
+        note: orderId,
+        buyer: buyer,
+        shippingAddress: shippingAddress,
+        billingAddress: billingAddress,
+      );
 
-debugPrint("✅ STEP 2 - Session received");
-debugPrint("   Provider: ${session.provider}");
-debugPrint("   HTML exists: ${session.html != null}");
-debugPrint("   HTML length: ${session.html?.length ?? 0}");
-debugPrint("   Checkout URL: ${session.checkoutUrl}");
+      debugPrint("✅ STEP 2 - Session received");
+      debugPrint("   Provider: ${session.provider}");
+      debugPrint("   HTML exists: ${session.html != null}");
+      debugPrint("   HTML length: ${session.html?.length ?? 0}");
+      debugPrint("   Checkout URL: ${session.checkoutUrl}");
 
-final pricing = session.pricing;
+      final pricing = session.pricing;
 
-if (pricing != null) {
-  setState(() {
-    backendSubtotal = (pricing['subtotal'] ?? 0).toDouble();
-    backendShipping = (pricing['shippingTotal'] ?? 0).toDouble();
-    backendTax = (pricing['taxTotal'] ?? 0).toDouble();
-    backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
-  });
-}
+      if (pricing != null) {
+        setState(() {
+          backendSubtotal = (pricing['subtotal'] ?? 0).toDouble();
+          backendShipping = (pricing['shippingTotal'] ?? 0).toDouble();
+          backendTax = (pricing['taxTotal'] ?? 0).toDouble();
+          backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
+        });
+      }
 
-if (!mounted) return;
+      if (!mounted) return;
 
-await Future.delayed(const Duration(milliseconds: 300));
-FocusScope.of(context).unfocus();
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+      FocusScope.of(context).unfocus();
 
-debugPrint("🚀 STEP 3 - Opening checkout page");
+      debugPrint("🚀 STEP 3 - Opening checkout page");
 
-final checkoutResult = await presentCheckoutSession(
-  context: context,
-  session: session,
-  orderId: orderId,
-  successUrlPrefix:
-      'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
-  cancelUrlPrefix: 'barkymatches://payment-cancel?orderId=$orderId',
-);
+      final checkoutResult = await presentCheckoutSession(
+        context: context,
+        session: session,
+        orderId: orderId,
+        successUrlPrefix:
+            'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
+        cancelUrlPrefix: 'barkymatches://payment-cancel?orderId=$orderId',
+      );
 
-debugPrint("✅ STEP 4 - Checkout closed");
-debugPrint("   Result: $checkoutResult");
+      debugPrint("✅ STEP 4 - Checkout closed");
+      debugPrint("   Result: $checkoutResult");
 
       if (!mounted) return;
 
@@ -636,6 +638,8 @@ debugPrint("   Result: $checkoutResult");
         if (!mounted) return;
 
         if (verified) {
+          await widget.onPaymentVerified?.call();
+          if (!mounted) return;
           _showError(
             AppLocalizations.of(context)!.checkoutPaymentCompletedSuccessfully,
           );
@@ -651,15 +655,19 @@ debugPrint("   Result: $checkoutResult");
         if (!mounted) return;
 
         final paymentStatus =
-            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ?? '';
+            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ??
+            '';
         final orderStatus =
             paymentState?['orderStatus']?.toString().trim().toLowerCase() ?? '';
-        final paid = paymentState?['paid'] == true ||
-            paymentStatus == 'paid' ||
-            orderStatus == 'paid';
-        final failed = paymentStatus == 'failed' || orderStatus == 'payment_failed';
+        // `paid` is true only after the verified backend callback has also
+        // reconciled the persisted basket for this order.
+        final paid = paymentState?['paid'] == true;
+        final failed =
+            paymentStatus == 'failed' || orderStatus == 'payment_failed';
 
         if (paid) {
+          await widget.onPaymentVerified?.call();
+          if (!mounted) return;
           _showError(
             AppLocalizations.of(context)!.checkoutPaymentCompletedSuccessfully,
           );
@@ -696,7 +704,8 @@ debugPrint("   Result: $checkoutResult");
 
       final data = Map<String, dynamic>.from(result.data as Map);
 
-      final success = data["success"] == true;
+      final success =
+          data["success"] == true && data["cartReconciled"] == true;
       final pending = data["pending"] == true;
 
       if (success) {

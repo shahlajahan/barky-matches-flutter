@@ -2,6 +2,7 @@ enum NavTab {
   home,
   favorites,
   vet,
+  petShop,
   groomy,
   petHotel,
   petTaxi,

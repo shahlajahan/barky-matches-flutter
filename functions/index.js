@@ -88,6 +88,161 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
+/**
+ * Removes only the quantities captured by a verified paid marketplace order.
+ *
+ * The reconciliation marker lives on the root order so payment verification and
+ * provider callback retries are idempotent. The legacy `cartCleared` flag is not
+ * used as proof because older payments set it without updating the persisted
+ * user cart.
+ */
+async function reconcilePaidMarketplaceCart(orderId) {
+  const orderRef = db.collection("orders").doc(String(orderId));
+  const sellerOrdersSnap = await db
+    .collection("sellerOrders")
+    .where("rootOrderId", "==", String(orderId))
+    .get();
+
+  const purchasedQuantities = new Map();
+  for (const sellerOrderDoc of sellerOrdersSnap.docs) {
+    const items = Array.isArray(sellerOrderDoc.data()?.items)
+      ? sellerOrderDoc.data().items
+      : [];
+    for (const item of items) {
+      const productId = String(item?.productId || "").trim();
+      const quantity = Math.max(0, Math.floor(Number(item?.quantity) || 0));
+      if (!productId || quantity === 0) continue;
+      purchasedQuantities.set(
+        productId,
+        (purchasedQuantities.get(productId) || 0) + quantity
+      );
+    }
+  }
+
+  return db.runTransaction(async (transaction) => {
+    const orderSnap = await transaction.get(orderRef);
+    if (!orderSnap.exists) {
+      throw new Error(`Cannot reconcile cart for missing order ${orderId}`);
+    }
+
+    const orderData = orderSnap.data() || {};
+    if (Number(orderData?.cartReconciliation?.version || 0) >= 1) {
+      return { reconciled: true, alreadyReconciled: true };
+    }
+
+    const payment = orderData.payment || {};
+    const provider = String(
+      payment.provider || payment.paymentProvider || ""
+    ).toLowerCase();
+    const orderStatus = String(orderData.status || "").toLowerCase();
+    const paymentStatus = String(
+      orderData.paymentStatus || payment.status || ""
+    ).toLowerCase();
+    const isPaid = orderStatus === "paid" && paymentStatus === "paid";
+    const hasVerifiedIsbankCallback =
+      provider !== "isbank" ||
+      (payment.callbackValidated === true &&
+        String(payment.finalizationStatus || "").toLowerCase() === "completed");
+
+    if (!isPaid || !hasVerifiedIsbankCallback) {
+      return { reconciled: false, reason: "payment_not_authoritatively_paid" };
+    }
+
+    const buyerUid = String(orderData.buyerUid || orderData.userId || "").trim();
+    if (!buyerUid) {
+      throw new Error(`Cannot reconcile cart without buyer for order ${orderId}`);
+    }
+
+    const cartEntries = [];
+    for (const [productId, purchasedQuantity] of purchasedQuantities.entries()) {
+      const cartRef = db
+        .collection("users")
+        .doc(buyerUid)
+        .collection("cart")
+        .doc(productId);
+      const cartSnap = await transaction.get(cartRef);
+      cartEntries.push({ cartRef, cartSnap, purchasedQuantity });
+    }
+
+    for (const { cartRef, cartSnap, purchasedQuantity } of cartEntries) {
+      if (!cartSnap.exists) continue;
+      const currentQuantity = Math.max(
+        0,
+        Math.floor(Number(cartSnap.data()?.quantity) || 0)
+      );
+      const remainingQuantity = currentQuantity - purchasedQuantity;
+      if (remainingQuantity > 0) {
+        transaction.update(cartRef, {
+          quantity: remainingQuantity,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } else {
+        transaction.delete(cartRef);
+      }
+    }
+
+    transaction.set(
+      orderRef,
+      {
+        cartCleared: true,
+        cartReconciliation: {
+          version: 1,
+          status: "completed",
+          reconciledAt: admin.firestore.FieldValue.serverTimestamp(),
+          productCount: purchasedQuantities.size,
+        },
+      },
+      { merge: true }
+    );
+
+    return {
+      reconciled: true,
+      alreadyReconciled: false,
+      productCount: purchasedQuantities.size,
+    };
+  });
+}
+
+exports.reconcileVerifiedPaidCart = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth?.uid) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const paidOrdersSnap = await db
+      .collection("orders")
+      .where("buyerUid", "==", auth.uid)
+      .limit(50)
+      .get();
+
+    let reconciledOrderCount = 0;
+    for (const orderDoc of paidOrdersSnap.docs) {
+      const orderData = orderDoc.data() || {};
+      const orderStatus = String(orderData.status || "").toLowerCase();
+      const paymentStatus = String(
+        orderData.paymentStatus || orderData.payment?.status || ""
+      ).toLowerCase();
+      if (orderStatus !== "paid" || paymentStatus !== "paid") continue;
+
+      const result = await reconcilePaidMarketplaceCart(orderDoc.id);
+      if (result.reconciled === true) {
+        reconciledOrderCount += 1;
+      }
+    }
+
+    return {
+      success: true,
+      reconciledOrderCount,
+    };
+  }
+);
+
 function normalizePaymentProvider(value) {
   const provider = String(value || "").trim().toLowerCase();
   return provider === "isbank" ? "isbank" : "iyzico";
@@ -591,7 +746,11 @@ async function finalizeIsbankPaidOrder({
     }));
 
   if (claimResult.status === "alreadyProcessed") {
-    return claimResult;
+    const cartReconciliation = await reconcilePaidMarketplaceCart(orderId);
+    return {
+      ...claimResult,
+      cartReconciled: cartReconciliation.reconciled === true,
+    };
   }
 
   if (claimResult.status === "processing") {
@@ -964,6 +1123,17 @@ async function finalizeIsbankPaidOrder({
 
       return { status: "completed" };
     });
+
+    if (
+      completionResult.status === "completed" ||
+      completionResult.status === "alreadyProcessed"
+    ) {
+      const cartReconciliation = await reconcilePaidMarketplaceCart(orderId);
+      return {
+        ...completionResult,
+        cartReconciled: cartReconciliation.reconciled === true,
+      };
+    }
 
     return completionResult;
   } catch (error) {
@@ -2089,7 +2259,10 @@ exports.readPaymentStatusByOrderId = onCall(
     const finalizationStatus = normalizeLower(
       orderData.payment?.finalizationStatus || ""
     ) || null;
-    const paid = finalizationStatus === "completed";
+    const cartReconciled =
+      Number(orderData?.cartReconciliation?.version || 0) >= 1 &&
+      orderData?.cartReconciliation?.status === "completed";
+    const paid = finalizationStatus === "completed" && cartReconciled;
 
     return {
       success: true,
@@ -2098,6 +2271,7 @@ exports.readPaymentStatusByOrderId = onCall(
       paymentStatus,
       orderStatus,
       paid,
+      cartReconciled,
       finalizationStatus,
       authCode: normalizeIsbankValue(orderData.payment?.authCode || ""),
       failureReason: normalizeIsbankValue(
@@ -12204,10 +12378,14 @@ exports.verifyPaymentByOrderId = onCall(
         normalizeLower(orderData?.payment?.status) === "paid" ||
         normalizeLower(orderData?.payment?.status) === "success"
       ) {
+        const cartReconciliation = await reconcilePaidMarketplaceCart(
+          safeOrderId
+        );
         return {
           success: true,
           alreadyProcessed: true,
           orderId: safeOrderId,
+          cartReconciled: cartReconciliation.reconciled === true,
           paymentId: orderData?.payment?.paymentId || null,
           sellerOrderIds: Array.isArray(orderData?.sellerOrderIds)
             ? orderData.sellerOrderIds
@@ -12448,6 +12626,9 @@ exports.verifyPaymentByOrderId = onCall(
       }
 
       await batch.commit();
+      const cartReconciliation = await reconcilePaidMarketplaceCart(
+        safeOrderId
+      );
 
       const buyerUid = orderData.buyerUid || orderData.userId || auth.uid;
 
@@ -12614,6 +12795,7 @@ exports.verifyPaymentByOrderId = onCall(
       return {
         success: true,
         orderId: safeOrderId,
+        cartReconciled: cartReconciliation.reconciled === true,
         paymentId: result?.paymentId || null,
         sellerOrderIds,
       };

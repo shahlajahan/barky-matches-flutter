@@ -134,7 +134,7 @@ class SavedParksPage extends StatelessWidget {
                                     Text(
                                       canSchedule
                                           ? 'Available for playdate'
-                                          : 'Gold / Premium required',
+                                          : 'PetSupo Partner / Premium required',
                                       style: GoogleFonts.poppins(
                                         fontSize: 12,
                                         color: canSchedule

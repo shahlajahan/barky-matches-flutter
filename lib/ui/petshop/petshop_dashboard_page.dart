@@ -20,6 +20,7 @@ import 'package:barky_matches_fixed/ui/business/petshop/edit_petshop_profile_pag
 import 'package:flutter/foundation.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
 
 class PetShopDashboardPage extends StatefulWidget {
   const PetShopDashboardPage({super.key});
@@ -58,9 +59,9 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
 
   void _setupStreams(String businessId) {
     debugPrint("SETUP CALLED");
-debugPrint("_businessId=$_businessId");
-debugPrint("businessId=$businessId");
-debugPrint("_returnsStream=$_returnsStream");
+    debugPrint("_businessId=$_businessId");
+    debugPrint("businessId=$businessId");
+    debugPrint("_returnsStream=$_returnsStream");
     //if (_businessId == businessId) return;
 
     _businessId = businessId;
@@ -88,14 +89,14 @@ debugPrint("_returnsStream=$_returnsStream");
         .orderBy('requestedAt', descending: true)
         .limit(5)
         .snapshots();
-debugPrint("===== RETURNS QUERY =====");
-debugPrint("businessId = $businessId");
-debugPrint("stream = $_returnsStream");
-        debugPrint(
-  "📡 RETURNS QUERY businessId=$businessId "
-  "collection=order_returns "
-  "orderBy=requestedAt",
-);
+    debugPrint("===== RETURNS QUERY =====");
+    debugPrint("businessId = $businessId");
+    debugPrint("stream = $_returnsStream");
+    debugPrint(
+      "📡 RETURNS QUERY businessId=$businessId "
+      "collection=order_returns "
+      "orderBy=requestedAt",
+    );
 
     debugPrint("✅ PETSHOP STREAMS SETUP ONCE → businessId=$businessId");
   }
@@ -109,8 +110,8 @@ debugPrint("stream = $_returnsStream");
       (s) => s.businessSubPage,
     );
     debugPrint("================================");
-debugPrint("businessSubPage = $businessSubPage");
-debugPrint("================================");
+    debugPrint("businessSubPage = $businessSubPage");
+    debugPrint("================================");
     // final businessId = appState.businessId;
     if (businessSubPage == BusinessSubPage.addProduct) {
       return AddProductPage(businessId: businessId!);
@@ -193,8 +194,6 @@ debugPrint("================================");
         _buildDailySummaryCards(context, businessId),
         const SizedBox(height: 20),
 
-        Text("Quick Actions", style: AppTheme.h2()),
-        const SizedBox(height: 10),
         _buildQuickActions(context),
       ],
     );
@@ -331,41 +330,31 @@ debugPrint("================================");
   Widget _buildQuickActions(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return Row(
-      children: [
-        Expanded(
-          child: _quickActionButton(
-            text: l10n.productsTitle,
-            icon: LucideIcons.package,
-            onTap: context.read<AppState>().openPetShopProducts,
-          ),
+    return BusinessQuickActionsSection(
+      title: "Quick Actions",
+      actions: [
+        BusinessQuickActionItem(
+          label: l10n.productsTitle,
+          icon: LucideIcons.package,
+          onTap: context.read<AppState>().openPetShopProducts,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _quickActionButton(
-            text: l10n.ordersTitle,
-            icon: LucideIcons.receipt,
-            onTap: context.read<AppState>().openPetShopOrders,
-          ),
+        BusinessQuickActionItem(
+          label: l10n.ordersTitle,
+          icon: LucideIcons.receipt,
+          onTap: context.read<AppState>().openPetShopOrders,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _quickActionButton(
-            text: l10n.returnRequestsTitle,
-            icon: LucideIcons.rotateCcw,
-            onTap: () {
-  debugPrint("RETURN BUTTON CLICKED");
-  context.read<AppState>().openPetShopReturns();
-},
-          ),
+        BusinessQuickActionItem(
+          label: l10n.returnRequestsTitle,
+          icon: LucideIcons.rotateCcw,
+          onTap: () {
+            debugPrint("RETURN BUTTON CLICKED");
+            context.read<AppState>().openPetShopReturns();
+          },
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _quickActionButton(
-            text: "Settings",
-            icon: LucideIcons.settings,
-            onTap: context.read<AppState>().openPetShopSettings,
-          ),
+        BusinessQuickActionItem(
+          label: "Settings",
+          icon: LucideIcons.settings,
+          onTap: context.read<AppState>().openPetShopSettings,
         ),
       ],
     );
@@ -1034,19 +1023,18 @@ Widget _strengthBar(double value) {
           Text(l10n.returnRequestsTitle, style: AppTheme.h2()),
           const SizedBox(height: 10),
         ],
-        
+
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: _returnsStream,
-          
+
           builder: (context, snapshot) {
-            
             debugPrint(
-  "🔄 RETURNS "
-  "state=${snapshot.connectionState} "
-  "hasData=${snapshot.hasData} "
-  "docs=${snapshot.data?.docs.length} "
-  "error=${snapshot.error}",
-);
+              "🔄 RETURNS "
+              "state=${snapshot.connectionState} "
+              "hasData=${snapshot.hasData} "
+              "docs=${snapshot.data?.docs.length} "
+              "error=${snapshot.error}",
+            );
             if (snapshot.hasError) {
               return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
             }
@@ -1058,7 +1046,7 @@ Widget _strengthBar(double value) {
             final returns =
                 snapshot.data?.docs.map(OrderReturnRecord.fromDoc).toList() ??
                 [];
-debugPrint("📦 RETURN COUNT = ${returns.length}");
+            debugPrint("📦 RETURN COUNT = ${returns.length}");
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: _cardDecoration(),
@@ -1326,39 +1314,6 @@ debugPrint("📦 RETURN COUNT = ${returns.length}");
             ),
             const SizedBox(height: 4),
             Text(title, style: AppTheme.caption()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _quickActionButton({
-    required String text,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black12),
-          boxShadow: AppTheme.cardShadow(opacity: 0.04),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFF9E1B4F), size: 20),
-            const SizedBox(height: 8),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTheme.caption().copyWith(fontWeight: FontWeight.w700),
-            ),
           ],
         ),
       ),

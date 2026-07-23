@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
-import 'package:barky_matches_fixed/add_dog_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
 
 class AdoptionCenterDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -216,28 +216,22 @@ class _AdoptionCenterDashboardOverviewTabState
 
         const SizedBox(height: 24),
 
-        /// ================= QUICK ACTIONS =================
-        _SectionTitle("Quick Actions"),
-
-        const SizedBox(height: 10),
-
-        Row(
-          children: [
-            _actionBtn("Add Pet", Icons.pets, onTap: widget.onOpenPets),
-
-            const SizedBox(width: 10),
-
-            _actionBtn(
-              "Requests",
-              LucideIcons.heartHandshake,
+        BusinessQuickActionsSection(
+          title: "Quick Actions",
+          actions: [
+            BusinessQuickActionItem(
+              label: "Add Pet",
+              icon: Icons.pets,
+              onTap: widget.onOpenPets,
+            ),
+            BusinessQuickActionItem(
+              label: "Requests",
+              icon: LucideIcons.heartHandshake,
               onTap: widget.onOpenRequests,
             ),
-
-            const SizedBox(width: 10),
-
-            _actionBtn(
-              "Settings",
-              LucideIcons.settings,
+            BusinessQuickActionItem(
+              label: "Settings",
+              icon: LucideIcons.settings,
               onTap: widget.onOpenSettings,
             ),
           ],
@@ -678,47 +672,6 @@ class _KpiCard extends StatelessWidget {
 
             Text(title, style: AppTheme.caption()),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _actionBtn extends StatelessWidget {
-  final String text;
-
-  final IconData icon;
-
-  final VoidCallback? onTap;
-
-  const _actionBtn(this.text, this.icon, {this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-
-        child: Container(
-          padding: const EdgeInsets.all(12),
-
-          decoration: BoxDecoration(
-            color: Colors.white,
-
-            borderRadius: BorderRadius.circular(14),
-
-            border: Border.all(color: Colors.black12),
-          ),
-
-          child: Column(
-            children: [
-              Icon(icon, color: const Color(0xFF9E1B4F)),
-
-              const SizedBox(height: 6),
-
-              Text(text),
-            ],
-          ),
         ),
       ),
     );

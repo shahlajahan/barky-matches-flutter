@@ -9,9 +9,9 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/business/groomy/edit_groomy_profile_page.dart';
-import 'package:barky_matches_fixed/ui/business/groomy/groomy_appointment_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_schedule_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
 
 class GroomyDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -159,8 +159,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
           _emptyBox('Manage your grooming services from here'),
           const SizedBox(height: 24),
 
-          _SectionTitle('Quick Actions'),
-          const SizedBox(height: 10),
           _buildQuickActions(context),
 
           const SizedBox(height: 24),
@@ -427,64 +425,50 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _ActionBtn(
-            'Schedule',
-            LucideIcons.calendar,
-            onTap: () {
-              Navigator.push(
-                context,
-
-                MaterialPageRoute(
-                  builder: (_) => GroomySchedulePage(businessId: businessId),
-                ),
-              );
-            },
-          ),
+    return BusinessQuickActionsSection(
+      title: 'Quick Actions',
+      actions: [
+        BusinessQuickActionItem(
+          label: 'Schedule',
+          icon: LucideIcons.calendar,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GroomySchedulePage(businessId: businessId),
+              ),
+            );
+          },
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ActionBtn(
-            'Clients',
-
-            LucideIcons.users,
-
-            onTap: () {
-              Navigator.push(
-                context,
-
-                MaterialPageRoute(
-                  builder: (_) => GroomyClientsPage(businessId: businessId),
-                ),
-              );
-            },
-          ),
+        BusinessQuickActionItem(
+          label: 'Clients',
+          icon: LucideIcons.users,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GroomyClientsPage(businessId: businessId),
+              ),
+            );
+          },
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ActionBtn(
-            'Gallery',
-            LucideIcons.image,
-            onTap: widget.onOpenGallery,
-          ),
+        BusinessQuickActionItem(
+          label: 'Gallery',
+          icon: LucideIcons.image,
+          onTap: widget.onOpenGallery,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _ActionBtn(
-            'Settings',
-            LucideIcons.settings,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      EditGroomyProfilePage(businessId: widget.businessId),
-                ),
-              );
-            },
-          ),
+        BusinessQuickActionItem(
+          label: 'Settings',
+          icon: LucideIcons.settings,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    EditGroomyProfilePage(businessId: widget.businessId),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -1068,35 +1052,5 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(title, style: AppTheme.h2());
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _ActionBtn(this.text, this.icon, {this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFF9E1B4F)),
-            const SizedBox(height: 6),
-            Text(text),
-          ],
-        ),
-      ),
-    );
   }
 }

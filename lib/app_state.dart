@@ -389,6 +389,23 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
+  void removePurchasedCartItems(Iterable<CartItem> purchasedItems) {
+    for (final purchased in purchasedItems) {
+      final index = _cartItems.indexWhere(
+        (item) => item.productId == purchased.productId,
+      );
+      if (index == -1) continue;
+
+      final remaining = _cartItems[index].quantity - purchased.quantity;
+      if (remaining > 0) {
+        _cartItems[index] = _cartItems[index].copyWith(quantity: remaining);
+      } else {
+        _cartItems.removeAt(index);
+      }
+    }
+    notifyListeners();
+  }
+
   void updateCartQuantity(String productId, int qty) {
     final index = _cartItems.indexWhere((e) => e.productId == productId);
 
@@ -590,8 +607,10 @@ class AppState with ChangeNotifier {
   // ==========================
 
   BusinessCardData? _selectedVet;
+  BusinessCardData? _selectedPetShop;
 
   BusinessCardData? get selectedVet => _selectedVet;
+  BusinessCardData? get selectedPetShop => _selectedPetShop;
 
   void openVetDetails(BusinessCardData vet) {
     _selectedVet = vet;
@@ -600,6 +619,16 @@ class AppState with ChangeNotifier {
 
   void closeVetDetails() {
     _selectedVet = null;
+    notifyListeners();
+  }
+
+  void openPetShopDetails(BusinessCardData shop) {
+    _selectedPetShop = shop;
+    notifyListeners();
+  }
+
+  void closePetShopDetails() {
+    _selectedPetShop = null;
     notifyListeners();
   }
 
@@ -4179,6 +4208,10 @@ class AppState with ChangeNotifier {
         tab != NavTab.vet &&
         activeVaccineId != null) {
       closeVaccineNotification();
+    }
+
+    if (_currentTab == NavTab.petShop && tab != NavTab.petShop) {
+      closePetShopDetails();
     }
 
     // هر بار tab عوض میشه overlay بسته بشه

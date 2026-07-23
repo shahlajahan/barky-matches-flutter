@@ -2,127 +2,80 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-
 	<key>CFBundleDisplayName</key>
 	<string>PetSupo</string>
-
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
-
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
-
 	<key>CFBundleName</key>
-	<string>barky_matches_fixed</string>
-
+	<string>PetSupo</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
-
 	<key>CFBundleSignature</key>
 	<string>????</string>
-
-	<!-- Firebase / Google reCAPTCHA callback -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
-
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>barkymatches</string>
 				<string>app-1-188282684447-ios-9be764f38d8f1a9c53412a</string>
+				<string>com.googleusercontent.apps.188282684447-p21o2aijk2h39d84hot9trip42hsa0g5</string>
 			</array>
-
 		</dict>
 	</array>
-
-
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
-
-
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
-
-
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>
 		<string>http</string>
 	</array>
-
-
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-
-
 	<key>NSCameraUsageDescription</key>
 	<string>Petsupu needs camera access to take profile and dog photos.</string>
-
-
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We use your location to show nearby dogs and playmates.</string>
-
-
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to show nearby dogs and playmates.</string>
-
-
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses microphone for voice search</string>
-
-
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>BarkyMatches needs permission to save photos.</string>
-
-
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>BarkyMatches needs access to your photo library to upload profile and dog photos.</string>
-
-
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app uses speech recognition to search dogs</string>
-
-
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-
-
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
 	</array>
-
-
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-
-
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-
-
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
-
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -130,7 +83,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
-
 </dict>
 </plist>

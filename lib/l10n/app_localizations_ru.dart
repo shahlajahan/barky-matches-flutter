@@ -9,40 +9,41 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
-  String get userNotLoggedIn => 'User not logged in. Redirecting to login...';
+  String get userNotLoggedIn =>
+      'Пользователь не вошёл в систему. Перенаправление на страницу входа...';
 
   @override
   String errorLoadingUserInfo(Object error) {
-    return 'Error loading user info: $error';
+    return 'Ошибка загрузки информации о пользователе: $error';
   }
 
   @override
   String errorLoadingDogs(Object error) {
-    return 'Error loading dogs: $error';
+    return 'Ошибка загрузки собак: $error';
   }
 
   @override
-  String get usernameCannotBeEmpty => 'Username cannot be empty';
+  String get usernameCannotBeEmpty => 'Имя пользователя не может быть пустым';
 
   @override
-  String get profileUpdatedSuccessfully => 'Profile updated successfully';
+  String get profileUpdatedSuccessfully => 'Профиль успешно обновлён';
 
   @override
   String errorUpdatingDog(Object error) {
-    return 'Error updating dog: $error';
+    return 'Ошибка обновления данных собаки: $error';
   }
 
   @override
   String errorDeletingAccount(Object error) {
-    return 'Error deleting account: $error';
+    return 'Ошибка удаления аккаунта: $error';
   }
 
   @override
-  String get accountDeleted => 'Account deleted.';
+  String get accountDeleted => 'Аккаунт удалён.';
 
   @override
   String errorDuringLogout(Object error) {
-    return 'Error during logout: $error';
+    return 'Ошибка при выходе: $error';
   }
 
   @override
@@ -76,7 +77,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutFullNameHint => 'Имя и фамилия';
 
   @override
-  String get checkoutPhoneHint => '5XXXXXXXXX';
+  String get checkoutPhoneHint => 'Номер в формате 5XXXXXXXXX';
 
   @override
   String get checkoutCityLabel => 'Город';
@@ -127,10 +128,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutCargoUpdatesTitle => 'Обновления счета и доставки';
 
   @override
-  String get checkoutCargoUpdatesQuestion => 'Как нам отправлять обновления по счету и доставке?';
+  String get checkoutCargoUpdatesQuestion =>
+      'Как нам отправлять обновления по счету и доставке?';
 
   @override
-  String get checkoutSmsOption => 'SMS';
+  String get checkoutSmsOption => 'СМС';
 
   @override
   String get checkoutEmailOption => 'Электронная почта';
@@ -148,13 +150,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutViewButton => 'Просмотреть';
 
   @override
-  String get checkoutPreInfoForm => 'Я принимаю форму предварительной информации';
+  String get checkoutPreInfoForm =>
+      'Я принимаю форму предварительной информации';
 
   @override
-  String get checkoutDistanceSalesAgreement => 'Я принимаю договор дистанционной продажи';
+  String get checkoutDistanceSalesAgreement =>
+      'Я принимаю договор дистанционной продажи';
 
   @override
-  String get checkoutMarketingOptional => 'Получать маркетинговые сообщения (необязательно)';
+  String get checkoutMarketingOptional =>
+      'Получать маркетинговые сообщения (необязательно)';
 
   @override
   String get checkoutDeliveryTitle => 'Доставка';
@@ -172,7 +177,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutShippingLabel => 'Доставка';
 
   @override
-  String get checkoutPleaseSelectCargoCompany => 'Пожалуйста, выберите транспортную компанию';
+  String get checkoutPleaseSelectCargoCompany =>
+      'Пожалуйста, выберите транспортную компанию';
 
   @override
   String get checkoutEnterNameSurname => 'Введите имя и фамилию';
@@ -193,22 +199,26 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutEnterFullAddress => 'Введите полный адрес';
 
   @override
-  String get checkoutEnterValidIdentityNumber => 'Введите действительный номер удостоверения';
+  String get checkoutEnterValidIdentityNumber =>
+      'Введите действительный номер удостоверения';
 
   @override
   String get checkoutEnterCompanyName => 'Введите название компании';
 
   @override
-  String get checkoutEnterValidTaxNumber => 'Введите действительный налоговый номер';
+  String get checkoutEnterValidTaxNumber =>
+      'Введите действительный налоговый номер';
 
   @override
   String get checkoutEnterTaxOffice => 'Введите налоговую';
 
   @override
-  String get checkoutAcceptRequiredAgreements => 'Примите обязательные соглашения';
+  String get checkoutAcceptRequiredAgreements =>
+      'Примите обязательные соглашения';
 
   @override
-  String get checkoutPaymentPageOpenedMessage => 'Страница оплаты открыта. Завершите оплату и вернитесь в приложение.';
+  String get checkoutPaymentPageOpenedMessage =>
+      'Страница оплаты открыта. Завершите оплату и вернитесь в приложение.';
 
   @override
   String get checkoutBackButton => 'Назад';
@@ -223,7 +233,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutPaymentCompletedSuccessfully => 'Оплата успешно завершена';
 
   @override
-  String get checkoutPaymentCancelledOrIncomplete => 'Оплата была отменена или не завершена';
+  String get checkoutPaymentCancelledOrIncomplete =>
+      'Оплата была отменена или не завершена';
 
   @override
   String checkoutFailed(Object error) {
@@ -266,7 +277,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cancelAppointmentTitle => 'Отменить запись?';
 
   @override
-  String get cancelAppointmentConfirmation => 'Вы уверены, что хотите отменить эту запись?';
+  String get cancelAppointmentConfirmation =>
+      'Вы уверены, что хотите отменить эту запись?';
 
   @override
   String get keepAppointmentButton => 'Оставить запись';
@@ -278,7 +290,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cancellationNotAllowed => 'Отмена для этой записи недоступна.';
 
   @override
-  String get cancelAppointmentFailed => 'Не удалось отменить запись. Попробуйте еще раз.';
+  String get cancelAppointmentFailed =>
+      'Не удалось отменить запись. Попробуйте еще раз.';
 
   @override
   String get selectService => 'Выберите услугу';
@@ -311,16 +324,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get requestSentMessage => 'Ваш запрос на запись отправлен в клинику.';
 
   @override
-  String get okButton => 'OK';
+  String get okButton => 'Хорошо';
 
   @override
   String get somethingWentWrong => 'Что-то пошло не так';
 
   @override
-  String get alreadyBookedAtThisTime => 'У вас уже есть запись на это время. Пожалуйста, выберите другое время.';
+  String get alreadyBookedAtThisTime =>
+      'У вас уже есть запись на это время. Пожалуйста, выберите другое время.';
 
   @override
-  String get invalidBookingData => 'Недействительные данные записи. Пожалуйста, попробуйте снова.';
+  String get invalidBookingData =>
+      'Недействительные данные записи. Пожалуйста, попробуйте снова.';
 
   @override
   String get serviceDefaultLabel => 'Услуга';
@@ -353,7 +368,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get locationTitle => 'Местоположение';
 
   @override
-  String get instagramTitle => 'Instagram';
+  String get instagramTitle => 'Страница в Instagram';
 
   @override
   String get noClinicDescriptionAvailable => 'Описание клиники недоступно.';
@@ -432,7 +447,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get pleaseLoginFirst => 'Сначала войдите в систему';
 
   @override
-  String get alreadyReviewedThisVet => 'Вы уже оставили отзыв об этом ветеринаре';
+  String get alreadyReviewedThisVet =>
+      'Вы уже оставили отзыв об этом ветеринаре';
 
   @override
   String get errorSubmittingReview => 'Ошибка отправки отзыва';
@@ -457,22 +473,22 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get myProfile => 'My Profile';
+  String get myProfile => 'Мой профиль';
 
   @override
-  String get userProfile => 'User Profile';
+  String get userProfile => 'Профиль пользователя';
 
   @override
-  String get profileInformation => 'Profile Information';
+  String get profileInformation => 'Информация профиля';
 
   @override
   String get myDogs => 'Мои питомцы';
 
   @override
-  String get dogsAvailableForAdoption => 'Dogs Available for Adoption';
+  String get dogsAvailableForAdoption => 'Собаки, доступные для пристройства';
 
   @override
-  String get editProfile => 'Edit Profile';
+  String get editProfile => 'Редактировать профиль';
 
   @override
   String get usernameLabel => 'Имя пользователя';
@@ -484,61 +500,64 @@ class AppLocalizationsRu extends AppLocalizations {
   String get phoneLabel => 'Номер телефона';
 
   @override
-  String get enterPhoneNumberOptional => 'Enter phone number (optional)';
+  String get enterPhoneNumberOptional =>
+      'Введите номер телефона (необязательно)';
 
   @override
-  String get deleteAccount => 'Delete Account';
+  String get deleteAccount => 'Удалить аккаунт';
 
   @override
-  String get deleteAccountConfirmation => 'Are you sure you want to delete your account? This action cannot be undone.';
+  String get deleteAccountConfirmation =>
+      'Вы уверены, что хотите удалить аккаунт? Это действие нельзя отменить.';
 
   @override
-  String get updateProfile => 'Update Profile';
+  String get updateProfile => 'Обновить профиль';
 
   @override
-  String get editProfileTooltip => 'Edit Profile';
+  String get editProfileTooltip => 'Редактировать профиль';
 
   @override
-  String get deleteAccountTooltip => 'Delete Account';
+  String get deleteAccountTooltip => 'Удалить аккаунт';
 
   @override
-  String get logoutTooltip => 'Logout';
+  String get logoutTooltip => 'Выйти';
 
   @override
-  String get noDogsAvailableForAdoption => 'Нет собак, доступных для усыновления';
+  String get noDogsAvailableForAdoption =>
+      'Нет собак, доступных для усыновления';
 
   @override
-  String get unknownUser => 'Unknown User';
+  String get unknownUser => 'Неизвестный пользователь';
 
   @override
-  String get notProvided => 'Not Provided';
+  String get notProvided => 'Не указано';
 
   @override
-  String get noDogsAddedYet => 'No dogs added yet.';
+  String get noDogsAddedYet => 'Собаки пока не добавлены.';
 
   @override
-  String get appTitle => 'PetSupo';
+  String get appTitle => 'Приложение PetSupo';
 
   @override
-  String get loadingUserData => 'Loading user data...';
+  String get loadingUserData => 'Загрузка данных пользователя...';
 
   @override
-  String get welcomeToPetSopu => 'Welcome to PetSopu!';
+  String get welcomeToPetSopu => 'Добро пожаловать в PetSopu!';
 
   @override
   String get welcomeTo => 'Добро пожаловать';
 
   @override
-  String get petSopu => 'PetSopu';
+  String get petSopu => 'Приложение PetSopu';
 
   @override
   String welcomeBack(Object username) {
-    return 'Welcome back, $username!';
+    return 'С возвращением, $username!';
   }
 
   @override
   String helloMessage(Object username) {
-    return 'Hello, $username!';
+    return 'Здравствуйте, $username!';
   }
 
   @override
@@ -584,7 +603,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get emailRequired => 'Пожалуйста, введите электронную почту';
 
   @override
-  String get emailInvalid => 'Пожалуйста, введите действительный адрес электронной почты';
+  String get emailInvalid =>
+      'Пожалуйста, введите действительный адрес электронной почты';
 
   @override
   String get usernameRequired => 'Пожалуйста, введите имя пользователя';
@@ -596,7 +616,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get phoneNumberTooShort => 'Номер телефона слишком короткий';
 
   @override
-  String get phoneMinDigits => 'Phone number must be at least 10 digits';
+  String get phoneMinDigits =>
+      'Номер телефона должен содержать не менее 10 цифр';
 
   @override
   String get passwordRequired => 'Пожалуйста, введите пароль';
@@ -617,7 +638,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get forgotPasswordDialogTitle => 'Забыли пароль';
 
   @override
-  String get forgotPasswordDialogMessage => 'Введите электронную почту, чтобы сбросить пароль.';
+  String get forgotPasswordDialogMessage =>
+      'Введите электронную почту, чтобы сбросить пароль.';
 
   @override
   String get sendButton => 'Отправить';
@@ -640,25 +662,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get haveAccountSignIn => 'Уже есть аккаунт? Войти';
 
   @override
-  String get userNotFound => 'Пользователь с этой электронной почтой не найден. Пожалуйста, зарегистрируйтесь.';
+  String get userNotFound =>
+      'Пользователь с этой электронной почтой не найден. Пожалуйста, зарегистрируйтесь.';
 
   @override
   String get authUserNotFound => 'Пользователь не найден';
 
   @override
-  String get pleaseVerifyEmailBeforeSigningIn => 'Пожалуйста, подтвердите электронную почту перед входом.';
+  String get pleaseVerifyEmailBeforeSigningIn =>
+      'Пожалуйста, подтвердите электронную почту перед входом.';
 
   @override
   String get userCreationFailed => 'Не удалось создать пользователя';
 
   @override
-  String get verificationEmailCouldNotBeSent => 'Не удалось отправить письмо подтверждения';
+  String get verificationEmailCouldNotBeSent =>
+      'Не удалось отправить письмо подтверждения';
 
   @override
-  String get verificationSessionCouldNotBeCreated => 'Не удалось создать сеанс подтверждения';
+  String get verificationSessionCouldNotBeCreated =>
+      'Не удалось создать сеанс подтверждения';
 
   @override
-  String get emailAlreadyRegisteredTryLoggingIn => 'Эта электронная почта уже зарегистрирована. Попробуйте войти.';
+  String get emailAlreadyRegisteredTryLoggingIn =>
+      'Эта электронная почта уже зарегистрирована. Попробуйте войти.';
 
   @override
   String get incorrectPassword => 'Неверный пароль. Попробуйте еще раз.';
@@ -675,13 +702,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get verifyEmailTitle => 'Подтвердите электронную почту';
 
   @override
-  String get enterVerificationCodeSentToEmail => 'Введите код подтверждения, отправленный на вашу электронную почту';
+  String get enterVerificationCodeSentToEmail =>
+      'Введите код подтверждения, отправленный на вашу электронную почту';
 
   @override
   String get pleaseEnterSixDigitCode => 'Пожалуйста, введите 6-значный код';
 
   @override
-  String get emailVerifiedSuccessfully => 'Электронная почта успешно подтверждена';
+  String get emailVerifiedSuccessfully =>
+      'Электронная почта успешно подтверждена';
 
   @override
   String get invalidVerificationCode => 'Недействительный код подтверждения';
@@ -704,10 +733,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get authCreateAccountSubtitle => 'Создайте аккаунт PetSupo';
 
   @override
-  String get sessionExpiredPleaseSignInAgain => 'Ваша сессия истекла. Пожалуйста, войдите снова.';
+  String get sessionExpiredPleaseSignInAgain =>
+      'Ваша сессия истекла. Пожалуйста, войдите снова.';
 
   @override
-  String get signInToAccessPlaymate => 'Пожалуйста, войдите, чтобы открыть доступ к Плеймейт';
+  String get signInToAccessPlaymate =>
+      'Пожалуйста, войдите, чтобы открыть доступ к Плеймейт';
 
   @override
   String get findPlaymates => 'Найти друзей';
@@ -716,7 +747,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get signInToFindFriends => 'Найти друзей для вашего питомца';
 
   @override
-  String get addYourDog => 'Add Your Dog';
+  String get addYourDog => 'Добавьте свою собаку';
 
   @override
   String get addYourPetTitle => 'Добавьте питомца';
@@ -725,13 +756,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get nameLabel => 'Имя *';
 
   @override
-  String get pleaseEnterDogName => 'Please enter your dog\'s name';
+  String get pleaseEnterDogName => 'Введите имя вашей собаки';
 
   @override
   String get selectBreedHint => 'Выберите породу';
 
   @override
-  String get pleaseSelectBreed => 'Please select a breed';
+  String get pleaseSelectBreed => 'Выберите породу';
 
   @override
   String get ageLabel => 'Возраст *';
@@ -740,22 +771,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get ageUnit => 'Ед.';
 
   @override
-  String get pleaseEnterDogAge => 'Please enter your dog\'s age';
+  String get pleaseEnterDogAge => 'Введите возраст вашей собаки';
 
   @override
-  String get pleaseEnterValidAge => 'Please enter a valid age';
+  String get pleaseEnterValidAge => 'Введите корректный возраст';
 
   @override
   String get selectGenderHint => 'Выберите пол';
 
   @override
-  String get pleaseSelectGender => 'Please select a gender';
+  String get pleaseSelectGender => 'Выберите пол';
 
   @override
   String get selectHealthStatusHint => 'Выберите состояние здоровья';
 
   @override
-  String get pleaseSelectHealthStatus => 'Please select a health status';
+  String get pleaseSelectHealthStatus => 'Выберите состояние здоровья';
 
   @override
   String get neuteredLabel => 'Стерилизация *';
@@ -767,28 +798,29 @@ class AppLocalizationsRu extends AppLocalizations {
   String get no => 'Нет';
 
   @override
-  String get pleaseSpecifyNeutered => 'Please specify if the dog is neutered';
+  String get pleaseSpecifyNeutered => 'Укажите, стерилизована ли собака';
 
   @override
   String get traitsLabel => 'Характеристики *';
 
   @override
-  String get pleaseSelectAtLeastOneTrait => 'Please select at least one trait';
+  String get pleaseSelectAtLeastOneTrait =>
+      'Выберите хотя бы одну черту характера';
 
   @override
   String get selectOwnerGenderHint => 'Пол владельца';
 
   @override
-  String get pleaseSelectOwnerGender => 'Please select your gender';
+  String get pleaseSelectOwnerGender => 'Укажите свой пол';
 
   @override
-  String get uploadImagesLabel => 'Upload Images';
+  String get uploadImagesLabel => 'Загрузить изображения';
 
   @override
-  String get pickFromGallery => 'Pick from Gallery';
+  String get pickFromGallery => 'Выбрать из галереи';
 
   @override
-  String get takePhoto => 'Take a Photo';
+  String get takePhoto => 'Сделать фото';
 
   @override
   String get availableForAdoption => 'Доступна для усыновления';
@@ -797,28 +829,28 @@ class AppLocalizationsRu extends AppLocalizations {
   String get descriptionLabel => 'Описание';
 
   @override
-  String get descriptionPlaceholder => 'Enter a description here...';
+  String get descriptionPlaceholder => 'Введите описание...';
 
   @override
-  String get colorLabel => 'Color';
+  String get colorLabel => 'Цвет';
 
   @override
-  String get weightLabel => 'Weight (kg)';
+  String get weightLabel => 'Вес (кг)';
 
   @override
-  String get selectCollarTypeHint => 'Select Collar Type';
+  String get selectCollarTypeHint => 'Выберите тип ошейника';
 
   @override
-  String get clothingColorLabel => 'Clothing Color';
+  String get clothingColorLabel => 'Цвет одежды';
 
   @override
-  String get lostLocationLabel => 'Lost Location *';
+  String get lostLocationLabel => 'Место пропажи *';
 
   @override
-  String get foundLocationLabel => 'Found Location *';
+  String get foundLocationLabel => 'Место обнаружения *';
 
   @override
-  String get contactInfoLabel => 'Contact Info *';
+  String get contactInfoLabel => 'Контактная информация *';
 
   @override
   String get editDog => 'Редактировать собаку';
@@ -844,92 +876,95 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get locationRequired => 'Location is required to add a dog.';
+  String get locationRequired =>
+      'Для добавления собаки необходимо указать местоположение.';
 
   @override
   String errorUploadingImage(Object error) {
-    return 'Error uploading image: $error';
+    return 'Ошибка загрузки изображения: $error';
   }
 
   @override
   String errorAddingDog(Object error) {
-    return 'Error adding dog: $error';
+    return 'Ошибка добавления собаки: $error';
   }
 
   @override
-  String get pleaseFillRequiredFields => 'Пожалуйста, правильно заполните все обязательные поля';
+  String get pleaseFillRequiredFields =>
+      'Пожалуйста, правильно заполните все обязательные поля';
 
   @override
   String get addDogButton => 'Добавить питомца';
 
   @override
-  String get dogDetailsAddTitle => 'Add Dog';
+  String get dogDetailsAddTitle => 'Добавить собаку';
 
   @override
-  String get dogDetailsEditTitle => 'Edit Dog';
+  String get dogDetailsEditTitle => 'Редактировать собаку';
 
   @override
-  String get dogDetailsNameLabel => 'Name';
+  String get dogDetailsNameLabel => 'Имя';
 
   @override
-  String get dogDetailsAgeLabel => 'Age';
+  String get dogDetailsAgeLabel => 'Возраст';
 
   @override
-  String get dogDetailsDescriptionLabel => 'Description';
+  String get dogDetailsDescriptionLabel => 'Описание';
 
   @override
-  String get dogDetailsGenderLabel => 'Gender:';
+  String get dogDetailsGenderLabel => 'Пол:';
 
   @override
-  String get dogDetailsHealthLabel => 'Health Status:';
+  String get dogDetailsHealthLabel => 'Состояние здоровья:';
 
   @override
-  String get dogDetailsTraitsLabel => 'Traits:';
+  String get dogDetailsTraitsLabel => 'Черты характера:';
 
   @override
-  String get dogDetailsOwnerGenderLabel => 'Owner Gender:';
+  String get dogDetailsOwnerGenderLabel => 'Пол владельца:';
 
   @override
-  String get dogDetailsGenderMale => 'Male';
+  String get dogDetailsGenderMale => 'Самец';
 
   @override
-  String get dogDetailsGenderFemale => 'Female';
+  String get dogDetailsGenderFemale => 'Самка';
 
   @override
-  String get dogDetailsHealthHealthy => 'Healthy';
+  String get dogDetailsHealthHealthy => 'Здорова';
 
   @override
-  String get dogDetailsHealthNeedsCare => 'Needs Care';
+  String get dogDetailsHealthNeedsCare => 'Требуется уход';
 
   @override
-  String get dogDetailsHealthUnderTreatment => 'Under Treatment';
+  String get dogDetailsHealthUnderTreatment => 'Проходит лечение';
 
   @override
-  String get dogDetailsOwnerGenderPreferNotToSay => 'Prefer not to say';
+  String get dogDetailsOwnerGenderPreferNotToSay => 'Предпочитаю не указывать';
 
   @override
-  String get dogDetailsPickImageButton => 'Pick Image';
+  String get dogDetailsPickImageButton => 'Выбрать изображение';
 
   @override
-  String get dogDetailsAddButton => 'Add Dog';
+  String get dogDetailsAddButton => 'Добавить собаку';
 
   @override
-  String get dogDetailsUpdateButton => 'Update Dog';
+  String get dogDetailsUpdateButton => 'Обновить данные';
 
   @override
-  String get dogDetailsNeuteredLabel => 'Neutered:';
+  String get dogDetailsNeuteredLabel => 'Стерилизована:';
 
   @override
-  String get dogDetailsAdoptionLabel => 'Available for Adoption:';
+  String get dogDetailsAdoptionLabel => 'Доступна для пристройства:';
 
   @override
-  String get editDogPermissionDenied => 'You do not have permission to edit this dog.';
+  String get editDogPermissionDenied =>
+      'У вас нет разрешения на редактирование этой собаки.';
 
   @override
-  String get editDogEnterName => 'Please enter the dog\'s name';
+  String get editDogEnterName => 'Введите имя собаки';
 
   @override
-  String get editDogEnterValidAge => 'Please enter a valid age';
+  String get editDogEnterValidAge => 'Введите корректный возраст';
 
   @override
   String get editDogOwnerGenderMale => 'Мужчина';
@@ -941,13 +976,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get editDogOwnerGenderOther => 'Другое';
 
   @override
-  String get findPlaymateTitle => 'Find a Playmate';
+  String get findPlaymateTitle => 'Найти друга для игр';
 
   @override
-  String get noDogsMatchFilters => 'No dogs match your filters.';
+  String get noDogsMatchFilters => 'Нет собак, соответствующих вашим фильтрам.';
 
   @override
-  String get adjustFiltersSuggestion => 'Try adjusting your filters or increasing the distance.';
+  String get adjustFiltersSuggestion =>
+      'Попробуйте изменить фильтры или увеличить расстояние.';
 
   @override
   String get anyGender => 'Любой';
@@ -958,7 +994,7 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get resetFiltersButton => 'Reset Filters';
+  String get resetFiltersButton => 'Сбросить фильтры';
 
   @override
   String get basketTitle => 'Корзина';
@@ -1151,426 +1187,438 @@ class AppLocalizationsRu extends AppLocalizations {
   String get filterByHealthStatus => 'Фильтр по состоянию здоровья';
 
   @override
-  String get upgradeToPremiumForMoreFilters => 'Обновите до Premium для большего числа фильтров!';
+  String get upgradeToPremiumForMoreFilters =>
+      'Обновите до Premium для большего числа фильтров!';
 
   @override
   String get upgradeToPremiumTitle => 'Обновить до Premium';
 
   @override
-  String get upgradeToPremiumSubtitle => 'Откройте доступ к расширенным возможностям и бизнес-инструментам';
+  String get upgradeToPremiumSubtitle =>
+      'Откройте доступ к расширенным возможностям и бизнес-инструментам';
 
   @override
   String get apply => 'Применить';
 
   @override
-  String get favoritesPageTitle => 'Favorite Dogs';
+  String get favoritesPageTitle => 'Избранные собаки';
 
   @override
-  String get noFavoriteDogsYet => 'No favorite dogs yet!';
+  String get noFavoriteDogsYet => 'В избранном пока нет собак!';
 
   @override
-  String get addFavoriteSuggestion => 'Go back to the home page and add some dogs to your favorites.';
+  String get addFavoriteSuggestion =>
+      'Вернитесь на главную страницу и добавьте собак в избранное.';
 
   @override
-  String get removeFavoriteTooltip => 'Remove Favorite';
+  String get removeFavoriteTooltip => 'Удалить из избранного';
 
   @override
-  String get schedulePlaydate => 'Schedule Playdate';
+  String get schedulePlaydate => 'Назначить встречу';
 
   @override
-  String get selectDateAndTime => 'Select Date and Time';
+  String get selectDateAndTime => 'Выберите дату и время';
 
   @override
-  String get pickDate => 'Pick Date';
+  String get pickDate => 'Выбрать дату';
 
   @override
-  String get pickTime => 'Pick Time';
+  String get pickTime => 'Выбрать время';
 
   @override
-  String get selectYourDogHint => 'Select your dog';
+  String get selectYourDogHint => 'Выберите свою собаку';
 
   @override
-  String get selectFriendsDogHint => 'Select friend\'s dog';
+  String get selectFriendsDogHint => 'Выберите собаку друга';
 
   @override
-  String get selectYourDog => 'Select Your Dog';
+  String get selectYourDog => 'Выберите свою собаку';
 
   @override
-  String get selectFriendsDog => 'Select Friend\'s Dog';
+  String get selectFriendsDog => 'Выберите собаку друга';
 
   @override
-  String get pleaseLoginToSchedulePlaydate => 'Please log in to schedule a playdate';
+  String get pleaseLoginToSchedulePlaydate =>
+      'Войдите, чтобы назначить встречу';
 
   @override
-  String get selectLocation => 'Select Location';
+  String get selectLocation => 'Выберите место';
 
   @override
-  String get enterLocation => 'Enter location (e.g., Latitude: 41.0103, Longitude: 28.6724 or address)';
+  String get enterLocation =>
+      'Введите местоположение (например, широта: 41.0103, долгота: 28.6724 или адрес)';
 
   @override
-  String get pickOnMap => 'Pick on Map';
+  String get pickOnMap => 'Выбрать на карте';
 
   @override
-  String get quickLocations => 'Quick Locations';
+  String get quickLocations => 'Быстрый выбор мест';
 
   @override
-  String get parkA => 'Park A';
+  String get parkA => 'Парк A';
 
   @override
-  String get parkB => 'Park B';
+  String get parkB => 'Парк B';
 
   @override
-  String get confirm => 'Confirm';
+  String get confirm => 'Подтвердить';
 
   @override
   String get cancel => 'Отмена';
 
   @override
-  String get pleaseSelectBothDogs => 'Please select both dogs';
+  String get pleaseSelectBothDogs => 'Выберите обеих собак';
 
   @override
-  String get pleaseLoginToCreateRequest => 'Please log in to create a request';
+  String get pleaseLoginToCreateRequest => 'Войдите, чтобы создать запрос';
 
   @override
-  String get playdateRequestTitle => 'Playdate Request';
+  String get playdateRequestTitle => 'Запрос на встречу';
 
   @override
   String playdateRequestBody(Object requesterDog, Object requestedDog) {
-    return '$requesterDog wants to play with $requestedDog!';
+    return 'Собака $requesterDog хочет поиграть с собакой $requestedDog!';
   }
 
   @override
-  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog) {
-    return '$requesterDog wants to play with $requestedDog!';
+  String playdateRequestNotificationBody(
+    Object requesterDog,
+    Object requestedDog,
+  ) {
+    return 'Собака $requesterDog хочет поиграть с собакой $requestedDog!';
   }
 
   @override
-  String get requestCreatedSuccess => 'Request created successfully';
+  String get requestCreatedSuccess => 'Запрос успешно создан';
 
   @override
   String errorCreatingRequest(Object error) {
-    return 'Error creating request: $error';
+    return 'Ошибка создания запроса: $error';
   }
 
   @override
   String playdateScheduled(Object dogName, Object dateTime, Object location) {
-    return 'Playdate with $dogName scheduled for $dateTime at $location!';
+    return 'Встреча с собакой $dogName назначена на $dateTime, место: $location!';
   }
 
   @override
-  String get newPlaydateRequestTitle => 'New Playdate Request!';
+  String get newPlaydateRequestTitle => 'Новый запрос на встречу!';
 
   @override
   String newPlaydateRequestBody(Object requesterDog, Object requestedDog) {
-    return '$requesterDog wants to play with $requestedDog!';
+    return 'Собака $requesterDog хочет поиграть с собакой $requestedDog!';
   }
 
   @override
   String removedFromFavorites(Object dogName) {
-    return '$dogName removed from favorites!';
+    return 'Собака $dogName удалена из избранного!';
   }
 
   @override
   String addedToFavorites(Object dogName) {
-    return '$dogName added to favorites!';
+    return 'Собака $dogName добавлена в избранное!';
   }
 
   @override
   String errorTogglingFavorite(Object error) {
-    return 'Error toggling favorite: $error';
+    return 'Ошибка изменения избранного: $error';
   }
 
   @override
   String chatWithOwner(Object dogName) {
-    return 'Chat with $dogName\'s owner!';
+    return 'Начать чат с владельцем собаки $dogName!';
   }
 
   @override
   String errorSchedulingPlaydate(Object error) {
-    return 'Error scheduling playdate: $error';
+    return 'Ошибка назначения встречи: $error';
   }
 
   @override
-  String get viewEditDogDetails => 'View/Edit Dog Details';
+  String get viewEditDogDetails => 'Просмотр и редактирование данных собаки';
 
   @override
   String editNotAllowed(Object dogName) {
-    return 'No edit permission for $dogName, onDogUpdated is empty';
+    return 'Нет разрешения на редактирование собаки $dogName, onDogUpdated пуст';
   }
 
   @override
   String editDialogOpen(Object dogName) {
-    return 'Edit dialog already open or editing in progress for $dogName';
+    return 'Диалог редактирования уже открыт или собака $dogName уже редактируется';
   }
 
   @override
   String openingEditDialog(Object dogName) {
-    return 'Opening EditDogDialog for $dogName';
+    return 'Открывается EditDogDialog для собаки $dogName';
   }
 
   @override
   String dogUpdatedInDialog(Object dogName) {
-    return '$dogName updated in dialog';
+    return 'Данные собаки $dogName обновлены в диалоге';
   }
 
   @override
   String dialogPopped(Object dogName) {
-    return 'Dialog successfully popped for $dogName';
+    return 'Диалог для собаки $dogName успешно закрыт';
   }
 
   @override
   String updatedDogReturned(Object dogName) {
-    return 'Updated dog returned from dialog: $dogName';
+    return 'Из диалога возвращены обновлённые данные собаки $dogName';
   }
 
   @override
   String errorInShowDialog(Object dogName, Object error) {
-    return 'showDialog error for $dogName: $error';
+    return 'Ошибка showDialog для собаки $dogName: $error';
   }
 
   @override
   String dialogClosed(Object isEditing, Object isDialogOpen) {
-    return 'Dialog closed, isEditing: $isEditing, isDialogOpen: $isDialogOpen';
+    return 'Диалог закрыт, isEditing: $isEditing, isDialogOpen: $isDialogOpen';
   }
 
   @override
   String widgetNotMounted(Object isDialogOpen) {
-    return 'Widget not mounted, reset isDialogOpen to: $isDialogOpen';
+    return 'Виджет не смонтирован, isDialogOpen сброшен на: $isDialogOpen';
   }
 
   @override
   String removedDislike(Object dogName) {
-    return 'Dislike removed for $dogName!';
+    return 'Отметка «Не нравится» для собаки $dogName удалена!';
   }
 
   @override
   String addedDislike(Object dogName) {
-    return '$dogName disliked!';
+    return 'Собака $dogName вам больше не нравится!';
   }
 
   @override
   String dislikeNotificationFailed(Object message) {
-    return 'Dislike notification failed: $message';
+    return 'Не удалось отправить уведомление об отметке «Не нравится»: $message';
   }
 
   @override
   String ensureNotificationsEnabled(Object dogName) {
-    return 'Please ensure notifications are enabled for $dogName\'s owner.';
+    return 'Убедитесь, что у владельца собаки $dogName включены уведомления.';
   }
 
   @override
   String failedToDislike(Object message) {
-    return 'Failed to dislike: $message';
+    return 'Не удалось поставить отметку «Не нравится»: $message';
   }
 
   @override
   String errorSendingDislike(Object error) {
-    return 'Error sending dislike notification: $error';
+    return 'Ошибка отправки уведомления об отметке «Не нравится»: $error';
   }
 
   @override
   String disposing(Object dogName) {
-    return 'Disposing for $dogName';
+    return 'Освобождение ресурсов для собаки $dogName';
   }
 
   @override
   String resetIsDialogOpen(Object isDialogOpen) {
-    return 'Reset isDialogOpen during cancel: $isDialogOpen';
+    return 'Сброс isDialogOpen при отмене: $isDialogOpen';
   }
 
   @override
   String get notifications => 'Уведомления';
 
   @override
-  String get playdateRequests => 'Playdate Requests';
+  String get playdateRequests => 'Запросы на встречи';
 
   @override
-  String get noNotifications => 'No notifications yet.';
+  String get noNotifications => 'Уведомлений пока нет.';
 
   @override
-  String get noPlaydateRequests => 'No playdate requests yet.';
+  String get noPlaydateRequests => 'Запросов на встречу пока нет.';
 
   @override
-  String get accept => 'Accept';
+  String get accept => 'Принять';
 
   @override
-  String get reject => 'Reject';
+  String get reject => 'Отклонить';
 
   @override
-  String get status => 'Status';
+  String get status => 'Статус';
 
   @override
-  String get delete => 'Delete';
+  String get delete => 'Удалить';
 
   @override
-  String get rejectConfirmation => 'Reject Confirmation';
+  String get rejectConfirmation => 'Подтверждение отклонения';
 
   @override
-  String get areYouSure => 'Are you sure you want to reject this request?';
+  String get areYouSure => 'Вы уверены, что хотите отклонить этот запрос?';
 
   @override
-  String get notificationDeleted => 'Notification deleted';
+  String get notificationDeleted => 'Уведомление удалено';
 
   @override
   String errorDeletingNotification(Object error) {
-    return 'Error deleting notification: $error';
+    return 'Ошибка удаления уведомления: $error';
   }
 
   @override
-  String get notificationsSection => 'Notifications';
+  String get notificationsSection => 'Уведомления';
 
   @override
-  String get playdateRequestsSection => 'Playdate Requests';
+  String get playdateRequestsSection => 'Запросы на встречи';
 
   @override
-  String get noTitle => 'No Title';
+  String get noTitle => 'Без заголовка';
 
   @override
-  String get noBody => 'No Body';
+  String get noBody => 'Нет текста';
 
   @override
-  String get newLikeTitle => 'New Like!';
+  String get newLikeTitle => 'Новая отметка «Нравится»!';
 
   @override
   String newLikeBody(Object username, Object dogName) {
-    return '$username liked your dog $dogName!';
+    return 'Пользователю $username понравилась ваша собака $dogName!';
   }
 
   @override
-  String get playDateCanceledTitle => 'PlayDate Request Canceled';
+  String get playDateCanceledTitle => 'Запрос на встречу отменён';
 
   @override
   String playDateCanceledBody(Object dogName) {
-    return 'The playdate request with $dogName has been canceled.';
+    return 'Запрос на встречу с собакой $dogName отменён.';
   }
 
   @override
-  String get playDateAcceptedTitle => 'PlayDate Request Accepted!';
+  String get playDateAcceptedTitle => 'Запрос на встречу принят!';
 
   @override
   String playDateAcceptedBodyRequester(Object dogName) {
-    return 'You accepted the playdate request with $dogName';
+    return 'Вы приняли запрос на встречу с собакой $dogName';
   }
 
   @override
   String playDateAcceptedBodyRequested(Object dogName, Object dateTime) {
-    return '$dogName accepted your playdate request with $dogName at $dateTime';
+    return 'Собака $dogName приняла ваш запрос на встречу с собакой $dogName на $dateTime';
   }
 
   @override
-  String get playDateRejectedTitle => 'PlayDate Request Rejected';
+  String get playDateRejectedTitle => 'Запрос на встречу отклонён';
 
   @override
   String playDateRejectedBodyRequester(Object dogName) {
-    return 'You rejected the playdate request with $dogName';
+    return 'Вы отклонили запрос на встречу с собакой $dogName';
   }
 
   @override
   String playDateRejectedBodyRequested(Object dogName) {
-    return '$dogName rejected your playdate request with $dogName';
+    return 'Собака $dogName отклонила ваш запрос на встречу с собакой $dogName';
   }
 
   @override
   String errorLoadingNotifications(Object error) {
-    return 'Error updating notifications: $error';
+    return 'Ошибка обновления уведомлений: $error';
   }
 
   @override
   String errorInitializingOrLoadingRequests(Object error) {
-    return 'Error initializing or loading requests: $error';
+    return 'Ошибка инициализации или загрузки запросов: $error';
   }
 
   @override
   String errorLoadingRequests(Object error) {
-    return 'Error loading requests: $error';
+    return 'Ошибка загрузки запросов: $error';
   }
 
   @override
   String errorLoadingSpecificRequest(Object error) {
-    return 'Error loading specific request: $error';
+    return 'Ошибка загрузки выбранного запроса: $error';
   }
 
   @override
   String errorLoadingNotificationsStream(Object error) {
-    return 'Error loading notifications stream: $error';
+    return 'Ошибка загрузки потока уведомлений: $error';
   }
 
   @override
   String errorLoadingRequestsStream(Object error) {
-    return 'Error loading requests stream: $error';
+    return 'Ошибка загрузки потока запросов: $error';
   }
 
   @override
   String errorUpdatingStatus(Object error) {
-    return 'Error updating status: $error';
+    return 'Ошибка обновления статуса: $error';
   }
 
   @override
   String errorUpdatingStatusUnexpected(Object error) {
-    return 'Unexpected error updating status: $error';
+    return 'Непредвиденная ошибка при обновлении статуса: $error';
   }
 
   @override
-  String get pleaseLoginToRespond => 'Please log in to respond to requests';
+  String get pleaseLoginToRespond => 'Войдите, чтобы отвечать на запросы';
 
   @override
   String requestStatusUpdated(Object status) {
-    return 'Request $status successfully';
+    return 'Статус запроса успешно изменён на «$status»';
   }
 
   @override
   String errorRespondingToRequest(Object error) {
-    return 'Error responding to request: $error';
+    return 'Ошибка ответа на запрос: $error';
   }
 
   @override
   String errorRespondingToRequestUnexpected(Object error) {
-    return 'Unexpected error responding to request: $error';
+    return 'Непредвиденная ошибка при ответе на запрос: $error';
   }
 
   @override
-  String get pleaseLoginToAccept => 'Please log in to accept requests';
+  String get pleaseLoginToAccept => 'Войдите, чтобы принимать запросы';
 
   @override
-  String get requestAcceptedSuccess => 'Request accepted and added to playdates list.';
+  String get requestAcceptedSuccess =>
+      'Запрос принят и добавлен в список встреч.';
 
   @override
   String errorAcceptingRequest(Object error) {
-    return 'Error accepting request: $error';
+    return 'Ошибка принятия запроса: $error';
   }
 
   @override
   String errorAcceptingRequestUnexpected(Object error) {
-    return 'Unexpected error accepting request: $error';
+    return 'Непредвиденная ошибка при принятии запроса: $error';
   }
 
   @override
-  String get pleaseLoginToReject => 'Please log in to reject requests';
+  String get pleaseLoginToReject => 'Войдите, чтобы отклонять запросы';
 
   @override
-  String get requestRejectedSuccess => 'Request rejected';
+  String get requestRejectedSuccess => 'Запрос отклонён';
 
   @override
   String errorRejectingRequest(Object error) {
-    return 'Error rejecting request: $error';
+    return 'Ошибка отклонения запроса: $error';
   }
 
   @override
   String errorRejectingRequestUnexpected(Object error) {
-    return 'Unexpected error rejecting request: $error';
+    return 'Непредвиденная ошибка при отклонении запроса: $error';
   }
 
   @override
-  String get failedToScheduleReminder => 'Failed to schedule reminder. Check permissions.';
+  String get failedToScheduleReminder =>
+      'Не удалось запланировать напоминание. Проверьте разрешения.';
 
   @override
-  String get scheduledLabel => 'Scheduled:';
+  String get scheduledLabel => 'Запланировано:';
 
   @override
-  String get pleaseLoginToViewPlaydateRequests => 'Войдите, чтобы просмотреть запросы на игровые встречи';
+  String get pleaseLoginToViewPlaydateRequests =>
+      'Войдите, чтобы просмотреть запросы на игровые встречи';
 
   @override
-  String get pleaseLoginToSetReminders => 'Пожалуйста, войдите, чтобы настроить напоминания.';
+  String get pleaseLoginToSetReminders =>
+      'Пожалуйста, войдите, чтобы настроить напоминания.';
 
   @override
   String reminderSetForMinutesBefore(Object minutesBefore) {
@@ -1603,7 +1651,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get reminderTab => 'Напоминание';
 
   @override
-  String get playdateTimeNotScheduledYet => '⏳ Время игровой встречи еще не назначено';
+  String get playdateTimeNotScheduledYet =>
+      '⏳ Время игровой встречи еще не назначено';
 
   @override
   String get thirtyMinutesBefore => 'За 30 минут';
@@ -1618,13 +1667,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get viewLocation => 'Посмотреть место';
 
   @override
-  String get locationLabel => 'Location:';
+  String get locationLabel => 'Местоположение:';
 
   @override
-  String get unknownStatus => 'unknown';
+  String get unknownStatus => 'неизвестно';
 
   @override
-  String get unknownTime => 'Unknown time';
+  String get unknownTime => 'Время неизвестно';
 
   @override
   String minutesAgo(Object minutes) {
@@ -1642,26 +1691,26 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get notScheduled => 'Not scheduled';
+  String get notScheduled => 'Не запланировано';
 
   @override
-  String get upcomingPlaydateTitle => 'Upcoming Playdate';
+  String get upcomingPlaydateTitle => 'Предстоящая встреча';
 
   @override
   String upcomingPlaydateBodyRequester(Object dogName) {
-    return 'You have a playdate in 2 hours with $dogName!';
+    return 'Через 2 часа у вас встреча с собакой $dogName!';
   }
 
   @override
   String upcomingPlaydateBodyRequested(Object dogName) {
-    return 'You have a playdate in 2 hours with $dogName!';
+    return 'Через 2 часа у вас встреча с собакой $dogName!';
   }
 
   @override
-  String get appFeatures => 'With our app, you can:';
+  String get appFeatures => 'В нашем приложении вы можете:';
 
   @override
-  String get appFeaturesMessage => 'With our app, you can:';
+  String get appFeaturesMessage => 'В нашем приложении вы можете:';
 
   @override
   String get playmateService => 'Плеймейт';
@@ -1673,76 +1722,78 @@ class AppLocalizationsRu extends AppLocalizations {
   String get playmateLocationNeededTitle => 'Нужно местоположение';
 
   @override
-  String get playmateLocationNeededMessage => 'Мы используем ваше местоположение, чтобы показать собак поблизости';
+  String get playmateLocationNeededMessage =>
+      'Мы используем ваше местоположение, чтобы показать собак поблизости';
 
   @override
   String get playmateFiltersTitle => 'Фильтры';
 
   @override
-  String get playmateBreedPremiumHint => 'Порода (Gold)';
+  String get playmateBreedPremiumHint => 'Порода (PetSupo Partner)';
 
   @override
   String get playmateOwnerGenderPremiumHint => 'Пол владельца (Premium)';
 
   @override
-  String get vetServices => 'Vet Services';
+  String get vetServices => 'Ветеринарные услуги';
 
   @override
-  String get adoptionService => 'Adoption';
+  String get adoptionService => 'Пристройство';
 
   @override
-  String get dogTrainingService => 'Dog Training';
+  String get dogTrainingService => 'Дрессировка собак';
 
   @override
-  String get dogParkService => 'Dog Park';
+  String get dogParkService => 'Парк для собак';
 
   @override
-  String get findFriendsService => 'Find Friends';
+  String get findFriendsService => 'Поиск друзей';
 
   @override
-  String get getStarted => 'Get Started';
+  String get getStarted => 'Начать';
 
   @override
-  String get dogTraining => 'Dog Training';
+  String get dogTraining => 'Дрессировка собак';
 
   @override
-  String get dogPark => 'Dog Park';
+  String get dogPark => 'Парк для собак';
 
   @override
-  String get findFriends => 'Find Friends';
+  String get findFriends => 'Найти друзей';
 
   @override
-  String get dogTrainingComingSoon => 'Dog Training Coming Soon!';
+  String get dogTrainingComingSoon =>
+      'Раздел дрессировки собак скоро откроется!';
 
   @override
-  String get lostDogsComingSoon => 'Lost Dogs Coming Soon!';
+  String get lostDogsComingSoon => 'Раздел потерянных собак скоро откроется!';
 
   @override
-  String get petShopsComingSoon => 'Pet Shops Coming Soon!';
+  String get petShopsComingSoon => 'Раздел зоомагазинов скоро откроется!';
 
   @override
-  String get hospitalsComingSoon => 'Hospitals Coming Soon!';
+  String get hospitalsComingSoon => 'Раздел клиник скоро откроется!';
 
   @override
-  String get findFriendsComingSoon => 'Find Friends Coming Soon!';
+  String get findFriendsComingSoon => 'Раздел поиска друзей скоро откроется!';
 
   @override
-  String get menuTitle => 'Menu';
+  String get menuTitle => 'Меню';
 
   @override
-  String get homeMenuItem => 'Home';
+  String get homeMenuItem => 'Главная';
 
   @override
-  String get myDogsMenuItem => 'My Dogs';
+  String get myDogsMenuItem => 'Мои собаки';
 
   @override
-  String get favoritesMenuItem => 'Favorites';
+  String get favoritesMenuItem => 'Избранное';
 
   @override
-  String get adoptionCenterMenuItem => 'Adoption Center';
+  String get adoptionCenterMenuItem => 'Центр пристройства';
 
   @override
-  String get dogParkMenuItem => 'Dog Park';
+  String get dogParkMenuItem => 'Парк для собак';
 
   @override
   String get reportLostDogMenuItem => 'Сообщить о потерянной собаке';
@@ -1757,16 +1808,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get foundDogsMenuItem => 'Найденные собаки';
 
   @override
-  String get petShopsMenuItem => 'Pet Shops';
+  String get petShopsMenuItem => 'Зоомагазины';
 
   @override
-  String get hospitalsMenuItem => 'Hospitals';
+  String get hospitalsMenuItem => 'Клиники';
 
   @override
-  String get logoutMenuItem => 'Logout';
+  String get logoutMenuItem => 'Выйти';
 
   @override
-  String get filterDogsMenuItem => 'Filter Dogs';
+  String get filterDogsMenuItem => 'Фильтр собак';
 
   @override
   String get homeNavItem => 'Главная';
@@ -1775,19 +1826,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get favoritesNavItem => 'Избранное';
 
   @override
-  String get visitVetNavItem => 'Visit Vet';
+  String get visitVetNavItem => 'Ветеринар';
 
   @override
-  String get playdateNavItem => 'Playdate';
+  String get playdateNavItem => 'Встречи';
 
   @override
   String get profileNavItem => 'Профиль';
 
   @override
-  String get notificationsTooltip => 'Notifications';
+  String get notificationsTooltip => 'Уведомления';
 
   @override
-  String get chatTooltip => 'Chat';
+  String get chatTooltip => 'Чат';
 
   @override
   String get chatNotImplemented => 'Чат пока не реализован';
@@ -1797,40 +1848,46 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dogParkDateLabel(Object date) {
-    return 'Date: $date';
+    return 'Дата: $date';
   }
 
   @override
-  String get dogParkLoadMarkers => 'Load Park Markers';
+  String get dogParkLoadMarkers => 'Загрузить метки парков';
 
   @override
-  String get dogParkMoveToMarkers => 'Move to Markers';
+  String get dogParkMoveToMarkers => 'Перейти к меткам';
 
   @override
-  String get dogParkPermissionDenied => 'Location permission denied. Please enable it in settings.';
+  String get dogParkPermissionDenied =>
+      'Доступ к местоположению запрещён. Разрешите его в настройках.';
 
   @override
-  String get dogParkBackgroundPermissionDenied => 'Background location permission denied. Some features may be limited.';
+  String get dogParkBackgroundPermissionDenied =>
+      'Доступ к местоположению в фоновом режиме запрещён. Некоторые функции могут быть ограничены.';
 
   @override
-  String get dogParkLocationServicesDisabled => 'Location services are disabled.';
+  String get dogParkLocationServicesDisabled => 'Службы геолокации отключены.';
 
   @override
-  String get dogParkEnableLocationServices => 'Please enable location services to continue.';
+  String get dogParkEnableLocationServices =>
+      'Чтобы продолжить, включите службы геолокации.';
 
   @override
-  String get dogParkPermissionDeniedPermanent => 'Location permission permanently denied.';
+  String get dogParkPermissionDeniedPermanent =>
+      'Доступ к местоположению запрещён навсегда.';
 
   @override
-  String get dogParkPermissionsDenied => 'Location permissions are permanently denied. Please enable them from settings.';
+  String get dogParkPermissionsDenied =>
+      'Доступ к местоположению запрещён навсегда. Разрешите его в настройках.';
 
   @override
   String dogParkLocationError(Object error) {
-    return 'Error getting location: $error';
+    return 'Ошибка определения местоположения: $error';
   }
 
   @override
-  String get dogParkPermissionRequired => 'Location permission is required to show nearby dog parks.';
+  String get dogParkPermissionRequired =>
+      'Для отображения ближайших парков для собак необходим доступ к местоположению.';
 
   @override
   String get dogParkRecommendedBadge => '⭐ Рекомендуется';
@@ -1842,7 +1899,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dogParkSavedBadge => '❤️ Сохранено';
 
   @override
-  String get dogParkRecommendedForPlaydates => 'Рекомендуется для игровых встреч';
+  String get dogParkRecommendedForPlaydates =>
+      'Рекомендуется для игровых встреч';
 
   @override
   String get dogParkSavedToFavorites => 'Сохранено в избранное';
@@ -1854,13 +1912,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dogParkGetDirections => 'Построить маршрут';
 
   @override
-  String get dogParkUserNotReadyYet => 'Пользователь еще не готов. Пожалуйста, попробуйте снова.';
+  String get dogParkUserNotReadyYet =>
+      'Пользователь еще не готов. Пожалуйста, попробуйте снова.';
 
   @override
   String get dogParkNeedToAddDogFirst => 'Сначала нужно добавить собаку';
 
   @override
-  String get dogParkSchedulePlaydateHere => 'Запланировать игровую встречу здесь';
+  String get dogParkSchedulePlaydateHere =>
+      'Запланировать игровую встречу здесь';
 
   @override
   String get dogParkSavedParksTitle => 'Сохраненные парки';
@@ -1875,89 +1935,96 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dogParkLocationNeededTitle => 'Требуется местоположение';
 
   @override
-  String get dogParkUseYourLocationToShowNearbyDogParks => 'Мы используем ваше местоположение, чтобы показывать ближайшие собачьи парки';
+  String get dogParkUseYourLocationToShowNearbyDogParks =>
+      'Мы используем ваше местоположение, чтобы показывать ближайшие собачьи парки';
 
   @override
   String get allowButton => 'Разрешить';
 
   @override
-  String get dogParkBackgroundRecommended => 'Background location permission is recommended. Please enable it in settings.';
+  String get dogParkBackgroundRecommended =>
+      'Рекомендуется разрешить доступ к местоположению в фоновом режиме. Включите его в настройках.';
 
   @override
-  String get dogParkSettingsAction => 'Settings';
+  String get dogParkSettingsAction => 'Настройки';
 
   @override
   String dogParkDistanceLabel(Object distance) {
-    return 'Distance: $distance km';
+    return 'Расстояние: $distance км';
   }
 
   @override
-  String get dogViewTitle => 'Dog Details';
+  String get dogViewTitle => 'Сведения о собаке';
 
   @override
-  String get dogViewNameLabel => 'Name:';
+  String get dogViewNameLabel => 'Имя:';
 
   @override
-  String get dogViewBreedLabel => 'Breed:';
+  String get dogViewBreedLabel => 'Порода:';
 
   @override
-  String get dogViewAgeLabel => 'Age:';
+  String get dogViewAgeLabel => 'Возраст:';
 
   @override
-  String get dogViewGenderLabel => 'Gender:';
+  String get dogViewGenderLabel => 'Пол:';
 
   @override
-  String get dogViewHealthLabel => 'Health:';
+  String get dogViewHealthLabel => 'Здоровье:';
 
   @override
-  String get dogViewNeuteredLabel => 'Neutered:';
+  String get dogViewNeuteredLabel => 'Стерилизована:';
 
   @override
-  String get dogViewDescriptionLabel => 'Description:';
+  String get dogViewDescriptionLabel => 'Описание:';
 
   @override
-  String get dogViewTraitsLabel => 'Traits:';
+  String get dogViewTraitsLabel => 'Черты характера:';
 
   @override
-  String get dogViewOwnerGenderLabel => 'Owner Gender:';
+  String get dogViewOwnerGenderLabel => 'Пол владельца:';
 
   @override
-  String get dogViewAvailableLabel => 'Available for Adoption:';
+  String get dogViewAvailableLabel => 'Доступна для пристройства:';
 
   @override
-  String get dogViewYes => 'Yes';
+  String get dogViewYes => 'Да';
 
   @override
-  String get dogViewNo => 'No';
+  String get dogViewNo => 'Нет';
 
   @override
-  String get dogViewLikeTooltip => 'Like';
+  String get dogViewLikeTooltip => 'Нравится';
 
   @override
-  String get dogViewDislikeTooltip => 'Dislike';
+  String get dogViewDislikeTooltip => 'Не нравится';
 
   @override
-  String get dogViewAddFavoriteTooltip => 'Add to Favorite';
+  String get dogViewAddFavoriteTooltip => 'Добавить в избранное';
 
   @override
-  String get dogViewChatTooltip => 'Chat';
+  String get dogViewChatTooltip => 'Чат';
 
   @override
-  String get dogViewScheduleDate => 'Schedule Date';
+  String get dogViewScheduleDate => 'Назначить дату';
 
   @override
-  String get dogViewAdoption => 'Adoption';
+  String get dogViewAdoption => 'Пристройство';
 
   @override
-  String get dogViewChatStarted => 'Chat started!';
+  String get dogViewChatStarted => 'Чат начат!';
 
   @override
-  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time) {
-    return 'Play date scheduled for $day/$month/$year at $time!';
+  String dogViewPlayDateScheduled(
+    Object day,
+    Object month,
+    Object year,
+    Object time,
+  ) {
+    return 'Встреча назначена на $day/$month/$year в $time!';
   }
 
   @override
-  String get dogViewAdoptionRequest => 'Adoption request sent!';
+  String get dogViewAdoptionRequest => 'Запрос на пристройство отправлен!';
 
   @override
   String get distanceUnknown => 'Расстояние неизвестно';
@@ -1968,7 +2035,8 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get boostVisibilityDescription => 'Получите больше видимости в поиске Playmates.';
+  String get boostVisibilityDescription =>
+      'Получите больше видимости в поиске Playmates.';
 
   @override
   String get boost24HoursTitle => 'Буст на 24 часа';
@@ -1977,16 +2045,17 @@ class AppLocalizationsRu extends AppLocalizations {
   String get boostQuickVisibilitySubtitle => 'Подходит для быстрой видимости';
 
   @override
-  String get boostPrice29 => '₺29';
+  String get boostPrice29 => '29 ₺';
 
   @override
   String get boost3DaysTitle => 'Буст на 3 дня';
 
   @override
-  String get boostBetterExposureSubtitle => 'Лучше подходит для активного поиска';
+  String get boostBetterExposureSubtitle =>
+      'Лучше подходит для активного поиска';
 
   @override
-  String get boostPrice69 => '₺69';
+  String get boostPrice69 => '69 ₺';
 
   @override
   String get boost7DaysTitle => 'Буст на 7 дней';
@@ -1995,7 +2064,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get boostBestValueSubtitle => 'Лучшее соотношение цены и охвата';
 
   @override
-  String get boostPrice129 => '₺129';
+  String get boostPrice129 => '129 ₺';
 
   @override
   String get boostActivated => 'Буст активирован 🚀';
@@ -2009,7 +2078,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get errorOpeningEdit => 'Ошибка открытия редактирования';
 
   @override
-  String get boostBadge => 'BOOSTED';
+  String get boostBadge => 'ПРОДВИГАЕТСЯ';
 
   @override
   String get boostButton => 'Буст';
@@ -2032,56 +2101,56 @@ class AppLocalizationsRu extends AppLocalizations {
   String get submitComplaintMenuItem => 'Подать жалобу';
 
   @override
-  String get dogInfoTitle => 'Dog Information';
+  String get dogInfoTitle => 'Информация о собаке';
 
   @override
-  String get dogInfoBreedLabel => 'Breed:';
+  String get dogInfoBreedLabel => 'Порода:';
 
   @override
-  String get dogInfoAgeLabel => 'Age:';
+  String get dogInfoAgeLabel => 'Возраст:';
 
   @override
-  String get dogInfoGenderLabel => 'Gender:';
+  String get dogInfoGenderLabel => 'Пол:';
 
   @override
-  String get dogInfoHealthLabel => 'Health Status:';
+  String get dogInfoHealthLabel => 'Состояние здоровья:';
 
   @override
-  String get dogInfoNeuteredLabel => 'Neutered:';
+  String get dogInfoNeuteredLabel => 'Стерилизована:';
 
   @override
-  String get dogInfoDescriptionLabel => 'Description:';
+  String get dogInfoDescriptionLabel => 'Описание:';
 
   @override
-  String get dogInfoTraitsLabel => 'Traits:';
+  String get dogInfoTraitsLabel => 'Черты характера:';
 
   @override
-  String get dogInfoOwnerGenderLabel => 'Owner Gender:';
+  String get dogInfoOwnerGenderLabel => 'Пол владельца:';
 
   @override
-  String get dogInfoYes => 'Yes';
+  String get dogInfoYes => 'Да';
 
   @override
-  String get dogInfoNo => 'No';
+  String get dogInfoNo => 'Нет';
 
   @override
-  String get dogInfoLikeTooltip => 'Like';
+  String get dogInfoLikeTooltip => 'Нравится';
 
   @override
-  String get dogInfoDislikeTooltip => 'Dislike';
+  String get dogInfoDislikeTooltip => 'Не нравится';
 
   @override
-  String get dogInfoChatTooltip => 'Chat';
+  String get dogInfoChatTooltip => 'Чат';
 
   @override
-  String get dogInfoAddFavoriteTooltip => 'Add to Favorite';
+  String get dogInfoAddFavoriteTooltip => 'Добавить в избранное';
 
   @override
-  String get dogInfoSchedulePlaydateTooltip => 'Schedule Playdate';
+  String get dogInfoSchedulePlaydateTooltip => 'Назначить встречу';
 
   @override
   String dogInfoPlaydateScheduled(Object dogName) {
-    return 'Scheduled a play date with $dogName!';
+    return 'Встреча с собакой $dogName назначена!';
   }
 
   @override
@@ -2091,328 +2160,332 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String dogInfoDisliked(Object dogName) {
-    return 'Disliked $dogName!';
+    return 'Собака $dogName вам больше не нравится!';
   }
 
   @override
   String dogInfoChatWithOwner(Object dogName) {
-    return 'Chat with $dogName\'s owner!';
+    return 'Начать чат с владельцем собаки $dogName!';
   }
 
   @override
   String dogInfoRemovedFavorite(Object dogName) {
-    return 'Removed $dogName from favorites!';
+    return 'Собака $dogName удалена из избранного!';
   }
 
   @override
   String dogInfoAddedFavorite(Object dogName) {
-    return 'Added $dogName to favorites!';
+    return 'Собака $dogName добавлена в избранное!';
   }
 
   @override
   String get noDogsFound => 'Собаки не найдены';
 
   @override
-  String get noDogsForUser => 'No dogs found for this user.';
+  String get noDogsForUser => 'У этого пользователя не найдено собак.';
 
   @override
   String get dogsOfThisUser => 'Собаки этого пользователя';
 
   @override
-  String get playDateStatus_pending => 'Pending';
+  String get playDateStatus_pending => 'Ожидает ответа';
 
   @override
-  String get playDateStatus_accepted => 'Accepted';
+  String get playDateStatus_accepted => 'Принят';
 
   @override
-  String get playDateStatus_rejected => 'Rejected';
+  String get playDateStatus_rejected => 'Отклонён';
 
   @override
-  String get locationServicesDisabled => 'Location services are disabled. Using default location.';
+  String get locationServicesDisabled =>
+      'Службы геолокации отключены. Используется местоположение по умолчанию.';
 
   @override
-  String get locationPermissionRequired => 'Location permission is required. Using default location.';
+  String get locationPermissionRequired =>
+      'Необходим доступ к местоположению. Используется местоположение по умолчанию.';
 
   @override
-  String get locationPermissionPermanentlyDenied => 'Location permission is permanently denied. Using default location.';
+  String get locationPermissionPermanentlyDenied =>
+      'Доступ к местоположению запрещён навсегда. Используется местоположение по умолчанию.';
 
   @override
   String errorGettingLocation(Object error) {
-    return 'Error getting location: $error';
+    return 'Ошибка определения местоположения: $error';
   }
 
   @override
   String errorLoadingData(Object error) {
-    return 'Error loading data: $error';
+    return 'Ошибка загрузки данных: $error';
   }
 
   @override
   String errorLoadingOffers(Object error) {
-    return 'Error loading offers: $error';
+    return 'Ошибка загрузки предложений: $error';
   }
 
   @override
   String errorApplyingFilters(Object error) {
-    return 'Error applying filters: $error';
+    return 'Ошибка применения фильтров: $error';
   }
 
   @override
-  String get notificationChannelName => 'High Importance Notifications';
+  String get notificationChannelName => 'Важные уведомления';
 
   @override
-  String get notificationChannelDescription => 'This channel is used for important notifications.';
+  String get notificationChannelDescription =>
+      'Этот канал используется для важных уведомлений.';
 
   @override
-  String get openAppAction => 'Open App';
+  String get openAppAction => 'Открыть приложение';
 
   @override
-  String get dismissAction => 'Dismiss';
+  String get dismissAction => 'Закрыть';
 
   @override
   String get adoptionCenter => 'Центр усыновления';
 
   @override
-  String get traitEnergetic => 'Energetic';
+  String get traitEnergetic => 'Энергичная';
 
   @override
-  String get traitPlayful => 'Playful';
+  String get traitPlayful => 'Игривая';
 
   @override
-  String get traitCalm => 'Calm';
+  String get traitCalm => 'Спокойная';
 
   @override
-  String get traitLoyal => 'Loyal';
+  String get traitLoyal => 'Преданная';
 
   @override
-  String get traitFriendly => 'Friendly';
+  String get traitFriendly => 'Дружелюбная';
 
   @override
-  String get traitProtective => 'Protective';
+  String get traitProtective => 'Защитница';
 
   @override
-  String get traitIntelligent => 'Intelligent';
+  String get traitIntelligent => 'Умная';
 
   @override
-  String get traitAffectionate => 'Affectionate';
+  String get traitAffectionate => 'Ласковая';
 
   @override
-  String get traitCurious => 'Curious';
+  String get traitCurious => 'Любопытная';
 
   @override
-  String get traitIndependent => 'Independent';
+  String get traitIndependent => 'Независимая';
 
   @override
-  String get traitShy => 'Shy';
+  String get traitShy => 'Застенчивая';
 
   @override
-  String get traitTrained => 'Trained';
+  String get traitTrained => 'Обученная';
 
   @override
-  String get traitSocial => 'Social';
+  String get traitSocial => 'Общительная';
 
   @override
-  String get traitGoodWithKids => 'Good with kids';
+  String get traitGoodWithKids => 'Ладит с детьми';
 
   @override
-  String get breedAfghanHound => 'Afghan Hound';
+  String get breedAfghanHound => 'Афганская борзая';
 
   @override
-  String get breedAiredaleTerrier => 'Airedale Terrier';
+  String get breedAiredaleTerrier => 'Эрдельтерьер';
 
   @override
-  String get breedAkita => 'Akita';
+  String get breedAkita => 'Акита';
 
   @override
-  String get breedAlaskanMalamute => 'Alaskan Malamute';
+  String get breedAlaskanMalamute => 'Аляскинский маламут';
 
   @override
-  String get breedAmericanBulldog => 'American Bulldog';
+  String get breedAmericanBulldog => 'Американский бульдог';
 
   @override
-  String get breedAmericanPitBullTerrier => 'Pit Bull';
+  String get breedAmericanPitBullTerrier => 'Питбуль';
 
   @override
-  String get breedAustralianCattleDog => 'Australian Cattle Dog';
+  String get breedAustralianCattleDog => 'Австралийская пастушья собака';
 
   @override
-  String get breedAustralianShepherd => 'Australian Shepherd';
+  String get breedAustralianShepherd => 'Австралийская овчарка';
 
   @override
-  String get breedBassetHound => 'Basset Hound';
+  String get breedBassetHound => 'Бассет-хаунд';
 
   @override
-  String get breedBeagle => 'Beagle';
+  String get breedBeagle => 'Бигль';
 
   @override
-  String get breedBelgianMalinois => 'Belgian Malinois';
+  String get breedBelgianMalinois => 'Бельгийская овчарка малинуа';
 
   @override
-  String get breedBerneseMountainDog => 'Bernese Mountain Dog';
+  String get breedBerneseMountainDog => 'Бернский зенненхунд';
 
   @override
-  String get breedBichonFrise => 'Bichon Frise';
+  String get breedBichonFrise => 'Бишон-фризе';
 
   @override
-  String get breedBloodhound => 'Bloodhound';
+  String get breedBloodhound => 'Бладхаунд';
 
   @override
-  String get breedBorderCollie => 'Border Collie';
+  String get breedBorderCollie => 'Бордер-колли';
 
   @override
-  String get breedBostonTerrier => 'Boston Terrier';
+  String get breedBostonTerrier => 'Бостон-терьер';
 
   @override
-  String get breedBoxer => 'Boxer';
+  String get breedBoxer => 'Боксёр';
 
   @override
-  String get breedBulldog => 'Bulldog';
+  String get breedBulldog => 'Бульдог';
 
   @override
-  String get breedBullmastiff => 'Bullmastiff';
+  String get breedBullmastiff => 'Бульмастиф';
 
   @override
-  String get breedCairnTerrier => 'Cairn Terrier';
+  String get breedCairnTerrier => 'Керн-терьер';
 
   @override
-  String get breedCaneCorso => 'Cane Corso';
+  String get breedCaneCorso => 'Кане-корсо';
 
   @override
-  String get breedCavalierKingCharlesSpaniel => 'Cavalier King Charles Spaniel';
+  String get breedCavalierKingCharlesSpaniel => 'Кавалер-кинг-чарльз-спаниель';
 
   @override
-  String get breedChihuahua => 'Chihuahua';
+  String get breedChihuahua => 'Чихуахуа';
 
   @override
-  String get breedChowChow => 'Chow Chow';
+  String get breedChowChow => 'Чау-чау';
 
   @override
-  String get breedCockerSpaniel => 'Cocker Spaniel';
+  String get breedCockerSpaniel => 'Кокер-спаниель';
 
   @override
-  String get breedCollie => 'Collie';
+  String get breedCollie => 'Колли';
 
   @override
-  String get breedDachshund => 'Dachshund';
+  String get breedDachshund => 'Такса';
 
   @override
-  String get breedDalmatian => 'Dalmatian';
+  String get breedDalmatian => 'Далматин';
 
   @override
-  String get breedDobermanPinscher => 'Doberman Pinscher';
+  String get breedDobermanPinscher => 'Доберман';
 
   @override
-  String get breedEnglishSpringerSpaniel => 'English Springer Spaniel';
+  String get breedEnglishSpringerSpaniel => 'Английский спрингер-спаниель';
 
   @override
-  String get breedFrenchBulldog => 'French Bulldog';
+  String get breedFrenchBulldog => 'Французский бульдог';
 
   @override
-  String get breedGermanShepherd => 'German Shepherd';
+  String get breedGermanShepherd => 'Немецкая овчарка';
 
   @override
-  String get breedGermanShorthairedPointer => 'German Shorthaired Pointer';
+  String get breedGermanShorthairedPointer => 'Курцхаар';
 
   @override
-  String get breedGoldenRetriever => 'Golden Retriever';
+  String get breedGoldenRetriever => 'Золотистый ретривер';
 
   @override
-  String get breedGreatDane => 'Great Dane';
+  String get breedGreatDane => 'Немецкий дог';
 
   @override
-  String get breedGreatPyrenees => 'Great Pyrenees';
+  String get breedGreatPyrenees => 'Пиренейская горная собака';
 
   @override
-  String get breedHavanese => 'Havanese';
+  String get breedHavanese => 'Гаванский бишон';
 
   @override
-  String get breedIrishSetter => 'Irish Setter';
+  String get breedIrishSetter => 'Ирландский сеттер';
 
   @override
-  String get breedIrishWolfhound => 'Irish Wolfhound';
+  String get breedIrishWolfhound => 'Ирландский волкодав';
 
   @override
-  String get breedJackRussellTerrier => 'Jack Russell Terrier';
+  String get breedJackRussellTerrier => 'Джек-рассел-терьер';
 
   @override
-  String get breedLabradorRetriever => 'Labrador Retriever';
+  String get breedLabradorRetriever => 'Лабрадор-ретривер';
 
   @override
-  String get breedLhasaApso => 'Lhasa Apso';
+  String get breedLhasaApso => 'Лхаса апсо';
 
   @override
-  String get breedMaltese => 'Maltese';
+  String get breedMaltese => 'Мальтийская болонка';
 
   @override
-  String get breedMastiff => 'Mastiff';
+  String get breedMastiff => 'Мастиф';
 
   @override
-  String get breedMiniatureSchnauzer => 'Miniature Schnauzer';
+  String get breedMiniatureSchnauzer => 'Цвергшнауцер';
 
   @override
-  String get breedNewfoundland => 'Newfoundland';
+  String get breedNewfoundland => 'Ньюфаундленд';
 
   @override
-  String get breedPapillon => 'Papillon';
+  String get breedPapillon => 'Папильон';
 
   @override
-  String get breedPekingese => 'Pekingese';
+  String get breedPekingese => 'Пекинес';
 
   @override
-  String get breedPomeranian => 'Pomeranian';
+  String get breedPomeranian => 'Померанский шпиц';
 
   @override
-  String get breedPoodle => 'Poodle';
+  String get breedPoodle => 'Пудель';
 
   @override
-  String get breedPug => 'Pug';
+  String get breedPug => 'Мопс';
 
   @override
-  String get breedRottweiler => 'Rottweiler';
+  String get breedRottweiler => 'Ротвейлер';
 
   @override
-  String get breedSaintBernard => 'Saint Bernard';
+  String get breedSaintBernard => 'Сенбернар';
 
   @override
-  String get breedSamoyed => 'Samoyed';
+  String get breedSamoyed => 'Самоед';
 
   @override
-  String get breedShetlandSheepdog => 'Shetland Sheepdog';
+  String get breedShetlandSheepdog => 'Шелти';
 
   @override
-  String get breedShihTzu => 'Shih Tzu';
+  String get breedShihTzu => 'Ши-тцу';
 
   @override
-  String get breedSiberianHusky => 'Siberian Husky';
+  String get breedSiberianHusky => 'Сибирский хаски';
 
   @override
-  String get breedStaffordshireBullTerrier => 'Staffordshire Bull Terrier';
+  String get breedStaffordshireBullTerrier => 'Стаффордширский бультерьер';
 
   @override
-  String get breedVizsla => 'Vizsla';
+  String get breedVizsla => 'Венгерская выжла';
 
   @override
-  String get breedWeimaraner => 'Weimaraner';
+  String get breedWeimaraner => 'Веймаранер';
 
   @override
-  String get breedWestHighlandWhiteTerrier => 'West Highland White Terrier';
+  String get breedWestHighlandWhiteTerrier => 'Вест-хайленд-уайт-терьер';
 
   @override
-  String get breedYorkshireTerrier => 'Yorkshire Terrier';
+  String get breedYorkshireTerrier => 'Йоркширский терьер';
 
   @override
-  String get settings => 'Settings';
+  String get settings => 'Настройки';
 
   @override
-  String get playdateRequestsTitle => 'Playdate Requests & Notifications';
+  String get playdateRequestsTitle => 'Запросы на встречи и уведомления';
 
   @override
-  String get sendRequestButton => 'Send Request';
+  String get sendRequestButton => 'Отправить запрос';
 
   @override
-  String get confirmLocation => 'Confirm Location';
+  String get confirmLocation => 'Подтвердить местоположение';
 
   @override
-  String get cancelButton => 'Cancel Action';
+  String get cancelButton => 'Отменить действие';
 
   @override
   String get editDogHealthHealthy => 'Здоров';
@@ -2424,33 +2497,37 @@ class AppLocalizationsRu extends AppLocalizations {
   String get editDogHealthUnderTreatment => 'На лечении';
 
   @override
-  String get noDogFoundForAccount => 'No dog found for your account. Please add a dog first.';
+  String get noDogFoundForAccount =>
+      'Для вашего аккаунта не найдена собака. Сначала добавьте собаку.';
 
   @override
-  String get pleaseSelectYourDog => 'Please select one of your dogs';
+  String get pleaseSelectYourDog => 'Выберите одну из своих собак';
 
   @override
-  String get cannotScheduleWithOwnDog => 'You cannot schedule a playdate with your own dog.';
+  String get cannotScheduleWithOwnDog =>
+      'Нельзя назначить встречу с собственной собакой.';
 
   @override
-  String get cannotScheduleWithTempUser => 'Cannot schedule a playdate with a temporary user.';
+  String get cannotScheduleWithTempUser =>
+      'Нельзя назначить встречу с временным пользователем.';
 
   @override
   String playdateRequestFor(Object dogName) {
-    return 'Playdate request for $dogName';
+    return 'Запрос на встречу для собаки $dogName';
   }
 
   @override
-  String get forAdoption => 'For Adoption';
+  String get forAdoption => 'Для пристройства';
 
   @override
-  String get neutered => 'Neutered';
+  String get neutered => 'Стерилизована';
 
   @override
-  String get notNeutered => 'Not Neutered';
+  String get notNeutered => 'Не стерилизована';
 
   @override
-  String get pleaseSelectDogForPlaydate => 'Please select one of your dogs for playdate';
+  String get pleaseSelectDogForPlaydate =>
+      'Выберите одну из своих собак для встречи';
 
   @override
   String get years => 'лет';
@@ -2459,68 +2536,72 @@ class AppLocalizationsRu extends AppLocalizations {
   String get months => 'месяцев';
 
   @override
-  String get breed => 'Breed';
+  String get breed => 'Порода';
 
   @override
-  String get gender => 'Gender';
+  String get gender => 'Пол';
 
   @override
-  String get healthStatus => 'Health Status';
+  String get healthStatus => 'Состояние здоровья';
 
   @override
-  String get neuteredStatus => 'Neutered Status';
+  String get neuteredStatus => 'Статус стерилизации';
 
   @override
-  String get description => 'Description';
+  String get description => 'Описание';
 
   @override
-  String get traits => 'Traits';
+  String get traits => 'Черты характера';
 
   @override
-  String get addToFavorites => 'Add to Favorites';
+  String get addToFavorites => 'Добавить в избранное';
 
   @override
-  String get newFavoriteTitle => 'New Favorite!';
+  String get newFavoriteTitle => 'Новое добавление в избранное!';
 
   @override
   String newFavoriteBody(Object userName, Object dogName) {
-    return '$userName added your dog $dogName to favorites!';
+    return 'Пользователь $userName добавил вашу собаку $dogName в избранное!';
   }
 
   @override
-  String get likes => 'Likes';
+  String get likes => 'Отметки «Нравится»';
 
   @override
-  String get removeDislike => 'Remove Dislike';
+  String get removeDislike => 'Убрать отметку «Не нравится»';
 
   @override
-  String get dislike => 'Dislike';
+  String get dislike => 'Не нравится';
 
   @override
   String errorTogglingDislike(Object error) {
-    return 'Error toggling dislike: $error';
+    return 'Ошибка изменения отметки «Не нравится»: $error';
   }
 
   @override
-  String get sending => 'Sending...';
+  String get sending => 'Отправка...';
 
   @override
   String get schedulePlayDate => 'Запланировать игровую встречу';
 
   @override
-  String get playdateSchedulingSubtitle => 'Выберите дату, время, место и собак для игровой встречи.';
+  String get playdateSchedulingSubtitle =>
+      'Выберите дату, время, место и собак для игровой встречи.';
 
   @override
   String get errorSelectDateAndTime => 'Пожалуйста, выберите дату и время.';
 
   @override
-  String get errorMissingLocationCoordinates => 'Координаты места парка отсутствуют.';
+  String get errorMissingLocationCoordinates =>
+      'Координаты места парка отсутствуют.';
 
   @override
-  String get errorPlaydateLeadTime => 'Встречу нужно планировать как минимум за 15 минут.';
+  String get errorPlaydateLeadTime =>
+      'Встречу нужно планировать как минимум за 15 минут.';
 
   @override
-  String get playdateTimeConflict => 'У этой собаки уже есть встреча примерно на это время 🐾';
+  String get playdateTimeConflict =>
+      'У этой собаки уже есть встреча примерно на это время 🐾';
 
   @override
   String coordinatesLatLng(Object lat, Object lng) {
@@ -2528,14 +2609,14 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get chat => 'Chat';
+  String get chat => 'Чат';
 
   @override
-  String get adoptDog => 'Adopt Dog';
+  String get adoptDog => 'Взять собаку';
 
   @override
   String errorSendingDislikeNotification(Object error) {
-    return 'Error sending dislike notification: $error';
+    return 'Ошибка отправки уведомления об отметке «Не нравится»: $error';
   }
 
   @override
@@ -2554,25 +2635,25 @@ class AppLocalizationsRu extends AppLocalizations {
   String get healthUnderTreatment => 'На лечении';
 
   @override
-  String get dogDetailsHealthSick => 'Needs Care';
+  String get dogDetailsHealthSick => 'Требуется уход';
 
   @override
-  String get dogDetailsHealthRecovering => 'Under Treatment';
+  String get dogDetailsHealthRecovering => 'Проходит лечение';
 
   @override
-  String get noImageSelected => 'No image selected.';
+  String get noImageSelected => 'Изображение не выбрано.';
 
   @override
-  String get unknownGender => 'Unknown Gender';
+  String get unknownGender => 'Пол неизвестен';
 
   @override
-  String get unknownBreed => 'Unknown Breed';
+  String get unknownBreed => 'Неизвестная порода';
 
   @override
-  String get unknownTrait => 'Unknown Trait';
+  String get unknownTrait => 'Неизвестная черта';
 
   @override
-  String get noTraits => 'No traits available';
+  String get noTraits => 'Черты характера не указаны';
 
   @override
   String get simpleTestPageTitle => 'Простая тестовая страница';
@@ -2582,38 +2663,40 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String likedBy(Object likers) {
-    return 'Liked by: $likers';
+    return 'Понравилось: $likers';
   }
 
   @override
-  String get locationNotAcquired => 'Location not acquired. Please try again.';
+  String get locationNotAcquired =>
+      'Не удалось определить местоположение. Повторите попытку.';
 
   @override
-  String get retryLocation => 'Retry Location';
+  String get retryLocation => 'Повторить определение местоположения';
 
   @override
-  String get addLike => 'Like this dog';
+  String get addLike => 'Поставить этой собаке отметку «Нравится»';
 
   @override
-  String get removeLike => 'Unlike this dog';
+  String get removeLike => 'Убрать отметку «Нравится»';
 
   @override
   String addedLike(Object dogName) {
-    return 'You liked $dogName!';
+    return 'Вам понравилась собака $dogName!';
   }
 
   @override
   String removedLike(Object dogName) {
-    return 'You unliked $dogName!';
+    return 'Вы убрали отметку «Нравится» у собаки $dogName!';
   }
 
   @override
   String errorTogglingLike(Object error) {
-    return 'Error toggling like: $error';
+    return 'Ошибка изменения отметки «Нравится»: $error';
   }
 
   @override
-  String get errorNoOwnerFound => 'No valid owner found for this dog';
+  String get errorNoOwnerFound =>
+      'Не удалось найти действительного владельца этой собаки';
 
   @override
   String get offerHotDeal => '🔥 Горячее предложение';
@@ -2622,7 +2705,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get offerPremiumBadge => 'Премиум';
 
   @override
-  String get offerFallbackTitle => 'Special offer for PetSupo users';
+  String get offerFallbackTitle =>
+      'Специальное предложение для пользователей PetSupo';
 
   @override
   String get offerFallbackProvider => 'Партнёрский бренд';
@@ -2635,35 +2719,37 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String offerDiscountPercent(Object discount) {
-    return '$discount% OFF';
+    return 'СКИДКА $discount%';
   }
 
   @override
-  String get offerPremiumRequiredTitle => 'Premium Required';
+  String get offerPremiumRequiredTitle => 'Требуется премиум-подписка';
 
   @override
-  String get offerPremiumRequiredMessage => 'This offer is only for premium members.';
+  String get offerPremiumRequiredMessage =>
+      'Это предложение доступно только премиум-пользователям.';
 
   @override
-  String get offerCancel => 'Cancel';
+  String get offerCancel => 'Отмена';
 
   @override
-  String get offerUpgrade => 'Upgrade';
+  String get offerUpgrade => 'Улучшить подписку';
 
   @override
-  String get offerUnlockingMessage => 'Unlocking your deal...';
+  String get offerUnlockingMessage => 'Открываем ваше предложение...';
 
   @override
-  String get offerChooseContinueTitle => 'Choose where to continue';
+  String get offerChooseContinueTitle => 'Выберите, где продолжить';
 
   @override
-  String get offerChooseContinueSubtitle => 'Pick your preferred contact option for this offer.';
+  String get offerChooseContinueSubtitle =>
+      'Выберите удобный способ связи по этому предложению.';
 
   @override
-  String get offerOpenWebsite => 'Open Website';
+  String get offerOpenWebsite => 'Открыть сайт';
 
   @override
-  String get offerInstagram => 'Instagram';
+  String get offerInstagram => 'Открыть Instagram';
 
   @override
   String get playdatesTitle => 'Игровые встречи';
@@ -2711,7 +2797,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get premiumLabel => 'Премиум';
 
   @override
-  String get goldLabel => 'Gold';
+  String get goldLabel => 'PetSupo Partner';
 
   @override
   String discountOff(Object percent) {
@@ -2758,7 +2844,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get comingSoon => 'Скоро';
 
   @override
-  String get trainingComingSoonMessage => 'Раздел дрессировки скоро появится 🐾';
+  String get trainingComingSoonMessage =>
+      'Раздел дрессировки скоро появится 🐾';
 
   @override
   String get communityHub => 'Центр сообщества';
@@ -2826,7 +2913,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get homeLocationNeededTitle => 'Нужно местоположение';
 
   @override
-  String get homeLocationNeededMessage => 'Мы используем ваше местоположение, чтобы показать ветеринаров поблизости';
+  String get homeLocationNeededMessage =>
+      'Мы используем ваше местоположение, чтобы показать ветеринаров поблизости';
 
   @override
   String get homeAllowButton => 'Разрешить';
@@ -2847,99 +2935,116 @@ class AppLocalizationsRu extends AppLocalizations {
   String get homeShopButton => 'Магазин';
 
   @override
-  String get petShopDealName => 'Pet Shop A';
+  String get petShopDealName => 'Предложение Pet Shop A';
 
   @override
   String get petShopDealDesc => 'Скидка 15% на весь корм';
 
   @override
-  String get groomyDealName => 'Groomy Studio';
+  String get groomyDealName => 'Студия Groomy';
 
   @override
   String get groomyDealDesc => 'Скидка 20% на груминг на этой неделе';
 
   @override
-  String get vetDealName => 'VetPlus';
+  String get vetDealName => 'Предложение VetPlus';
 
   @override
-  String get vetDealDesc => 'Для участников Gold: бесплатный осмотр';
+  String get vetDealDesc => 'Для участников PetSupo Partner: бесплатный осмотр';
 
   @override
-  String get offerWhatsApp => 'WhatsApp';
+  String get offerWhatsApp => 'Открыть WhatsApp';
 
   @override
   String offerCodeCopied(Object code) {
-    return 'Code copied: $code';
+    return 'Код скопирован: $code';
   }
 
   @override
-  String get offerOpenError => 'Error opening offer';
+  String get offerOpenError => 'Не удалось открыть предложение';
 
   @override
-  String get businessRegisterLegalCompanyNameRequired => '• Необходимо указать юридическое название компании.';
+  String get businessRegisterLegalCompanyNameRequired =>
+      '• Необходимо указать юридическое название компании.';
 
   @override
-  String get businessRegisterPublicDisplayNameRequired => '• Необходимо указать публичное название.';
+  String get businessRegisterPublicDisplayNameRequired =>
+      '• Необходимо указать публичное название.';
 
   @override
   String get businessRegisterSelectCountry => '• Пожалуйста, выберите страну.';
 
   @override
-  String get businessRegisterSelectBusinessCategory => '• Пожалуйста, выберите хотя бы одну категорию бизнеса.';
+  String get businessRegisterSelectBusinessCategory =>
+      '• Пожалуйста, выберите хотя бы одну категорию бизнеса.';
 
   @override
-  String get businessRegisterEnterValidEmail => '• Введите действительный адрес электронной почты (пример: name@example.com).';
+  String get businessRegisterEnterValidEmail =>
+      '• Введите действительный адрес электронной почты (пример: name@example.com).';
 
   @override
   String get businessRegisterPhoneIncomplete => '• Номер телефона неполный.';
 
   @override
-  String get businessRegisterSelectCityProvince => '• Пожалуйста, выберите город / область.';
+  String get businessRegisterSelectCityProvince =>
+      '• Пожалуйста, выберите город / область.';
 
   @override
   String get businessRegisterSelectDistrict => '• Пожалуйста, выберите район.';
 
   @override
-  String get businessRegisterBusinessAddressRequired => '• Необходимо указать адрес бизнеса.';
+  String get businessRegisterBusinessAddressRequired =>
+      '• Необходимо указать адрес бизнеса.';
 
   @override
-  String get businessRegisterAllLegalDocumentsRequired => '• Все необходимые юридические документы должны быть загружены.';
+  String get businessRegisterAllLegalDocumentsRequired =>
+      '• Все необходимые юридические документы должны быть загружены.';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeContinuing => '• Перед продолжением документы должны быть проверены.';
+  String get businessRegisterDocumentsVerifiedBeforeContinuing =>
+      '• Перед продолжением документы должны быть проверены.';
 
   @override
-  String get businessRegisterAcceptPlatformTerms => '• Необходимо принять условия платформы.';
+  String get businessRegisterAcceptPlatformTerms =>
+      '• Необходимо принять условия платформы.';
 
   @override
-  String get businessRegisterAcceptLegalResponsibility => '• Необходимо принять декларацию юридической ответственности.';
+  String get businessRegisterAcceptLegalResponsibility =>
+      '• Необходимо принять декларацию юридической ответственности.';
 
   @override
-  String get businessRegisterFixHighlightedFields => 'Пожалуйста, исправьте выделенные поля';
+  String get businessRegisterFixHighlightedFields =>
+      'Пожалуйста, исправьте выделенные поля';
 
   @override
-  String get businessRegisterOk => 'OK';
+  String get businessRegisterOk => 'Хорошо';
 
   @override
-  String get businessRegisterFailedToLoadCountries => 'Не удалось загрузить страны';
+  String get businessRegisterFailedToLoadCountries =>
+      'Не удалось загрузить страны';
 
   @override
-  String get businessRegisterFailedToLoadCities => 'Не удалось загрузить города';
+  String get businessRegisterFailedToLoadCities =>
+      'Не удалось загрузить города';
 
   @override
-  String get businessRegisterFailedToLoadDistricts => 'Не удалось загрузить районы';
+  String get businessRegisterFailedToLoadDistricts =>
+      'Не удалось загрузить районы';
 
   @override
-  String get businessRegisterPlatformLegalAgreement => 'Юридическое соглашение платформы';
+  String get businessRegisterPlatformLegalAgreement =>
+      'Юридическое соглашение платформы';
 
   @override
   String get businessRegisterReadAndAccept => 'Я прочитал(а) и принимаю';
 
   @override
-  String get businessRegisterLocationPermissionDenied => 'Доступ к местоположению запрещен';
+  String get businessRegisterLocationPermissionDenied =>
+      'Доступ к местоположению запрещен';
 
   @override
-  String get businessRegisterCouldNotDetectCity => 'Не удалось определить город';
+  String get businessRegisterCouldNotDetectCity =>
+      'Не удалось определить город';
 
   @override
   String get businessRegisterGroomer => 'Грумер';
@@ -2960,7 +3065,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterBreeder => 'Заводчик';
 
   @override
-  String get businessRegisterInvalidEmail => 'Недействительный адрес электронной почты';
+  String get businessRegisterInvalidEmail =>
+      'Недействительный адрес электронной почты';
 
   @override
   String get businessRegisterInvalidPhone => 'Недействительный номер телефона';
@@ -2969,34 +3075,42 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterInvalidWebsite => 'Недействительный веб-сайт';
 
   @override
-  String get businessRegisterCouldNotOpenLegalText => 'Не удалось открыть юридический текст';
+  String get businessRegisterCouldNotOpenLegalText =>
+      'Не удалось открыть юридический текст';
 
   @override
-  String get businessRegisterSelectAtLeastOneBusinessCategory => 'Пожалуйста, выберите хотя бы одну категорию бизнеса';
+  String get businessRegisterSelectAtLeastOneBusinessCategory =>
+      'Пожалуйста, выберите хотя бы одну категорию бизнеса';
 
   @override
-  String get businessRegisterPleaseEnterBusinessAddress => 'Пожалуйста, введите адрес бизнеса';
+  String get businessRegisterPleaseEnterBusinessAddress =>
+      'Пожалуйста, введите адрес бизнеса';
 
   @override
-  String get businessRegisterMustAcceptAllAgreements => 'Необходимо принять все соглашения';
+  String get businessRegisterMustAcceptAllAgreements =>
+      'Необходимо принять все соглашения';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeSubmission => 'Перед отправкой документы должны быть проверены';
+  String get businessRegisterDocumentsVerifiedBeforeSubmission =>
+      'Перед отправкой документы должны быть проверены';
 
   @override
-  String get businessRegisterApplicationSubmittedSuccessfully => 'Заявка успешно отправлена';
+  String get businessRegisterApplicationSubmittedSuccessfully =>
+      'Заявка успешно отправлена';
 
   @override
   String get businessRegisterSubmissionFailed => 'Не удалось отправить заявку';
 
   @override
-  String get businessRegisterUnexpectedErrorOccurred => 'Произошла непредвиденная ошибка';
+  String get businessRegisterUnexpectedErrorOccurred =>
+      'Произошла непредвиденная ошибка';
 
   @override
   String get businessRegisterTitle => 'Регистрация бизнеса';
 
   @override
-  String get businessRegisterStepIdentityCategories => 'Идентификация бизнеса и категории';
+  String get businessRegisterStepIdentityCategories =>
+      'Идентификация бизнеса и категории';
 
   @override
   String get businessRegisterStepContactLocation => 'Контакты и местоположение';
@@ -3005,7 +3119,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterStepLegalDocuments => 'Юридические документы';
 
   @override
-  String get businessRegisterStepAgreementConfirmation => 'Подтверждение соглашения';
+  String get businessRegisterStepAgreementConfirmation =>
+      'Подтверждение соглашения';
 
   @override
   String get businessRegisterBack => 'Назад';
@@ -3017,16 +3132,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterSubmitApplication => 'Отправить заявку';
 
   @override
-  String get businessRegisterCompleteSectorDetails => 'Заполнить сведения о секторе';
+  String get businessRegisterCompleteSectorDetails =>
+      'Заполнить сведения о секторе';
 
   @override
   String get businessRegisterBusinessIdentity => 'Идентификация бизнеса';
 
   @override
-  String get businessRegisterBusinessIdentitySubtitle => 'Укажите, как ваш бизнес должен отображаться в PetSupo.';
+  String get businessRegisterBusinessIdentitySubtitle =>
+      'Укажите, как ваш бизнес должен отображаться в PetSupo.';
 
   @override
-  String get businessRegisterLegalCompanyName => 'Юридическое название компании';
+  String get businessRegisterLegalCompanyName =>
+      'Юридическое название компании';
 
   @override
   String get businessRegisterRequired => 'Обязательно';
@@ -3041,13 +3159,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterBusinessCategories => 'Категории бизнеса';
 
   @override
-  String get businessRegisterBusinessCategoriesSubtitle => 'Выберите все секторы, в которых работает этот бизнес.';
+  String get businessRegisterBusinessCategoriesSubtitle =>
+      'Выберите все секторы, в которых работает этот бизнес.';
 
   @override
   String get businessRegisterContactLocation => 'Контакты и местоположение';
 
   @override
-  String get businessRegisterContactLocationSubtitle => 'Эти данные помогают клиентам найти вас и связаться с вами.';
+  String get businessRegisterContactLocationSubtitle =>
+      'Эти данные помогают клиентам найти вас и связаться с вами.';
 
   @override
   String get businessRegisterPhone => 'Телефон';
@@ -3074,7 +3194,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterDetectCity => 'Определить город';
 
   @override
-  String get businessRegisterMapPickerComingSoon => 'Выбор на карте будет добавлен скоро';
+  String get businessRegisterMapPickerComingSoon =>
+      'Выбор на карте будет добавлен скоро';
 
   @override
   String get businessRegisterPickLocation => 'Выбрать местоположение';
@@ -3086,55 +3207,67 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterTaxPlate => 'Налоговая справка';
 
   @override
-  String get businessRegisterTradeRegistryGazette => 'Вестник торгового реестра';
+  String get businessRegisterTradeRegistryGazette =>
+      'Вестник торгового реестра';
 
   @override
-  String get businessRegisterAuthorizedSignatureDocument => 'Документ уполномоченной подписи';
+  String get businessRegisterAuthorizedSignatureDocument =>
+      'Документ уполномоченной подписи';
 
   @override
   String get businessRegisterTaxNumberVkn => 'Налоговый номер (VKN)';
 
   @override
-  String get businessRegisterAutoFilledFromDocument => 'Автоматически заполнено из документа';
+  String get businessRegisterAutoFilledFromDocument =>
+      'Автоматически заполнено из документа';
 
   @override
-  String get businessRegisterDocumentVerificationInconsistencies => 'В проверке документа есть несоответствия. Требуется проверка администратором.';
+  String get businessRegisterDocumentVerificationInconsistencies =>
+      'В проверке документа есть несоответствия. Требуется проверка администратором.';
 
   @override
   String get businessRegisterMersisNumber => 'Номер MERSIS';
 
   @override
-  String get businessRegisterDocumentsSecurelyEncrypted => 'Ваши документы надежно шифруются и проверяются автоматически';
+  String get businessRegisterDocumentsSecurelyEncrypted =>
+      'Ваши документы надежно шифруются и проверяются автоматически';
 
   @override
   String get businessRegisterVerifiedFromDocument => 'Проверено по документу';
 
   @override
-  String get businessRegisterAutoFilledAfterVerification => 'Автоматически заполняется после проверки документа';
+  String get businessRegisterAutoFilledAfterVerification =>
+      'Автоматически заполняется после проверки документа';
 
   @override
-  String get businessRegisterUploadTradeRegistryFirst => 'Сначала загрузите документ торгового реестра';
+  String get businessRegisterUploadTradeRegistryFirst =>
+      'Сначала загрузите документ торгового реестра';
 
   @override
-  String get businessRegisterWaitingForDocumentVerification => 'Ожидание проверки документа...';
+  String get businessRegisterWaitingForDocumentVerification =>
+      'Ожидание проверки документа...';
 
   @override
   String get businessRegisterSteuernummer => 'Налоговый номер';
 
   @override
-  String get businessRegisterTaxNumberRequired => 'Необходимо указать налоговый номер';
+  String get businessRegisterTaxNumberRequired =>
+      'Необходимо указать налоговый номер';
 
   @override
-  String get businessRegisterGewerbeschein => 'Свидетельство о регистрации бизнеса';
+  String get businessRegisterGewerbeschein =>
+      'Свидетельство о регистрации бизнеса';
 
   @override
-  String get businessRegisterHandelsregisterauszug => 'Выписка из торгового реестра';
+  String get businessRegisterHandelsregisterauszug =>
+      'Выписка из торгового реестра';
 
   @override
   String get businessRegisterEinNumber => 'Номер EIN';
 
   @override
-  String get businessRegisterEinNumberRequired => 'Необходимо указать номер EIN';
+  String get businessRegisterEinNumberRequired =>
+      'Необходимо указать номер EIN';
 
   @override
   String get businessRegisterBusinessLicense => 'Бизнес-лицензия';
@@ -3146,16 +3279,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterProcessingDocument => 'Обработка документа...';
 
   @override
-  String get businessRegisterDocumentVerifiedSuccessfully => 'Документ успешно проверен';
+  String get businessRegisterDocumentVerifiedSuccessfully =>
+      'Документ успешно проверен';
 
   @override
-  String get businessRegisterCouldNotReadDocument => 'Не удалось прочитать документ, пожалуйста, загрузите его повторно';
+  String get businessRegisterCouldNotReadDocument =>
+      'Не удалось прочитать документ, пожалуйста, загрузите его повторно';
 
   @override
   String get businessRegisterVeterinary => 'Ветеринария';
 
   @override
-  String get businessRegisterGroomy => 'Groomy';
+  String get businessRegisterGroomy => 'Груминг (Groomy)';
 
   @override
   String businessRegisterStepOfFour(Object step) {
@@ -3166,22 +3301,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterLegalConfirmation => 'Юридическое подтверждение';
 
   @override
-  String get businessRegisterAcceptTermsKvkk => 'Я принимаю условия платформы и политику защиты данных KVKK.';
+  String get businessRegisterAcceptTermsKvkk =>
+      'Я принимаю условия платформы и политику защиты данных KVKK.';
 
   @override
   String get businessRegisterReadInsideApp => 'Читать в приложении';
 
   @override
-  String get businessRegisterOpenOfficialLegalPage => 'Открыть официальную юридическую страницу';
+  String get businessRegisterOpenOfficialLegalPage =>
+      'Открыть официальную юридическую страницу';
 
   @override
-  String get businessRegisterLegalVersion => 'Версия v1.0 • Последнее обновление: май 2026';
+  String get businessRegisterLegalVersion =>
+      'Версия v1.0 • Последнее обновление: май 2026';
 
   @override
-  String get businessRegisterAgreementSecurelyStored => 'Ваше согласие надежно хранится и имеет юридическую силу';
+  String get businessRegisterAgreementSecurelyStored =>
+      'Ваше согласие надежно хранится и имеет юридическую силу';
 
   @override
-  String get businessRegisterLegalResponsibilityDeclaration => 'Я заявляю, что все отправленные документы точны, и принимаю полную юридическую ответственность по Турецкому торговому кодексу.';
+  String get businessRegisterLegalResponsibilityDeclaration =>
+      'Я заявляю, что все отправленные документы точны, и принимаю полную юридическую ответственность по Турецкому торговому кодексу.';
 
   @override
   String get businessRegisterUploaded => 'Загружено';
@@ -3190,7 +3330,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterReplaceDocument => 'Заменить документ';
 
   @override
-  String get businessRegisterReplaceDocumentConfirmation => 'Вы уверены, что хотите заменить этот файл?';
+  String get businessRegisterReplaceDocumentConfirmation =>
+      'Вы уверены, что хотите заменить этот файл?';
 
   @override
   String get businessRegisterReplace => 'Заменить';
@@ -3230,7 +3371,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get myAppointments => 'Мои записи';
 
   @override
-  String get myAppointmentsLoginRequired => 'Пожалуйста, войдите, чтобы просмотреть свои записи';
+  String get myAppointmentsLoginRequired =>
+      'Пожалуйста, войдите, чтобы просмотреть свои записи';
 
   @override
   String get appointmentHistory => 'История записей';
@@ -3365,13 +3507,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get userProfileUnlockBusinessFeatures => 'Откройте бизнес-функции 🚀';
 
   @override
-  String get userProfileUpgradeBusinessDescription => 'Перейдите на Gold, чтобы зарегистрировать бизнес и начать получать клиентов.';
+  String get userProfileUpgradeBusinessDescription =>
+      'Перейдите на PetSupo Partner, чтобы зарегистрировать бизнес и начать получать клиентов.';
 
   @override
-  String get userProfileUpgradeToGold => 'Перейти на Gold';
+  String get userProfileUpgradeToGold => 'Перейти на PetSupo Partner';
 
   @override
-  String get userProfileManageAdoptionCenter => 'Управление центром усыновления';
+  String get userProfileManageAdoptionCenter =>
+      'Управление центром усыновления';
 
   @override
   String get userProfileOverview => 'Обзор';
@@ -3398,7 +3542,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get userProfileApplicationUnderReview => 'Заявка на рассмотрении';
 
   @override
-  String get userProfileApplicationUnderReviewDescription => 'Ваша заявка на бизнес успешно отправлена и сейчас находится на рассмотрении.';
+  String get userProfileApplicationUnderReviewDescription =>
+      'Ваша заявка на бизнес успешно отправлена и сейчас находится на рассмотрении.';
 
   @override
   String get userProfileAdminPanel => 'Панель администратора';
@@ -3415,7 +3560,8 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get userProfileUpgradeToGoldToContinue => 'Перейдите на Gold, чтобы продолжить';
+  String get userProfileUpgradeToGoldToContinue =>
+      'Перейдите на PetSupo Partner, чтобы продолжить';
 
   @override
   String get userProfileReApply => 'Подать повторно';
@@ -3433,19 +3579,24 @@ class AppLocalizationsRu extends AppLocalizations {
   String get userProfileRemovePhoto => 'Удалить фото';
 
   @override
-  String get userProfileImageSelectionFailed => 'Не удалось выбрать изображение.';
+  String get userProfileImageSelectionFailed =>
+      'Не удалось выбрать изображение.';
 
   @override
-  String get userProfileUsernameMinLength => 'Имя пользователя должно содержать не менее 3 символов';
+  String get userProfileUsernameMinLength =>
+      'Имя пользователя должно содержать не менее 3 символов';
 
   @override
-  String get userProfileUsernameMaxLength => 'Имя пользователя должно содержать не более 20 символов';
+  String get userProfileUsernameMaxLength =>
+      'Имя пользователя должно содержать не более 20 символов';
 
   @override
-  String get userProfileUsernameNoSpaces => 'Имя пользователя не может содержать пробелы';
+  String get userProfileUsernameNoSpaces =>
+      'Имя пользователя не может содержать пробелы';
 
   @override
-  String get userProfilePhoneInvalidCharacters => 'Телефон содержит недопустимые символы';
+  String get userProfilePhoneInvalidCharacters =>
+      'Телефон содержит недопустимые символы';
 
   @override
   String get userProfileBioMaxLength => 'Био должно быть короче 150 символов';
@@ -3454,7 +3605,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get userProfileUsernameAlreadyTaken => 'Имя пользователя уже занято';
 
   @override
-  String get userProfileEmailUpdateFailed => 'Не удалось обновить электронную почту';
+  String get userProfileEmailUpdateFailed =>
+      'Не удалось обновить электронную почту';
 
   @override
   String get userProfileUpdateFailed => 'Не удалось обновить профиль.';
@@ -3487,7 +3639,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String skuLabel(Object sku) {
-    return 'SKU: $sku';
+    return 'Артикул: $sku';
   }
 
   @override
@@ -3542,7 +3694,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessNotFound => 'Бизнес не найден';
 
   @override
-  String get sectorDashboardNotImplementedYet => 'Панель этого сектора пока не реализована';
+  String get sectorDashboardNotImplementedYet =>
+      'Панель этого сектора пока не реализована';
 
   @override
   String get goBackButton => 'Назад';
@@ -3683,22 +3836,26 @@ class AppLocalizationsRu extends AppLocalizations {
   String get catalogStrengthWeakLabel => 'Слабый';
 
   @override
-  String get catalogStrengthAddItemsMessage => 'Добавьте товары, описание, медиа и склад, чтобы усилить каталог.';
+  String get catalogStrengthAddItemsMessage =>
+      'Добавьте товары, описание, медиа и склад, чтобы усилить каталог.';
 
   @override
-  String get catalogStrengthWeakDetailsMessage => 'Данные о товарах все еще слабые. Добавьте больше медиа, описаний и сведений о складе.';
+  String get catalogStrengthWeakDetailsMessage =>
+      'Данные о товарах все еще слабые. Добавьте больше медиа, описаний и сведений о складе.';
 
   @override
   String get catalogStrengthMediumLabel => 'Средний';
 
   @override
-  String get catalogStrengthMediumMessage => 'Хорошее начало. Добавьте более подробные описания и больше медиа для лучшей видимости.';
+  String get catalogStrengthMediumMessage =>
+      'Хорошее начало. Добавьте более подробные описания и больше медиа для лучшей видимости.';
 
   @override
   String get catalogStrengthStrongLabel => 'Сильный';
 
   @override
-  String get catalogStrengthStrongMessage => 'Отличное качество каталога. Ваши товары выглядят сильными и полными.';
+  String get catalogStrengthStrongMessage =>
+      'Отличное качество каталога. Ваши товары выглядят сильными и полными.';
 
   @override
   String get shippingCalculatedLabel => 'Доставка рассчитывается';
@@ -3725,7 +3882,8 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get myOrdersLoginRequired => 'Пожалуйста, войдите, чтобы просмотреть свои заказы';
+  String get myOrdersLoginRequired =>
+      'Пожалуйста, войдите, чтобы просмотреть свои заказы';
 
   @override
   String get myOrdersTitle => 'Мои заказы';
@@ -3734,7 +3892,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get ordersTitle => 'Заказы';
 
   @override
-  String get searchByOrderIdOrProductNameHint => 'Поиск по номеру заказа или названию товара';
+  String get searchByOrderIdOrProductNameHint =>
+      'Поиск по номеру заказа или названию товара';
 
   @override
   String get allFilterLabel => 'Все';
@@ -3850,7 +4009,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String buyerIdentityNumberLabel(Object identityNumber) {
-    return 'ID: $identityNumber';
+    return 'Идентификационный номер: $identityNumber';
   }
 
   @override
@@ -3925,7 +4084,8 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get paymentWillBeTransferredByPetsupo => 'Оплата будет перечислена Petsupo';
+  String get paymentWillBeTransferredByPetsupo =>
+      'Оплата будет перечислена Petsupo';
 
   @override
   String get pendingPayoutLabel => 'Выплата в ожидании';
@@ -3949,19 +4109,23 @@ class AppLocalizationsRu extends AppLocalizations {
   String get returnCarrierRequired => 'Требуется перевозчик';
 
   @override
-  String get returnShippedBackFailed => 'Не удалось отметить возврат как отправленный обратно';
+  String get returnShippedBackFailed =>
+      'Не удалось отметить возврат как отправленный обратно';
 
   @override
   String get returnTrackingNumberLabel => 'Номер отслеживания возврата';
 
   @override
-  String get returnTrackingNumberHelperText => 'Введите номер отслеживания, выданный для возвратной отправки.';
+  String get returnTrackingNumberHelperText =>
+      'Введите номер отслеживания, выданный для возвратной отправки.';
 
   @override
-  String get returnCarrierHelperText => 'Используйте того же перевозчика, что и для первоначальной доставки.';
+  String get returnCarrierHelperText =>
+      'Используйте того же перевозчика, что и для первоначальной доставки.';
 
   @override
-  String get originalShipmentTrackingLabel => 'Отслеживание первоначальной отправки';
+  String get originalShipmentTrackingLabel =>
+      'Отслеживание первоначальной отправки';
 
   @override
   String get returnShipmentTrackingLabel => 'Отслеживание возвратной отправки';
@@ -4005,7 +4169,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sellerTaxNumberMissing => 'Налоговый номер продавца отсутствует';
 
   @override
-  String get buyerIdentityNumberMissing => 'Идентификационный номер покупателя отсутствует';
+  String get buyerIdentityNumberMissing =>
+      'Идентификационный номер покупателя отсутствует';
 
   @override
   String get buyerTaxNumberMissing => 'Налоговый номер покупателя отсутствует';
@@ -4050,7 +4215,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get upgradeHeroTitle => 'Находите лучшие совпадения быстрее 🐾';
 
   @override
-  String get upgradeHeroSubtitle => 'Откройте премиум-функции, лучшую видимость, эксклюзивные предложения и бизнес-инструменты.';
+  String get upgradeHeroSubtitle =>
+      'Откройте премиум-функции, лучшую видимость, эксклюзивные предложения и бизнес-инструменты.';
 
   @override
   String get premiumPlanSubtitle => 'Для активных владельцев питомцев';
@@ -4059,16 +4225,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get premiumPlanFeatureUnlimitedChat => 'Безлимитный чат';
 
   @override
-  String get premiumPlanFeatureAdvancedMatchingFilters => 'Расширенные фильтры подбора';
+  String get premiumPlanFeatureAdvancedMatchingFilters =>
+      'Расширенные фильтры подбора';
 
   @override
-  String get premiumPlanFeatureExclusivePetOffers => 'Эксклюзивные предложения для питомцев';
+  String get premiumPlanFeatureExclusivePetOffers =>
+      'Эксклюзивные предложения для питомцев';
 
   @override
   String get premiumPlanFeatureBetterProfileExperience => 'Лучший опыт профиля';
 
   @override
-  String get goldPlanSubtitle => 'Для бизнесов в сфере питомцев и опытных пользователей';
+  String get goldPlanSubtitle =>
+      'Для специалистов и компаний в сфере ухода за питомцами';
 
   @override
   String get mostPopularLabel => 'САМЫЙ ПОПУЛЯРНЫЙ';
@@ -4077,19 +4246,22 @@ class AppLocalizationsRu extends AppLocalizations {
   String get goldPlanFeatureEverythingInPremium => 'Все, что есть в Premium';
 
   @override
-  String get goldPlanFeatureBusinessRegistrationAccess => 'Доступ к регистрации бизнеса';
+  String get goldPlanFeatureBusinessRegistrationAccess =>
+      'Доступ к регистрации бизнеса';
 
   @override
   String get goldPlanFeatureBoostedVisibility => 'Повышенная видимость';
 
   @override
-  String get goldPlanFeatureBusinessDashboardAccess => 'Доступ к панели бизнеса';
+  String get goldPlanFeatureBusinessDashboardAccess =>
+      'Доступ к панели бизнеса';
 
   @override
   String get goldPlanFeaturePremiumChatAndOffers => 'Премиум-чат и предложения';
 
   @override
-  String get storeNotReadyTryAgain => 'Магазин пока не готов. Попробуйте еще раз.';
+  String get storeNotReadyTryAgain =>
+      'Магазин пока не готов. Попробуйте еще раз.';
 
   @override
   String get processingLabel => 'Обработка...';
@@ -4101,13 +4273,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get restorePurchases => 'Восстановить покупки';
 
   @override
-  String get upgradePaymentTerms => 'Сумма будет списана с вашего аккаунта App Store при подтверждении. Подписки продлеваются автоматически, если не отменены как минимум за 24 часа до конца текущего периода.';
+  String get upgradePaymentTerms =>
+      'Сумма будет списана с вашего аккаунта App Store при подтверждении. Подписки продлеваются автоматически, если не отменены как минимум за 24 часа до конца текущего периода.';
 
   @override
-  String get autoRenewableMonthlySubscription => 'Ежемесячная подписка с автопродлением';
+  String get autoRenewableMonthlySubscription =>
+      'Ежемесячная подписка с автопродлением';
 
   @override
-  String get securePaymentNotice => 'Безопасная оплата • Можно отменить в любое время • Планами управляет App Store';
+  String get securePaymentNotice =>
+      'Безопасная оплата • Можно отменить в любое время • Планами управляет App Store';
 
   @override
   String continueWithPlan(Object plan) {
@@ -4125,7 +4300,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String adoptionRequestSubtitle(Object dogName) {
-    return '• $dogName';
+    return '• Собака: $dogName';
   }
 
   @override
@@ -4195,7 +4370,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get adoptionOwnershipRented => 'Аренда';
 
   @override
-  String get adoptionLandlordPermissionRequired => 'Разрешение арендодателя (обязательно)';
+  String get adoptionLandlordPermissionRequired =>
+      'Разрешение арендодателя (обязательно)';
 
   @override
   String get adoptionHasGarden => 'Есть сад';
@@ -4216,16 +4392,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get adoptionYearsOfExperienceLabel => 'Годы опыта';
 
   @override
-  String get adoptionYearsOfExperienceHint => '0..60';
+  String get adoptionYearsOfExperienceHint => 'От 0 до 60';
 
   @override
   String get adoptionEnterYearsOfExperience => 'Введите 0..60';
 
   @override
-  String get adoptionPreviousDogQuestion => 'Была ли у вас раньше собака? (Да/Нет)';
+  String get adoptionPreviousDogQuestion =>
+      'Была ли у вас раньше собака? (Да/Нет)';
 
   @override
-  String get adoptionPreviousDogReasonLabel => 'Причина, по которой предыдущая собака больше не с вами';
+  String get adoptionPreviousDogReasonLabel =>
+      'Причина, по которой предыдущая собака больше не с вами';
 
   @override
   String get adoptionPreviousDogReasonHint => 'Кратко объясните';
@@ -4246,22 +4424,27 @@ class AppLocalizationsRu extends AppLocalizations {
   String get adoptionRequiredShort => 'Обязательно';
 
   @override
-  String get adoptionDescribeOtherPetsRequired => 'Пожалуйста, опишите других питомцев';
+  String get adoptionDescribeOtherPetsRequired =>
+      'Пожалуйста, опишите других питомцев';
 
   @override
   String get adoptionMotivationMessageLabel => 'Сообщение с мотивацией';
 
   @override
-  String get adoptionMotivationMinLength => 'Мотивация должна содержать не менее 20 символов';
+  String get adoptionMotivationMinLength =>
+      'Мотивация должна содержать не менее 20 символов';
 
   @override
-  String get adoptionStepFinancialCommitmentTitle => '4️⃣ Финансы и обязательства';
+  String get adoptionStepFinancialCommitmentTitle =>
+      '4️⃣ Финансы и обязательства';
 
   @override
-  String get adoptionCanAffordVetExpenses => 'Может оплачивать расходы на ветеринара?';
+  String get adoptionCanAffordVetExpenses =>
+      'Может оплачивать расходы на ветеринара?';
 
   @override
-  String get adoptionEmergencySavingsAvailable => 'Есть ли резерв на экстренные случаи?';
+  String get adoptionEmergencySavingsAvailable =>
+      'Есть ли резерв на экстренные случаи?';
 
   @override
   String get adoptionUploadsSectionTitle => '📷 Загрузки';
@@ -4299,25 +4482,33 @@ class AppLocalizationsRu extends AppLocalizations {
   String get adoptionRemoveButton => 'Удалить';
 
   @override
-  String get adoptionProofOfIncomeOptionalTitle => 'Подтверждение дохода (необязательно)';
+  String get adoptionProofOfIncomeOptionalTitle =>
+      'Подтверждение дохода (необязательно)';
 
   @override
   String get adoptionOptionalLabel => 'Необязательно';
 
   @override
-  String get adoptionAgreeContractRequiredLabel => 'Я согласен(на) подписать договор усыновления (обязательно)';
+  String get adoptionAgreeContractRequiredLabel =>
+      'Я согласен(на) подписать договор усыновления (обязательно)';
 
   @override
-  String get adoptionAgreeContractRequired => 'Вы должны согласиться с договором усыновления';
+  String get adoptionAgreeContractRequired =>
+      'Вы должны согласиться с договором усыновления';
 
   @override
-  String get adoptionUploadIdPhoto => 'Пожалуйста, загрузите фото удостоверения';
+  String get adoptionUploadIdPhoto =>
+      'Пожалуйста, загрузите фото удостоверения';
 
   @override
   String get adoptionNextButton => 'Далее';
 
   @override
-  String smartPriceSuggestedRangeLabel(Object currency, Object max, Object min) {
+  String smartPriceSuggestedRangeLabel(
+    Object currency,
+    Object max,
+    Object min,
+  ) {
     return 'Рекомендуемый диапазон: $min - $max $currency';
   }
 
@@ -4375,40 +4566,40 @@ class AppLocalizationsRu extends AppLocalizations {
   String get marketSourceErrorLabel => 'Ошибка';
 
   @override
-  String get discountRate1Label => '1%';
+  String get discountRate1Label => 'Скидка 1%';
 
   @override
-  String get discountRate10Label => '10%';
+  String get discountRate10Label => 'Скидка 10%';
 
   @override
-  String get discountRate20Label => '20%';
+  String get discountRate20Label => 'Скидка 20%';
 
   @override
-  String get carrierYurticiKargo => 'Yurtiçi Kargo';
+  String get carrierYurticiKargo => 'Доставка Yurtiçi Kargo';
 
   @override
-  String get carrierArasKargo => 'Aras Kargo';
+  String get carrierArasKargo => 'Доставка Aras Kargo';
 
   @override
-  String get carrierMngKargo => 'MNG Kargo';
+  String get carrierMngKargo => 'Доставка MNG Kargo';
 
   @override
-  String get carrierSuratKargo => 'Sürat Kargo';
+  String get carrierSuratKargo => 'Доставка Sürat Kargo';
 
   @override
-  String get carrierPttKargo => 'PTT Kargo';
+  String get carrierPttKargo => 'Доставка PTT Kargo';
 
   @override
-  String get carrierHepsiJet => 'HepsiJET';
+  String get carrierHepsiJet => 'Доставка HepsiJET';
 
   @override
-  String get carrierKolayGelsin => 'Kolay Gelsin';
+  String get carrierKolayGelsin => 'Доставка Kolay Gelsin';
 
   @override
-  String get carrierUpsTurkiye => 'UPS Türkiye';
+  String get carrierUpsTurkiye => 'Доставка UPS Türkiye';
 
   @override
-  String get carrierDhlExpress => 'DHL Express';
+  String get carrierDhlExpress => 'Экспресс-доставка DHL';
 
   @override
   String get categoryFood => 'Корм';
@@ -4456,13 +4647,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get productAlreadyExistsTitle => 'Товар уже существует';
 
   @override
-  String get productAlreadyExistsDescription => 'Этот товар уже существует. Открывается редактор товара.';
+  String get productAlreadyExistsDescription =>
+      'Этот товар уже существует. Открывается редактор товара.';
 
   @override
   String get continueButton => 'Продолжить';
 
   @override
-  String get productNameMustBeAtLeast4Chars => 'Название товара должно содержать не менее 4 символов';
+  String get productNameMustBeAtLeast4Chars =>
+      'Название товара должно содержать не менее 4 символов';
 
   @override
   String get invalidBarcode => 'Недействительный штрихкод';
@@ -4474,7 +4667,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get invalidWholesalePrice => 'Недействительная оптовая цена';
 
   @override
-  String get wholesaleMinQuantityMustBeAtLeast2 => 'Минимальное оптовое количество должно быть не менее 2';
+  String get wholesaleMinQuantityMustBeAtLeast2 =>
+      'Минимальное оптовое количество должно быть не менее 2';
 
   @override
   String get kdvRateIsRequired => 'Выберите ставку НДС';
@@ -4486,28 +4680,33 @@ class AppLocalizationsRu extends AppLocalizations {
   String get invalidDiscountPrice => 'Недействительная цена со скидкой';
 
   @override
-  String get discountMustBeLowerThanOriginalPrice => 'Цена со скидкой должна быть ниже исходной цены';
+  String get discountMustBeLowerThanOriginalPrice =>
+      'Цена со скидкой должна быть ниже исходной цены';
 
   @override
-  String get wholesalePriceMustBeLowerThanRetailPrice => 'Оптовая цена должна быть ниже розничной';
+  String get wholesalePriceMustBeLowerThanRetailPrice =>
+      'Оптовая цена должна быть ниже розничной';
 
   @override
   String get invalidStock => 'Недействительный остаток';
 
   @override
-  String get stockMustBeAtLeastWholesaleMinQuantity => 'Остаток должен быть не меньше минимального оптового количества';
+  String get stockMustBeAtLeastWholesaleMinQuantity =>
+      'Остаток должен быть не меньше минимального оптового количества';
 
   @override
   String get inventoryStockFieldLabel => 'Остаток';
 
   @override
-  String get invalidLowStockAlert => 'Недействительное предупреждение о низком остатке';
+  String get invalidLowStockAlert =>
+      'Недействительное предупреждение о низком остатке';
 
   @override
   String get addAtLeast1Media => 'Добавьте хотя бы 1 медиафайл';
 
   @override
-  String get descriptionMustBeAtLeast10Characters => 'Описание должно содержать не менее 10 символов';
+  String get descriptionMustBeAtLeast10Characters =>
+      'Описание должно содержать не менее 10 символов';
 
   @override
   String get selectCategory => 'Выберите категорию';
@@ -4528,25 +4727,29 @@ class AppLocalizationsRu extends AppLocalizations {
   String get invalidDesiValue => 'Недействительное значение desi';
 
   @override
-  String get fixedShippingFeeIsRequired => 'Требуется фиксированная стоимость доставки';
+  String get fixedShippingFeeIsRequired =>
+      'Требуется фиксированная стоимость доставки';
 
   @override
   String get invalidShippingFee => 'Недействительная стоимость доставки';
 
   @override
-  String get freeShippingThresholdIsRequired => 'Требуется порог бесплатной доставки';
+  String get freeShippingThresholdIsRequired =>
+      'Требуется порог бесплатной доставки';
 
   @override
   String get invalidPreparationTime => 'Недействительное время подготовки';
 
   @override
-  String get invalidMaxDeliveryDays => 'Недействительное максимальное время доставки';
+  String get invalidMaxDeliveryDays =>
+      'Недействительное максимальное время доставки';
 
   @override
   String get selectAtLeast1CargoCarrier => 'Выберите хотя бы 1 перевозчика';
 
   @override
-  String get returnWindowCannotBeLessThan14Days => 'Срок возврата не может быть меньше 14 дней';
+  String get returnWindowCannotBeLessThan14Days =>
+      'Срок возврата не может быть меньше 14 дней';
 
   @override
   String get returnCarrierIsRequired => 'Требуется перевозчик возврата';
@@ -4611,7 +4814,11 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String smartDescriptionAccessories(Object brand, Object name, Object subCategory) {
+  String smartDescriptionAccessories(
+    Object brand,
+    Object name,
+    Object subCategory,
+  ) {
     return '$name от $brand — полезный аксессуар в категории $subCategory.';
   }
 
@@ -4638,7 +4845,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get waitingForPricingData => 'Ожидание данных о ценах...';
 
   @override
-  String get tapToApplySuggestedPrice => 'Нажмите, чтобы применить рекомендованную цену';
+  String get tapToApplySuggestedPrice =>
+      'Нажмите, чтобы применить рекомендованную цену';
 
   @override
   String get smartPricingEngineTitle => 'Умный механизм ценообразования';
@@ -4686,7 +4894,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get searchingProductStatus => 'Поиск товара...';
 
   @override
-  String get productAlreadyExistsOpeningEditStatus => 'Товар существует, открывается редактор...';
+  String get productAlreadyExistsOpeningEditStatus =>
+      'Товар существует, открывается редактор...';
 
   @override
   String get fetchingProductDataStatus => 'Получение данных о товаре...';
@@ -4724,7 +4933,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get addProductTitle => 'Добавить товар';
 
   @override
-  String get tapToReplaceOrAddMedia => 'Нажмите, чтобы заменить или добавить медиа';
+  String get tapToReplaceOrAddMedia =>
+      'Нажмите, чтобы заменить или добавить медиа';
 
   @override
   String get tapToAddMedia => 'Нажмите, чтобы добавить медиа';
@@ -4745,7 +4955,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get enterBarcodeHint => 'Введите или отсканируйте штрихкод';
 
   @override
-  String get noBarcodeSkuHint => 'Штрихкод необязателен. SKU будет создан автоматически, если поле пусто.';
+  String get noBarcodeSkuHint =>
+      'Штрихкод необязателен. SKU будет создан автоматически, если поле пусто.';
 
   @override
   String get scanButtonLabel => 'Сканировать';
@@ -4754,7 +4965,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get skuCodeLabel => 'Код SKU';
 
   @override
-  String get autoGeneratedSkuHint => 'Будет создан автоматически, если поле пусто';
+  String get autoGeneratedSkuHint =>
+      'Будет создан автоматически, если поле пусто';
 
   @override
   String get shippingAndDeliverySectionTitle => 'Доставка и отправка';
@@ -4796,13 +5008,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get wholesalePriceLabel => 'Оптовая цена';
 
   @override
-  String get minimumQuantityForWholesaleLabel => 'Минимальное количество для опта';
+  String get minimumQuantityForWholesaleLabel =>
+      'Минимальное количество для опта';
 
   @override
-  String get wholesaleAppliesHint => 'Оптовая скидка применяется с этого количества';
+  String get wholesaleAppliesHint =>
+      'Оптовая скидка применяется с этого количества';
 
   @override
-  String get visibleOnlyToBusinessAccountsHint => 'Видно только бизнес-аккаунтам';
+  String get visibleOnlyToBusinessAccountsHint =>
+      'Видно только бизнес-аккаунтам';
 
   @override
   String get usersWillSeeDiscountHint => 'Пользователи увидят бейдж скидки';
@@ -4843,7 +5058,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sellerPaysShippingLabel => 'Доставку оплачивает продавец';
 
   @override
-  String get enableFreeShippingCampaignLabel => 'Включить кампанию бесплатной доставки';
+  String get enableFreeShippingCampaignLabel =>
+      'Включить кампанию бесплатной доставки';
 
   @override
   String get freeShippingThresholdLabel => 'Порог бесплатной доставки';
@@ -4873,7 +5089,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get buyerOptionLabel => 'Покупатель';
 
   @override
-  String get sellerContractedCarrierOnlyLabel => 'Только если перевозчик по договору';
+  String get sellerContractedCarrierOnlyLabel =>
+      'Только если перевозчик по договору';
 
   @override
   String get inventoryTitle => 'Запасы';
@@ -4904,7 +5121,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String desiLabel(Object value) {
-    return 'Desi: $value';
+    return 'Объёмный вес: $value';
   }
 
   @override
@@ -4931,7 +5148,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get returnRequestsTitle => 'Запросы на возврат';
 
   @override
-  String get returnAvailableAfterDeliveryMessage => 'Возврат доступен после доставки.';
+  String get returnAvailableAfterDeliveryMessage =>
+      'Возврат доступен после доставки.';
 
   @override
   String get noReturnsYet => 'Пока нет запросов на возврат';
@@ -5059,7 +5277,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shippingResponsibilityBuyerLabel => 'Покупатель';
 
   @override
-  String get shippingResponsibilityContractCarrierLabel => 'Только если перевозчик по договору';
+  String get shippingResponsibilityContractCarrierLabel =>
+      'Только если перевозчик по договору';
 
   @override
   String get returnCarrierLabel => 'Перевозчик возврата';
@@ -5154,7 +5373,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get vetRevenueTitle => 'Выручка';
 
   @override
-  String get vetRevenueDescription => 'Проверенные данные платежей и расчётов по завершённым ветеринарным операциям.';
+  String get vetRevenueDescription =>
+      'Проверенные данные платежей и расчётов по завершённым ветеринарным операциям.';
 
   @override
   String get vetRevenueRange7Days => '7 дней';
@@ -5204,25 +5424,29 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get vetRevenueMixedCurrencyWarning => 'Обнаружено несколько валют. Суммы показаны отдельно и не конвертируются и не складываются.';
+  String get vetRevenueMixedCurrencyWarning =>
+      'Обнаружено несколько валют. Суммы показаны отдельно и не конвертируются и не складываются.';
 
   @override
   String get vetRevenueNoAppointmentsTitle => 'Записей пока нет';
 
   @override
-  String get vetRevenueNoAppointmentsMessage => 'Аналитика появится после создания ветеринарных записей.';
+  String get vetRevenueNoAppointmentsMessage =>
+      'Аналитика появится после создания ветеринарных записей.';
 
   @override
   String get vetRevenueNoRangeTitle => 'В этом периоде нет данных';
 
   @override
-  String get vetRevenueNoRangeMessage => 'Выберите больший диапазон дат для просмотра ранних операций.';
+  String get vetRevenueNoRangeMessage =>
+      'Выберите больший диапазон дат для просмотра ранних операций.';
 
   @override
   String get vetRevenueLoadErrorTitle => 'Данные о выручке недоступны';
 
   @override
-  String get vetRevenueLoadErrorMessage => 'Проверьте соединение и повторите попытку. Платёжные записи не изменены.';
+  String get vetRevenueLoadErrorMessage =>
+      'Проверьте соединение и повторите попытку. Платёжные записи не изменены.';
 
   @override
   String get vetRevenueRetry => 'Повторить';
@@ -5231,10 +5455,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get vetRevenueTrendTitle => 'Динамика выручки';
 
   @override
-  String get vetRevenueMixedCurrencyChartHidden => 'Общий график скрыт, поскольку период содержит несколько валют.';
+  String get vetRevenueMixedCurrencyChartHidden =>
+      'Общий график скрыт, поскольку период содержит несколько валют.';
 
   @override
-  String get vetRevenueNoRecognizedRevenue => 'В этом периоде нет подтверждённой оплаченной выручки.';
+  String get vetRevenueNoRecognizedRevenue =>
+      'В этом периоде нет подтверждённой оплаченной выручки.';
 
   @override
   String get vetRevenueTopServices => 'Лучшие услуги по валовой выручке';
@@ -5246,7 +5472,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get vetRevenueUncategorized => 'Без категории';
 
   @override
-  String get vetRevenueSearchHint => 'Поиск клиента, питомца, услуги или операции';
+  String get vetRevenueSearchHint =>
+      'Поиск клиента, питомца, услуги или операции';
 
   @override
   String get vetRevenueAllPayments => 'Все платежи';
@@ -5303,7 +5530,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get vetRevenueTransactionReference => 'Ссылка операции';
 
   @override
-  String get vetRevenueNoMatchingTransactions => 'Нет операций, соответствующих поиску и фильтру.';
+  String get vetRevenueNoMatchingTransactions =>
+      'Нет операций, соответствующих поиску и фильтру.';
 
   @override
   String vetRevenuePageOf(int page, int total) {
@@ -5314,11 +5542,143 @@ class AppLocalizationsRu extends AppLocalizations {
   String get vetWebOverviewSubtitle => 'Обзор работы и показателей клиники';
 
   @override
-  String get vetWebAppointmentsSubtitle => 'Просмотр и управление ветеринарными записями';
+  String get vetWebAppointmentsSubtitle =>
+      'Просмотр и управление ветеринарными записями';
 
   @override
-  String get vetWebRevenueSubtitle => 'Проверенная аналитика платежей, комиссии и расчётов';
+  String get vetWebRevenueSubtitle =>
+      'Проверенная аналитика платежей, комиссии и расчётов';
 
   @override
   String get vetWebVeterinaryLabel => 'Ветеринария';
+
+  @override
+  String get petShopsTitle => 'Зоомагазины';
+
+  @override
+  String get searchPetShopsHint => 'Поиск зоомагазинов';
+
+  @override
+  String get noPetShopsFound => 'Зоомагазины не найдены';
+
+  @override
+  String get noPetShopsFoundDescription =>
+      'Попробуйте другой поиск или зайдите позже.';
+
+  @override
+  String get loadingPetShops => 'Ищем зоомагазины рядом с вами…';
+
+  @override
+  String get petShopsLoadError =>
+      'Не удалось загрузить зоомагазины. Повторите попытку.';
+
+  @override
+  String get retryButton => 'Повторить';
+
+  @override
+  String get shopInformationTitle => 'Информация о магазине';
+
+  @override
+  String get noShopDescriptionAvailable => 'Описание магазина отсутствует.';
+
+  @override
+  String get locationNotAvailable => 'Местоположение недоступно';
+
+  @override
+  String get getDirectionsLabel => 'Проложить маршрут';
+
+  @override
+  String get connectLabel => 'Связаться';
+
+  @override
+  String get callLabel => 'Позвонить';
+
+  @override
+  String get whatsappLabel => 'WhatsApp';
+
+  @override
+  String get websiteLabel => 'Веб-сайт';
+
+  @override
+  String get signInToContactShop => 'Войдите, чтобы связаться с магазином.';
+
+  @override
+  String get petShopUnavailable => 'Магазин недоступен';
+
+  @override
+  String get petShopUnavailableDescription =>
+      'Этот зоомагазин больше недоступен.';
+
+  @override
+  String get reviewsCouldNotBeLoaded => 'Не удалось загрузить отзывы.';
+
+  @override
+  String get noProductsAvailableFromShop =>
+      'В этом магазине нет доступных товаров';
+
+  @override
+  String get petShopLocationNeededMessage =>
+      'Мы используем ваше местоположение, чтобы показать зоомагазины поблизости';
+
+  @override
+  String get infoTitle => 'Информация';
+
+  @override
+  String get processTitle => 'Процесс';
+
+  @override
+  String get categoriesTitle => 'Категории';
+
+  @override
+  String get contactTitle => 'Контакты';
+
+  @override
+  String get openFullProfile => 'Открыть полный профиль';
+
+  @override
+  String get noShopCategoriesAvailable => 'Категории магазина недоступны.';
+
+  @override
+  String get browseShopProductsDescription =>
+      'Посмотрите товары, доступные в этом зоомагазине.';
+
+  @override
+  String get viewAllProducts => 'Посмотреть все товары';
+
+  @override
+  String get continueWithGoogle => 'Продолжить с Google';
+
+  @override
+  String get continueWithApple => 'Продолжить с Apple';
+
+  @override
+  String get orContinueWith => 'или продолжить с';
+
+  @override
+  String get authenticationCancelled => 'Аутентификация отменена';
+
+  @override
+  String get unableToSignIn => 'Не удалось войти';
+
+  @override
+  String get emailRegisteredWithAnotherProvider =>
+      'Этот адрес электронной почты уже зарегистрирован с другим способом входа';
+
+  @override
+  String get completeYourProfile => 'Заполните профиль';
+
+  @override
+  String get cityLabel => 'Город';
+
+  @override
+  String get districtLabel => 'Район';
+
+  @override
+  String get cityRequired => 'Укажите город';
+
+  @override
+  String get districtRequired => 'Укажите район';
+
+  @override
+  String get continueLabel => 'Продолжить';
 }

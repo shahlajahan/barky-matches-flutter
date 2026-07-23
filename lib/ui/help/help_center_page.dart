@@ -351,13 +351,13 @@ class HelpCenterPage extends StatelessWidget {
               _buildFaq(
                 question: "How do subscriptions work?",
                 answer:
-                    "Premium and Gold subscriptions unlock advanced features such as boosted visibility and business tools.",
+                    "Premium and PetSupo Partner subscriptions unlock advanced features such as boosted visibility and business tools.",
               ),
 
               _buildFaq(
                 question: "How can I register my business?",
                 answer:
-                    "Gold users can apply for business registration from the Profile section.",
+                    "PetSupo Partner users can apply for business registration from the Profile section.",
               ),
 
               _buildFaq(
