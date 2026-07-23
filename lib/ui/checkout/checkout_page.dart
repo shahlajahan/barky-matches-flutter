@@ -567,51 +567,67 @@ class _CheckoutPageState extends State<CheckoutPage> {
           .get(GetOptions(source: Source.server));
 
       debugPrint("✅ NEW ROOT ORDER: $orderId");
-      debugPrint("✅ ORDER NUMBER: $orderNumber");
-      debugPrint("🟢 ORDER CREATED: $orderId");
+debugPrint("✅ ORDER NUMBER: $orderNumber");
+debugPrint("🟢 ORDER CREATED: $orderId");
 
-      /// -------------------------
-      /// 2) CHECKOUT SESSION
-      /// -------------------------
-      final session = await _checkoutService.createCheckoutSession(
-        orderId: orderId, // ✅ اینو اضافه کن
+/// -------------------------
+/// 2) CHECKOUT SESSION
+/// -------------------------
 
-        items: widget.items.map((e) => e.toJson()).toList(),
-        currency: 'TRY',
-        carrier: _selectedCarrier!,
+debugPrint("🚀 STEP 1 - Calling createCheckoutSession");
 
-        successUrl:
-            'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
-        cancelUrl: 'barkymatches://payment-cancel?orderId=$orderId',
+final session = await _checkoutService.createCheckoutSession(
+  orderId: orderId,
 
-        note: orderId,
-        buyer: buyer,
-        shippingAddress: shippingAddress,
-        billingAddress: billingAddress,
-      );
-      final pricing = session.pricing;
+  items: widget.items.map((e) => e.toJson()).toList(),
+  currency: 'TRY',
+  carrier: _selectedCarrier!,
 
-      if (pricing != null) {
-        setState(() {
-          backendSubtotal = (pricing['subtotal'] ?? 0).toDouble();
-          backendShipping = (pricing['shippingTotal'] ?? 0).toDouble();
-          backendTax = (pricing['taxTotal'] ?? 0).toDouble();
-          backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
-        });
-      }
-      if (!mounted) return;
+  successUrl:
+      'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
+  cancelUrl: 'barkymatches://payment-cancel?orderId=$orderId',
 
-      await Future.delayed(const Duration(milliseconds: 300));
-      FocusScope.of(context).unfocus();
+  note: orderId,
+  buyer: buyer,
+  shippingAddress: shippingAddress,
+  billingAddress: billingAddress,
+);
 
-      final checkoutResult = await presentCheckoutSession(
-        context: context,
-        session: session,
-        orderId: orderId,
-        successUrlPrefix:
-            'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
-        cancelUrlPrefix: 'barkymatches://payment-cancel?orderId=$orderId',
-      );
+debugPrint("✅ STEP 2 - Session received");
+debugPrint("   Provider: ${session.provider}");
+debugPrint("   HTML exists: ${session.html != null}");
+debugPrint("   HTML length: ${session.html?.length ?? 0}");
+debugPrint("   Checkout URL: ${session.checkoutUrl}");
+
+final pricing = session.pricing;
+
+if (pricing != null) {
+  setState(() {
+    backendSubtotal = (pricing['subtotal'] ?? 0).toDouble();
+    backendShipping = (pricing['shippingTotal'] ?? 0).toDouble();
+    backendTax = (pricing['taxTotal'] ?? 0).toDouble();
+    backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
+  });
+}
+
+if (!mounted) return;
+
+await Future.delayed(const Duration(milliseconds: 300));
+FocusScope.of(context).unfocus();
+
+debugPrint("🚀 STEP 3 - Opening checkout page");
+
+final checkoutResult = await presentCheckoutSession(
+  context: context,
+  session: session,
+  orderId: orderId,
+  successUrlPrefix:
+      'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
+  cancelUrlPrefix: 'barkymatches://payment-cancel?orderId=$orderId',
+);
+
+debugPrint("✅ STEP 4 - Checkout closed");
+debugPrint("   Result: $checkoutResult");
 
       if (!mounted) return;
 

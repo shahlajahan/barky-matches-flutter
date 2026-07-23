@@ -307,7 +307,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     setState(() => paying = true);
 
     try {
-      debugPrint("🔥 SENDING appointmentId → ${widget.appointmentId}");
+     
 
       final callable = FirebaseFunctions.instanceFor(
         region: 'europe-west3',
@@ -324,8 +324,8 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
       );
       final orderId = session.orderId;
 
-      debugPrint("💳 ORDER → $orderId");
-      debugPrint("🌐 PROVIDER → ${session.provider}");
+     
+    
 
       if (!mounted) return;
 
