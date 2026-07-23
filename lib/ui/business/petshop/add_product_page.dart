@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -2437,6 +2438,961 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktopWeb = kIsWeb && MediaQuery.sizeOf(context).width >= 1100;
+    return isDesktopWeb
+        ? _buildDesktopLayout(context)
+        : _buildCompactLayout(context);
+  }
+
+  static const _desktopAccent = Color(0xFF8B1E45);
+  static const _desktopInk = Color(0xFF241C20);
+
+  InputDecoration _desktopDecoration({String? hint, Widget? prefixIcon}) {
+    OutlineInputBorder border(Color color, [double width = 1]) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(13),
+        borderSide: BorderSide(color: color, width: width),
+      );
+    }
+
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: const Color(0xFFFAF8F9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
+      border: border(const Color(0xFFE5DDE1)),
+      enabledBorder: border(const Color(0xFFE5DDE1)),
+      focusedBorder: border(_desktopAccent, 1.6),
+      disabledBorder: border(const Color(0xFFE9E5E7)),
+      hintStyle: const TextStyle(color: Color(0xFF8A7D83), fontSize: 14),
+    );
+  }
+
+  Widget _desktopLabel(String label, Widget child, {String? helper}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _desktopInk,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        child,
+        if (helper != null) ...[
+          const SizedBox(height: 7),
+          Text(
+            helper,
+            style: const TextStyle(
+              color: Color(0xFF746970),
+              fontSize: 12.5,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _desktopInput(
+    TextEditingController controller,
+    String label, {
+    bool isNumber = false,
+    int maxLines = 1,
+    String? helper,
+    ValueChanged<String>? onChanged,
+  }) {
+    return _desktopLabel(
+      label,
+      TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        minLines: maxLines > 1 ? maxLines : null,
+        keyboardType: isNumber
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
+        onChanged: (value) {
+          debugPrint("✏️ INPUT CHANGED → $label = $value");
+          onChanged?.call(value);
+        },
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        decoration: _desktopDecoration(),
+      ),
+      helper: helper,
+    );
+  }
+
+  Widget _desktopSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    Widget? trailing,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEADFE4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A2D1821),
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8EDEF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: _desktopAccent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: _desktopInk,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 24),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopGrid(List<Widget> children, {int columns = 2}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 18.0;
+        final count = constraints.maxWidth < 700 ? 1 : columns;
+        final width = (constraints.maxWidth - gap * (count - 1)) / count;
+        return Wrap(
+          spacing: gap,
+          runSpacing: 20,
+          children: children
+              .map((child) => SizedBox(width: width, child: child))
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _desktopSwitch({
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAF8F9),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE5DDE1)),
+      ),
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        activeColor: _desktopAccent,
+        value: value,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildDesktopMedia(AppLocalizations l10n) {
+    return _desktopSection(
+      title: isEdit ? l10n.tapToReplaceOrAddMedia : l10n.tapToAddMedia,
+      icon: LucideIcons.imagePlus,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _pickMedia,
+        child: Container(
+          height: 240,
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFCFAFB),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFD9C7CF), width: 1.2),
+          ),
+          child: _media.isEmpty
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      LucideIcons.imagePlus,
+                      color: _desktopAccent,
+                      size: 38,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      isEdit ? l10n.tapToReplaceOrAddMedia : l10n.tapToAddMedia,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _media.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final file = _media[index];
+                    final path = file.path.toLowerCase();
+                    final isVideo =
+                        path.endsWith('.mp4') ||
+                        path.endsWith('.mov') ||
+                        path.endsWith('.hevc') ||
+                        path.endsWith('.webm') ||
+                        path.endsWith('.m4v');
+                    return Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: isVideo
+                              ? Container(
+                                  width: 180,
+                                  color: Colors.black,
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.play_circle_fill,
+                                      color: Colors.white,
+                                      size: 44,
+                                    ),
+                                  ),
+                                )
+                              : Image.file(
+                                  File(file.path),
+                                  width: 180,
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: IconButton.filled(
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () =>
+                                setState(() => _media.remove(file)),
+                            icon: const Icon(LucideIcons.x, size: 16),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Material(
+      color: const Color(0xFFF7F4F5),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              height: 76,
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1240),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).backButtonTooltip,
+                        onPressed: () =>
+                            context.read<AppState>().closeBusinessSubPage(),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isEdit ? l10n.editProductTitle : l10n.addProductTitle,
+                        style: const TextStyle(
+                          color: _desktopInk,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(32, 28, 32, 48),
+                children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1240),
+                      child: Column(
+                        children: [
+                          _buildDesktopMedia(l10n),
+                          const SizedBox(height: 24),
+                          _buildDesktopBasicInfo(l10n),
+                          const SizedBox(height: 24),
+                          _buildDesktopPricing(l10n),
+                          const SizedBox(height: 24),
+                          _buildDesktopShipping(l10n),
+                          const SizedBox(height: 24),
+                          _buildDesktopInventoryCategory(l10n),
+                          const SizedBox(height: 24),
+                          _buildDesktopDescription(l10n),
+                          const SizedBox(height: 24),
+                          _buildDesktopActions(l10n),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopBasicInfo(AppLocalizations l10n) {
+    return _desktopSection(
+      title: l10n.basicInfoSectionTitle,
+      icon: LucideIcons.package,
+      child: Column(
+        children: [
+          _desktopGrid([
+            _desktopInput(_name, l10n.productNameMinCharsLabel),
+            _desktopInput(_brand, l10n.brandLabel),
+          ]),
+          const SizedBox(height: 20),
+          _desktopGrid([
+            _desktopLabel(
+              l10n.barcodeFieldLabel,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _barcode,
+                      onChanged: (value) {
+                        _barcodeTimer?.cancel();
+                        _barcodeTimer = Timer(
+                          const Duration(milliseconds: 600),
+                          () async {
+                            final clean = value.trim();
+                            if (!RegExp(r'^\d+$').hasMatch(clean)) return;
+                            if (!RegExp(r'^\d{12,13}$').hasMatch(clean)) return;
+                            await handleBarcodeInput(clean);
+                          },
+                        );
+                      },
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: _desktopDecoration(
+                        prefixIcon: const Icon(LucideIcons.scanLine, size: 19),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: scanBarcode,
+                      icon: const Icon(LucideIcons.scanLine, size: 18),
+                      label: Text(l10n.scanButtonLabel),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _desktopAccent,
+                        side: const BorderSide(color: Color(0xFFD9C7CF)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              helper: l10n.enterBarcodeHint,
+            ),
+            _desktopLabel(
+              l10n.skuCodeLabel,
+              TextField(
+                controller: _sku,
+                onEditingComplete: () async {
+                  final value = _sku.text.trim().toUpperCase();
+                  if (value.isNotEmpty)
+                    await _tryOpenExistingProductBySku(value);
+                },
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: _desktopDecoration(),
+              ),
+              helper: l10n.autoGeneratedSkuHint,
+            ),
+          ]),
+          buildBarcodeStatus(),
+          if (_barcode.text.isEmpty)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7E8),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(l10n.noBarcodeSkuHint),
+            ),
+          const SizedBox(height: 16),
+          buildMarketInsights(),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopDropdown<T>({
+    required String label,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return _desktopLabel(
+      label,
+      DropdownButtonFormField<T>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: _desktopDecoration(),
+        items: items,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildDesktopPricing(AppLocalizations l10n) {
+    return _desktopSection(
+      title: l10n.priceLabel,
+      icon: LucideIcons.badgeDollarSign,
+      child: Column(
+        children: [
+          _desktopSwitch(
+            title: l10n.thisProductHasADiscount,
+            value: _hasDiscount,
+            onChanged: (v) {
+              setState(() {
+                _hasDiscount = v;
+                if (!v) _salePrice.clear();
+              });
+            },
+          ),
+          const SizedBox(height: 20),
+          _desktopGrid([
+            _desktopInput(
+              _price,
+              _hasDiscount ? l10n.originalPriceLabel : l10n.priceLabel,
+              isNumber: true,
+              onChanged: (_) => _runPriceEngine(),
+            ),
+            _desktopDropdown<double>(
+              label: l10n.kdvLabel,
+              value: _kdvRate,
+              items: [
+                DropdownMenuItem(
+                  value: 1,
+                  child: Text(l10n.discountRate1Label),
+                ),
+                DropdownMenuItem(
+                  value: 10,
+                  child: Text(l10n.discountRate10Label),
+                ),
+                DropdownMenuItem(
+                  value: 20,
+                  child: Text(l10n.discountRate20Label),
+                ),
+              ],
+              onChanged: (v) => setState(() => _kdvRate = v),
+            ),
+            _desktopDropdown<String>(
+              label: l10n.priceLabel,
+              value: _currency,
+              items: [
+                "TRY",
+                "USD",
+                "EUR",
+              ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _currency = v);
+              },
+            ),
+          ], columns: 3),
+          const SizedBox(height: 20),
+          _desktopGrid([
+            _desktopInput(
+              _wholesalePrice,
+              l10n.wholesalePriceLabel,
+              isNumber: true,
+              helper: l10n.visibleOnlyToBusinessAccountsHint,
+            ),
+            _desktopInput(
+              _wholesaleMinQty,
+              l10n.minimumQuantityForWholesaleLabel,
+              isNumber: true,
+              helper: l10n.wholesaleAppliesHint,
+            ),
+          ]),
+          if (_hasDiscount) ...[
+            const SizedBox(height: 20),
+            _desktopInput(
+              _salePrice,
+              l10n.discountPriceLabel,
+              isNumber: true,
+              helper: l10n.usersWillSeeDiscountHint,
+            ),
+          ],
+          const SizedBox(height: 20),
+          buildPriceSuggestionBox(),
+          buildFinalPriceBox(),
+          if (_suggestedPrice != null)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () => setState(() {
+                  _price.text = _suggestedPrice!.toStringAsFixed(0);
+                }),
+                icon: const Icon(LucideIcons.wand2, size: 17),
+                label: Text(l10n.tapToApplySuggestedPrice),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopShipping(AppLocalizations l10n) {
+    return _desktopSection(
+      title: l10n.shippingAndDeliverySectionTitle,
+      icon: LucideIcons.truck,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _desktopGrid([
+            _desktopInput(
+              _weightKg,
+              l10n.weightLabel,
+              isNumber: true,
+              onChanged: (_) {
+                _refreshCalculatedDesi();
+                _updateShippingPreview();
+              },
+            ),
+            _desktopInput(
+              _lengthCm,
+              l10n.lengthLabel,
+              isNumber: true,
+              onChanged: (_) {
+                _refreshCalculatedDesi();
+                _updateShippingPreview();
+              },
+            ),
+            _desktopInput(
+              _widthCm,
+              l10n.widthLabel,
+              isNumber: true,
+              onChanged: (_) {
+                _refreshCalculatedDesi();
+                _updateShippingPreview();
+              },
+            ),
+            _desktopInput(
+              _heightCm,
+              l10n.heightLabel,
+              isNumber: true,
+              onChanged: (_) {
+                _refreshCalculatedDesi();
+                _updateShippingPreview();
+              },
+            ),
+          ], columns: 4),
+          const SizedBox(height: 20),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8EDEF),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: const Color(0xFFE8CCD7)),
+            ),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.calculator, color: _desktopAccent),
+                const SizedBox(width: 12),
+                Text(
+                  l10n.calculatedDesiLabel(
+                    (_calculatedDesi ?? _computeDesi()).toStringAsFixed(2),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _desktopGrid([
+            _desktopInput(
+              _fixedDesi,
+              l10n.manualDesiOverrideOptionalLabel,
+              isNumber: true,
+              onChanged: (_) {
+                _refreshCalculatedDesi();
+                _updateShippingPreview();
+              },
+            ),
+            _desktopDropdown<String>(
+              label: l10n.shippingModeLabel,
+              value: _shippingMode,
+              items: [
+                DropdownMenuItem(
+                  value: "carrier_calculated",
+                  child: Text(l10n.carrierCalculatedLabel),
+                ),
+                DropdownMenuItem(
+                  value: "fixed_price",
+                  child: Text(l10n.fixedShippingFeeLabel),
+                ),
+                DropdownMenuItem(
+                  value: "seller_absorbs",
+                  child: Text(l10n.sellerPaysShippingLabel),
+                ),
+                DropdownMenuItem(
+                  value: "free_shipping",
+                  child: Text(l10n.freeShippingLabel),
+                ),
+              ],
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() {
+                    _shippingMode = v;
+                    if (v == "seller_absorbs") _shippingPayer = "seller";
+                  });
+                }
+              },
+            ),
+          ]),
+          if (_shippingMode == "fixed_price") ...[
+            const SizedBox(height: 20),
+            _desktopInput(
+              _shippingFee,
+              l10n.fixedShippingFeeLabel,
+              isNumber: true,
+            ),
+          ],
+          const SizedBox(height: 20),
+          _desktopSwitch(
+            title: l10n.enableFreeShippingCampaignLabel,
+            value: _allowFreeShipping,
+            onChanged: (v) {
+              setState(() => _allowFreeShipping = v);
+              _updateShippingPreview();
+            },
+          ),
+          if (_shippingPayer == "conditional" || _allowFreeShipping) ...[
+            const SizedBox(height: 20),
+            _desktopInput(
+              _freeShippingThreshold,
+              l10n.freeShippingThresholdLabel,
+              isNumber: true,
+              onChanged: (_) => _updateShippingPreview(),
+            ),
+          ],
+          const SizedBox(height: 20),
+          _desktopGrid([
+            _desktopInput(
+              _prepDays,
+              l10n.preparationTimeDaysLabel,
+              isNumber: true,
+            ),
+            _desktopInput(
+              _maxDeliveryDays,
+              l10n.maxDeliveryTimeDaysLabel,
+              isNumber: true,
+            ),
+          ]),
+          buildShippingPreview(),
+          const SizedBox(height: 24),
+          Text(
+            l10n.cargoCompaniesTitle,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _carrierOptions.map((carrier) {
+              final code = carrier["code"]!;
+              final selected = _selectedCarriers.contains(code);
+              return FilterChip(
+                label: Text(_carrierLabel(l10n, code)),
+                selected: selected,
+                showCheckmark: true,
+                selectedColor: const Color(0xFFF3DDE5),
+                side: BorderSide(
+                  color: selected ? _desktopAccent : const Color(0xFFD9D1D5),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+                onSelected: (v) {
+                  setState(() {
+                    if (v) {
+                      _selectedCarriers.add(code);
+                    } else {
+                      _selectedCarriers.remove(code);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+          _desktopSwitch(
+            title: l10n.allowReturnsLabel,
+            value: _allowReturns,
+            onChanged: (v) => setState(() => _allowReturns = v),
+          ),
+          if (_allowReturns) ...[
+            const SizedBox(height: 20),
+            _desktopGrid([
+              _desktopInput(
+                _returnWindowDays,
+                l10n.returnWindowDaysLabel,
+                isNumber: true,
+              ),
+              _desktopDropdown<String>(
+                label: l10n.returnShippingPayerLabel,
+                value: _returnShippingPayer,
+                items: [
+                  DropdownMenuItem(
+                    value: "seller_always",
+                    child: Text(l10n.sellerOptionLabel),
+                  ),
+                  DropdownMenuItem(
+                    value: "buyer",
+                    child: Text(l10n.buyerOptionLabel),
+                  ),
+                  DropdownMenuItem(
+                    value: "seller_if_contract_carrier",
+                    child: Text(l10n.sellerContractedCarrierOnlyLabel),
+                  ),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _returnShippingPayer = v);
+                },
+              ),
+            ]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopInventoryCategory(AppLocalizations l10n) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inventory = _desktopSection(
+          title: l10n.inventoryTitle,
+          icon: LucideIcons.boxes,
+          child: _desktopGrid([
+            _desktopInput(
+              _stock,
+              l10n.inventoryStockFieldLabel,
+              isNumber: true,
+            ),
+            _desktopInput(_minStock, l10n.lowStockAlertLabel, isNumber: true),
+          ]),
+        );
+        final category = _desktopSection(
+          title: l10n.categoryLabel,
+          icon: LucideIcons.tags,
+          child: _desktopGrid([
+            _desktopDropdown<String>(
+              label: l10n.mainCategoryLabel,
+              value: _mainCategory,
+              items: categories.keys
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(_categoryLabel(l10n, e)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() {
+                    _mainCategory = v;
+                    _subCategory = categories[v]!.first;
+                  });
+                }
+              },
+            ),
+            _desktopDropdown<String>(
+              label: l10n.subCategoryLabel,
+              value: _subCategory,
+              items: categories[_mainCategory]!
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(_subCategoryLabel(l10n, e)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _subCategory = v);
+              },
+            ),
+          ]),
+        );
+        if (constraints.maxWidth < 1180) {
+          return Column(
+            children: [inventory, const SizedBox(height: 24), category],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: inventory),
+            const SizedBox(width: 24),
+            Expanded(child: category),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopDescription(AppLocalizations l10n) {
+    return _desktopSection(
+      title: l10n.descriptionLabel,
+      icon: LucideIcons.fileText,
+      trailing: TextButton.icon(
+        onPressed: _isGeneratingDescription
+            ? null
+            : generateSuggestedDescription,
+        icon: const Icon(LucideIcons.sparkles, size: 17),
+        label: Text(
+          _isGeneratingDescription ? l10n.generatingLabel : l10n.suggestLabel,
+        ),
+      ),
+      child: _desktopInput(_desc, l10n.descriptionLabel, maxLines: 7),
+    );
+  }
+
+  Widget _buildDesktopActions(AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEADFE4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x102D1821),
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          if (_loading) ...[
+            LinearProgressIndicator(
+              value: _uploadProgress,
+              color: _desktopAccent,
+            ),
+            const SizedBox(height: 16),
+          ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              SizedBox(
+                height: 56,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    _runPriceEngine();
+                    await _submit();
+                  },
+                  icon: const Icon(LucideIcons.zap, size: 18),
+                  label: Text(l10n.sellInstantlyButtonLabel),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF177A48),
+                    side: const BorderSide(color: Color(0xFF9BCDB3)),
+                    padding: const EdgeInsets.symmetric(horizontal: 26),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              SizedBox(
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: (_loading || _isSubmitting) ? null : _submit,
+                  icon: const Icon(LucideIcons.check, size: 18),
+                  label: Text(
+                    isEdit ? l10n.updateProductTitle : l10n.addProductTitle,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _desktopAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactLayout(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Material(
       color: AppTheme.bg,

@@ -84,9 +84,24 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
     var shouldResetLoading = true;
 
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        'upsertService',
-      );
+      final functions = FirebaseFunctions.instanceFor(
+  region: 'us-central1',
+);
+
+final callable = functions.httpsCallable(
+  'upsertService',
+  options: HttpsCallableOptions(
+    timeout: const Duration(seconds: 30),
+  ),
+);
+
+debugPrint(
+  '🔥 UPSERT SERVICE REQUEST → '
+  'businessId=${widget.businessId}, '
+  'title=${widget.serviceTitle}, '
+  'price=$price (${price.runtimeType}), '
+  'duration=$_selectedDuration (${_selectedDuration.runtimeType})',
+);
 
       final res = await callable.call({
         "businessId": widget.businessId,
@@ -102,14 +117,32 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
       shouldResetLoading = false;
       FocusManager.instance.primaryFocus?.unfocus();
       _closePage();
-    } catch (e) {
-      debugPrint("❌ ERROR: $e");
+    } on FirebaseFunctionsException catch (e, stackTrace) {
+  debugPrint('❌ UPSERT FUNCTION CODE: ${e.code}');
+  debugPrint('❌ UPSERT FUNCTION MESSAGE: ${e.message}');
+  debugPrint('❌ UPSERT FUNCTION DETAILS: ${e.details}');
+  debugPrintStack(stackTrace: stackTrace);
 
-      if (!mounted) return;
+  if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        e.message ?? 'Service details could not be saved.',
+      ),
+    ),
+  );
+} catch (e, stackTrace) {
+  debugPrint('❌ UPSERT UNEXPECTED ERROR: $e');
+  debugPrintStack(stackTrace: stackTrace);
+
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Service details could not be saved.'),
+    ),
+  );
     } finally {
       if (shouldResetLoading && mounted) {
         setState(() => _loading = false);
