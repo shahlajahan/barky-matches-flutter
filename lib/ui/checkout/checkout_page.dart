@@ -13,6 +13,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/utils/carrier_mapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
+import 'package:barky_matches_fixed/ui/checkout/checkout_completion_guard.dart';
+import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CheckoutPage extends StatefulWidget {
@@ -28,6 +30,7 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   final _checkoutService = PetshopCheckoutService();
   final _orderService = OrderService();
+  final _completionGuard = CheckoutCompletionGuard();
 
   /// 📦 ADDRESS
   final _fullNameController = TextEditingController();
@@ -666,10 +669,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
             paymentStatus == 'failed' || orderStatus == 'payment_failed';
 
         if (paid) {
+          final sellerOrderId = _completionGuard.claimPaidSellerOrder(
+            paymentState,
+          );
+          if (sellerOrderId == null) {
+            _showError(AppLocalizations.of(context)!.processingLabel);
+            return;
+          }
+
           await widget.onPaymentVerified?.call();
           if (!mounted) return;
-          _showError(
-            AppLocalizations.of(context)!.checkoutPaymentCompletedSuccessfully,
+
+          await Navigator.of(context).pushReplacement(
+            MaterialPageRoute<void>(
+              builder: (_) => OrderDetailPage(sellerOrderId: sellerOrderId),
+            ),
           );
         } else if (failed) {
           _showError(
@@ -704,8 +718,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
       final data = Map<String, dynamic>.from(result.data as Map);
 
-      final success =
-          data["success"] == true && data["cartReconciled"] == true;
+      final success = data["success"] == true && data["cartReconciled"] == true;
       final pending = data["pending"] == true;
 
       if (success) {
@@ -882,36 +895,34 @@ class _CheckoutPageState extends State<CheckoutPage> {
               const SizedBox(height: 10),
 
               TextField(
-  controller: _phoneController,
-  keyboardType: TextInputType.phone,
-  inputFormatters: [
-    FilteringTextInputFormatter.digitsOnly,
-    LengthLimitingTextInputFormatter(10),
-  ],
-  decoration: _inputDecoration(
-    l10n.phoneLabel,
-    '5XX XXX XX XX',
-  ).copyWith(
-    prefixIcon: const Padding(
-      padding: EdgeInsets.only(left: 14, right: 8),
-      child: Center(
-        widthFactor: 1,
-        child: Text(
-          '+90',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF333333),
-          ),
-        ),
-      ),
-    ),
-    prefixIconConstraints: const BoxConstraints(
-      minWidth: 0,
-      minHeight: 0,
-    ),
-  ),
-),
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                decoration: _inputDecoration(l10n.phoneLabel, '5XX XXX XX XX')
+                    .copyWith(
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.only(left: 14, right: 8),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(
+                            '+90',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF333333),
+                            ),
+                          ),
+                        ),
+                      ),
+                      prefixIconConstraints: const BoxConstraints(
+                        minWidth: 0,
+                        minHeight: 0,
+                      ),
+                    ),
+              ),
               const SizedBox(height: 10),
 
               Row(

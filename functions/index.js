@@ -1097,21 +1097,6 @@ async function finalizeIsbankPaidOrder({
       }
     }
 
-    try {
-      await sendExternalOrderNotifications({
-        orderId,
-        orderData: effectiveOrderData,
-        source: "isbank3DPayHostingCallback",
-        paymentId: transId || authCode || orderId,
-        userId: effectiveOrderData.buyerUid || effectiveOrderData.userId || null,
-      });
-    } catch (error) {
-      logger.warn("isbank_external_notification_failed", {
-        orderId,
-        message: error?.message || String(error),
-      });
-    }
-
     await finalizeAppointmentAfterPaid({
       orderData: effectiveOrderData,
       orderId,
@@ -1204,6 +1189,29 @@ async function finalizeIsbankPaidOrder({
       completionResult.status === "completed" ||
       completionResult.status === "alreadyProcessed"
     ) {
+      try {
+        await sendExternalOrderNotifications({
+          orderId,
+          orderData: effectiveOrderData,
+          source: "isbank3DPayHostingCallback",
+          paymentId: transId || authCode || orderId,
+          userId:
+            effectiveOrderData.buyerUid ||
+            effectiveOrderData.userId ||
+            null,
+        });
+        logger.info("isbank_confirmation_email_dispatch_completed", {
+          orderId,
+          status: "completed",
+        });
+      } catch (error) {
+        logger.warn("isbank_confirmation_email_dispatch_failed", {
+          orderId,
+          status: "failed",
+          errorCode: error?.code || null,
+        });
+      }
+
       const cartReconciliation = await reconcilePaidMarketplaceCart(orderId);
       return {
         ...completionResult,
@@ -2128,6 +2136,7 @@ exports.isbank3DPayHostingCallback = onRequest(
     secrets: [
       ISBANK_STORE_KEY,
       ISBANK_CLIENT_ID,
+      resendApiKey,
       ORDER_EXTERNAL_NOTIFICATIONS_ENABLED,
     ],
   },
@@ -2305,6 +2314,35 @@ const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
     );
 
     if (existingProvider === "isbank" && existingPaymentStatus === "paid") {
+      try {
+        await reconcilePaidMarketplaceCart(orderId);
+      } catch (error) {
+        logger.warn("isbank_paid_cart_reconciliation_retry_failed", {
+          orderId,
+          status: "failed",
+          errorCode: error?.code || null,
+        });
+      }
+
+      try {
+        await sendExternalOrderNotifications({
+          orderId,
+          orderData,
+          source: "isbank3DPayHostingCallbackRetry",
+          paymentId:
+            orderData.payment?.transId ||
+            orderData.payment?.authCode ||
+            orderId,
+          userId: orderData.buyerUid || orderData.userId || null,
+        });
+      } catch (error) {
+        logger.warn("isbank_confirmation_email_retry_failed", {
+          orderId,
+          status: "failed",
+          errorCode: error?.code || null,
+        });
+      }
+
       res.status(200).send(
         buildIsbankCallbackHtml({
           orderId,
@@ -2677,18 +2715,43 @@ exports.readPaymentStatusByOrderId = onCall(
     }
 
     const orderRef = db.collection("orders").doc(orderId);
-    const orderSnap = await orderRef.get();
+    let orderSnap = await orderRef.get();
     if (!orderSnap.exists) {
       throw new HttpsError("not-found", "Order not found");
     }
 
-    const orderData = orderSnap.data() || {};
+    let orderData = orderSnap.data() || {};
     const buyerUid = orderData.buyerUid || orderData.userId || null;
     const isAdmin = await isAdminUser(db, auth.uid);
     const isOwner = buyerUid && String(buyerUid) === String(auth.uid);
 
     if (!isOwner && !isAdmin) {
       throw new HttpsError("permission-denied", "Not authorized to read this order");
+    }
+
+    const initiallyPaid =
+      normalizeLower(orderData.status || "") === "paid" &&
+      normalizeLower(
+        orderData.paymentStatus || orderData.payment?.status || ""
+      ) === "paid" &&
+      normalizeLower(orderData.payment?.finalizationStatus || "") ===
+        "completed";
+    const initiallyReconciled =
+      Number(orderData?.cartReconciliation?.version || 0) >= 1 &&
+      orderData?.cartReconciliation?.status === "completed";
+
+    if (initiallyPaid && !initiallyReconciled) {
+      try {
+        await reconcilePaidMarketplaceCart(orderId);
+        orderSnap = await orderRef.get();
+        orderData = orderSnap.data() || {};
+      } catch (error) {
+        logger.warn("isbank_paid_cart_reconciliation_poll_failed", {
+          orderId,
+          status: "failed",
+          errorCode: error?.code || null,
+        });
+      }
     }
 
     const provider = normalizeIsbankValue(
@@ -2715,6 +2778,9 @@ exports.readPaymentStatusByOrderId = onCall(
       paid,
       cartReconciled,
       finalizationStatus,
+      sellerOrderIds: Array.isArray(orderData.sellerOrderIds)
+        ? orderData.sellerOrderIds
+        : [],
       authCode: normalizeIsbankValue(orderData.payment?.authCode || ""),
       failureReason: normalizeIsbankValue(
         orderData.payment?.failureReason ||
