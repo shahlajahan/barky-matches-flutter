@@ -271,6 +271,7 @@ class Product {
       allowedCarrierCodes:
           (json['allowedCarrierCodes'] as List?)
               ?.map((e) => e.toString().toUpperCase())
+              .toSet()
               .toList() ??
           [],
 
@@ -426,14 +427,25 @@ class Product {
   }
 
   bool isFreeShipping(double cartTotal) {
-    if (freeShippingThreshold == null) return false;
-    return cartTotal >= freeShippingThreshold!;
+    if (shippingMode == 'free_shipping' ||
+        shippingMode == 'seller_absorbs' ||
+        shippingPayer == 'seller') {
+      return true;
+    }
+    return allowFreeShipping &&
+        freeShippingThreshold != null &&
+        freeShippingThreshold! > 0 &&
+        cartTotal >= freeShippingThreshold!;
   }
 
   double getShippingCost(double cartTotal) {
     if (isFreeShipping(cartTotal)) return 0;
-    return shippingFee ?? 0;
+    if (shippingMode == 'fixed_price') return shippingFee ?? 0;
+    return 0;
   }
+
+  bool get requiresCarrierEstimate =>
+      shippingMode == null || shippingMode == 'carrier_calculated';
 
   bool get requiresShippingDimensions {
     return isShippable && deliveryType == 'cargo';

@@ -28,6 +28,8 @@ import '../../../app_state.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'product_save_plan.dart';
+import 'product_submit_exception.dart';
 
 class AddProductPage extends StatefulWidget {
   final String businessId;
@@ -1242,233 +1244,274 @@ class _AddProductPageState extends State<AddProductPage> {
 
     try {
       final firestore = FirebaseFirestore.instance;
-      final authUid = FirebaseAuth.instance.currentUser?.uid;
-      final businessId = authUid ?? widget.businessId;
+      final authUser = FirebaseAuth.instance.currentUser;
+      final authUid = authUser?.uid;
+      final businessId = widget.businessId.trim();
 
       debugPrint("👤 auth uid = ${authUid ?? 'null'}");
       debugPrint("🏪 widget.businessId = ${widget.businessId}");
       debugPrint("🧭 resolved businessId = $businessId");
 
-      if (authUid != null && widget.businessId != authUid) {
-        debugPrint(
-          "⚠️ businessId mismatch → widget=${widget.businessId} auth=$authUid",
-        );
-      }
-
       if (authUid == null) {
-        throw Exception("Missing authenticated business uid");
+        throw const ProductSubmitException('unauthenticated');
+      }
+      if (businessId.isEmpty) {
+        throw const ProductSubmitException('business-not-found');
       }
 
       final rawSku = _sku.text.trim().toUpperCase();
       final sku = rawSku.replaceAll(" ", "-");
       final barcode = _barcode.text.trim();
-      final docId = "${businessId}_$sku";
+      final savePlan = ProductSavePlan.resolve(
+        businessId: businessId,
+        normalizedSku: sku,
+        originalProductId: widget.existingProduct?.id,
+      );
+      final targetProductId = savePlan.targetProductId;
+      final originalProductId = savePlan.originalProductId;
 
       debugPrint("📦 businessId = $businessId");
       debugPrint("📦 sku = $sku");
       debugPrint("📦 barcode = $barcode");
-      debugPrint("📦 docId = $docId");
+      debugPrint("📦 targetProductId = $targetProductId");
+      debugPrint("📦 originalProductId = ${originalProductId ?? 'none'}");
+      debugPrint("📦 operation = ${savePlan.mode.name}");
 
-      final docRef = firestore
+      final businessRef = firestore.collection("businesses").doc(businessId);
+      final businessDoc = await businessRef.get();
+      if (!businessDoc.exists) {
+        throw const ProductSubmitException('business-not-found');
+      }
+      final businessData = businessDoc.data() ?? <String, dynamic>{};
+      final ownerUid = businessData['ownerUid']?.toString().trim();
+      final contact = businessData['contact'];
+      final contactEmail = contact is Map
+          ? contact['email']?.toString().trim().toLowerCase()
+          : null;
+      final authEmail = authUser?.email?.trim().toLowerCase();
+      final userDoc = await firestore.collection('users').doc(authUid).get();
+      final isAdmin = userDoc.data()?['role'] == 'admin';
+      final isAuthorized = isAuthorizedBusinessEditor(
+        authUid: authUid,
+        authEmail: authEmail,
+        ownerUid: ownerUid,
+        contactEmail: contactEmail,
+        isAdmin: isAdmin,
+      );
+      if (!isAuthorized) {
+        throw const ProductSubmitException('permission-denied');
+      }
+      if (isEdit && widget.existingProduct!.businessId != businessId) {
+        throw const ProductSubmitException('permission-denied');
+      }
+
+      final mediaItems = _media.isNotEmpty
+          ? await _uploadMedia()
+          : widget.existingProduct?.media ?? <ProductMedia>[];
+
+      final fixedDesiValue = double.tryParse(
+        _fixedDesi.text.replaceAll(",", "."),
+      );
+      final lengthValue =
+          double.tryParse(_lengthCm.text.replaceAll(",", ".")) ?? 0;
+      final widthValue =
+          double.tryParse(_widthCm.text.replaceAll(",", ".")) ?? 0;
+      final heightValue =
+          double.tryParse(_heightCm.text.replaceAll(",", ".")) ?? 0;
+      final calculatedDesiValue =
+          (lengthValue * widthValue * heightValue) / 3000;
+      final finalDesi = fixedDesiValue != null && fixedDesiValue > 0
+          ? fixedDesiValue
+          : calculatedDesiValue;
+      final allowedCarrierCodes = normalizeCarrierCodes(_selectedCarriers);
+      final now = Timestamp.now();
+      final businessCity = (businessData['contact'] as Map?)?['city'];
+      final businessName = (businessData['profile'] as Map?)?['displayName'];
+      final businessLogo = (businessData['profile'] as Map?)?['logoUrl'];
+
+      final product = Product(
+        id: targetProductId,
+        businessId: businessId,
+        name: _name.text.trim(),
+        description: _desc.text.trim(),
+        price: double.parse(_price.text.trim().replaceAll(",", ".")),
+        currency: _currency,
+        salePrice: _hasDiscount && _salePrice.text.trim().isNotEmpty
+            ? double.tryParse(_salePrice.text.trim().replaceAll(",", "."))
+            : null,
+        wholesalePrice: _wholesalePrice.text.trim().isNotEmpty
+            ? double.tryParse(_wholesalePrice.text.trim().replaceAll(",", "."))
+            : null,
+        kdvRate: _kdvRate,
+        media: mediaItems,
+        stock: int.tryParse(_stock.text.trim()) ?? 0,
+        minStock: _minStock.text.trim().isNotEmpty
+            ? int.tryParse(_minStock.text.trim())
+            : null,
+        category: "$_mainCategory > $_subCategory",
+        brand: _brand.text.trim().isNotEmpty ? _brand.text.trim() : null,
+        sku: sku,
+        barcode: barcode.isEmpty ? null : barcode,
+        isActive: true,
+        weightKg: parseNum(_weightKg.text),
+        lengthCm: parseNum(_lengthCm.text),
+        widthCm: parseNum(_widthCm.text),
+        heightCm: parseNum(_heightCm.text),
+        fixedDesi: finalDesi,
+        originCity: businessCity?.toString(),
+        shippingMode: _shippingMode,
+        shippingPayer: _shippingPayer,
+        shippingFee: parseNum(_shippingFee.text),
+        freeShippingThreshold: parseNum(_freeShippingThreshold.text),
+        preparationDays: int.tryParse(_prepDays.text),
+        maxDeliveryDays: int.tryParse(_maxDeliveryDays.text),
+        allowFreeShipping: _allowFreeShipping,
+        allowPickup: _allowPickup,
+        allowSameDay: _allowSameDay,
+        isFragile: _isFragile,
+        isPerishable: _isPerishable,
+        isOversize: _isOversize,
+        taxIncluded: true,
+        allowReturns: _allowReturns,
+        returnWindowDays: int.tryParse(_returnWindowDays.text),
+        returnShippingPayer: _returnShippingPayer,
+        hasContractedReturnCarrier: _hasContractedReturnCarrier,
+        returnCarrierCode: _selectedReturnCarrier,
+        allowedCarrierCodes: allowedCarrierCodes,
+        excludedCities: List<String>.from(_excludedCities),
+        businessName: businessName?.toString(),
+        businessLogo: businessLogo?.toString(),
+        createdAt: preserveCreatedAt(widget.existingProduct?.createdAt, now),
+        updatedAt: now,
+      );
+      final productPayload = Map<String, dynamic>.unmodifiable(
+        product.toJson(),
+      );
+
+      final targetRef = firestore
           .collection("businesses")
           .doc(businessId)
           .collection("products")
-          .doc(docId);
+          .doc(targetProductId);
+      final originalRef = originalProductId == null
+          ? null
+          : firestore
+                .collection("businesses")
+                .doc(businessId)
+                .collection("products")
+                .doc(originalProductId);
       debugPrint(
-        "🧭 Firestore product path = businesses/$businessId/products/$docId",
+        "🧭 Firestore product path = "
+        "businesses/$businessId/products/$targetProductId",
       );
-
-      // 🚚 ENSURE SHIPPING PREVIEW IS READY
-      if (_shippingPreview == null) {
-        _updateShippingPreview();
-      }
 
       debugPrint("🧠 BEFORE TRANSACTION");
 
       await firestore.runTransaction((tx) async {
-        debugPrint("🔥 TRANSACTION START");
-
-        final existingSkuDoc = await tx.get(docRef);
-        debugPrint("📦 exists = ${existingSkuDoc.exists}");
-
-        if (existingSkuDoc.exists &&
-            (!isEdit || widget.existingProduct?.id != docId)) {
-          throw Exception("SKU already exists ⚠️");
+        if (savePlan.mode == ProductWriteMode.create) {
+          final targetSnapshot = await tx.get(targetRef);
+          if (targetSnapshot.exists) {
+            throw const ProductSubmitException('sku-collision');
+          }
+          tx.set(targetRef, productPayload);
+          return;
         }
 
-        final mediaItems = _media.isNotEmpty
-            ? await _uploadMedia()
-            : widget.existingProduct?.media ?? [];
+        final originalSnapshot = await tx.get(originalRef!);
+        if (!originalSnapshot.exists ||
+            originalSnapshot.data()?['businessId'] != businessId) {
+          throw const ProductSubmitException('original-product-missing');
+        }
 
-        final fixedDesiValue = double.tryParse(
-          _fixedDesi.text.replaceAll(",", "."),
-        );
+        if (savePlan.mode == ProductWriteMode.sameIdEdit) {
+          tx.set(originalRef, productPayload);
+          return;
+        }
 
-        final lengthValue =
-            double.tryParse(_lengthCm.text.replaceAll(",", ".")) ?? 0;
+        final targetSnapshot = await tx.get(targetRef);
+        if (targetSnapshot.exists) {
+          throw const ProductSubmitException('sku-collision');
+        }
+        tx.set(targetRef, productPayload);
+        tx.delete(originalRef);
+      });
 
-        final widthValue =
-            double.tryParse(_widthCm.text.replaceAll(",", ".")) ?? 0;
+      debugPrint("✅ TRANSACTION SUCCESS");
 
-        final heightValue =
-            double.tryParse(_heightCm.text.replaceAll(",", ".")) ?? 0;
-
-        final calculatedDesiValue =
-            (lengthValue * widthValue * heightValue) / 3000;
-
-        final finalDesi = (fixedDesiValue != null && fixedDesiValue > 0)
-            ? fixedDesiValue
-            : calculatedDesiValue;
-
-        debugPrint("📦 FINAL DESI = $finalDesi");
-        // 🏪 GET BUSINESS DATA
-        final businessDoc = await FirebaseFirestore.instance
-            .collection('businesses')
-            .doc(businessId)
-            .get();
-        final businessData = businessDoc.data();
-
-        final businessCity = businessData?['contact']?['city'];
-        final businessName = businessData?['profile']?['displayName'];
-        final businessLogo = businessData?['profile']?['logoUrl'];
-
-        debugPrint("🚨 FINAL CARRIERS BEFORE SAVE: $_selectedCarriers");
-
-        final product = Product(
-          id: docId,
-
-          businessId: businessId,
-
-          // 🔥 core
-          name: _name.text.trim(),
-          description: _desc.text.trim(),
-          price: double.parse(_price.text.trim().replaceAll(",", ".")),
-          currency: _currency,
-
-          // 🔥 pricing
-          salePrice: _hasDiscount && _salePrice.text.trim().isNotEmpty
-              ? double.tryParse(_salePrice.text.trim().replaceAll(",", "."))
-              : null,
-          wholesalePrice: _wholesalePrice.text.trim().isNotEmpty
-              ? double.tryParse(
-                  _wholesalePrice.text.trim().replaceAll(",", "."),
-                )
-              : null,
-          kdvRate: _kdvRate,
-
-          // 🔥 media
-          media: mediaItems,
-
-          // 🔥 inventory
-          stock: int.tryParse(_stock.text.trim()) ?? 0,
-          minStock: _minStock.text.trim().isNotEmpty
-              ? int.tryParse(_minStock.text.trim())
-              : null,
-
-          // 🔥 classification
-          category: "$_mainCategory > $_subCategory",
-          brand: _brand.text.trim().isNotEmpty ? _brand.text.trim() : null,
-
-          // 🔥 identifiers
-          sku: sku,
-          barcode: barcode.isEmpty ? null : barcode,
-
-          // 🔥 status
-          isActive: true,
-
-          // 🔥 shipping dimensions
-          weightKg: parseNum(_weightKg.text),
-          lengthCm: parseNum(_lengthCm.text),
-          widthCm: parseNum(_widthCm.text),
-          heightCm: parseNum(_heightCm.text),
-          fixedDesi: finalDesi,
-
-          originCity: businessCity,
-
-          // 🔥 shipping pricing
-          shippingMode: _shippingMode,
-          shippingPayer: _shippingPayer,
-          shippingFee: parseNum(_shippingFee.text),
-          freeShippingThreshold: parseNum(_freeShippingThreshold.text),
-
-          // 🔥 delivery timing
-          preparationDays: int.tryParse(_prepDays.text),
-          maxDeliveryDays: int.tryParse(_maxDeliveryDays.text),
-
-          // 🔥 shipping options
-          allowFreeShipping: _allowFreeShipping,
-          allowPickup: _allowPickup,
-          allowSameDay: _allowSameDay,
-
-          isFragile: _isFragile,
-          isPerishable: _isPerishable,
-          isOversize: _isOversize,
-
-          taxIncluded: true,
-
-          // 🔥 returns
-          allowReturns: _allowReturns,
-          returnWindowDays: int.tryParse(_returnWindowDays.text),
-          returnShippingPayer: _returnShippingPayer,
-          hasContractedReturnCarrier: _hasContractedReturnCarrier,
-          returnCarrierCode: _selectedReturnCarrier,
-
-          // ✅ FIXED
-          allowedCarrierCodes: _selectedCarriers
-              .map((e) => e.toUpperCase())
-              .toSet()
-              .toList(),
-
-          excludedCities: _excludedCities,
-          // 🔥 business snapshot
-          businessName: businessName,
-          businessLogo: businessLogo,
-
-          // 🔥 timestamps
-          createdAt: isEdit
-              ? widget.existingProduct?.createdAt ?? Timestamp.now()
-              : Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        );
-        debugPrint("🧪 DOC PATH = businesses/$businessId/products/$docId");
-        debugPrint("🧪 PRODUCT ID = ${product.id}");
-        debugPrint("🧪 PRODUCT JSON = ${product.toJson()}");
-        tx.set(docRef, product.toJson());
-        // 🔥 SAVE TO GLOBAL (VERY IMPORTANT)
-        if (barcode.isNotEmpty) {
-          try {
+      if (barcode.isNotEmpty) {
+        final synchronized = await runProductSecondarySync(
+          () async {
             await FirebaseFunctions.instance
                 .httpsCallable('saveGlobalProduct')
                 .call({
                   "code": barcode,
                   "data": {
-                    "name": _name.text,
-                    "brand": _brand.text,
-                    "category": "$_mainCategory > $_subCategory",
+                    "name": product.name,
+                    "brand": product.brand,
+                    "category": product.category,
                     "imageUrl": mediaItems.isNotEmpty
                         ? mediaItems.first.originalUrl
                         : null,
-                    "attributes": {"weightKg": parseNum(_weightKg.text)},
+                    "attributes": {"weightKg": product.weightKg},
                   },
                 });
-
-            debugPrint("🌍 GLOBAL PRODUCT UPDATED");
-          } catch (e) {
-            debugPrint("❌ GLOBAL SAVE ERROR: $e");
-          }
-        }
-      });
-
-      debugPrint("✅ TRANSACTION SUCCESS");
+          },
+          onError: (error, stackTrace) {
+            debugPrint(
+              "⚠️ GLOBAL PRODUCT SYNC FAILED AFTER PRIMARY SAVE: $error",
+            );
+            debugPrintStack(stackTrace: stackTrace);
+          },
+        );
+        debugPrint(
+          synchronized
+              ? "🌍 GLOBAL PRODUCT UPDATED"
+              : "⚠️ PRIMARY PRODUCT SAVED; GLOBAL SYNC PENDING",
+        );
+      }
 
       if (!mounted) return;
 
       _snack(AppLocalizations.of(context)!.productSavedStatus);
       context.read<AppState>().closeBusinessSubPage();
     } catch (e, stack) {
-      debugPrint("💥 SUBMIT ERROR: $e");
+      final authUid = FirebaseAuth.instance.currentUser?.uid;
+      final businessId = widget.businessId.trim();
+      final normalizedSku = _sku.text.trim().toUpperCase().replaceAll(" ", "-");
+      final savePlan = normalizedSku.isEmpty || businessId.isEmpty
+          ? null
+          : ProductSavePlan.resolve(
+              businessId: businessId,
+              normalizedSku: normalizedSku,
+              originalProductId: widget.existingProduct?.id,
+            );
+      debugPrint("💥 SUBMIT ERROR: ${e.runtimeType}");
+      if (e is FirebaseException) {
+        debugPrint("📛 FIREBASE CODE: ${e.code}");
+        debugPrint("📛 FIREBASE MESSAGE: ${e.message}");
+      } else {
+        debugPrint("📛 MESSAGE: $e");
+      }
+      debugPrint("👤 authenticated=${authUid != null}");
+      debugPrint("🏪 attemptedBusinessId=$businessId");
+      debugPrint(
+        "📦 originalProductId=${widget.existingProduct?.id ?? 'none'}",
+      );
+      debugPrint(
+        "📦 targetProductId=${savePlan?.targetProductId ?? 'unresolved'}",
+      );
+      debugPrint("🧭 operation=${savePlan?.mode.name ?? 'unresolved'}");
       debugPrint("📍 STACK: $stack");
-      _snack(e.toString());
+      final l10n = AppLocalizations.of(context)!;
+      final errorCode = e is ProductSubmitException ? e.code : null;
+      final message = switch (errorCode) {
+        'permission-denied' || 'unauthenticated' => l10n.accessDenied,
+        'business-not-found' => l10n.businessNotFound,
+        'sku-collision' => l10n.productAlreadyExistsTitle,
+        'original-product-missing' => l10n.businessNotFound,
+        _ => l10n.somethingWentWrong,
+      };
+      _snack(message, isError: true);
     } finally {
       if (mounted) {
         setState(() {

@@ -9,8 +9,10 @@ void main() {
     for (final url in [
       'https://app.petsupo.com/isbank/3d-success?oid=$orderId',
       'https://app.petsupo.com/isbank/3d-success/?oid=$orderId',
+      'https://barkymatches-new.firebaseapp.com/isbank/3d-success?oid=$orderId',
       'https://isbank3dsuccessreturn-tj6s667gfq-ey.a.run.app/isbank/3d-success?oid=$orderId',
       'https://europe-west3-barkymatches-new.cloudfunctions.net/isbank3DSuccessReturn?oid=$orderId',
+      'https://app.petsupo.com/redirect/isbank/3D-SUCCESS?oid=$orderId',
       'https://app.petsupo.com/?webSubscriptionReturn=success&oid=$orderId',
     ]) {
       expect(
@@ -35,7 +37,7 @@ void main() {
     }
   });
 
-  test('rejects untrusted hosts and mismatched orders', () {
+  test('rejects untrusted hosts', () {
     expect(
       classifyIsbankReturnNavigation(
         'https://example.com/isbank/3d-success?oid=$orderId',
@@ -43,12 +45,15 @@ void main() {
       ),
       IsbankReturnNavigation.none,
     );
+  });
+
+  test('return oid never becomes local proof of payment', () {
     expect(
       classifyIsbankReturnNavigation(
-        'https://app.petsupo.com/isbank/3d-success?oid=other',
+        'https://app.petsupo.com/isbank/3d-success?oid=normalized-by-bank',
         expectedOrderId: orderId,
       ),
-      IsbankReturnNavigation.none,
+      IsbankReturnNavigation.success,
     );
   });
 }

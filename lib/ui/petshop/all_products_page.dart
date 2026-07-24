@@ -191,40 +191,71 @@ class _AllProductsPageState extends State<AllProductsPage> {
         .collection('cart')
         .get();
 
+    final restoredItems = await Future.wait(
+      snapshot.docs.map((doc) async {
+        final data = doc.data();
+        final productId = data['productId']?.toString() ?? doc.id;
+        final shopId = data['shopId']?.toString() ?? '';
+        Map<String, dynamic>? productData;
+
+        final cachedProduct = data['product'];
+        if (cachedProduct is Map) {
+          productData = Map<String, dynamic>.from(cachedProduct);
+        }
+        if (shopId.isNotEmpty && productId.isNotEmpty) {
+          final productSnapshot = await FirebaseFirestore.instance
+              .collection('businesses')
+              .doc(shopId)
+              .collection('products')
+              .doc(productId)
+              .get();
+          if (productSnapshot.exists) {
+            productData = productSnapshot.data();
+          }
+        }
+
+        final price = (data['price'] as num?)?.toDouble() ?? 0;
+        final product = productData != null
+            ? Product.fromJson(productId, productData)
+            : Product(
+                id: productId,
+                name: data['name']?.toString() ?? '',
+                description: '',
+                price: price,
+                currency: 'TRY',
+                businessId: shopId,
+                media: const [],
+                stock: 0,
+                category: 'general',
+                isActive: true,
+                shippingMode: data['shippingMode']?.toString(),
+                shippingPayer: data['shippingPayer']?.toString(),
+                shippingFee: (data['shippingFee'] as num?)?.toDouble(),
+                freeShippingThreshold: (data['freeShippingThreshold'] as num?)
+                    ?.toDouble(),
+                allowFreeShipping: data['allowFreeShipping'] == true,
+                allowedCarrierCodes: List<String>.from(
+                  data['allowedCarrierCodes'] ?? const [],
+                ),
+              );
+
+        return CartItem(
+          productId: productId,
+          product: product,
+          shopId: shopId,
+          name: data['name']?.toString() ?? product.name,
+          price: price,
+          quantity: (data['quantity'] as num?)?.toInt() ?? 1,
+          allowedCarrierCodes: product.allowedCarrierCodes,
+        );
+      }),
+    );
+
     if (!mounted) return;
     setState(() {
-      _cart.clear();
-
-      _cart.addAll(
-        snapshot.docs.map((doc) {
-          final data = doc.data();
-
-          final price = (data['price'] as num).toDouble();
-
-          // 🔥 ساخت Product فیک ولی valid
-          final product = Product(
-            id: data['productId'],
-            name: data['name'],
-            description: '',
-            price: price,
-            currency: 'TRY', // 🔥 اینو اضافه کن
-            businessId: data['shopId'],
-            media: [],
-            stock: 0, // 👈 اینم چون requiredه
-            category: 'general', // 👈 اینم requiredه
-            isActive: true, // 👈 اینم requiredه
-          );
-
-          return CartItem(
-            productId: data['productId'],
-            product: product, // ✅ دیگه null نیست
-            shopId: data['shopId'],
-            name: data['name'],
-            price: price,
-            quantity: data['quantity'],
-          );
-        }),
-      );
+      _cart
+        ..clear()
+        ..addAll(restoredItems);
     });
   }
 
@@ -505,6 +536,18 @@ class _AllProductsPageState extends State<AllProductsPage> {
         "price": item.price,
         "quantity": item.quantity,
         "shopId": item.shopId,
+        "shippingMode": item.product.shippingMode,
+        "shippingPayer": item.product.shippingPayer,
+        "shippingFee": item.product.shippingFee,
+        "freeShippingThreshold": item.product.freeShippingThreshold,
+        "allowFreeShipping": item.product.allowFreeShipping,
+        "allowedCarrierCodes": item.product.allowedCarrierCodes,
+        "weightKg": item.product.weightKg,
+        "lengthCm": item.product.lengthCm,
+        "widthCm": item.product.widthCm,
+        "heightCm": item.product.heightCm,
+        "fixedDesi": item.product.fixedDesi,
+        "product": item.product.toJson(),
         "updatedAt": FieldValue.serverTimestamp(),
       });
     }

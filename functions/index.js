@@ -88,6 +88,9 @@ const {
   positiveNumber: positiveFinancialNumber,
 } = require("./commission/paymentFinancialSnapshot");
 const webSubscriptionCore = require("./subscription/webSubscriptionCore");
+const {
+  calculateMarketplaceShipping,
+} = require("./shipping/marketplaceShipping");
 
 const { Resend } = require("resend");
 
@@ -4277,47 +4280,26 @@ async function uploadReturnImagesToStorage({
 }
 
 function calculateShippingForItem({ item, config, selectedCarrier }) {
-  const quantity = Math.max(1, asNumber(item.quantity, 1));
-  const weightKg = asNumber(item.weightKg, 0);
-  const lengthCm = asNumber(item.lengthCm, 0);
-  const widthCm = asNumber(item.widthCm, 0);
-  const heightCm = asNumber(item.heightCm, 0);
-
-  const desi = calcDesi(lengthCm, widthCm, heightCm);
-
-  const basePrice = asNumber(config.basePrice, 0);
-  const pricePerKg = asNumber(config.pricePerKg, 0);
-  const pricePerDesi = asNumber(config.pricePerDesi, 0);
-  const freeShippingThreshold = asNumber(config.freeShippingThreshold, 0);
-
-  const itemUnitPrice = asNumber(item.price, 0);
-  const itemSubtotal = roundMoney(itemUnitPrice * quantity);
-
-  if (freeShippingThreshold > 0 && itemSubtotal >= freeShippingThreshold) {
-    return {
-      shippingFeeTotal: 0,
-      desi,
-      chargeableWeightKg: weightKg,
-      carrierApplied: selectedCarrier || null,
-    };
+  const shipping = calculateMarketplaceShipping({
+    product: item.productData || item,
+    config,
+    quantity: item.quantity,
+    unitPrice: item.price,
+    selectedCarrier,
+  });
+  if (!shipping.available) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Shipping unavailable: ${shipping.reason}`
+    );
   }
-
-  let shippingOneUnit = basePrice;
-
-  if (weightKg > 1) {
-    shippingOneUnit += (weightKg - 1) * pricePerKg;
-  }
-
-  if (desi > 1) {
-    shippingOneUnit += (desi - 1) * pricePerDesi;
-  }
-
-  const shippingFeeTotal = roundMoney(shippingOneUnit * quantity);
-
   return {
-    shippingFeeTotal,
-    desi,
-    chargeableWeightKg: weightKg,
+    shippingFeeTotal: shipping.buyerShippingTotal,
+    sellerShippingCostTotal: shipping.sellerShippingCostTotal,
+    shippingMode: shipping.mode,
+    shippingMethod: shipping.method,
+    desi: shipping.desi,
+    chargeableWeightKg: asNumber(item.weightKg, 0),
     carrierApplied: selectedCarrier || null,
   };
 }
@@ -11831,13 +11813,6 @@ exports.createCheckoutSession = onCall(
           exists: configSnap.exists,
         });
 
-        if (!configSnap.exists) {
-          throw new HttpsError(
-            "failed-precondition",
-            `Missing shipping config for business ${businessId}`
-          );
-        }
-
         const config = configSnap.data() || {};
 
         let sellerSubtotal = 0;
@@ -11993,6 +11968,8 @@ exports.createCheckoutSession = onCall(
               lengthCm,
               widthCm,
               heightCm,
+              fixedDesi: productData.fixedDesi,
+              productData,
             },
             config,
             selectedCarrier,
@@ -12003,7 +11980,9 @@ exports.createCheckoutSession = onCall(
           taxTotal += itemTaxTotal;
           totalCommission += itemCommission;
           sellerSubtotal += itemSubtotal;
-          sellerShippingTotal += shippingCalc.shippingFeeTotal;
+          sellerShippingTotal +=
+            shippingCalc.sellerShippingCostTotal ??
+            shippingCalc.shippingFeeTotal;
           sellerTaxTotal += itemTaxTotal;
 
           normalizedItems.push({
@@ -12028,6 +12007,10 @@ exports.createCheckoutSession = onCall(
             // totals
             lineTotal: roundMoney(itemSubtotal + itemTaxTotal),
             shippingFeeTotal: shippingCalc.shippingFeeTotal,
+            sellerShippingCostTotal:
+              shippingCalc.sellerShippingCostTotal,
+            shippingMode: shippingCalc.shippingMode,
+            shippingMethod: shippingCalc.shippingMethod,
 
             // shipping snapshot
             carrier: shippingCalc.carrierApplied,
@@ -16328,17 +16311,18 @@ exports.createMarketplaceOrderV2 = onCall(
     const payment = data.payment || {};
     const legal = data.legal || {};
     const currency = data.currency || "TRY";
-    const items = Array.isArray(data.items) ? data.items : [];
+    const rawItems = Array.isArray(data.items) ? data.items : [];
+    const selectedCarrier = normalizeCarrier(data.carrier || "");
 
     let rootSubtotal = 0;
     let rootShippingTotal = 0;
     let rootTaxTotal = 0;
 
-    if (items.length === 0) {
+    if (rawItems.length === 0) {
       throw new HttpsError("invalid-argument", "Items are required.");
     }
 
-    const invalidItem = items.find(
+    const invalidItem = rawItems.find(
       (item) =>
         !item ||
         !item.shopId ||
@@ -16383,6 +16367,87 @@ exports.createMarketplaceOrderV2 = onCall(
         "invalid-argument",
         "name and surname are required for invoice."
       );
+    }
+
+    const shippingConfigByBusiness = new Map();
+    const items = [];
+    for (const rawItem of rawItems) {
+      const businessId = String(rawItem.shopId || "").trim();
+      const productId = String(rawItem.productId || "").trim();
+      const quantity = Math.max(1, Math.floor(asNumber(rawItem.quantity, 1)));
+      const productSnap = await db
+        .collection("businesses")
+        .doc(businessId)
+        .collection("products")
+        .doc(productId)
+        .get();
+      if (!productSnap.exists) {
+        throw new HttpsError("not-found", `Product not found: ${productId}`);
+      }
+      const productData = productSnap.data() || {};
+      if (String(productData.businessId || businessId) !== businessId) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Product business mismatch: ${productId}`
+        );
+      }
+
+      if (!shippingConfigByBusiness.has(businessId)) {
+        const configSnap = await db
+          .collection("shipping_configs")
+          .doc(businessId)
+          .get();
+        shippingConfigByBusiness.set(
+          businessId,
+          configSnap.exists ? configSnap.data() || {} : {}
+        );
+      }
+
+      const unitPrice = asNumber(
+        productData.salePrice || productData.price,
+        0
+      );
+      if (unitPrice <= 0) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Invalid product price: ${productId}`
+        );
+      }
+      const shipping = calculateShippingForItem({
+        item: {
+          quantity,
+          price: unitPrice,
+          weightKg: productData.weightKg,
+          lengthCm: productData.lengthCm,
+          widthCm: productData.widthCm,
+          heightCm: productData.heightCm,
+          fixedDesi: productData.fixedDesi,
+          productData,
+        },
+        config: shippingConfigByBusiness.get(businessId),
+        selectedCarrier,
+      });
+
+      items.push({
+        ...rawItem,
+        shopId: businessId,
+        businessId,
+        productId,
+        name: normalizeText(productData.name || rawItem.name || "Product"),
+        quantity,
+        price: unitPrice,
+        unitPrice,
+        kdvRate: asNumber(productData.kdvRate ?? productData.taxRate ?? 0),
+        shippingFeeTotal: shipping.shippingFeeTotal,
+        sellerShippingCostTotal: shipping.sellerShippingCostTotal,
+        shippingMode: shipping.shippingMode,
+        shippingMethod: shipping.shippingMethod,
+        weightKg: productData.weightKg ?? null,
+        lengthCm: productData.lengthCm ?? null,
+        widthCm: productData.widthCm ?? null,
+        heightCm: productData.heightCm ?? null,
+        fixedDesi: productData.fixedDesi ?? null,
+      });
     }
 
     const counterRef = db.collection("counters").doc("orderCounter");
@@ -19777,13 +19842,6 @@ exports.calculatePricing = onCall(
         const configRef = db.collection("shipping_configs").doc(businessId);
         const configSnap = await configRef.get();
 
-        if (!configSnap.exists) {
-          throw new HttpsError(
-            "failed-precondition",
-            `Missing shipping config for ${businessId}`
-          );
-        }
-
         const config = configSnap.data() || {};
 
         for (const rawItem of sellerItems) {
@@ -19820,6 +19878,8 @@ exports.calculatePricing = onCall(
               lengthCm: product.lengthCm || 0,
               widthCm: product.widthCm || 0,
               heightCm: product.heightCm || 0,
+              fixedDesi: product.fixedDesi,
+              productData: product,
             },
             config,
             selectedCarrier,

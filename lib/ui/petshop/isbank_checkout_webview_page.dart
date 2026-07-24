@@ -16,6 +16,7 @@ IsbankReturnNavigation classifyIsbankReturnNavigation(
   final isConfiguredHost =
       host == 'app.petsupo.com' ||
       host == 'barkymatches-new.web.app' ||
+      host == 'barkymatches-new.firebaseapp.com' ||
       (host.endsWith('.a.run.app') &&
           (host.startsWith('isbank3dsuccessreturn-') ||
               host.startsWith('isbank3dfailreturn-'))) ||
@@ -24,25 +25,24 @@ IsbankReturnNavigation classifyIsbankReturnNavigation(
     return IsbankReturnNavigation.none;
   }
 
-  final callbackOrderId = uri.queryParameters['oid'];
-  if (callbackOrderId != null &&
-      callbackOrderId.isNotEmpty &&
-      callbackOrderId != expectedOrderId) {
+  // The URL only closes the hosted checkout. It never confirms payment; the
+  // caller verifies [expectedOrderId] against the backend after this page
+  // closes. Do not let an absent or normalized callback oid make Android load
+  // the Firebase Hosting return page.
+  if (expectedOrderId.isEmpty) {
     return IsbankReturnNavigation.none;
   }
 
-  final normalizedPath = uri.path.length > 1 && uri.path.endsWith('/')
-      ? uri.path.substring(0, uri.path.length - 1)
-      : uri.path;
-  final webReturn = uri.queryParameters['webSubscriptionReturn'];
+  final normalizedPath = uri.path.replaceAll(RegExp(r'/+$'), '').toLowerCase();
+  final webReturn = uri.queryParameters['webSubscriptionReturn']?.toLowerCase();
 
-  if (normalizedPath == '/isbank/3d-success' ||
-      normalizedPath == '/isbank3DSuccessReturn' ||
+  if (normalizedPath.endsWith('/isbank/3d-success') ||
+      normalizedPath.endsWith('/isbank3dsuccessreturn') ||
       webReturn == 'success') {
     return IsbankReturnNavigation.success;
   }
-  if (normalizedPath == '/isbank/3d-fail' ||
-      normalizedPath == '/isbank3DFailReturn' ||
+  if (normalizedPath.endsWith('/isbank/3d-fail') ||
+      normalizedPath.endsWith('/isbank3dfailreturn') ||
       webReturn == 'fail') {
     return IsbankReturnNavigation.failure;
   }
@@ -129,6 +129,12 @@ class _IsbankCheckoutWebViewPageState extends State<IsbankCheckoutWebViewPage> {
             if (_handleReturnNavigation(url)) return;
             if (mounted) {
               setState(() => _isLoading = false);
+            }
+          },
+          onUrlChange: (change) {
+            final url = change.url;
+            if (url != null) {
+              _handleReturnNavigation(url);
             }
           },
           onWebResourceError: (error) {

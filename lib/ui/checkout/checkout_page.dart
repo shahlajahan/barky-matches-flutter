@@ -59,6 +59,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   bool _loading = false;
   bool _pricingLoading = true;
+  Object? _pricingError;
 
   double get subtotal {
     return widget.items.fold<double>(
@@ -66,6 +67,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       (sum, item) => sum + item.price * item.quantity,
     );
   }
+
+  bool get _requiresCarrierSelection =>
+      widget.items.any((item) => item.product.requiresCarrierEstimate);
 
   double backendSubtotal = 0;
   double backendShipping = 0;
@@ -143,9 +147,24 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    final carriers = widget.items.first.product.allowedCarrierCodes ?? [];
-
-    availableCarriers = List<String>.from(carriers);
+    final carrierSets = widget.items
+        .map(
+          (item) => item.product.allowedCarrierCodes
+              .map((carrier) => carrier.trim().toUpperCase())
+              .where((carrier) => carrier.isNotEmpty)
+              .toSet(),
+        )
+        .where((carriers) => carriers.isNotEmpty)
+        .toList();
+    availableCarriers = carrierSets.isEmpty
+        ? <String>[]
+        : carrierSets
+              .skip(1)
+              .fold<Set<String>>(
+                Set<String>.from(carrierSets.first),
+                (common, carriers) => common.intersection(carriers),
+              )
+              .toList();
 
     if (availableCarriers.isNotEmpty) {
       _selectedCarrier = availableCarriers.first;
@@ -162,6 +181,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> _loadPricing() async {
+    if (mounted) {
+      setState(() {
+        _pricingLoading = true;
+        _pricingError = null;
+      });
+    }
     try {
       debugPrint("💰 LOADING PRICING FROM BACKEND...");
 
@@ -172,6 +197,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
       final pricing = result["pricing"];
 
+      if (!mounted) return;
       if (pricing != null) {
         setState(() {
           backendSubtotal = (pricing['subtotal'] ?? 0).toDouble();
@@ -179,14 +205,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
           backendTax = (pricing['taxTotal'] ?? 0).toDouble();
           backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
           _pricingLoading = false;
+          _pricingError = null;
         });
+      } else {
+        throw StateError('Pricing response is missing pricing data');
       }
 
       debugPrint("✅ PRICING LOADED: $pricing");
     } catch (e) {
       debugPrint("❌ PRICING ERROR: $e");
+      if (!mounted) return;
       setState(() {
         _pricingLoading = false;
+        _pricingError = e;
       });
     }
   }
@@ -325,7 +356,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return false;
     }
 
-    if (_selectedCarrier == null) {
+    if (_pricingLoading || _pricingError != null) {
+      _showError(l10n.somethingWentWrong);
+      return false;
+    }
+
+    if (_requiresCarrierSelection && _selectedCarrier == null) {
       _showError(l10n.checkoutPleaseSelectCargoCompany);
       return false;
     }
@@ -554,7 +590,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           "address": orderAddress["address"],
         },
         payment: {"status": "pending", "provider": "iyzico"},
-        carrier: _selectedCarrier!, // 🔥🔥🔥 این خط
+        carrier: _selectedCarrier ?? "",
         legal: legalPayload,
         items: orderItems,
       );
@@ -585,7 +621,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
         items: widget.items.map((e) => e.toJson()).toList(),
         currency: 'TRY',
-        carrier: _selectedCarrier!,
+        carrier: _selectedCarrier ?? "",
 
         successUrl:
             'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
@@ -1262,6 +1298,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       );
     }
+    if (_pricingError != null) {
+      return _buildSectionCard(
+        title: l10n.checkoutPaymentSummaryTitle,
+        child: Column(
+          children: [
+            Text(l10n.somethingWentWrong),
+            const SizedBox(height: 8),
+            TextButton(onPressed: _loadPricing, child: Text(l10n.retryButton)),
+          ],
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -1317,7 +1365,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     /// STEP 0 → Address + Carrier
     if (_step == 0) {
-      if (_selectedCarrier == null) {
+      if (_requiresCarrierSelection && _selectedCarrier == null) {
         _showError(l10n.checkoutPleaseSelectCargoCompany);
         return false;
       }

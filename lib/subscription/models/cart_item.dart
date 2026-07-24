@@ -36,7 +36,13 @@ class CartItem {
       'heightCm': product.heightCm,
       'weightKg': product.weightKg,
       'fixedDesi': product.fixedDesi,
-      "allowedCarrierCodes": allowedCarrierCodes,
+      'shippingMode': product.shippingMode,
+      'shippingPayer': product.shippingPayer,
+      'shippingFee': product.shippingFee,
+      'freeShippingThreshold': product.freeShippingThreshold,
+      'allowFreeShipping': product.allowFreeShipping,
+      'allowedCarrierCodes': allowedCarrierCodes ?? product.allowedCarrierCodes,
+      'product': product.toJson(),
     };
   }
 
