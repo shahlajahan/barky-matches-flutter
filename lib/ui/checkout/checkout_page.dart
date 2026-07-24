@@ -882,12 +882,36 @@ class _CheckoutPageState extends State<CheckoutPage> {
               const SizedBox(height: 10),
 
               TextField(
-                controller: _phoneController,
-                decoration: _inputDecoration(
-                  l10n.phoneLabel,
-                  l10n.checkoutPhoneHint,
-                ),
-              ),
+  controller: _phoneController,
+  keyboardType: TextInputType.phone,
+  inputFormatters: [
+    FilteringTextInputFormatter.digitsOnly,
+    LengthLimitingTextInputFormatter(10),
+  ],
+  decoration: _inputDecoration(
+    l10n.phoneLabel,
+    '5XX XXX XX XX',
+  ).copyWith(
+    prefixIcon: const Padding(
+      padding: EdgeInsets.only(left: 14, right: 8),
+      child: Center(
+        widthFactor: 1,
+        child: Text(
+          '+90',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF333333),
+          ),
+        ),
+      ),
+    ),
+    prefixIconConstraints: const BoxConstraints(
+      minWidth: 0,
+      minHeight: 0,
+    ),
+  ),
+),
               const SizedBox(height: 10),
 
               Row(

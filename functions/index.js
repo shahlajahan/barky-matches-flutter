@@ -64,6 +64,21 @@ const ISBANK_CURRENCY_CODE = defineString("ISBANK_CURRENCY_CODE", {
 const ISBANK_INSTALLMENT = defineString("ISBANK_INSTALLMENT", {
   default: "",
 });
+const WEB_SUBSCRIPTION_PREMIUM_AMOUNT = defineString(
+  "WEB_SUBSCRIPTION_PREMIUM_AMOUNT",
+  { default: "" }
+);
+const WEB_SUBSCRIPTION_GOLD_AMOUNT = defineString(
+  "WEB_SUBSCRIPTION_GOLD_AMOUNT",
+  { default: "" }
+);
+const WEB_SUBSCRIPTION_CURRENCY = defineString(
+  "WEB_SUBSCRIPTION_CURRENCY",
+  { default: "TRY" }
+);
+const WEB_APP_ORIGIN = defineString("WEB_APP_ORIGIN", {
+  default: "https://app.petsupo.com",
+});
 
 const {
   calculateCommission,
@@ -72,6 +87,7 @@ const {
   calculateAppointmentFinancial,
   positiveNumber: positiveFinancialNumber,
 } = require("./commission/paymentFinancialSnapshot");
+const webSubscriptionCore = require("./subscription/webSubscriptionCore");
 
 const { Resend } = require("resend");
 
@@ -354,10 +370,18 @@ function buildIsbankHashSource({
   fields,
   storeKey,
   trimValues = true,
+  excludedFieldNames = [],
 }) {
   const normalizedFields = normalizeIsbankHashFields(fields, { trimValues });
+  const excludedLower = new Set(
+    excludedFieldNames.map((name) => String(name).toLowerCase())
+  );
   const values = Object.keys(normalizedFields)
-    .filter(isIsbankHashSourceField)
+    .filter(
+      (key) =>
+        isIsbankHashSourceField(key) &&
+        !excludedLower.has(key.toLowerCase())
+    )
     .sort((left, right) => {
       const leftLower = left.toLowerCase();
       const rightLower = right.toLowerCase();
@@ -400,6 +424,9 @@ function validateIsbankGenericVer3CallbackHash({ fields, storeKey, forensicObser
     fields,
     storeKey,
     trimValues: false,
+    // Payten production calculates HASH before appending these response-only
+    // fields to the callback form. Both are absent from its signed-field list.
+    excludedFieldNames: ["NATIONALIDNO", "EXTRA.HOSTMSG"],
   });
   if (forensicObserver) {
     try {
@@ -410,6 +437,59 @@ function validateIsbankGenericVer3CallbackHash({ fields, storeKey, forensicObser
   }
   const actualHash = buildIsbankBase64Sha512Hash(hashSource);
   return isEqualIsbankHash(retrievedHash, actualHash);
+}
+
+function buildIsbankCallbackHashDiagnostics({ fields, storeKey }) {
+  const receivedHash = getIsbankCallbackValue(fields, "HASH");
+  const genericHashSource = buildIsbankHashSource({
+    fields,
+    storeKey,
+    trimValues: false,
+    excludedFieldNames: ["NATIONALIDNO", "EXTRA.HOSTMSG"],
+  });
+  const genericCalculatedHash =
+    buildIsbankBase64Sha512Hash(genericHashSource);
+  const hashParams = getIsbankCallbackValue(fields, "HASHPARAMS");
+  const receivedHashParamsVal =
+    getIsbankCallbackValue(fields, "HASHPARAMSVAL");
+  const hashParamNames = hashParams
+    .split(":")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const reconstructedHashParamsVal = hashParamNames
+    .map((name) => {
+      const entry = Object.entries(fields || {}).find(
+        ([fieldName]) => fieldName.toLowerCase() === name.toLowerCase()
+      );
+      if (!entry) return "";
+      return Array.isArray(entry[1])
+        ? String(entry[1][0] ?? "")
+        : String(entry[1] ?? "");
+    })
+    .join("");
+  const legacyCalculatedHash = hashParams
+    ? crypto
+      .createHash("sha1")
+      .update(`${reconstructedHashParamsVal}${storeKey}`, "utf8")
+      .digest("base64")
+    : "";
+  return {
+    receivedHash,
+    genericCalculatedHash,
+    genericMatched: isEqualIsbankHash(
+      receivedHash,
+      genericCalculatedHash
+    ),
+    hashParams,
+    receivedHashParamsVal,
+    reconstructedHashParamsVal,
+    hashParamsValMatched:
+      receivedHashParamsVal === reconstructedHashParamsVal,
+    legacyCalculatedHash,
+    legacyMatched:
+      Boolean(hashParams) &&
+      isEqualIsbankHash(receivedHash, legacyCalculatedHash),
+  };
 }
 
 function buildIsbank3DHash({
@@ -466,10 +546,6 @@ function buildIsbank3DHtmlForm({ actionUrl, fields }) {
     .join("");
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>Payment</title></head><body><form id="isbank-3d-form" method="post" action="${escapeIsbankHtmlAttribute(actionUrl)}">${inputs}</form><script>document.getElementById("isbank-3d-form").submit();</script></body></html>`;
-}
-
-function isSuccessfulIsbankMdStatus(mdStatus) {
-  return normalizeIsbankValue(mdStatus) === "1";
 }
 
 function buildIsbankCallbackRedirectUrl(orderId, kind) {
@@ -1454,8 +1530,8 @@ function parseIsbankCallbackForm(req) {
   return { fields, entries };
 }
 
-const ISBANK_FORENSIC_DEBUG_ENABLED =
-  String(process.env.ISBANK_FORENSIC_DEBUG || "").toLowerCase() === "true";
+// Never persist or log full bank callback payloads, even in debug deployments.
+const ISBANK_FORENSIC_DEBUG_ENABLED = false;
 
 function buildIsbankForensicValue(value) {
   const stringValue = String(value === undefined || value === null ? "" : value);
@@ -1737,6 +1813,315 @@ exports.createIsbank3DPayHostingCheckout = onCall(
   async (request) => createIsbank3DPayHostingCheckoutResult(request)
 );
 
+const WEB_SUBSCRIPTION_TERM_DAYS = webSubscriptionCore.TERM_DAYS;
+
+function webSubscriptionCatalog() {
+  const currency = normalizeIsbankValue(
+    WEB_SUBSCRIPTION_CURRENCY.value()
+  ).toUpperCase();
+  if (currency !== "TRY") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Web subscription currency must be TRY"
+    );
+  }
+
+  try {
+    return webSubscriptionCore.resolveCatalog({
+      premiumAmount: WEB_SUBSCRIPTION_PREMIUM_AMOUNT.value(),
+      goldAmount: WEB_SUBSCRIPTION_GOLD_AMOUNT.value(),
+      currency,
+    });
+  } catch (error) {
+    throw new HttpsError("failed-precondition", String(error.message || error));
+  }
+}
+
+function requireWebSubscriptionPlan(planId) {
+  try {
+    return webSubscriptionCore.resolvePlan(planId);
+  } catch (_) {
+    throw new HttpsError("invalid-argument", "Unsupported subscription plan");
+  }
+}
+
+function webSubscriptionOrderId(uid, planId, now = Date.now()) {
+  const fiveMinuteBucket = Math.floor(now / (5 * 60 * 1000));
+  const ownerHash = crypto
+    .createHash("sha256")
+    .update(String(uid))
+    .digest("hex")
+    .slice(0, 20);
+  return `websub_${ownerHash}_${planId}_${fiveMinuteBucket}`;
+}
+
+function webSubscriptionReturnOrigin() {
+  return requireIsbankAbsoluteUrl(WEB_APP_ORIGIN.value(), "WEB_APP_ORIGIN")
+    .replace(/\/+$/, "");
+}
+
+exports.getWebSubscriptionCatalog = onCall(
+  {
+    region: "europe-west3",
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+    const plans = webSubscriptionCatalog();
+    logger.info("web_subscription_catalog_served", {
+      uidHash: crypto
+        .createHash("sha256")
+        .update(request.auth.uid)
+        .digest("hex")
+        .slice(0, 12),
+      plans: Object.fromEntries(
+        Object.entries(plans).map(([planId, plan]) => [
+          planId,
+          {
+            amount: plan.amount,
+            currency: plan.currency,
+            durationDays: plan.durationDays,
+          },
+        ])
+      ),
+    });
+    return { plans };
+  }
+);
+
+exports.createWebSubscriptionCheckout = onCall(
+  {
+    region: "europe-west3",
+    secrets: [ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const planId = requireWebSubscriptionPlan(request.data?.planId);
+    const pricing = webSubscriptionCatalog()[planId];
+    const orderId = webSubscriptionOrderId(uid, planId);
+    const orderRef = db.collection("orders").doc(orderId);
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    await db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(orderRef);
+      if (existing.exists) {
+        const data = existing.data() || {};
+        if (
+          data.orderType !== "web_subscription" ||
+          data.buyerUid !== uid ||
+          data.planId !== planId
+        ) {
+          throw new HttpsError(
+            "already-exists",
+            "Payment reference is already in use"
+          );
+        }
+        return;
+      }
+      transaction.create(orderRef, {
+        orderType: "web_subscription",
+        buyerUid: uid,
+        userId: uid,
+        planId,
+        status: "pending",
+        paymentStatus: "pending",
+        currency: pricing.currency,
+        pricing: {
+          grandTotal: pricing.amount,
+          currency: pricing.currency,
+          source: "server_web_subscription_catalog",
+        },
+        termDays: pricing.durationDays,
+        source: "web",
+        createdAt: now,
+        updatedAt: now,
+        payment: {
+          provider: "isbank",
+          paymentProvider: "isbank",
+          status: "pending",
+          callbackValidated: false,
+          finalizationStatus: "pending",
+        },
+      });
+    });
+
+    const checkout = await createIsbank3DPayHostingCheckoutResult({
+      auth: request.auth,
+      data: {
+        orderId,
+        amount: pricing.amount,
+        currencyCode: "949",
+        lang: "tr",
+      },
+    });
+    logger.info("web_subscription_checkout_created", {
+      orderId,
+      planId,
+      uidHash: crypto.createHash("sha256").update(uid).digest("hex").slice(0, 12),
+    });
+    return {
+      orderId,
+      planId,
+      amount: pricing.amount,
+      currency: pricing.currency,
+      durationDays: pricing.durationDays,
+      provider: "isbank",
+      html: checkout.html,
+      returnUrl:
+        `${webSubscriptionReturnOrigin()}/isbank/3d-success?oid=` +
+        encodeURIComponent(orderId),
+    };
+  }
+);
+
+async function finalizeWebSubscriptionPayment({
+  orderRef,
+  orderId,
+  callbackAmount,
+  callbackCurrency,
+  callbackMetadata,
+}) {
+  return db.runTransaction(async (transaction) => {
+    const freshOrderSnap = await transaction.get(orderRef);
+    if (!freshOrderSnap.exists) {
+      return { status: "missing" };
+    }
+    const order = freshOrderSnap.data() || {};
+    if (order.orderType !== "web_subscription") {
+      return { status: "not_subscription" };
+    }
+    if (
+      normalizeLower(order.paymentStatus) === "paid" &&
+      order.payment?.finalizationStatus === "completed"
+    ) {
+      return { status: "alreadyProcessed" };
+    }
+
+    const uid = normalizeIsbankValue(order.buyerUid || order.userId);
+    const planId = requireWebSubscriptionPlan(order.planId);
+    if (!uid) return { status: "failed", reason: "owner_missing" };
+
+    const subscriptionRef = db.collection("subscriptions").doc(uid);
+    const userRef = db.collection("users").doc(uid);
+    const subscriptionSnap = await transaction.get(subscriptionRef);
+    const current = subscriptionSnap.exists
+      ? subscriptionSnap.data() || {}
+      : {};
+    const verifiedAt = new Date();
+    const currentExpiry =
+      current.expiresAt?.toDate?.() ||
+      (current.expiresAt instanceof Date ? current.expiresAt : null);
+    const { expiresAt } = webSubscriptionCore.entitlementWindow({
+      now: verifiedAt,
+      currentPlan: current.plan,
+      currentStatus: current.status,
+      currentExpiresAt: currentExpiry,
+      purchasedPlan: planId,
+    });
+    const subscriptionData = {
+      plan: planId,
+      status: "active",
+      userId: uid,
+      source: "web_isbank",
+      provider: "isbank",
+      autoRenew: false,
+      productId: `web_${planId}_30_day`,
+      startedAt: admin.firestore.Timestamp.fromDate(verifiedAt),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastPaymentOrderId: orderId,
+    };
+
+    transaction.set(subscriptionRef, subscriptionData, { merge: true });
+    transaction.set(
+      userRef,
+      {
+        isPremium: true,
+        subscriptionPlan: planId,
+        subscriptionStatus: "active",
+        subscription: subscriptionData,
+      },
+      { merge: true }
+    );
+    transaction.set(
+      orderRef,
+      {
+        status: "paid",
+        paymentStatus: "paid",
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        entitlementApplied: true,
+        entitlementExpiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        payment: {
+          ...(order.payment || {}),
+          provider: "isbank",
+          paymentProvider: "isbank",
+          status: "paid",
+          callbackValidated: true,
+          finalizationStatus: "completed",
+          finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
+          amount: callbackAmount,
+          currency: callbackCurrency,
+          ...callbackMetadata,
+        },
+      },
+      { merge: true }
+    );
+    return { status: "completed", expiresAt };
+  });
+}
+
+exports.readWebSubscriptionPaymentStatus = onCall(
+  {
+    region: "europe-west3",
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Login required");
+    const orderId = normalizeIsbankValue(request.data?.orderId);
+    if (!orderId) throw new HttpsError("invalid-argument", "orderId required");
+    const snap = await db.collection("orders").doc(orderId).get();
+    if (!snap.exists) throw new HttpsError("not-found", "Payment not found");
+    const data = snap.data() || {};
+    if (data.orderType !== "web_subscription" || data.buyerUid !== uid) {
+      throw new HttpsError("permission-denied", "Payment access denied");
+    }
+    return {
+      orderId,
+      planId: data.planId || null,
+      status: normalizeLower(data.paymentStatus || data.status || "pending"),
+      verified:
+        data.entitlementApplied === true &&
+        data.payment?.callbackValidated === true &&
+        data.payment?.finalizationStatus === "completed",
+    };
+  }
+);
+
+function webSubscriptionBrowserReturn(kind) {
+  return onRequest(
+    { region: "europe-west3" },
+    async (req, res) => {
+      const orderId = normalizeIsbankValue(req.query?.oid);
+      const target = new URL(webSubscriptionReturnOrigin());
+      target.searchParams.set(
+        "webSubscriptionReturn",
+        kind === "success" ? "success" : "fail"
+      );
+      if (orderId) target.searchParams.set("oid", orderId);
+      res.redirect(302, target.toString());
+    }
+  );
+}
+
+exports.isbank3DSuccessReturn = webSubscriptionBrowserReturn("success");
+exports.isbank3DFailReturn = webSubscriptionBrowserReturn("fail");
+
 exports.isbank3DPayHostingCallback = onRequest(
   {
     region: "europe-west3",
@@ -1791,10 +2176,6 @@ exports.isbank3DPayHostingCallback = onRequest(
 
     let isbankHashInputForensicWrite = null;
 
-    const callbackStoreType = normalizeIsbankValue(
-  getIsbankCallbackValue(callback.fields, "storetype")
-);
-
 const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
   fields: callback.fields,
   storeKey,
@@ -1830,11 +2211,9 @@ const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
     : null,
 });
 
-// Bank confirmed: 3D_PAY_HOSTING return HASH validation is not required
-const hashValid =
-  callbackStoreType === "3D_PAY_HOSTING"
-    ? true
-    : calculatedHashValid;
+    // Hash V3 validation is mandatory for every hosted callback. Browser
+    // return URLs are never treated as proof of payment.
+    const hashValid = calculatedHashValid;
 
     if (isbankHashInputForensicWrite) {
       try {
@@ -1867,10 +2246,35 @@ const hashValid =
     });
 
     if (!hashValid) {
+      const hashDiagnostics = buildIsbankCallbackHashDiagnostics({
+        fields: callback.fields,
+        storeKey,
+      });
       logger.warn("isbank_3d_callback_hash_invalid", {
         oid: orderId || null,
         fieldCount: callback.entries.length,
+        fieldNames: callback.entries.map(([name]) => name),
+        HASHPARAMS: hashDiagnostics.hashParams,
+        HASHPARAMSVAL: hashDiagnostics.reconstructedHashParamsVal,
+        receivedHASHPARAMSVAL: hashDiagnostics.receivedHashParamsVal,
+        HASH: hashDiagnostics.receivedHash,
+        calculatedHASH: hashDiagnostics.genericCalculatedHash,
+        comparisonResult: hashDiagnostics.genericMatched,
+        hashParamsValComparisonResult:
+          hashDiagnostics.hashParamsValMatched,
+        legacySha1CalculatedHASH:
+          hashDiagnostics.legacyCalculatedHash,
+        legacySha1ComparisonResult: hashDiagnostics.legacyMatched,
       });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: false,
+          title: "Payment failed",
+          message: "Callback validation failed",
+        })
+      );
+      return;
     }
 
     const orderRef = db.collection("orders").doc(orderId);
@@ -2093,10 +2497,12 @@ const hashValid =
       return;
     }
 
-    const successResponse =
-      callbackResponse === "approved" &&
-      callbackProcReturnCode === "00" &&
-      isSuccessfulIsbankMdStatus(callbackMdStatus);
+    const successResponse = webSubscriptionCore.isApprovedCallback({
+      response: callbackResponse,
+      procReturnCode: callbackProcReturnCode,
+      mdStatus: callbackMdStatus,
+      hashValid,
+    });
 
     const sellerOrdersSnap = await db
       .collection("sellerOrders")
@@ -2125,6 +2531,42 @@ const hashValid =
           success: false,
           title: "Payment failed",
           message: "Payment was not approved",
+        })
+      );
+      return;
+    }
+
+    if (orderData.orderType === "web_subscription") {
+      const subscriptionResult = await finalizeWebSubscriptionPayment({
+        orderRef,
+        orderId,
+        callbackAmount,
+        callbackCurrency: callbackCurrencyRaw,
+        callbackMetadata: {
+          authCode: callbackAuthCode || null,
+          hostRefNum: callbackHostRefNum || null,
+          procReturnCode: callbackProcReturnCode,
+          response: callbackResponse,
+          transId: callbackTransId || null,
+          mdStatus: callbackMdStatus,
+        },
+      });
+      const completed = [
+        "completed",
+        "alreadyProcessed",
+      ].includes(subscriptionResult?.status);
+      logger.info("web_subscription_callback_finalized", {
+        orderId,
+        status: subscriptionResult?.status || "unknown",
+      });
+      res.status(200).send(
+        buildIsbankCallbackHtml({
+          orderId,
+          success: completed,
+          title: completed ? "Payment confirmed" : "Payment failed",
+          message: completed
+            ? "Subscription payment verified"
+            : "Subscription could not be activated",
         })
       );
       return;

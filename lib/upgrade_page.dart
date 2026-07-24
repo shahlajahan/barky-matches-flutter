@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
+import 'package:barky_matches_fixed/subscription/web_subscription_browser.dart';
+import 'package:barky_matches_fixed/subscription/web_subscription_service.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:provider/provider.dart';
-import 'package:barky_matches_fixed/app_state.dart';
+
+const double webUpgradeContentMaxWidth = 1100;
+
+double upgradeContentWidth({
+  required double viewportWidth,
+  required bool isWeb,
+}) {
+  if (isWeb && viewportWidth > webUpgradeContentMaxWidth) {
+    return webUpgradeContentMaxWidth;
+  }
+  return viewportWidth;
+}
 
 class UpgradePage extends StatefulWidget {
   final VoidCallback? onClose;
 
-  const UpgradePage({
-    super.key,
-    this.onClose,
-  });
+  const UpgradePage({super.key, this.onClose});
 
   @override
   State<UpgradePage> createState() => _UpgradePageState();
@@ -21,22 +31,97 @@ class UpgradePage extends StatefulWidget {
 class _UpgradePageState extends State<UpgradePage> {
   String selectedPlan = "gold";
   bool isBusy = false;
+  final WebSubscriptionService _webSubscriptionService =
+      WebSubscriptionService();
+  final ScrollController _webScrollController = ScrollController();
+  Map<String, WebSubscriptionPlanPresentation> _webPlans = const {};
+  bool _webCatalogLoading = false;
+  bool _webCheckoutAvailable = false;
+  WebSubscriptionCatalogFailure? _webCatalogFailure;
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  debugPrint(
-    "🔥 UpgradePage created hash=${identityHashCode(this)} "
-    "onClose=${widget.onClose != null}",
-  );
+    debugPrint(
+      "🔥 UpgradePage created hash=${identityHashCode(this)} "
+      "onClose=${widget.onClose != null}",
+    );
 
-  _ensureStoreLoaded();
-}
+    if (kIsWeb) {
+      _loadWebCatalog();
+    } else {
+      _ensureStoreLoaded();
+    }
+  }
+
   Future<void> _ensureStoreLoaded() async {
+    if (kIsWeb) return;
     if (IapService.instance.products.isEmpty) {
       await IapService.instance.init();
       if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _loadWebCatalog() async {
+    if (!kIsWeb) return;
+    setState(() {
+      _webCatalogLoading = true;
+      _webCatalogFailure = null;
+    });
+    try {
+      final plans = await _webSubscriptionService.loadCatalog();
+      if (!mounted) return;
+      setState(() {
+        _webPlans = plans;
+        _webCheckoutAvailable =
+            plans.containsKey('premium') && plans.containsKey('gold');
+      });
+    } on WebSubscriptionCatalogException catch (error) {
+      if (kDebugMode) {
+        debugPrint(
+          'Web subscription catalog unavailable: '
+          'failure=${error.failure}, code=${error.code}, '
+          'message=${error.message}',
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _webPlans = const {};
+        _webCheckoutAvailable = false;
+        _webCatalogFailure = error.failure;
+      });
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Unexpected Web subscription catalog failure: $error');
+      }
+      if (!mounted) return;
+      setState(() {
+        _webPlans = const {};
+        _webCheckoutAvailable = false;
+        _webCatalogFailure = WebSubscriptionCatalogFailure.malformedResponse;
+      });
+    } finally {
+      if (mounted) setState(() => _webCatalogLoading = false);
+    }
+  }
+
+  Future<void> _startWebCheckout() async {
+    if (!kIsWeb || isBusy || !_webCheckoutAvailable) return;
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => isBusy = true);
+    try {
+      final session = await _webSubscriptionService.createCheckout(
+        selectedPlan,
+      );
+      await submitWebSubscriptionCheckout(session.html);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.webSubscriptionCheckoutFailed)),
+      );
+    } finally {
+      if (mounted) setState(() => isBusy = false);
     }
   }
 
@@ -46,15 +131,36 @@ void initState() {
   }
 
   @override
+  void dispose() {
+    _webScrollController.dispose();
+    super.dispose();
+  }
+
+  String _webCatalogErrorMessage(AppLocalizations l10n) {
+    return switch (_webCatalogFailure) {
+      WebSubscriptionCatalogFailure.unauthenticated =>
+        l10n.webSubscriptionCatalogUnauthenticated,
+      WebSubscriptionCatalogFailure.functionNotFound =>
+        l10n.webSubscriptionCatalogFunctionNotFound,
+      WebSubscriptionCatalogFailure.configuration =>
+        l10n.webSubscriptionCatalogConfigurationMissing,
+      WebSubscriptionCatalogFailure.network =>
+        l10n.webSubscriptionCatalogNetworkFailed,
+      WebSubscriptionCatalogFailure.malformedResponse =>
+        l10n.webSubscriptionCatalogMalformed,
+      null => '',
+    };
+  }
+
+  @override
   Widget build(BuildContext context) {
-     debugPrint(
-    "🔥 UpgradePage BUILD onClose=${widget.onClose != null}",
-  );
+    debugPrint("🔥 UpgradePage BUILD onClose=${widget.onClose != null}");
     final l10n = AppLocalizations.of(context)!;
-    final premium = IapService.instance.premiumProduct;
-    final gold = IapService.instance.goldProduct;
+    final premium = kIsWeb ? null : IapService.instance.premiumProduct;
+    final gold = kIsWeb ? null : IapService.instance.goldProduct;
 
     final selectedProduct = selectedPlan == "premium" ? premium : gold;
+    final webUnavailable = l10n.webSubscriptionPaymentUnavailable;
 
     return Scaffold(
       backgroundColor: const Color(0xFF120914),
@@ -64,19 +170,18 @@ void initState() {
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
           child: GestureDetector(
-            
-  onTap: () {
-  debugPrint("🔥 CLOSE ICON TAPPED");
+            onTap: () {
+              debugPrint("🔥 CLOSE ICON TAPPED");
 
-  if (widget.onClose != null) {
-    debugPrint("🔥 CALLING onClose()");
-    widget.onClose!();
-    return;
-  }
+              if (widget.onClose != null) {
+                debugPrint("🔥 CALLING onClose()");
+                widget.onClose!();
+                return;
+              }
 
-  debugPrint("🔥 FALLBACK maybePop()");
-  Navigator.of(context).maybePop();
-},
+              debugPrint("🔥 FALLBACK maybePop()");
+              Navigator.of(context).maybePop();
+            },
             child: Container(
               width: 40,
               height: 40,
@@ -95,206 +200,322 @@ void initState() {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-                children: [
-                  const Icon(Icons.pets, color: Color(0xFFFFC107), size: 54),
-                  const SizedBox(height: 12),
-
-                  Text(
-                    l10n.upgradeHeroTitle,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    l10n.upgradeHeroSubtitle,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.white70,
-                      height: 1.4,
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  _buildPlanCard(
-                    title: l10n.premiumLabel,
-                    subtitle: l10n.premiumPlanSubtitle,
-                    price: premium?.price ?? l10n.loadingLabel,
-                    isSelected: selectedPlan == "premium",
-                    isGold: false,
-                    features: [
-                      l10n.premiumPlanFeatureUnlimitedChat,
-                      l10n.premiumPlanFeatureAdvancedMatchingFilters,
-                      l10n.premiumPlanFeatureExclusivePetOffers,
-                      l10n.premiumPlanFeatureBetterProfileExperience,
-                    ],
-                    onTap: () => setState(() => selectedPlan = "premium"),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  _buildPlanCard(
-                    title: l10n.goldLabel,
-                    subtitle: l10n.goldPlanSubtitle,
-                    price: gold?.price ?? l10n.loadingLabel,
-                    isSelected: selectedPlan == "gold",
-                    isGold: true,
-                    badge: l10n.mostPopularLabel,
-                    features: [
-                      l10n.goldPlanFeatureEverythingInPremium,
-                      l10n.goldPlanFeatureBusinessRegistrationAccess,
-                      l10n.goldPlanFeatureBoostedVisibility,
-                      l10n.goldPlanFeatureBusinessDashboardAccess,
-                      l10n.goldPlanFeaturePremiumChatAndOffers,
-                    ],
-                    onTap: () => setState(() => selectedPlan = "gold"),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  _buildTrustBox(),
-                ],
+        child: LayoutBuilder(
+          builder: (context, constraints) => Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: upgradeContentWidth(
+                  viewportWidth: constraints.maxWidth,
+                  isWeb: kIsWeb,
+                ),
               ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFC107),
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
+              child: SizedBox(
+                width: double.infinity,
+                height: constraints.maxHeight,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        controller: kIsWeb ? _webScrollController : null,
+                        padding: EdgeInsets.fromLTRB(
+                          18,
+                          kIsWeb ? 18 : 10,
+                          18,
+                          72,
                         ),
-                      ),
-                      onPressed: isBusy
-                          ? null
-                          : () async {
-                              if (selectedProduct == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(l10n.storeNotReadyTryAgain),
+                        children: [
+                          const Icon(
+                            Icons.pets,
+                            color: Color(0xFFFFC107),
+                            size: 54,
+                          ),
+                          const SizedBox(height: 12),
+
+                          Text(
+                            l10n.upgradeHeroTitle,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Text(
+                            l10n.upgradeHeroSubtitle,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.white70,
+                              height: 1.4,
+                            ),
+                          ),
+
+                          if (kIsWeb && _webCatalogFailure != null) ...[
+                            const SizedBox(height: 14),
+                            Semantics(
+                              liveRegion: true,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withValues(
+                                    alpha: 0.12,
                                   ),
-                                );
-                                return;
-                              }
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: Colors.redAccent.withValues(
+                                      alpha: 0.45,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.cloud_off_rounded,
+                                      color: Colors.redAccent,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        _webCatalogErrorMessage(l10n),
+                                        style: GoogleFonts.poppins(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: _webCatalogLoading
+                                          ? null
+                                          : _loadWebCatalog,
+                                      child: Text(l10n.retryButton),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
 
-                              setState(() => isBusy = true);
+                          const SizedBox(height: 22),
 
-                              try {
-                                debugPrint(
-                                  "🛒 PAYWALL BUY TAP → $selectedPlan",
-                                );
-                                await IapService.instance.buySubscription(
-                                  selectedProduct,
-                                );
-                              } catch (e) {
+                          _buildPlanCard(
+                            title: l10n.premiumLabel,
+                            subtitle: l10n.premiumPlanSubtitle,
+                            price: kIsWeb
+                                ? (_webPlans['premium']?.formattedPrice ??
+                                      webUnavailable)
+                                : premium?.price ?? l10n.loadingLabel,
+                            isSelected: selectedPlan == "premium",
+                            isGold: false,
+                            features: [
+                              l10n.premiumPlanFeatureUnlimitedChat,
+                              l10n.premiumPlanFeatureAdvancedMatchingFilters,
+                              l10n.premiumPlanFeatureExclusivePetOffers,
+                              l10n.premiumPlanFeatureBetterProfileExperience,
+                            ],
+                            purchaseTerms: kIsWeb
+                                ? l10n.webSubscriptionThirtyDayAccess
+                                : l10n.autoRenewableMonthlySubscription,
+                            onTap: () =>
+                                setState(() => selectedPlan = "premium"),
+                          ),
+
+                          const SizedBox(height: 14),
+
+                          _buildPlanCard(
+                            title: l10n.goldLabel,
+                            subtitle: l10n.goldPlanSubtitle,
+                            price: kIsWeb
+                                ? (_webPlans['gold']?.formattedPrice ??
+                                      webUnavailable)
+                                : gold?.price ?? l10n.loadingLabel,
+                            isSelected: selectedPlan == "gold",
+                            isGold: true,
+                            badge: l10n.mostPopularLabel,
+                            features: [
+                              l10n.goldPlanFeatureEverythingInPremium,
+                              l10n.goldPlanFeatureBusinessRegistrationAccess,
+                              l10n.goldPlanFeatureBoostedVisibility,
+                              l10n.goldPlanFeatureBusinessDashboardAccess,
+                              l10n.goldPlanFeaturePremiumChatAndOffers,
+                            ],
+                            purchaseTerms: kIsWeb
+                                ? l10n.webSubscriptionThirtyDayAccess
+                                : l10n.autoRenewableMonthlySubscription,
+                            onTap: () => setState(() => selectedPlan = "gold"),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          _buildTrustBox(),
+                        ],
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFC107),
+                                foregroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                              ),
+                              onPressed:
+                                  isBusy ||
+                                      (kIsWeb &&
+                                          (_webCatalogLoading ||
+                                              !_webCheckoutAvailable))
+                                  ? null
+                                  : () async {
+                                      if (kIsWeb) {
+                                        await _startWebCheckout();
+                                        return;
+                                      }
+                                      if (selectedProduct == null) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              l10n.storeNotReadyTryAgain,
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      setState(() => isBusy = true);
+
+                                      try {
+                                        debugPrint(
+                                          "🛒 PAYWALL BUY TAP → $selectedPlan",
+                                        );
+                                        await IapService.instance
+                                            .buySubscription(selectedProduct);
+                                      } catch (e) {
+                                        if (!mounted) return;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              l10n.errorOccurred(e.toString()),
+                                            ),
+                                          ),
+                                        );
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() => isBusy = false);
+                                        }
+                                      }
+                                    },
+                              child: Text(
+                                isBusy
+                                    ? l10n.processingLabel
+                                    : kIsWeb
+                                    ? (_webCatalogLoading
+                                          ? l10n.processingLabel
+                                          : _webCheckoutAvailable
+                                          ? l10n.webSubscriptionContinueSecurePayment
+                                          : l10n.webSubscriptionPaymentUnavailable)
+                                    : l10n.continueWithPlan(
+                                        selectedPlan == "premium"
+                                            ? l10n.premiumLabel
+                                            : l10n.goldLabel,
+                                      ),
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          if (!kIsWeb)
+                            TextButton(
+                              onPressed: () async {
+                                await IapService.instance.restorePurchases();
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(
-                                      l10n.errorOccurred(e.toString()),
-                                    ),
+                                    content: Text(l10n.restoreRequestSent),
                                   ),
                                 );
-                              } finally {
-                                if (mounted) setState(() => isBusy = false);
-                              }
-                            },
-                      child: Text(
-                        isBusy
-                            ? l10n.processingLabel
-                            : l10n.continueWithPlan(
-                                selectedPlan == "premium"
-                                    ? l10n.premiumLabel
-                                    : l10n.goldLabel,
+                              },
+                              child: Text(l10n.restorePurchases),
+                            ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            kIsWeb
+                                ? l10n.webSubscriptionPaymentTerms
+                                : l10n.upgradePaymentTerms,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 10.5,
+                              color: Colors.white54,
+                              height: 1.35,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              GestureDetector(
+                                onTap: () => _openUrl(
+                                  "https://petsupo.com/gizlilik-politikasi",
+                                ),
+                                child: Text(
+                                  l10n.privacyPolicyLabel,
+                                  style: TextStyle(
+                                    color: Colors.blueAccent,
+                                    decoration: TextDecoration.underline,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
+                              const SizedBox(width: 18),
+                              GestureDetector(
+                                onTap: () => _openUrl(
+                                  "https://petsupo.com/kullanim-kosullari",
+                                ),
+                                child: Text(
+                                  l10n.termsOfUseLabel,
+                                  style: TextStyle(
+                                    color: Colors.blueAccent,
+                                    decoration: TextDecoration.underline,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  TextButton(
-                    onPressed: () async {
-                      await IapService.instance.restorePurchases();
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l10n.restoreRequestSent)),
-                      );
-                    },
-                    child: Text(l10n.restorePurchases),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    l10n.upgradePaymentTerms,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 10.5,
-                      color: Colors.white54,
-                      height: 1.35,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () =>
-                            _openUrl("https://petsupo.com/gizlilik-politikasi"),
-                        child: Text(
-                          l10n.privacyPolicyLabel,
-                          style: TextStyle(
-                            color: Colors.blueAccent,
-                            decoration: TextDecoration.underline,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      GestureDetector(
-                        onTap: () =>
-                            _openUrl("https://petsupo.com/kullanim-kosullari"),
-                        child: Text(
-                          l10n.termsOfUseLabel,
-                          style: TextStyle(
-                            color: Colors.blueAccent,
-                            decoration: TextDecoration.underline,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -307,10 +528,10 @@ void initState() {
     required bool isSelected,
     required bool isGold,
     required List<String> features,
+    required String purchaseTerms,
     required VoidCallback onTap,
     String? badge,
   }) {
-    final l10n = AppLocalizations.of(context)!;
     final bgColor = isGold ? const Color(0xFFFFC107) : const Color(0xFF211426);
     final textColor = isGold ? Colors.black : Colors.white;
     final subColor = isGold ? Colors.black87 : Colors.white70;
@@ -401,7 +622,7 @@ void initState() {
             ),
 
             Text(
-              l10n.autoRenewableMonthlySubscription,
+              purchaseTerms,
               style: GoogleFonts.poppins(fontSize: 11, color: subColor),
             ),
 
@@ -453,7 +674,9 @@ void initState() {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              l10n.securePaymentNotice,
+              kIsWeb
+                  ? l10n.webSubscriptionIsbankSecurePayment
+                  : l10n.securePaymentNotice,
               style: GoogleFonts.poppins(
                 color: Colors.white70,
                 fontSize: 12,

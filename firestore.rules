@@ -518,8 +518,9 @@ isBusinessOwner(businessId);
 
     match /subscriptions/{subscriptionId} {
       allow read: if isAdmin() || isSubscriptionOwner(resource.data);
-      allow create: if isAdmin() || isSubscriptionOwner(request.resource.data);
-      allow update, delete: if isAdmin() || isSubscriptionOwner(resource.data);
+      // Paid entitlement is backend-owned. End users can inspect their own
+      // subscription but cannot grant, extend, replace, or delete it.
+      allow create, update, delete: if isAdmin();
     }
 
     match /notifications/{notificationId} {

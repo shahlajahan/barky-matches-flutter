@@ -7,6 +7,8 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
+    "lint": "node --check index.js && node --check subscription/webSubscriptionCore.js",
+    "test": "node --test test/*.test.js",
     "seed:commission": "node scripts/seedCommissionConfigs.js",
     "backfill:financial": "node scripts/backfillFinancialSnapshots.js"
   },

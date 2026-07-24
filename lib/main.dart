@@ -38,6 +38,7 @@ import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
 import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
+import 'package:barky_matches_fixed/subscription/web_subscription_return_page.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -50,7 +51,6 @@ import 'core/debug/diagnostics_navigation_tracker.dart';
 import 'core/debug/diagnostics_uploader.dart';
 import 'developer_tools/developer_tools_page.dart';
 
-import 'package:app_links/app_links.dart';
 import 'ui/appointments/my_appointments_page.dart';
 import 'ui/business/dashboard/vet/appointment_payment_page.dart';
 import 'ui/orders/order_detail_page.dart';
@@ -1051,18 +1051,22 @@ void main() async {
   StartupBenchmark.mark('Hive.openBox futures created');
 
   unawaited(
-    dogsBoxFuture.then((box) {
-      dogsBox = box;
-      DogsBoxManager.instance.attach(dogsBox);
-      StartupBenchmark.mark('Hive.openBox dogsBox');
+    dogsBoxFuture
+        .then((box) {
+          dogsBox = box;
+          DogsBoxManager.instance.attach(dogsBox);
+          StartupBenchmark.mark('Hive.openBox dogsBox');
 
-      if (kDebugMode) {
-        debugPrint('Main - Hive initialized, dogsBox size: ${dogsBox.length}');
-      }
-    }).catchError((Object error, StackTrace stackTrace) {
-      DogsBoxManager.instance.markError(error, stackTrace);
-      debugPrint('Main - Error opening dogsBox: $error');
-    }),
+          if (kDebugMode) {
+            debugPrint(
+              'Main - Hive initialized, dogsBox size: ${dogsBox.length}',
+            );
+          }
+        })
+        .catchError((Object error, StackTrace stackTrace) {
+          DogsBoxManager.instance.markError(error, stackTrace);
+          debugPrint('Main - Error opening dogsBox: $error');
+        }),
   );
 
   favoritesBox = await favoritesBoxFuture;
@@ -1208,15 +1212,17 @@ void main() async {
           notificationService: NotificationService(),
         );
 
-        IapService.instance.setSubscriptionActivatedCallback(() async {
-          await appState.loadSubscriptionFromFirestore();
+        if (!kIsWeb) {
+          IapService.instance.setSubscriptionActivatedCallback(() async {
+            await appState.loadSubscriptionFromFirestore();
 
-          debugPrint('🔄 UI refreshed');
+            debugPrint('🔄 UI refreshed');
 
-          await Future.delayed(const Duration(milliseconds: 500));
+            await Future.delayed(const Duration(milliseconds: 500));
 
-          appState.openProfileSubPage(ProfileSubPage.businessRegister);
-        });
+            appState.openProfileSubPage(ProfileSubPage.businessRegister);
+          });
+        }
 
         appState.markFirebaseInitialized();
         StartupBenchmark.markOnce('AppState.markFirebaseInitialized');
@@ -1230,10 +1236,12 @@ void main() async {
         StartupBenchmark.markOnce('AppState.startAuthListener');
         // AuthTrap.start();
         // AuthTrap.scheduleTokenDiagnostics();
-        IapService.instance.setSubscriptionActivatedCallback(() async {
-          await appState.loadSubscriptionFromFirestore();
-          debugPrint('🔄 UI refreshed');
-        });
+        if (!kIsWeb) {
+          IapService.instance.setSubscriptionActivatedCallback(() async {
+            await appState.loadSubscriptionFromFirestore();
+            debugPrint('🔄 UI refreshed');
+          });
+        }
 
         return appState;
       },
@@ -1395,8 +1403,23 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               return const DeveloperToolsPage();
             },
         },
-        home: const AppEntry(),
+        home: _webSubscriptionReturnPage() ?? const AppEntry(),
       ),
+    );
+  }
+
+  Widget? _webSubscriptionReturnPage() {
+    if (!kIsWeb) return null;
+    final uri = Uri.base;
+    final returnKind = uri.queryParameters['webSubscriptionReturn'];
+    final isReturnPath =
+        uri.path == '/isbank/3d-success' || uri.path == '/isbank/3d-fail';
+    if (!isReturnPath && returnKind != 'success' && returnKind != 'fail') {
+      return null;
+    }
+    return WebSubscriptionReturnPage(
+      orderId: uri.queryParameters['oid'] ?? '',
+      returnPath: returnKind == 'fail' ? '/isbank/3d-fail' : uri.path,
     );
   }
 

@@ -19,6 +19,14 @@
             {
                 "source": "/isbank/3d-callback",
                 "function": "isbank3DPayHostingCallback"
+            },
+            {
+                "source": "/isbank/3d-success",
+                "function": "isbank3DSuccessReturn"
+            },
+            {
+                "source": "/isbank/3d-fail",
+                "function": "isbank3DFailReturn"
             }
         ],
         "cleanUrls": true,

@@ -64,8 +64,7 @@ import 'app_localizations_tr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -73,8 +72,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -86,20 +84,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('fa'),
     Locale('ru'),
-    Locale('tr'),
+    Locale('tr')
   ];
 
   /// Message shown when user is not logged in and is redirected to login page
@@ -2452,10 +2449,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{requesterDog} wants to play with {requestedDog}!'**
-  String playdateRequestNotificationBody(
-    Object requesterDog,
-    Object requestedDog,
-  );
+  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog);
 
   /// Success message for creating request
   ///
@@ -3643,12 +3637,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Play date scheduled for {day}/{month}/{year} at {time}!'**
-  String dogViewPlayDateScheduled(
-    Object day,
-    Object month,
-    Object year,
-    Object time,
-  );
+  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time);
 
   /// Success message for sending adoption request in dog view
   ///
@@ -8658,11 +8647,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} by {brand} is a useful accessory in the {subCategory} category.'**
-  String smartDescriptionAccessories(
-    Object brand,
-    Object name,
-    Object subCategory,
-  );
+  String smartDescriptionAccessories(Object brand, Object name, Object subCategory);
 
   /// No description provided for @smartDescriptionHealth.
   ///
@@ -10259,10 +10244,369 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue'**
   String get continueLabel;
+
+  /// No description provided for @petTaxiRequestRideTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Ride'**
+  String get petTaxiRequestRideTab;
+
+  /// No description provided for @petTaxiRidesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your upcoming and past Pet Taxi journeys'**
+  String get petTaxiRidesSubtitle;
+
+  /// No description provided for @petTaxiFilterActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active & Upcoming'**
+  String get petTaxiFilterActive;
+
+  /// No description provided for @petTaxiFilterCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get petTaxiFilterCompleted;
+
+  /// No description provided for @petTaxiFilterCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get petTaxiFilterCancelled;
+
+  /// No description provided for @petTaxiNoRidesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Pet Taxi rides yet'**
+  String get petTaxiNoRidesTitle;
+
+  /// No description provided for @petTaxiNoRidesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Pet Taxi bookings will appear here after you request a ride.'**
+  String get petTaxiNoRidesDescription;
+
+  /// No description provided for @petTaxiNoRidesInFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'No rides in this category'**
+  String get petTaxiNoRidesInFilter;
+
+  /// No description provided for @petTaxiTryAnotherFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose another category to view your other rides.'**
+  String get petTaxiTryAnotherFilter;
+
+  /// No description provided for @petTaxiRidesLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading your Pet Taxi rides'**
+  String get petTaxiRidesLoading;
+
+  /// No description provided for @petTaxiRidesLoadErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rides could not be loaded'**
+  String get petTaxiRidesLoadErrorTitle;
+
+  /// No description provided for @petTaxiRidesLoadErrorDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again. Your bookings have not been changed.'**
+  String get petTaxiRidesLoadErrorDescription;
+
+  /// No description provided for @petTaxiSignInRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to view your rides'**
+  String get petTaxiSignInRequiredTitle;
+
+  /// No description provided for @petTaxiSignInRequiredDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Pet Taxi bookings are available after you sign in.'**
+  String get petTaxiSignInRequiredDescription;
+
+  /// No description provided for @petTaxiProviderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get petTaxiProviderLabel;
+
+  /// No description provided for @petTaxiProviderFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Taxi provider'**
+  String get petTaxiProviderFallback;
+
+  /// No description provided for @petTaxiDestinationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination'**
+  String get petTaxiDestinationLabel;
+
+  /// No description provided for @petTaxiScheduleUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule unavailable'**
+  String get petTaxiScheduleUnavailable;
+
+  /// No description provided for @petTaxiPriceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Price pending'**
+  String get petTaxiPriceUnavailable;
+
+  /// No description provided for @petTaxiStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Request pending'**
+  String get petTaxiStatusPending;
+
+  /// No description provided for @petTaxiStatusAwaitingPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting payment'**
+  String get petTaxiStatusAwaitingPayment;
+
+  /// No description provided for @petTaxiStatusConfirmedPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed and paid'**
+  String get petTaxiStatusConfirmedPaid;
+
+  /// No description provided for @petTaxiStatusPaymentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment failed'**
+  String get petTaxiStatusPaymentFailed;
+
+  /// No description provided for @petTaxiStatusRefundPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund pending'**
+  String get petTaxiStatusRefundPending;
+
+  /// No description provided for @petTaxiStatusRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get petTaxiStatusRefunded;
+
+  /// No description provided for @petTaxiStatusDriverOnTheWay.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver on the way'**
+  String get petTaxiStatusDriverOnTheWay;
+
+  /// No description provided for @petTaxiStatusArrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver arrived'**
+  String get petTaxiStatusArrived;
+
+  /// No description provided for @petTaxiStatusPetPickedUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet picked up'**
+  String get petTaxiStatusPetPickedUp;
+
+  /// No description provided for @petTaxiStatusOnTrip.
+  ///
+  /// In en, this message translates to:
+  /// **'On the way'**
+  String get petTaxiStatusOnTrip;
+
+  /// No description provided for @petTaxiStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get petTaxiStatusCompleted;
+
+  /// No description provided for @petTaxiStatusCancelledByUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled by you'**
+  String get petTaxiStatusCancelledByUser;
+
+  /// No description provided for @petTaxiStatusCancelledByProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled by provider'**
+  String get petTaxiStatusCancelledByProvider;
+
+  /// No description provided for @petTaxiStatusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Status unavailable'**
+  String get petTaxiStatusUnknown;
+
+  /// No description provided for @petTaxiPaymentPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get petTaxiPaymentPaid;
+
+  /// No description provided for @petTaxiPaymentPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment processing'**
+  String get petTaxiPaymentPending;
+
+  /// No description provided for @petTaxiPaymentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment failed'**
+  String get petTaxiPaymentFailed;
+
+  /// No description provided for @petTaxiPaymentRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get petTaxiPaymentRefunded;
+
+  /// No description provided for @petTaxiPaymentUnpaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpaid'**
+  String get petTaxiPaymentUnpaid;
+
+  /// No description provided for @webSubscriptionPaymentUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment is temporarily unavailable'**
+  String get webSubscriptionPaymentUnavailable;
+
+  /// No description provided for @webSubscriptionCatalogLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure payment prices could not be loaded. Check your connection and try again.'**
+  String get webSubscriptionCatalogLoadFailed;
+
+  /// No description provided for @webSubscriptionCatalogUnauthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to load subscription prices and continue securely.'**
+  String get webSubscriptionCatalogUnauthenticated;
+
+  /// No description provided for @webSubscriptionCatalogFunctionNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The secure payment service is not available in this app version. Please refresh and try again.'**
+  String get webSubscriptionCatalogFunctionNotFound;
+
+  /// No description provided for @webSubscriptionCatalogConfigurationMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure payment configuration is temporarily unavailable. Please try again later.'**
+  String get webSubscriptionCatalogConfigurationMissing;
+
+  /// No description provided for @webSubscriptionCatalogNetworkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The secure payment service could not be reached. Check your connection and retry.'**
+  String get webSubscriptionCatalogNetworkFailed;
+
+  /// No description provided for @webSubscriptionCatalogMalformed.
+  ///
+  /// In en, this message translates to:
+  /// **'The secure payment service returned an invalid response. Please retry.'**
+  String get webSubscriptionCatalogMalformed;
+
+  /// No description provided for @webSubscriptionThirtyDayAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'30 days of subscription access'**
+  String get webSubscriptionThirtyDayAccess;
+
+  /// No description provided for @webSubscriptionContinueSecurePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue to secure payment'**
+  String get webSubscriptionContinueSecurePayment;
+
+  /// No description provided for @webSubscriptionPaymentTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'One-time payment for 30 days of access. No automatic card renewal.'**
+  String get webSubscriptionPaymentTerms;
+
+  /// No description provided for @webSubscriptionIsbankSecurePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure payment with İş Bank • 30-day access • No automatic renewal'**
+  String get webSubscriptionIsbankSecurePayment;
+
+  /// No description provided for @webSubscriptionCheckoutFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure checkout could not be started. Please try again.'**
+  String get webSubscriptionCheckoutFailed;
+
+  /// No description provided for @webSubscriptionVerifyingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying your payment'**
+  String get webSubscriptionVerifyingTitle;
+
+  /// No description provided for @webSubscriptionVerifyingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait while the bank payment is verified securely.'**
+  String get webSubscriptionVerifyingMessage;
+
+  /// No description provided for @webSubscriptionSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription activated'**
+  String get webSubscriptionSuccessTitle;
+
+  /// No description provided for @webSubscriptionSuccessMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your payment was verified and your 30-day subscription access is active.'**
+  String get webSubscriptionSuccessMessage;
+
+  /// No description provided for @webSubscriptionFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment could not be verified'**
+  String get webSubscriptionFailedTitle;
+
+  /// No description provided for @webSubscriptionFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your subscription was not activated. No unverified payment can grant access.'**
+  String get webSubscriptionFailedMessage;
+
+  /// No description provided for @webSubscriptionCancelledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment cancelled'**
+  String get webSubscriptionCancelledTitle;
+
+  /// No description provided for @webSubscriptionCancelledMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The payment was cancelled and your subscription was not changed.'**
+  String get webSubscriptionCancelledMessage;
+
+  /// No description provided for @webSubscriptionPendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment is still processing'**
+  String get webSubscriptionPendingTitle;
+
+  /// No description provided for @webSubscriptionPendingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The bank has not completed verification yet. This page will check again automatically.'**
+  String get webSubscriptionPendingMessage;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -10271,30 +10615,27 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en':
-      return AppLocalizationsEn();
-    case 'fa':
-      return AppLocalizationsFa();
-    case 'ru':
-      return AppLocalizationsRu();
-    case 'tr':
-      return AppLocalizationsTr();
+    case 'en': return AppLocalizationsEn();
+    case 'fa': return AppLocalizationsFa();
+    case 'ru': return AppLocalizationsRu();
+    case 'tr': return AppLocalizationsTr();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }

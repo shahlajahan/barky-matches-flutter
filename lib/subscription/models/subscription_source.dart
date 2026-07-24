@@ -2,6 +2,7 @@ enum SubscriptionSource {
   free,
   appStore,
   playStore,
+  webIsbank,
   admin;
 
   /// Convert Firestore string → enum
@@ -11,6 +12,8 @@ enum SubscriptionSource {
         return SubscriptionSource.appStore;
       case 'play_store':
         return SubscriptionSource.playStore;
+      case 'web_isbank':
+        return SubscriptionSource.webIsbank;
       case 'admin':
         return SubscriptionSource.admin;
       case 'free':
@@ -28,6 +31,8 @@ enum SubscriptionSource {
         return 'app_store';
       case SubscriptionSource.playStore:
         return 'play_store';
+      case SubscriptionSource.webIsbank:
+        return 'web_isbank';
       case SubscriptionSource.admin:
         return 'admin';
     }
