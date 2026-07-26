@@ -5622,4 +5622,9 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get webSubscriptionPendingMessage => 'Banka doğrulamayı henüz tamamlamadı. Bu sayfa otomatik olarak yeniden kontrol edecek.';
+
+  @override
+  String chatError(Object error) {
+    return 'Sohbet hatası: $error';
+  }
 }

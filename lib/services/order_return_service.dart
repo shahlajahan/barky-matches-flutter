@@ -263,93 +263,146 @@ class OrderReturnService {
     required String returnId,
     required double refundAmount,
     required String refundType,
-    required String paymentId,
+    required RefundReference refundReference,
     String? notes,
   }) async {
     debugPrint(
-      '🔔 seller return action=refund returnId=$returnId amount=$refundAmount',
+      '🔔 seller return action=refund returnId=$returnId amount=$refundAmount '
+      'provider=${refundReference.provider}',
     );
     await _callCallable('triggerOrderReturnRefund', {
       'returnId': returnId,
       'refundAmount': refundAmount,
       'refundType': refundType,
-      'paymentId': paymentId,
+      'refundReference': refundReference.toMap(),
       'notes': notes,
     });
   }
 
-  Future<String?> resolvePaymentIdForReturn({required String returnId}) async {
-    final returnSnap = await _db
-        .collection('order_returns')
-        .doc(returnId)
-        .get();
-    final returnData = returnSnap.data() ?? {};
+Future<DocumentSnapshot<Map<String, dynamic>>?> _safeGet(
+  DocumentReference<Map<String, dynamic>> ref,
+) async {
+  const delays = [
+    Duration(milliseconds: 400),
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+  ];
 
-    String? pickPaymentId(Map<String, dynamic> source) {
-      final direct = (source['paymentId'] ?? '').toString().trim();
-      if (direct.isNotEmpty) return direct;
+  for (var i = 0; i < delays.length; i++) {
+    try {
+      return await ref.get();
+    } on FirebaseException catch (e) {
+      if (e.code != 'unavailable') rethrow;
 
-      final refundDetails = source['refundDetails'];
-      if (refundDetails is Map) {
-        final nested = (refundDetails['paymentId'] ?? '').toString().trim();
-        if (nested.isNotEmpty) return nested;
-      }
-      return null;
+      debugPrint(
+        'Firestore unavailable. Retry ${i + 1}/${delays.length}',
+      );
+
+      await Future.delayed(delays[i]);
     }
+  }
 
-    final direct = pickPaymentId(returnData);
-    if (direct != null && direct.isNotEmpty) {
-      debugPrint('🧾 resolvePaymentIdForReturn direct hit returnId=$returnId');
-      return direct;
-    }
+  return null;
+}
 
-    final sellerOrderId = (returnData['sellerOrderId'] ?? '').toString().trim();
-    if (sellerOrderId.isNotEmpty) {
-      final sellerSnap = await _db
-          .collection('sellerOrders')
-          .doc(sellerOrderId)
-          .get();
-      if (sellerSnap.exists) {
-        final sellerData = sellerSnap.data() ?? {};
-        final sellerPayment = sellerData['payment'];
-        if (sellerPayment is Map) {
-          final sellerPaymentId = (sellerPayment['paymentId'] ?? '')
-              .toString()
-              .trim();
-          if (sellerPaymentId.isNotEmpty) {
-            debugPrint(
-              '🧾 resolvePaymentIdForReturn sellerOrder hit returnId=$returnId sellerOrderId=$sellerOrderId',
-            );
-            return sellerPaymentId;
-          }
-        }
-      }
-    }
+  Future<RefundReference?> resolveRefundReferenceForReturn({
+  required String returnId,
+}) async {
+  final returnSnap = await _safeGet(
+    _db.collection('order_returns').doc(returnId),
+  );
 
-    final rootOrderId =
-        (returnData['rootOrderId'] ?? returnData['orderId'] ?? '')
-            .toString()
-            .trim();
-    if (rootOrderId.isNotEmpty) {
-      final rootSnap = await _db.collection('orders').doc(rootOrderId).get();
-      if (rootSnap.exists) {
-        final rootData = rootSnap.data() ?? {};
-        final rootPayment = rootData['payment'];
-        if (rootPayment is Map) {
-          final rootPaymentId = (rootPayment['paymentId'] ?? '')
-              .toString()
-              .trim();
-          if (rootPaymentId.isNotEmpty) {
-            debugPrint(
-              '🧾 resolvePaymentIdForReturn rootOrder hit returnId=$returnId rootOrderId=$rootOrderId',
-            );
-            return rootPaymentId;
-          }
-        }
-      }
-    }
-
-    debugPrint('⚠️ resolvePaymentIdForReturn miss returnId=$returnId');
+  if (returnSnap == null || !returnSnap.exists) {
+    debugPrint(
+      '⚠️ resolveRefundReferenceForReturn: return not found/unavailable returnId=$returnId',
+    );
     return null;
   }
+
+  final returnData = returnSnap.data() ?? {};
+
+  RefundReference? fromSource(Map<String, dynamic> source) {
+    final reference = RefundReference.fromMap(source);
+    return reference.hasIdentifier ? reference : null;
+  }
+
+  final direct = fromSource(returnData);
+  if (direct != null) {
+    debugPrint(
+      '🧾 resolveRefundReferenceForReturn direct hit returnId=$returnId '
+      'provider=${direct.provider}',
+    );
+    return direct;
+  }
+
+  final refundDetails = returnData['refundDetails'];
+  if (refundDetails is Map) {
+    final fromDetails = fromSource(Map<String, dynamic>.from(refundDetails));
+    if (fromDetails != null) {
+      debugPrint(
+        '🧾 resolveRefundReferenceForReturn refundDetails hit returnId=$returnId '
+        'provider=${fromDetails.provider}',
+      );
+      return fromDetails;
+    }
+  }
+
+  final sellerOrderId =
+      (returnData['sellerOrderId'] ?? '').toString().trim();
+
+  if (sellerOrderId.isNotEmpty) {
+    final sellerSnap = await _safeGet(
+      _db.collection('sellerOrders').doc(sellerOrderId),
+    );
+
+    if (sellerSnap != null && sellerSnap.exists) {
+      final sellerPayment = sellerSnap.data()?['payment'];
+      if (sellerPayment is Map) {
+        final fromSeller = fromSource(
+          Map<String, dynamic>.from(sellerPayment),
+        );
+        if (fromSeller != null) {
+          debugPrint(
+            '🧾 resolveRefundReferenceForReturn sellerOrder hit '
+            'returnId=$returnId sellerOrderId=$sellerOrderId '
+            'provider=${fromSeller.provider}',
+          );
+          return fromSeller;
+        }
+      }
+    }
+  }
+
+  final rootOrderId =
+      (returnData['rootOrderId'] ?? returnData['orderId'] ?? '')
+          .toString()
+          .trim();
+
+  if (rootOrderId.isNotEmpty) {
+    final rootSnap = await _safeGet(
+      _db.collection('orders').doc(rootOrderId),
+    );
+
+    if (rootSnap != null && rootSnap.exists) {
+      final rootPayment = rootSnap.data()?['payment'];
+      if (rootPayment is Map) {
+        final fromRoot = fromSource(Map<String, dynamic>.from(rootPayment));
+        if (fromRoot != null) {
+          debugPrint(
+            '🧾 resolveRefundReferenceForReturn rootOrder hit '
+            'returnId=$returnId rootOrderId=$rootOrderId '
+            'provider=${fromRoot.provider}',
+          );
+          return fromRoot;
+        }
+      }
+    }
+  }
+
+  debugPrint(
+    '⚠️ resolveRefundReferenceForReturn miss returnId=$returnId',
+  );
+
+  return null;
+}
 }

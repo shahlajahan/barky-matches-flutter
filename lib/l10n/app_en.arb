@@ -3027,5 +3027,6 @@
 ,"webSubscriptionCancelledTitle": "Payment cancelled"
 ,"webSubscriptionCancelledMessage": "The payment was cancelled and your subscription was not changed."
 ,"webSubscriptionPendingTitle": "Payment is still processing"
-,"webSubscriptionPendingMessage": "The bank has not completed verification yet. This page will check again automatically."
+,"webSubscriptionPendingMessage": "The bank has not completed verification yet. This page will check again automatically.",
+"chatError": "Chat error: {error}"
 }

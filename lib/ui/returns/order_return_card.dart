@@ -481,136 +481,171 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
   }
 
   Future<void> _showRefundDialog(BuildContext context) async {
-    if (_refundLoading) return;
-    final l10n = AppLocalizations.of(context)!;
-    final amountController = TextEditingController(
-      text: widget.record.refundAmount.toStringAsFixed(2),
-    );
-    final notesController = TextEditingController();
-    String refundType = widget.record.refundType.value;
+  if (_refundLoading) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(l10n.triggerRefundButton),
-          content: StatefulBuilder(
-            builder: (context, setDialogState) {
-              return SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: amountController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: l10n.refundAmountLabel,
-                      ),
+  final l10n = AppLocalizations.of(context)!;
+
+  final amountController = TextEditingController(
+    text: widget.record.refundAmount.toStringAsFixed(2),
+  );
+
+  final notesController = TextEditingController();
+
+  String refundType = widget.record.refundType.value;
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: Text(l10n.triggerRefundButton),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: l10n.refundAmountLabel,
                     ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: refundType,
-                      decoration: InputDecoration(
-                        labelText: l10n.refundTypeLabel,
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'full',
-                          child: Text(l10n.refundTypeFullLabel),
-                        ),
-                        DropdownMenuItem(
-                          value: 'partial',
-                          child: Text(l10n.refundTypePartialLabel),
-                        ),
-                        DropdownMenuItem(
-                          value: 'shipping',
-                          child: Text(l10n.refundTypeShippingLabel),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setDialogState(() => refundType = value);
-                      },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: refundType,
+                    decoration: InputDecoration(
+                      labelText: l10n.refundTypeLabel,
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: notesController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: l10n.notesOptional,
-                        hintText: l10n.descriptionLabel,
+                    items: [
+                      DropdownMenuItem(
+                        value: 'full',
+                        child: Text(l10n.refundTypeFullLabel),
                       ),
+                      DropdownMenuItem(
+                        value: 'partial',
+                        child: Text(l10n.refundTypePartialLabel),
+                      ),
+                      DropdownMenuItem(
+                        value: 'shipping',
+                        child: Text(l10n.refundTypeShippingLabel),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => refundType = value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: l10n.notesOptional,
+                      hintText: l10n.descriptionLabel,
                     ),
-                  ],
-                ),
-              );
-            },
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(l10n.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(l10n.triggerRefundButton),
-            ),
-          ],
-        );
-      },
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.triggerRefundButton),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmed != true) return;
+
+  if (mounted) {
+    setState(() => _refundLoading = true);
+  }
+
+  try {
+    // No caller extracts paymentId directly anymore — Iyzico and İş Bank
+    // are addressed by different identifiers, so the provider-aware
+    // RefundReference is resolved (and passed through) as a whole.
+    final directReference = RefundReference.fromMap(
+      widget.record.refundDetails,
     );
 
-    if (confirmed != true) return;
-    final paymentId =
-        (widget.record.paymentId ??
-                widget.record.refundDetails['paymentId'] ??
-                '')
-            .toString();
-    final resolvedPaymentId = paymentId.isNotEmpty
-        ? paymentId
-        : await OrderReturnService.instance.resolvePaymentIdForReturn(
+    final resolvedReference = directReference.hasIdentifier
+        ? directReference
+        : await OrderReturnService.instance.resolveRefundReferenceForReturn(
             returnId: widget.record.returnId,
           );
+
     if (!context.mounted) return;
-    if (resolvedPaymentId == null || resolvedPaymentId.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.errorOccurred('Missing paymentId'))),
-        );
-      }
+
+    if (resolvedReference == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.errorOccurred('Missing refund reference'),
+          ),
+        ),
+      );
       return;
     }
 
-    try {
-      setState(() => _refundLoading = true);
-      await OrderReturnService.instance.triggerRefund(
-        returnId: widget.record.returnId,
-        refundAmount: double.tryParse(amountController.text.trim()) ?? 0,
-        refundType: refundType,
-        paymentId: resolvedPaymentId,
-        notes: notesController.text.trim().isEmpty
-            ? null
-            : notesController.text.trim(),
-      );
-      widget.onChanged?.call();
+    await OrderReturnService.instance.triggerRefund(
+      returnId: widget.record.returnId,
+      refundAmount: double.tryParse(amountController.text.trim()) ?? 0,
+      refundType: refundType,
+      refundReference: resolvedReference,
+      notes: notesController.text.trim().isEmpty
+          ? null
+          : notesController.text.trim(),
+    );
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.returnActionCompleted)));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.errorOccurred(e.toString()))),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _refundLoading = false);
-      }
+    widget.onChanged?.call();
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.returnActionCompleted),
+      ),
+    );
+  } on FirebaseException catch (e) {
+    if (!context.mounted) return;
+
+    final message = e.code == 'unavailable'
+        ? 'Connection to the server is temporarily unavailable. Please try again.'
+        : (e.message ?? e.code);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          l10n.errorOccurred(message),
+        ),
+      ),
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          l10n.errorOccurred(e.toString()),
+        ),
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _refundLoading = false);
     }
   }
+}
 
   Future<void> _markReceived(BuildContext context) async {
     if (_isProcessingReturn) return;

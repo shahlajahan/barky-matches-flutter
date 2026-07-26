@@ -3046,5 +3046,6 @@
 ,"webSubscriptionCancelledTitle": "Ödeme iptal edildi"
 ,"webSubscriptionCancelledMessage": "Ödeme iptal edildi ve aboneliğiniz değiştirilmedi."
 ,"webSubscriptionPendingTitle": "Ödeme hâlâ işleniyor"
-,"webSubscriptionPendingMessage": "Banka doğrulamayı henüz tamamlamadı. Bu sayfa otomatik olarak yeniden kontrol edecek."
+,"webSubscriptionPendingMessage": "Banka doğrulamayı henüz tamamlamadı. Bu sayfa otomatik olarak yeniden kontrol edecek.",
+"chatError": "Sohbet hatası: {error}"
 }

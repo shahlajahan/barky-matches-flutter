@@ -4045,6 +4045,70 @@ function firstNonEmptyString(...values) {
   return null;
 }
 
+// Retries a Firestore .set() a few times before giving up. Used specifically
+// for persisting a *confirmed* gateway refund result, where a transient
+// Firestore error must not be allowed to masquerade as a refund failure.
+async function firestoreSetWithRetry(ref, data, options, attempts = 3, delayMs = 300) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      await ref.set(data, options);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+const SUPPORTED_REFUND_PROVIDERS = ["iyzico", "isbank"];
+
+// Every payment provider exposes different identifiers for issuing a refund.
+// Iyzico refunds are addressed by paymentId; Iş Bank (NestPay CC5AS "Credit"
+// operation) has no paymentId and is addressed by OrderId (oid) instead
+// (docs/payment/vendor/nestpay-api.pdf, "İade" section). Never fabricate a
+// paymentId for a provider that doesn't have one.
+function resolveRefundReference({ paymentProvider, payment }) {
+  const safePayment = payment || {};
+  const provider =
+    normalizeLower(paymentProvider) ||
+    normalizeLower(safePayment.paymentProvider) ||
+    normalizeLower(safePayment.provider) ||
+    "iyzico";
+
+  if (provider === "isbank") {
+    const transId = firstNonEmptyString(safePayment.transId);
+
+    return {
+      provider,
+      paymentTransactionId: transId,
+      paymentTransactionIds: transId ? [transId] : [],
+      hostRefNum: firstNonEmptyString(safePayment.hostRefNum),
+      authCode: firstNonEmptyString(safePayment.authCode),
+      oid: firstNonEmptyString(safePayment.oid, safePayment.orderId),
+    };
+  }
+
+  const paymentTransactionIds = extractPaymentTransactionIds(
+    safePayment.paymentTransactionIds || safePayment.itemTransactions || []
+  );
+  const paymentTransactionId =
+    firstNonEmptyString(safePayment.paymentTransactionId) ||
+    (paymentTransactionIds.length > 0 ? paymentTransactionIds[0] : null);
+
+  return {
+    provider,
+    paymentId: firstNonEmptyString(safePayment.paymentId),
+    paymentTransactionId,
+    paymentTransactionIds,
+  };
+}
+
 function firstPositiveNumber(...values) {
   for (const value of values) {
     const amount = asNumber(value, 0);
@@ -4208,6 +4272,159 @@ async function createIyzicoTransactionRefund({
     errorMessage:
       responseText || `Iyzico refund HTTP ${response.status}`,
     rawBody: responseText || null,
+  };
+}
+
+// Executes a marketplace return refund against Iyzico using the same
+// iyzipay-node SDK call the return dispatcher has always used. Behavior is
+// unchanged from the pre-refactor inline implementation.
+async function refundWithIyzipay({
+  apiKey,
+  secretKey,
+  returnId,
+  paymentId,
+  amount,
+  currency,
+  ip,
+}) {
+  const iyzi = new Iyzipay({
+    apiKey,
+    secretKey,
+    uri: "https://sandbox-api.iyzipay.com",
+  });
+
+  return new Promise((resolve, reject) => {
+    iyzi.refundV2.create(
+      {
+        locale: Iyzipay.LOCALE.TR,
+        conversationId: returnId,
+        paymentId,
+        price: amount.toString(),
+        currency,
+        ip: ip || "85.34.78.112",
+      },
+      (err, res) => {
+        if (err) return reject(err);
+        return resolve(res);
+      }
+    );
+  });
+}
+
+function escapeIsbankXmlValue(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// CC5AS XML request builder for the İş Bank / NestPay XML API (fim/api).
+// Field set and "Credit" (refund) semantics are documented in
+// docs/payment/vendor/nestpay-api.pdf, section "İade": Type=Credit and
+// OrderId identify the refund; Total carries the (optionally partial) amount.
+function buildIsbankCC5RefundRequestXml({
+  apiUsername,
+  apiPassword,
+  clientId,
+  oid,
+  amount,
+  currencyCode,
+}) {
+  const fields = [
+    ["Name", apiUsername],
+    ["Password", apiPassword],
+    ["ClientId", clientId],
+    ["Type", "Credit"],
+    ["OrderId", oid],
+    ["Total", asNumber(amount, 0).toFixed(2)],
+    ["Currency", currencyCode || "949"],
+  ];
+
+  const body = fields
+    .filter(([, value]) => value != null && value !== "")
+    .map(([key, value]) => `<${key}>${escapeIsbankXmlValue(value)}</${key}>`)
+    .join("");
+
+  return `<?xml version="1.0" encoding="UTF-8"?><CC5Request>${body}</CC5Request>`;
+}
+
+function parseIsbankCC5ResponseXml(xmlText) {
+  const extract = (tag) => {
+    const match = String(xmlText || "").match(
+      new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i")
+    );
+    return match ? match[1].trim() : null;
+  };
+
+  return {
+    orderId: extract("OrderId"),
+    response: extract("Response"),
+    authCode: extract("AuthCode"),
+    hostRefNum: extract("HostRefNum"),
+    procReturnCode: extract("ProcReturnCode"),
+    transId: extract("TransId"),
+    errMsg: extract("ErrMsg"),
+  };
+}
+
+// Executes a marketplace return refund against İş Bank via the NestPay CC5AS
+// XML API (Type=Credit). Uses OrderId (oid) as the refund identifier per
+// docs/payment/vendor/nestpay-api.pdf — İş Bank has no paymentId, so this
+// path is intentionally independent from the Iyzico implementation.
+async function refundWithIsbank({
+  clientId,
+  apiUsername,
+  apiPassword,
+  apiUrl,
+  currencyCode,
+  refundReference,
+  amount,
+}) {
+  const oid = refundReference?.oid || null;
+
+  if (!oid) {
+    return {
+      status: "failure",
+      errorMessage: "İş Bank refund requires oid (OrderId) from the original payment.",
+      raw: null,
+    };
+  }
+
+  const requestXml = buildIsbankCC5RefundRequestXml({
+    apiUsername,
+    apiPassword,
+    clientId,
+    oid,
+    amount,
+    currencyCode,
+  });
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/xml; charset=utf-8" },
+    body: requestXml,
+  });
+
+  const responseText = await response.text();
+  const parsed = parseIsbankCC5ResponseXml(responseText);
+  const approved =
+    normalizeLower(parsed.response) === "approved" &&
+    parsed.procReturnCode === "00";
+
+  return {
+    status: approved ? "success" : "failure",
+    errorMessage: approved
+      ? null
+      : parsed.errMsg ||
+        `İş Bank refund declined (ProcReturnCode=${parsed.procReturnCode || "unknown"})`,
+    errorCode: parsed.procReturnCode || null,
+    authCode: parsed.authCode || null,
+    hostRefNum: parsed.hostRefNum || null,
+    transId: parsed.transId || null,
+    oid: parsed.orderId || oid,
+    currency: currencyCode,
+    price: amount,
+    raw: { ...parsed, httpStatus: response.status, rawBody: responseText },
   };
 }
 
@@ -12676,6 +12893,215 @@ exports.createCheckoutSession = onCall(
   }
 );
 
+// ============================================================
+// Seller payout financial safety (Phase 1 hardening)
+// ============================================================
+//
+// Return statuses under which a refund could still happen for a seller
+// order. A payout must not be approved/paid while any of these are active,
+// independent of the payout.status hold applied once a refund completes
+// (see applyRefundToSellerPayout below).
+const PAYOUT_BLOCKING_RETURN_STATUSES = [
+  "pending",
+  "approved",
+  "shipped_back",
+  "received_by_seller",
+  "refund_pending",
+  "refund_failed",
+];
+
+// Throws HttpsError("failed-precondition", ...) if this seller order must
+// not be approved for payout right now: an unresolved return exists, or a
+// prior refund has already put the payout on hold / flagged it for debt
+// recovery. Called from inside the same transaction that reads the seller
+// order so the check and the subsequent write are atomic.
+async function assertSellerOrderPayoutApprovable({
+  transaction,
+  db,
+  sellerOrderId,
+  sellerOrder,
+}) {
+  const payoutStatus = normalizeLower(sellerOrder?.payout?.status);
+
+  if (payoutStatus === "recovery_required") {
+    throw new HttpsError(
+      "failed-precondition",
+      "This payout requires manual seller debt recovery before it can be approved. A refund was issued after this seller was already paid."
+    );
+  }
+
+  if (payoutStatus === "hold") {
+    throw new HttpsError(
+      "failed-precondition",
+      "This payout is on hold pending refund reconciliation and cannot be approved yet."
+    );
+  }
+
+  const returnsQuery = db
+    .collection("order_returns")
+    .where("sellerOrderId", "==", sellerOrderId);
+  const returnsSnap = transaction
+    ? await transaction.get(returnsQuery)
+    : await returnsQuery.get();
+
+  const activeReturn = returnsSnap.docs.find((doc) =>
+    PAYOUT_BLOCKING_RETURN_STATUSES.includes(
+      normalizeReturnStatus(doc.data()?.status)
+    )
+  );
+
+  if (activeReturn) {
+    throw new HttpsError(
+      "failed-precondition",
+      `This seller order has an active return (${activeReturn.id}, status: ${activeReturn.data().status}) and cannot be approved for payout until it is resolved.`
+    );
+  }
+}
+
+// Applies the financial consequence of a successful refund to the seller's
+// payout record. Never moves money and never recovers debt automatically —
+// it only holds/flags the payout and, when the seller was already paid,
+// records a seller debt for later manual/future-phase recovery.
+//
+// - payout.status "pending" or "ready" (or anything not yet paid) -> "hold"
+// - payout.status "paid" -> "recovery_required" + a sellerDebts record
+//
+// Runs in its own transaction so it is safe to call concurrently with
+// markSellerPayoutReady/markSellerPayoutPaid (Firestore will serialize the
+// conflicting transactions on the same sellerOrder document).
+async function applyRefundToSellerPayout({
+  db,
+  sellerOrderId,
+  returnId,
+  refundAmount,
+  reason,
+}) {
+  if (!sellerOrderId) {
+    return { applied: false, reason: "missing_sellerOrderId" };
+  }
+
+  const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
+  // Deterministic id keyed on returnId: a given return can only ever be
+  // refunded once (enforced by the transactional claim in
+  // triggerOrderReturnRefund), so this makes debt recording idempotent even
+  // if this function is ever invoked twice for the same refund.
+  const debtRef = db.collection("sellerDebts").doc(returnId);
+
+  return db.runTransaction(async (transaction) => {
+    const sellerOrderSnap = await transaction.get(sellerOrderRef);
+
+    if (!sellerOrderSnap.exists) {
+      return { applied: false, reason: "sellerOrder_not_found" };
+    }
+
+    const sellerOrder = sellerOrderSnap.data() || {};
+    const payout = sellerOrder.payout || {};
+    const payoutStatus = normalizeLower(payout.status || "pending");
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // "paid" is the first refund-after-payout on this seller order: it
+    // transitions payout.status into recovery_required. "recovery_required"
+    // is every subsequent refund-after-payout on the *same* seller order
+    // (e.g. two separate returns both refunded after payout) — it must be
+    // handled the same way (its own deterministic debt record, debt
+    // accumulated), and must NEVER be downgraded back to "hold" by falling
+    // through to the default branch below.
+    if (payoutStatus === "paid" || payoutStatus === "recovery_required") {
+      const debtSnap = await transaction.get(debtRef);
+
+      if (!debtSnap.exists) {
+        transaction.set(debtRef, {
+          sellerDebt: refundAmount,
+          refundAmount,
+          reason: reason || "refund_after_payout",
+          createdAt: now,
+          sellerOrderId,
+          returnId,
+          // Additional linkage/bookkeeping fields — required to ever query
+          // or later deduct this debt; not part of the recovery logic
+          // itself (which remains manual / a later phase).
+          sellerUid:
+            sellerOrder.sellerUid ||
+            sellerOrder.sellerSnapshot?.ownerUid ||
+            null,
+          businessId: sellerOrder.businessId || sellerOrder.shopId || null,
+          status: "outstanding",
+          recovered: false,
+          recoveredAmount: 0,
+          updatedAt: now,
+        });
+      }
+
+      transaction.set(
+        sellerOrderRef,
+        {
+          "payout.status": "recovery_required",
+          // Preserve the original pre-recovery status (e.g. "paid") and the
+          // original recovery reason/timestamp across repeated calls —
+          // only set them the first time this seller order enters
+          // recovery_required, never overwrite them on subsequent refunds.
+          "payout.previousStatus":
+            payout.previousStatus || payout.status || null,
+          "payout.recoveryRequiredAt": payout.recoveryRequiredAt || now,
+          "payout.recoveryReason":
+            payout.recoveryReason || reason || "refund_after_payout",
+          "payout.updatedAt": now,
+          "payout.relatedReturnIds":
+            admin.firestore.FieldValue.arrayUnion(returnId),
+          "payout.outstandingDebt":
+            admin.firestore.FieldValue.increment(refundAmount),
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+
+      return {
+        applied: true,
+        case:
+          payoutStatus === "paid"
+            ? "recovery_required"
+            : "recovery_required_debt_added",
+        debtId: debtRef.id,
+      };
+    }
+
+    if (payoutStatus === "hold") {
+      transaction.set(
+        sellerOrderRef,
+        {
+          "payout.relatedReturnIds":
+            admin.firestore.FieldValue.arrayUnion(returnId),
+          "payout.updatedAt": now,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+      return { applied: true, case: "already_held" };
+    }
+
+    // pending / ready / unknown -> hold
+    transaction.set(
+      sellerOrderRef,
+      {
+        "payout.status": "hold",
+        "payout.previousStatus": payout.status || "pending",
+        "payout.holdAt": now,
+        "payout.holdReason": reason || "refund_pending_or_completed",
+        "payout.updatedAt": now,
+        "payout.relatedReturnIds":
+          admin.firestore.FieldValue.arrayUnion(returnId),
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+
+    return {
+      applied: true,
+      case: payoutStatus === "ready" ? "reverted_to_hold" : "held",
+    };
+  });
+}
+
 exports.markSellerPayoutReady = onCall(
   {
     region: "europe-west3",
@@ -12705,31 +13131,42 @@ exports.markSellerPayoutReady = onCall(
     }
 
     const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
-    const sellerOrderSnap = await sellerOrderRef.get();
 
-    if (!sellerOrderSnap.exists) {
-      throw new HttpsError("not-found", "Seller order not found.");
-    }
+    await db.runTransaction(async (transaction) => {
+      const sellerOrderSnap = await transaction.get(sellerOrderRef);
 
-    const sellerOrder = sellerOrderSnap.data() || {};
-    const currentPayoutStatus = sellerOrder.payout?.status || "unknown";
+      if (!sellerOrderSnap.exists) {
+        throw new HttpsError("not-found", "Seller order not found.");
+      }
 
-    if (currentPayoutStatus === "paid") {
-      throw new HttpsError(
-        "failed-precondition",
-        "This payout is already paid."
+      const sellerOrder = sellerOrderSnap.data() || {};
+      const currentPayoutStatus = sellerOrder.payout?.status || "unknown";
+
+      if (currentPayoutStatus === "paid") {
+        throw new HttpsError(
+          "failed-precondition",
+          "This payout is already paid."
+        );
+      }
+
+      await assertSellerOrderPayoutApprovable({
+        transaction,
+        db,
+        sellerOrderId,
+        sellerOrder,
+      });
+
+      transaction.set(
+        sellerOrderRef,
+        {
+          "payout.status": "ready",
+          "payout.readyAt": admin.firestore.FieldValue.serverTimestamp(),
+          "payout.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
       );
-    }
-
-    await sellerOrderRef.set(
-      {
-        "payout.status": "ready",
-        "payout.readyAt": admin.firestore.FieldValue.serverTimestamp(),
-        "payout.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    });
 
     return {
       success: true,
@@ -12778,34 +13215,45 @@ exports.markSellerPayoutPaid = onCall(
     }
 
     const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
-    const sellerOrderSnap = await sellerOrderRef.get();
 
-    if (!sellerOrderSnap.exists) {
-      throw new HttpsError("not-found", "Seller order not found.");
-    }
+    await db.runTransaction(async (transaction) => {
+      const sellerOrderSnap = await transaction.get(sellerOrderRef);
 
-    const sellerOrder = sellerOrderSnap.data() || {};
-    const payoutStatus = sellerOrder.payout?.status || "unknown";
+      if (!sellerOrderSnap.exists) {
+        throw new HttpsError("not-found", "Seller order not found.");
+      }
 
-    if (payoutStatus === "paid") {
-      throw new HttpsError(
-        "failed-precondition",
-        "This payout is already paid."
+      const sellerOrder = sellerOrderSnap.data() || {};
+      const payoutStatus = sellerOrder.payout?.status || "unknown";
+
+      if (payoutStatus === "paid") {
+        throw new HttpsError(
+          "failed-precondition",
+          "This payout is already paid."
+        );
+      }
+
+      await assertSellerOrderPayoutApprovable({
+        transaction,
+        db,
+        sellerOrderId,
+        sellerOrder,
+      });
+
+      transaction.set(
+        sellerOrderRef,
+        {
+          "payout.status": "paid",
+          "payout.paidAt": admin.firestore.FieldValue.serverTimestamp(),
+          "payout.reference": reference,
+          "payout.note": note || null,
+          "payout.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
       );
-    }
-
-    await sellerOrderRef.set(
-      {
-        "payout.status": "paid",
-        "payout.paidAt": admin.firestore.FieldValue.serverTimestamp(),
-        "payout.reference": reference,
-        "payout.note": note || null,
-        "payout.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
-
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    });
 
     return {
       success: true,
@@ -16826,6 +17274,12 @@ exports.updateSellerOrderStatusV2 = onCall(
     memory: "512MiB",
   },
   async (request) => {
+    let sellerOrderId = null;
+    let newStatus = null;
+    let rootOrderId = null;
+    let currentStatus = null;
+    let authUid = request?.auth?.uid || null;
+
     try {
       const db = admin.firestore();
       const auth = request.auth;
@@ -16834,10 +17288,12 @@ exports.updateSellerOrderStatusV2 = onCall(
         throw new HttpsError("unauthenticated", "Login required.");
       }
 
+      authUid = auth.uid;
+
       const data = request.data || {};
 
-      const sellerOrderId = data.sellerOrderId;
-      const newStatus = normalizeLower(data.status);
+      sellerOrderId = data.sellerOrderId;
+      newStatus = normalizeLower(data.status);
       const trackingNumber = normalizeText(data.trackingNumber);
       const carrierInput = normalizeText(data.carrier);
       logger.info("🧪 SELLER ORDER ID RAW", data.sellerOrderId);
@@ -16874,10 +17330,41 @@ exports.updateSellerOrderStatusV2 = onCall(
       }
 
       const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
-      const sellerOrderSnap = await sellerOrderRef.get();
 
-      logger.info("🧪 SELLER ORDER LOOKUP", {
+      logger.info("🔎 STEP START: sellerOrder lookup", {
         sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+      });
+
+      let sellerOrderSnap;
+      try {
+        sellerOrderSnap = await sellerOrderRef.get();
+      } catch (error) {
+        logger.error("💥 STEP FAILED: sellerOrder lookup", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw new HttpsError(
+          "internal",
+          "Failed to look up seller order.",
+          { step: "sellerOrder-lookup" }
+        );
+      }
+
+      logger.info("✅ STEP OK: sellerOrder lookup", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
         exists: sellerOrderSnap.exists,
       });
 
@@ -16896,8 +17383,8 @@ exports.updateSellerOrderStatusV2 = onCall(
         status: sellerOrder.status || null,
       });
 
-      const currentStatus = normalizeLower(sellerOrder.status);
-      const rootOrderId = sellerOrder.rootOrderId || null;
+      currentStatus = normalizeLower(sellerOrder.status);
+      rootOrderId = sellerOrder.rootOrderId || null;
 
       if (!rootOrderId) {
         throw new HttpsError("failed-precondition", "Missing rootOrderId");
@@ -16911,9 +17398,42 @@ exports.updateSellerOrderStatusV2 = onCall(
         );
       }
 
-      const businessSnap = await db.collection("businesses").doc(businessId).get();
+      logger.info("🔎 STEP START: business lookup", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+        businessId,
+      });
 
-      logger.info("🧪 BUSINESS LOOKUP", {
+      let businessSnap;
+      try {
+        businessSnap = await db.collection("businesses").doc(businessId).get();
+      } catch (error) {
+        logger.error("💥 STEP FAILED: business lookup", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          businessId,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw new HttpsError(
+          "internal",
+          "Failed to look up business.",
+          { step: "business-lookup" }
+        );
+      }
+
+      logger.info("✅ STEP OK: business lookup", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
         businessId,
         exists: businessSnap.exists,
       });
@@ -16962,11 +17482,43 @@ exports.updateSellerOrderStatusV2 = onCall(
       }
 
       const rootOrderRef = db.collection("orders").doc(rootOrderId);
-      const rootOrderSnap = await rootOrderRef.get();
+
+      logger.info("🔎 STEP START: rootOrder lookup", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+      });
+
+      let rootOrderSnap;
+      try {
+        rootOrderSnap = await rootOrderRef.get();
+      } catch (error) {
+        logger.error("💥 STEP FAILED: rootOrder lookup", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw new HttpsError(
+          "internal",
+          "Failed to look up root order.",
+          { step: "rootOrder-lookup" }
+        );
+      }
+
       const rootOrder = rootOrderSnap.exists ? rootOrderSnap.data() || {} : {};
 
-      logger.info("🧪 ROOT ORDER LOOKUP", {
+      logger.info("✅ STEP OK: rootOrder lookup", {
+        sellerOrderId,
         rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
         exists: rootOrderSnap.exists,
       });
 
@@ -17019,61 +17571,94 @@ exports.updateSellerOrderStatusV2 = onCall(
         sellerPatch.preparingAt = now;
       }
       // 🔥 INVOICE TRIGGER
-      if (newStatus === "preparing") {
-        const currentInvoice = sellerOrder.invoice || {};
+      logger.info("🔎 STEP START: invoice trigger", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+      });
 
-        if (!currentInvoice.uploadDeadlineAt) {
-          const nowTs = admin.firestore.Timestamp.now();
+      try {
+        if (newStatus === "preparing") {
+          const currentInvoice = sellerOrder.invoice || {};
 
-          const deadline = admin.firestore.Timestamp.fromMillis(
-            nowTs.toMillis() + 3 * 24 * 60 * 60 * 1000
-          );
+          if (!currentInvoice.uploadDeadlineAt) {
+            const nowTs = admin.firestore.Timestamp.now();
 
-          sellerPatch["invoice.status"] = "pending_upload";
-          sellerPatch["invoice.uploadDeadlineAt"] = deadline;
+            const deadline = admin.firestore.Timestamp.fromMillis(
+              nowTs.toMillis() + 3 * 24 * 60 * 60 * 1000
+            );
 
-          // ✅ DEBUG LOG
-          logger.info("🧾 INVOICE DEADLINE SET (FAILSAFE)", {
-            sellerOrderId,
-            previousDeadline: currentInvoice.uploadDeadlineAt || null,
-            newDeadline: deadline.toDate().toISOString(),
-            triggeredBy: "shipped",
-            now: nowTs.toDate().toISOString(),
-          });
-        } else {
-          // ✅ DEBUG LOG (already exists)
-          logger.info("🧾 INVOICE DEADLINE ALREADY EXISTS", {
-            sellerOrderId,
-            existingDeadline: currentInvoice.uploadDeadlineAt?.toDate?.() || null,
-            skipped: true,
-          });
+            sellerPatch["invoice.status"] = "pending_upload";
+            sellerPatch["invoice.uploadDeadlineAt"] = deadline;
+
+            // ✅ DEBUG LOG
+            logger.info("🧾 INVOICE DEADLINE SET (FAILSAFE)", {
+              sellerOrderId,
+              previousDeadline: currentInvoice.uploadDeadlineAt || null,
+              newDeadline: deadline.toDate().toISOString(),
+              triggeredBy: "shipped",
+              now: nowTs.toDate().toISOString(),
+            });
+          } else {
+            // ✅ DEBUG LOG (already exists)
+            logger.info("🧾 INVOICE DEADLINE ALREADY EXISTS", {
+              sellerOrderId,
+              existingDeadline: currentInvoice.uploadDeadlineAt?.toDate?.() || null,
+              skipped: true,
+            });
+          }
+
         }
+        if (newStatus === "shipped") {
+          sellerPatch.shipping = {
+            ...existingShipping,
+            carrier,
+            trackingNumber,
+            trackingUrl: buildTrackingUrl(carrier, trackingNumber),
+            shippedAt: now,
+            deliveredAt: existingShipping.deliveredAt || null,
+          };
 
-      }
-      if (newStatus === "shipped") {
-        sellerPatch.shipping = {
-          ...existingShipping,
-          carrier,
-          trackingNumber,
-          trackingUrl: buildTrackingUrl(carrier, trackingNumber),
-          shippedAt: now,
-          deliveredAt: existingShipping.deliveredAt || null,
-        };
+          // 🔥 FAILSAFE INVOICE TRIGGER
+          const currentInvoice = sellerOrder.invoice || {};
 
-        // 🔥 FAILSAFE INVOICE TRIGGER
-        const currentInvoice = sellerOrder.invoice || {};
+          if (!currentInvoice.uploadDeadlineAt) {
+            const nowTs = admin.firestore.Timestamp.now();
 
-        if (!currentInvoice.uploadDeadlineAt) {
-          const nowTs = admin.firestore.Timestamp.now();
+            const deadline = admin.firestore.Timestamp.fromMillis(
+              nowTs.toMillis() + 3 * 24 * 60 * 60 * 1000
+            );
 
-          const deadline = admin.firestore.Timestamp.fromMillis(
-            nowTs.toMillis() + 3 * 24 * 60 * 60 * 1000
-          );
-
-          sellerPatch["invoice.status"] = "pending_upload";
-          sellerPatch["invoice.uploadDeadlineAt"] = deadline;
+            sellerPatch["invoice.status"] = "pending_upload";
+            sellerPatch["invoice.uploadDeadlineAt"] = deadline;
+          }
         }
+      } catch (error) {
+        logger.error("💥 STEP FAILED: invoice trigger", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw new HttpsError(
+          "internal",
+          "Failed to prepare invoice deadline.",
+          { step: "invoice-trigger" }
+        );
       }
+
+      logger.info("✅ STEP OK: invoice trigger", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+      });
 
       if (newStatus === "delivered") {
         sellerPatch.shipping = {
@@ -17100,25 +17685,126 @@ exports.updateSellerOrderStatusV2 = onCall(
         sellerPatch.failedAt = now;
       }
 
-      await sellerOrderRef.set(sellerPatch, { merge: true });
+      logger.info("🔎 STEP START: sellerOrder update", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+      });
+
+      try {
+        await sellerOrderRef.set(sellerPatch, { merge: true });
+      } catch (error) {
+        logger.error("💥 STEP FAILED: sellerOrder update", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw new HttpsError(
+          "internal",
+          "Failed to update seller order.",
+          { step: "sellerOrder-update" }
+        );
+      }
+
+      logger.info("✅ STEP OK: sellerOrder update", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+      });
 
       // 🔔 Notify seller about invoice requirement
       if (newStatus === "preparing" || newStatus === "shipped") {
-        await createNotification(db, {
-          recipientUserId: auth.uid,
-          userId: auth.uid,
-          type: "invoice_required",
-          title: "Fatura gerekli ⚠️",
-          body: "Sipariş için faturanızı yüklemeyi unutmayın.",
+        logger.info("🔎 STEP START: notification creation (invoice_required)", {
           sellerOrderId,
-          orderId: rootOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+        });
+
+        try {
+          await createNotification(db, {
+            recipientUserId: auth.uid,
+            userId: auth.uid,
+            type: "invoice_required",
+            title: "Fatura gerekli ⚠️",
+            body: "Sipariş için faturanızı yüklemeyi unutmayın.",
+            sellerOrderId,
+            orderId: rootOrderId,
+          });
+        } catch (error) {
+          logger.error("💥 STEP FAILED: notification creation (invoice_required)", {
+            sellerOrderId,
+            rootOrderId,
+            currentStatus,
+            requestedStatus: newStatus,
+            authUid: auth.uid,
+            message: error?.message || String(error),
+            stack: error?.stack || null,
+          });
+          throw new HttpsError(
+            "internal",
+            "Failed to create invoice-required notification.",
+            { step: "notification-invoice-required" }
+          );
+        }
+
+        logger.info("✅ STEP OK: notification creation (invoice_required)", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
         });
       }
 
-      const siblingsSnap = await db
-        .collection("sellerOrders")
-        .where("rootOrderId", "==", rootOrderId)
-        .get();
+      logger.info("🔎 STEP START: sibling sellerOrders query", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+      });
+
+      let siblingsSnap;
+      try {
+        siblingsSnap = await db
+          .collection("sellerOrders")
+          .where("rootOrderId", "==", rootOrderId)
+          .get();
+      } catch (error) {
+        logger.error("💥 STEP FAILED: sibling sellerOrders query", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw new HttpsError(
+          "internal",
+          "Failed to query sibling seller orders.",
+          { step: "sibling-sellerOrders-query" }
+        );
+      }
+
+      logger.info("✅ STEP OK: sibling sellerOrders query", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+        siblingCount: siblingsSnap.size,
+      });
 
       const siblingStatuses = siblingsSnap.docs.map((doc) => {
         if (doc.id === sellerOrderId) return newStatus;
@@ -17127,18 +17813,54 @@ exports.updateSellerOrderStatusV2 = onCall(
 
       const rootStatus = computeRootStatusFromSellerStatuses(siblingStatuses);
 
-      await rootOrderRef.set(
-        {
-          status: rootStatus,
-          updatedAt: now,
-          timeline: admin.firestore.FieldValue.arrayUnion({
+      logger.info("🔎 STEP START: root order update", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+        rootStatus,
+      });
+
+      try {
+        await rootOrderRef.set(
+          {
             status: rootStatus,
-            at: new Date().toISOString(),
-            by: "system",
-          }),
-        },
-        { merge: true }
-      );
+            updatedAt: now,
+            timeline: admin.firestore.FieldValue.arrayUnion({
+              status: rootStatus,
+              at: new Date().toISOString(),
+              by: "system",
+            }),
+          },
+          { merge: true }
+        );
+      } catch (error) {
+        logger.error("💥 STEP FAILED: root order update", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          rootStatus,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        });
+        throw new HttpsError(
+          "internal",
+          "Failed to update root order.",
+          { step: "rootOrder-update" }
+        );
+      }
+
+      logger.info("✅ STEP OK: root order update", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid: auth.uid,
+        rootStatus,
+      });
 
       const buyerUid =
         sellerOrder.buyerUid || rootOrder.buyerUid || rootOrder.userId || null;
@@ -17156,14 +17878,50 @@ exports.updateSellerOrderStatusV2 = onCall(
           body = "Your order has been delivered.";
         }
 
-        await createNotification(db, {
-          recipientUserId: buyerUid,
-          userId: buyerUid,
-          type: "order_update",
-          title: "Order update 📦",
-          body,
-          orderId: rootOrderId,
+        logger.info("🔎 STEP START: buyer notification", {
           sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          buyerUid,
+        });
+
+        try {
+          await createNotification(db, {
+            recipientUserId: buyerUid,
+            userId: buyerUid,
+            type: "order_update",
+            title: "Order update 📦",
+            body,
+            orderId: rootOrderId,
+            sellerOrderId,
+          });
+        } catch (error) {
+          logger.error("💥 STEP FAILED: buyer notification", {
+            sellerOrderId,
+            rootOrderId,
+            currentStatus,
+            requestedStatus: newStatus,
+            authUid: auth.uid,
+            buyerUid,
+            message: error?.message || String(error),
+            stack: error?.stack || null,
+          });
+          throw new HttpsError(
+            "internal",
+            "Failed to create buyer notification.",
+            { step: "buyer-notification" }
+          );
+        }
+
+        logger.info("✅ STEP OK: buyer notification", {
+          sellerOrderId,
+          rootOrderId,
+          currentStatus,
+          requestedStatus: newStatus,
+          authUid: auth.uid,
+          buyerUid,
         });
       }
 
@@ -17195,6 +17953,11 @@ exports.updateSellerOrderStatusV2 = onCall(
       };
     } catch (error) {
       logger.error("❌ updateSellerOrderStatusV2 ERROR", {
+        sellerOrderId,
+        rootOrderId,
+        currentStatus,
+        requestedStatus: newStatus,
+        authUid,
         message: error?.message || String(error),
         stack: error?.stack || null,
       });
@@ -17480,28 +18243,27 @@ exports.createOrderReturnRequest = onCall(
     const businessId = sellerOrder.businessId || sellerOrder.shopId || null;
     const sellerPayment = sellerOrder?.payment || {};
     const rootPayment = rootOrder?.payment || {};
-    const paymentId =
-      sellerPayment.paymentId ||
-      rootPayment.paymentId ||
-      rootOrder.paymentId ||
-      null;
+    // İş Bank sellerOrders/orders never have a paymentId — only Iyzico does.
+    // resolveRefundReference() is provider-aware and will not fabricate one.
+    const mergedPayment = {
+      ...rootPayment,
+      ...sellerPayment,
+      paymentId:
+        sellerPayment.paymentId ||
+        rootPayment.paymentId ||
+        rootOrder.paymentId ||
+        null,
+    };
     const paymentProvider =
       sellerPayment.paymentProvider ||
       sellerPayment.provider ||
       rootPayment.paymentProvider ||
       rootPayment.provider ||
       null;
-    const paymentTransactionIds = extractPaymentTransactionIds(
-      sellerPayment.paymentTransactionIds ||
-      sellerPayment.itemTransactions ||
-      rootPayment.paymentTransactionIds ||
-      rootPayment.itemTransactions ||
-      []
-    );
-    const paymentTransactionId =
-      sellerPayment.paymentTransactionId ||
-      rootPayment.paymentTransactionId ||
-      (paymentTransactionIds.length > 0 ? paymentTransactionIds[0] : null);
+    const refundReference = resolveRefundReference({
+      paymentProvider,
+      payment: mergedPayment,
+    });
     const conversationId =
       sellerPayment.conversationId ||
       rootPayment.conversationId ||
@@ -17514,9 +18276,13 @@ exports.createOrderReturnRequest = onCall(
       buyerUid,
       sellerUid,
       businessId,
-      paymentId,
-      paymentTransactionId,
-      paymentTransactionIds,
+      refundProvider: refundReference.provider,
+      paymentId: refundReference.paymentId || null,
+      paymentTransactionId: refundReference.paymentTransactionId,
+      paymentTransactionIds: refundReference.paymentTransactionIds,
+      hostRefNum: refundReference.hostRefNum || null,
+      authCode: refundReference.authCode || null,
+      oid: refundReference.oid || null,
       status: sellerOrder.status || null,
       deliveredAt:
         sellerOrder?.shipping?.deliveredAt ||
@@ -17688,12 +18454,35 @@ exports.createOrderReturnRequest = onCall(
 
     const returnRef = db.collection("order_returns").doc();
     console.log("💳 REFUND PAYMENT META", {
-      paymentId,
-      paymentProvider,
+      provider: refundReference.provider,
+      paymentId: refundReference.paymentId || null,
+      paymentTransactionId: refundReference.paymentTransactionId,
+      paymentTransactionIds: refundReference.paymentTransactionIds,
+      hostRefNum: refundReference.hostRefNum || null,
+      authCode: refundReference.authCode || null,
+      oid: refundReference.oid || null,
       returnId: returnRef.id,
       orderId: rootOrderId,
       conversationId,
     });
+    // Do not fabricate paymentId: only include it when the provider actually
+    // has one (Iyzico). İş Bank refunds are addressed by oid instead.
+    const refundReferenceFields = {
+      provider: refundReference.provider,
+      paymentProvider: refundReference.provider,
+      paymentTransactionId: refundReference.paymentTransactionId || null,
+      paymentTransactionIds: refundReference.paymentTransactionIds || [],
+      ...(refundReference.paymentId
+        ? { paymentId: refundReference.paymentId }
+        : {}),
+      ...(refundReference.hostRefNum
+        ? { hostRefNum: refundReference.hostRefNum }
+        : {}),
+      ...(refundReference.authCode
+        ? { authCode: refundReference.authCode }
+        : {}),
+      ...(refundReference.oid ? { oid: refundReference.oid } : {}),
+    };
     const uploadedImages = await uploadReturnImagesToStorage({
       bucket,
       returnId: returnRef.id,
@@ -17734,10 +18523,7 @@ exports.createOrderReturnRequest = onCall(
       shippingResponsibility,
       trackingNumber: null,
       carrier: null,
-      paymentId,
-      paymentProvider,
-      paymentTransactionId,
-      paymentTransactionIds,
+      ...refundReferenceFields,
       conversationId,
       adminNotes: null,
       sellerNotes: null,
@@ -17749,11 +18535,11 @@ exports.createOrderReturnRequest = onCall(
           rootOrder?.payment?.currency ||
           rootOrder?.currency ||
           "TRY",
-        paymentId,
-        paymentProvider,
-        paymentTransactionId,
-        paymentTransactionIds,
-        iyzicoPaymentTransactionId: paymentTransactionId,
+        ...refundReferenceFields,
+        iyzicoPaymentTransactionId:
+          refundReference.provider === "iyzico"
+            ? refundReference.paymentTransactionId
+            : null,
         conversationId,
       },
       returnWindowDays: windowDays,
@@ -18335,7 +19121,13 @@ exports.triggerOrderReturnRefund = onCall(
     region: "europe-west3",
     timeoutSeconds: 60,
     memory: "512MiB",
-    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+    secrets: [
+      IYZICO_API_KEY,
+      IYZICO_SECRET_KEY,
+      ISBANK_CLIENT_ID,
+      ISBANK_API_USERNAME,
+      ISBANK_API_PASSWORD,
+    ],
   },
   async (request) => {
     const db = admin.firestore();
@@ -18356,7 +19148,15 @@ exports.triggerOrderReturnRefund = onCall(
     const refundAmount = asNumber(data.refundAmount, 0);
     const refundType = normalizeLower(data.refundType) || "full";
     const notes = String(data.notes || "").trim();
-    const paymentId = String(data.paymentId || "").trim();
+    // Legacy clients may still send a bare paymentId; current clients send
+    // the full provider-aware RefundReference instead. Neither is required —
+    // the authoritative source is always the stored sellerOrder/order
+    // payment data, resolved below via resolveRefundReference().
+    const clientPaymentId = String(data.paymentId || "").trim();
+    const clientRefundReference =
+      data.refundReference && typeof data.refundReference === "object"
+        ? data.refundReference
+        : {};
     console.log("RETURN REFUND VALIDATION ENTRY");
 
     const failRefundValidation = (code, message, extra = {}) => {
@@ -18367,7 +19167,7 @@ exports.triggerOrderReturnRefund = onCall(
         returnId: returnId || null,
         refundAmount,
         refundType,
-        paymentId: paymentId || null,
+        paymentId: clientPaymentId || null,
         ...extra,
       });
       throw new HttpsError(code, message);
@@ -18440,45 +19240,93 @@ exports.triggerOrderReturnRefund = onCall(
       : null;
     const rootOrder = rootOrderSnap?.exists ? rootOrderSnap.data() || {} : {};
 
-    const payment = sellerOrder.payment || {};
+    const sellerPayment = sellerOrder.payment || {};
     const rootPayment = rootOrder.payment || {};
+    // İş Bank sellerOrders/orders never have a paymentId — only Iyzico does.
+    // resolveRefundReference() is provider-aware and will not fabricate one.
+    const mergedPayment = {
+      ...(returnData.refundDetails || {}),
+      ...rootPayment,
+      ...sellerPayment,
+      paymentId:
+        sellerPayment.paymentId ||
+        rootPayment.paymentId ||
+        rootOrder.paymentId ||
+        returnData.paymentId ||
+        returnData.refundDetails?.paymentId ||
+        clientRefundReference.paymentId ||
+        clientPaymentId ||
+        null,
+      oid:
+        sellerPayment.oid ||
+        sellerPayment.orderId ||
+        rootPayment.oid ||
+        rootOrder.oid ||
+        returnData.refundDetails?.oid ||
+        clientRefundReference.oid ||
+        null,
+    };
     const paymentProvider =
-      payment.paymentProvider ||
-      payment.provider ||
+      sellerPayment.paymentProvider ||
+      sellerPayment.provider ||
       rootPayment.paymentProvider ||
       rootPayment.provider ||
+      returnData.refundDetails?.provider ||
       returnData.refundDetails?.paymentProvider ||
+      clientRefundReference.provider ||
       null;
-    const orderPaymentId =
-      payment.paymentId ||
-      rootPayment.paymentId ||
-      rootOrder.paymentId ||
-      returnData.paymentId ||
-      returnData.refundDetails?.paymentId ||
-      paymentId;
-    if (!orderPaymentId) {
+
+    const refundReference = resolveRefundReference({
+      paymentProvider,
+      payment: mergedPayment,
+    });
+
+    if (!SUPPORTED_REFUND_PROVIDERS.includes(refundReference.provider)) {
+      failRefundValidation(
+        "failed-precondition",
+        `Unsupported payment provider: ${refundReference.provider || "unknown"}`,
+        { sellerOrderId, rootOrderId }
+      );
+    }
+
+    if (refundReference.provider === "iyzico" && !refundReference.paymentId) {
       failRefundValidation("failed-precondition", "paymentId required", {
         sellerOrderId,
         rootOrderId,
+        provider: refundReference.provider,
       });
     }
+
+    if (refundReference.provider === "isbank" && !refundReference.oid) {
+      failRefundValidation(
+        "failed-precondition",
+        "oid required for İş Bank refund",
+        { sellerOrderId, rootOrderId, provider: refundReference.provider }
+      );
+    }
+
     const currency =
-      payment.currency ||
+      mergedPayment.currency ||
       sellerOrder.currency ||
       rootPayment.currency ||
       rootOrder.currency ||
       "TRY";
     const buyerUid = returnData.buyerUid || null;
     console.log("💳 REFUND PAYMENT META", {
-      paymentId: orderPaymentId,
-      paymentProvider,
+      provider: refundReference.provider,
+      paymentId: refundReference.paymentId || null,
+      paymentTransactionId: refundReference.paymentTransactionId,
+      paymentTransactionIds: refundReference.paymentTransactionIds,
+      hostRefNum: refundReference.hostRefNum || null,
+      authCode: refundReference.authCode || null,
+      oid: refundReference.oid || null,
       returnId,
       orderId: rootOrderId,
     });
     const originalPaidAmount = Math.max(
       0,
       asNumber(
-        payment.paidPrice ??
+        sellerPayment.paidPrice ??
         sellerOrder?.pricing?.grandTotal ??
         sellerOrder?.financial?.grossAmount ??
         sellerOrder?.payment?.price ??
@@ -18522,25 +19370,8 @@ exports.triggerOrderReturnRefund = onCall(
         refundType,
       });
     }
-    const existingRetryCount = asNumber(
-      returnData.refundRetryCount ??
-      returnData.refundDetails?.retryCount ??
-      0,
-      0
-    );
-    const retryCount = existingRetryCount + 1;
-    const sellerPaymentTransactionIds = extractPaymentTransactionIds(
-      payment.paymentTransactionIds ||
-      payment.itemTransactions ||
-      returnData.refundDetails?.paymentTransactionIds ||
-      []
-    );
-    const sellerPaymentTransactionId =
-      payment.paymentTransactionId ||
-      returnData.refundDetails?.paymentTransactionId ||
-      (sellerPaymentTransactionIds.length > 0
-        ? sellerPaymentTransactionIds[0]
-        : null);
+    const sellerPaymentTransactionIds = refundReference.paymentTransactionIds;
+    const sellerPaymentTransactionId = refundReference.paymentTransactionId;
 
     logger.info("🧾 RETURN REFUND VALIDATED", {
       returnId,
@@ -18555,7 +19386,7 @@ exports.triggerOrderReturnRefund = onCall(
       shippingAmount,
       requestedRefundAmount,
       clampedRefundAmount,
-      retryCount,
+      provider: refundReference.provider,
       paymentTransactionId: sellerPaymentTransactionId,
       paymentTransactionIds: sellerPaymentTransactionIds,
     });
@@ -18567,84 +19398,241 @@ exports.triggerOrderReturnRefund = onCall(
       });
     }
 
-    const iyzi = new Iyzipay({
-      apiKey: IYZICO_API_KEY.value(),
-      secretKey: IYZICO_SECRET_KEY.value(),
-      uri: "https://sandbox-api.iyzipay.com",
-    });
+    // Do not fabricate paymentId: only include it when the provider
+    // actually has one (Iyzico). İş Bank refunds are addressed by oid.
+    const refundReferenceFields = {
+      provider: refundReference.provider,
+      paymentProvider: refundReference.provider,
+      paymentTransactionId: refundReference.paymentTransactionId || null,
+      paymentTransactionIds: refundReference.paymentTransactionIds || [],
+      ...(refundReference.paymentId
+        ? { paymentId: refundReference.paymentId }
+        : {}),
+      ...(refundReference.hostRefNum
+        ? { hostRefNum: refundReference.hostRefNum }
+        : {}),
+      ...(refundReference.authCode
+        ? { authCode: refundReference.authCode }
+        : {}),
+      ...(refundReference.oid ? { oid: refundReference.oid } : {}),
+    };
 
-    const pendingAt = admin.firestore.FieldValue.serverTimestamp();
-    const timeline = Array.isArray(returnData.timeline)
-      ? [...returnData.timeline]
-      : [];
-    addReturnTimelineStep(timeline, "refund_pending", authUid, notes || null, {
-      requestedRefundAmount,
-      clampedRefundAmount,
-      retryCount,
-      paymentId: orderPaymentId,
-      paymentTransactionId: sellerPaymentTransactionId,
-    });
+    // ------------------------------------------------------------------
+    // Transactional claim (Phase 1 hardening).
+    //
+    // The previous implementation read returnData.status once, checked it
+    // in application code, and only later wrote "refund_pending" with a
+    // plain (non-transactional) .set(). Two concurrent invocations for the
+    // same returnId could both pass that check before either write landed,
+    // and both would go on to call the payment gateway — a real duplicate
+    // refund. This re-reads the return document *inside* a Firestore
+    // transaction, re-validates it is still refundable, and atomically
+    // claims it under a short lease before any gateway call is made.
+    //
+    // A stale lease (an earlier invocation that crashed or timed out after
+    // claiming but before finishing) becomes reclaimable once it expires,
+    // so a genuinely stuck return doesn't require manual Firestore surgery.
+    // ------------------------------------------------------------------
+    const REFUND_CLAIM_LEASE_MS = 90 * 1000;
 
-    await returnRef.set(
-      {
+    const claimResult = await db.runTransaction(async (transaction) => {
+      const freshSnap = await transaction.get(returnRef);
+
+      if (!freshSnap.exists) {
+        return { status: "missing" };
+      }
+
+      const freshData = freshSnap.data() || {};
+      const freshStatus = normalizeReturnStatus(freshData.status);
+
+      // A refund the gateway already confirmed but that could not be fully
+      // persisted (see the gatewaySucceeded branch in the catch block below)
+      // must never be reclaimable — automatically or otherwise. Unlike the
+      // lease, this check is NOT time-bound: it stays blocked regardless of
+      // how much time has passed, until an explicit future
+      // reconciliation/admin workflow clears these flags. Checked before
+      // the lease/status checks below so it takes priority over them.
+      if (
+        freshData.refundDetails?.gatewaySucceeded === true ||
+        freshData.refundDetails?.needsManualReconciliation === true
+      ) {
+        return { status: "needsManualReconciliation" };
+      }
+
+      const leaseUntilMs = toMillisSafe(freshData.refundDetails?.leaseUntil);
+      const leaseActive =
+        freshStatus === "refund_pending" &&
+        leaseUntilMs &&
+        leaseUntilMs > Date.now();
+
+      if (freshStatus === "refunded") {
+        return { status: "alreadyRefunded" };
+      }
+
+      if (leaseActive) {
+        return { status: "leaseActive" };
+      }
+
+      if (
+        !["received_by_seller", "refund_failed", "refund_pending"].includes(
+          freshStatus
+        )
+      ) {
+        return { status: "invalidStatus", currentStatus: freshStatus };
+      }
+
+      const existingRetryCount = asNumber(
+        freshData.refundRetryCount ?? freshData.refundDetails?.retryCount ?? 0,
+        0
+      );
+      const claimedRetryCount = existingRetryCount + 1;
+      const leaseUntil = admin.firestore.Timestamp.fromMillis(
+        Date.now() + REFUND_CLAIM_LEASE_MS
+      );
+      const claimAt = admin.firestore.FieldValue.serverTimestamp();
+      const claimTimeline = Array.isArray(freshData.timeline)
+        ? [...freshData.timeline]
+        : [];
+      addReturnTimelineStep(
+        claimTimeline,
+        "refund_pending",
+        authUid,
+        notes || null,
+        {
+          requestedRefundAmount,
+          clampedRefundAmount,
+          retryCount: claimedRetryCount,
+          ...refundReferenceFields,
+        }
+      );
+
+      const claimedRefundDetails = {
+        ...(freshData.refundDetails || {}),
         status: "refund_pending",
-        refundRequestedAt: returnData.refundRequestedAt || pendingAt,
-        refundStartedAt: pendingAt,
-        updatedAt: pendingAt,
-        refundAmount: clampedRefundAmount,
-        refundType,
-        refundRetryCount: retryCount,
-        paymentTransactionId: sellerPaymentTransactionId || null,
-        paymentTransactionIds: sellerPaymentTransactionIds,
-        refundDetails: {
-          ...(returnData.refundDetails || {}),
+        retryCount: claimedRetryCount,
+        ...refundReferenceFields,
+        refundRequestedAmount: requestedRefundAmount,
+        clampedRefundAmount,
+        originalPaidAmount,
+        returnItemsAmount,
+        shippingAmount,
+        currency,
+        method: refundReference.provider,
+        leaseUntil,
+        gatewaySucceeded: false,
+        needsManualReconciliation: false,
+        rawRequest: {
+          returnId,
+          refundAmount: clampedRefundAmount,
+          refundType,
+          ...refundReferenceFields,
+          retryCount: claimedRetryCount,
+        },
+      };
+
+      transaction.set(
+        returnRef,
+        {
           status: "refund_pending",
-          retryCount,
-          paymentId: orderPaymentId,
+          refundRequestedAt: freshData.refundRequestedAt || claimAt,
+          refundStartedAt: claimAt,
+          updatedAt: claimAt,
+          refundAmount: clampedRefundAmount,
+          refundType,
+          refundRetryCount: claimedRetryCount,
           paymentTransactionId: sellerPaymentTransactionId || null,
           paymentTransactionIds: sellerPaymentTransactionIds,
-          refundRequestedAmount: requestedRefundAmount,
-          clampedRefundAmount,
-          originalPaidAmount,
-          returnItemsAmount,
-          shippingAmount,
-          currency,
-          method: "iyzico",
-          rawRequest: {
-            returnId,
-            refundAmount: clampedRefundAmount,
-            refundType,
-            paymentId: orderPaymentId,
-            retryCount,
-          },
+          refundDetails: claimedRefundDetails,
+          adminNotes: notes || freshData.adminNotes || null,
+          timeline: claimTimeline,
         },
-        adminNotes: notes || returnData.adminNotes || null,
-        timeline,
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+
+      return {
+        status: "claimed",
+        retryCount: claimedRetryCount,
+        timeline: claimTimeline,
+        refundDetails: claimedRefundDetails,
+      };
+    });
+
+    if (claimResult.status === "missing") {
+      failRefundValidation("not-found", "Return request not found");
+    }
+
+    if (claimResult.status === "alreadyRefunded") {
+      failRefundValidation("failed-precondition", "Return is already refunded", {
+        status: "refunded",
+      });
+    }
+
+    if (claimResult.status === "needsManualReconciliation") {
+      failRefundValidation(
+        "failed-precondition",
+        "This refund already succeeded at the payment provider but could not be fully recorded. It requires manual reconciliation and cannot be retried automatically.",
+        { status: "refund_pending", needsManualReconciliation: true }
+      );
+    }
+
+    if (claimResult.status === "leaseActive") {
+      failRefundValidation(
+        "failed-precondition",
+        "A refund is already being processed for this return. Please wait and try again.",
+        { status: "refund_pending" }
+      );
+    }
+
+    if (claimResult.status === "invalidStatus") {
+      failRefundValidation(
+        "failed-precondition",
+        "Return must be received before refund",
+        { status: claimResult.currentStatus }
+      );
+    }
+
+    const retryCount = claimResult.retryCount;
+    const claimedTimeline = claimResult.timeline;
+    const claimedRefundDetails = claimResult.refundDetails;
+    let gatewaySucceeded = false;
 
     try {
-      const refundResult = await new Promise((resolve, reject) => {
-        iyzi.refundV2.create(
-          {
-            locale: Iyzipay.LOCALE.TR,
-            conversationId: returnId,
-            paymentId: orderPaymentId,
-            price: clampedRefundAmount.toString(),
-            currency,
-            ip: request.rawRequest?.ip || "85.34.78.112",
-          },
-          (err, res) => {
-            if (err) return reject(err);
-            return resolve(res);
-          }
-        );
-      });
+      let refundResult;
 
-      logger.info("💸 RETURN REFUND IYZICO RESPONSE", {
+      switch (refundReference.provider) {
+        case "iyzico":
+          refundResult = await refundWithIyzipay({
+            apiKey: IYZICO_API_KEY.value(),
+            secretKey: IYZICO_SECRET_KEY.value(),
+            returnId,
+            paymentId: refundReference.paymentId,
+            amount: clampedRefundAmount,
+            currency,
+            ip: request.rawRequest?.ip,
+          });
+          break;
+        case "isbank":
+          refundResult = await refundWithIsbank({
+            clientId: ISBANK_CLIENT_ID.value(),
+            apiUsername: ISBANK_API_USERNAME.value(),
+            apiPassword: ISBANK_API_PASSWORD.value(),
+            apiUrl: ISBANK_API_URL.value(),
+            currencyCode: ISBANK_CURRENCY_CODE.value(),
+            refundReference,
+            amount: clampedRefundAmount,
+          });
+          break;
+        default:
+          throw new HttpsError(
+            "failed-precondition",
+            `Unsupported payment provider: ${refundReference.provider || "unknown"}`
+          );
+      }
+
+      logger.info("💸 RETURN REFUND GATEWAY RESPONSE", {
         returnId,
         retryCount,
+        provider: refundReference.provider,
         response: refundResult || null,
       });
 
@@ -18656,8 +19644,8 @@ exports.triggerOrderReturnRefund = onCall(
         });
 
         const failedAt = admin.firestore.FieldValue.serverTimestamp();
-        const failedTimeline = Array.isArray(returnData.timeline)
-          ? [...returnData.timeline]
+        const failedTimeline = Array.isArray(claimedTimeline)
+          ? [...claimedTimeline]
           : [];
         addReturnTimelineStep(
           failedTimeline,
@@ -18667,8 +19655,7 @@ exports.triggerOrderReturnRefund = onCall(
           {
             retryCount,
             failureReason: refundResult?.errorMessage || "Refund failed",
-            paymentId: orderPaymentId,
-            paymentTransactionId: sellerPaymentTransactionId,
+            ...refundReferenceFields,
           }
         );
 
@@ -18683,20 +19670,19 @@ exports.triggerOrderReturnRefund = onCall(
             paymentTransactionId: sellerPaymentTransactionId || null,
             paymentTransactionIds: sellerPaymentTransactionIds,
             refundDetails: {
-              ...(returnData.refundDetails || {}),
+              ...claimedRefundDetails,
               status: "refund_failed",
               retryCount,
               errorMessage: refundResult?.errorMessage || null,
               errorCode: refundResult?.errorCode || null,
-              paymentId: orderPaymentId,
-              paymentTransactionId: sellerPaymentTransactionId || null,
-              paymentTransactionIds: sellerPaymentTransactionIds,
+              ...refundReferenceFields,
               requestedRefundAmount,
               clampedRefundAmount,
               originalPaidAmount,
               returnItemsAmount,
               shippingAmount,
               currency,
+              leaseUntil: null,
               raw: refundResult || null,
             },
             adminNotes: notes || returnData.adminNotes || null,
@@ -18722,9 +19708,17 @@ exports.triggerOrderReturnRefund = onCall(
         );
       }
 
+      // The payment provider has confirmed the refund. From this point on,
+      // a failure in any of the following steps (Firestore write retry
+      // exhausted, notification, payout sync) must NEVER be reported back
+      // to the caller as "refund_failed" — the money has already left the
+      // gateway. gatewaySucceeded gates the catch block below so a retry
+      // can never re-trigger a second real refund at the bank.
+      gatewaySucceeded = true;
+
       const completedAt = admin.firestore.FieldValue.serverTimestamp();
-      const completedTimeline = Array.isArray(returnData.timeline)
-        ? [...returnData.timeline]
+      const completedTimeline = Array.isArray(claimedTimeline)
+        ? [...claimedTimeline]
         : [];
       addReturnTimelineStep(
         completedTimeline,
@@ -18734,13 +19728,36 @@ exports.triggerOrderReturnRefund = onCall(
         {
           refundAmount: clampedRefundAmount,
           refundType,
-          paymentId: orderPaymentId,
-          paymentTransactionId: sellerPaymentTransactionId,
+          ...refundReferenceFields,
           retryCount,
         }
       );
 
-      await returnRef.set(
+      // Gateway response fields, generalized across providers. Iyzico
+      // populates paymentId/refundHostReference/hostReference; İş Bank
+      // populates hostRefNum/transId/oid instead. Never fabricate a
+      // paymentId for a provider (İş Bank) that doesn't have one.
+      const gatewayFields = {
+        ...(refundResult.paymentId || refundReference.paymentId
+          ? { paymentId: refundResult.paymentId || refundReference.paymentId }
+          : {}),
+        refundHostReference: refundResult.refundHostReference || null,
+        authCode: refundResult.authCode || refundReference.authCode || null,
+        hostReference: refundResult.hostReference || null,
+        hostRefNum: refundResult.hostRefNum || refundReference.hostRefNum || null,
+        transId: refundResult.transId || refundReference.paymentTransactionId || null,
+        oid: refundResult.oid || refundReference.oid || null,
+        currency: refundResult.currency || currency,
+        price: refundResult.price || clampedRefundAmount,
+      };
+
+      // Durable persistence of the confirmed refund. Retries a few times on
+      // transient Firestore errors; if it still fails after retries, the
+      // error propagates to the catch block below, which — because
+      // gatewaySucceeded is already true — flags this for manual
+      // reconciliation instead of marking it "refund_failed".
+      await firestoreSetWithRetry(
+        returnRef,
         {
           status: "refunded",
           resolvedAt: completedAt,
@@ -18752,18 +19769,17 @@ exports.triggerOrderReturnRefund = onCall(
           paymentTransactionId: sellerPaymentTransactionId || null,
           paymentTransactionIds: sellerPaymentTransactionIds,
           refundDetails: {
-            ...(returnData.refundDetails || {}),
+            ...claimedRefundDetails,
             status: "refunded",
             gatewayStatus: refundResult.status || "success",
             retryCount,
-            paymentId: refundResult.paymentId || orderPaymentId,
+            provider: refundReference.provider,
+            paymentProvider: refundReference.provider,
             paymentTransactionId: sellerPaymentTransactionId || null,
             paymentTransactionIds: sellerPaymentTransactionIds,
-            refundHostReference: refundResult.refundHostReference || null,
-            authCode: refundResult.authCode || null,
-            hostReference: refundResult.hostReference || null,
-            currency: refundResult.currency || currency,
-            price: refundResult.price || clampedRefundAmount,
+            leaseUntil: null,
+            needsManualReconciliation: false,
+            ...gatewayFields,
             raw: refundResult,
           },
           adminNotes: notes || returnData.adminNotes || null,
@@ -18772,22 +19788,72 @@ exports.triggerOrderReturnRefund = onCall(
         { merge: true }
       );
 
-      await createNotification(db, {
-        recipientUserId: buyerUid,
-        userId: buyerUid,
-        type: "order_return_refunded",
-        title: "Return refunded",
-        body: `Refund completed for return ${returnId}`,
-        orderId: returnData.rootOrderId || returnData.orderId || null,
-        sellerOrderId: sellerOrderId || null,
-        returnId,
-      });
+      // Buyer notification is best-effort: it must not turn a durably
+      // recorded, gateway-confirmed refund into a reported failure.
+      try {
+        await createNotification(db, {
+          recipientUserId: buyerUid,
+          userId: buyerUid,
+          type: "order_return_refunded",
+          title: "Return refunded",
+          body: `Refund completed for return ${returnId}`,
+          orderId: returnData.rootOrderId || returnData.orderId || null,
+          sellerOrderId: sellerOrderId || null,
+          returnId,
+        });
+      } catch (notifyError) {
+        logger.error("⚠️ REFUND SUCCEEDED BUT BUYER NOTIFICATION FAILED", {
+          returnId,
+          message: notifyError?.message || String(notifyError),
+        });
+      }
+
+      // Task 2: integrate the confirmed refund with the seller payout.
+      // Same reasoning as above — must not turn a completed refund into a
+      // reported failure; flag for manual reconciliation instead.
+      try {
+        const payoutSyncResult = await applyRefundToSellerPayout({
+          db,
+          sellerOrderId,
+          returnId,
+          refundAmount: clampedRefundAmount,
+          reason: "order_return_refund",
+        });
+        logger.info("💳 REFUND PAYOUT SYNC", {
+          returnId,
+          sellerOrderId,
+          ...payoutSyncResult,
+        });
+      } catch (payoutSyncError) {
+        logger.error(
+          "🚨 REFUND SUCCEEDED BUT PAYOUT SYNC FAILED — MANUAL RECONCILIATION REQUIRED",
+          {
+            returnId,
+            sellerOrderId,
+            message: payoutSyncError?.message || String(payoutSyncError),
+            stack: payoutSyncError?.stack || null,
+          }
+        );
+        // Dot-notation paths so this only touches these two fields and
+        // never clobbers the refundDetails object the "refunded" write
+        // above already committed.
+        await returnRef
+          .set(
+            {
+              "refundDetails.payoutSyncFailed": true,
+              "refundDetails.payoutSyncError":
+                payoutSyncError?.message || String(payoutSyncError),
+            },
+            { merge: true }
+          )
+          .catch(() => {});
+      }
 
       logger.info("✅ RETURN REFUND SUCCESS", {
         returnId,
         refundAmount: clampedRefundAmount,
         refundType,
-        paymentId: orderPaymentId,
+        provider: refundReference.provider,
         retryCount,
       });
 
@@ -18796,20 +19862,54 @@ exports.triggerOrderReturnRefund = onCall(
         refundResult,
       };
     } catch (error) {
-      if (error instanceof HttpsError) {
+      if (error instanceof HttpsError && !gatewaySucceeded) {
         throw error;
       }
 
       logger.error("❌ RETURN REFUND ERROR", {
         returnId,
         retryCount,
+        gatewaySucceeded,
         message: error?.message || String(error),
         stack: error?.stack || null,
       });
 
+      if (gatewaySucceeded) {
+        // The payment provider already confirmed this refund — money has
+        // left the gateway. Reporting this as "refund_failed" would invite
+        // a retry that calls the gateway again for the same return and
+        // causes a real duplicate refund. Flag it for manual reconciliation
+        // instead and surface an unambiguous error telling the caller not
+        // to retry. Dot-notation paths so this never clobbers whatever the
+        // "refunded" write above may have partially committed.
+        try {
+          await returnRef.set(
+            {
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              "refundDetails.gatewaySucceeded": true,
+              "refundDetails.needsManualReconciliation": true,
+              "refundDetails.reconciliationNote":
+                error?.message || String(error),
+            },
+            { merge: true }
+          );
+        } catch (persistError) {
+          logger.error("🚨 FAILED TO FLAG RETURN FOR MANUAL RECONCILIATION", {
+            returnId,
+            message: persistError?.message || String(persistError),
+            stack: persistError?.stack || null,
+          });
+        }
+
+        throw new HttpsError(
+          "internal",
+          "Refund succeeded at the payment provider but could not be fully recorded. This has been flagged for manual reconciliation — do not retry."
+        );
+      }
+
       const failedAt = admin.firestore.FieldValue.serverTimestamp();
-      const failedTimeline = Array.isArray(returnData.timeline)
-        ? [...returnData.timeline]
+      const failedTimeline = Array.isArray(claimedTimeline)
+        ? [...claimedTimeline]
         : [];
       addReturnTimelineStep(
         failedTimeline,
@@ -18819,8 +19919,7 @@ exports.triggerOrderReturnRefund = onCall(
         {
           retryCount,
           failureReason: error?.message || String(error),
-          paymentId: orderPaymentId,
-          paymentTransactionId: sellerPaymentTransactionId,
+          ...refundReferenceFields,
         }
       );
 
@@ -18835,20 +19934,19 @@ exports.triggerOrderReturnRefund = onCall(
           paymentTransactionId: sellerPaymentTransactionId || null,
           paymentTransactionIds: sellerPaymentTransactionIds,
           refundDetails: {
-            ...(returnData.refundDetails || {}),
+            ...claimedRefundDetails,
             status: "refund_failed",
             gatewayStatus: "failed",
             retryCount,
             errorMessage: error?.message || String(error),
-            paymentId: orderPaymentId,
-            paymentTransactionId: sellerPaymentTransactionId || null,
-            paymentTransactionIds: sellerPaymentTransactionIds,
+            ...refundReferenceFields,
             requestedRefundAmount,
             clampedRefundAmount,
             originalPaidAmount,
             returnItemsAmount,
             shippingAmount,
             currency,
+            leaseUntil: null,
             rawError: {
               message: error?.message || String(error),
               stack: error?.stack || null,

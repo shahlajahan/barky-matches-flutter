@@ -5624,4 +5624,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get webSubscriptionPendingMessage => 'Банк ещё не завершил проверку. Страница автоматически проверит статус снова.';
+
+  @override
+  String chatError(Object error) {
+    return 'Ошибка чата: $error';
+  }
 }

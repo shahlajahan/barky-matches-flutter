@@ -3047,5 +3047,6 @@
 ,"webSubscriptionCancelledTitle": "پرداخت لغو شد"
 ,"webSubscriptionCancelledMessage": "پرداخت لغو شد و اشتراک شما تغییری نکرد."
 ,"webSubscriptionPendingTitle": "پرداخت هنوز در حال پردازش است"
-,"webSubscriptionPendingMessage": "بانک هنوز تأیید را کامل نکرده است. این صفحه دوباره به‌صورت خودکار بررسی می‌کند."
+,"webSubscriptionPendingMessage": "بانک هنوز تأیید را کامل نکرده است. این صفحه دوباره به‌صورت خودکار بررسی می‌کند.",
+"chatError": "خطای چت: {error}"
 }

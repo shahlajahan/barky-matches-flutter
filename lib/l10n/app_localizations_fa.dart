@@ -5622,4 +5622,9 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get webSubscriptionPendingMessage => 'بانک هنوز تأیید را کامل نکرده است. این صفحه دوباره به‌صورت خودکار بررسی می‌کند.';
+
+  @override
+  String chatError(Object error) {
+    return 'خطای چت: $error';
+  }
 }

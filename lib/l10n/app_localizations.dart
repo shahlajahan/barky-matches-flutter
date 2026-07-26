@@ -10604,6 +10604,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The bank has not completed verification yet. This page will check again automatically.'**
   String get webSubscriptionPendingMessage;
+
+  /// No description provided for @chatError.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat error: {error}'**
+  String chatError(Object error);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

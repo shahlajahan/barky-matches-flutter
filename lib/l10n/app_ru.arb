@@ -1853,5 +1853,6 @@
 ,"webSubscriptionCancelledTitle": "Платёж отменён"
 ,"webSubscriptionCancelledMessage": "Платёж отменён, подписка не изменена."
 ,"webSubscriptionPendingTitle": "Платёж ещё обрабатывается"
-,"webSubscriptionPendingMessage": "Банк ещё не завершил проверку. Страница автоматически проверит статус снова."
+,"webSubscriptionPendingMessage": "Банк ещё не завершил проверку. Страница автоматически проверит статус снова.",
+"chatError": "Ошибка чата: {error}"
 }

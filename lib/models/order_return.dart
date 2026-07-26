@@ -134,6 +134,83 @@ extension RefundTypeX on RefundType {
   }
 }
 
+/// Provider-aware refund identifier. Different payment providers expose
+/// different identifiers for issuing a refund: Iyzico refunds are addressed
+/// by [paymentId]; İş Bank (NestPay) has no paymentId and is addressed by
+/// [oid] instead. Never assume [paymentId] is present — check [provider].
+class RefundReference {
+  final String provider;
+  final String? paymentId;
+  final String? paymentTransactionId;
+  final List<String> paymentTransactionIds;
+  final String? hostRefNum;
+  final String? authCode;
+  final String? oid;
+
+  const RefundReference({
+    required this.provider,
+    this.paymentId,
+    this.paymentTransactionId,
+    this.paymentTransactionIds = const [],
+    this.hostRefNum,
+    this.authCode,
+    this.oid,
+  });
+
+  factory RefundReference.fromMap(Map<String, dynamic> map) {
+    String? str(dynamic value) {
+      final text = (value ?? '').toString().trim();
+      return text.isEmpty ? null : text;
+    }
+
+    final provider = (map['provider'] ?? map['paymentProvider'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+
+    // İş Bank's raw sellerOrder/order payment map stores the transaction
+    // reference under `transId`; the resolved RefundReference (persisted by
+    // the backend) stores it under `paymentTransactionId`. Accept both.
+    final paymentTransactionId =
+        str(map['paymentTransactionId']) ?? str(map['transId']);
+
+    final rawIds = map['paymentTransactionIds'];
+    final paymentTransactionIds = rawIds is List
+        ? rawIds
+              .map((e) => e.toString().trim())
+              .where((e) => e.isNotEmpty)
+              .toList()
+        : (paymentTransactionId != null ? [paymentTransactionId] : const []);
+
+    return RefundReference(
+      provider: provider.isEmpty ? 'iyzico' : provider,
+      paymentId: str(map['paymentId']),
+      paymentTransactionId: paymentTransactionId,
+      paymentTransactionIds: List<String>.from(paymentTransactionIds),
+      hostRefNum: str(map['hostRefNum']),
+      authCode: str(map['authCode']),
+      oid: str(map['oid']),
+    );
+  }
+
+  /// Whether this reference carries at least one identifier a refund
+  /// dispatcher could use (paymentId for Iyzico, oid for İş Bank, or a
+  /// transaction id as a last resort).
+  bool get hasIdentifier =>
+      paymentId != null || oid != null || paymentTransactionId != null;
+
+  Map<String, dynamic> toMap() => {
+    'provider': provider,
+    if (paymentId != null) 'paymentId': paymentId,
+    if (paymentTransactionId != null)
+      'paymentTransactionId': paymentTransactionId,
+    'paymentTransactionIds': paymentTransactionIds,
+    if (hostRefNum != null) 'hostRefNum': hostRefNum,
+    if (authCode != null) 'authCode': authCode,
+    if (oid != null) 'oid': oid,
+  };
+}
+
 class OrderReturnItem {
   final String productId;
   final String name;

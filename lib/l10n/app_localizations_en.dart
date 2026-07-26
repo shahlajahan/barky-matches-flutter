@@ -5622,4 +5622,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get webSubscriptionPendingMessage => 'The bank has not completed verification yet. This page will check again automatically.';
+
+  @override
+  String chatError(Object error) {
+    return 'Chat error: $error';
+  }
 }
