@@ -12,6 +12,13 @@ class PostComment {
 
   final DateTime createdAt;
 
+  /// active / hidden / removed - soft moderation only; a "removed" comment
+  /// is hidden from readers but never hard-deleted, mirroring SocialPost.
+  final String moderationStatus;
+  final bool isHidden;
+  final DateTime? moderatedAt;
+  final String? moderatedBy;
+
   const PostComment({
     required this.id,
     required this.postId,
@@ -20,6 +27,10 @@ class PostComment {
     this.userPhotoUrl,
     required this.text,
     required this.createdAt,
+    this.moderationStatus = 'active',
+    this.isHidden = false,
+    this.moderatedAt,
+    this.moderatedBy,
   });
 
   factory PostComment.fromFirestore(
@@ -41,6 +52,14 @@ class PostComment {
       text: data['text'] ?? '',
 
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+
+      moderationStatus: data['moderationStatus'] ?? 'active',
+
+      isHidden: data['isHidden'] ?? false,
+
+      moderatedAt: (data['moderatedAt'] as Timestamp?)?.toDate(),
+
+      moderatedBy: data['moderatedBy'],
     );
   }
 
@@ -52,6 +71,8 @@ class PostComment {
       'userPhotoUrl': userPhotoUrl,
       'text': text,
       'createdAt': Timestamp.fromDate(createdAt),
+      'moderationStatus': moderationStatus,
+      'isHidden': isHidden,
     };
   }
 }

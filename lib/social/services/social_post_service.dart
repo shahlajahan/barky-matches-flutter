@@ -146,15 +146,4 @@ class SocialPostService {
       .map((doc) => doc.exists);
 }
 
-  /// REPORT POST
-  Future<void> reportPost(String postId) async {
-    await _postsCollection.doc(postId).update({
-      'reportCount': FieldValue.increment(1),
-    });
-  }
-
-  /// HIDE POST
-  Future<void> hidePost(String postId) async {
-    await _postsCollection.doc(postId).update({'isHidden': true});
-  }
 }

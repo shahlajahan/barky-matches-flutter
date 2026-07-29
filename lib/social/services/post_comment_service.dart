@@ -13,6 +13,12 @@ class PostCommentService {
       _firestore.collection('social_posts');
 
   Stream<List<PostComment>> streamComments(String postId) {
+    // Filtered client-side rather than with a `.where('isHidden', ...)`
+    // clause: Firestore equality filters don't match documents missing the
+    // field at all, which would hide every comment created before this
+    // field existed. PostComment.fromFirestore already defaults isHidden
+    // to false for those legacy docs, so filtering here handles both
+    // correctly.
     return _comments
         .where('postId', isEqualTo: postId)
         .orderBy('createdAt', descending: true)
@@ -20,6 +26,7 @@ class PostCommentService {
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => PostComment.fromFirestore(doc))
+              .where((comment) => !comment.isHidden)
               .toList(),
         );
   }
@@ -55,6 +62,8 @@ class PostCommentService {
       'userPhotoUrl': userPhoto,
       'text': text,
       'createdAt': FieldValue.serverTimestamp(),
+      'moderationStatus': 'active',
+      'isHidden': false,
     });
 
     batch.update(_posts.doc(postId), {'commentCount': FieldValue.increment(1)});
