@@ -53,6 +53,7 @@ import 'package:barky_matches_fixed/social/pages/petplore_page.dart';
 import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
 import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
 import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
+import 'package:barky_matches_fixed/screens/suspended_account_page.dart';
 
 // ─────────────────────────────────────────────
 // HomeGate
@@ -171,6 +172,14 @@ class _HomeGateState extends State<HomeGate> {
       'HomeGate.build hash=${identityHashCode(this)}',
     );
     debugPrint('🧱 HomeGate build hash=${identityHashCode(this)}');
+
+    final isAccountSuspended = context.select<AppState, bool>(
+      (s) => s.isAccountSuspended,
+    );
+    if (isAccountSuspended) {
+      return const SuspendedAccountPage();
+    }
+
     return const _HomeBody();
   }
 }

@@ -863,6 +863,11 @@ class _AuthPageState extends State<AuthPage> {
         case 'invalid-email':
           errorMessage = l10n.emailInvalid;
           break;
+        case 'user-disabled':
+          errorMessage = l10n.errorOccurred(
+            'Your account has been suspended.',
+          );
+          break;
         default:
           errorMessage = l10n.errorOccurred(e.message ?? e.code);
       }

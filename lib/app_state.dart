@@ -447,6 +447,20 @@ class AppState with ChangeNotifier {
   StreamSubscription<DocumentSnapshot>? _userDocSub;
 
   // ─────────────────────────────
+  // ACCOUNT MODERATION STATE
+  // ─────────────────────────────
+  bool _isAccountSuspended = false;
+  String? _accountModerationReason;
+
+  /// True once the signed-in user's own `users/{uid}` doc reports
+  /// accountStatus suspended/blocked. Watched in real time by the same
+  /// _userDocSub listener that already tracks business status, so a
+  /// moderation suspension takes effect immediately - not on next token
+  /// refresh (see HomeGate, which redirects to SuspendedAccountPage).
+  bool get isAccountSuspended => _isAccountSuspended;
+  String? get accountModerationReason => _accountModerationReason;
+
+  // ─────────────────────────────
   // BUSINESS STATE (ENTERPRISE)
   // ─────────────────────────────
 
@@ -1499,6 +1513,8 @@ class AppState with ChangeNotifier {
     _businessId = null;
     _isBusinessVerified = false;
     _businessSectors = [];
+    _isAccountSuspended = false;
+    _accountModerationReason = null;
 
     _favoriteDogs.clear();
     favoriteDogsNotifier.value = <Dog>[];
@@ -2556,12 +2572,21 @@ class AppState with ChangeNotifier {
               final newId = business?['businessId'];
               final newVerified = business?['isVerified'] == true;
 
+              final accountStatus = doc.data()?['accountStatus'];
+              final newSuspended =
+                  accountStatus == 'suspended' || accountStatus == 'blocked';
+              final newReason = doc.data()?['moderationReason'] as String?;
+
               if (_businessStatus != newStatus ||
                   _businessId != newId ||
-                  _isBusinessVerified != newVerified) {
+                  _isBusinessVerified != newVerified ||
+                  _isAccountSuspended != newSuspended ||
+                  _accountModerationReason != newReason) {
                 _businessStatus = newStatus;
                 _businessId = newId;
                 _isBusinessVerified = newVerified;
+                _isAccountSuspended = newSuspended;
+                _accountModerationReason = newReason;
                 notifyListeners();
               }
             },

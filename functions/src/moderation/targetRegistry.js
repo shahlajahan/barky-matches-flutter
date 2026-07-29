@@ -103,6 +103,7 @@ async function userSuspend(db, targetId, ctx) {
   await db.collection("users").doc(targetId).set(
     {
       accountStatus: "suspended",
+      moderationReason: ctx.notes || null,
       moderationUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
@@ -136,6 +137,7 @@ async function userBlock(db, targetId, ctx) {
   await db.collection("users").doc(targetId).set(
     {
       accountStatus: "blocked",
+      moderationReason: ctx.notes || null,
       moderationUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
@@ -169,6 +171,7 @@ async function userReactivate(db, targetId, ctx) {
   await db.collection("users").doc(targetId).set(
     {
       accountStatus: "active",
+      moderationReason: null,
       moderationUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
