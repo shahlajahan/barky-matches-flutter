@@ -31,6 +31,13 @@ const {
 
 const revenue = require("./revenue");
 
+const { requireAdmin } = require("./src/moderation/adminAuth");
+const {
+  suspendBusinessCore,
+  restoreBusinessCore,
+} = require("./src/moderation/businessSuspension");
+const { TARGET_REGISTRY } = require("./src/moderation/targetRegistry");
+
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 const storage = new Storage();
 const { defineSecret, defineString } = require("firebase-functions/params");
@@ -9957,70 +9964,14 @@ exports.updateBusinessAdminNotes = onCall(
 exports.suspendBusiness = onCall(
   { region: "europe-west3" },
   async (request) => {
+    const db = admin.firestore();
     try {
-      if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
-
-      const adminUid = request.auth.uid;
-      const db = admin.firestore();
-
-      const adminDoc = await db.collection("users").doc(adminUid).get();
-      if (!adminDoc.exists || adminDoc.data()?.role !== "admin") {
-        throw new HttpsError("permission-denied", "Admin only");
-      }
+      const adminUid = await requireAdmin(db, request);
 
       const { businessId, reason } = request.data || {};
       if (!businessId) throw new HttpsError("invalid-argument", "businessId required");
 
-      const bizRef = db.collection("businesses").doc(String(businessId));
-
-      await db.runTransaction(async (tx) => {
-        const bizSnap = await tx.get(bizRef);
-        if (!bizSnap.exists) throw new HttpsError("not-found", "Business not found");
-
-        const bizData = bizSnap.data() || {};
-        const prevStatus = bizData.status || "approved"; // fallback
-
-        // 1) update business status
-        tx.set(
-          bizRef,
-          {
-            status: "suspended",
-            statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            statusUpdatedBy: adminUid,
-            suspension: {
-              isActive: true,
-              reason: reason || "Suspended by admin",
-              suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-              suspendedBy: adminUid,
-              prevStatus,
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-        // 2) admin log
-        tx.set(db.collection("admin_logs").doc(), {
-          type: "business_suspend",
-          businessId: String(businessId),
-          by: adminUid,
-          reason: reason || null,
-          prevStatus,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        // 3) optional: suspension history record
-        tx.set(db.collection("business_suspensions").doc(), {
-          businessId: String(businessId),
-          reason: reason || "Suspended by admin",
-          suspendedBy: adminUid,
-          suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-          restoredAt: null,
-          restoredBy: null,
-          prevStatus,
-          isActive: true,
-        });
-      });
+      await suspendBusinessCore(db, String(businessId), adminUid, reason);
 
       return { success: true };
     } catch (err) {
@@ -10034,57 +9985,14 @@ exports.suspendBusiness = onCall(
 exports.restoreBusiness = onCall(
   { region: "europe-west3" },
   async (request) => {
+    const db = admin.firestore();
     try {
-      if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
-
-      const adminUid = request.auth.uid;
-      const db = admin.firestore();
-
-      const adminDoc = await db.collection("users").doc(adminUid).get();
-      if (!adminDoc.exists || adminDoc.data()?.role !== "admin") {
-        throw new HttpsError("permission-denied", "Admin only");
-      }
+      const adminUid = await requireAdmin(db, request);
 
       const { businessId } = request.data || {};
       if (!businessId) throw new HttpsError("invalid-argument", "businessId required");
 
-      const bizRef = db.collection("businesses").doc(String(businessId));
-
-      await db.runTransaction(async (tx) => {
-        const bizSnap = await tx.get(bizRef);
-        if (!bizSnap.exists) throw new HttpsError("not-found", "Business not found");
-
-        const bizData = bizSnap.data() || {};
-        const prevStatus = bizData.suspension?.prevStatus || "approved";
-
-        tx.set(
-          bizRef,
-          {
-            status: prevStatus,
-            statusUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            statusUpdatedBy: adminUid,
-            suspension: {
-              ...(bizData.suspension || {}),
-              isActive: false,
-              restoredAt: admin.firestore.FieldValue.serverTimestamp(),
-              restoredBy: adminUid,
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-        tx.set(db.collection("admin_logs").doc(), {
-          type: "business_restore",
-          businessId: String(businessId),
-          by: adminUid,
-          restoredTo: prevStatus,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        // optional: mark latest active suspension history record inactive
-        // (اگر خواستی دقیقش کنیم بعداً با query + batch)
-      });
+      await restoreBusinessCore(db, String(businessId), adminUid);
 
       return { success: true };
     } catch (err) {
@@ -10094,12 +10002,10 @@ exports.restoreBusiness = onCall(
     }
   }
 );
-
 exports.expireSubscriptions =
   require("./src/expireSubscriptions").expireSubscriptions;
 exports.submitDiagnosticsReport =
   require("./src/diagnostics/submitDiagnosticsReport").submitDiagnosticsReport;
-
 
 // =====================================================
 // CREATE REPORT
@@ -10108,51 +10014,80 @@ exports.submitDiagnosticsReport =
 exports.createReport = onCall(
   { region: "europe-west3" },
   async (request) => {
-
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Login required");
     }
 
     const db = admin.firestore();
-
     const reporterId = request.auth.uid;
-    const {
-      type,
-      targetId,
-      targetOwnerId,
-      reasonCode,
-      reasonText,
-      message
-    } = request.data || {};
-    if (!type || !targetId || !reasonCode) {
+    const { targetType, targetId, targetOwnerId, reasonCode, description } =
+      request.data || {};
+
+    if (!targetType || !targetId || !reasonCode) {
       throw new HttpsError("invalid-argument", "Missing parameters");
+    }
+
+    const targetConfig = TARGET_REGISTRY[targetType];
+    if (!targetConfig) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Unknown report target type: ${targetType}`
+      );
+    }
+
+    const targetSnap = await db
+      .collection(targetConfig.collection)
+      .doc(targetId)
+      .get();
+
+    if (!targetSnap.exists) {
+      console.error("REPORT TARGET NOT FOUND", {
+        targetType,
+        targetId,
+        reporterId,
+      });
+      throw new HttpsError(
+        "not-found",
+        "The item you're reporting no longer exists"
+      );
     }
 
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    // -------------------------------------------------
-    // DUPLICATE PROTECTION
-    // -------------------------------------------------
 
-    const duplicate = await db.collection("reports")
-      .where("reportedBy", "==", reporterId)
-      .where("type", "==", type)
+    // -------------------------------------------------
+    // DUPLICATE / COOLDOWN PROTECTION
+    // Blocks a re-report if the reporter already has a pending report on
+    // this target (any age), or any report on it at all within 24h.
+    // -------------------------------------------------
+    const recentOnTarget = await db
+      .collection("reports")
+      .where("reporterId", "==", reporterId)
+      .where("targetType", "==", targetType)
       .where("targetId", "==", targetId)
-      .where("createdAt", ">", twentyFourHoursAgo)
-      .limit(1)
+      .orderBy("createdAt", "desc")
+      .limit(5)
       .get();
 
-    if (!duplicate.empty) {
+    const hasPending = recentOnTarget.docs.some(
+      (doc) => doc.data().status === "pending"
+    );
+    const hasRecent = recentOnTarget.docs.some((doc) => {
+      const createdAt = doc.data().createdAt;
+      return createdAt && createdAt.toDate() > twentyFourHoursAgo;
+    });
+
+    if (hasPending || hasRecent) {
       throw new HttpsError("already-exists", "You already reported this item");
     }
 
     // -------------------------------------------------
     // RATE LIMIT
     // -------------------------------------------------
-
-    const recentReports = await db.collection("reports")
-      .where("reportedBy", "==", reporterId)
+    const recentReports = await db
+      .collection("reports")
+      .where("reporterId", "==", reporterId)
       .where("createdAt", ">", oneHourAgo)
       .get();
 
@@ -10161,105 +10096,47 @@ exports.createReport = onCall(
     }
 
     // -------------------------------------------------
-    // TRUST SCORE WEIGHT
-    // -------------------------------------------------
-
-    let reportWeight = 1;
-
-    try {
-
-      const userDoc =
-        await db.collection("users").doc(reporterId).get();
-
-      const trustScore =
-        userDoc.data()?.trustScore ?? 1;
-
-      reportWeight = trustScore;
-
-    } catch (e) {
-
-      console.log("Trust score fallback", e);
-      reportWeight = 1;
-
-    }
-
-    // -------------------------------------------------
     // CREATE REPORT
     // -------------------------------------------------
-
     const reportRef = db.collection("reports").doc();
 
     await reportRef.set({
-      reportId: reportRef.id,
-      type,
+      targetType,
       targetId,
       targetOwnerId: targetOwnerId || null,
-
+      reporterId,
       reasonCode,
-      reasonText: reasonText || "",
-      message: message || "",
-
-      reportedBy: reporterId,
-
+      description: description || null,
       status: "pending",
-
-      weight: reportWeight,
-
       source: "user",
-
+      reviewedAt: null,
+      reviewedBy: null,
+      moderationAction: null,
+      moderationNotes: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    const statsRef = db.collection("admin_stats").doc("moderation");
+    await statsRef.set(
+      {
+        reportsToday: admin.firestore.FieldValue.increment(1),
+        reportsTotal: admin.firestore.FieldValue.increment(1),
+        lastReportAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
+    console.log("REPORT CREATED", {
+      reportId: reportRef.id,
+      targetType,
+      targetId,
+      reporterId,
+    });
 
-    // -------------------------------------------------
-    // ANALYTICS
-    // -------------------------------------------------
-
-    const statsRef =
-      db.collection("admin_stats").doc("moderation");
-
-    await statsRef.set({
-
-      reportsToday:
-        admin.firestore.FieldValue.increment(1),
-
-      reportsTotal:
-        admin.firestore.FieldValue.increment(1),
-
-      lastReportAt:
-        admin.firestore.FieldValue.serverTimestamp()
-
-    }, { merge: true });
-
-    // -------------------------------------------------
-    // AUTO MODERATION
-    // -------------------------------------------------
-    console.log("📢 NEW REPORT CREATED");
-    console.log("TYPE:", type);
-    console.log("TARGET:", targetId);
-    console.log("REPORTER:", reporterId);
-    console.log("WEIGHT:", reportWeight);
-    await ensureModerationTarget(type, targetId, targetOwnerId);
-
-    await ensureModerationCase(type, targetId, targetOwnerId);
-
-    await recalcModerationTarget(type, targetId);
-
-    await recalcModerationCase(type, targetId);
-
-    await syncModerationTargetToContent(type, targetId);
-
-    await detectMassReporting(type, targetId);
-
-    return { success: true };
-
+    return { success: true, reportId: reportRef.id };
   }
 );
-
-
 
 // =====================================================
 // REVIEW REPORT (ADMIN)
@@ -10268,583 +10145,240 @@ exports.createReport = onCall(
 exports.reviewReport = onCall(
   { region: "europe-west3" },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Login required");
-    }
-
     const db = admin.firestore();
-    const { reportId, action } = request.data || {};
 
-    if (!reportId || !action) {
-      throw new HttpsError("invalid-argument", "Missing parameters");
-    }
+    try {
+      const adminUid = await requireAdmin(db, request);
+      const { reportId, action, moderationAction, notes } = request.data || {};
 
-    if (action !== "approved" && action !== "rejected") {
-      throw new HttpsError("invalid-argument", "Invalid action");
-    }
+      if (!reportId || !action) {
+        throw new HttpsError("invalid-argument", "Missing parameters");
+      }
+      if (action !== "approved" && action !== "rejected") {
+        throw new HttpsError("invalid-argument", "Invalid action");
+      }
 
-    const reportRef = db.collection("reports").doc(reportId);
-    const reportDoc = await reportRef.get();
+      const reportRef = db.collection("reports").doc(reportId);
+      const reportSnap = await reportRef.get();
 
-    if (!reportDoc.exists) {
-      throw new HttpsError("not-found", "Report not found");
-    }
+      if (!reportSnap.exists) {
+        console.error("REPORT NOT FOUND", { reportId });
+        throw new HttpsError("not-found", "Report not found");
+      }
 
-    const reportData = reportDoc.data() || {};
-    const type = reportData.type;
-    const targetId = reportData.targetId;
-    const targetOwnerId = reportData.targetOwnerId || null;
+      const reportData = reportSnap.data() || {};
+      // Backward compatibility: reports created before this schema used
+      // `type`/`reportedBy` instead of `targetType`/`reporterId`.
+      const targetType = reportData.targetType ?? reportData.type;
+      const targetId = reportData.targetId;
 
-    if (!type || !targetId) {
-      throw new HttpsError("failed-precondition", "Missing target data");
-    }
+      if (reportData.status && reportData.status !== "pending") {
+        throw new HttpsError(
+          "failed-precondition",
+          "This report has already been reviewed"
+        );
+      }
+      if (!targetType || !targetId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Report is missing target data"
+        );
+      }
 
-    const key = `${type}_${targetId}`;
-    const moderationRef = db.collection("moderation_targets").doc(key);
+      let appliedAction = null;
 
-    // مطمئن شو target moderation doc وجود دارد
-    await ensureModerationTarget(type, targetId, targetOwnerId);
+      if (action === "approved") {
+        if (!moderationAction) {
+          throw new HttpsError(
+            "invalid-argument",
+            "moderationAction is required to approve a report"
+          );
+        }
 
-    // 1) update report status
-    await reportRef.update({
-      status: action,
-      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
-      reviewedBy: request.auth.uid,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+        const targetConfig = TARGET_REGISTRY[targetType];
+        if (!targetConfig || !targetConfig.actions[moderationAction]) {
+          throw new HttpsError(
+            "invalid-argument",
+            `Unknown moderation action "${moderationAction}" for target type "${targetType}"`
+          );
+        }
 
-    // 2) apply admin decision
-    await moderationRef.set({
-      lastAdminAction: {
-        action,
-        by: request.auth.uid,
-        at: admin.firestore.FieldValue.serverTimestamp(),
-        reportId,
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+        const targetSnap = await db
+          .collection(targetConfig.collection)
+          .doc(targetId)
+          .get();
 
+        if (!targetSnap.exists) {
+          console.error("REPORT TARGET NOT FOUND", {
+            reportId,
+            targetType,
+            targetId,
+          });
+          appliedAction = "target_not_found";
+        } else {
+          await targetConfig.actions[moderationAction](db, targetId, {
+            adminUid,
+            notes: notes || "",
+            reportId,
+            createNotification,
+          });
+          appliedAction = moderationAction;
+        }
+      }
 
-
-    // 3) resync moderation
-    await recalcModerationTarget(type, targetId);
-    await recalcModerationCase(type, targetId);
-    await syncModerationTargetToContent(type, targetId);
-    await detectMassReporting(type, targetId);
-
-    // 4) analytics
-    const statsRef = db.collection("admin_stats").doc("moderation");
-
-    if (action === "approved") {
-      await statsRef.set({
-        reportsApproved: admin.firestore.FieldValue.increment(1),
-      }, { merge: true });
-    }
-
-    if (action === "rejected") {
-      await statsRef.set({
-        reportsRejected: admin.firestore.FieldValue.increment(1),
-      }, { merge: true });
-    }
-
-    return { success: true };
-  }
-);
-
-// =====================================================
-// MASS REPORT DETECTION
-// =====================================================
-
-async function detectMassReporting(type, targetId) {
-
-  const db = admin.firestore();
-
-  const tenMinutesAgo =
-    new Date(Date.now() - 10 * 60 * 1000);
-
-  const reportsSnapshot =
-    await db.collection("reports")
-      .where("type", "==", type)
-      .where("targetId", "==", targetId)
-      .where("createdAt", ">", tenMinutesAgo)
-      .get();
-
-  const count = reportsSnapshot.size;
-
-  if (count >= 5) {
-
-    await db.collection("admin_stats")
-      .doc("moderation")
-      .set({
-
-        suspiciousReportClusters:
-          admin.firestore.FieldValue.increment(1),
-
-        lastSuspiciousCluster:
-          admin.firestore.FieldValue.serverTimestamp()
-
-      }, { merge: true });
-
-  }
-
-  if (count >= 10) {
-
-    const existingFlag =
-      await db.collection("admin_flags")
-        .where("type", "==", "mass_reporting_attack")
-        .where("targetId", "==", targetId)
-        .limit(1)
-        .get();
-
-    if (existingFlag.empty) {
-
-      await db.collection("admin_flags").add({
-        type: "mass_reporting_attack",
-        targetKey: `${type}_${targetId}`,
-        targetId,
-        targetType: type,
-        reportsCount: count,
-        status: "open",
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      await reportRef.update({
+        status: action,
+        reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+        reviewedBy: adminUid,
+        moderationAction: appliedAction,
+        moderationNotes: notes || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      await db.collection("admin_stats")
-        .doc("moderation")
-        .set({
+      await db.collection("admin_logs").add({
+        action: action === "approved" ? "REPORT_APPROVED" : "REPORT_REJECTED",
+        entityType: targetType,
+        entityId: targetId,
+        reportId,
+        performedBy: adminUid,
+        moderationAction: appliedAction,
+        reason: notes || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-          massReportingAttacks:
-            admin.firestore.FieldValue.increment(1)
+      console.log(
+        action === "approved" ? "REPORT APPROVED" : "REPORT REJECTED",
+        { reportId, targetType, targetId, adminUid, moderationAction: appliedAction }
+      );
 
-        }, { merge: true });
-
+      return { success: true, targetFound: appliedAction !== "target_not_found" };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      console.error("REPORT UPDATE FAILED", err);
+      throw new HttpsError("internal", "REPORT_UPDATE_FAILED", toPlainError(err));
     }
-
-  }
-
-}
-
-async function ensureModerationTarget(type, targetId, ownerId) {
-  const db = admin.firestore();
-
-  const key = `${type}_${targetId}`;
-  const ref = db.collection("moderation_targets").doc(key);
-  const snap = await ref.get();
-
-  if (!snap.exists) {
-    await ref.set({
-      targetKey: key,
-      targetType: type,
-      targetId,
-      targetOwnerId: ownerId || null,
-
-      autoStatus: "active",
-      adminStatus: "none",
-      effectiveStatus: "active",
-
-      pendingReportCount: 0,
-      approvedReportCount: 0,
-      rejectedReportCount: 0,
-
-      pendingWeight: 0,
-      riskScore: 0,
-
-      requiresAdminReview: false,
-      isHidden: false,
-
-      lastReportAt: null,
-      lastCaseId: null,
-
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-}
-
-async function ensureModerationCase(type, targetId, ownerId) {
-  const db = admin.firestore();
-
-  const key = `${type}_${targetId}`;
-
-  const existingCaseSnap = await db
-    .collection("moderation_cases")
-    .where("targetKey", "==", key)
-    .where("status", "in", ["open", "investigating"])
-    .limit(1)
-    .get();
-
-  if (!existingCaseSnap.empty) {
-    const caseRef = existingCaseSnap.docs[0].ref;
-
-    await caseRef.set({
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-
-    return existingCaseSnap.docs[0].id;
-  }
-
-  const caseRef = db.collection("moderation_cases").doc();
-
-  await caseRef.set({
-    caseId: caseRef.id,
-
-    targetKey: key,
-    targetType: type,
-    targetId,
-    targetOwnerId: ownerId || null,
-
-    reportCount: 0,
-    uniqueReporterCount: 0,
-    riskScore: 0,
-
-    priority: "low",
-    priorityRank: 1,
-
-    queueStatus: "pending_review",
-    status: "open",
-
-    latestReasonCodes: [],
-    summary: "",
-
-    assignedAdmin: null,
-
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  return caseRef.id;
-}
-
-async function recalcModerationCase(type, targetId) {
-  const db = admin.firestore();
-  const key = `${type}_${targetId}`;
-
-  const caseSnap = await db
-    .collection("moderation_cases")
-    .where("targetKey", "==", key)
-    .where("status", "in", ["open", "investigating"])
-    .limit(1)
-    .get();
-
-  if (caseSnap.empty) return;
-
-  const caseRef = caseSnap.docs[0].ref;
-
-  const reportsSnap = await db
-    .collection("reports")
-    .where("type", "==", type)
-    .where("targetId", "==", targetId)
-    .where("status", "in", ["pending", "approved"])
-    .get();
-
-  let reportCount = 0;
-  let riskScore = 0;
-  const reporterSet = new Set();
-  const reasonCount = {};
-
-  reportsSnap.forEach((doc) => {
-    const data = doc.data();
-
-    reportCount++;
-    riskScore += data.weight || 1;
-
-    if (data.reportedBy) {
-      reporterSet.add(data.reportedBy);
-    }
-
-    const reason = data.reasonCode || "other";
-    reasonCount[reason] = (reasonCount[reason] || 0) + 1;
-  });
-
-  const sortedReasons = Object.entries(reasonCount)
-    .sort((a, b) => b[1] - a[1])
-    .map(([reason]) => reason);
-
-  let priority = "low";
-  let priorityRank = 1;
-
-  if (riskScore >= 5) {
-    priority = "medium";
-    priorityRank = 2;
-  }
-
-  if (riskScore >= 10) {
-    priority = "high";
-    priorityRank = 3;
-  }
-
-  if (riskScore >= 20) {
-    priority = "critical";
-    priorityRank = 4;
-  }
-
-  await caseRef.set({
-    reportCount,
-    uniqueReporterCount: reporterSet.size,
-    riskScore,
-    latestReasonCodes: sortedReasons.slice(0, 5),
-    summary: sortedReasons.length
-      ? `Top reasons: ${sortedReasons.slice(0, 3).join(", ")}`
-      : "",
-    priority,
-    priorityRank,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
-  }, { merge: true });
-}
-
-async function recalcModerationTarget(type, targetId) {
-  const db = admin.firestore();
-
-  const key = `${type}_${targetId}`;
-  const targetRef = db.collection("moderation_targets").doc(key);
-
-  const allReports = await db.collection("reports")
-    .where("type", "==", type)
-    .where("targetId", "==", targetId)
-    .get();
-
-  let pendingCount = 0;
-  let approvedCount = 0;
-  let rejectedCount = 0;
-
-  let pendingWeight = 0;
-  let approvedWeight = 0;
-
-  let latestCreatedAt = null;
-
-  allReports.forEach((doc) => {
-    const data = doc.data();
-    const status = data.status || "pending";
-    const weight = data.weight || 1;
-
-    if (status === "pending") {
-      pendingCount++;
-      pendingWeight += weight;
-    }
-
-    if (status === "approved") {
-      approvedCount++;
-      approvedWeight += weight;
-    }
-
-    if (status === "rejected") {
-      rejectedCount++;
-    }
-
-    if (data.createdAt) {
-      if (!latestCreatedAt || data.createdAt.toMillis() > latestCreatedAt.toMillis()) {
-        latestCreatedAt = data.createdAt;
-      }
-    }
-  });
-
-  const riskScore = pendingWeight + approvedWeight;
-
-  let autoStatus = "active";
-
-  if (riskScore >= 5) {
-    autoStatus = "flagged";
-  }
-
-  if (riskScore >= 10) {
-    autoStatus = "restricted";
-  }
-
-  if (riskScore >= 20) {
-    autoStatus = "hidden";
-  }
-
-  const requiresAdminReview = riskScore >= 25;
-
-  await targetRef.set({
-    pendingReportCount: pendingCount,
-    approvedReportCount: approvedCount,
-    rejectedReportCount: rejectedCount,
-
-    pendingWeight,
-    riskScore,
-    autoStatus,
-    requiresAdminReview,
-    lastReportAt: latestCreatedAt || admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  }, { merge: true });
-}
-
-function getModerationCollection(type) {
-  switch (type) {
-    case "dog":
-      return "dogs";
-
-    case "business":
-      return "businesses";
-
-    case "user":
-      return "users";
-
-    case "chat":
-      return "chats";
-
-    case "lost_dog":
-      return "lost_pets";
-
-    case "found_dog":
-      return "found_pets";
-
-    case "adoption":
-      return "businesses";
-
-    default:
-      throw new Error(`Unknown moderation type: ${type}`);
-  }
-}
-
-async function syncModerationTargetToContent(type, targetId) {
-  const db = admin.firestore();
-
-  const key = `${type}_${targetId}`;
-
-  const targetSnap = await db.collection("moderation_targets")
-    .doc(key)
-    .get();
-
-  if (!targetSnap.exists) return;
-
-  const data = targetSnap.data();
-
-  const effectiveStatus = computeEffectiveStatus(
-    data.autoStatus,
-    data.adminStatus
-  );
-
-  const isHidden =
-    effectiveStatus === "hidden" ||
-    effectiveStatus === "suspended" ||
-    effectiveStatus === "confirmed_violation";
-
-  const collectionName = getModerationCollection(type);
-
-  await db.collection(collectionName)
-    .doc(targetId)
-    .set({
-      isHidden: admin.firestore.FieldValue.delete(),
-      moderation: {
-        effectiveStatus,
-        isHidden,
-        pendingReportCount: data.pendingReportCount || 0,
-        approvedReportCount: data.approvedReportCount || 0,
-        rejectedReportCount: data.rejectedReportCount || 0,
-        riskScore: data.riskScore || 0,
-        requiresAdminReview: data.requiresAdminReview || false,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }
-    }, { merge: true });
-
-  await db.collection("moderation_targets")
-    .doc(key)
-    .set({
-      effectiveStatus,
-      isHidden,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-}
-
-function computeEffectiveStatus(autoStatus, adminStatus) {
-  if (adminStatus === "suspended") return "suspended";
-  if (adminStatus === "confirmed_violation") return "confirmed_violation";
-  if (adminStatus === "clean") return "clean";
-  if (adminStatus === "restored") return "active";
-
-  if (autoStatus === "hidden") return "hidden";
-  if (autoStatus === "restricted") return "restricted";
-  if (autoStatus === "flagged") return "flagged";
-
-  return "active";
-}
-
-exports.reviewModerationCase = onCall(
-  { region: "europe-west3" },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Login required");
-    }
-
-    const db = admin.firestore();
-    const { caseId, action, reason } = request.data || {};
-
-    if (!caseId || !action) {
-      throw new HttpsError("invalid-argument", "Missing parameters");
-    }
-
-    const caseRef = db.collection("moderation_cases").doc(caseId);
-    const caseDoc = await caseRef.get();
-
-    if (!caseDoc.exists) {
-      throw new HttpsError("not-found", "Case not found");
-    }
-
-    const caseData = caseDoc.data();
-    const type = caseData.targetType;
-    const targetId = caseData.targetId;
-    const targetKey = caseData.targetKey;
-
-    const moderationRef = db.collection("moderation_targets").doc(targetKey);
-
-    let adminStatus = "none";
-    let caseStatus = "resolved";
-    let queueStatus = "closed";
-
-    if (action === "confirm_violation") adminStatus = "confirmed_violation";
-    if (action === "clean") adminStatus = "clean";
-    if (action === "suspend") adminStatus = "suspended";
-    if (action === "restore") adminStatus = "restored";
-
-    await moderationRef.set({
-      adminStatus,
-      lastAdminAction: {
-        action,
-        by: request.auth.uid,
-        reason: reason || "",
-        at: admin.firestore.FieldValue.serverTimestamp(),
-        caseId,
-      },
-      lastCaseId: caseId,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-
-    await caseRef.set({
-      status: caseStatus,
-      queueStatus,
-      decision: action,
-      decisionReason: reason || "",
-      assignedAdmin: request.auth.uid,
-      closedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-
-    await recalcModerationTarget(type, targetId);
-    await recalcModerationCase(type, targetId);
-    await syncModerationTargetToContent(type, targetId);
-
-    await db.collection("admin_logs").add({
-      action: "case_reviewed",
-      entityType: type,
-      entityId: targetId,
-      performedBy: request.auth.uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      reason: reason || "",
-      metadata: {
-        caseId,
-        decision: action,
-        targetType: type,
-        targetId,
-      }
-    });
-
-    return { success: true };
   }
 );
+
+// =====================================================
+// RESTORE MODERATION TARGET (ADMIN) — the generic "undo" control shown
+// whenever a target is currently in a non-active moderation state,
+// independent of any specific report.
+// =====================================================
+
+exports.restoreModerationTarget = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const db = admin.firestore();
+
+    try {
+      const adminUid = await requireAdmin(db, request);
+      const { targetType, targetId, notes } = request.data || {};
+
+      if (!targetType || !targetId) {
+        throw new HttpsError("invalid-argument", "Missing parameters");
+      }
+
+      const targetConfig = TARGET_REGISTRY[targetType];
+      if (!targetConfig || !targetConfig.actions.restore) {
+        throw new HttpsError(
+          "invalid-argument",
+          `Target type "${targetType}" does not support restore`
+        );
+      }
+
+      const targetSnap = await db
+        .collection(targetConfig.collection)
+        .doc(targetId)
+        .get();
+
+      if (!targetSnap.exists) {
+        console.error("REPORT TARGET NOT FOUND", { targetType, targetId });
+        throw new HttpsError("not-found", "Target no longer exists");
+      }
+
+      await targetConfig.actions.restore(db, targetId, {
+        adminUid,
+        notes: notes || "",
+        reportId: null,
+        createNotification,
+      });
+
+      await db.collection("admin_logs").add({
+        action: "TARGET_RESTORED",
+        entityType: targetType,
+        entityId: targetId,
+        performedBy: adminUid,
+        reason: notes || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log("TARGET RESTORED", { targetType, targetId, adminUid });
+
+      return { success: true };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      console.error("REPORT UPDATE FAILED", err);
+      throw new HttpsError("internal", "RESTORE_FAILED", toPlainError(err));
+    }
+  }
+);
+
+// Convenience alias for the user-restore path specifically (same underlying
+// registry action + audit trail as restoreModerationTarget).
+exports.reactivateUser = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const db = admin.firestore();
+
+    try {
+      const adminUid = await requireAdmin(db, request);
+      const { userId, notes } = request.data || {};
+
+      if (!userId) {
+        throw new HttpsError("invalid-argument", "userId required");
+      }
+
+      const targetSnap = await db.collection("users").doc(userId).get();
+      if (!targetSnap.exists) {
+        console.error("REPORT TARGET NOT FOUND", {
+          targetType: "user",
+          targetId: userId,
+        });
+        throw new HttpsError("not-found", "User not found");
+      }
+
+      await TARGET_REGISTRY.user.actions.restore(db, userId, {
+        adminUid,
+        notes: notes || "",
+        reportId: null,
+        createNotification,
+      });
+
+      await db.collection("admin_logs").add({
+        action: "TARGET_RESTORED",
+        entityType: "user",
+        entityId: userId,
+        performedBy: adminUid,
+        reason: notes || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log("TARGET RESTORED", {
+        targetType: "user",
+        targetId: userId,
+        adminUid,
+      });
+
+      return { success: true };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      console.error("REPORT UPDATE FAILED", err);
+      throw new HttpsError("internal", "REACTIVATE_FAILED", toPlainError(err));
+    }
+  }
+);
+
 
 exports.createComplaint = onCall(
   {
