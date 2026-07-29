@@ -8,7 +8,8 @@ import 'dog.dart';
 import 'app_state.dart';
 import 'dart:io';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
-import 'ui/common/report_button.dart';
+import 'models/report_model.dart';
+import 'ui/common/report_dialog.dart';
 import 'package:barky_matches_fixed/ui/common/pages/submit_complaint_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -1164,13 +1165,11 @@ if (!isOwner &&
                                 icon: const Icon(Icons.more_horiz),
                                 onSelected: (value) {
                                   if (value == "report") {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      builder: (_) => ReportButton(
-                                        type: "dog",
-                                        targetId: widget.dog.id,
-                                        targetOwnerId: widget.dog.ownerId ?? "",
-                                      ),
+                                    showReportSheet(
+                                      context,
+                                      targetType: ReportTargetType.dog,
+                                      targetId: widget.dog.id,
+                                      targetOwnerId: widget.dog.ownerId,
                                     );
                                   }
 
@@ -1799,13 +1798,11 @@ if (!isOwner &&
                           ),
                           onSelected: (value) {
                             if (value == "report") {
-                              showModalBottomSheet(
-                                context: context,
-                                builder: (_) => ReportButton(
-                                  type: "dog",
-                                  targetId: widget.dog.id,
-                                  targetOwnerId: widget.dog.ownerId ?? "",
-                                ),
+                              showReportSheet(
+                                context,
+                                targetType: ReportTargetType.dog,
+                                targetId: widget.dog.id,
+                                targetOwnerId: widget.dog.ownerId,
                               );
                             }
 
