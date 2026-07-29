@@ -3,6 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../utils/relative_time.dart';
+
+/// Shows the admin_logs audit trail for a single target (all report
+/// approve/reject/restore actions taken against it). Reads `reason` at the
+/// top level (the schema written by reviewReport/restoreModerationTarget/
+/// reactivateUser) and falls back to the legacy nested `metadata.reason`
+/// shape written by the now-removed reviewModerationCase, so any older
+/// entries still render instead of showing a blank subtitle.
 class ModerationAuditTimeline extends StatelessWidget {
   final String targetId;
   final String type;
@@ -30,17 +38,38 @@ class ModerationAuditTimeline extends StatelessWidget {
 
         final docs = snapshot.data!.docs;
 
+        if (docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'No moderation history yet',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
         return Column(
           children: docs.map((d) {
             final data = d.data() as Map<String, dynamic>;
 
-            final action = data["action"] ?? "";
-            final reason = (data["metadata"]?["reason"] ?? "").toString();
+            final action = (data["action"] ?? "").toString();
+            final moderationAction = data["moderationAction"];
+            final reason = (data["reason"] ?? data["metadata"]?["reason"] ?? "")
+                .toString();
+            final createdAt = (data["createdAt"] as Timestamp?)?.toDate();
+
+            final subtitleParts = [
+              if (moderationAction != null && moderationAction != 'null')
+                'Action: $moderationAction',
+              if (reason.isNotEmpty) reason,
+              if (createdAt != null) formatRelativeTime(createdAt),
+            ];
 
             return ListTile(
-              leading: const Icon(Icons.history),
+              dense: true,
+              leading: const Icon(Icons.history, size: 20),
               title: Text(action),
-              subtitle: Text(reason),
+              subtitle: Text(subtitleParts.join(' • ')),
             );
           }).toList(),
         );

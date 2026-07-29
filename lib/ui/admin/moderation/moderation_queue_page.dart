@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/ui/admin/moderation/moderation_case_detail_page.dart';
-import 'investigation_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
+/// Refund-request review queue. Report moderation now lives entirely in
+/// AdminReportsPage - this page used to also list reports (duplicating that
+/// screen with raw IDs); that section has been removed.
 class ModerationQueuePage extends StatelessWidget {
   const ModerationQueuePage({super.key});
 
@@ -10,16 +13,10 @@ class ModerationQueuePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Moderation Queue"),
+        title: Text(AppLocalizations.of(context)!.refundRequests),
         backgroundColor: Colors.pink,
       ),
-      body: ListView(
-        children: [
-          _refundRequestsSection(),
-          const Divider(height: 1),
-          _reportsSection(),
-        ],
-      ),
+      body: ListView(children: [_refundRequestsSection()]),
     );
   }
 
@@ -81,64 +78,6 @@ class ModerationQueuePage extends StatelessWidget {
     );
   }
 
-  Widget _reportsSection() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection("reports")
-          .where("status", isEqualTo: "pending")
-          .orderBy("createdAt", descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        debugPrint("📊 moderation state → ${snapshot.connectionState}");
-        debugPrint("📊 moderation error → ${snapshot.error}");
-
-        if (snapshot.hasError) {
-          return Center(child: Text("Firestore error: ${snapshot.error}"));
-        }
-
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final reports = snapshot.data!.docs;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
-              child: Text(
-                "Reports",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            if (reports.isEmpty)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: Text("No pending moderation items"),
-              )
-            else
-              ...reports.map((report) {
-                final data = report.data() as Map<String, dynamic>;
-
-                final type = data["type"] ?? "";
-                final reason = data["reasonCode"] ?? "";
-                final targetId = data["targetId"] ?? "";
-
-                return _buildReportItem(
-                  context,
-                  report.id,
-                  type,
-                  reason,
-                  targetId,
-                );
-              }),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildRefundItem(
     BuildContext context,
     String appointmentId,
@@ -184,56 +123,6 @@ class ModerationQueuePage extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildReportItem(
-    BuildContext context,
-    String reportId,
-    String type,
-    String reason,
-    String targetId,
-  ) {
-    IconData icon;
-
-    switch (type) {
-      case "dog":
-        icon = Icons.pets;
-        break;
-
-      case "user":
-        icon = Icons.person;
-        break;
-
-      case "business":
-        icon = Icons.store;
-        break;
-
-      case "chat":
-        icon = Icons.chat;
-        break;
-
-      default:
-        icon = Icons.flag;
-    }
-
-    return ListTile(
-      leading: Icon(icon, color: Colors.red),
-      title: Text("Reported $type"),
-      subtitle: Text("Reason: $reason"),
-      trailing: const Icon(Icons.arrow_forward_ios),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => InvestigationPage(
-              reportId: reportId,
-              targetId: targetId,
-              type: type,
-            ),
-          ),
-        );
-      },
     );
   }
 

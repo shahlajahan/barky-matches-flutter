@@ -74,14 +74,14 @@ class AdminHubPage extends StatelessWidget {
           _AdminItem(
             icon: Icons.report_outlined,
             title: "Reports",
-            subtitle: "Reported dogs, users, chats, businesses",
+            subtitle: "Reported dogs, users, posts, comments, businesses",
             pageBuilder: () => const AdminReportsPage(),
           ),
 
           _AdminItem(
             icon: Icons.gavel_outlined,
-            title: "Moderation Queue",
-            subtitle: "Cases waiting for review",
+            title: "Refund Requests",
+            subtitle: "Vet appointment refunds waiting for review",
             pageBuilder: () => const ModerationQueuePage(),
           ),
 

@@ -7,23 +7,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
 
-import 'models/moderation_case.dart';
-import 'widgets/case_reports_section.dart';
-import 'widgets/moderation_action_bar.dart';
 import 'widgets/moderation_audit_timeline.dart';
 
+/// Vet-appointment refund review. Previously also supported a second,
+/// unreachable "content moderation case" view (constructed with `c:`) built
+/// on the now-removed moderation_cases/moderation_targets pipeline - report
+/// moderation lives entirely in AdminReportsPage now, so only the refund
+/// path remains.
 class ModerationCaseDetailPage extends StatefulWidget {
-  final ModerationCase? c;
-  final String? refundAppointmentId;
+  final String appointmentId;
 
-  const ModerationCaseDetailPage({super.key, required ModerationCase this.c})
-    : refundAppointmentId = null;
-
-  const ModerationCaseDetailPage.refund({
-    super.key,
-    required String appointmentId,
-  }) : c = null,
-       refundAppointmentId = appointmentId;
+  const ModerationCaseDetailPage.refund({super.key, required this.appointmentId});
 
   @override
   State<ModerationCaseDetailPage> createState() =>
@@ -35,72 +29,7 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final refundAppointmentId = widget.refundAppointmentId;
-    if (refundAppointmentId != null) {
-      return _refundReviewScaffold(refundAppointmentId);
-    }
-
-    final c = widget.c!;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Moderation Case"),
-        backgroundColor: Colors.pink,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _caseHeader(),
-
-            CaseReportsSection(targetId: c.targetId),
-
-            ModerationActionBar(
-              caseId: c.id,
-              targetId: c.targetId,
-              type: c.type,
-            ),
-
-            ModerationAuditTimeline(targetId: c.targetId, type: c.type),
-
-            const SizedBox(height: 50),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _caseHeader() {
-    final c = widget.c!;
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Target: ${c.type}",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            Text("Target ID: ${c.targetId}"),
-
-            const SizedBox(height: 10),
-
-            Text("Reports: ${c.reportCount}"),
-
-            const SizedBox(height: 10),
-
-            Text("Risk Score: ${c.riskScore}"),
-
-            const SizedBox(height: 10),
-
-            Text("Priority: ${c.priority}"),
-          ],
-        ),
-      ),
-    );
+    return _refundReviewScaffold(widget.appointmentId);
   }
 
   Widget _refundReviewScaffold(String appointmentId) {
