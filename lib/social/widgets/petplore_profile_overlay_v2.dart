@@ -12,6 +12,8 @@ import 'package:barky_matches_fixed/social/models/social_post.dart';
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
 import 'package:barky_matches_fixed/social/widgets/social_post_media_viewer_overlay.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/models/report_model.dart';
+import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
@@ -374,6 +376,22 @@ class _ProfileHeader extends StatelessWidget {
                 icon: const Icon(LucideIcons.x, color: Colors.white),
               ),
               const Spacer(),
+              if (!isOwnProfile)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  onSelected: (value) {
+                    if (value == 'report') {
+                      showReportSheet(
+                        context,
+                        targetType: ReportTargetType.user,
+                        targetId: user.id,
+                      );
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'report', child: Text('Report user')),
+                  ],
+                ),
               if (!isOwnProfile) _PetploreFollowButton(userId: user.id),
             ],
           ),

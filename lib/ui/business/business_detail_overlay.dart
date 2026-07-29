@@ -14,6 +14,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'pet_hotel/pet_hotel_details_page.dart';
 
 import 'package:barky_matches_fixed/ui/business/groomy/groomy_details_overlay.dart';
+import 'package:barky_matches_fixed/models/report_model.dart';
+import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
 enum _BusinessTab { info, services, action, contact }
 
@@ -117,11 +119,32 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.data.name,
-          style: AppTheme.h2(
-            color: Colors.white,
-          ).copyWith(fontWeight: FontWeight.w800),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.data.name,
+                style: AppTheme.h2(
+                  color: Colors.white,
+                ).copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white70),
+              onSelected: (value) {
+                if (value == 'report') {
+                  showReportSheet(
+                    context,
+                    targetType: ReportTargetType.business,
+                    targetId: widget.data.id,
+                  );
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'report', child: Text('Report business')),
+              ],
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Text(

@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/social_post.dart';
 import '../services/post_comment_service.dart';
+import 'package:barky_matches_fixed/models/report_model.dart';
+import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
 class CommentsBottomSheet extends StatefulWidget {
   final SocialPost post;
@@ -155,6 +158,33 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                             comment.text,
                             style: const TextStyle(color: Colors.white70),
                           ),
+
+                          trailing:
+                              FirebaseAuth.instance.currentUser?.uid ==
+                                  comment.userId
+                              ? null
+                              : PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: Colors.white54,
+                                  ),
+                                  onSelected: (value) {
+                                    if (value == 'report') {
+                                      showReportSheet(
+                                        context,
+                                        targetType: ReportTargetType.comment,
+                                        targetId: comment.id,
+                                        targetOwnerId: comment.userId,
+                                      );
+                                    }
+                                  },
+                                  itemBuilder: (context) => const [
+                                    PopupMenuItem(
+                                      value: 'report',
+                                      child: Text('Report comment'),
+                                    ),
+                                  ],
+                                ),
                         );
                       },
                     );

@@ -15,6 +15,8 @@ import '../widgets/petplore_stories_bar.dart';
 import '../widgets/social_post_media_viewer_overlay.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/native_ad_widget.dart';
+import 'package:barky_matches_fixed/models/report_model.dart';
+import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
 class NativeAdMarker {}
 
@@ -219,7 +221,25 @@ void initState() {
                   ),
                 ),
 
-                const SizedBox(width: 42),
+                if (context.read<AppState>().currentUserId == post.userId)
+                  const SizedBox(width: 42)
+                else
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    onSelected: (value) {
+                      if (value == 'report') {
+                        showReportSheet(
+                          context,
+                          targetType: ReportTargetType.post,
+                          targetId: post.id,
+                          targetOwnerId: post.userId,
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'report', child: Text('Report post')),
+                    ],
+                  ),
               ],
             ),
           ),
