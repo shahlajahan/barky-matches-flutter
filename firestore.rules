@@ -276,14 +276,6 @@ allow read: if isAdmin() || (
       return isSignedIn() && data.userId == request.auth.uid;
     }
 
-    function isReportOwner(data) {
-      return isSignedIn() && (
-        data.reportedBy == request.auth.uid ||
-        data.reporterId == request.auth.uid ||
-        data.userId == request.auth.uid
-      );
-    }
-
     function isLikeOwner(data) {
       return isSignedIn() && data.userId == request.auth.uid;
     }
@@ -653,9 +645,12 @@ isBusinessOwner(businessId);
     }
 
     match /reports/{reportId} {
-      allow read: if isAdmin() || isReportOwner(resource.data);
-      allow create: if isAdmin() || isReportOwner(request.resource.data);
-      allow update, delete: if isAdmin() || isReportOwner(resource.data);
+      allow read: if isAdmin() ||
+                     (isSignedIn() &&
+                      resource.data.reporterId == request.auth.uid);
+
+      // All writes must go through Cloud Functions (Admin SDK)
+      allow write: if false;
     }
 
     match /scheduled_notifications/{notificationId} {
@@ -686,16 +681,9 @@ isBusinessOwner(businessId);
       allow read, create, update, delete: if isAdmin();
     }
 
-    match /moderation_targets/{targetId} {
-      allow read, create, update, delete: if isAdmin();
-    }
-
-    match /moderation_cases/{caseId} {
-      allow read, create, update, delete: if isAdmin();
-    }
-
-    match /admin_flags/{flagId} {
-      allow read, create, update, delete: if isAdmin();
+    match /user_moderation_actions/{actionId} {
+      allow read: if isAdmin();
+      allow write: if false; // Admin SDK only (warning/suspend/block/reactivate)
     }
 
     match /business_suspensions/{suspensionId} {
