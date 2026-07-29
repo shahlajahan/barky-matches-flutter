@@ -388,8 +388,11 @@ class _ProfileHeader extends StatelessWidget {
                       );
                     }
                   },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'report', child: Text('Report user')),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'report',
+                      child: Text(AppLocalizations.of(context)!.reportMenuUser),
+                    ),
                   ],
                 ),
               if (!isOwnProfile) _PetploreFollowButton(userId: user.id),

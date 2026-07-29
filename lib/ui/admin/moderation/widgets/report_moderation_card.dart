@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../l10n/app_localizations.dart';
 import '../../../../models/report_model.dart';
 import '../../../../models/report_target_registry.dart';
 import '../../../../services/report_service.dart';
@@ -64,37 +65,37 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
     }
   }
 
-  String _reasonLabel(ReportReasonCode code) {
+  String _reasonLabel(AppLocalizations l10n, ReportReasonCode code) {
     switch (code) {
       case ReportReasonCode.spam:
-        return 'Spam';
+        return l10n.reportReasonSpam;
       case ReportReasonCode.abuse:
-        return 'Abuse / harassment';
+        return l10n.reportReasonAbuse;
       case ReportReasonCode.scam:
-        return 'Scam';
+        return l10n.reportReasonScam;
       case ReportReasonCode.fakeProfile:
-        return 'Fake profile';
+        return l10n.reportReasonFakeProfile;
       case ReportReasonCode.inappropriateContent:
-        return 'Inappropriate content';
+        return l10n.reportReasonInappropriateContent;
       case ReportReasonCode.animalSafety:
-        return 'Animal safety';
+        return l10n.reportReasonAnimalSafety;
       case ReportReasonCode.other:
-        return 'Other';
+        return l10n.reportReasonOther;
     }
   }
 
-  String _errorMessage(String? code, String? message) {
+  String _errorMessage(AppLocalizations l10n, String? code, String? message) {
     switch (code) {
       case 'permission-denied':
-        return "You don't have permission to do this.";
+        return l10n.moderationPermissionDenied;
       case 'not-found':
-        return 'This report or target could not be found.';
+        return l10n.moderationNotFound;
       case 'failed-precondition':
-        return 'This report has already been reviewed.';
+        return l10n.moderationAlreadyReviewed;
       case 'unavailable':
-        return 'Network error. Please try again.';
+        return l10n.moderationNetworkError;
       default:
-        return message ?? 'Something went wrong. Please try again.';
+        return message ?? l10n.reportGenericError;
     }
   }
 
@@ -104,6 +105,7 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
   }
 
   Future<String?> _askNotes(String title) async {
+    final l10n = AppLocalizations.of(context)!;
     final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
@@ -111,17 +113,17 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
         title: Text(title),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Notes (optional)'),
+          decoration: InputDecoration(labelText: l10n.moderationNotesLabel),
           maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(l10n.moderationCancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Confirm'),
+            child: Text(l10n.moderationConfirm),
           ),
         ],
       ),
@@ -131,9 +133,10 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
   }
 
   Future<void> _approve() async {
+    final l10n = AppLocalizations.of(context)!;
     final config = kReportTargetRegistry[widget.report.targetType];
     if (config == null) {
-      _showSnack('Unknown target type - cannot moderate.');
+      _showSnack(l10n.moderationUnknownTargetType);
       return;
     }
 
@@ -157,16 +160,17 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
     if (outcome.success) {
       _showSnack(
         outcome.targetFound
-            ? 'Report approved.'
-            : 'Report approved (target no longer exists - no action taken).',
+            ? l10n.moderationReportApproved
+            : l10n.moderationReportApprovedNoTarget,
       );
     } else {
-      _showSnack(_errorMessage(outcome.errorCode, outcome.message));
+      _showSnack(_errorMessage(l10n, outcome.errorCode, outcome.message));
     }
   }
 
   Future<void> _reject() async {
-    final notes = await _askNotes('Reject report');
+    final l10n = AppLocalizations.of(context)!;
+    final notes = await _askNotes(l10n.moderationRejectReportTitle);
     if (notes == null) return;
 
     setState(() => _busy = true);
@@ -179,14 +183,15 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
     setState(() => _busy = false);
 
     if (outcome.success) {
-      _showSnack('Report rejected.');
+      _showSnack(l10n.moderationReportRejected);
     } else {
-      _showSnack(_errorMessage(outcome.errorCode, outcome.message));
+      _showSnack(_errorMessage(l10n, outcome.errorCode, outcome.message));
     }
   }
 
   Future<void> _restore() async {
-    final notes = await _askNotes('Restore target');
+    final l10n = AppLocalizations.of(context)!;
+    final notes = await _askNotes(l10n.moderationRestoreTargetTitle);
     if (notes == null) return;
 
     setState(() => _busy = true);
@@ -199,15 +204,16 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
     setState(() => _busy = false);
 
     if (outcome.success) {
-      _showSnack('Target restored.');
+      _showSnack(l10n.moderationTargetRestored);
       await _refresh();
     } else {
-      _showSnack(_errorMessage(outcome.errorCode, outcome.message));
+      _showSnack(_errorMessage(l10n, outcome.errorCode, outcome.message));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final report = widget.report;
     final typeConfig = kReportTargetRegistry[report.targetType];
 
@@ -278,13 +284,16 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (!target.exists)
-                            const Text(
-                              'This target no longer exists',
-                              style: TextStyle(color: Colors.red, fontSize: 12),
+                            Text(
+                              l10n.moderationTargetGone,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                              ),
                             ),
                           if (target.ownerName != null)
                             Text(
-                              'Owner: ${target.ownerName}',
+                              l10n.moderationOwnerLabel(target.ownerName!),
                               style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12,
@@ -302,14 +311,14 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
               future: _reporterFuture,
               builder: (context, snapshot) {
                 return Text(
-                  'Reporter: ${snapshot.data?.name ?? '...'}',
+                  l10n.moderationReporterLabel(snapshot.data?.name ?? '...'),
                   style: const TextStyle(fontSize: 13),
                 );
               },
             ),
             const SizedBox(height: 4),
             Text(
-              'Reason: ${_reasonLabel(report.reasonCode)}',
+              l10n.moderationReasonLabel(_reasonLabel(l10n, report.reasonCode)),
               style: const TextStyle(fontSize: 13),
             ),
             if ((report.description ?? '').isNotEmpty) ...[
@@ -331,7 +340,7 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
                       ),
                       child: _busy
                           ? const _MiniSpinner()
-                          : const Text('Approve'),
+                          : Text(l10n.moderationApproveButton),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -341,7 +350,9 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent,
                       ),
-                      child: _busy ? const _MiniSpinner() : const Text('Reject'),
+                      child: _busy
+                          ? const _MiniSpinner()
+                          : Text(l10n.moderationRejectButton),
                     ),
                   ),
                 ],
@@ -351,9 +362,11 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
                 future: _reviewerFuture,
                 builder: (context, snapshot) {
                   final parts = <String>[
-                    'Reviewed by ${snapshot.data?.name ?? report.reviewedBy ?? 'admin'}',
+                    l10n.moderationReviewedByLabel(
+                      snapshot.data?.name ?? report.reviewedBy ?? 'admin',
+                    ),
                     if (report.moderationAction != null)
-                      'action: ${report.moderationAction}',
+                      l10n.moderationActionLabel(report.moderationAction!),
                     formatRelativeTime(report.reviewedAt),
                   ].where((p) => p.isNotEmpty).toList();
                   return Text(
@@ -373,7 +386,7 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
                   padding: const EdgeInsets.only(top: 8),
                   child: OutlinedButton(
                     onPressed: _busy ? null : _restore,
-                    child: const Text('Restore'),
+                    child: Text(l10n.moderationRestoreButton),
                   ),
                 );
               },
@@ -382,9 +395,9 @@ class _ReportModerationCardState extends State<ReportModerationCard> {
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
-              title: const Text(
-                'Report history & moderation timeline',
-                style: TextStyle(fontSize: 13),
+              title: Text(
+                l10n.moderationHistorySectionTitle,
+                style: const TextStyle(fontSize: 13),
               ),
               children: [
                 _ReportHistorySection(
@@ -444,6 +457,8 @@ class _ApproveSheetState extends State<_ApproveSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -455,9 +470,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Choose moderation action',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                l10n.moderationChooseAction,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
               ...widget.actions.entries.map(
@@ -472,9 +487,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
               TextField(
                 controller: _notesController,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (optional)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.moderationNotesLabel,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -490,7 +505,7 @@ class _ApproveSheetState extends State<_ApproveSheet> {
                             _notesController.text.trim(),
                           ),
                         ),
-                  child: const Text('Approve & apply'),
+                  child: Text(l10n.moderationApproveApply),
                 ),
               ),
             ],
@@ -525,6 +540,7 @@ class _ReportHistorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final stream = FirebaseFirestore.instance
         .collection('reports')
         .where('targetType', isEqualTo: targetType)
@@ -544,11 +560,11 @@ class _ReportHistorySection extends StatelessWidget {
             .toList();
 
         if (reports.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'No other reports on this target',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              l10n.moderationNoOtherReports,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
           );
         }

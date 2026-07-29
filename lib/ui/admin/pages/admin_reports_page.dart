@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/models/report_model.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/admin/moderation/widgets/report_moderation_card.dart';
@@ -33,19 +34,30 @@ class _AdminReportsPageState extends State<AdminReportsPage>
     super.dispose();
   }
 
+  String _tabLabel(AppLocalizations l10n, String status) {
+    switch (status) {
+      case 'approved':
+        return l10n.adminReportsTabApproved;
+      case 'rejected':
+        return l10n.adminReportsTabRejected;
+      default:
+        return l10n.adminReportsTabPending;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reports'),
+        title: Text(l10n.adminReportsTitle),
         backgroundColor: AppTheme.primary,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Pending'),
-            Tab(text: 'Approved'),
-            Tab(text: 'Rejected'),
-          ],
+          tabs: _statuses
+              .map((status) => Tab(text: _tabLabel(l10n, status)))
+              .toList(),
         ),
       ),
       body: TabBarView(
@@ -63,6 +75,7 @@ class _ReportsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final stream = FirebaseFirestore.instance
         .collection('reports')
         .where('status', isEqualTo: status)
@@ -73,7 +86,9 @@ class _ReportsList extends StatelessWidget {
       stream: stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error loading reports: ${snapshot.error}'));
+          return Center(
+            child: Text(l10n.adminReportsLoadError('${snapshot.error}')),
+          );
         }
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -81,7 +96,7 @@ class _ReportsList extends StatelessWidget {
 
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) {
-          return Center(child: Text('No $status reports'));
+          return Center(child: Text(l10n.adminReportsEmpty(status)));
         }
 
         return ListView.builder(

@@ -18,43 +18,6 @@ class AdminComplaintCenterPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Complaint Center"),
         backgroundColor: const Color(0xFF9E1B4F),
-        actions: [
-          /// TEST BUTTON
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection("complaints").add({
-                "createdBy": "testUser",
-
-                "createdAt": FieldValue.serverTimestamp(),
-
-                "updatedAt": FieldValue.serverTimestamp(),
-
-                "targetType": "dog",
-
-                "targetId": "testDog",
-
-                "category": "harassment",
-
-                "severity": "medium",
-
-                "priority": "normal",
-
-                "title": "Test complaint",
-
-                "description": "Test complaint description",
-
-                "status": "open",
-
-                "evidenceCount": 0,
-
-                "messageCount": 1,
-
-                "isArchived": false,
-              });
-            },
-          ),
-        ],
       ),
 
       body: StreamBuilder<QuerySnapshot>(

@@ -10610,6 +10610,366 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Chat error: {error}'**
   String chatError(Object error);
+
+  /// No description provided for @reportDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get reportDialogTitle;
+
+  /// No description provided for @reportSelectReasonError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a reason'**
+  String get reportSelectReasonError;
+
+  /// No description provided for @reportReasonSpam.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam'**
+  String get reportReasonSpam;
+
+  /// No description provided for @reportReasonAbuse.
+  ///
+  /// In en, this message translates to:
+  /// **'Abuse / harassment'**
+  String get reportReasonAbuse;
+
+  /// No description provided for @reportReasonScam.
+  ///
+  /// In en, this message translates to:
+  /// **'Scam'**
+  String get reportReasonScam;
+
+  /// No description provided for @reportReasonFakeProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Fake profile'**
+  String get reportReasonFakeProfile;
+
+  /// No description provided for @reportReasonInappropriateContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Inappropriate content'**
+  String get reportReasonInappropriateContent;
+
+  /// No description provided for @reportReasonAnimalSafety.
+  ///
+  /// In en, this message translates to:
+  /// **'Animal safety'**
+  String get reportReasonAnimalSafety;
+
+  /// No description provided for @reportReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get reportReasonOther;
+
+  /// No description provided for @reportReasonFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get reportReasonFieldLabel;
+
+  /// No description provided for @reportAdditionalDetailsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional details (optional)'**
+  String get reportAdditionalDetailsHint;
+
+  /// No description provided for @reportSubmitButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit report'**
+  String get reportSubmitButton;
+
+  /// No description provided for @reportSubmittedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Report submitted. Thank you for helping keep the community safe.'**
+  String get reportSubmittedSuccess;
+
+  /// No description provided for @reportAlreadyReported.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve already reported this - it\'s pending review.'**
+  String get reportAlreadyReported;
+
+  /// No description provided for @reportRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many reports submitted recently. Please try again later.'**
+  String get reportRateLimited;
+
+  /// No description provided for @reportTargetGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This item no longer exists.'**
+  String get reportTargetGone;
+
+  /// No description provided for @reportUnauthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'Please sign in to submit a report.'**
+  String get reportUnauthenticated;
+
+  /// No description provided for @reportNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the server. Check your connection and try again.'**
+  String get reportNetworkError;
+
+  /// No description provided for @reportGenericSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Report submitted.'**
+  String get reportGenericSuccess;
+
+  /// No description provided for @reportGenericError.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get reportGenericError;
+
+  /// No description provided for @reportMenuUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Report user'**
+  String get reportMenuUser;
+
+  /// No description provided for @reportMenuPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Report post'**
+  String get reportMenuPost;
+
+  /// No description provided for @reportMenuComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Report comment'**
+  String get reportMenuComment;
+
+  /// No description provided for @reportMenuBusiness.
+  ///
+  /// In en, this message translates to:
+  /// **'Report business'**
+  String get reportMenuBusiness;
+
+  /// No description provided for @adminReportsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get adminReportsTitle;
+
+  /// No description provided for @adminReportsTabPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get adminReportsTabPending;
+
+  /// No description provided for @adminReportsTabApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get adminReportsTabApproved;
+
+  /// No description provided for @adminReportsTabRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get adminReportsTabRejected;
+
+  /// No description provided for @adminReportsLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading reports: {error}'**
+  String adminReportsLoadError(Object error);
+
+  /// No description provided for @adminReportsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No {status} reports'**
+  String adminReportsEmpty(Object status);
+
+  /// No description provided for @moderationPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to do this.'**
+  String get moderationPermissionDenied;
+
+  /// No description provided for @moderationNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This report or target could not be found.'**
+  String get moderationNotFound;
+
+  /// No description provided for @moderationAlreadyReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'This report has already been reviewed.'**
+  String get moderationAlreadyReviewed;
+
+  /// No description provided for @moderationNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Please try again.'**
+  String get moderationNetworkError;
+
+  /// No description provided for @moderationNotesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes (optional)'**
+  String get moderationNotesLabel;
+
+  /// No description provided for @moderationCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get moderationCancel;
+
+  /// No description provided for @moderationConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get moderationConfirm;
+
+  /// No description provided for @moderationUnknownTargetType.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown target type - cannot moderate.'**
+  String get moderationUnknownTargetType;
+
+  /// No description provided for @moderationReportApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Report approved.'**
+  String get moderationReportApproved;
+
+  /// No description provided for @moderationReportApprovedNoTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Report approved (target no longer exists - no action taken).'**
+  String get moderationReportApprovedNoTarget;
+
+  /// No description provided for @moderationRejectReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject report'**
+  String get moderationRejectReportTitle;
+
+  /// No description provided for @moderationReportRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Report rejected.'**
+  String get moderationReportRejected;
+
+  /// No description provided for @moderationRestoreTargetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore target'**
+  String get moderationRestoreTargetTitle;
+
+  /// No description provided for @moderationTargetRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Target restored.'**
+  String get moderationTargetRestored;
+
+  /// No description provided for @moderationTargetGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This target no longer exists'**
+  String get moderationTargetGone;
+
+  /// No description provided for @moderationOwnerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner: {name}'**
+  String moderationOwnerLabel(Object name);
+
+  /// No description provided for @moderationReporterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reporter: {name}'**
+  String moderationReporterLabel(Object name);
+
+  /// No description provided for @moderationReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason: {reason}'**
+  String moderationReasonLabel(Object reason);
+
+  /// No description provided for @moderationApproveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get moderationApproveButton;
+
+  /// No description provided for @moderationRejectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get moderationRejectButton;
+
+  /// No description provided for @moderationRestoreButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get moderationRestoreButton;
+
+  /// No description provided for @moderationReviewedByLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewed by {name}'**
+  String moderationReviewedByLabel(Object name);
+
+  /// No description provided for @moderationActionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'action: {action}'**
+  String moderationActionLabel(Object action);
+
+  /// No description provided for @moderationChooseAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose moderation action'**
+  String get moderationChooseAction;
+
+  /// No description provided for @moderationApproveApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve & apply'**
+  String get moderationApproveApply;
+
+  /// No description provided for @moderationNoOtherReports.
+  ///
+  /// In en, this message translates to:
+  /// **'No other reports on this target'**
+  String get moderationNoOtherReports;
+
+  /// No description provided for @moderationHistorySectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report history & moderation timeline'**
+  String get moderationHistorySectionTitle;
+
+  /// No description provided for @suspendedAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been suspended'**
+  String get suspendedAccountTitle;
+
+  /// No description provided for @suspendedAccountDefaultReason.
+  ///
+  /// In en, this message translates to:
+  /// **'This account was suspended for violating our community guidelines. If you believe this is a mistake, please contact support.'**
+  String get suspendedAccountDefaultReason;
+
+  /// No description provided for @suspendedAccountSignOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get suspendedAccountSignOut;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -2,18 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app_state.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/report_model.dart';
 import '../../services/report_service.dart';
 
-const Map<ReportReasonCode, String> _kReasonLabels = {
-  ReportReasonCode.spam: 'Spam',
-  ReportReasonCode.abuse: 'Abuse / harassment',
-  ReportReasonCode.scam: 'Scam',
-  ReportReasonCode.fakeProfile: 'Fake profile',
-  ReportReasonCode.inappropriateContent: 'Inappropriate content',
-  ReportReasonCode.animalSafety: 'Animal safety',
-  ReportReasonCode.other: 'Other',
-};
+String _reasonLabel(AppLocalizations l10n, ReportReasonCode code) {
+  switch (code) {
+    case ReportReasonCode.spam:
+      return l10n.reportReasonSpam;
+    case ReportReasonCode.abuse:
+      return l10n.reportReasonAbuse;
+    case ReportReasonCode.scam:
+      return l10n.reportReasonScam;
+    case ReportReasonCode.fakeProfile:
+      return l10n.reportReasonFakeProfile;
+    case ReportReasonCode.inappropriateContent:
+      return l10n.reportReasonInappropriateContent;
+    case ReportReasonCode.animalSafety:
+      return l10n.reportReasonAnimalSafety;
+    case ReportReasonCode.other:
+      return l10n.reportReasonOther;
+  }
+}
 
 /// Single entry point for reporting any target type (dog, user, post,
 /// comment, business). Replaces the old dead ReportDialog and the buggy
@@ -69,9 +79,11 @@ class _ReportSheetState extends State<_ReportSheet> {
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context)!;
+
     if (_reasonCode == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a reason')),
+        SnackBar(content: Text(l10n.reportSelectReasonError)),
       );
       return;
     }
@@ -91,39 +103,41 @@ class _ReportSheetState extends State<_ReportSheet> {
 
     if (outcome.result == ReportSubmitResult.success) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report submitted. Thank you for helping keep the community safe.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.reportSubmittedSuccess)));
       return;
     }
 
     setState(() => _submitting = false);
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(_messageFor(outcome))));
+    ).showSnackBar(SnackBar(content: Text(_messageFor(l10n, outcome))));
   }
 
-  String _messageFor(ReportSubmitOutcome outcome) {
+  String _messageFor(AppLocalizations l10n, ReportSubmitOutcome outcome) {
     switch (outcome.result) {
       case ReportSubmitResult.alreadyReported:
-        return "You've already reported this - it's pending review.";
+        return l10n.reportAlreadyReported;
       case ReportSubmitResult.rateLimited:
-        return 'Too many reports submitted recently. Please try again later.';
+        return l10n.reportRateLimited;
       case ReportSubmitResult.targetNotFound:
-        return 'This item no longer exists.';
+        return l10n.reportTargetGone;
       case ReportSubmitResult.unauthenticated:
-        return 'Please sign in to submit a report.';
+        return l10n.reportUnauthenticated;
       case ReportSubmitResult.unavailable:
-        return "Couldn't reach the server. Check your connection and try again.";
+        return l10n.reportNetworkError;
       case ReportSubmitResult.success:
-        return 'Report submitted.';
+        return l10n.reportGenericSuccess;
       case ReportSubmitResult.error:
-        return outcome.message ?? 'Something went wrong. Please try again.';
+        return outcome.message ?? l10n.reportGenericError;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -139,20 +153,25 @@ class _ReportSheetState extends State<_ReportSheet> {
                 children: [
                   const Icon(Icons.flag_outlined),
                   const SizedBox(width: 8),
-                  Text('Report', style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    l10n.reportDialogTitle,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<ReportReasonCode>(
                 initialValue: _reasonCode,
-                decoration: const InputDecoration(
-                  labelText: 'Reason',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.reportReasonFieldLabel,
+                  border: const OutlineInputBorder(),
                 ),
-                items: _kReasonLabels.entries
+                items: ReportReasonCode.values
                     .map(
-                      (e) =>
-                          DropdownMenuItem(value: e.key, child: Text(e.value)),
+                      (code) => DropdownMenuItem(
+                        value: code,
+                        child: Text(_reasonLabel(l10n, code)),
+                      ),
                     )
                     .toList(),
                 onChanged: _submitting
@@ -164,9 +183,9 @@ class _ReportSheetState extends State<_ReportSheet> {
                 controller: _descriptionController,
                 maxLines: 3,
                 enabled: !_submitting,
-                decoration: const InputDecoration(
-                  labelText: 'Additional details (optional)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.reportAdditionalDetailsHint,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -180,7 +199,7 @@ class _ReportSheetState extends State<_ReportSheet> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Submit report'),
+                      : Text(l10n.reportSubmitButton),
                 ),
               ),
             ],

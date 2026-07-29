@@ -236,8 +236,11 @@ void initState() {
                         );
                       }
                     },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'report', child: Text('Report post')),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'report',
+                        child: Text(AppLocalizations.of(context)!.reportMenuPost),
+                      ),
                     ],
                   ),
               ],

@@ -5627,4 +5627,198 @@ class AppLocalizationsFa extends AppLocalizations {
   String chatError(Object error) {
     return 'خطای چت: $error';
   }
+
+  @override
+  String get reportDialogTitle => 'Report';
+
+  @override
+  String get reportSelectReasonError => 'Please select a reason';
+
+  @override
+  String get reportReasonSpam => 'Spam';
+
+  @override
+  String get reportReasonAbuse => 'Abuse / harassment';
+
+  @override
+  String get reportReasonScam => 'Scam';
+
+  @override
+  String get reportReasonFakeProfile => 'Fake profile';
+
+  @override
+  String get reportReasonInappropriateContent => 'Inappropriate content';
+
+  @override
+  String get reportReasonAnimalSafety => 'Animal safety';
+
+  @override
+  String get reportReasonOther => 'Other';
+
+  @override
+  String get reportReasonFieldLabel => 'Reason';
+
+  @override
+  String get reportAdditionalDetailsHint => 'Additional details (optional)';
+
+  @override
+  String get reportSubmitButton => 'Submit report';
+
+  @override
+  String get reportSubmittedSuccess => 'Report submitted. Thank you for helping keep the community safe.';
+
+  @override
+  String get reportAlreadyReported => 'You\'ve already reported this - it\'s pending review.';
+
+  @override
+  String get reportRateLimited => 'Too many reports submitted recently. Please try again later.';
+
+  @override
+  String get reportTargetGone => 'This item no longer exists.';
+
+  @override
+  String get reportUnauthenticated => 'Please sign in to submit a report.';
+
+  @override
+  String get reportNetworkError => 'Couldn\'t reach the server. Check your connection and try again.';
+
+  @override
+  String get reportGenericSuccess => 'Report submitted.';
+
+  @override
+  String get reportGenericError => 'Something went wrong. Please try again.';
+
+  @override
+  String get reportMenuUser => 'Report user';
+
+  @override
+  String get reportMenuPost => 'Report post';
+
+  @override
+  String get reportMenuComment => 'Report comment';
+
+  @override
+  String get reportMenuBusiness => 'Report business';
+
+  @override
+  String get adminReportsTitle => 'Reports';
+
+  @override
+  String get adminReportsTabPending => 'Pending';
+
+  @override
+  String get adminReportsTabApproved => 'Approved';
+
+  @override
+  String get adminReportsTabRejected => 'Rejected';
+
+  @override
+  String adminReportsLoadError(Object error) {
+    return 'Error loading reports: $error';
+  }
+
+  @override
+  String adminReportsEmpty(Object status) {
+    return 'No $status reports';
+  }
+
+  @override
+  String get moderationPermissionDenied => 'You don\'t have permission to do this.';
+
+  @override
+  String get moderationNotFound => 'This report or target could not be found.';
+
+  @override
+  String get moderationAlreadyReviewed => 'This report has already been reviewed.';
+
+  @override
+  String get moderationNetworkError => 'Network error. Please try again.';
+
+  @override
+  String get moderationNotesLabel => 'Notes (optional)';
+
+  @override
+  String get moderationCancel => 'Cancel';
+
+  @override
+  String get moderationConfirm => 'Confirm';
+
+  @override
+  String get moderationUnknownTargetType => 'Unknown target type - cannot moderate.';
+
+  @override
+  String get moderationReportApproved => 'Report approved.';
+
+  @override
+  String get moderationReportApprovedNoTarget => 'Report approved (target no longer exists - no action taken).';
+
+  @override
+  String get moderationRejectReportTitle => 'Reject report';
+
+  @override
+  String get moderationReportRejected => 'Report rejected.';
+
+  @override
+  String get moderationRestoreTargetTitle => 'Restore target';
+
+  @override
+  String get moderationTargetRestored => 'Target restored.';
+
+  @override
+  String get moderationTargetGone => 'This target no longer exists';
+
+  @override
+  String moderationOwnerLabel(Object name) {
+    return 'Owner: $name';
+  }
+
+  @override
+  String moderationReporterLabel(Object name) {
+    return 'Reporter: $name';
+  }
+
+  @override
+  String moderationReasonLabel(Object reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String get moderationApproveButton => 'Approve';
+
+  @override
+  String get moderationRejectButton => 'Reject';
+
+  @override
+  String get moderationRestoreButton => 'Restore';
+
+  @override
+  String moderationReviewedByLabel(Object name) {
+    return 'Reviewed by $name';
+  }
+
+  @override
+  String moderationActionLabel(Object action) {
+    return 'action: $action';
+  }
+
+  @override
+  String get moderationChooseAction => 'Choose moderation action';
+
+  @override
+  String get moderationApproveApply => 'Approve & apply';
+
+  @override
+  String get moderationNoOtherReports => 'No other reports on this target';
+
+  @override
+  String get moderationHistorySectionTitle => 'Report history & moderation timeline';
+
+  @override
+  String get suspendedAccountTitle => 'Your account has been suspended';
+
+  @override
+  String get suspendedAccountDefaultReason => 'This account was suspended for violating our community guidelines. If you believe this is a mistake, please contact support.';
+
+  @override
+  String get suspendedAccountSignOut => 'Sign out';
 }

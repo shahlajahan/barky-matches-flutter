@@ -140,8 +140,11 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
                   );
                 }
               },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'report', child: Text('Report business')),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'report',
+                  child: Text(AppLocalizations.of(context)!.reportMenuBusiness),
+                ),
               ],
             ),
           ],

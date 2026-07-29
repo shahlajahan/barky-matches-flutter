@@ -178,10 +178,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                                       );
                                     }
                                   },
-                                  itemBuilder: (context) => const [
+                                  itemBuilder: (context) => [
                                     PopupMenuItem(
                                       value: 'report',
-                                      child: Text('Report comment'),
+                                      child: Text(
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.reportMenuComment,
+                                      ),
                                     ),
                                   ],
                                 ),
