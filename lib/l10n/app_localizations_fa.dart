@@ -8747,4 +8747,13 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get creatorSampleData => 'داده نمونه';
+
+  @override
+  String get creatorOpenDashboardFailed => 'باز کردن داشبورد ممکن نشد. دوباره امتحان کنید.';
+
+  @override
+  String get referralCodeOptionalLabel => 'کد معرف (اختیاری)';
+
+  @override
+  String get referralCodeInvalid => 'این کد معرف در دسترس نیست. می‌توانید بدون آن ادامه دهید.';
 }

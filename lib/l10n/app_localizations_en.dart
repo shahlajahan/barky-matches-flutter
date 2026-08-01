@@ -8747,4 +8747,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorSampleData => 'Sample data';
+
+  @override
+  String get creatorOpenDashboardFailed => 'Couldn\'t open the dashboard. Please try again.';
+
+  @override
+  String get referralCodeOptionalLabel => 'Referral code (optional)';
+
+  @override
+  String get referralCodeInvalid => 'That referral code is unavailable. You can continue without it.';
 }

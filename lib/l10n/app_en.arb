@@ -4063,4 +4063,7 @@
 ,"creatorStatusActive": "Active"
 ,"creatorStatusInactive": "Inactive"
 ,"creatorSampleData": "Sample data"
+,"creatorOpenDashboardFailed": "Couldn't open the dashboard. Please try again."
+,"referralCodeOptionalLabel": "Referral code (optional)"
+,"referralCodeInvalid": "That referral code is unavailable. You can continue without it."
 }

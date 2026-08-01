@@ -4050,4 +4050,7 @@
 ,"creatorStatusActive": "فعال"
 ,"creatorStatusInactive": "غیرفعال"
 ,"creatorSampleData": "داده نمونه"
+,"creatorOpenDashboardFailed": "باز کردن داشبورد ممکن نشد. دوباره امتحان کنید."
+,"referralCodeOptionalLabel": "کد معرف (اختیاری)"
+,"referralCodeInvalid": "این کد معرف در دسترس نیست. می‌توانید بدون آن ادامه دهید."
 }

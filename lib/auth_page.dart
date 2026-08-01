@@ -27,6 +27,7 @@ import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/core/debug/authentication_diagnostics.dart';
 import 'package:barky_matches_fixed/core/debug/diagnostics_navigation_tracker.dart';
 import 'package:barky_matches_fixed/services/social_auth_service.dart';
+import 'package:barky_matches_fixed/services/referral_attribution_service.dart';
 import 'package:barky_matches_fixed/social_profile_completion_page.dart';
 
 const List<Map<String, String>> countryCodes = [
@@ -500,6 +501,7 @@ class _AuthPageState extends State<AuthPage> {
   final _emailController = TextEditingController();
   final _cityController = TextEditingController();
   final _districtController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _scrollController = ScrollController();
@@ -599,6 +601,7 @@ class _AuthPageState extends State<AuthPage> {
           _usernameController.text = '';
           _cityController.text = '';
           _districtController.text = '';
+          _referralCodeController.text = '';
           _rememberMe = false;
         });
 
@@ -655,6 +658,7 @@ class _AuthPageState extends State<AuthPage> {
     _emailController.dispose();
     _cityController.dispose();
     _districtController.dispose();
+    _referralCodeController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _scrollController.dispose();
@@ -864,9 +868,7 @@ class _AuthPageState extends State<AuthPage> {
           errorMessage = l10n.emailInvalid;
           break;
         case 'user-disabled':
-          errorMessage = l10n.errorOccurred(
-            'Your account has been suspended.',
-          );
+          errorMessage = l10n.errorOccurred('Your account has been suspended.');
           break;
         default:
           errorMessage = l10n.errorOccurred(e.message ?? e.code);
@@ -920,6 +922,7 @@ class _AuthPageState extends State<AuthPage> {
     String? phone,
     String city,
     String district,
+    String referralCode,
   ) async {
     final l10n = AppLocalizations.of(context)!;
 
@@ -1010,6 +1013,10 @@ class _AuthPageState extends State<AuthPage> {
         }, SetOptions(merge: true));
       }
 
+      final referralCodeAccepted = referralCode.trim().isEmpty
+          ? true
+          : await ReferralAttributionService.attributeCode(referralCode);
+
       final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
 
       final hiveUserData = Map<String, dynamic>.from(userData)
@@ -1023,6 +1030,7 @@ class _AuthPageState extends State<AuthPage> {
         'success': true,
         'userId': userId,
         'requestId': requestId,
+        'referralCodeAccepted': referralCodeAccepted,
         'errorMessage': null,
       };
     } on FirebaseAuthException catch (e, stackTrace) {
@@ -1401,6 +1409,7 @@ class _AuthPageState extends State<AuthPage> {
         const String? phone = null;
         final city = _normalizeLocationText(_cityController.text);
         final district = _normalizeLocationText(_districtController.text);
+        final referralCode = _referralCodeController.text.trim();
 
         await Future.delayed(const Duration(milliseconds: 500));
 
@@ -1423,6 +1432,7 @@ class _AuthPageState extends State<AuthPage> {
           phone,
           city,
           district,
+          referralCode,
         );
 
         final bool success = result['success'] ?? false;
@@ -1430,6 +1440,7 @@ class _AuthPageState extends State<AuthPage> {
         final String? errorMessage = result['errorMessage'];
         final String? userId = result['userId']; // ✅ اضافه کن
         final String? requestId = result['requestId'];
+        final referralCodeAccepted = result['referralCodeAccepted'] == true;
 
         if (!mounted) return;
         setState(() {
@@ -1437,6 +1448,11 @@ class _AuthPageState extends State<AuthPage> {
         });
 
         if (success && userId != null && mounted && context.mounted) {
+          if (referralCode.isNotEmpty && !referralCodeAccepted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(l10n.referralCodeInvalid)));
+          }
           await AnalyticsService.userSignup();
           await Hive.box<String>(
             'currentUserBox',
@@ -1529,6 +1545,17 @@ class _AuthPageState extends State<AuthPage> {
             .doc(result.user.uid)
             .set(additions, SetOptions(merge: true));
         profile.addAll(additions);
+
+        if (_referralCodeController.text.trim().isNotEmpty) {
+          final accepted = await ReferralAttributionService.attributeCode(
+            _referralCodeController.text,
+          );
+          if (!accepted && mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(l10n.referralCodeInvalid)));
+          }
+        }
       }
 
       if (socialProfileMissingFields(
@@ -1800,6 +1827,23 @@ class _AuthPageState extends State<AuthPage> {
                               },
                             ),
 
+                            const SizedBox(height: 14),
+                          ],
+
+                          if (!_isLogin) ...[
+                            TextFormField(
+                              controller: _referralCodeController,
+                              decoration: _authInputDecoration(
+                                label: l10n.referralCodeOptionalLabel,
+                                icon: LucideIcons.link,
+                              ),
+                              style: GoogleFonts.poppins(
+                                color: Colors.black87,
+                                fontSize: 14,
+                              ),
+                              textCapitalization: TextCapitalization.characters,
+                              autocorrect: false,
+                            ),
                             const SizedBox(height: 14),
                           ],
 

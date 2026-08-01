@@ -8749,4 +8749,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get creatorSampleData => 'Демонстрационные данные';
+
+  @override
+  String get creatorOpenDashboardFailed => 'Не удалось открыть панель. Попробуйте ещё раз.';
+
+  @override
+  String get referralCodeOptionalLabel => 'Реферальный код (необязательно)';
+
+  @override
+  String get referralCodeInvalid => 'Этот реферальный код недоступен. Можно продолжить без него.';
 }

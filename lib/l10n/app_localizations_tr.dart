@@ -8747,4 +8747,13 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get creatorSampleData => 'Örnek veri';
+
+  @override
+  String get creatorOpenDashboardFailed => 'Panel açılamadı. Lütfen tekrar deneyin.';
+
+  @override
+  String get referralCodeOptionalLabel => 'Referans kodu (isteğe bağlı)';
+
+  @override
+  String get referralCodeInvalid => 'Bu referans kodu kullanılamıyor. Onsuz devam edebilirsiniz.';
 }

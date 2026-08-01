@@ -16382,6 +16382,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sample data'**
   String get creatorSampleData;
+
+  /// No description provided for @creatorOpenDashboardFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the dashboard. Please try again.'**
+  String get creatorOpenDashboardFailed;
+
+  /// No description provided for @referralCodeOptionalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Referral code (optional)'**
+  String get referralCodeOptionalLabel;
+
+  /// No description provided for @referralCodeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That referral code is unavailable. You can continue without it.'**
+  String get referralCodeInvalid;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

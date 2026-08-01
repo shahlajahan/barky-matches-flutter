@@ -4049,4 +4049,7 @@
 ,"creatorStatusActive": "Aktif"
 ,"creatorStatusInactive": "Pasif"
 ,"creatorSampleData": "Örnek veri"
+,"creatorOpenDashboardFailed": "Panel açılamadı. Lütfen tekrar deneyin."
+,"referralCodeOptionalLabel": "Referans kodu (isteğe bağlı)"
+,"referralCodeInvalid": "Bu referans kodu kullanılamıyor. Onsuz devam edebilirsiniz."
 }

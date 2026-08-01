@@ -2856,4 +2856,7 @@
 ,"creatorStatusActive": "Активен"
 ,"creatorStatusInactive": "Неактивен"
 ,"creatorSampleData": "Демонстрационные данные"
+,"creatorOpenDashboardFailed": "Не удалось открыть панель. Попробуйте ещё раз."
+,"referralCodeOptionalLabel": "Реферальный код (необязательно)"
+,"referralCodeInvalid": "Этот реферальный код недоступен. Можно продолжить без него."
 }
