@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "creator_reward_ledger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "creatorUid", "order": "ASCENDING" },
+        { "fieldPath": "leadType", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "order_returns",
       "queryScope": "COLLECTION",
       "fields": [

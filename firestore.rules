@@ -372,6 +372,16 @@ allow read: if isAdmin() || (
       allow write: if false;
     }
 
+    match /creator_reward_ledger/{ledgerId} {
+      // Creators may inspect their own immutable ledger. Only backend
+      // qualification transactions may create or change ledger records.
+      allow read: if isSignedIn() && (
+        resource.data.creatorUid == request.auth.uid
+        || isAdmin()
+      );
+      allow write: if false;
+    }
+
     match /dogs/{dogId} {
 
       allow read:

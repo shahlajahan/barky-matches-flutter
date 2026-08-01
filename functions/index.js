@@ -38,6 +38,10 @@ const {
   restoreBusinessCore,
 } = require("./src/moderation/businessSuspension");
 const { TARGET_REGISTRY } = require("./src/moderation/targetRegistry");
+const {
+  REWARD_RULE_VERSION,
+  rewardForLead,
+} = require("./src/creator/rewardRules");
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 const storage = new Storage();
@@ -29540,6 +29544,32 @@ async function qualifyUserReferralOnAuthenticatedLogin(referredUid) {
     }
     if (!userSnap.exists) return { status: "not_registered" };
 
+    const ledgerRef = db.collection("creator_reward_ledger").doc(referredUid);
+    const ledgerQuery = db
+      .collection("creator_reward_ledger")
+      .where("creatorUid", "==", attribution.creatorUid)
+      .where("leadType", "==", "user");
+    const [ledgerSnap, creatorLedgerSnap] = await Promise.all([
+      transaction.get(ledgerRef),
+      transaction.get(ledgerQuery),
+    ]);
+    const reward = rewardForLead("user", creatorLedgerSnap.size);
+
+    if (!ledgerSnap.exists) {
+      transaction.create(ledgerRef, {
+        creatorUid: attribution.creatorUid,
+        creatorCode: attribution.referralCode,
+        referredUid,
+        attributionId: attributionRef.id,
+        leadType: "user",
+        rewardAmount: reward.amount,
+        rewardCurrency: "TRY",
+        rewardRuleVersion: REWARD_RULE_VERSION,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "pending",
+      });
+    }
+
     transaction.update(attributionRef, {
       status: "qualified",
       qualifiedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -29594,6 +29624,32 @@ async function qualifyPartnerReferralForBusiness({ businessId, ownerUid }) {
       business.published === true;
 
     if (!ready) return { status: "partner_conditions_incomplete" };
+
+    const ledgerRef = db.collection("creator_reward_ledger").doc(ownerUid);
+    const ledgerQuery = db
+      .collection("creator_reward_ledger")
+      .where("creatorUid", "==", attribution.creatorUid)
+      .where("leadType", "==", "partner");
+    const [ledgerSnap, creatorLedgerSnap] = await Promise.all([
+      transaction.get(ledgerRef),
+      transaction.get(ledgerQuery),
+    ]);
+    const reward = rewardForLead("partner", creatorLedgerSnap.size);
+
+    if (!ledgerSnap.exists) {
+      transaction.create(ledgerRef, {
+        creatorUid: attribution.creatorUid,
+        creatorCode: attribution.referralCode,
+        referredUid: ownerUid,
+        attributionId: attributionRef.id,
+        leadType: "partner",
+        rewardAmount: reward.amount,
+        rewardCurrency: "TRY",
+        rewardRuleVersion: REWARD_RULE_VERSION,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "pending",
+      });
+    }
 
     transaction.update(attributionRef, {
       status: "qualified",
