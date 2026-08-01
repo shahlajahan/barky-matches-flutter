@@ -29520,3 +29520,116 @@ exports.attributeReferral = onCall(
     };
   }
 );
+
+async function qualifyUserReferralOnAuthenticatedLogin(referredUid) {
+  const attributionRef = db.collection("referralAttributions").doc(referredUid);
+  const userRef = db.collection("users").doc(referredUid);
+
+  return db.runTransaction(async (transaction) => {
+    const [attributionSnap, userSnap] = await Promise.all([
+      transaction.get(attributionRef),
+      transaction.get(userRef),
+    ]);
+
+    if (!attributionSnap.exists) return { status: "not_attributed" };
+
+    const attribution = attributionSnap.data() || {};
+    if (attribution.kind !== "user") return { status: "not_user_lead" };
+    if (attribution.status !== "pending") {
+      return { status: attribution.status || "unknown" };
+    }
+    if (!userSnap.exists) return { status: "not_registered" };
+
+    transaction.update(attributionRef, {
+      status: "qualified",
+      qualifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { status: "qualified" };
+  });
+}
+
+exports.qualifyUserReferralOnLogin = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const result = await qualifyUserReferralOnAuthenticatedLogin(uid);
+    logger.info("user_referral_qualification_checked", {
+      uid,
+      status: result.status,
+    });
+    return result;
+  }
+);
+
+async function qualifyPartnerReferralForBusiness({ businessId, ownerUid }) {
+  if (!businessId || !ownerUid) return { status: "missing_business_identity" };
+
+  const attributionRef = db.collection("referralAttributions").doc(ownerUid);
+  const businessRef = db.collection("businesses").doc(businessId);
+
+  return db.runTransaction(async (transaction) => {
+    const [attributionSnap, businessSnap] = await Promise.all([
+      transaction.get(attributionRef),
+      transaction.get(businessRef),
+    ]);
+
+    if (!attributionSnap.exists) return { status: "not_attributed" };
+
+    const attribution = attributionSnap.data() || {};
+    if (attribution.kind !== "business") return { status: "not_partner_lead" };
+    if (attribution.status !== "pending") {
+      return { status: attribution.status || "unknown" };
+    }
+    if (!businessSnap.exists) return { status: "business_not_found" };
+
+    const business = businessSnap.data() || {};
+    const verification = business.verification || {};
+    const ready =
+      business.status === "approved" &&
+      verification.isVerified === true &&
+      business.published === true;
+
+    if (!ready) return { status: "partner_conditions_incomplete" };
+
+    transaction.update(attributionRef, {
+      status: "qualified",
+      qualifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { status: "qualified" };
+  });
+}
+
+exports.qualifyPartnerReferralOnBusinessUpdate = onDocumentUpdated(
+  "businesses/{businessId}",
+  async (event) => {
+    const business = event.data?.after?.data() || {};
+    const ownerUid = firstNonEmptyString(
+      business.ownerUid,
+      business.ownerId,
+      business.uid
+    );
+    if (
+      business.status !== "approved" ||
+      business.verification?.isVerified !== true ||
+      business.published !== true ||
+      !ownerUid
+    ) {
+      return null;
+    }
+
+    const result = await qualifyPartnerReferralForBusiness({
+      businessId: event.params.businessId,
+      ownerUid,
+    });
+    logger.info("partner_referral_qualification_checked", {
+      businessId: event.params.businessId,
+      ownerUid,
+      status: result.status,
+    });
+    return null;
+  }
+);

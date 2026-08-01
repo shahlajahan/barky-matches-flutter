@@ -345,11 +345,13 @@ allow read: if isAdmin() || (
       }
     }
 
-    // Creator Referral Engine — Sprint 2 attribution foundation (see
+    // Creator Referral Engine — Sprint 3 attribution and qualification
+    // foundation (see
     // docs/architecture/creator-referral-engine.md and
     // docs/SPRINT1_REPORT.md). Only this one collection is needed this
     // sprint; referralClicks / referralCampaigns / referralDailyStats remain
-    // deferred to later sprints.
+    // deferred to later sprints. Attribution and qualification writes are
+    // Functions-only, including the pending -> qualified transition.
     match /referralCodes/{code} {
       // Public read: a future click-tracking/landing page must be able to
       // resolve a code's validity before the visitor has any account.
