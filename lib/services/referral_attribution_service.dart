@@ -19,4 +19,16 @@ class ReferralAttributionService {
       return false;
     }
   }
+
+  static Future<void> qualifyUserReferralOnLogin() async {
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('qualifyUserReferralOnLogin');
+      await callable.call();
+    } catch (_) {
+      // Qualification is best-effort at login; the server transition is
+      // idempotent and can be retried on a later authenticated login.
+    }
+  }
 }

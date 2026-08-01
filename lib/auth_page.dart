@@ -1370,6 +1370,7 @@ class _AuthPageState extends State<AuthPage> {
           }
 
           await appState.initializeAuthenticatedUser(authUser);
+          await ReferralAttributionService.qualifyUserReferralOnLogin();
 
           await _askNotificationPermissionAfterLogin();
 
@@ -1589,6 +1590,7 @@ class _AuthPageState extends State<AuthPage> {
       if (!mounted) return;
       final appState = context.read<AppState>();
       await appState.initializeAuthenticatedUser(result.user);
+      await ReferralAttributionService.qualifyUserReferralOnLogin();
       await appState.loadUsernameFromFirebase();
       await _askNotificationPermissionAfterLogin();
       if (!mounted) return;
