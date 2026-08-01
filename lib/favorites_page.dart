@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/dog_card.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
 class FavoritesPage extends StatelessWidget {
@@ -29,7 +30,7 @@ class FavoritesPage extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: filteredFavoriteDogs.isEmpty
-            ? _buildEmptyState()
+            ? _buildEmptyState(context)
             : ListView.builder(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -58,7 +59,8 @@ class FavoritesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -83,7 +85,7 @@ class FavoritesPage extends StatelessWidget {
 
             // 🐾 Title
             Text(
-              "No tail-wagging crushes yet 🐾",
+              l10n.noFavoriteDogsYet,
               textAlign: TextAlign.center,
               style: AppTheme.h2(),
             ),
@@ -92,7 +94,7 @@ class FavoritesPage extends StatelessWidget {
 
             // 💬 Subtitle
             Text(
-              "When you find a pup you adore,\ntap the heart and they’ll live here.",
+              l10n.addFavoriteSuggestion,
               textAlign: TextAlign.center,
               style: AppTheme.body(color: AppTheme.muted),
             ),
@@ -107,7 +109,7 @@ class FavoritesPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                "Go explore Playmates 💛",
+                l10n.favoritesExplorePlaymates,
                 style: AppTheme.caption(color: AppTheme.primary),
               ),
             ),

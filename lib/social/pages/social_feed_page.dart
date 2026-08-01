@@ -15,6 +15,7 @@ import '../widgets/petplore_stories_bar.dart';
 import '../widgets/social_post_media_viewer_overlay.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/native_ad_widget.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/models/report_model.dart';
 import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
@@ -67,7 +68,7 @@ void initState() {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'Error: ${snapshot.error}',
+                AppLocalizations.of(context)!.genericError('${snapshot.error}'),
 
                 style: const TextStyle(color: Colors.white),
               ),
@@ -98,12 +99,15 @@ void initState() {
                   }
 
                   if (posts.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.only(top: 80),
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 80),
                       child: Center(
                         child: Text(
-                          'No posts yet',
-                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                          AppLocalizations.of(context)!.noPostsYet,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     );

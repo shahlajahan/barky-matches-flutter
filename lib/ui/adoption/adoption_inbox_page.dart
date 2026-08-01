@@ -11,6 +11,7 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:barky_matches_fixed/services/adoption_request_service.dart';
 import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
 import 'package:barky_matches_fixed/services/chat_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionInboxPage extends StatefulWidget {
   const AdoptionInboxPage({super.key});
@@ -29,7 +30,9 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
     final initialRequestId = context.watch<AppState>().initialAdoptionRequestId;
 
     if (userId == null) {
-      return const Center(child: Text("Not authenticated"));
+      return Center(
+        child: Text(AppLocalizations.of(context)!.notAuthenticated),
+      );
     }
 
     if (initialRequestId != null && initialRequestId.isNotEmpty) {
@@ -75,7 +78,7 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                   ),
                   child: Center(
                     child: Text(
-                      "Pending",
+                      AppLocalizations.of(context)!.pendingStatusLabel,
                       style: AppTheme.body(
                         color: _tab == 0 ? Colors.white : Colors.black87,
                       ),
@@ -96,7 +99,7 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                   ),
                   child: Center(
                     child: Text(
-                      "Approved",
+                      AppLocalizations.of(context)!.returnStatusApproved,
                       style: AppTheme.body(
                         color: _tab == 1 ? Colors.white : Colors.black87,
                       ),
@@ -119,7 +122,13 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
           .snapshots(),
       builder: (context, businessesSnapshot) {
         if (businessesSnapshot.hasError) {
-          return Center(child: Text("Error: ${businessesSnapshot.error}"));
+          return Center(
+            child: Text(
+              AppLocalizations.of(
+                context,
+              )!.genericError('${businessesSnapshot.error}'),
+            ),
+          );
         }
 
         if (!businessesSnapshot.hasData) {
@@ -145,14 +154,26 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
           stream: requesterQuery.snapshots(),
           builder: (context, requesterSnapshot) {
             if (requesterSnapshot.hasError) {
-              return Center(child: Text("Error: ${requesterSnapshot.error}"));
+              return Center(
+                child: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.genericError('${requesterSnapshot.error}'),
+                ),
+              );
             }
 
             return StreamBuilder<QuerySnapshot>(
               stream: ownerQuery.snapshots(),
               builder: (context, ownerSnapshot) {
                 if (ownerSnapshot.hasError) {
-                  return Center(child: Text("Error: ${ownerSnapshot.error}"));
+                  return Center(
+                    child: Text(
+                      AppLocalizations.of(
+                        context,
+                      )!.genericError('${ownerSnapshot.error}'),
+                    ),
+                  );
                 }
 
                 final requesterReady = requesterSnapshot.hasData;
@@ -229,7 +250,11 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
 
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(
+              child: Text(
+                AppLocalizations.of(context)!.genericError('${snapshot.error}'),
+              ),
+            );
           }
 
           if (!snapshot.hasData) {
@@ -241,7 +266,7 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
           if (!doc.exists || doc.data() == null) {
             return Center(
               child: Text(
-                "Adoption request not found",
+                AppLocalizations.of(context)!.adoptionRequestNotFound,
                 style: AppTheme.body(color: AppTheme.muted),
               ),
             );
@@ -274,7 +299,7 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
 
                   icon: const Icon(Icons.arrow_back),
 
-                  label: const Text("Back to requests"),
+                  label: Text(AppLocalizations.of(context)!.backToRequests),
                 ),
               ),
 
@@ -564,7 +589,9 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                     },
                     icon: const Icon(Icons.message),
 
-                    label: const Text("Message Applicant"),
+                    label: Text(
+                      AppLocalizations.of(context)!.messageApplicant,
+                    ),
 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -695,10 +722,13 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Unknown Pet", style: AppTheme.h2(color: Colors.white)),
+              Text(
+                AppLocalizations.of(context)!.unknownPet,
+                style: AppTheme.h2(color: Colors.white),
+              ),
               const SizedBox(height: 4),
               Text(
-                "Adoption Request",
+                AppLocalizations.of(context)!.adoptionRequest,
                 style: AppTheme.body(color: Colors.white70),
               ),
             ],
@@ -741,9 +771,12 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
           color: Colors.white.withOpacity(.12),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Text(
-          "Waiting for owner response",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        child: Text(
+          AppLocalizations.of(context)!.waitingForOwnerResponse,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
           textAlign: TextAlign.center,
         ),
       ),
@@ -809,12 +842,18 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("✅ Done")));
+      ).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.doneWithIcon)),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("❌ Failed: $e")));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.failedWithIcon('$e')),
+        ),
+      );
     } finally {
       if (!mounted) return;
       setState(() => _busyRequestId = null);
@@ -859,9 +898,9 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                     });
                   },
 
-            child: const Text(
-              "Approve",
-              style: TextStyle(fontWeight: FontWeight.w600),
+            child: Text(
+              AppLocalizations.of(context)!.approve,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -898,9 +937,9 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                     });
                   },
 
-            child: const Text(
-              "Reject",
-              style: TextStyle(fontWeight: FontWeight.w600),
+            child: Text(
+              AppLocalizations.of(context)!.reject,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ),

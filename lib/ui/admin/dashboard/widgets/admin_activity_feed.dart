@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminActivityFeed extends StatelessWidget {
   const AdminActivityFeed({super.key});
@@ -29,7 +30,9 @@ class AdminActivityFeed extends StatelessWidget {
 
           return Center(
             child: Text(
-              "Activity error:\n${snapshot.error}",
+              AppLocalizations.of(
+                context,
+              )!.adminActivityError('${snapshot.error}'),
               textAlign: TextAlign.center,
             ),
           );
@@ -48,7 +51,9 @@ class AdminActivityFeed extends StatelessWidget {
 
         /// EMPTY
         if (docs.isEmpty) {
-          return const Center(child: Text("No admin activity yet"));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.noAdminActivity),
+          );
         }
 
         return ListView.builder(

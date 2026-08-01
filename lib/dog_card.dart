@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'dog.dart';
 import 'app_state.dart';
-import 'dart:io';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'models/report_model.dart';
 import 'ui/common/report_dialog.dart';
@@ -51,7 +51,6 @@ class DogCard extends StatefulWidget {
   final bool enablePlaydate;
   final bool disableTap;
 
-
   final VoidCallback? onCardTap; // ✅ اینجا
 
   const DogCard({
@@ -74,9 +73,8 @@ class DogCard extends StatefulWidget {
     this.enableEdit = true,
     this.enablePlaydate = true,
     this.mode = DogCardMode.normal,
-    this.onCardTap, 
+    this.onCardTap,
     this.disableTap = false,
-    
   });
 
   @override
@@ -153,99 +151,101 @@ class _DogCardState extends State<DogCard>
   }
 
   Widget _buildActionButtons({
-  required bool isOwner,
-  required bool isFavorite,
-  Color? iconColor,
-}) {
-  final color = iconColor ?? AppTheme.primary;
+    required bool isOwner,
+    required bool isFavorite,
+    Color? iconColor,
+  }) {
+    final color = iconColor ?? AppTheme.primary;
 
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-    children: [
-      // ❤️ Like
-      if (!isOwner && widget.enableLike)
-        IconButton(
-          icon: Icon(
-            isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: isFavorite ? AppTheme.primary : AppTheme.muted,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // ❤️ Like
+        if (!isOwner && widget.enableLike)
+          IconButton(
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? AppTheme.primary : AppTheme.muted,
+            ),
+            onPressed: () => widget.onToggleFavorite?.call(widget.dog),
           ),
-          onPressed: () => widget.onToggleFavorite?.call(widget.dog),
-        ),
 
-      // 📅 Playdate
-      // 📅 Playdate
-if (!isOwner &&
-    widget.enablePlaydate &&
-    !widget.dog.isAvailableForAdoption)
-  IconButton(
-    icon: const Icon(Icons.calendar_today),
-    color: color,
-    onPressed: () {
-      context.read<AppState>().openPlaydateScheduling(
-        selectedRequesterDogId: widget.dog.id,
-      );
-    },
-  ),
-
-      // 💬 Chat
-      if (!isOwner && widget.enableChat)
-        IconButton(
-          icon: const Icon(Icons.chat_bubble_outline),
-          color: color,
-          onPressed: () async {
-            try {
-              final currentUserId = widget.currentUserId;
-
-              debugPrint("💬 widget.currentUserId = ${widget.currentUserId}");
-              debugPrint(
-                "💬 FirebaseAuth uid = ${FirebaseAuth.instance.currentUser?.uid}",
+        // 📅 Playdate
+        // 📅 Playdate
+        if (!isOwner &&
+            widget.enablePlaydate &&
+            !widget.dog.isAvailableForAdoption)
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            color: color,
+            onPressed: () {
+              context.read<AppState>().openPlaydateScheduling(
+                selectedRequesterDogId: widget.dog.id,
               );
+            },
+          ),
 
-              final otherUserId = widget.dog.ownerId;
+        // 💬 Chat
+        if (!isOwner && widget.enableChat)
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            color: color,
+            onPressed: () async {
+              try {
+                final currentUserId = widget.currentUserId;
 
-              if (otherUserId == null || otherUserId.isEmpty) {
-                return;
-              }
+                debugPrint("💬 widget.currentUserId = ${widget.currentUserId}");
+                debugPrint(
+                  "💬 FirebaseAuth uid = ${FirebaseAuth.instance.currentUser?.uid}",
+                );
 
-              debugPrint("💬 BEFORE GET OR CREATE CHAT");
+                final otherUserId = widget.dog.ownerId;
 
-              final chatId = await ChatService.instance.getOrCreateChat(
-                currentUserId: currentUserId,
-                otherUserId: otherUserId,
-                currentUserName: 'You',
-                otherUserName: widget.dog.name,
-                currentUserPhoto: null,
-                otherUserPhoto: widget.dog.imagePaths.isNotEmpty
-                    ? widget.dog.imagePaths.first
-                    : null,
-              );
+                if (otherUserId == null || otherUserId.isEmpty) {
+                  return;
+                }
 
-              if (!mounted) return;
+                debugPrint("💬 BEFORE GET OR CREATE CHAT");
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatDetailPage(
-                    chatId: chatId,
-                    otherUserId: otherUserId,
-                    otherUserName: widget.dog.name,
+                final chatId = await ChatService.instance.getOrCreateChat(
+                  currentUserId: currentUserId,
+                  otherUserId: otherUserId,
+                  currentUserName: 'You',
+                  otherUserName: widget.dog.name,
+                  currentUserPhoto: null,
+                  otherUserPhoto: widget.dog.imagePaths.isNotEmpty
+                      ? widget.dog.imagePaths.first
+                      : null,
+                );
+
+                if (!mounted) return;
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatDetailPage(
+                      chatId: chatId,
+                      otherUserId: otherUserId,
+                      otherUserName: widget.dog.name,
+                    ),
                   ),
-                ),
-              );
-            } catch (e) {
-              if (!mounted) return;
+                );
+              } catch (e) {
+                if (!mounted) return;
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Chat error: $e'),
-                ),
-              );
-            }
-          },
-        ),
-    ],
-  );
-}
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      AppLocalizations.of(context)!.chatError(e.toString()),
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+      ],
+    );
+  }
 
   Widget _buildCompactDogCard(BuildContext context) {
     final isOwner = widget.dog.ownerId == widget.currentUserId;
@@ -667,8 +667,8 @@ if (!isOwner &&
       );
     }
 
-    return Image.file(
-      File(imagePath),
+    return PlatformPathImage(
+      path: imagePath,
       width: double.infinity,
       height: 180,
       fit: BoxFit.contain,
@@ -1007,7 +1007,10 @@ if (!isOwner &&
 
                     // 🎂 AGE + BREED
                     Text(
-                      '${widget.dog.age}y • ${translateBreed(widget.dog.breed)}',
+                      localizations.dogCardAgeWithBreed(
+                        widget.dog.age,
+                        translateBreed(widget.dog.breed),
+                      ),
                       style: AppTheme.body(color: AppTheme.muted),
                     ),
 
@@ -1215,7 +1218,7 @@ if (!isOwner &&
 
                             // 🎂 AGE
                             Text(
-                              '${widget.dog.age}y',
+                              localizations.dogCardAgeYears(widget.dog.age),
                               style: AppTheme.caption(
                                 color: const Color(0xFF9E1B4F).withOpacity(0.6),
                               ),
@@ -1536,7 +1539,10 @@ if (!isOwner &&
                     const SizedBox(height: 4),
 
                     Text(
-                      '${widget.dog.age}y • ${translateBreed(widget.dog.breed)}',
+                      localizations.dogCardAgeWithBreed(
+                        widget.dog.age,
+                        translateBreed(widget.dog.breed),
+                      ),
                       style: AppTheme.body(color: AppTheme.muted),
                     ),
 
@@ -1580,7 +1586,7 @@ if (!isOwner &&
                                 const SizedBox(width: 5),
 
                                 Text(
-                                  '$_vaccineCount vaccines',
+                                  localizations.dogCardVaccines(_vaccineCount),
 
                                   style: const TextStyle(
                                     color: Color(0xFF9E1B4F),

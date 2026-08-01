@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/social_post.dart';
 import '../services/post_comment_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/models/report_model.dart';
 import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
@@ -84,9 +85,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
               const SizedBox(height: 16),
 
-              const Text(
-                'Comments',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.commentsTitle,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -105,7 +106,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
                       return Center(
                         child: Text(
-                          'Comments error: ${snapshot.error}',
+                          AppLocalizations.of(
+                            context,
+                          )!.commentsError('${snapshot.error}'),
                           style: const TextStyle(color: Colors.white),
                         ),
                       );
@@ -118,10 +121,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                     final comments = snapshot.data ?? [];
 
                     if (comments.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: Text(
-                          'No comments yet',
-                          style: TextStyle(color: Colors.white70),
+                          AppLocalizations.of(context)!.noCommentsYet,
+                          style: const TextStyle(color: Colors.white70),
                         ),
                       );
                     }
@@ -215,7 +218,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                           style: const TextStyle(color: Colors.white),
 
                           decoration: InputDecoration(
-                            hintText: 'Write a comment...',
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.writeCommentHint,
 
                             hintStyle: TextStyle(color: Colors.grey[500]),
 

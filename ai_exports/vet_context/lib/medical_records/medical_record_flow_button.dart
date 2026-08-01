@@ -50,20 +50,22 @@ class MedicalRecordFlowButton extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
 
                 children: [
-                  Text(
-                    'Medical Records',
-
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  ),
-
-                  SizedBox(height: 4),
-
-                  Text(
-                    'Vaccines, visits and treatments',
-
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
-                ],
+  Text(
+    AppLocalizations.of(context)!.medicalRecords,
+    style: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w800,
+    ),
+  ),
+  const SizedBox(height: 4),
+  Text(
+    AppLocalizations.of(context)!.vaccinesVisitsAndTreatments,
+    style: const TextStyle(
+      fontSize: 13,
+      color: Colors.black54,
+    ),
+  ),
+],
               ),
             ),
 

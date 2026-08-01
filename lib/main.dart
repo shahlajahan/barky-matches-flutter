@@ -39,6 +39,9 @@ import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
 import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
 import 'package:barky_matches_fixed/subscription/web_subscription_return_page.dart';
+import 'package:barky_matches_fixed/ui/checkout/marketplace_checkout_return_page.dart';
+import 'package:barky_matches_fixed/ui/checkout/marketplace_checkout_return_routing.dart';
+import 'package:barky_matches_fixed/ui/creator/creator_dashboard_web_page.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -49,6 +52,7 @@ import 'core/debug/diagnostics_bootstrap.dart';
 import 'core/debug/diagnostics_queue.dart';
 import 'core/debug/diagnostics_navigation_tracker.dart';
 import 'core/debug/diagnostics_uploader.dart';
+import 'core/debug/web_startup_status.dart';
 import 'developer_tools/developer_tools_page.dart';
 
 import 'ui/appointments/my_appointments_page.dart';
@@ -224,39 +228,96 @@ Future<void> waitForInternet() async {
   throw Exception('No internet connection detected');
 }
 
+/// Initializes (or attaches to an existing) default [FirebaseApp] using a
+/// deterministic path that never depends on [Firebase.apps].
+///
+/// [Firebase.apps] on Web (`firebase_core_web`'s `FirebaseCoreWeb.apps`
+/// getter, `firebase_core_web-3.3.1/lib/src/firebase_core_web.dart:229-245`)
+/// calls `firebase_interop.getApps().toDart` — a JS-interop conversion whose
+/// own try/catch only forgives JS-side `"... of undefined"` TypeErrors; it
+/// has no defense against `dart:js_interop`'s own generated null-check
+/// failing when the underlying JS array value isn't the shape it expects.
+/// A prior fix wrapped that getter in a try/catch at the call site, but
+/// that revision was never actually deployed (confirmed: production
+/// `main.dart.js` still contains the old, pre-fix `"FIREBASE APP COUNT"`
+/// probes), so it's still unproven — and per the "avoid the fragile getter
+/// entirely" guidance, this version doesn't call [Firebase.apps] at all:
+/// it calls [Firebase.initializeApp] unconditionally and uses its return
+/// value directly, falling back to [Firebase.app] (a distinctly different,
+/// already-defensive getter — see `firebase_core_web.dart`'s `app(name)`,
+/// which translates `app/no-app` via its own try/catch) only for the
+/// well-defined `duplicate-app` case.
+Future<FirebaseApp> _initializeDefaultFirebaseApp(
+  FirebaseOptions options,
+) async {
+  try {
+    return await Firebase.initializeApp(options: options);
+  } on FirebaseException catch (e, stackTrace) {
+    if (e.code == 'duplicate-app') {
+      debugPrint(
+        '🌐 STARTUP TRACE: Firebase.initializeApp() duplicate-app → '
+        'using existing default app',
+      );
+      return Firebase.app();
+    }
+    debugPrint(
+      '🌐 STARTUP TRACE: Firebase.initializeApp() FAILED → '
+      '${e.code}\n$stackTrace',
+    );
+    rethrow;
+  } catch (e, stackTrace) {
+    debugPrint(
+      '🌐 STARTUP TRACE: Firebase.initializeApp() FAILED → $e\n$stackTrace',
+    );
+    rethrow;
+  }
+}
+
 Future<void> ensureFirebaseInitialized() async {
   debugPrint('🌐 FIREBASE INIT START');
-  debugPrint('🌐 FIREBASE APP COUNT → before=${Firebase.apps.length}');
-  if (Firebase.apps.isEmpty) {
-    StartupBenchmark.mark('Before Firebase.initializeApp');
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    StartupBenchmark.mark('After Firebase.initializeApp');
-    debugPrint('🌐 Firebase.initializeApp executed from Dart');
-  } else {
-    StartupBenchmark.mark('Before Firebase.initializeApp');
-    StartupBenchmark.mark('After Firebase.initializeApp');
-    debugPrint('🌐 Firebase.initializeApp skipped; existing app detected');
-  }
+
+  debugPrint('🌐 STARTUP TRACE: Firebase options resolution starting');
+  final FirebaseOptions options = DefaultFirebaseOptions.currentPlatform;
+  debugPrint('🌐 STARTUP TRACE: Firebase options resolution completed');
+
+  StartupBenchmark.mark('Before Firebase.initializeApp');
+  debugPrint('🌐 STARTUP TRACE: Firebase.initializeApp() starting');
+  final FirebaseApp app = await _initializeDefaultFirebaseApp(options);
+  StartupBenchmark.mark('After Firebase.initializeApp');
+  debugPrint('🌐 STARTUP TRACE: Firebase.initializeApp() completed');
+
   debugPrint("======== FIREBASE ========");
-  debugPrint("ProjectId : ${Firebase.app().options.projectId}");
-  debugPrint("AppId     : ${Firebase.app().options.appId}");
-  debugPrint("ApiKey    : ${Firebase.app().options.apiKey}");
+  debugPrint('ProjectId present : ${app.options.projectId.isNotEmpty}');
+  debugPrint('AppId present     : ${app.options.appId.isNotEmpty}');
+  debugPrint('ApiKey present    : ${app.options.apiKey.isNotEmpty}');
   debugPrint("==========================");
 
-  final user = FirebaseAuth.instance.currentUser;
-  debugPrint("UID = ${user?.uid}");
-  debugPrint("Anonymous = ${user?.isAnonymous}");
-  debugPrint("LoggedIn = ${user != null}");
+  debugPrint('🌐 STARTUP TRACE: FirebaseAuth access starting');
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    debugPrint("LoggedIn = ${user != null}");
+    debugPrint("Anonymous = ${user?.isAnonymous}");
+  } catch (e, stackTrace) {
+    // Non-fatal: this is a diagnostic read only. Real auth state is driven
+    // by authStateChanges()/idTokenChanges() listeners elsewhere in the
+    // app, which are unaffected by this probe failing.
+    debugPrint(
+      '🌐 STARTUP TRACE: FirebaseAuth.instance.currentUser FAILED → '
+      '$e\n$stackTrace',
+    );
+  }
+  debugPrint('🌐 STARTUP TRACE: FirebaseAuth access completed');
 
-  debugPrint('🌐 FIREBASE APP COUNT → after=${Firebase.apps.length}');
+  debugPrint('🌐 STARTUP TRACE: App Check starting');
   await _activateAppCheck();
+  debugPrint('🌐 STARTUP TRACE: App Check completed');
   StartupBenchmark.mark('AppCheck');
 
+  debugPrint('🌐 STARTUP TRACE: Firestore settings starting');
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
+  debugPrint('🌐 STARTUP TRACE: Firestore settings completed');
   StartupBenchmark.mark('Firestore.settings');
 
   unawaited(
@@ -969,6 +1030,10 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
 }
 
 void main() async {
+  // Unconditional (not kDebugMode-gated, unlike the line below) so this
+  // exact ordered startup trace is visible in a production Safari user's
+  // console too — see web/index.html's matching JS-side trace.
+  debugPrint('🌐 STARTUP TRACE: Dart main() entered');
   if (kDebugMode) {
     debugPrint('Main - Starting main function...');
   }
@@ -977,7 +1042,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   StartupBenchmark.mark('WidgetsFlutterBinding');
 
-  await Hive.initFlutter();
+  debugPrint('🌐 STARTUP TRACE: Hive.initFlutter() starting');
+  try {
+    await Hive.initFlutter();
+  } catch (e, stackTrace) {
+    debugPrint('🌐 STARTUP TRACE: Hive.initFlutter() FAILED → $e\n$stackTrace');
+    rethrow;
+  }
+  debugPrint('🌐 STARTUP TRACE: Hive.initFlutter() completed');
   StartupBenchmark.mark('Hive.initFlutter');
 
   DiagnosticsQueue().enablePersistence();
@@ -1183,6 +1255,11 @@ void main() async {
   //}
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Flutter's first frame has now painted — hide the web startup safety
+    // net overlay (web/index.html). No-op on non-web platforms.
+    debugPrint('🌐 STARTUP TRACE: first Flutter frame rendered');
+    hideWebStartupStatus();
+    debugPrint('🌐 STARTUP TRACE: startup overlay dismissed');
     unawaited(initializeAsync());
   });
 
@@ -1191,6 +1268,7 @@ void main() async {
   } // 👈 فقط برای تست
 
   StartupBenchmark.mark('Before runApp');
+  debugPrint('🌐 STARTUP TRACE: runApp() about to be called');
   runApp(
     ChangeNotifierProvider(
       create: (context) {
@@ -1403,12 +1481,25 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               return const DeveloperToolsPage();
             },
         },
-        home: _webSubscriptionReturnPage() ?? const AppEntry(),
+        home:
+            _webPaymentReturnPage() ??
+            _webCreatorDashboardPage() ??
+            const AppEntry(),
       ),
     );
   }
 
-  Widget? _webSubscriptionReturnPage() {
+  // İş Bank's 3-D Secure browser redirect lands here for BOTH Web
+  // subscription orders and marketplace (Pet Shop) orders — both flows
+  // share the same backend callback (`isbank3DSuccessReturn` /
+  // `isbank3DFailReturn`, see functions/index.js's webSubscriptionBrowserReturn),
+  // which only ever knows an orderId, not an order type. Order IDs for
+  // web_subscription orders are always generated with a `websub_` prefix
+  // (webSubscriptionOrderId() in functions/index.js); every other order id
+  // reaching this route is a marketplace order using its own authoritative
+  // order/finalization schema. Routing here — not inside either return
+  // page — is what keeps the two flows from being conflated.
+  Widget? _webPaymentReturnPage() {
     if (!kIsWeb) return null;
     final uri = Uri.base;
     final returnKind = uri.queryParameters['webSubscriptionReturn'];
@@ -1417,10 +1508,32 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (!isReturnPath && returnKind != 'success' && returnKind != 'fail') {
       return null;
     }
-    return WebSubscriptionReturnPage(
-      orderId: uri.queryParameters['oid'] ?? '',
-      returnPath: returnKind == 'fail' ? '/isbank/3d-fail' : uri.path,
+    final orderId = uri.queryParameters['oid'] ?? '';
+    final resolvedKind = returnKind == 'fail' ? 'fail' : 'success';
+
+    if (isWebSubscriptionOrderId(orderId)) {
+      return WebSubscriptionReturnPage(
+        orderId: orderId,
+        returnPath: resolvedKind == 'fail' ? '/isbank/3d-fail' : uri.path,
+      );
+    }
+    return MarketplaceCheckoutReturnPage(
+      orderId: orderId,
+      returnKind: resolvedKind,
     );
+  }
+
+  // The full Web Creator Dashboard — reached when a signed-in, approved
+  // creator taps "Open Full Dashboard" in the lightweight mobile page
+  // (lib/ui/creator/creator_dashboard_page.dart), which launches
+  // https://app.petsupo.com/creator/dashboard in an external browser.
+  // CreatorDashboardWebPage itself gates on auth + AppState.creatorEnabled,
+  // the same way user_profile_page.dart's businessDashboard branch gates
+  // on hasApprovedBusiness — see lib/ui/creator/creator_dashboard_web_page.dart.
+  Widget? _webCreatorDashboardPage() {
+    if (!kIsWeb) return null;
+    if (Uri.base.path != '/creator/dashboard') return null;
+    return const CreatorDashboardWebPage();
   }
 
   void handleDeepLink(Uri uri) async {

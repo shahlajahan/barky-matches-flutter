@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/services/chat_service.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final String chatId;
@@ -78,16 +79,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Message sending timed out')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.messageSendingTimedOut),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
 
       debugPrint('❌ SEND MESSAGE ERROR → $e');
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Message failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.messageFailed('$e')),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -155,7 +160,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         }
 
         if (!chatSnapshot.hasData || !chatSnapshot.data!.exists) {
-          return const Center(child: Text('Chat is creating...'));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.chatCreating),
+          );
         }
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -170,7 +177,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
               debugPrint("❌ CHAT STREAM ERROR → ${snapshot.error}");
 
               return Center(
-                child: Text('Chat failed to load', style: AppTheme.body()),
+                child: Text(
+                  AppLocalizations.of(context)!.chatFailedToLoad,
+                  style: AppTheme.body(),
+                ),
               );
             }
 
@@ -178,7 +188,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
             if (docs.isEmpty) {
               return Center(
-                child: Text('Start chatting 👋', style: AppTheme.body()),
+                child: Text(
+                  AppLocalizations.of(context)!.startChatting,
+                  style: AppTheme.body(),
+                ),
               );
             }
 
@@ -231,10 +244,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   textCapitalization: TextCapitalization.sentences,
                   minLines: 1,
                   maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: 'Write message...',
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(context)!.writeMessageHint,
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),

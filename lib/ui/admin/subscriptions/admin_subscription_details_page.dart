@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminSubscriptionDetailsPage extends StatelessWidget {
   final String subscriptionId;
@@ -28,13 +29,19 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Subscription Details")),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.subscriptionDetails),
+      ),
 
       body: StreamBuilder<DocumentSnapshot>(
         stream: stream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(
+              child: Text(
+                AppLocalizations.of(context)!.genericError('${snapshot.error}'),
+              ),
+            );
           }
 
           if (!snapshot.hasData) {
@@ -57,7 +64,7 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
 
               children: [
                 Text(
-                  "User: $userId",
+                  AppLocalizations.of(context)!.userValue(userId),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -66,9 +73,13 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
 
                 const SizedBox(height: 10),
 
-                Text("Plan: $plan"),
-                Text("Status: $status"),
-                Text("Price: \$${price.toStringAsFixed(2)}"),
+                Text(AppLocalizations.of(context)!.planValue(plan)),
+                Text(AppLocalizations.of(context)!.statusValue(status)),
+                Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.priceValue('\$${price.toStringAsFixed(2)}'),
+                ),
 
                 const SizedBox(height: 30),
 
@@ -80,7 +91,9 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
                       "status": "cancelled",
                     });
                   },
-                  child: const Text("Cancel Subscription"),
+                  child: Text(
+                    AppLocalizations.of(context)!.cancelSubscription,
+                  ),
                 ),
 
                 const SizedBox(height: 10),
@@ -93,7 +106,7 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
                       "status": "expired",
                     });
                   },
-                  child: const Text("Expire Now"),
+                  child: Text(AppLocalizations.of(context)!.expireNow),
                 ),
 
                 const SizedBox(height: 20),
@@ -112,7 +125,7 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
                         ),
                       });
                     },
-                    child: const Text("⭐ Make Premium"),
+                    child: Text(AppLocalizations.of(context)!.makePremium),
                   ),
 
                 /// PREMIUM → GOLD
@@ -121,7 +134,9 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
                     onPressed: () {
                       _updateSubscription({"plan": "gold", "price": 19.99});
                     },
-                    child: const Text("👑 Upgrade to PetSupo Partner"),
+                    child: Text(
+                      AppLocalizations.of(context)!.upgradeToPartner,
+                    ),
                   ),
 
                 /// GOLD → PREMIUM
@@ -130,7 +145,9 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
                     onPressed: () {
                       _updateSubscription({"plan": "premium", "price": 9.99});
                     },
-                    child: const Text("⬇ Downgrade to Premium"),
+                    child: Text(
+                      AppLocalizations.of(context)!.downgradeToPremium,
+                    ),
                   ),
 
                 const SizedBox(height: 10),
@@ -144,7 +161,7 @@ class AdminSubscriptionDetailsPage extends StatelessWidget {
                       ),
                     });
                   },
-                  child: const Text("Extend 30 Days"),
+                  child: Text(AppLocalizations.of(context)!.extendThirtyDays),
                 ),
               ],
             ),

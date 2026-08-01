@@ -71,6 +71,10 @@ class _ReportSheetState extends State<_ReportSheet> {
   ReportReasonCode? _reasonCode;
   final _descriptionController = TextEditingController();
   bool _submitting = false;
+  // Shown inline in the sheet rather than via SnackBar: a SnackBar raised
+  // from this context targets the Scaffold *behind* this modal bottom
+  // sheet, so it renders hidden underneath it while the sheet stays open.
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -82,13 +86,14 @@ class _ReportSheetState extends State<_ReportSheet> {
     final l10n = AppLocalizations.of(context)!;
 
     if (_reasonCode == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.reportSelectReasonError)),
-      );
+      setState(() => _errorMessage = l10n.reportSelectReasonError);
       return;
     }
 
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
 
     final description = _descriptionController.text.trim();
     final outcome = await ReportService.submitReport(
@@ -109,10 +114,10 @@ class _ReportSheetState extends State<_ReportSheet> {
       return;
     }
 
-    setState(() => _submitting = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(_messageFor(l10n, outcome))));
+    setState(() {
+      _submitting = false;
+      _errorMessage = _messageFor(l10n, outcome);
+    });
   }
 
   String _messageFor(AppLocalizations l10n, ReportSubmitOutcome outcome) {
@@ -188,6 +193,13 @@ class _ReportSheetState extends State<_ReportSheet> {
                   border: const OutlineInputBorder(),
                 ),
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _errorMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

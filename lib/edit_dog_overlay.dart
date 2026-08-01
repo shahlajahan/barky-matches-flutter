@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -130,10 +131,10 @@ class _EditDogOverlayState extends State<EditDogOverlay>
       widget.dog.imagePaths = _imagePaths;
 
       // مرحله ۳: از AppState صدا بزن
-await context.read<AppState>().saveEditedDog(
-  widget.dog,
-  avatarChanged: true,
-);
+      await context.read<AppState>().saveEditedDog(
+        widget.dog,
+        avatarChanged: true,
+      );
     } catch (e) {
       debugPrint("Upload error: $e");
     }
@@ -677,10 +678,10 @@ await context.read<AppState>().saveEditedDog(
 
       widget.dog.imagePaths = _imagePaths;
 
-await context.read<AppState>().saveEditedDog(
-  widget.dog,
-  avatarChanged: true,
-);
+      await context.read<AppState>().saveEditedDog(
+        widget.dog,
+        avatarChanged: true,
+      );
     } catch (e) {
       debugPrint("Video upload error: $e");
     }
@@ -700,11 +701,8 @@ await context.read<AppState>().saveEditedDog(
       );
     }
 
-    final file = File(pathOrUrl);
-    if (!file.existsSync()) return _fallbackImageBox();
-
-    return Image.file(
-      file,
+    return PlatformPathImage(
+      path: pathOrUrl,
       width: 110,
       height: 110,
       fit: BoxFit.cover,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_state.dart';
 import '../../ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetploreSearchDelegate extends SearchDelegate {
   @override
@@ -54,7 +55,9 @@ class PetploreSearchDelegate extends SearchDelegate {
         final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return const Center(child: Text('No results'));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.noResults),
+          );
         }
 
         return ListView.builder(
@@ -92,6 +95,8 @@ class PetploreSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    return const Center(child: Text('Search users...'));
+    return Center(
+      child: Text(AppLocalizations.of(context)!.searchUsersHint),
+    );
   }
 }

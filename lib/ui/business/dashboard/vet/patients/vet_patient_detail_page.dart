@@ -10,6 +10,7 @@ import 'package:barky_matches_fixed/constants/vaccine_catalog.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/edit_medical_profile_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/owner_profile_snapshot.dart';
 import 'edit_owner_profile_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetVaccineRecord {
   final String id;
@@ -273,13 +274,18 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                               ),
                             ),
                             const SizedBox(height: 18),
-                            Text('Add Vaccine', style: AppTheme.h2()),
+                            Text(
+                              AppLocalizations.of(context)!.addVaccine,
+                              style: AppTheme.h2(),
+                            ),
                             const SizedBox(height: 20),
                             DropdownButtonFormField<VaccineCatalogItem>(
                               initialValue: selectedCatalogItem,
                               isExpanded: true,
                               decoration: InputDecoration(
-                                labelText: 'Vaccine',
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.vaccine,
                                 filled: true,
                                 fillColor: AppTheme.bg,
                                 border: OutlineInputBorder(
@@ -320,7 +326,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                               maxLines: 3,
                               textInputAction: TextInputAction.newline,
                               decoration: InputDecoration(
-                                hintText: 'Notes',
+                                hintText: AppLocalizations.of(context)!.notes,
                                 filled: true,
                                 fillColor: AppTheme.bg,
                                 border: OutlineInputBorder(
@@ -382,11 +388,13 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                                 value: _vaccineReminderEnabled,
                                 activeThumbColor: AppTheme.card,
                                 title: Text(
-                                  'Reminder',
+                                  AppLocalizations.of(context)!.reminder,
                                   style: AppTheme.body(weight: FontWeight.w600),
                                 ),
                                 subtitle: Text(
-                                  'Notify before the next due date',
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.notifyBeforeNextDueDate,
                                   style: AppTheme.caption(),
                                 ),
                                 onChanged: (value) {
@@ -415,7 +423,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                                     Navigator.pop(context);
                                   }
                                 },
-                                child: const Text('Save Vaccine'),
+                                child: Text(
+                                  AppLocalizations.of(context)!.saveVaccine,
+                                ),
                               ),
                             ),
                           ],
@@ -859,7 +869,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
           final data = snapshot.data!.data();
 
           if (data == null) {
-            return const Center(child: Text('Patient not found'));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.patientNotFound),
+            );
           }
 
           final petName = _readPetName(data);
@@ -962,12 +974,16 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                                                 color: AppTheme.card,
                                               ),
 
-                                              title: const Text(
-                                                'Edit Owner Profile',
+                                              title: Text(
+                                                AppLocalizations.of(
+                                                  context,
+                                                )!.editOwnerProfile,
                                               ),
 
-                                              subtitle: const Text(
-                                                'Owner and emergency contact details',
+                                              subtitle: Text(
+                                                AppLocalizations.of(
+                                                  context,
+                                                )!.ownerEmergencyContactDetails,
                                               ),
 
                                               onTap: () async {
@@ -1073,12 +1089,16 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                                               color: AppTheme.card,
                                             ),
 
-                                            title: const Text(
-                                              'Edit Medical Profile',
+                                            title: Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.editMedicalProfile,
                                             ),
 
-                                            subtitle: const Text(
-                                              'Clinical and veterinary information',
+                                            subtitle: Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.clinicalVeterinaryInformation,
                                             ),
 
                                             onTap: () async {
@@ -1109,12 +1129,16 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                                               color: AppTheme.card,
                                             ),
 
-                                            title: const Text(
-                                              'Edit Owner Profile',
+                                            title: Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.editOwnerProfile,
                                             ),
 
-                                            subtitle: const Text(
-                                              'Owner and emergency contact details',
+                                            subtitle: Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.ownerEmergencyContactDetails,
                                             ),
 
                                             onTap: () async {
@@ -1284,11 +1308,11 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
 
                         dividerColor: Colors.transparent,
 
-                        tabs: const [
-                          Tab(text: 'Basic'),
-                          Tab(text: 'Visits'),
-                          Tab(text: 'Vaccines'),
-                          Tab(text: 'Notes'),
+                        tabs: [
+                          Tab(text: AppLocalizations.of(context)!.basic),
+                          Tab(text: AppLocalizations.of(context)!.visits),
+                          Tab(text: AppLocalizations.of(context)!.vaccines),
+                          Tab(text: AppLocalizations.of(context)!.notes),
                         ],
                       ),
                     ),
@@ -1393,7 +1417,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          'Owner Information',
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.ownerInformation,
                                           style: AppTheme.h3(),
                                         ),
                                       ),
@@ -1514,11 +1540,19 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                               '${snapshot.error}',
                             );
 
-                            return Center(child: Text('Visits unavailable'));
+                            return Center(
+                              child: Text(
+                                AppLocalizations.of(context)!.visitsUnavailable,
+                              ),
+                            );
                           }
 
                           return Center(
-                            child: Text('Visits error: ${snapshot.error}'),
+                            child: Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.visitsError('${snapshot.error}'),
+                            ),
                           );
                         }
 
@@ -1653,7 +1687,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                                           ),
 
                                           child: Text(
-                                            'Follow-up',
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.followUp,
 
                                             style: AppTheme.caption(
                                               color: Colors.orange.shade800,
@@ -1665,7 +1701,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
 
                                       if (!_isOwnerView)
                                         IconButton(
-                                          tooltip: 'Edit visit',
+                                          tooltip: AppLocalizations.of(
+                                            context,
+                                          )!.editVisitTooltip,
                                           onPressed: () => _openEditVisit(
                                             visitId: visitId,
                                             visitData: data,
@@ -1771,7 +1809,10 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
               crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-                Text('Edit Medical Notes', style: AppTheme.h2()),
+                Text(
+                  AppLocalizations.of(context)!.editMedicalNotes,
+                  style: AppTheme.h2(),
+                ),
 
                 const SizedBox(height: 20),
 
@@ -1780,7 +1821,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                   maxLines: 8,
 
                   decoration: InputDecoration(
-                    hintText: 'Medical notes',
+                    hintText: AppLocalizations.of(context)!.medicalNotes,
 
                     filled: true,
                     fillColor: AppTheme.bg,
@@ -1818,7 +1859,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                       }
                     },
 
-                    child: const Text('Save Notes'),
+                    child: Text(AppLocalizations.of(context)!.saveNotes),
                   ),
                 ),
               ],
@@ -1982,7 +2023,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                     if (!isCompleted) const SizedBox(height: 4),
 
                     IconButton(
-                      tooltip: 'Edit vaccine',
+                      tooltip: AppLocalizations.of(context)!.editVaccineTooltip,
                       onPressed: () async {
                         await _openEditVaccineDialog(vaccine);
                       },
@@ -1994,7 +2035,9 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                     ),
 
                     IconButton(
-                      tooltip: 'Delete vaccine',
+                      tooltip: AppLocalizations.of(
+                        context,
+                      )!.deleteVaccineTooltip,
                       onPressed: () async {
                         await _deleteVaccine(vaccine.id);
                       },
@@ -2252,10 +2295,10 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
 
             builder: (context) {
               return AlertDialog(
-                title: const Text('Delete Vaccine'),
+                title: Text(AppLocalizations.of(context)!.deleteVaccine),
 
-                content: const Text(
-                  'Are you sure you want to delete this vaccine record?',
+                content: Text(
+                  AppLocalizations.of(context)!.deleteVaccineConfirmation,
                 ),
 
                 actions: [
@@ -2264,7 +2307,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                       Navigator.pop(context, false);
                     },
 
-                    child: const Text('Cancel'),
+                    child: Text(AppLocalizations.of(context)!.cancel),
                   ),
 
                   ElevatedButton(
@@ -2272,7 +2315,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                       Navigator.pop(context, true);
                     },
 
-                    child: const Text('Delete'),
+                    child: Text(AppLocalizations.of(context)!.delete),
                   ),
                 ],
               );
@@ -2340,7 +2383,10 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
             crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-              Text('Edit Vaccine', style: AppTheme.h2()),
+              Text(
+                AppLocalizations.of(context)!.editVaccine,
+                style: AppTheme.h2(),
+              ),
 
               const SizedBox(height: 20),
 
@@ -2348,7 +2394,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                 controller: _vaccineNameController,
 
                 decoration: InputDecoration(
-                  hintText: 'Vaccine name',
+                  hintText: AppLocalizations.of(context)!.vaccineName,
 
                   filled: true,
                   fillColor: AppTheme.bg,
@@ -2369,7 +2415,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                 maxLines: 3,
 
                 decoration: InputDecoration(
-                  hintText: 'Notes',
+                  hintText: AppLocalizations.of(context)!.notes,
 
                   filled: true,
                   fillColor: AppTheme.bg,
@@ -2396,7 +2442,7 @@ class _VetPatientDetailPageState extends State<VetPatientDetailPage>
                     }
                   },
 
-                  child: const Text('Update Vaccine'),
+                  child: Text(AppLocalizations.of(context)!.updateVaccine),
                 ),
               ),
             ],
@@ -2605,14 +2651,14 @@ class _CompleteVaccineButton extends StatelessWidget {
           color: const Color(0xFF4CAF50),
           borderRadius: BorderRadius.circular(100),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.check, color: Colors.white, size: 14),
             SizedBox(width: 6),
             Text(
-              'Complete Vaccine',
-              style: TextStyle(
+              AppLocalizations.of(context)!.completeVaccine,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,

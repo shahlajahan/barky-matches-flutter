@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminRevenuePage extends StatelessWidget {
   const AdminRevenuePage({super.key});
@@ -12,7 +13,7 @@ class AdminRevenuePage extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Revenue")),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.revenueTitle)),
 
       body: StreamBuilder<DocumentSnapshot>(
         stream: stream,
@@ -24,7 +25,9 @@ class AdminRevenuePage extends StatelessWidget {
           final data = snapshot.data!.data() as Map<String, dynamic>?;
 
           if (data == null) {
-            return const Center(child: Text("No revenue data"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noRevenueData),
+            );
           }
 
           final premiumUsers = (data["premiumUsers"] as num?)?.toInt() ?? 0;

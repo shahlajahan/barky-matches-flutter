@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/services/business_chat_service.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/chat/business_chat_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetInboxPage extends StatelessWidget {
   final String businessId;
@@ -16,7 +17,7 @@ class VetInboxPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Inbox'),
+        title: Text(AppLocalizations.of(context)!.inbox),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.pop(context),
@@ -37,7 +38,7 @@ class VetInboxPage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'Inbox error:\n${snapshot.error}',
+                  AppLocalizations.of(context)!.inboxError('${snapshot.error}'),
                   textAlign: TextAlign.center,
                   style: AppTheme.body(),
                 ),
@@ -196,7 +197,7 @@ class _BusinessInboxTile extends StatelessWidget {
                       Expanded(
                         child: Text(displayName, style: AppTheme.h3(size: 16)),
                       ),
-                      if (emergency) _emergencyBadge(),
+                      if (emergency) _emergencyBadge(context),
                     ],
                   ),
                   if (displayPetName.isNotEmpty) ...[
@@ -289,16 +290,16 @@ class _BusinessInboxTile extends StatelessWidget {
     return const Icon(LucideIcons.dog, size: 16, color: Colors.black45);
   }
 
-  Widget _emergencyBadge() {
+  Widget _emergencyBadge(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(30),
       ),
-      child: const Text(
-        'Emergency',
-        style: TextStyle(
+      child: Text(
+        AppLocalizations.of(context)!.emergency,
+        style: const TextStyle(
           color: Colors.red,
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -353,10 +354,13 @@ class _EmptyInbox extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 22),
-            Text('No client messages yet', style: AppTheme.h2()),
+            Text(
+              AppLocalizations.of(context)!.noClientMessagesYet,
+              style: AppTheme.h2(),
+            ),
             const SizedBox(height: 10),
             Text(
-              'When pet owners contact your clinic, conversations will appear here.',
+              AppLocalizations.of(context)!.clientMessagesDescription,
               textAlign: TextAlign.center,
               style: AppTheme.caption(),
             ),

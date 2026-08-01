@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetDashboardServicesTab extends StatelessWidget {
   final String businessId;
@@ -20,9 +21,12 @@ class VetDashboardServicesTab extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Services & Pricing',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                  Text(
+                    AppLocalizations.of(context)!.servicesPricing,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -32,7 +36,7 @@ class VetDashboardServicesTab extends StatelessWidget {
                         _showEditServiceSheet(context, businessId: businessId);
                       },
                       icon: const Icon(Icons.add),
-                      label: const Text('Add Service'),
+                      label: Text(AppLocalizations.of(context)!.addService),
                     ),
                   ),
                 ],
@@ -41,10 +45,13 @@ class VetDashboardServicesTab extends StatelessWidget {
 
             return Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Services & Pricing',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                    AppLocalizations.of(context)!.servicesPricing,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -52,7 +59,7 @@ class VetDashboardServicesTab extends StatelessWidget {
                     _showEditServiceSheet(context, businessId: businessId);
                   },
                   icon: const Icon(Icons.add),
-                  label: const Text('Add Service'),
+                  label: Text(AppLocalizations.of(context)!.addService),
                 ),
               ],
             );
@@ -81,7 +88,9 @@ class VetDashboardServicesTab extends StatelessWidget {
               }
 
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text('No services yet.'));
+                return Center(
+                  child: Text(AppLocalizations.of(context)!.noServicesYet),
+                );
               }
 
               final docs = snapshot.data!.docs;
@@ -108,7 +117,11 @@ class VetDashboardServicesTab extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '${data['price'] ?? 0} ${data['currency'] ?? 'TRY'} • ${data['durationMin'] ?? 0} min',
+                            AppLocalizations.of(context)!.servicePriceDuration(
+                              data['price'] ?? 0,
+                              data['currency'] ?? 'TRY',
+                              data['durationMin'] ?? 0,
+                            ),
                           ),
                           if ((data['description'] ?? '')
                               .toString()
@@ -124,7 +137,7 @@ class VetDashboardServicesTab extends StatelessWidget {
                             children: [
                               OutlinedButton.icon(
                                 icon: const Icon(Icons.edit_outlined),
-                                label: const Text('Edit'),
+                                label: Text(AppLocalizations.of(context)!.edit),
                                 onPressed: () {
                                   _showEditServiceSheet(
                                     context,
@@ -136,7 +149,9 @@ class VetDashboardServicesTab extends StatelessWidget {
                               ),
                               OutlinedButton.icon(
                                 icon: const Icon(Icons.delete_outline),
-                                label: const Text('Delete'),
+                                label: Text(
+                                  AppLocalizations.of(context)!.delete,
+                                ),
                                 onPressed: () async {
                                   await doc.reference.delete();
                                 },
@@ -214,16 +229,16 @@ class VetDashboardServicesTab extends StatelessWidget {
                     const SizedBox(height: 16),
                     TextField(
                       controller: titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Service title',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.serviceTitle,
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: descriptionController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.description,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -232,14 +247,18 @@ class VetDashboardServicesTab extends StatelessWidget {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(labelText: 'Price'),
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.price,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: durationController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Duration (min)',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(
+                          context,
+                        )!.durationMinutes,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -252,7 +271,7 @@ class VetDashboardServicesTab extends StatelessWidget {
                           requiresDeposit = value;
                         });
                       },
-                      title: const Text('Require deposit'),
+                      title: Text(AppLocalizations.of(context)!.requireDeposit),
                     ),
 
                     if (requiresDeposit) ...[
@@ -260,8 +279,10 @@ class VetDashboardServicesTab extends StatelessWidget {
                       TextField(
                         controller: depositController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Deposit amount (₺)',
+                        decoration: InputDecoration(
+                          labelText: AppLocalizations.of(
+                            context,
+                          )!.depositAmount,
                         ),
                       ),
                     ],
@@ -275,7 +296,7 @@ class VetDashboardServicesTab extends StatelessWidget {
                           isFeatured = value;
                         });
                       },
-                      title: const Text('Featured'),
+                      title: Text(AppLocalizations.of(context)!.featured),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
@@ -285,7 +306,7 @@ class VetDashboardServicesTab extends StatelessWidget {
                           isActive = value;
                         });
                       },
-                      title: const Text('Active'),
+                      title: Text(AppLocalizations.of(context)!.active),
                     ),
                     const SizedBox(height: 18),
                     SizedBox(

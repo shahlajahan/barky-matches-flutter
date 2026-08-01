@@ -7,6 +7,7 @@ import '../models/found_dog.dart';
 import '../models/lost_dog.dart';
 import '../../app_state.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class FoundDogDetailPage extends StatelessWidget {
   final FoundDog foundDog;
@@ -15,6 +16,7 @@ class FoundDogDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isClaimed = foundDog.isClaimed;
 
     return SafeArea(
@@ -35,7 +37,7 @@ class FoundDogDetailPage extends StatelessWidget {
                   },
                 ),
                 const SizedBox(width: 6),
-                Text("Found Pet Details", style: AppTheme.h2()),
+                Text(l10n.foundPetDetailsTitle, style: AppTheme.h2()),
               ],
             ),
 
@@ -167,7 +169,7 @@ class FoundDogDetailPage extends StatelessWidget {
                         }
                       },
                       icon: const Icon(Icons.location_on, size: 16),
-                      label: const Text("View on Map"),
+                      label: Text(l10n.viewOnMap),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white70,
                       ),
@@ -225,9 +227,9 @@ class FoundDogDetailPage extends StatelessWidget {
                         ),
                       ),
                       icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                      label: const Text(
-                        "Contact Reporter",
-                        style: TextStyle(fontSize: 13),
+                      label: Text(
+                        l10n.contactReporter,
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ),
 

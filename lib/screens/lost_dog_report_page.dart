@@ -5,6 +5,7 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -301,6 +302,7 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
   }
 
   Future<void> _submitReport() async {
+    final localizations = AppLocalizations.of(context)!;
     AuthTrap.mark('lostdog_submit_pressed');
 
     if (kDebugMode) {
@@ -313,8 +315,8 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
 
     if (!(_formKey.currentState?.validate() ?? false)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please complete all required fields correctly."),
+        SnackBar(
+          content: Text(localizations.pleaseFillRequiredFields),
           backgroundColor: Colors.red,
         ),
       );
@@ -415,7 +417,7 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
 
       // ✅ show snackbar safely (even if context not under a Scaffold)
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(content: Text('Lost pet reported successfully!')),
+        SnackBar(content: Text(localizations.lostPetReportedSuccess)),
       );
 
       AuthTrap.mark('after_lostdog_http_200_before_tab_switch');
@@ -445,9 +447,9 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(SnackBar(content: Text('Error submitting report: $e')));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(localizations.errorSubmittingReport('$e'))),
+      );
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -712,7 +714,7 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
                                 }
                               },
                               icon: const Icon(Icons.map),
-                              label: const Text("Select from Map"),
+                              label: Text(localizations.pickOnMap),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppTheme.accent,
                                 side: BorderSide(color: AppTheme.accent),
@@ -781,8 +783,8 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
                             child: _selectedImage != null
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(14),
-                                    child: Image.file(
-                                      _selectedImage!,
+                                    child: PlatformPathImage(
+                                      path: _selectedImage!.path,
                                       fit: BoxFit.cover,
                                     ),
                                   )
@@ -794,8 +796,8 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
                                       fit: BoxFit.cover,
                                     ),
                                   )
-                                : const Center(
-                                    child: Text("Tap to select image"),
+                                : Center(
+                                    child: Text(localizations.tapToSelectImage),
                                   ),
                           ),
                         ),
@@ -868,8 +870,9 @@ class _MapPickerPageState extends State<MapPickerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text("Select Location")),
+      appBar: AppBar(title: Text(localizations.selectLocation)),
       body: GoogleMap(
         initialCameraPosition: CameraPosition(
           target: widget.initialLocation,

@@ -21,6 +21,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
+import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
 
 class PetShopDashboardPage extends StatefulWidget {
   const PetShopDashboardPage({super.key});
@@ -179,14 +180,14 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        SellerFinanceSummarySection(
+          businessId: businessId,
+          recordLabel: l10n.sellerFinanceOrders,
+        ),
+        const SizedBox(height: 10),
         Text(l10n.shopProfileTitle, style: AppTheme.h2()),
         const SizedBox(height: 10),
         _buildProfileSection(context, businessId),
-        const SizedBox(height: 20),
-
-        Text("Revenue", style: AppTheme.h2()),
-        const SizedBox(height: 10),
-        _buildRevenueCard(context, businessId),
         const SizedBox(height: 20),
 
         Text("Daily Summary", style: AppTheme.h2()),
@@ -532,7 +533,7 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -859,7 +860,7 @@ Widget _strengthBar(double value) {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF9E1B4F).withOpacity(0.10),
+                      color: const Color(0xFF9E1B4F).withValues(alpha: 0.10),
                     ),
                     boxShadow: AppTheme.cardShadow(opacity: 0.06),
                   ),
@@ -880,7 +881,7 @@ Widget _strengthBar(double value) {
                               decoration: BoxDecoration(
                                 color: const Color(
                                   0xFF9E1B4F,
-                                ).withOpacity(0.08),
+                                ).withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
@@ -1300,7 +1301,9 @@ Widget _strengthBar(double value) {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF9E1B4F).withOpacity(0.2)),
+          border: Border.all(
+            color: const Color(0xFF9E1B4F).withValues(alpha: 0.2),
+          ),
           boxShadow: AppTheme.cardShadow(opacity: 0.08),
         ),
         child: Column(
@@ -1402,7 +1405,7 @@ Widget _strengthBar(double value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.06),
+        color: Colors.blue.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Wrap(
@@ -1412,7 +1415,7 @@ Widget _strengthBar(double value) {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(e, style: AppTheme.caption(color: Colors.blue)),
@@ -1426,7 +1429,7 @@ Widget _strengthBar(double value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F).withOpacity(0.08),
+        color: const Color(0xFF9E1B4F).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(

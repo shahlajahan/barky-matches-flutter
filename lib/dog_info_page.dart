@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image_provider.dart';
 
 class DogInfoPage extends StatelessWidget {
   final Dog dog;
@@ -26,9 +27,13 @@ class DogInfoPage extends StatelessWidget {
       return null;
     }
     try {
-      final file = File(dog.imagePaths[0]);
+      final path = dog.imagePaths[0];
+      if (kIsWeb || path.startsWith('http')) {
+        return platformPathImageProvider(path);
+      }
+      final file = File(path);
       if (await file.exists()) {
-        return FileImage(file);
+        return platformPathImageProvider(file.path);
       }
       if (kDebugMode) {
         debugPrint(
@@ -457,14 +462,14 @@ class DogInfoPage extends StatelessWidget {
                       icon: const Icon(Icons.thumb_up, color: Colors.green),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-  SnackBar(
-    content: Text(
-      AppLocalizations.of(context)!.dogInfoLiked(
-        dog.name,
-      ),
-    ),
-  ),
-);
+                          SnackBar(
+                            content: Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.dogInfoLiked(dog.name),
+                            ),
+                          ),
+                        );
                         if (kDebugMode) {
                           debugPrint('DogInfoPage - Liked dog: ${dog.name}');
                         }
@@ -493,9 +498,7 @@ class DogInfoPage extends StatelessWidget {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(
-                              '${l10n?.dogInfoChatWithOwner ?? 'Chat with'} ${dog.name}\'s owner',
-                            ),
+                            content: Text(l10n!.dogInfoChatWithOwner(dog.name)),
                           ),
                         );
                         if (kDebugMode) {

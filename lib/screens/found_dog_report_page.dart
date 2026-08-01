@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import '../constants/pet_breeds.dart';
 import '../models/found_dog.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -249,6 +250,7 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
   }
 
   Future<void> _submitReport() async {
+    final localizations = AppLocalizations.of(context)!;
     if (kDebugMode)
       debugPrint(
         'FoundDogReportPage - Submitting report, _currentPosition: $_currentPosition, _isSubmitting: $_isSubmitting',
@@ -317,7 +319,7 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Found pet reported successfully!')),
+          SnackBar(content: Text(localizations.foundPetReportedSuccess)),
         );
         if (!mounted) return;
         context.read<AppState>().setCurrentTab(NavTab.home);
@@ -325,9 +327,9 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
         if (kDebugMode)
           debugPrint('FoundDogReportPage - Error submitting report: $e');
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error submitting report: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(localizations.errorSubmittingReport('$e'))),
+        );
       } finally {
         if (mounted) {
           setState(() => _isSubmitting = false);
@@ -511,7 +513,7 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
                                 }
                               },
                               icon: const Icon(Icons.map),
-                              label: const Text("Select from Map"),
+                              label: Text(localizations.pickOnMap),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppTheme.accent,
                                 side: BorderSide(color: AppTheme.accent),
@@ -582,13 +584,13 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: _selectedImage == null
-                                ? const Center(
-                                    child: Text("Tap to select image"),
+                                ? Center(
+                                    child: Text(localizations.tapToSelectImage),
                                   )
                                 : ClipRRect(
                                     borderRadius: BorderRadius.circular(14),
-                                    child: Image.file(
-                                      _selectedImage!,
+                                    child: PlatformPathImage(
+                                      path: _selectedImage!.path,
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -722,8 +724,9 @@ class _FoundMapPickerPageState extends State<FoundMapPickerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text("Select Location")),
+      appBar: AppBar(title: Text(localizations.selectLocation)),
       body: GoogleMap(
         initialCameraPosition: CameraPosition(
           target: widget.initialLocation,

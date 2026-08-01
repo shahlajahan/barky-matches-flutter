@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../business_card_data.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionOverlayContent extends StatelessWidget {
   final BusinessCardData data;
@@ -27,7 +28,7 @@ class AdoptionOverlayContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      "Adoption Center (TEMP)",
+      AppLocalizations.of(context)!.adoptionCenterTemporary,
       style: AppTheme.caption(color: Colors.white),
     );
   }

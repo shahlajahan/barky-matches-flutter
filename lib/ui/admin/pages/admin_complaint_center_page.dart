@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/complaint_model.dart';
 import 'admin_complaint_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminComplaintCenterPage extends StatelessWidget {
   const AdminComplaintCenterPage({super.key});
@@ -16,7 +17,7 @@ class AdminComplaintCenterPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Complaint Center"),
+        title: Text(AppLocalizations.of(context)!.complaintCenter),
         backgroundColor: const Color(0xFF9E1B4F),
       ),
 
@@ -26,7 +27,11 @@ class AdminComplaintCenterPage extends StatelessWidget {
           if (snapshot.hasError) {
             debugPrint("🔥 FIRESTORE ERROR: ${snapshot.error}");
 
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(
+              child: Text(
+                AppLocalizations.of(context)!.genericError('${snapshot.error}'),
+              ),
+            );
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -38,7 +43,9 @@ class AdminComplaintCenterPage extends StatelessWidget {
           if (!snapshot.hasData) {
             debugPrint("⚠️ Snapshot has no data");
 
-            return const Center(child: Text("No data"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noData),
+            );
           }
 
           final docs = snapshot.data!.docs;
@@ -46,7 +53,9 @@ class AdminComplaintCenterPage extends StatelessWidget {
           debugPrint("📦 Complaints loaded: ${docs.length}");
 
           if (docs.isEmpty) {
-            return const Center(child: Text("No complaints found"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noComplaintsFound),
+            );
           }
 
           return ListView.builder(
@@ -107,9 +116,17 @@ class _ComplaintCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Target: ${complaint.targetTypeLabel}"),
+            Text(
+              AppLocalizations.of(
+                context,
+              )!.targetValue(complaint.targetTypeLabel),
+            ),
 
-            Text("Category: ${complaint.categoryLabel}"),
+            Text(
+              AppLocalizations.of(
+                context,
+              )!.categoryValue(complaint.categoryLabel),
+            ),
 
             const SizedBox(height: 6),
 

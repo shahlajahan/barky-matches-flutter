@@ -19,15 +19,18 @@ import 'admin_revenue_page.dart';
 import 'package:barky_matches_fixed/ui/admin/subscriptions/admin_subscription_page.dart';
 import '../user_satisfaction/admin_user_satisfaction_page.dart';
 import 'package:barky_matches_fixed/ui/admin/payments/admin_payouts_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'admin_return_disputes_page.dart';
 
 class AdminHubPage extends StatelessWidget {
   const AdminHubPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Admin Panel"),
+        title: Text(l10n.userProfileAdminPanel),
         backgroundColor: Colors.pink,
       ),
       body: ListView(
@@ -96,6 +99,12 @@ class AdminHubPage extends StatelessWidget {
             title: "Complaint Center",
             subtitle: "User complaints & disputes",
             pageBuilder: () => const AdminComplaintCenterPage(),
+          ),
+          _AdminItem(
+            icon: Icons.assignment_late_outlined,
+            title: l10n.adminReturnDisputesTitle,
+            subtitle: l10n.adminReturnDisputesSubtitle,
+            pageBuilder: () => const AdminReturnDisputesPage(),
           ),
 
           const SizedBox(height: 18),
@@ -242,7 +251,9 @@ class _PlaceholderPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title), backgroundColor: Colors.pink),
-      body: const Center(child: Text("Coming soon...")),
+      body: Center(
+        child: Text(AppLocalizations.of(context)!.comingSoon),
+      ),
     );
   }
 }

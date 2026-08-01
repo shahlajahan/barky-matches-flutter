@@ -223,6 +223,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutPaymentCompletedSuccessfully => 'Payment completed successfully';
 
   @override
+  String get checkoutMultiSellerInfoTitle => 'One payment, separate orders';
+
+  @override
+  String get checkoutMultiSellerInfoBody => 'You’ll make one payment. A separate order will be created for each seller.';
+
+  @override
+  String checkoutSellerSection(Object sellerName) {
+    return '$sellerName';
+  }
+
+  @override
+  String checkoutSellerFallback(int number) {
+    return 'Seller $number';
+  }
+
+  @override
+  String get checkoutSellerSubtotal => 'Seller subtotal';
+
+  @override
+  String get checkoutProductsTotal => 'Products total';
+
+  @override
+  String get checkoutShippingMethod => 'Shipping method';
+
+  @override
+  String get checkoutShippingCost => 'Shipping cost';
+
+  @override
+  String get checkoutShippingTotal => 'Shipping total';
+
+  @override
+  String get checkoutEstimatedDelivery => 'Estimated delivery';
+
+  @override
+  String get checkoutSellerTotal => 'Seller total';
+
+  @override
+  String get checkoutMultiOrderSuccessTitle => 'Payment successful';
+
+  @override
+  String get checkoutMultiOrderSuccessBody => 'Your payment was completed and separate orders were created for each seller.';
+
+  @override
+  String checkoutSellerOrderLabel(int number) {
+    return 'Seller order $number';
+  }
+
+  @override
+  String get checkoutOpenOrder => 'View order';
+
+  @override
+  String get checkoutMultiOrderExit => 'Back to home';
+
+  @override
   String get checkoutPaymentCancelledOrIncomplete => 'Payment was cancelled or not completed';
 
   @override
@@ -2755,7 +2809,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trainingTitle => 'Training';
 
   @override
-  String get comingSoon => 'Coming soon';
+  String get comingSoon => 'Coming Soon';
 
   @override
   String get trainingComingSoonMessage => 'Training feature coming soon 🐾';
@@ -3727,6 +3781,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get myOrdersTitle => 'My Orders';
+
+  @override
+  String get myOrdersUnknownProduct => 'Product';
+
+  @override
+  String get myOrdersUnknownSeller => 'Seller';
+
+  @override
+  String myOrdersProductAndMore(Object product, int count) {
+    return '$product + $count more';
+  }
+
+  @override
+  String get myOrdersOrderNumberUnavailable => 'Unavailable';
+
+  @override
+  String get myOrdersDateUnavailable => 'Date unavailable';
+
+  @override
+  String get myOrdersSortNewest => 'Date: newest first';
+
+  @override
+  String get myOrdersSortOldest => 'Date: oldest first';
+
+  @override
+  String get myOrdersSortProductAz => 'Product: A–Z';
+
+  @override
+  String get myOrdersSortProductZa => 'Product: Z–A';
+
+  @override
+  String get myOrdersSortSellerAz => 'Seller: A–Z';
+
+  @override
+  String get myOrdersSortSellerZa => 'Seller: Z–A';
+
+  @override
+  String get myOrdersSortAmountHigh => 'Amount: highest first';
+
+  @override
+  String get myOrdersSortAmountLow => 'Amount: lowest first';
+
+  @override
+  String get myOrdersProcessingStatus => 'Processing';
+
+  @override
+  String get myOrdersRefundedStatus => 'Refunded';
+
+  @override
+  String get myOrdersReturnedStatus => 'Returned';
+
+  @override
+  String get myOrdersRefundedOrReturnedStatus => 'Refunded / Returned';
 
   @override
   String get ordersTitle => 'Orders';
@@ -4967,6 +5074,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shippingResponsibilityLabel => 'Return shipping';
 
   @override
+  String get returnShippingTitle => 'Return Shipping';
+
+  @override
+  String get returnShippingBuyerMessage => 'You are responsible for the return shipping cost.\n\nThe courier fee is separate from your refund and may not be reimbursed.';
+
+  @override
+  String get returnShippingSellerMessage => 'The seller is responsible for the return shipping cost.';
+
+  @override
+  String get returnShippingContractedCarrierMessage => 'Use the seller\'s contracted return carrier.';
+
+  @override
+  String get returnShippingBuyerShipBackMessage => 'The courier fee is your responsibility and is separate from the refund.';
+
+  @override
+  String get returnShippingSellerShipBackMessage => 'The seller covers the return shipping cost.';
+
+  @override
+  String get returnShippingAcknowledgement => 'I understand the return shipping policy.';
+
+  @override
+  String get returnShippingPolicyLoading => 'Loading return shipping policy…';
+
+  @override
+  String returnShippingCarrierValue(Object carrier) {
+    return 'Carrier: $carrier';
+  }
+
+  @override
+  String get returnShippingVerifiedCarrierHelper => 'Use this verified contracted return carrier.';
+
+  @override
+  String get returnCarrierEnterHelperText => 'Enter the carrier used for this return shipment.';
+
+  @override
   String get refundTypeLabel => 'Refund type';
 
   @override
@@ -5069,6 +5211,171 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refundRejectedStatusLabel => 'Refund rejected';
 
   @override
+  String get refundDecisionTitle => 'Refund decision';
+
+  @override
+  String get refundDecisionFullTitle => 'Full Refund';
+
+  @override
+  String get refundDecisionFullDescription => 'Refund the entire eligible amount.';
+
+  @override
+  String get refundDecisionFullRecommended => 'Recommended for damaged or defective items, wrong items, seller mistakes, or items never delivered.';
+
+  @override
+  String get refundDecisionPartialTitle => 'Partial Refund';
+
+  @override
+  String get refundDecisionPartialDescription => 'Refund only part of the eligible amount. A justification is required.';
+
+  @override
+  String get refundDecisionRejectTitle => 'Reject Refund';
+
+  @override
+  String get refundDecisionRejectDescription => 'Decline the refund request. A clear explanation is required.';
+
+  @override
+  String get refundPartialAmountLabel => 'Partial refund amount';
+
+  @override
+  String refundMaximumEligible(Object amount) {
+    return 'Maximum eligible: $amount';
+  }
+
+  @override
+  String get refundAmountValidationError => 'Enter an amount greater than zero and no more than the eligible refund.';
+
+  @override
+  String get refundDecisionReasonLabel => 'Reason';
+
+  @override
+  String get refundReasonNotSelected => 'Select a reason';
+
+  @override
+  String get refundSellerNotesLabel => 'Seller notes';
+
+  @override
+  String get refundNotesOptional => 'Optional';
+
+  @override
+  String get refundNotesRequired => 'Required';
+
+  @override
+  String get refundBuyerExplanationLabel => 'Buyer-visible explanation';
+
+  @override
+  String get refundBuyerExplanationHelper => 'Explain clearly why the refund is being declined.';
+
+  @override
+  String get refundOriginalOrderLabel => 'Original Order';
+
+  @override
+  String get refundSummaryRefundLabel => 'Refund';
+
+  @override
+  String get refundDifferenceLabel => 'Difference';
+
+  @override
+  String get refundDecisionBuyerTitle => 'Refund decision';
+
+  @override
+  String get refundDecisionLabel => 'Decision';
+
+  @override
+  String get refundSellerExplanationLabel => 'Seller explanation';
+
+  @override
+  String get refundReasonItemReturnedDamaged => 'Item returned damaged';
+
+  @override
+  String get refundReasonMissingAccessories => 'Missing accessories';
+
+  @override
+  String get refundReasonCustomerCausedDamage => 'Customer caused damage';
+
+  @override
+  String get refundReasonRestockingFee => 'Restocking fee';
+
+  @override
+  String get refundReasonPartialReturn => 'Partial return';
+
+  @override
+  String get refundReasonSellerMistake => 'Seller mistake';
+
+  @override
+  String get refundReasonWrongItem => 'Wrong item';
+
+  @override
+  String get refundReasonDefectiveProduct => 'Defective product';
+
+  @override
+  String get refundReasonItemNeverDelivered => 'Item never delivered';
+
+  @override
+  String get refundReasonOther => 'Other';
+
+  @override
+  String get returnStatusWaitingSellerConfirmation => 'Waiting for seller confirmation';
+
+  @override
+  String get returnStatusAutoReceived => 'Automatically received';
+
+  @override
+  String get returnStatusDispute => 'Return dispute';
+
+  @override
+  String get waitingForSellerInspectionTitle => 'Waiting for seller inspection';
+
+  @override
+  String waitingForSellerInspectionMessage(Object date) {
+    return 'The seller has until $date to inspect the returned package. If no action is taken, the return will automatically continue.';
+  }
+
+  @override
+  String get inspectionDeadlineTitle => 'Inspection deadline';
+
+  @override
+  String inspectionDaysRemaining(int days) {
+    return '$days days remaining';
+  }
+
+  @override
+  String get inspectionDeadlinePassed => 'Deadline passed. Automatic completion pending.';
+
+  @override
+  String get reportReturnProblemTitle => 'Report return problem';
+
+  @override
+  String get reportProblemButton => 'Report problem';
+
+  @override
+  String get disputeReasonLabel => 'Problem reason';
+
+  @override
+  String get disputeReasonPackageNotReceived => 'Package not received';
+
+  @override
+  String get disputeReasonWrongItemReturned => 'Wrong item returned';
+
+  @override
+  String get disputeReasonEmptyPackage => 'Empty package';
+
+  @override
+  String get disputeReasonDamagedDuringReturn => 'Damaged during return';
+
+  @override
+  String get disputeReasonTrackingIssue => 'Tracking issue';
+
+  @override
+  String get adminReturnDisputesTitle => 'Return disputes';
+
+  @override
+  String get adminReturnDisputesSubtitle => 'Review disputed marketplace returns';
+
+  @override
+  String get noReturnDisputes => 'No disputed returns';
+
+  @override
   String get locationUpdatedSuccessfully => 'Location updated successfully';
 
   @override
@@ -5122,7 +5429,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productDetails => 'Product Details';
 
   @override
-  String get servicesCouldNotBeLoaded => 'Services could not be loaded.';
+  String get servicesCouldNotBeLoaded => 'Services couldn\'t be loaded';
 
   @override
   String get veterinaryClinics => 'Veterinary clinics';
@@ -5629,6 +5936,2120 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get bankAccountSettingsTitle => 'Bank Account';
+
+  @override
+  String get bankAccountSettingsSubtitle => 'This account will be used when PetSupo sends your business earnings.';
+
+  @override
+  String get bankAccountInfoNotice => 'Please make sure the account holder and IBAN exactly match your official bank account. Incorrect information may delay payouts.';
+
+  @override
+  String get bankAccountSectionTitle => 'Account Details';
+
+  @override
+  String get bankAccountHolderLabel => 'Account Holder';
+
+  @override
+  String get bankAccountBankNameLabel => 'Bank Name';
+
+  @override
+  String get bankAccountIbanLabel => 'IBAN';
+
+  @override
+  String get bankAccountBillingInfoLabel => 'Billing Information (optional)';
+
+  @override
+  String get bankAccountIbanInvalid => 'IBAN must start with TR followed by 24 digits.';
+
+  @override
+  String get bankAccountSaveSuccess => 'Bank account information saved.';
+
+  @override
+  String get diagnosticsSectionTitle => 'Diagnostics';
+
+  @override
+  String get diagnosticsSectionDescription => 'Internal diagnostics tools for queue inspection and upload testing.';
+
+  @override
+  String get diagnosticsThrowButton => 'Throw';
+
+  @override
+  String get diagnosticsTestButton => 'Test';
+
+  @override
+  String get diagnosticsUploadButton => 'Upload';
+
+  @override
+  String get diagnosticsRefreshButton => 'Refresh';
+
+  @override
+  String get diagnosticsClearButton => 'Clear';
+
+  @override
+  String dogCardAgeWithBreed(Object age, Object breed) {
+    return '${age}y • $breed';
+  }
+
+  @override
+  String dogCardAgeYears(Object age) {
+    return '${age}y';
+  }
+
+  @override
+  String dogCardVaccines(int count) {
+    return '$count vaccines';
+  }
+
+  @override
+  String get dogParkPremiumMembersOnly => 'This park is available for Premium members only.';
+
+  @override
+  String get favoritesExplorePlaymates => 'Go explore Playmates 💛';
+
+  @override
+  String get vetServicesAvailableAfterLogin => 'Vet services available after login';
+
+  @override
+  String get loadingAccount => 'Loading account...';
+
+  @override
+  String get noNotificationsForGuest => 'No notifications for Guest';
+
+  @override
+  String get loginForNotifications => 'Login to receive updates and alerts';
+
+  @override
+  String get offerDetailsTitle => 'Offer';
+
+  @override
+  String get offerDiscountOffLabel => 'OFF';
+
+  @override
+  String get offerUseCodeLabel => 'Use code:';
+
+  @override
+  String get offerUseThisOffer => 'Use This Offer';
+
+  @override
+  String get playdateScheduledAtLabel => 'Playdate will be scheduled at:';
+
+  @override
+  String get continueToScheduling => 'Continue to scheduling';
+
+  @override
+  String get orderCancellationTitle => 'Order Cancellation';
+
+  @override
+  String get preShipmentCancellationAvailable => 'This order has not been shipped and can still be cancelled.';
+
+  @override
+  String get cancelOrderButton => 'Cancel Order';
+
+  @override
+  String get cancelOrderTitle => 'Cancel Order?';
+
+  @override
+  String get cancelOrderConfirmation => 'Are you sure you want to cancel this order? The order has not been shipped yet.';
+
+  @override
+  String get cancelOrderRefundNotice => 'After cancellation, your payment will be refunded.';
+
+  @override
+  String get cancellationReasonLabel => 'Reason for cancellation';
+
+  @override
+  String get cancelReasonOrderedByMistake => 'Ordered by mistake';
+
+  @override
+  String get cancelReasonChangedMind => 'Changed my mind';
+
+  @override
+  String get cancelReasonDuplicateOrder => 'Duplicate order';
+
+  @override
+  String get cancelReasonOther => 'Other';
+
+  @override
+  String get cancellationReasonDetailsLabel => 'Cancellation reason details';
+
+  @override
+  String get cancellationRefundProcessing => 'Order cancelled. Your refund is processing.';
+
+  @override
+  String get cancellationShipmentAlreadyStarted => 'This order can no longer be cancelled because shipment has started.';
+
+  @override
+  String get cancelOrderFailed => 'The order could not be cancelled. Please try again.';
+
+  @override
+  String get cancellationRefundProcessingStatus => 'Cancellation requested · Refund processing';
+
+  @override
+  String get cancellationRefundFailedStatus => 'Cancellation refund needs attention';
+
+  @override
+  String get orderCancelledRefundCompleted => 'Order cancelled · Refund completed';
+
+  @override
+  String get foundPetDetailsTitle => 'Found Pet Details';
+
+  @override
+  String get viewOnMap => 'View on Map';
+
+  @override
+  String get contactReporter => 'Contact Reporter';
+
+  @override
+  String get foundPetReportedSuccess => 'Found pet reported successfully!';
+
+  @override
+  String errorSubmittingReport(Object error) {
+    return 'Error submitting report: $error';
+  }
+
+  @override
+  String get tapToSelectImage => 'Tap to select image';
+
+  @override
+  String get foundPetsSubtitle => 'Help found pets return home safely';
+
+  @override
+  String get searchByNameHint => 'Search by name...';
+
+  @override
+  String get noFoundPetsReportedYet => 'No found pets reported yet';
+
+  @override
+  String get reportedFoundPetsAppearHere => 'Reported found pets will appear here';
+
+  @override
+  String get lostPetDetailsTitle => 'Lost Pet Details';
+
+  @override
+  String get havePetInformationPrompt => 'Have information about this pet?';
+
+  @override
+  String get callOwner => 'Call Owner';
+
+  @override
+  String get emailOwner => 'Email Owner';
+
+  @override
+  String get lostPetReportedSuccess => 'Lost pet reported successfully!';
+
+  @override
+  String get lostPetsSubtitle => 'Help lost pets find their way home';
+
+  @override
+  String get noLostPetsReportedYet => 'No lost pets reported yet';
+
+  @override
+  String get reportedLostPetsAppearHere => 'Reported lost pets will appear here';
+
+  @override
+  String get searchUsersHint => 'Search users...';
+
+  @override
+  String get noUsersFound => 'No users found';
+
+  @override
+  String get searchPetsAndUsers => 'Search pets & users';
+
+  @override
+  String get findPetLoversNearby => 'Find pet lovers around you';
+
+  @override
+  String get selectAtLeastOnePhotoOrVideo => 'Please select at least one photo/video';
+
+  @override
+  String errorCreatingPost(Object error) {
+    return 'Error creating post: $error';
+  }
+
+  @override
+  String get createPostTitle => 'Create Post';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String get addPhotosOrVideos => 'Add photos/videos';
+
+  @override
+  String get writeSomethingHint => 'Write something...';
+
+  @override
+  String get replyHint => 'Reply...';
+
+  @override
+  String get replySent => 'Reply sent';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get videoStoriesComingSoon => 'Video stories are coming soon';
+
+  @override
+  String get petploreTitle => 'Petplore';
+
+  @override
+  String get explorePetMoments => 'Explore pet moments';
+
+  @override
+  String followersCount(int count) {
+    return '$count Followers';
+  }
+
+  @override
+  String followingCount(int count) {
+    return '$count Following';
+  }
+
+  @override
+  String get feed => 'Feed';
+
+  @override
+  String get saved => 'Saved';
+
+  @override
+  String get myPosts => 'My Posts';
+
+  @override
+  String get loginRequired => 'Login required';
+
+  @override
+  String genericError(Object error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get noPostsYet => 'No posts yet';
+
+  @override
+  String get noResults => 'No results';
+
+  @override
+  String get commentsTitle => 'Comments';
+
+  @override
+  String commentsError(Object error) {
+    return 'Comments error: $error';
+  }
+
+  @override
+  String get noCommentsYet => 'No comments yet';
+
+  @override
+  String get writeCommentHint => 'Write a comment...';
+
+  @override
+  String get postsTitle => 'Posts';
+
+  @override
+  String get storyUploaded => 'Story uploaded';
+
+  @override
+  String storyUploadFailed(Object error) {
+    return 'Story upload failed: $error';
+  }
+
+  @override
+  String get addStory => 'Add Story';
+
+  @override
+  String get storyDurationPrompt => 'Share a pet moment that lasts 24h';
+
+  @override
+  String get seeWhosNearby => 'See who’s nearby 👀!';
+
+  @override
+  String get telegramLab => 'Telegram Lab';
+
+  @override
+  String get telegramBotApiTest => 'Telegram Bot API Test';
+
+  @override
+  String get telegramTestInstructions => 'Press the button below to send a test message.';
+
+  @override
+  String get sendTelegramMessage => 'Send Telegram Message';
+
+  @override
+  String get telegramUsers => 'Telegram Users';
+
+  @override
+  String get termsLastUpdated => 'Last updated: May 09, 2025';
+
+  @override
+  String get termsIntroductionTitle => '1. Introduction';
+
+  @override
+  String get termsIntroductionBody => 'Welcome to PetSupo! By signing up, you agree to these Terms and Conditions. This app is designed to help you find playmates for your dogs, connect with other pet owners, and access pet-related services. These terms govern your use of the app and services provided by PetSupo.';
+
+  @override
+  String get termsResponsibilitiesTitle => '2. User Responsibilities';
+
+  @override
+  String get termsResponsibilitiesBody => '- You must be at least 13 years old to use this app.\n- You are responsible for maintaining the confidentiality of your account and password.\n- You agree not to use the app for any unlawful or prohibited activities.\n- You must provide accurate and up-to-date information during registration.';
+
+  @override
+  String get termsPrivacyTitle => '3. Data Collection and Privacy';
+
+  @override
+  String get termsPrivacyBody => 'We collect personal data such as your username, email, location, and pet information to provide our services. In accordance with the Turkish Personal Data Protection Law (KVKK No. 6698) and international laws (e.g., GDPR), we:\n- Obtain explicit consent before collecting or processing your data.\n- Use your data only for the purposes stated (e.g., finding playmates, providing location-based services).\n- Implement security measures to protect your data.\n- Allow you to access, correct, or delete your data upon request. To exercise your rights, contact us at info@petsupo.com.';
+
+  @override
+  String get termsUserContentTitle => '4. User Content';
+
+  @override
+  String get termsUserContentBody => '- You retain ownership of any content you upload (e.g., photos, descriptions).\n- By uploading content, you grant PetSupo a non-exclusive, royalty-free license to use, display, and distribute your content within the app.\n- You must not upload content that is illegal, offensive, or violates the rights of others.';
+
+  @override
+  String get termsLiabilityTitle => '5. Limitation of Liability';
+
+  @override
+  String get termsLiabilityBody => 'PetSupo is not liable for any damages arising from your use of the app, including but not limited to interactions with other users or pets. We do not guarantee the accuracy of information provided by other users.';
+
+  @override
+  String get termsGoverningLawTitle => '6. Governing Law';
+
+  @override
+  String get termsGoverningLawBody => 'These Terms and Conditions are governed by the laws of the Republic of Turkey. Any disputes arising from your use of the app will be resolved in the courts of Istanbul, Turkey, unless otherwise required by international law (e.g., GDPR for EU users).';
+
+  @override
+  String get termsChangesTitle => '7. Changes to Terms';
+
+  @override
+  String get termsChangesBody => 'We may update these Terms and Conditions from time to time. You will be notified of significant changes via email or in-app notifications. Continued use of the app after changes constitutes your acceptance of the new terms.';
+
+  @override
+  String get termsContactTitle => '8. Contact Us';
+
+  @override
+  String get termsContactBody => 'If you have any questions or concerns about these Terms and Conditions, please contact us at info@petsupo.com.';
+
+  @override
+  String get pendingBusinessApprovals => 'Pending Business Approvals';
+
+  @override
+  String get invalidRequest => 'Invalid request';
+
+  @override
+  String get noPendingBusinessRequests => 'No pending business requests';
+
+  @override
+  String riskCount(Object count) {
+    return '$count RISK';
+  }
+
+  @override
+  String get verifiedLabel => 'VERIFIED';
+
+  @override
+  String get approve => 'Approve';
+
+  @override
+  String get suspend => 'Suspend';
+
+  @override
+  String get restore => 'Restore';
+
+  @override
+  String get businessApproved => 'Business approved';
+
+  @override
+  String get businessRejected => 'Business rejected';
+
+  @override
+  String get businessSuspended => 'Business suspended';
+
+  @override
+  String get businessRestored => 'Business restored';
+
+  @override
+  String actionFailed(Object error) {
+    return 'Action failed: $error';
+  }
+
+  @override
+  String get adminDashboard => 'Admin Dashboard';
+
+  @override
+  String dashboardError(Object error) {
+    return 'Dashboard Error:\n$error';
+  }
+
+  @override
+  String get platformOverview => 'Platform Overview';
+
+  @override
+  String get adminActivity => 'Admin Activity';
+
+  @override
+  String get developerTools => 'Developer Tools';
+
+  @override
+  String get testTelegramBotApi => 'Test Telegram Bot API';
+
+  @override
+  String get diagnostics => 'Diagnostics';
+
+  @override
+  String get diagnosticsDescription => 'Crash reports & startup diagnostics';
+
+  @override
+  String get telegramUsersDescription => 'View connected Telegram users';
+
+  @override
+  String adminActivityError(Object error) {
+    return 'Activity error:\n$error';
+  }
+
+  @override
+  String get noAdminActivity => 'No admin activity yet';
+
+  @override
+  String get diagnosticReport => 'Diagnostic Report';
+
+  @override
+  String get diagnosticReportNotFound => 'Diagnostic report not found';
+
+  @override
+  String get reopen => 'Reopen';
+
+  @override
+  String get resolve => 'Resolve';
+
+  @override
+  String get ignore => 'Ignore';
+
+  @override
+  String get stackTrace => 'Stack Trace';
+
+  @override
+  String get breadcrumbsLogs => 'Breadcrumbs / Logs';
+
+  @override
+  String get noLogs => 'No logs';
+
+  @override
+  String get rawJson => 'Raw JSON';
+
+  @override
+  String get diagnosticReports => 'Diagnostic Reports';
+
+  @override
+  String get filters => 'Filters';
+
+  @override
+  String get noDiagnosticReports => 'No diagnostic reports';
+
+  @override
+  String reasonValue(Object value) {
+    return 'Reason: $value';
+  }
+
+  @override
+  String featureValue(Object value) {
+    return 'Feature: $value';
+  }
+
+  @override
+  String platformValue(Object value) {
+    return 'Platform: $value';
+  }
+
+  @override
+  String versionValue(Object value) {
+    return 'Version: $value';
+  }
+
+  @override
+  String receivedValue(Object value) {
+    return 'Received: $value';
+  }
+
+  @override
+  String messageValue(Object value) {
+    return 'Message: $value';
+  }
+
+  @override
+  String createdValue(Object value) {
+    return 'Created: $value';
+  }
+
+  @override
+  String get adminActions => 'Admin Actions';
+
+  @override
+  String get moderationCase => 'Moderation Case';
+
+  @override
+  String targetValue(Object value) {
+    return 'Target: $value';
+  }
+
+  @override
+  String reportsCount(Object count) {
+    return 'Reports: $count';
+  }
+
+  @override
+  String riskScoreValue(Object value) {
+    return 'Risk Score: $value';
+  }
+
+  @override
+  String priorityValue(Object value) {
+    return 'Priority: $value';
+  }
+
+  @override
+  String firestoreError(Object error) {
+    return 'Firestore error: $error';
+  }
+
+  @override
+  String get refundReview => 'Refund Review';
+
+  @override
+  String appointmentIdValue(Object value) {
+    return 'Appointment ID: $value';
+  }
+
+  @override
+  String paymentStatusValue(Object value) {
+    return 'Payment Status: $value';
+  }
+
+  @override
+  String refundStatusValue(Object value) {
+    return 'Refund Status: $value';
+  }
+
+  @override
+  String appointmentTimeValue(Object value) {
+    return 'Appointment Time: $value';
+  }
+
+  @override
+  String cancellationTimeValue(Object value) {
+    return 'Cancellation Time: $value';
+  }
+
+  @override
+  String hoursBeforeAppointmentValue(Object value) {
+    return 'Hours Before Appointment: $value';
+  }
+
+  @override
+  String businessValue(Object value) {
+    return 'Business: $value';
+  }
+
+  @override
+  String userValue(Object value) {
+    return 'User: $value';
+  }
+
+  @override
+  String petValue(Object value) {
+    return 'Pet: $value';
+  }
+
+  @override
+  String amountPaidValue(Object value) {
+    return 'Amount Paid: $value';
+  }
+
+  @override
+  String refundReasonValue(Object value) {
+    return 'Refund Reason: $value';
+  }
+
+  @override
+  String refundErrorValue(Object value) {
+    return 'Refund Error: $value';
+  }
+
+  @override
+  String get approveRefund => 'Approve Refund';
+
+  @override
+  String get rejectRefund => 'Reject Refund';
+
+  @override
+  String refundReviewFailed(Object error) {
+    return 'Refund review failed: $error';
+  }
+
+  @override
+  String get note => 'Note';
+
+  @override
+  String refundQueueError(Object error) {
+    return 'Refund queue error: $error';
+  }
+
+  @override
+  String get refundRequests => 'Refund Requests';
+
+  @override
+  String get noPendingRefundRequests => 'No pending refund requests';
+
+  @override
+  String get reportsTitle => 'Reports';
+
+  @override
+  String appointmentValue(Object value) {
+    return 'Appointment: $value';
+  }
+
+  @override
+  String cancelledValue(Object value) {
+    return 'Cancelled: $value';
+  }
+
+  @override
+  String amountValue(Object value) {
+    return 'Amount: $value';
+  }
+
+  @override
+  String statusValue(Object value) {
+    return 'Status: $value';
+  }
+
+  @override
+  String get confirmViolation => 'Confirm Violation';
+
+  @override
+  String get markClean => 'Mark Clean';
+
+  @override
+  String get businessMetrics => 'Business Metrics';
+
+  @override
+  String get businessSearch => 'Business Search';
+
+  @override
+  String get searchBusinessNameHint => 'Search business name...';
+
+  @override
+  String get suspendedLabel => 'Suspended';
+
+  @override
+  String get filterByStatus => 'Filter by status';
+
+  @override
+  String get complaintCenter => 'Complaint Center';
+
+  @override
+  String get noData => 'No data';
+
+  @override
+  String get noComplaintsFound => 'No complaints found';
+
+  @override
+  String categoryValue(Object value) {
+    return 'Category: $value';
+  }
+
+  @override
+  String get complaintDetail => 'Complaint Detail';
+
+  @override
+  String severityValue(Object value) {
+    return 'Severity: $value';
+  }
+
+  @override
+  String get evidence => 'Evidence';
+
+  @override
+  String get dismiss => 'Dismiss';
+
+  @override
+  String get fraudAnalytics => 'Fraud Analytics';
+
+  @override
+  String get errorLoadingAnalytics => 'Error loading analytics';
+
+  @override
+  String get adminMapMonitor => 'Admin Map Monitor';
+
+  @override
+  String get platformMetrics => 'Platform Metrics';
+
+  @override
+  String get noMetricsData => 'No metrics data';
+
+  @override
+  String lastUpdatedValue(Object value) {
+    return 'Last updated: $value';
+  }
+
+  @override
+  String get revenueTitle => 'Revenue';
+
+  @override
+  String get noRevenueData => 'No revenue data';
+
+  @override
+  String get auditLogs => 'Audit Logs';
+
+  @override
+  String verifiedValue(Object value) {
+    return 'Verified: $value';
+  }
+
+  @override
+  String documentNumberValue(Object value) {
+    return 'Document no: $value';
+  }
+
+  @override
+  String get open => 'Open';
+
+  @override
+  String get petTaxiDocument => 'Pet Taxi Document';
+
+  @override
+  String get openPdf => 'Open PDF';
+
+  @override
+  String get suspendedBusinesses => 'Suspended Businesses';
+
+  @override
+  String get noDataReceived => 'No data received';
+
+  @override
+  String get noSuspendedBusinesses => 'No suspended businesses';
+
+  @override
+  String get subscriptionDetails => 'Subscription Details';
+
+  @override
+  String planValue(Object value) {
+    return 'Plan: $value';
+  }
+
+  @override
+  String priceValue(Object value) {
+    return 'Price: $value';
+  }
+
+  @override
+  String get cancelSubscription => 'Cancel Subscription';
+
+  @override
+  String get expireNow => 'Expire Now';
+
+  @override
+  String get makePremium => '⭐ Make Premium';
+
+  @override
+  String get upgradeToPartner => '👑 Upgrade to PetSupo Partner';
+
+  @override
+  String get downgradeToPremium => '⬇ Downgrade to Premium';
+
+  @override
+  String get extendThirtyDays => 'Extend 30 Days';
+
+  @override
+  String get subscriptionManagement => 'Subscription Management';
+
+  @override
+  String get searchUserIdHint => 'Search userId...';
+
+  @override
+  String get loadingSubscription => 'Loading subscription...';
+
+  @override
+  String get feedbackDetail => 'Feedback Detail';
+
+  @override
+  String ratingValue(Object value) {
+    return 'Rating: $value';
+  }
+
+  @override
+  String contextValue(Object value) {
+    return 'Context: $value';
+  }
+
+  @override
+  String get messageLabel => 'Message';
+
+  @override
+  String get userFeedback => 'User Feedback';
+
+  @override
+  String get noPayoutsFound => 'No payouts found';
+
+  @override
+  String get payoutManagement => 'Payout Management';
+
+  @override
+  String get readyLabel => 'Ready';
+
+  @override
+  String get searchPayoutsHint => 'Search order, seller, buyer, ref...';
+
+  @override
+  String get payoutMarkedReady => 'Payout marked as ready';
+
+  @override
+  String get confirmPayout => 'Confirm Payout';
+
+  @override
+  String get bankTransferReference => 'Bank Transfer Reference';
+
+  @override
+  String get bankReferenceHint => 'EFT / FAST / Bank Ref';
+
+  @override
+  String get payoutMarkedPaid => 'Payout marked as paid';
+
+  @override
+  String sellerValue(Object value) {
+    return 'Seller: $value';
+  }
+
+  @override
+  String buyerValue(Object value) {
+    return 'Buyer: $value';
+  }
+
+  @override
+  String referenceValue(Object value) {
+    return 'Ref: $value';
+  }
+
+  @override
+  String get markReady => 'Mark Ready';
+
+  @override
+  String get markPaid => 'Mark Paid';
+
+  @override
+  String openEntity(Object id, Object type) {
+    return 'Open $type: $id';
+  }
+
+  @override
+  String get globalAdminSearchHint => 'Search users, dogs, businesses, reports, complaints...';
+
+  @override
+  String get globalAdminSearch => 'Global Admin Search';
+
+  @override
+  String get notAuthenticated => 'Not authenticated';
+
+  @override
+  String get adoptionRequestNotFound => 'Adoption request not found';
+
+  @override
+  String get backToRequests => 'Back to requests';
+
+  @override
+  String get messageApplicant => 'Message Applicant';
+
+  @override
+  String get unknownPet => 'Unknown Pet';
+
+  @override
+  String get adoptionRequest => 'Adoption Request';
+
+  @override
+  String get waitingForOwnerResponse => 'Waiting for owner response';
+
+  @override
+  String get doneWithIcon => '✅ Done';
+
+  @override
+  String failedWithIcon(Object error) {
+    return '❌ Failed: $error';
+  }
+
+  @override
+  String get availablePets => 'Available Pets';
+
+  @override
+  String get petsCouldNotBeLoaded => 'Pets could not be loaded.';
+
+  @override
+  String get noPetsAvailable => 'No pets available';
+
+  @override
+  String get noImages => 'No images';
+
+  @override
+  String get viewAvailablePets => 'View Available Pets';
+
+  @override
+  String get signInToContinue => 'Sign in to continue';
+
+  @override
+  String get writeReviewFirst => 'Please write a review first';
+
+  @override
+  String get reviewSubmitted => 'Review submitted';
+
+  @override
+  String get reviewExperienceHint => 'Tell others about your experience';
+
+  @override
+  String get submitReview => 'Submit Review';
+
+  @override
+  String get adoptionCenterDetails => 'Adoption Center Details';
+
+  @override
+  String get adoptionServices => 'Adoption Services';
+
+  @override
+  String get petTypes => 'Pet Types';
+
+  @override
+  String get workingDays => 'Working Days';
+
+  @override
+  String get vetCheckIncluded => 'Vet Check Included';
+
+  @override
+  String get homeVisitAvailable => 'Home Visit Available';
+
+  @override
+  String get transportSupport => 'Transport Support';
+
+  @override
+  String get fosterSupport => 'Foster Support';
+
+  @override
+  String get media => 'Media';
+
+  @override
+  String get logo => 'Logo';
+
+  @override
+  String get approvedBusinesses => 'Approved Businesses';
+
+  @override
+  String get searchBusinessesHint => 'Search businesses...';
+
+  @override
+  String get noApprovedBusinesses => 'No approved businesses';
+
+  @override
+  String get basic => 'Basic';
+
+  @override
+  String get disclaimerAccepted => 'Disclaimer accepted';
+
+  @override
+  String get mismatchDetected => '⚠ Mismatch detected';
+
+  @override
+  String get languageCodeTr => 'TR';
+
+  @override
+  String get languageCodeEn => 'EN';
+
+  @override
+  String get riskFlags => 'Risk Flags';
+
+  @override
+  String get noRiskFlags => 'No risk flags';
+
+  @override
+  String get adminNotes => 'Admin Notes';
+
+  @override
+  String get adminNotesHint => 'Add internal moderation notes...';
+
+  @override
+  String get saveNotes => 'Save Notes';
+
+  @override
+  String get adminNotesSaved => 'Admin notes saved ✅';
+
+  @override
+  String saveFailed(Object error) {
+    return 'Save failed: $error';
+  }
+
+  @override
+  String get noQuickRepliesFound => 'No quick replies found';
+
+  @override
+  String get quickReplies => 'Quick Replies';
+
+  @override
+  String get chatFailedToLoad => 'Chat failed to load';
+
+  @override
+  String get noMessagesYet => 'No messages yet';
+
+  @override
+  String get typeMessageHint => 'Type a message...';
+
+  @override
+  String get noRequests => 'No requests';
+
+  @override
+  String phoneValue(Object value) {
+    return 'Phone: $value';
+  }
+
+  @override
+  String genderValue(Object value) {
+    return 'Gender: $value';
+  }
+
+  @override
+  String petStatusUpdated(Object name) {
+    return '$name status updated';
+  }
+
+  @override
+  String statusUpdateFailed(Object error) {
+    return 'Status update failed: $error';
+  }
+
+  @override
+  String get deletePetQuestion => 'Delete pet?';
+
+  @override
+  String deletePetConfirmation(Object name) {
+    return 'Are you sure you want to delete $name? This action cannot be undone.';
+  }
+
+  @override
+  String petDeleted(Object name) {
+    return '$name deleted';
+  }
+
+  @override
+  String deleteFailedWithError(Object error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get searchPetsHint => 'Search pets';
+
+  @override
+  String get noAdoptablePetsYet => 'No adoptable pets yet';
+
+  @override
+  String get addAdoptablePetsDescription => 'Add pets that are available for adoption and manage their status here.';
+
+  @override
+  String failedToLoadPets(Object error) {
+    return 'Failed to load pets:\n$error';
+  }
+
+  @override
+  String breedValue(Object value) {
+    return 'Breed: $value';
+  }
+
+  @override
+  String ageValue(Object value) {
+    return 'Age: $value';
+  }
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get noAdoptionPetsYet => 'No Adoption Pets Yet';
+
+  @override
+  String get addPetsForAdoption => 'Add pets that are available for adoption.';
+
+  @override
+  String get editAdoptionCenter => 'Edit Adoption Center';
+
+  @override
+  String get pleaseAddCoverImage => 'Please add cover image';
+
+  @override
+  String get addGalleryImages => 'Add Gallery Images';
+
+  @override
+  String get petNameLabel => 'Pet Name';
+
+  @override
+  String get ageMonthsLabel => 'Age (months)';
+
+  @override
+  String get visible => 'Visible';
+
+  @override
+  String failedToSetCover(Object error) {
+    return 'Failed to set cover: $error';
+  }
+
+  @override
+  String get uploadPetMedia => 'Upload Pet Media';
+
+  @override
+  String uploadedPercent(Object percent) {
+    return '$percent% uploaded';
+  }
+
+  @override
+  String get noMediaYet => 'No media yet';
+
+  @override
+  String get cover => 'Cover';
+
+  @override
+  String get adoptionCenterInfo => 'Adoption Center Info';
+
+  @override
+  String get centerNameLabel => 'Center name';
+
+  @override
+  String get instagram => 'Instagram';
+
+  @override
+  String get address => 'Address';
+
+  @override
+  String get saveCenterInfo => 'Save Center Info';
+
+  @override
+  String get latestAdoptionApplications => 'Latest adoption applications';
+
+  @override
+  String get viewAll => 'View All';
+
+  @override
+  String get tapForMoreDetails => 'Tap for more details';
+
+  @override
+  String get setAvailable => 'Set Available';
+
+  @override
+  String get setReserved => 'Set Reserved';
+
+  @override
+  String get setAdopted => 'Set Adopted';
+
+  @override
+  String get setPaused => 'Set Paused';
+
+  @override
+  String get clients => 'Clients';
+
+  @override
+  String get searchPetOrOwnerHint => 'Search by pet or owner name';
+
+  @override
+  String get couldNotLoadClients => 'Could not load clients.';
+
+  @override
+  String get addClient => 'Add Client';
+
+  @override
+  String get ownerNameLabel => 'Owner Name';
+
+  @override
+  String get notes => 'Notes';
+
+  @override
+  String get price => 'Price';
+
+  @override
+  String get saveClient => 'Save Client';
+
+  @override
+  String get petOwnerNamesRequired => 'Pet name and owner name are required';
+
+  @override
+  String get clientSaved => 'Client saved';
+
+  @override
+  String lastGrooming(Object date) {
+    return 'Last grooming: $date';
+  }
+
+  @override
+  String get noClientsYet => 'No clients yet';
+
+  @override
+  String get addFirstGroomingClient => 'Add your first grooming client to start tracking visits.';
+
+  @override
+  String get clientProfile => 'Client Profile';
+
+  @override
+  String get openAppointmentBooking => 'Open appointment booking from business page';
+
+  @override
+  String get groomingHistory => 'Grooming History';
+
+  @override
+  String get ownerNotFound => 'Owner not found';
+
+  @override
+  String get signInRequired => 'Sign in required';
+
+  @override
+  String get addGroomingVisit => 'Add Grooming Visit';
+
+  @override
+  String get serviceVisitTitle => 'Service / Visit Title';
+
+  @override
+  String get saveVisit => 'Save Visit';
+
+  @override
+  String get visitSaved => 'Visit saved';
+
+  @override
+  String get editClient => 'Edit Client';
+
+  @override
+  String get salonSchedule => 'Salon Schedule';
+
+  @override
+  String get manageGroomingAppointments => 'Manage grooming appointments';
+
+  @override
+  String amountTry(Object amount) {
+    return '$amount TRY';
+  }
+
+  @override
+  String get uploadGroomingMedia => 'Upload Grooming Media';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get afterPlatformCommission => 'After platform commission';
+
+  @override
+  String get recentAppointments => 'Recent Appointments';
+
+  @override
+  String get latestGroomingRequests => 'Latest grooming requests and sessions';
+
+  @override
+  String appointmentError(Object error) {
+    return 'Appointment error: $error';
+  }
+
+  @override
+  String get noGroomingAppointmentsYet => 'No grooming appointments yet';
+
+  @override
+  String get deleteService => 'Delete Service';
+
+  @override
+  String get deleteServiceConfirmation => 'Are you sure you want to delete this service?';
+
+  @override
+  String get serviceDeleted => 'Service deleted';
+
+  @override
+  String get deleteFailed => 'Delete failed';
+
+  @override
+  String get availabilityUpdated => 'Availability updated';
+
+  @override
+  String updateFailed(Object error) {
+    return 'Update failed: $error';
+  }
+
+  @override
+  String get availability => 'Availability';
+
+  @override
+  String get capacityBookingExplanation => 'Capacity is used by the booking functions to prevent overlapping stays beyond available rooms.';
+
+  @override
+  String get roomCapacity => 'Room Capacity';
+
+  @override
+  String get maximumPetsRooms => 'Maximum pets / rooms';
+
+  @override
+  String currentCapacity(int count) {
+    return 'Current capacity: $count';
+  }
+
+  @override
+  String get saveAvailability => 'Save Availability';
+
+  @override
+  String get checkIn => 'Check In';
+
+  @override
+  String get completeStay => 'Complete Stay';
+
+  @override
+  String alreadyStatus(Object status) {
+    return 'Already $status';
+  }
+
+  @override
+  String bookingUpdated(Object status) {
+    return 'Booking updated: $status';
+  }
+
+  @override
+  String bookingError(Object error) {
+    return 'Booking error: $error';
+  }
+
+  @override
+  String get hotelProfile => 'Hotel Profile';
+
+  @override
+  String get hotelOverview => 'Hotel Overview';
+
+  @override
+  String get pendingRequests => 'Pending Requests';
+
+  @override
+  String get uploadHotelMedia => 'Upload Hotel Media';
+
+  @override
+  String get proposeFinalPrice => 'Propose Final Price';
+
+  @override
+  String get editProposedPrice => 'Edit Proposed Price';
+
+  @override
+  String get notifyCustomerConfirmation => 'This will notify the customer.';
+
+  @override
+  String get finalPrice => 'Final price';
+
+  @override
+  String get customerMustPayBeforeTrip => 'The customer must pay this amount in the app before the trip can start.';
+
+  @override
+  String get sendPrice => 'Send Price';
+
+  @override
+  String get petTaxiOverview => 'Pet Taxi Overview';
+
+  @override
+  String get driverOnline => 'Driver Online';
+
+  @override
+  String get serviceDetailsSaveFailed => 'Service details could not be saved.';
+
+  @override
+  String get priceDeterminedAfterExamination => 'Leave empty if the final price is determined after examination.';
+
+  @override
+  String get editing => 'Editing';
+
+  @override
+  String get setPriceDurationDescription => 'Set the price and estimated duration shown to pet owners.';
+
+  @override
+  String get serviceDetailsBeforeBooking => 'These details help pet owners understand the service before booking.';
+
+  @override
+  String get addCustomService => 'Add custom service';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String get paymentSuccessful => 'Payment successful';
+
+  @override
+  String get paymentCancelled => 'Payment cancelled';
+
+  @override
+  String paymentFailedWithError(Object error) {
+    return 'Payment failed: $error';
+  }
+
+  @override
+  String get appointmentPayment => 'Appointment Payment';
+
+  @override
+  String get done => 'Done';
+
+  @override
+  String get payNow => 'Pay Now';
+
+  @override
+  String get titleLabel => 'Title';
+
+  @override
+  String get noQuickRepliesYet => 'No quick replies yet';
+
+  @override
+  String get quickRepliesDescription => 'Create reusable responses for common client questions.';
+
+  @override
+  String get inbox => 'Inbox';
+
+  @override
+  String inboxError(Object error) {
+    return 'Inbox error:\n$error';
+  }
+
+  @override
+  String get emergency => 'Emergency';
+
+  @override
+  String get noClientMessagesYet => 'No client messages yet';
+
+  @override
+  String get clientMessagesDescription => 'When pet owners contact your clinic, conversations will appear here.';
+
+  @override
+  String get passportNumberFormat => 'Passport number must contain only uppercase letters, numbers, - or /';
+
+  @override
+  String get medicalProfileUpdated => 'Medical profile updated';
+
+  @override
+  String profileUpdateFailed(Object error) {
+    return 'Failed to update profile: $error';
+  }
+
+  @override
+  String get confirmMicrochipNumber => 'Confirm Microchip Number';
+
+  @override
+  String get review => 'Review';
+
+  @override
+  String get saveAnyway => 'Save Anyway';
+
+  @override
+  String get medicalProfile => 'Medical Profile';
+
+  @override
+  String get saveMedicalProfile => 'Save Medical Profile';
+
+  @override
+  String get ownerProfileUpdated => 'Owner profile updated';
+
+  @override
+  String get ownerProfile => 'Owner Profile';
+
+  @override
+  String couldNotSaveVisit(Object error) {
+    return 'Could not save visit: $error';
+  }
+
+  @override
+  String get deleteVisit => 'Delete Visit';
+
+  @override
+  String get deleteVisitConfirmation => 'Delete this visit from the medical record?';
+
+  @override
+  String couldNotDeleteVisit(Object error) {
+    return 'Could not delete visit: $error';
+  }
+
+  @override
+  String get deleteVisitTooltip => 'Delete visit';
+
+  @override
+  String get addVaccine => 'Add Vaccine';
+
+  @override
+  String get vaccine => 'Vaccine';
+
+  @override
+  String get reminder => 'Reminder';
+
+  @override
+  String get notifyBeforeNextDueDate => 'Notify before the next due date';
+
+  @override
+  String get saveVaccine => 'Save Vaccine';
+
+  @override
+  String get patientNotFound => 'Patient not found';
+
+  @override
+  String get editOwnerProfile => 'Edit Owner Profile';
+
+  @override
+  String get ownerEmergencyContactDetails => 'Owner and emergency contact details';
+
+  @override
+  String get editMedicalProfile => 'Edit Medical Profile';
+
+  @override
+  String get clinicalVeterinaryInformation => 'Clinical and veterinary information';
+
+  @override
+  String get visits => 'Visits';
+
+  @override
+  String get vaccines => 'Vaccines';
+
+  @override
+  String get ownerInformation => 'Owner Information';
+
+  @override
+  String get visitsUnavailable => 'Visits unavailable';
+
+  @override
+  String visitsError(Object error) {
+    return 'Visits error: $error';
+  }
+
+  @override
+  String get followUp => 'Follow-up';
+
+  @override
+  String get editVisitTooltip => 'Edit visit';
+
+  @override
+  String get editMedicalNotes => 'Edit Medical Notes';
+
+  @override
+  String get medicalNotes => 'Medical notes';
+
+  @override
+  String get editVaccineTooltip => 'Edit vaccine';
+
+  @override
+  String get deleteVaccineTooltip => 'Delete vaccine';
+
+  @override
+  String get deleteVaccine => 'Delete Vaccine';
+
+  @override
+  String get deleteVaccineConfirmation => 'Are you sure you want to delete this vaccine record?';
+
+  @override
+  String get editVaccine => 'Edit Vaccine';
+
+  @override
+  String get vaccineName => 'Vaccine name';
+
+  @override
+  String get updateVaccine => 'Update Vaccine';
+
+  @override
+  String get completeVaccine => 'Complete Vaccine';
+
+  @override
+  String get clientNote => 'Client note';
+
+  @override
+  String get businessInfo => 'Business Info';
+
+  @override
+  String get clinicName => 'Clinic name';
+
+  @override
+  String get emergencyServiceEnabled => 'Emergency service enabled';
+
+  @override
+  String get saveBusinessInfo => 'Save Business Info';
+
+  @override
+  String get openAppointmentsTab => 'Open Appointments tab from top';
+
+  @override
+  String get viewAllAppointments => 'View all appointments';
+
+  @override
+  String get checkConnectionTryAgain => 'Please check your connection and try again.';
+
+  @override
+  String get editServiceTooltip => 'Edit service';
+
+  @override
+  String get deleteServiceTooltip => 'Delete service';
+
+  @override
+  String get noServicesAddedYet => 'No services added yet';
+
+  @override
+  String get addFirstServiceDescription => 'Add your first service to make it available for pet owners.';
+
+  @override
+  String get servicesPricing => 'Services & Pricing';
+
+  @override
+  String get addService => 'Add Service';
+
+  @override
+  String get noServicesYet => 'No services yet.';
+
+  @override
+  String servicePriceDuration(Object price, Object currency, Object duration) {
+    return '$price $currency • $duration min';
+  }
+
+  @override
+  String get serviceTitle => 'Service title';
+
+  @override
+  String get durationMinutes => 'Duration (min)';
+
+  @override
+  String get requireDeposit => 'Require deposit';
+
+  @override
+  String get depositAmount => 'Deposit amount (₺)';
+
+  @override
+  String get featured => 'Featured';
+
+  @override
+  String get active => 'Active';
+
+  @override
+  String get photoUploadedSuccessfully => 'Photo uploaded successfully';
+
+  @override
+  String get photoDeleted => 'Photo deleted';
+
+  @override
+  String get coverImageUpdated => 'Cover image updated';
+
+  @override
+  String get galleryManagement => 'Gallery Management';
+
+  @override
+  String get coverImage => 'Cover Image';
+
+  @override
+  String get tapToChangeCover => 'Tap to change cover';
+
+  @override
+  String get uploadCoverImage => 'Upload cover image';
+
+  @override
+  String get tapToUploadClinicCover => 'Tap to upload clinic cover photo';
+
+  @override
+  String get galleryPhotos => 'Gallery Photos';
+
+  @override
+  String get noGalleryPhotosYet => 'No gallery photos yet';
+
+  @override
+  String get uploadClinicPhotosDescription => 'Upload clinic photos to improve trust and visibility.';
+
+  @override
+  String get uploadFirstPhoto => 'Upload First Photo';
+
+  @override
+  String get dragToReorderGallery => 'Drag to reorder gallery photos';
+
+  @override
+  String get patients => 'Patients';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get patientRecords => 'Patient Records';
+
+  @override
+  String shownCount(int count) {
+    return '$count shown';
+  }
+
+  @override
+  String get searchPetOwnerBreed => 'Search pet, owner, or breed';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String preVisitSettingsLoadFailed(Object error) {
+    return 'Failed to load pre-visit settings: $error';
+  }
+
+  @override
+  String get preVisitSettingsSaved => 'Pre-visit form settings saved';
+
+  @override
+  String settingsSaveFailed(Object error) {
+    return 'Failed to save settings: $error';
+  }
+
+  @override
+  String get preVisitForms => 'Pre-visit forms';
+
+  @override
+  String get servicePreVisitForms => 'Service pre-visit forms';
+
+  @override
+  String get serviceMedicalIntakeDescription => 'Each service can have its own medical intake questions.';
+
+  @override
+  String get servicesCouldNotBeLoadedPeriod => 'Services could not be loaded.';
+
+  @override
+  String get noActiveServicesForForms => 'No active services yet. Add services before creating forms.';
+
+  @override
+  String get enableForService => 'Enable for this service';
+
+  @override
+  String get onlyServiceAsksQuestions => 'Only this service will ask these questions.';
+
+  @override
+  String get noQuestionsForService => 'No questions for this service yet.';
+
+  @override
+  String get question => 'Question';
+
+  @override
+  String get questionExample => 'e.g. Has your pet eaten today?';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get questionType => 'Question type';
+
+  @override
+  String get textType => 'Text';
+
+  @override
+  String get longTextType => 'Long text';
+
+  @override
+  String get yesNoType => 'Yes / No';
+
+  @override
+  String get singleChoice => 'Single choice';
+
+  @override
+  String get multipleChoice => 'Multiple choice';
+
+  @override
+  String get numberType => 'Number';
+
+  @override
+  String get requiredLabel => 'Required';
+
+  @override
+  String get options => 'Options';
+
+  @override
+  String optionNumber(int number) {
+    return 'Option $number';
+  }
+
+  @override
+  String get addOption => 'Add option';
+
+  @override
+  String get clinicSchedule => 'Clinic Schedule';
+
+  @override
+  String get appointments => 'Appointments';
+
+  @override
+  String totalCount(int count) {
+    return '$count total';
+  }
+
+  @override
+  String get services => 'Services';
+
+  @override
+  String get addServiceFlowComingNext => 'Add service flow coming next';
+
+  @override
+  String get clinicServices => 'Clinic Services';
+
+  @override
+  String get manageVisibleVetServices => 'Manage visible veterinary services';
+
+  @override
+  String get clinicSettings => 'Clinic Settings';
+
+  @override
+  String get emergencyAvailabilitySaveFailed => 'Failed to save emergency availability';
+
+  @override
+  String managementNotAvailable(Object label) {
+    return '$label management is not available yet';
+  }
+
+  @override
+  String loadError(Object error) {
+    return 'Load error: $error';
+  }
+
+  @override
+  String get workingHoursSaved => 'Working hours saved';
+
+  @override
+  String saveError(Object error) {
+    return 'Save error: $error';
+  }
+
+  @override
+  String get workingHours => 'Working Hours';
+
+  @override
+  String get clinicWorkingHours => 'Clinic Working Hours';
+
+  @override
+  String get manageOpeningDays => 'Manage opening days and appointment availability';
+
+  @override
+  String get editGroomyProfile => 'Edit Groomy Profile';
+
+  @override
+  String get groomyDetails => 'Groomy Details';
+
+  @override
+  String get homeService => 'Home Service';
+
+  @override
+  String get pickupService => 'Pickup Service';
+
+  @override
+  String get photos => 'Photos';
+
+  @override
+  String get complete => 'Complete';
+
+  @override
+  String get awaitingPayment => 'Awaiting payment';
+
+  @override
+  String appointmentUpdated(Object status) {
+    return 'Appointment updated: $status';
+  }
+
+  @override
+  String get galleryComingSoon => 'Gallery coming soon';
+
+  @override
+  String get editHotelProfile => 'Edit Hotel Profile';
+
+  @override
+  String pricePerNight(Object price) {
+    return '$price₺ / night';
+  }
+
+  @override
+  String bookStayAt(Object hotel) {
+    return 'Book stay • $hotel';
+  }
+
+  @override
+  String get hotelCareNotesHint => 'Feeding, medication, or care notes';
+
+  @override
+  String get requestBooking => 'Request Booking';
+
+  @override
+  String get checkoutAfterCheckin => 'Check-out must be after check-in';
+
+  @override
+  String get hotelBookingRequestSent => 'Your hotel booking request was sent.';
+
+  @override
+  String get noGalleryImagesYet => 'No gallery images yet';
+
+  @override
+  String get petHotelDetails => 'Pet Hotel Details';
+
+  @override
+  String get amenities => 'Amenities';
+
+  @override
+  String get petTaxiDetails => 'Pet Taxi Details';
+
+  @override
+  String get petTaxiManualReviewNotice => 'Your Pet Taxi application will not be published until documents are manually reviewed and approved.';
+
+  @override
+  String get transportationLawNotice => 'Transportation laws may vary by city/country. Businesses are responsible for complying with local transportation, insurance, and tax regulations.';
+
+  @override
+  String get legalDocumentsPrivacyNotice => 'Legal documents are stored for business owner and admin review only. They are not shown to public users.';
+
+  @override
+  String get savePetTaxiDetails => 'Save Pet Taxi Details';
+
+  @override
+  String get driverVehicle => 'Driver & Vehicle';
+
+  @override
+  String get vehicleType => 'Vehicle type';
+
+  @override
+  String get preview => 'Preview';
+
+  @override
+  String get editPetShopProfile => 'Edit PetShop Profile';
+
+  @override
+  String get petShopDetails => 'PetShop Details';
+
+  @override
+  String get shopTypes => 'Shop Types';
+
+  @override
+  String get priceLevel => 'Price Level';
+
+  @override
+  String get low => 'Low';
+
+  @override
+  String get mid => 'Mid';
+
+  @override
+  String get high => 'High';
+
+  @override
+  String get delivery => 'Delivery';
+
+  @override
+  String get hasDelivery => 'Has Delivery';
+
+  @override
+  String get offers => 'Offers';
+
+  @override
+  String get hasOffers => 'Has Offers';
+
+  @override
+  String get rejectedBusinesses => 'Rejected Businesses';
+
+  @override
+  String get noRejectedBusinesses => 'No rejected businesses';
+
+  @override
+  String get inheritedFromRegistration => 'Inherited from base registration';
+
+  @override
+  String get veterinaryDetails => 'Veterinary Details';
+
+  @override
+  String get licenseReviewNotice => 'This number will be reviewed during verification.';
+
+  @override
+  String get licenseExpiryDateNumbered => '12. License Expiry Date';
+
+  @override
+  String get workingDaysNumbered => '20. Working Days';
+
+  @override
+  String get acceptedAnimalTypesNumbered => '24. Accepted Animal Types';
+
+  @override
+  String get confirmInformationAccurate => '41. I confirm that the information provided is accurate';
+
+  @override
+  String get agreeDisplayInformation => '42. I agree to display my information in the app';
+
+  @override
+  String get agreeDisplayReviews => '43. I agree to user reviews being displayed';
+
+  @override
+  String get acceptPartnershipTerms => '44. I accept PetSupo partnership terms';
+
+  @override
+  String get submitVeterinaryDetails => 'Submit Veterinary Details';
+
+  @override
+  String get adoptionCenterTemporary => 'Adoption Center (TEMP)';
+
+  @override
+  String reviewsCountParenthesized(Object count) {
+    return ' ($count reviews)';
+  }
+
+  @override
+  String get messageSendingTimedOut => 'Message sending timed out';
+
+  @override
+  String messageFailed(Object error) {
+    return 'Message failed: $error';
+  }
+
+  @override
+  String get chatCreating => 'Chat is creating...';
+
+  @override
+  String get startChatting => 'Start chatting 👋';
+
+  @override
+  String get writeMessageHint => 'Write message...';
+
+  @override
+  String get noChatsYet => 'No chats yet';
+
+  @override
+  String get startChattingWithPetOwners => 'Start chatting with pet owners and make new friends for your pet 👋';
+
+  @override
+  String get failedToLoadChats => 'Failed to load chats';
+
+  @override
+  String get personalChatsCouldNotLoad => 'Personal chats could not be loaded.';
+
+  @override
+  String get businessConversations => 'Business Conversations';
+
+  @override
+  String get signInToUseChats => 'Sign in to use chats';
+
+  @override
+  String get chats => 'Chats';
+
+  @override
+  String get connectWithPetOwners => 'Connect with pet owners';
+
+  @override
+  String get noChatsFound => 'No chats found';
+
+  @override
+  String get tryAnotherKeyword => 'Try another keyword or username.';
+
+  @override
+  String get messages => 'Messages';
+
+  @override
+  String get failedToLoadMessages => 'Failed to load messages';
+
+  @override
+  String get noConversationsYet => 'No conversations yet';
+
+  @override
+  String get userInboxEmptyDescription => 'When you contact a business,\nyour conversations will appear here.';
+
+  @override
+  String get medicalRecords => 'Medical Records';
+
+  @override
+  String get vaccinesVisitsAndTreatments => 'Vaccines, visits and treatments';
+
+  @override
+  String amountInTry(Object amount) {
+    return '$amount TRY';
+  }
+
+  @override
   String get reportDialogTitle => 'Report';
 
   @override
@@ -5821,4 +8242,509 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get suspendedAccountSignOut => 'Sign out';
+
+  @override
+  String get payoutEligibleTab => 'Eligible';
+
+  @override
+  String get payoutBatchesTab => 'Batches';
+
+  @override
+  String get payoutExceptionsTab => 'Exceptions';
+
+  @override
+  String get payoutSelectAllEligible => 'Select all eligible sellers';
+
+  @override
+  String get payoutCreateBatch => 'Create payout batch';
+
+  @override
+  String payoutBatchCreated(Object batchNumber) {
+    return 'Batch $batchNumber created';
+  }
+
+  @override
+  String payoutOperationFailed(Object details) {
+    return 'Payout operation failed. $details';
+  }
+
+  @override
+  String get payoutLoadFailed => 'Payout data could not be loaded.';
+
+  @override
+  String get payoutNoExceptions => 'No payout exceptions';
+
+  @override
+  String get payoutDateFilter => 'Payment period';
+
+  @override
+  String get payoutToday => 'Today';
+
+  @override
+  String get payoutYesterday => 'Yesterday';
+
+  @override
+  String get payoutThisWeek => 'This week';
+
+  @override
+  String get payoutLastWeek => 'Last week';
+
+  @override
+  String get payoutThisMonth => 'This month';
+
+  @override
+  String get payoutValidBankOnly => 'Valid bank account';
+
+  @override
+  String get payoutUnknownSeller => 'Seller information unavailable';
+
+  @override
+  String get payoutBankMissing => 'Bank missing';
+
+  @override
+  String get payoutIncludedOrders => 'Included orders';
+
+  @override
+  String get payoutPeriod => 'Period';
+
+  @override
+  String get payoutGrossTotal => 'Gross total';
+
+  @override
+  String get payoutCommissionTotal => 'Commission total';
+
+  @override
+  String get payoutNetPayable => 'Net payable';
+
+  @override
+  String get payoutNoBatches => 'No payout batches';
+
+  @override
+  String get payoutSellers => 'sellers';
+
+  @override
+  String get payoutExportXlsx => 'Export XLSX';
+
+  @override
+  String get payoutValid => 'Valid';
+
+  @override
+  String get payoutBlocked => 'Blocked';
+
+  @override
+  String get payoutMissingBusiness => 'Missing business';
+
+  @override
+  String get payoutMissingAccountHolder => 'Missing account holder';
+
+  @override
+  String get payoutMissingIban => 'Missing IBAN';
+
+  @override
+  String get payoutInvalidIban => 'Invalid IBAN';
+
+  @override
+  String get payoutMissingBankName => 'Missing bank name';
+
+  @override
+  String get payoutNonPositiveAmount => 'Net amount must be positive';
+
+  @override
+  String get payoutSettlementIncomplete => 'Settlement incomplete';
+
+  @override
+  String get payoutCommissionUnknown => 'Commission requires review';
+
+  @override
+  String get payoutCustomerPaid => 'Customer paid';
+
+  @override
+  String get payoutSellerNetNotCalculated => 'Seller net: not calculated';
+
+  @override
+  String get payoutExcludedFromPayout => 'Excluded from payout';
+
+  @override
+  String get payoutRefundedOrCancelled => 'Refunded or cancelled order';
+
+  @override
+  String get payoutAlreadyBatched => 'Already assigned to a batch';
+
+  @override
+  String get payoutAlreadyPaid => 'Already paid';
+
+  @override
+  String get payoutUnsupportedCurrency => 'Unsupported currency';
+
+  @override
+  String get payoutIneligible => 'Payout is not eligible';
+
+  @override
+  String get payoutStatusFilter => 'Payout status';
+
+  @override
+  String get payoutSettlementFilter => 'Settlement status';
+
+  @override
+  String get payoutBatchFilter => 'Batch assignment';
+
+  @override
+  String get payoutIncludedInBatch => 'Included in batch';
+
+  @override
+  String get payoutNotIncludedInBatch => 'Not included in batch';
+
+  @override
+  String get payoutSellerFilter => 'Seller / business';
+
+  @override
+  String get payoutBankFilter => 'Bank';
+
+  @override
+  String get payoutMinimumAmount => 'Minimum payout';
+
+  @override
+  String get payoutMaximumAmount => 'Maximum payout';
+
+  @override
+  String get payoutCustomRange => 'Custom range';
+
+  @override
+  String get financeOverviewTab => 'Overview';
+
+  @override
+  String get financeWaitingTab => 'Waiting';
+
+  @override
+  String get financeEligibleSellers => 'Eligible sellers';
+
+  @override
+  String get financeEligibleRecords => 'Eligible records';
+
+  @override
+  String get financeWaitingSellers => 'Waiting sellers';
+
+  @override
+  String get financeWaitingRecords => 'Waiting records';
+
+  @override
+  String get financeWaitingAmount => 'Waiting amount';
+
+  @override
+  String get financeBlockedRecords => 'Blocked records';
+
+  @override
+  String get financeExceptionCount => 'Exceptions';
+
+  @override
+  String get financeTodaySales => 'Today\'s sales';
+
+  @override
+  String get financeTodayCommission => 'Today\'s commission';
+
+  @override
+  String get financeTodayRefunds => 'Today\'s refunds';
+
+  @override
+  String get financeTodayEligible => 'Today\'s eligible';
+
+  @override
+  String get financeTodayPaid => 'Today\'s paid';
+
+  @override
+  String get financeOutstandingLiability => 'Outstanding liability';
+
+  @override
+  String get financeMonthlyPlatformRevenue => 'Monthly platform revenue';
+
+  @override
+  String get financeNextEligibilityDate => 'Next eligible date';
+
+  @override
+  String get financeDaysRemaining => 'Days remaining';
+
+  @override
+  String get financeOldestWaitingRecord => 'Oldest waiting record';
+
+  @override
+  String get financeAmountEligibleNext => 'Amount becoming eligible next';
+
+  @override
+  String get financeSendForReview => 'Send for review';
+
+  @override
+  String get financeApproveBatch => 'Approve';
+
+  @override
+  String get financeRejectBatch => 'Reject batch';
+
+  @override
+  String get sellerFinanceTitle => 'Finance & Earnings';
+
+  @override
+  String get sellerFinanceDetails => 'Details';
+
+  @override
+  String get sellerFinanceAvailable => 'Available balance';
+
+  @override
+  String get sellerFinanceWaiting => 'Waiting balance';
+
+  @override
+  String get sellerFinanceProcessing => 'Pending / processing';
+
+  @override
+  String get sellerFinancePaidThisMonth => 'Paid this month';
+
+  @override
+  String get sellerFinanceTotalEarnings => 'Total earnings';
+
+  @override
+  String get sellerFinanceBlocked => 'Blocked amount';
+
+  @override
+  String get sellerFinanceBankBlocked => 'Your payout is blocked because your bank account information is incomplete.';
+
+  @override
+  String get sellerFinanceUpdateBank => 'Update bank account';
+
+  @override
+  String get sellerFinanceWaitingExplanation => 'Earnings become eligible 21 days after successful payment.';
+
+  @override
+  String get sellerFinanceWaitingSchedule => 'Waiting schedule';
+
+  @override
+  String get sellerFinanceLastPayout => 'Last payout';
+
+  @override
+  String get sellerFinanceOrders => 'orders';
+
+  @override
+  String get sellerFinanceAppointments => 'appointments';
+
+  @override
+  String get sellerFinanceBookings => 'bookings';
+
+  @override
+  String get sellerFinanceRides => 'rides';
+
+  @override
+  String get sellerFinanceRequests => 'requests';
+
+  @override
+  String get financeRecommendedAction => 'Recommended action';
+
+  @override
+  String get financeOpenSeller => 'Open seller';
+
+  @override
+  String get financeTomorrowEligible => 'Tomorrow becoming eligible';
+
+  @override
+  String get financeNext7Days => 'Next 7 days';
+
+  @override
+  String get financeNext30Days => 'Next 30 days';
+
+  @override
+  String get financeEstimatedPayable => 'Estimated payable';
+
+  @override
+  String get financeStartProcessing => 'Start processing';
+
+  @override
+  String get sellerFinanceEstimatedNext => 'Estimated next payout';
+
+  @override
+  String get sellerFinanceTimeline => 'Payout timeline';
+
+  @override
+  String get sellerFinanceTimelineValue => 'Paid → Waiting (21 days) → Eligible → Included in batch → Transferred → Completed';
+
+  @override
+  String get sellerFinanceEligibleRecords => 'Eligible records';
+
+  @override
+  String get sellerFinancePayoutHistory => 'Payout history';
+
+  @override
+  String get sellerFinanceExceptions => 'Exceptions';
+
+  @override
+  String get financeMarkFailed => 'Mark failed';
+
+  @override
+  String get financeFailureReason => 'Failure reason';
+
+  @override
+  String get userProfileCreatorProgram => 'Creator Program';
+
+  @override
+  String get userProfileOpenCreatorDashboard => 'Creator Dashboard';
+
+  @override
+  String get creatorDashboardTitle => 'Creator Dashboard';
+
+  @override
+  String get creatorWelcomeBack => 'Welcome back';
+
+  @override
+  String get creatorLevelLabel => 'Creator Level';
+
+  @override
+  String get creatorCurrentCampaign => 'Current campaign';
+
+  @override
+  String get creatorReferralCodeLabel => 'Referral Code';
+
+  @override
+  String get creatorReferralLinkLabel => 'Referral Link';
+
+  @override
+  String get creatorCopyCode => 'Copy Code';
+
+  @override
+  String get creatorCopyLink => 'Copy Link';
+
+  @override
+  String get creatorReferralCodeCopied => 'Referral code copied';
+
+  @override
+  String get creatorReferralLinkCopied => 'Referral link copied';
+
+  @override
+  String get creatorQualifiedUsers => 'Qualified Users';
+
+  @override
+  String get creatorVerifiedPartners => 'Verified Partners';
+
+  @override
+  String get creatorPendingRewards => 'Pending Rewards';
+
+  @override
+  String get creatorPaidRewards => 'Paid Rewards';
+
+  @override
+  String get creatorRecentActivity => 'Recent Activity';
+
+  @override
+  String get creatorNoActivityYet => 'No activity yet';
+
+  @override
+  String get creatorNoActivityMessage => 'Once someone uses your referral link, activity will show up here.';
+
+  @override
+  String get creatorUpcomingPayout => 'Upcoming Payout';
+
+  @override
+  String get creatorEstimatedPayout => 'Estimated payout';
+
+  @override
+  String get creatorPayoutDate => 'Payout date';
+
+  @override
+  String get creatorPayoutMethod => 'Payout method';
+
+  @override
+  String get creatorOpenFullDashboard => 'Open Full Dashboard';
+
+  @override
+  String get creatorOpenFullDashboardHint => 'See detailed charts, analytics and full reporting on the web';
+
+  @override
+  String get creatorPerformanceOverview => 'Performance Overview';
+
+  @override
+  String get creatorTotalClicks => 'Total Clicks';
+
+  @override
+  String get creatorRegistrations => 'Registrations';
+
+  @override
+  String get creatorConversionRate => 'Conversion Rate';
+
+  @override
+  String get creatorRewardBreakdown => 'Reward Breakdown';
+
+  @override
+  String get creatorPayoutHistory => 'Payout History';
+
+  @override
+  String get creatorAnalytics => 'Analytics';
+
+  @override
+  String get creatorReferralsTab => 'Referrals';
+
+  @override
+  String get creatorRewardsTab => 'Rewards';
+
+  @override
+  String get creatorFilters => 'Filters';
+
+  @override
+  String get creatorExport => 'Export';
+
+  @override
+  String get creatorTimeframe7d => '7 days';
+
+  @override
+  String get creatorTimeframe30d => '30 days';
+
+  @override
+  String get creatorTimeframe90d => '90 days';
+
+  @override
+  String get creatorTimeframe12m => '12 months';
+
+  @override
+  String get creatorSignInRequiredTitle => 'Sign in required';
+
+  @override
+  String get creatorSignInRequiredMessage => 'Sign in to view your Creator Dashboard';
+
+  @override
+  String get creatorAccessDeniedTitle => 'Creator access required';
+
+  @override
+  String get creatorAccessDeniedMessage => 'This dashboard is only available to approved PetSupo creators.';
+
+  @override
+  String get creatorGoToSignIn => 'Go to sign in';
+
+  @override
+  String get creatorBadgesAchievements => 'Badges & Achievements';
+
+  @override
+  String get creatorProgressToNextLevelPrefix => 'Progress to';
+
+  @override
+  String get creatorTotalEarned => 'Total earned';
+
+  @override
+  String get creatorShareYourLink => 'Share Your Referral Link';
+
+  @override
+  String get creatorStatusPaid => 'Paid';
+
+  @override
+  String get creatorStatusScheduled => 'Scheduled';
+
+  @override
+  String get creatorExportComingSoon => 'Export is coming soon';
+
+  @override
+  String get creatorFiltersComingSoon => 'Advanced filters are coming soon';
+
+  @override
+  String get creatorStatusLabel => 'Status';
+
+  @override
+  String get creatorStatusActive => 'Active';
+
+  @override
+  String get creatorStatusInactive => 'Inactive';
+
+  @override
+  String get creatorSampleData => 'Sample data';
 }

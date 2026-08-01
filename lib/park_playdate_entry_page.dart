@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../app_state.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ParkPlaydateEntryView extends StatelessWidget {
   final Map<String, dynamic> park;
@@ -17,6 +18,7 @@ class ParkPlaydateEntryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Material(
       color: Colors.black.withOpacity(0.35),
       child: SafeArea(
@@ -42,7 +44,7 @@ class ParkPlaydateEntryView extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Saved Parks',
+                      l10n.dogParkSavedParksTitle,
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -54,7 +56,7 @@ class ParkPlaydateEntryView extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 Text(
-                  'Playdate will be scheduled at:',
+                  l10n.playdateScheduledAtLabel,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.black54,
@@ -100,9 +102,9 @@ class ParkPlaydateEntryView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      'Continue to scheduling',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    child: Text(
+                      l10n.continueToScheduling,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),

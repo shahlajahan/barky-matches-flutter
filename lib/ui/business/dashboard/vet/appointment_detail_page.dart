@@ -165,7 +165,7 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
       children: [
         const SizedBox(height: 20),
         Text(
-          'Pre-visit form',
+          AppLocalizations.of(context)!.preVisitForm,
           style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 10),

@@ -1146,9 +1146,9 @@ class _AdoptionCenterDetailsOverlayState
         tabs: [
           Tab(text: l10n.overviewTitle),
           Tab(text: l10n.servicesTitle),
-          const Tab(text: 'Available Pets'),
+          Tab(text: l10n.availablePets),
           Tab(text: l10n.reviewsTitle),
-          const Tab(text: 'Contact'),
+          Tab(text: l10n.contactTitle),
         ],
       ),
     );
@@ -1501,7 +1501,7 @@ class _AdoptionCenterDetailsOverlayState
           );
           return Center(
             child: Text(
-              'Pets could not be loaded.',
+              AppLocalizations.of(context)!.petsCouldNotBeLoaded,
               style: AppTheme.caption(color: Colors.black54),
             ),
           );
@@ -1558,7 +1558,7 @@ class _AdoptionCenterDetailsOverlayState
         if (pets.isEmpty) {
           return Center(
             child: Text(
-              'No pets available',
+              AppLocalizations.of(context)!.noPetsAvailable,
               style: AppTheme.caption(color: Colors.black54),
             ),
           );
@@ -1798,7 +1798,9 @@ class _AdoptionCenterDetailsOverlayState
         }.where((e) => e.trim().isNotEmpty).toList();
 
         if (images.isEmpty) {
-          return const Center(child: Text('No images'));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.noImages),
+          );
         }
 
         final media = images
@@ -2005,7 +2007,7 @@ class _AdoptionCenterDetailsOverlayState
                                   ),
                                 ),
                                 child: Text(
-                                  'View Available Pets',
+                                  AppLocalizations.of(context)!.viewAvailablePets,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
@@ -2078,14 +2080,20 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
     if (user == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Sign in to continue')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.signInToContinue),
+        ),
+      );
       return;
     }
 
     final text = _reviewController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please write a review first')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.writeReviewFirst),
+        ),
       );
       return;
     }
@@ -2130,7 +2138,9 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Review submitted')));
+      ).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.reviewSubmitted)),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2181,8 +2191,10 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                   controller: _reviewController,
                   focusNode: _reviewFocusNode,
                   maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: 'Tell others about your experience',
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(
+                      context,
+                    )!.reviewExperienceHint,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -2196,7 +2208,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Submit Review'),
+                        : Text(AppLocalizations.of(context)!.submitReview),
                   ),
                 ),
               ],

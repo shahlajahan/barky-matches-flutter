@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:barky_matches_fixed/services/image_upload_service.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetHotelGalleryTab extends StatefulWidget {
   final String businessId;
@@ -210,7 +211,9 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
                     child: ElevatedButton.icon(
                       onPressed: _uploading ? null : _pickAndUploadMultiple,
                       icon: const Icon(Icons.add_photo_alternate),
-                      label: const Text("Upload Hotel Media"),
+                      label: Text(
+                        AppLocalizations.of(context)!.uploadHotelMedia,
+                      ),
                     ),
                   ),
 
@@ -229,7 +232,9 @@ class _PetHotelGalleryTabState extends State<PetHotelGalleryTab> {
 
             Expanded(
               child: media.isEmpty
-                  ? const Center(child: Text("No media yet"))
+                  ? Center(
+                      child: Text(AppLocalizations.of(context)!.noMediaYet),
+                    )
                   : GridView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: media.length,
@@ -319,9 +324,9 @@ class _GalleryCard extends StatelessWidget {
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
-                        "Cover",
-                        style: TextStyle(color: Colors.white),
+                      child: Text(
+                        AppLocalizations.of(context)!.cover,
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
                   ),

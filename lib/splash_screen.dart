@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'welcome_page.dart';
 
@@ -90,10 +91,10 @@ class _SplashScreenState extends State<SplashScreen>
             const SizedBox(height: 24),
             FadeTransition(
               opacity: _textAnimation,
-              child: const Text(
-                'See who’s nearby 👀!',
+              child: Text(
+                AppLocalizations.of(context)!.seeWhosNearby,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFFFFC107),

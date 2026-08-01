@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +15,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_patients_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_settings_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_gallery_management_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -87,11 +89,9 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         const SizedBox(height: 10),
         _profileCard(context, profile, contact),
 
-        const SizedBox(height: 20),
-
-        /// ================= REVENUE =================
-        _KeepAliveWrapper(
-          child: RepaintBoundary(child: _buildRevenueCard(context)),
+        SellerFinanceSummarySection(
+          businessId: businessId,
+          recordLabel: AppLocalizations.of(context)!.sellerFinanceAppointments,
         ),
 
         const SizedBox(height: 20),
@@ -247,12 +247,18 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
                       child: TextButton(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Open Appointments tab from top"),
+                            SnackBar(
+                              content: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!.openAppointmentsTab,
+                              ),
                             ),
                           );
                         },
-                        child: const Text("View all appointments"),
+                        child: Text(
+                          AppLocalizations.of(context)!.viewAllAppointments,
+                        ),
                       ),
                     ),
                   ],
@@ -276,7 +282,7 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
                 context.read<AppState>().openAddService();
               },
               icon: const Icon(LucideIcons.plus, size: 18),
-              label: const Text("Add"),
+              label: Text(AppLocalizations.of(context)!.add),
             ),
           ],
         ),
@@ -422,12 +428,12 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Services couldn't be loaded",
+                  AppLocalizations.of(context)!.servicesCouldNotBeLoaded,
                   style: AppTheme.body(weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Please check your connection and try again.",
+                  AppLocalizations.of(context)!.checkConnectionTryAgain,
                   style: AppTheme.caption(),
                 ),
               ],
@@ -528,9 +534,9 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Net Revenue',
-                style: TextStyle(color: Colors.white70),
+              Text(
+                AppLocalizations.of(context)!.vetRevenueNetRevenue,
+                style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 6),
               Text(
@@ -542,9 +548,9 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'After platform commission',
-                style: TextStyle(color: Colors.white60, fontSize: 12),
+              Text(
+                AppLocalizations.of(context)!.afterPlatformCommission,
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
               ),
               const SizedBox(height: 12),
               _revenueRow('Gross Sales', grossSales),
@@ -676,7 +682,7 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
               ),
               const SizedBox(width: 8),
               IconButton(
-                tooltip: "Edit service",
+                tooltip: AppLocalizations.of(context)!.editServiceTooltip,
                 constraints: const BoxConstraints.tightFor(
                   width: 48,
                   height: 48,
@@ -691,7 +697,7 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
                 icon: const Icon(LucideIcons.edit2, size: 19),
               ),
               IconButton(
-                tooltip: "Delete service",
+                tooltip: AppLocalizations.of(context)!.deleteServiceTooltip,
                 constraints: const BoxConstraints.tightFor(
                   width: 48,
                   height: 48,
@@ -722,16 +728,16 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Delete Service"),
-        content: const Text("Are you sure you want to delete this service?"),
+        title: Text(AppLocalizations.of(context)!.deleteService),
+        content: Text(AppLocalizations.of(context)!.deleteServiceConfirmation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete"),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -749,17 +755,17 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Service deleted")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.serviceDeleted)),
+      );
     } catch (e) {
       debugPrint('❌ deleteService error: $e');
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Delete failed")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.deleteFailed)),
+      );
     }
   }
 
@@ -803,7 +809,7 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
                   );
                 },
                 icon: const Icon(LucideIcons.edit2, size: 18),
-                label: const Text("Edit"),
+                label: Text(AppLocalizations.of(context)!.edit),
               ),
             ],
           ),
@@ -942,8 +948,14 @@ class _AppointmentItem extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text("Breed: $petBreed", style: AppTheme.caption()),
-                    Text("Age: $petAge", style: AppTheme.caption()),
+                    Text(
+                      AppLocalizations.of(context)!.breedValue(petBreed),
+                      style: AppTheme.caption(),
+                    ),
+                    Text(
+                      AppLocalizations.of(context)!.ageValue(petAge),
+                      style: AppTheme.caption(),
+                    ),
                   ],
                 ),
               ),
@@ -995,7 +1007,7 @@ class _AppointmentItem extends StatelessWidget {
                       _approvalTargetStatus(data),
                       data,
                     ),
-                    child: const Text("Accept"),
+                    child: Text(AppLocalizations.of(context)!.accept),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -1003,7 +1015,7 @@ class _AppointmentItem extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () =>
                         _updateAppointmentStatus(context, id, 'rejected', data),
-                    child: const Text("Reject"),
+                    child: Text(AppLocalizations.of(context)!.reject),
                   ),
                 ),
               ],
@@ -1012,7 +1024,9 @@ class _AppointmentItem extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(
-                "Already ${status.toUpperCase()}",
+                AppLocalizations.of(
+                  context,
+                )!.alreadyStatus(status.toUpperCase()),
                 style: const TextStyle(
                   color: Colors.grey,
                   fontWeight: FontWeight.w500,
@@ -1061,9 +1075,11 @@ class _AppointmentItem extends StatelessWidget {
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Update failed: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.updateFailed('$e')),
+        ),
+      );
     }
   }
 
@@ -1195,12 +1211,12 @@ class _ServicesEmptyState extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "No services added yet",
+                  AppLocalizations.of(context)!.noServicesAddedYet,
                   style: AppTheme.body(weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Add your first service to make it available for pet owners.",
+                  AppLocalizations.of(context)!.addFirstServiceDescription,
                   style: AppTheme.caption().copyWith(height: 1.4),
                 ),
               ],

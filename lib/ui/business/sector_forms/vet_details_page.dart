@@ -1,12 +1,15 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../models/business_draft.dart';
 import '../../../theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -300,21 +303,117 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
   }
 
   Future<void> _pickLicenseDocument() async {
+    debugPrint('🖱️ Upload button pressed: field=vet_license');
+    if (kIsWeb) {
+      await _pickWebLicenseDocument();
+      return;
+    }
+
+    debugPrint('📂 File picker opened: field=vet_license platform=native');
     final xf = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
     );
-    if (xf == null) return;
+    if (xf == null) {
+      debugPrint('↩️ File picker closed without selection: field=vet_license');
+      return;
+    }
+
+    final size = await xf.length();
+    debugPrint('📄 File selected: field=vet_license platform=native');
+    debugPrint('📄 filename=${xf.name}');
+    debugPrint('📄 size=$size');
+    debugPrint('📄 bytes length=not loaded (native putFile)');
 
     setState(() => _loading = true);
     try {
+      debugPrint(
+        '📤 Firebase upload started: field=vet_license '
+        'filename=${xf.name} mode=putFile',
+      );
       final url = await _uploadFile(File(xf.path), 'vet_license');
+      debugPrint(
+        '✅ Firebase upload completed: field=vet_license filename=${xf.name}',
+      );
+      debugPrint(
+        '🔗 Download URL received: field=vet_license '
+        'filename=${xf.name} url=$url',
+      );
       if (!mounted) return;
       setState(() => _licenseDocumentUrl = url);
       _snack('License document uploaded');
     } catch (e) {
       debugPrint('UPLOAD ERROR: $e');
       _snack('Upload failed: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _pickWebLicenseDocument() async {
+    debugPrint('📂 File picker opened: field=vet_license platform=web');
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) {
+      debugPrint('↩️ File picker closed without selection: field=vet_license');
+      return;
+    }
+
+    final platformFile = result.files.first;
+    final bytes = platformFile.bytes;
+    debugPrint('📄 File selected: field=vet_license platform=web');
+    debugPrint('📄 filename=${platformFile.name}');
+    debugPrint('📄 size=${platformFile.size}');
+    debugPrint('📄 bytes length=${bytes?.length ?? 0}');
+    if (bytes == null || bytes.isEmpty) {
+      _snack('The selected file could not be read');
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _snack('User not logged in');
+      return;
+    }
+
+    final extension = platformFile.name.split('.').last.toLowerCase();
+    final contentType = switch (extension) {
+      'pdf' => 'application/pdf',
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      _ => 'application/octet-stream',
+    };
+    final ref = FirebaseStorage.instance.ref().child(
+      'business_sector_docs/${user.uid}/vet_license/'
+      '${DateTime.now().millisecondsSinceEpoch}.$extension',
+    );
+
+    setState(() => _loading = true);
+    try {
+      debugPrint(
+        '📤 Firebase upload started: field=vet_license '
+        'filename=${platformFile.name} mode=putData bytes=${bytes.length}',
+      );
+      await ref.putData(bytes, SettableMetadata(contentType: contentType));
+      debugPrint(
+        '✅ Firebase upload completed: field=vet_license '
+        'filename=${platformFile.name}',
+      );
+      final url = await ref.getDownloadURL();
+      debugPrint(
+        '🔗 Download URL received: field=vet_license '
+        'filename=${platformFile.name} url=$url',
+      );
+      if (!mounted) return;
+      setState(() => _licenseDocumentUrl = url);
+      _snack('License document uploaded');
+    } catch (error, stackTrace) {
+      debugPrint('Vet license Web upload failed: $error\n$stackTrace');
+      if (mounted) _snack('Upload failed: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -721,7 +820,7 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
   Widget _summaryInheritedInfo() {
     return _card([
       Text(
-        'Inherited from base registration',
+        AppLocalizations.of(context)!.inheritedFromRegistration,
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,
@@ -755,7 +854,7 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FB),
       appBar: AppBar(
-        title: const Text('Veterinary Details'),
+        title: Text(AppLocalizations.of(context)!.veterinaryDetails),
         centerTitle: true,
         elevation: 0,
       ),
@@ -813,7 +912,7 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 14),
                           child: Text(
-                            'This number will be reviewed during verification.',
+                            AppLocalizations.of(context)!.licenseReviewNotice,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade600,
@@ -832,7 +931,9 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                             onTap: _pickLicenseExpiryDate,
                             child: InputDecorator(
                               decoration: InputDecoration(
-                                labelText: '12. License Expiry Date',
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.licenseExpiryDateNumbered,
                                 filled: true,
                                 fillColor: Colors.grey.shade100,
                                 border: OutlineInputBorder(
@@ -860,7 +961,7 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                       _card([
                         _sectionHeader('SECTION 4 — Working Hours'),
                         Text(
-                          '20. Working Days',
+                          AppLocalizations.of(context)!.workingDaysNumbered,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 10),
@@ -908,7 +1009,9 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                       _card([
                         _sectionHeader('SECTION 5 — Operational Details'),
                         Text(
-                          '24. Accepted Animal Types',
+                          AppLocalizations.of(
+                            context,
+                          )!.acceptedAnimalTypesNumbered,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 10),
@@ -1074,8 +1177,10 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                         CheckboxListTile(
                           value: _confirmAccuracy,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                            '41. I confirm that the information provided is accurate',
+                          title: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.confirmInformationAccurate,
                           ),
                           onChanged: (v) =>
                               setState(() => _confirmAccuracy = v ?? false),
@@ -1083,8 +1188,10 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                         CheckboxListTile(
                           value: _agreeDisplayInfo,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                            '42. I agree to display my information in the app',
+                          title: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.agreeDisplayInformation,
                           ),
                           onChanged: (v) =>
                               setState(() => _agreeDisplayInfo = v ?? false),
@@ -1092,8 +1199,8 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                         CheckboxListTile(
                           value: _agreeUserReviews,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                            '43. I agree to user reviews being displayed',
+                          title: Text(
+                            AppLocalizations.of(context)!.agreeDisplayReviews,
                           ),
                           onChanged: (v) =>
                               setState(() => _agreeUserReviews = v ?? false),
@@ -1101,8 +1208,10 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                         CheckboxListTile(
                           value: _acceptPartnershipTerms,
                           contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                            '44. I accept PetSopu partnership terms',
+                          title: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.acceptPartnershipTerms,
                           ),
                           onChanged: (v) => setState(
                             () => _acceptPartnershipTerms = v ?? false,
@@ -1148,9 +1257,13 @@ class _VetDetailsPageState extends State<VetDetailsPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Submit Veterinary Details',
-                              style: TextStyle(fontWeight: FontWeight.w700),
+                          : Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.submitVeterinaryDetails,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                     ),
                   ),

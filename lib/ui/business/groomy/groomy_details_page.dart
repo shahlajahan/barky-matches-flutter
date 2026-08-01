@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../models/business_draft.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class GroomyDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -285,7 +286,7 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Groomy Details")),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.groomyDetails)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -304,9 +305,9 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
             // =========================
             // SERVICES
             // =========================
-            const Text(
-              "Services",
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.services,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             _chips(_allServices, _selectedServices),
@@ -316,9 +317,9 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
             // =========================
             // WORKING DAYS
             // =========================
-            const Text(
-              "Working Days",
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.workingDays,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             _chips(_days, _selectedDays),
@@ -336,14 +337,14 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
               contentPadding: EdgeInsets.zero,
               value: _homeService,
               onChanged: (v) => setState(() => _homeService = v),
-              title: const Text("Home Service"),
+              title: Text(AppLocalizations.of(context)!.homeService),
             ),
 
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _pickupService,
               onChanged: (v) => setState(() => _pickupService = v),
-              title: const Text("Pickup Service"),
+              title: Text(AppLocalizations.of(context)!.pickupService),
             ),
 
             const SizedBox(height: 20),
@@ -351,7 +352,10 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
             // =========================
             // MEDIA (FIXED)
             // =========================
-            const Text("Media", style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              AppLocalizations.of(context)!.media,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 10),
 
             Row(
@@ -360,7 +364,7 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
                   child: ElevatedButton.icon(
                     onPressed: _loading ? null : _pickLogo,
                     icon: const Icon(Icons.image),
-                    label: const Text("Logo"),
+                    label: Text(AppLocalizations.of(context)!.logo),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -368,7 +372,7 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
                   child: ElevatedButton.icon(
                     onPressed: _loading ? null : _pickPhoto,
                     icon: const Icon(Icons.photo_library),
-                    label: const Text("Photos"),
+                    label: Text(AppLocalizations.of(context)!.photos),
                   ),
                 ),
               ],
@@ -386,7 +390,7 @@ class _GroomyDetailsPageState extends State<GroomyDetailsPage> {
               onPressed: _loading ? null : _submit,
               child: _loading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Continue"),
+                  : Text(AppLocalizations.of(context)!.continueLabel),
             ),
 
             const SizedBox(height: 20),

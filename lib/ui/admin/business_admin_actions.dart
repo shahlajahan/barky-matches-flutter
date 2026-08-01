@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessAdminActions extends StatefulWidget {
   final String businessId;
@@ -54,7 +55,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
                       width: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text("Reject"),
+                  : Text(AppLocalizations.of(context)!.reject),
             ),
           ),
 
@@ -65,7 +66,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleApprove,
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text("Approve"),
+              child: Text(AppLocalizations.of(context)!.approve),
             ),
           ),
         ],
@@ -86,7 +87,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
                       width: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text("Suspend"),
+                  : Text(AppLocalizations.of(context)!.suspend),
             ),
           ),
         ],
@@ -107,7 +108,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
                       width: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text("Restore"),
+                  : Text(AppLocalizations.of(context)!.restore),
             ),
           ),
         ],
@@ -134,7 +135,11 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Business approved")));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.businessApproved),
+          ),
+        );
       }
     } catch (e) {
       _showError(e);
@@ -169,7 +174,11 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Business rejected")));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.businessRejected),
+          ),
+        );
       }
     } catch (e) {
       _showError(e);
@@ -203,7 +212,11 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Business suspended")));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.businessSuspended),
+          ),
+        );
       }
     } catch (e) {
       _showError(e);
@@ -225,7 +238,11 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Business restored")));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.businessRestored),
+          ),
+        );
       }
     } catch (e) {
       _showError(e);
@@ -259,7 +276,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, controller.text.trim()),
@@ -275,6 +292,10 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
   void _showError(Object e) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text("Action failed: $e")));
+    ).showSnackBar(
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.actionFailed('$e')),
+      ),
+    );
   }
 }

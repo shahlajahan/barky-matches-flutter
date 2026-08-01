@@ -10,6 +10,7 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class GroomyDashboardAppointmentsTab extends StatelessWidget {
   final String businessId;
@@ -342,7 +343,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
                 appointmentId,
                 targetStatus,
               ),
-              child: const Text("Accept"),
+              child: Text(AppLocalizations.of(context)!.accept),
             ),
           ),
           const SizedBox(width: 10),
@@ -351,7 +352,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () =>
                   _updateAppointmentStatus(context, appointmentId, 'rejected'),
-              child: const Text("Reject"),
+              child: Text(AppLocalizations.of(context)!.reject),
             ),
           ),
         ],
@@ -373,7 +374,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
                 }
                 _updateAppointmentStatus(context, appointmentId, 'completed');
               },
-              child: const Text("Complete"),
+              child: Text(AppLocalizations.of(context)!.complete),
             ),
           ),
           const SizedBox(width: 10),
@@ -385,7 +386,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
                 appointmentId,
                 'cancelled_by_groomy',
               ),
-              child: const Text("Cancel"),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ),
         ],
@@ -395,7 +396,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
     if (status == 'awaiting_payment') {
       return Center(
         child: Text(
-          "Awaiting payment",
+          AppLocalizations.of(context)!.awaitingPayment,
           style: AppTheme.caption(color: Colors.grey),
         ),
       );
@@ -403,7 +404,7 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
 
     return Center(
       child: Text(
-        "Already ${status.toUpperCase()}",
+        AppLocalizations.of(context)!.alreadyStatus(status.toUpperCase()),
         style: AppTheme.caption(color: Colors.grey),
       ),
     );
@@ -456,16 +457,22 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Appointment updated: $newStatus")),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.appointmentUpdated(newStatus),
+          ),
+        ),
       );
     } catch (e) {
       debugPrint("❌ GROOMY UPDATE ERROR: $e");
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Update failed: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.updateFailed('$e')),
+        ),
+      );
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/services/business_chat_service.dart';
 import 'package:barky_matches_fixed/ui/business/chat/business_chat_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class UserInboxPage extends StatelessWidget {
   const UserInboxPage({super.key});
@@ -15,10 +16,10 @@ class UserInboxPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F1F4),
 
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.messages)),
 
       body: currentUserId == null
-          ? const Center(child: Text('User not logged in'))
+          ? Center(child: Text(AppLocalizations.of(context)!.userNotLoggedIn))
           : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: BusinessChatService.instance.clientChatsStream(
                 clientUserId: currentUserId,
@@ -32,7 +33,11 @@ class UserInboxPage extends StatelessWidget {
                 if (snapshot.hasError) {
                   debugPrint('❌ USER INBOX ERROR: ${snapshot.error}');
 
-                  return Center(child: Text('Failed to load messages'));
+                  return Center(
+                    child: Text(
+                      AppLocalizations.of(context)!.failedToLoadMessages,
+                    ),
+                  );
                 }
 
                 final docs = BusinessChatService.instance.sortByLatestActivity(
@@ -272,10 +277,10 @@ class _EmptyInbox extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            const Text(
-              'No conversations yet',
+            Text(
+              AppLocalizations.of(context)!.noConversationsYet,
 
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 28,
 
                 fontWeight: FontWeight.w700,
@@ -286,12 +291,12 @@ class _EmptyInbox extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            const Text(
-              'When you contact a business,\nyour conversations will appear here.',
+            Text(
+              AppLocalizations.of(context)!.userInboxEmptyDescription,
 
               textAlign: TextAlign.center,
 
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
 
                 color: Colors.black54,

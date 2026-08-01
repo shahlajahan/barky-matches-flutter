@@ -17,6 +17,7 @@ import 'package:barky_matches_fixed/user_profile_page.dart';
 import 'package:barky_matches_fixed/dog_park_page.dart';
 import 'package:barky_matches_fixed/park_playdate_entry_page.dart';
 import 'package:barky_matches_fixed/playmate_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/ui/shell/barky_scaffold.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
@@ -362,6 +363,7 @@ class _HomeBodyState extends State<_HomeBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     StartupBenchmark.markOnce('Home Ready');
     debugPrint(
       'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
@@ -524,7 +526,7 @@ if (appState.isGuest) {
 
                   const SizedBox(height: 16),
 
-                  const Text('Loading account...'),
+                  Text(l10n.loadingAccount),
 
                   const SizedBox(height: 20),
 
@@ -533,7 +535,7 @@ if (appState.isGuest) {
                       // optional retry
                       setState(() {});
                     },
-                    child: const Text('Retry'),
+                    child: Text(l10n.retryButton),
                   ),
                 ],
               ),

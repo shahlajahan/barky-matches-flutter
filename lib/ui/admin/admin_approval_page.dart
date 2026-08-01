@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'pages/business_admin_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminApprovalPage extends StatelessWidget {
   const AdminApprovalPage({super.key});
@@ -10,7 +11,7 @@ class AdminApprovalPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Pending Business Approvals"),
+        title: Text(AppLocalizations.of(context)!.pendingBusinessApprovals),
         backgroundColor: Colors.pink,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new),
@@ -39,7 +40,7 @@ class AdminApprovalPage extends StatelessWidget {
             final docs = snapshot.data?.docs ?? [];
 
             if (docs.isEmpty) {
-              return _buildEmptyState();
+              return _buildEmptyState(context);
             }
 
             return ListView.separated(
@@ -53,7 +54,9 @@ class AdminApprovalPage extends StatelessWidget {
                 final businessId = requestData['businessId'] as String?;
 
                 if (businessId == null) {
-                  return const ListTile(title: Text("Invalid request"));
+                  return ListTile(
+                    title: Text(AppLocalizations.of(context)!.invalidRequest),
+                  );
                 }
 
                 return _BusinessListTile(businessId: businessId);
@@ -78,11 +81,11 @@ class AdminApprovalPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
-    return const Center(
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
       child: Text(
-        "No pending business requests",
-        style: TextStyle(fontSize: 16, color: Colors.grey),
+        AppLocalizations.of(context)!.noPendingBusinessRequests,
+        style: const TextStyle(fontSize: 16, color: Colors.grey),
       ),
     );
   }
@@ -102,11 +105,15 @@ class _BusinessListTile extends StatelessWidget {
           .get(),
       builder: (context, businessSnap) {
         if (!businessSnap.hasData) {
-          return const ListTile(title: Text("Loading..."));
+          return ListTile(
+            title: Text(AppLocalizations.of(context)!.loadingLabel),
+          );
         }
 
         if (!businessSnap.data!.exists) {
-          return const ListTile(title: Text("Business not found"));
+          return ListTile(
+            title: Text(AppLocalizations.of(context)!.businessNotFound),
+          );
         }
 
         final businessData = businessSnap.data!.data() as Map<String, dynamic>;
@@ -194,7 +201,7 @@ class _RiskBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        "$count RISK",
+        AppLocalizations.of(context)!.riskCount(count),
         style: const TextStyle(
           color: Colors.orange,
           fontSize: 11,
@@ -214,9 +221,9 @@ class _VerifiedBadge extends StatelessWidget {
         color: Colors.blue.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Text(
-        "VERIFIED",
-        style: TextStyle(
+      child: Text(
+        AppLocalizations.of(context)!.verifiedLabel,
+        style: const TextStyle(
           color: Colors.blue,
           fontSize: 11,
           fontWeight: FontWeight.bold,

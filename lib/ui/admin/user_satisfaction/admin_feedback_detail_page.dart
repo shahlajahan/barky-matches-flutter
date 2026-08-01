@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminFeedbackDetailPage extends StatelessWidget {
   final DocumentSnapshot doc;
@@ -11,7 +12,9 @@ class AdminFeedbackDetailPage extends StatelessWidget {
     final data = doc.data() as Map<String, dynamic>;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Feedback Detail")),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.feedbackDetail),
+      ),
 
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -19,23 +22,29 @@ class AdminFeedbackDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Rating: ${data["rating"]}"),
+            Text(AppLocalizations.of(context)!.ratingValue('${data["rating"]}')),
             const SizedBox(height: 10),
 
-            Text("Category: ${data["category"]}"),
+            Text(
+              AppLocalizations.of(context)!.categoryValue('${data["category"]}'),
+            ),
             const SizedBox(height: 10),
 
-            Text("Context: ${data["context"]}"),
+            Text(
+              AppLocalizations.of(context)!.contextValue('${data["context"]}'),
+            ),
             const SizedBox(height: 20),
 
-            const Text("Message"),
+            Text(AppLocalizations.of(context)!.messageLabel),
             const SizedBox(height: 5),
 
             Text(data["message"] ?? ""),
 
             const SizedBox(height: 30),
 
-            Text("Status: ${data["status"]}"),
+            Text(
+              AppLocalizations.of(context)!.statusValue('${data["status"]}'),
+            ),
           ],
         ),
       ),

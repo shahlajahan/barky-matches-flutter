@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'admin_search_item.dart';
 import 'admin_search_service.dart';
@@ -136,7 +137,10 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Open ${adminSearchEntityTypeToString(item.entityType)}: ${item.entityId}',
+          AppLocalizations.of(context)!.openEntity(
+            adminSearchEntityTypeToString(item.entityType),
+            item.entityId,
+          ),
         ),
       ),
     );
@@ -157,7 +161,7 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
       controller: _controller,
       onChanged: _onQueryChanged,
       decoration: InputDecoration(
-        hintText: 'Search users, dogs, businesses, reports, complaints...',
+        hintText: AppLocalizations.of(context)!.globalAdminSearchHint,
         prefixIcon: const Icon(Icons.search),
         suffixIcon: _controller.text.isEmpty
             ? null
@@ -326,7 +330,9 @@ class _AdminSearchPageState extends State<AdminSearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Global Admin Search')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.globalAdminSearch),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

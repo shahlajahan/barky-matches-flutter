@@ -1,178 +1,132 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/ui/orders/buyer_order_list_item.dart';
+import 'package:barky_matches_fixed/ui/orders/buyer_orders_repository.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
+import 'package:barky_matches_fixed/utils/carrier_mapper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
-class MyOrdersPage extends StatelessWidget {
-  const MyOrdersPage({super.key});
+class MyOrdersPage extends StatefulWidget {
+  const MyOrdersPage({super.key, this.repository, this.buyerUid});
+
+  final BuyerOrdersDataSource? repository;
+  final String? buyerUid;
+
+  @override
+  State<MyOrdersPage> createState() => _MyOrdersPageState();
+}
+
+class _MyOrdersPageState extends State<MyOrdersPage> {
+  late final BuyerOrdersDataSource _repository;
+  late final String? _buyerUid;
+  Stream<List<BuyerOrderListItem>>? _ordersStream;
+  BuyerOrderSort _sort = BuyerOrderSort.newest;
+  BuyerOrderStatusFilter _statusFilter = BuyerOrderStatusFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _repository = widget.repository ?? BuyerOrdersRepository();
+    _buyerUid = widget.buyerUid ?? FirebaseAuth.instance.currentUser?.uid;
+    if (_buyerUid case final buyerUid?) {
+      _ordersStream = _repository
+          .watchBuyerOrders(buyerUid)
+          .asBroadcastStream();
+    }
+  }
+
+  Future<void> _refresh() async {
+    final buyerUid = _buyerUid;
+    if (buyerUid == null) return;
+    final refreshed = _repository
+        .watchBuyerOrders(buyerUid)
+        .asBroadcastStream();
+    setState(() => _ordersStream = refreshed);
+    await refreshed.first.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => const [],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-
-    if (userId == null) {
-      return Scaffold(body: Center(child: Text(l10n.myOrdersLoginRequired)));
+    if (_buyerUid == null || _ordersStream == null) {
+      return Center(child: Text(l10n.myOrdersLoginRequired));
     }
 
-    debugPrint("👤 CURRENT USER ID: $userId");
-
-    final ordersStream = FirebaseFirestore.instance
-        .collection('orders')
-        .where('buyerUid', isEqualTo: userId)
-        //.orderBy('createdAt', descending: true) // بعداً index بساز
-        .snapshots();
-
-    return Container(
+    return ColoredBox(
       color: const Color(0xFFFDF2F5),
-      child: StreamBuilder<QuerySnapshot>(
-        stream: ordersStream,
+      child: StreamBuilder<List<BuyerOrderListItem>>(
+        stream: _ordersStream,
         builder: (context, snapshot) {
-          /// DEBUG
-          debugPrint("📡 CONNECTION STATE: ${snapshot.connectionState}");
-
-          if (snapshot.hasData) {
-            debugPrint("📦 ORDERS COUNT: ${snapshot.data!.docs.length}");
-          } else {
-            debugPrint("📦 ORDERS COUNT: no data yet");
-          }
-
           if (snapshot.hasError) {
-            debugPrint("❌ FIRESTORE ERROR: ${snapshot.error}");
             return Center(
               child: Text(l10n.errorOccurred(snapshot.error.toString())),
             );
           }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final orders = snapshot.data!.docs;
-
-          if (orders.isEmpty) {
-            debugPrint("📭 NO ORDERS FOUND");
-            return Center(child: Text(l10n.noOrdersYet));
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: orders.length,
-            itemBuilder: (context, index) {
-              final doc = orders[index];
-              final data = doc.data() as Map<String, dynamic>;
-
-              /// 🔥 STATUS
-              final rawStatus = data['status'] ?? 'pending';
-              final status = normalizeStatus(rawStatus);
-              final color = getStatusColor(status);
-
-              /// 🔥 PRICE FIX (خیلی مهم)
-              final pricing = data['pricing'] ?? {};
-              final total = pricing['grandTotal'] ?? 0;
-
-              /// 🔥 ITEMS FIX
-              final items = data['items'] as List? ?? [];
-
-              /// 🔥 SELLER ORDER IDS (کلیدی)
-              final sellerOrderIds = data['sellerOrderIds'] as List?;
-
-              debugPrint(
-                "🧾 UI BUILD → ${doc.id} | total=$total | status=$status",
-              );
-
-              return InkWell(
-                onTap: () {
-                  final sellerOrderIds = List<String>.from(
-                    data['sellerOrderIds'] ?? [],
-                  );
-
-                  if (sellerOrderIds.isEmpty) return;
-
-                  /// فعلاً اولین seller order رو باز کن
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          OrderDetailPage(sellerOrderId: sellerOrderIds.first),
-                    ),
-                  );
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      /// 🟢 STATUS DOT
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      /// 📦 INFO
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          final orders = presentBuyerOrders(
+            snapshot.data!,
+            sort: _sort,
+            statusFilter: _statusFilter,
+          );
+          return Column(
+            children: [
+              _OrderControls(
+                sort: _sort,
+                statusFilter: _statusFilter,
+                onSortChanged: (sort) => setState(() => _sort = sort),
+                onStatusChanged: (filter) =>
+                    setState(() => _statusFilter = filter),
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: orders.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            Text(
-                              data['orderNumber'] ??
-                                  l10n.orderNumberLabel(doc.id.substring(0, 6)),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              l10n.itemsCountLabel(items.length),
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              orderStatusLabel(status, l10n),
-                              style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.w600,
+                            const SizedBox(height: 160),
+                            Center(
+                              child: Text(
+                                snapshot.data!.isEmpty
+                                    ? l10n.noOrdersYet
+                                    : l10n.noMatchingOrders,
                               ),
                             ),
                           ],
+                        )
+                      : ListView.builder(
+                          key: const Key('buyer-orders-list'),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                          itemCount: orders.length,
+                          itemBuilder: (context, index) => BuyerOrderCard(
+                            key: Key(
+                              'buyer-order-${orders[index].sellerOrderId}',
+                            ),
+                            order: orders[index],
+                            onTap: orders[index].canOpenDetail
+                                ? () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => OrderDetailPage(
+                                          sellerOrderId:
+                                              orders[index].sellerOrderId,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                          ),
                         ),
-                      ),
-
-                      /// 💰 PRICE
-                      Text(
-                        "$total ₺",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              );
-            },
+              ),
+            ],
           );
         },
       ),
@@ -180,149 +134,221 @@ class MyOrdersPage extends StatelessWidget {
   }
 }
 
-String normalizeStatus(String s) {
-  if (s.contains("pending")) return "pending";
-  if (s.contains("paid")) return "paid";
-  if (s.contains("fail")) return "failed";
-  return s;
-}
-
-Color getStatusColor(String status) {
-  switch (status) {
-    case "paid":
-      return Colors.green;
-    case "pending":
-      return Colors.orange;
-    case "failed":
-      return Colors.red;
-    default:
-      return Colors.grey;
-  }
-}
-
-String orderStatusLabel(String status, AppLocalizations l10n) {
-  switch (status) {
-    case "pending":
-      return l10n.pendingStatusLabel;
-    case "paid":
-      return l10n.paidStatusLabel;
-    case "failed":
-      return l10n.failedStatusLabel;
-    default:
-      return status;
-  }
-}
-
-class _OrderCard extends StatelessWidget {
-  final String orderId;
-  final String status;
-  final num total;
-  final int itemCount;
-  final dynamic createdAt;
-
-  const _OrderCard({
-    required this.orderId,
-    required this.status,
-    required this.total,
-    required this.itemCount,
-    required this.createdAt,
+class _OrderControls extends StatelessWidget {
+  const _OrderControls({
+    required this.sort,
+    required this.statusFilter,
+    required this.onSortChanged,
+    required this.onStatusChanged,
   });
 
-  Color _statusColor() {
-    switch (status) {
-      case "paid":
-        return Colors.green;
-      case "preparing":
-        return Colors.orange;
-      case "shipped":
-        return Colors.blue;
-      case "delivered":
-        return Colors.teal;
-      case "payment_failed":
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _statusText(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    switch (status) {
-      case "paid":
-        return l10n.paidStatusLabel;
-      case "preparing":
-        return l10n.preparingStatusLabel;
-      case "shipped":
-        return l10n.shippedStatusLabel;
-      case "delivered":
-        return l10n.deliveredStatusLabel;
-      case "payment_failed":
-        return l10n.paymentFailedStatusLabel;
-      default:
-        return status;
-    }
-  }
+  final BuyerOrderSort sort;
+  final BuyerOrderStatusFilter statusFilter;
+  final ValueChanged<BuyerOrderSort> onSortChanged;
+  final ValueChanged<BuyerOrderStatusFilter> onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: PopupMenuButton<BuyerOrderSort>(
+              key: const Key('buyer-order-sort'),
+              initialValue: sort,
+              onSelected: onSortChanged,
+              itemBuilder: (context) => [
+                for (final option in BuyerOrderSort.values)
+                  PopupMenuItem(
+                    value: option,
+                    child: Text(_sortLabel(option, l10n)),
+                  ),
+              ],
+              child: _ControlChip(
+                icon: Icons.sort,
+                label: _sortLabel(sort, l10n),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: PopupMenuButton<BuyerOrderStatusFilter>(
+              key: const Key('buyer-order-filter'),
+              initialValue: statusFilter,
+              onSelected: onStatusChanged,
+              itemBuilder: (context) => [
+                for (final option in BuyerOrderStatusFilter.values)
+                  PopupMenuItem(
+                    value: option,
+                    child: Text(_filterLabel(option, l10n)),
+                  ),
+              ],
+              child: _ControlChip(
+                icon: Icons.filter_list,
+                label: _filterLabel(statusFilter, l10n),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ControlChip extends StatelessWidget {
+  const _ControlChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 19),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const Icon(Icons.arrow_drop_down, size: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class BuyerOrderCard extends StatelessWidget {
+  const BuyerOrderCard({super.key, required this.order, required this.onTap});
+
+  final BuyerOrderListItem order;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final statusColor = _statusColor(order.status);
+    final productTitle = order.primaryProductName?.trim().isNotEmpty == true
+        ? order.primaryProductName!.trim()
+        : l10n.myOrdersUnknownProduct;
+    final title = order.additionalItemCount > 0
+        ? l10n.myOrdersProductAndMore(productTitle, order.additionalItemCount)
+        : productTitle;
+    final orderNumber = order.orderNumber?.trim().isNotEmpty == true
+        ? order.orderNumber!.trim()
+        : l10n.myOrdersOrderNumberUnavailable;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFEDE7EA)),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          // 👉 بعداً می‌بریم به Order Detail Page
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// 🧾 Order ID
-              Text(
-                l10n.orderNumberLabel(orderId.substring(0, 6)),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 8),
-
-              /// 📦 Items count
-              Text(l10n.itemsCountLabel(itemCount)),
-
-              const SizedBox(height: 8),
-
-              /// 💰 Total
-              Text(
-                "${total.toString()} ₺",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              /// 🟢 Status
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _statusColor().withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      _statusText(context),
-                      style: TextStyle(
-                        color: _statusColor(),
-                        fontWeight: FontWeight.w600,
+              _OrderThumbnail(imageUrl: order.productImageUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    Text(
+                      order.sellerName?.trim().isNotEmpty == true
+                          ? order.sellerName!.trim()
+                          : l10n.myOrdersUnknownSeller,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          order.createdAt == null
+                              ? l10n.myOrdersDateUnavailable
+                              : MaterialLocalizations.of(
+                                  context,
+                                ).formatMediumDate(order.createdAt!),
+                          style: _metadataStyle,
+                        ),
+                        Text(
+                          l10n.orderNumberLabel(orderNumber),
+                          style: _metadataStyle,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 9),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            buyerOrderStatusLabel(order.status, l10n),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          _amount(order.total, order.currency),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (order.carrier != null ||
+                        order.trackingNumber != null) ...[
+                      const Divider(height: 20),
+                      Text(
+                        _shippingSummary(order, l10n),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: _metadataStyle,
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -330,4 +356,112 @@ class _OrderCard extends StatelessWidget {
       ),
     );
   }
+
+  static const _metadataStyle = TextStyle(color: Colors.black54, fontSize: 12);
+}
+
+class _OrderThumbnail extends StatelessWidget {
+  const _OrderThumbnail({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: 64,
+      height: 64,
+      color: const Color(0xFFF5EEF1),
+      alignment: Alignment.center,
+      child: const Icon(Icons.shopping_bag_outlined, color: Color(0xFF9E1B4F)),
+    );
+    final url = imageUrl?.trim() ?? '';
+    if (url.isEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: fallback,
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        url,
+        width: 64,
+        height: 64,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      ),
+    );
+  }
+}
+
+String buyerOrderStatusLabel(String status, AppLocalizations l10n) {
+  return switch (normalizeBuyerOrderStatus(status)) {
+    'pending' => l10n.pendingStatusLabel,
+    'paid' => l10n.paidStatusLabel,
+    'processing' => l10n.myOrdersProcessingStatus,
+    'preparing' => l10n.preparingStatusLabel,
+    'shipped' => l10n.shippedStatusLabel,
+    'delivered' => l10n.deliveredStatusLabel,
+    'cancelled' => l10n.cancelledStatusLabel,
+    'failed' => l10n.failedStatusLabel,
+    'refunded' => l10n.myOrdersRefundedStatus,
+    'returned' => l10n.myOrdersReturnedStatus,
+    final value => value,
+  };
+}
+
+String _sortLabel(BuyerOrderSort sort, AppLocalizations l10n) {
+  return switch (sort) {
+    BuyerOrderSort.newest => l10n.myOrdersSortNewest,
+    BuyerOrderSort.oldest => l10n.myOrdersSortOldest,
+    BuyerOrderSort.productAscending => l10n.myOrdersSortProductAz,
+    BuyerOrderSort.productDescending => l10n.myOrdersSortProductZa,
+    BuyerOrderSort.sellerAscending => l10n.myOrdersSortSellerAz,
+    BuyerOrderSort.sellerDescending => l10n.myOrdersSortSellerZa,
+    BuyerOrderSort.amountDescending => l10n.myOrdersSortAmountHigh,
+    BuyerOrderSort.amountAscending => l10n.myOrdersSortAmountLow,
+  };
+}
+
+String _filterLabel(BuyerOrderStatusFilter filter, AppLocalizations l10n) {
+  return switch (filter) {
+    BuyerOrderStatusFilter.all => l10n.allFilterLabel,
+    BuyerOrderStatusFilter.pending => l10n.pendingStatusLabel,
+    BuyerOrderStatusFilter.paid => l10n.paidStatusLabel,
+    BuyerOrderStatusFilter.processing => l10n.myOrdersProcessingStatus,
+    BuyerOrderStatusFilter.shipped => l10n.shippedStatusLabel,
+    BuyerOrderStatusFilter.delivered => l10n.deliveredStatusLabel,
+    BuyerOrderStatusFilter.cancelled => l10n.cancelledStatusLabel,
+    BuyerOrderStatusFilter.failed => l10n.failedStatusLabel,
+    BuyerOrderStatusFilter.refundedOrReturned =>
+      l10n.myOrdersRefundedOrReturnedStatus,
+  };
+}
+
+String _amount(double amount, String currency) {
+  final symbol = currency.toUpperCase() == 'TRY' ? '₺' : currency.toUpperCase();
+  return '${amount.toStringAsFixed(2)} $symbol';
+}
+
+String _shippingSummary(BuyerOrderListItem order, AppLocalizations l10n) {
+  final parts = <String>[];
+  if (order.carrier case final carrier?) {
+    parts.add(l10n.carrierLabel(CarrierMapper.toDisplay(carrier)));
+  }
+  if (order.trackingNumber case final tracking?) {
+    parts.add(l10n.trackingLabel(tracking));
+  }
+  return parts.join(' • ');
+}
+
+Color _statusColor(String status) {
+  return switch (normalizeBuyerOrderStatus(status)) {
+    'paid' || 'delivered' => Colors.green,
+    'pending' => Colors.orange,
+    'processing' || 'preparing' => Colors.deepOrange,
+    'shipped' => Colors.blue,
+    'cancelled' || 'failed' => Colors.red,
+    'refunded' || 'returned' => Colors.purple,
+    _ => Colors.grey,
+  };
 }

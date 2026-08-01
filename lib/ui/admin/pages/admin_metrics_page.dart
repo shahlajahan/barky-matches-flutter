@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminMetricsPage extends StatelessWidget {
   const AdminMetricsPage({super.key});
@@ -12,7 +13,9 @@ class AdminMetricsPage extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Platform Metrics")),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.platformMetrics),
+      ),
 
       body: StreamBuilder<DocumentSnapshot>(
         stream: doc,
@@ -24,7 +27,9 @@ class AdminMetricsPage extends StatelessWidget {
           final data = snapshot.data!.data() as Map<String, dynamic>?;
 
           if (data == null) {
-            return const Center(child: Text("No metrics data"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noMetricsData),
+            );
           }
 
           final updatedAt = data["updatedAt"] as Timestamp?;
@@ -95,7 +100,9 @@ class AdminMetricsPage extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
                     child: Text(
-                      "Last updated: ${updatedAt.toDate()}",
+                      AppLocalizations.of(
+                        context,
+                      )!.lastUpdatedValue(updatedAt.toDate().toString()),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ),

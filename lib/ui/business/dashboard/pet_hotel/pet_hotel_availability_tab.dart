@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetHotelAvailabilityTab extends StatefulWidget {
   final String businessId;
@@ -81,14 +82,18 @@ class _PetHotelAvailabilityTabState extends State<PetHotelAvailabilityTab> {
           }, SetOptions(merge: true));
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Availability updated')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.availabilityUpdated),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.updateFailed('$e')),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -103,10 +108,10 @@ class _PetHotelAvailabilityTabState extends State<PetHotelAvailabilityTab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Availability', style: AppTheme.h2()),
+        Text(AppLocalizations.of(context)!.availability, style: AppTheme.h2()),
         const SizedBox(height: 8),
         Text(
-          'Capacity is used by the booking functions to prevent overlapping stays beyond available rooms.',
+          AppLocalizations.of(context)!.capacityBookingExplanation,
           style: AppTheme.caption(color: AppTheme.muted),
         ),
         const SizedBox(height: 18),
@@ -126,7 +131,7 @@ class _PetHotelAvailabilityTabState extends State<PetHotelAvailabilityTab> {
                   const Icon(LucideIcons.hotel, color: Color(0xFF9E1B4F)),
                   const SizedBox(width: 10),
                   Text(
-                    'Room Capacity',
+                    AppLocalizations.of(context)!.roomCapacity,
                     style: AppTheme.bodyMedium().copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -137,14 +142,14 @@ class _PetHotelAvailabilityTabState extends State<PetHotelAvailabilityTab> {
               TextField(
                 controller: _capacityController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Maximum pets / rooms',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.maximumPetsRooms,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                'Current capacity: $maxCapacity',
+                AppLocalizations.of(context)!.currentCapacity(maxCapacity),
                 style: AppTheme.caption(color: AppTheme.muted),
               ),
               const SizedBox(height: 14),
@@ -158,7 +163,7 @@ class _PetHotelAvailabilityTabState extends State<PetHotelAvailabilityTab> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Save Availability'),
+                      : Text(AppLocalizations.of(context)!.saveAvailability),
                 ),
               ),
             ],

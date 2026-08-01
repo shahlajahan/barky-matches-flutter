@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/pet_hotel/edit_pet_hotel_profile_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetHotelDashboardOverviewTab extends StatelessWidget {
   final String businessId;
@@ -105,7 +106,7 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
         if (snapshot.hasError) {
           return Center(
             child: Text(
-              'Booking error: ${snapshot.error}',
+              AppLocalizations.of(context)!.bookingError('${snapshot.error}'),
               style: AppTheme.body(color: AppTheme.muted),
             ),
           );
@@ -127,43 +128,9 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
         final activePets = docs
             .where((doc) => _isActiveStay(doc.data(), now))
             .length;
-        final revenue = docs.fold<double>(0, (sum, doc) {
-          final data = doc.data();
-          final status = data['status']?.toString() ?? '';
-          final paymentStatus = data['paymentStatus']?.toString() ?? '';
-          if (status == 'confirmed_paid' ||
-              status == 'completed' ||
-              paymentStatus == 'paid') {
-            return sum + _money(data['totalPrice'] ?? data['price']);
-          }
-          return sum;
-        });
         final occupancy = maxCapacity <= 0
             ? 0
             : ((activePets / maxCapacity) * 100).clamp(0, 100).round();
-        final paidDocs = docs
-            .where((doc) => _isPaidBooking(doc.data()))
-            .toList();
-        double grossSales = 0;
-        double commissionTotal = 0;
-
-        for (final doc in paidDocs) {
-          final data = doc.data();
-          grossSales += _money(
-            data['totalPrice'] ?? data['price'] ?? data['finalPrice'],
-          );
-          commissionTotal += _money(
-            data['platformCommissionAmount'] ??
-                data['commissionAmount'] ??
-                data['platformFee'],
-          );
-        }
-
-        final netRevenue = grossSales - commissionTotal;
-        final averageTicket = paidDocs.isEmpty
-            ? 0.0
-            : grossSales / paidDocs.length;
-
         final pendingDocs = docs
             .where((doc) => doc.data()['status'] == 'pending')
             .take(3)
@@ -172,21 +139,17 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Hotel Profile', style: AppTheme.h2()),
+            Text(
+              AppLocalizations.of(context)!.hotelProfile,
+              style: AppTheme.h2(),
+            ),
             const SizedBox(height: 10),
             _profileCard(context),
             const SizedBox(height: 20),
-            Text('Revenue', style: AppTheme.h2()),
-            const SizedBox(height: 10),
-            _revenueCard(
-              netRevenue: netRevenue,
-              grossSales: grossSales,
-              commissionTotal: commissionTotal,
-              paidBookingCount: paidDocs.length,
-              averageTicket: averageTicket,
+            Text(
+              AppLocalizations.of(context)!.hotelOverview,
+              style: AppTheme.h2(),
             ),
-            const SizedBox(height: 20),
-            Text('Hotel Overview', style: AppTheme.h2()),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -222,12 +185,7 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                _KpiCard(
-                  title: 'Revenue',
-                  value: '₺${revenue.toStringAsFixed(0)}',
-                  icon: LucideIcons.wallet,
-                ),
-                const SizedBox(width: 10),
+                const Spacer(),
                 _KpiCard(
                   title: 'Occupancy',
                   value: '$occupancy%',
@@ -236,7 +194,10 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 22),
-            Text('Pending Requests', style: AppTheme.h2()),
+            Text(
+              AppLocalizations.of(context)!.pendingRequests,
+              style: AppTheme.h2(),
+            ),
             const SizedBox(height: 10),
             if (pendingDocs.isEmpty)
               _emptyBox('No pending hotel booking requests')
@@ -303,7 +264,7 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
                   );
                 },
                 icon: const Icon(LucideIcons.edit2, size: 18),
-                label: const Text('Edit'),
+                label: Text(AppLocalizations.of(context)!.edit),
               ),
             ],
           ),
@@ -323,7 +284,8 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _revenueCard({
+  Widget _revenueCard(
+    BuildContext context, {
     required double netRevenue,
     required double grossSales,
     required double commissionTotal,
@@ -339,7 +301,10 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Net Revenue', style: TextStyle(color: Colors.white70)),
+          Text(
+            AppLocalizations.of(context)!.vetRevenueNetRevenue,
+            style: const TextStyle(color: Colors.white70),
+          ),
           const SizedBox(height: 6),
           Text(
             '₺${netRevenue.toStringAsFixed(0)}',
@@ -350,9 +315,9 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'After platform commission',
-            style: TextStyle(color: Colors.white60, fontSize: 12),
+          Text(
+            AppLocalizations.of(context)!.afterPlatformCommission,
+            style: const TextStyle(color: Colors.white60, fontSize: 12),
           ),
           const SizedBox(height: 12),
           _revenueRow('Gross Sales', grossSales),
@@ -547,14 +512,18 @@ class _PendingBookingCard extends StatelessWidget {
       });
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Booking updated: $status')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.bookingUpdated(status)),
+        ),
+      );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.updateFailed('$e')),
+        ),
+      );
     }
   }
 
@@ -587,7 +556,7 @@ class _PendingBookingCard extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () =>
                       _update(context, _approvalTargetStatus(data)),
-                  child: const Text('Accept'),
+                  child: Text(AppLocalizations.of(context)!.accept),
                 ),
               ),
               const SizedBox(width: 10),
@@ -595,7 +564,7 @@ class _PendingBookingCard extends StatelessWidget {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   onPressed: () => _update(context, 'rejected'),
-                  child: const Text('Reject'),
+                  child: Text(AppLocalizations.of(context)!.reject),
                 ),
               ),
             ],

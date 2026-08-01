@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminFraudAnalyticsPage extends StatelessWidget {
   const AdminFraudAnalyticsPage({super.key});
@@ -14,7 +15,7 @@ class AdminFraudAnalyticsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Fraud Analytics"),
+        title: Text(AppLocalizations.of(context)!.fraudAnalytics),
         backgroundColor: AppTheme.primary,
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -29,8 +30,8 @@ class AdminFraudAnalyticsPage extends StatelessWidget {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                "Error loading analytics",
-                style: TextStyle(color: Colors.red),
+                AppLocalizations.of(context)!.errorLoadingAnalytics,
+                style: const TextStyle(color: Colors.red),
               ),
             );
           }

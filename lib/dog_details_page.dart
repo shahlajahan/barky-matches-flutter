@@ -4,6 +4,7 @@ import 'dog.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:provider/provider.dart';
 
 import 'app_state.dart';
@@ -479,7 +480,24 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                           scrollDirection: Axis.horizontal,
                           itemCount: imagePaths.length,
                           itemBuilder: (context, index) {
-                            final file = File(imagePaths[index]);
+                            final imagePath = imagePaths[index];
+                            if (kIsWeb) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: PlatformPathImage(
+                                  path: imagePath,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(
+                                        Icons.error,
+                                        color: Colors.white,
+                                      ),
+                                ),
+                              );
+                            }
+                            final file = File(imagePath);
                             return FutureBuilder<bool>(
                               future: file.exists(),
                               builder: (context, snapshot) {
@@ -501,8 +519,8 @@ class _DogDetailsPageState extends State<DogDetailsPage> {
                                 }
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
-                                  child: Image.file(
-                                    file,
+                                  child: PlatformPathImage(
+                                    path: file.path,
                                     width: 100,
                                     height: 100,
                                     fit: BoxFit.cover,

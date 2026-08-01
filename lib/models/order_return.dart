@@ -5,9 +5,13 @@ enum OrderReturnStatus {
   approved,
   rejected,
   shippedBack,
+  waitingForSellerConfirmation,
   receivedBySeller,
+  autoReceived,
+  dispute,
   refundPending,
   refundFailed,
+  refundRejected,
   refunded,
   cancelled,
 }
@@ -23,12 +27,20 @@ extension OrderReturnStatusX on OrderReturnStatus {
         return 'rejected';
       case OrderReturnStatus.shippedBack:
         return 'shipped_back';
+      case OrderReturnStatus.waitingForSellerConfirmation:
+        return 'waiting_for_seller_confirmation';
       case OrderReturnStatus.receivedBySeller:
         return 'received_by_seller';
+      case OrderReturnStatus.autoReceived:
+        return 'auto_received';
+      case OrderReturnStatus.dispute:
+        return 'dispute';
       case OrderReturnStatus.refundPending:
         return 'refund_pending';
       case OrderReturnStatus.refundFailed:
         return 'refund_failed';
+      case OrderReturnStatus.refundRejected:
+        return 'refund_rejected';
       case OrderReturnStatus.refunded:
         return 'refunded';
       case OrderReturnStatus.cancelled:
@@ -44,12 +56,20 @@ extension OrderReturnStatusX on OrderReturnStatus {
         return OrderReturnStatus.rejected;
       case 'shipped_back':
         return OrderReturnStatus.shippedBack;
+      case 'waiting_for_seller_confirmation':
+        return OrderReturnStatus.waitingForSellerConfirmation;
       case 'received_by_seller':
         return OrderReturnStatus.receivedBySeller;
+      case 'auto_received':
+        return OrderReturnStatus.autoReceived;
+      case 'dispute':
+        return OrderReturnStatus.dispute;
       case 'refund_pending':
         return OrderReturnStatus.refundPending;
       case 'refund_failed':
         return OrderReturnStatus.refundFailed;
+      case 'refund_rejected':
+        return OrderReturnStatus.refundRejected;
       case 'refunded':
         return OrderReturnStatus.refunded;
       case 'cancelled':
@@ -280,14 +300,24 @@ class OrderReturnRecord {
   final Timestamp? refundStartedAt;
   final Timestamp? refundCompletedAt;
   final Timestamp? refundFailedAt;
+  final Timestamp? buyerShippedAt;
+  final Timestamp? sellerConfirmationDeadlineAt;
+  final bool autoReceived;
+  final Timestamp? autoReceivedAt;
+  final Timestamp? disputedAt;
+  final String? disputeReasonCode;
+  final String? disputeReason;
+  final Timestamp? sellerInspectionCompletedAt;
   final double refundAmount;
   final RefundType refundType;
   final String shippingResponsibility;
+  final Map<String, dynamic> returnShipping;
   final String? trackingNumber;
   final String? carrier;
   final String? adminNotes;
   final String? sellerNotes;
   final Map<String, dynamic> refundDetails;
+  final Map<String, dynamic> refundDecision;
   final String? paymentId;
   final int returnWindowDays;
   final int refundRetryCount;
@@ -316,14 +346,24 @@ class OrderReturnRecord {
     required this.refundStartedAt,
     required this.refundCompletedAt,
     required this.refundFailedAt,
+    required this.buyerShippedAt,
+    required this.sellerConfirmationDeadlineAt,
+    required this.autoReceived,
+    required this.autoReceivedAt,
+    required this.disputedAt,
+    required this.disputeReasonCode,
+    required this.disputeReason,
+    required this.sellerInspectionCompletedAt,
     required this.refundAmount,
     required this.refundType,
     required this.shippingResponsibility,
+    required this.returnShipping,
     required this.trackingNumber,
     required this.carrier,
     required this.adminNotes,
     required this.sellerNotes,
     required this.refundDetails,
+    required this.refundDecision,
     required this.paymentId,
     required this.returnWindowDays,
     required this.refundRetryCount,
@@ -343,6 +383,33 @@ class OrderReturnRecord {
     final refundDetails = Map<String, dynamic>.from(
       data['refundDetails'] ?? const <String, dynamic>{},
     );
+    final legacyShippingResponsibility =
+        (data['shippingResponsibility'] ?? 'seller_if_contract_carrier')
+            .toString();
+    final returnShipping = data['returnShipping'] is Map
+        ? Map<String, dynamic>.from(data['returnShipping'] as Map)
+        : <String, dynamic>{
+            'responsibility': legacyShippingResponsibility,
+            'resolution': legacyShippingResponsibility == 'buyer'
+                ? 'buyer'
+                : legacyShippingResponsibility == 'seller'
+                ? 'seller'
+                : null,
+            'carrierCode': null,
+            'contractedCarrierVerified': false,
+            'costAmount': null,
+            'costStatus': 'unknown',
+          };
+    final refundDecision = <String, dynamic>{
+      'refundDecisionType': data['refundDecisionType'],
+      'refundReason': data['refundReason'],
+      'refundReasonCode': data['refundReasonCode'],
+      'refundExplanation': data['refundExplanation'],
+      'sellerDecisionNotes': data['sellerDecisionNotes'],
+      'refundDifference': data['refundDifference'],
+      'sellerDecisionAt': data['sellerDecisionAt'],
+      'sellerDecisionUid': data['sellerDecisionUid'],
+    };
     return OrderReturnRecord(
       id: id,
       returnId: (data['returnId'] ?? id).toString(),
@@ -367,11 +434,25 @@ class OrderReturnRecord {
       refundStartedAt: data['refundStartedAt'] as Timestamp?,
       refundCompletedAt: data['refundCompletedAt'] as Timestamp?,
       refundFailedAt: data['refundFailedAt'] as Timestamp?,
+      buyerShippedAt: data['buyerShippedAt'] as Timestamp?,
+      sellerConfirmationDeadlineAt:
+          data['sellerConfirmationDeadlineAt'] as Timestamp?,
+      autoReceived: data['autoReceived'] == true,
+      autoReceivedAt: data['autoReceivedAt'] as Timestamp?,
+      disputedAt: data['disputedAt'] as Timestamp?,
+      disputeReasonCode:
+          (data['disputeReasonCode'] ?? '').toString().trim().isEmpty
+          ? null
+          : data['disputeReasonCode'].toString(),
+      disputeReason: (data['disputeReason'] ?? '').toString().trim().isEmpty
+          ? null
+          : data['disputeReason'].toString(),
+      sellerInspectionCompletedAt:
+          data['sellerInspectionCompletedAt'] as Timestamp?,
       refundAmount: (data['refundAmount'] as num?)?.toDouble() ?? 0,
       refundType: RefundTypeX.fromString(data['refundType']?.toString()),
-      shippingResponsibility:
-          (data['shippingResponsibility'] ?? 'seller_if_contract_carrier')
-              .toString(),
+      shippingResponsibility: legacyShippingResponsibility,
+      returnShipping: returnShipping,
       trackingNumber: (data['trackingNumber'] ?? '').toString().isEmpty
           ? null
           : data['trackingNumber'].toString(),
@@ -385,6 +466,7 @@ class OrderReturnRecord {
           ? null
           : data['sellerNotes'].toString(),
       refundDetails: refundDetails,
+      refundDecision: refundDecision,
       paymentId:
           (data['paymentId'] ?? refundDetails['paymentId'] ?? '')
               .toString()
@@ -406,8 +488,42 @@ class OrderReturnRecord {
 
   bool get isClosed =>
       status == OrderReturnStatus.rejected ||
+      status == OrderReturnStatus.refundRejected ||
       status == OrderReturnStatus.refunded ||
       status == OrderReturnStatus.cancelled;
+
+  String get resolvedShippingResponsibility =>
+      (returnShipping['resolution'] ??
+              returnShipping['responsibility'] ??
+              shippingResponsibility)
+          .toString();
+
+  String? get verifiedReturnCarrier {
+    final carrier = (returnShipping['carrierCode'] ?? '').toString().trim();
+    return carrier.isEmpty ? null : carrier;
+  }
+
+  bool get hasVerifiedContractedReturnCarrier =>
+      returnShipping['contractedCarrierVerified'] == true &&
+      verifiedReturnCarrier != null;
+
+  String? get refundDecisionType {
+    final value = (refundDecision['refundDecisionType'] ?? '').toString();
+    return value.isEmpty ? null : value;
+  }
+
+  String? get refundReasonCode {
+    final value = (refundDecision['refundReasonCode'] ?? '').toString();
+    return value.isEmpty ? null : value;
+  }
+
+  String? get refundExplanation {
+    final value = (refundDecision['refundExplanation'] ?? '').toString();
+    return value.isEmpty ? null : value;
+  }
+
+  double get refundDifference =>
+      (refundDecision['refundDifference'] as num?)?.toDouble() ?? 0;
 
   Map<String, dynamic> toMap() => {
     'returnId': returnId,
@@ -429,14 +545,24 @@ class OrderReturnRecord {
     'refundStartedAt': refundStartedAt,
     'refundCompletedAt': refundCompletedAt,
     'refundFailedAt': refundFailedAt,
+    'buyerShippedAt': buyerShippedAt,
+    'sellerConfirmationDeadlineAt': sellerConfirmationDeadlineAt,
+    'autoReceived': autoReceived,
+    'autoReceivedAt': autoReceivedAt,
+    'disputedAt': disputedAt,
+    'disputeReasonCode': disputeReasonCode,
+    'disputeReason': disputeReason,
+    'sellerInspectionCompletedAt': sellerInspectionCompletedAt,
     'refundAmount': refundAmount,
     'refundType': refundType.value,
     'shippingResponsibility': shippingResponsibility,
+    'returnShipping': returnShipping,
     'trackingNumber': trackingNumber,
     'carrier': carrier,
     'adminNotes': adminNotes,
     'sellerNotes': sellerNotes,
     'refundDetails': refundDetails,
+    ...refundDecision,
     if (paymentId != null) 'paymentId': paymentId,
     'returnWindowDays': returnWindowDays,
     'refundRetryCount': refundRetryCount,

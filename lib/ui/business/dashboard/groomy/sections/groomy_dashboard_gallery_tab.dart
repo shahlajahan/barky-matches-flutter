@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:barky_matches_fixed/services/image_upload_service.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class GroomyDashboardGalleryTab extends StatefulWidget {
   final String businessId;
@@ -105,9 +106,11 @@ class _GroomyDashboardGalleryTabState extends State<GroomyDashboardGalleryTab> {
     } catch (e) {
       debugPrint('MULTI UPLOAD ERROR: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.uploadFailed('$e')),
+          ),
+        );
       }
     } finally {
       _picking = false;
@@ -148,9 +151,13 @@ class _GroomyDashboardGalleryTabState extends State<GroomyDashboardGalleryTab> {
     } catch (e) {
       debugPrint('DELETE ERROR: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.deleteFailedWithError('$e'),
+            ),
+          ),
+        );
       }
     }
   }
@@ -167,9 +174,11 @@ class _GroomyDashboardGalleryTabState extends State<GroomyDashboardGalleryTab> {
     } catch (e) {
       debugPrint('SET COVER ERROR: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to set cover: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.failedToSetCover('$e')),
+          ),
+        );
       }
     }
   }
@@ -207,7 +216,9 @@ class _GroomyDashboardGalleryTabState extends State<GroomyDashboardGalleryTab> {
                     child: ElevatedButton.icon(
                       onPressed: _uploading ? null : _pickAndUploadMultiple,
                       icon: const Icon(Icons.add_photo_alternate_outlined),
-                      label: const Text('Upload Grooming Media'),
+                      label: Text(
+                        AppLocalizations.of(context)!.uploadGroomingMedia,
+                      ),
                     ),
                   ),
                   if (_uploading) ...[
@@ -218,14 +229,20 @@ class _GroomyDashboardGalleryTabState extends State<GroomyDashboardGalleryTab> {
                           : _progress.clamp(0.0, 1.0),
                     ),
                     const SizedBox(height: 6),
-                    Text('${(_progress * 100).toStringAsFixed(0)}% uploaded'),
+                    Text(
+                      AppLocalizations.of(
+                        context,
+                      )!.uploadedPercent((_progress * 100).toStringAsFixed(0)),
+                    ),
                   ],
                 ],
               ),
             ),
             Expanded(
               child: media.isEmpty
-                  ? const Center(child: Text('No media yet'))
+                  ? Center(
+                      child: Text(AppLocalizations.of(context)!.noMediaYet),
+                    )
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                       itemCount: media.length,
@@ -328,9 +345,9 @@ class _GalleryCard extends StatelessWidget {
                         color: Colors.black87,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
-                        'Cover',
-                        style: TextStyle(
+                      child: Text(
+                        AppLocalizations.of(context)!.cover,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 12,

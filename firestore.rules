@@ -20,6 +20,22 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function financeRole() {
+      return isSignedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isFinanceViewer() {
+      return financeRole() in [
+        'admin',
+        'super_admin',
+        'finance_viewer',
+        'finance_operator',
+        'finance_manager'
+      ];
+    }
+
     function isBusinessOwner(businessId) {
 
   return isSignedIn()
@@ -294,11 +310,54 @@ allow read: if isAdmin() || (
 
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isOwnUserDoc(userId) || isAdmin();
 
+      // SEC-1 fix (docs/architecture/creator-referral-engine.md, Finding
+      // SEC-1 / Design Invariants): the `creator` map is server-authoritative
+      // — only Cloud Functions (Admin SDK, which bypasses these rules) may
+      // create, activate, deactivate, or otherwise write it. Neither the
+      // document owner nor an admin acting through the client SDK may touch
+      // it; admin creator actions must go through the dedicated callables
+      // (createCreatorProfile / assignReferralCode / activateCreator /
+      // deactivateCreator). Every other field on this document keeps its
+      // existing self-or-admin write access, unchanged.
+      allow create: if (isOwnUserDoc(userId) || isAdmin())
+        && !('creator' in request.resource.data);
+      allow update: if (isOwnUserDoc(userId) || isAdmin())
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creator']);
+      allow delete: if isOwnUserDoc(userId) || isAdmin();
+
+      // This nested wildcard is not purely a subcollection rule: when
+      // {document=**} matches zero path segments it also matches the
+      // parent users/{userId} document itself (Firestore rules OR-combine
+      // every matching allow statement), so it must carry the exact same
+      // SEC-1 restriction as the explicit rules above or it silently
+      // re-opens the hole they close. Confirmed empirically with the
+      // Firestore emulator: the initial version of this fix (restriction
+      // above, unrestricted grant here) still let a self-write set
+      // creator.enabled — this block was the reason why.
       match /{document=**} {
-        allow read, create, update, delete: if isOwnUserDoc(userId) || isAdmin();
+        allow read: if isOwnUserDoc(userId) || isAdmin();
+        allow create: if (isOwnUserDoc(userId) || isAdmin())
+          && !('creator' in request.resource.data);
+        allow update: if (isOwnUserDoc(userId) || isAdmin())
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creator']);
+        allow delete: if isOwnUserDoc(userId) || isAdmin();
       }
+    }
+
+    // Creator Referral Engine — Sprint 1 foundation only (see
+    // docs/architecture/creator-referral-engine.md and
+    // docs/SPRINT1_REPORT.md). Only this one collection is needed this
+    // sprint; referralClicks / referralAttributions / referralCampaigns /
+    // referralDailyStats are deferred to later sprints and intentionally
+    // have no rule yet.
+    match /referralCodes/{code} {
+      // Public read: a future click-tracking/landing page must be able to
+      // resolve a code's validity before the visitor has any account.
+      allow read: if true;
+      // Functions-only write (Admin SDK bypasses these rules) — assigned
+      // exclusively by the assignReferralCode callable.
+      allow write: if false;
     }
 
     match /dogs/{dogId} {
@@ -703,6 +762,72 @@ isBusinessOwner(businessId);
     match /sellerOrders/{sellerOrderId} {
       allow read: if isAdmin() || isOrderOwner(resource.data) || isSellerOrderBusinessOwner(resource.data);
       allow create, update, delete: if false;
+    }
+
+    // Immutable server-owned financial history. Admin SDK writes bypass
+    // rules; clients may inspect it only as admins and can never mutate it.
+    match /financialEvents/{eventId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+    }
+
+    // Read-only payout projection. Canonical payout ownership remains on the
+    // sector source collections; only trusted server code writes this index.
+    match /payoutIndex/{payoutIndexId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+    }
+
+    // Server-owned payout operation batches. Full banking details are
+    // intentionally visible only to authorized admins.
+    match /payoutBatches/{batchId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+
+      match /items/{itemId} {
+        allow read: if isFinanceViewer();
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /financeLedger/{entryId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+    }
+
+    match /financeAdjustments/{adjustmentId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+    }
+
+    match /accountingPeriods/{periodId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+    }
+
+    match /financeOperations/{documentId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+    }
+
+    match /financeSellerAggregates/{aggregateId} {
+      allow read: if isFinanceViewer();
+      allow create, update, delete: if false;
+    }
+
+    match /financeSavedFilters/{userId}/filters/{filterId} {
+      allow read: if isFinanceViewer() && request.auth.uid == userId;
+      allow create, update, delete: if false;
+    }
+
+    match /sellerFinanceSummaries/{businessId} {
+      allow read: if isFinanceViewer() || isBusinessOwner(businessId);
+      allow create, update, delete: if false;
+
+      match /{document=**} {
+        allow read: if isFinanceViewer() || isBusinessOwner(businessId);
+        allow create, update, delete: if false;
+      }
     }
 
     match /order_returns/{returnId} {

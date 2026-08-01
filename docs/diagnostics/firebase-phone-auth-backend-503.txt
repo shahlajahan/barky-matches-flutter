@@ -1,0 +1,62 @@
+Firebase Phone Authentication native diagnostic trace
+Captured: 2026-07-14
+Platform: iOS simulator, Debug instrumentation
+
+Redactions applied: phone number, tokens, receipts, secrets, reCAPTCHA values,
+verification IDs, and raw HTTP response bytes. Presence-only fields are retained.
+
+2026-07-14 15:08:09.416 [PHONE_AUTH_NATIVE] FlutterFire onListen; invoking FIRPhoneAuthProvider; phonePresent=YES mfa=NO
+2026-07-14 15:08:09.418 [PHONE_AUTH_SDK] verifyPhoneNumber task started
+2026-07-14 15:08:09.418 [PHONE_AUTH_SDK] internalVerify entered
+2026-07-14 15:08:09.420 [PHONE_AUTH_SDK] notification forwarding check passed
+2026-07-14 15:08:09.420 [PHONE_AUTH_SDK] retrieving reCAPTCHA Enterprise config
+2026-07-14 15:08:13.250 [PHONE_AUTH_SDK] reCAPTCHA Enterprise config retrieved
+2026-07-14 15:08:13.250 [PHONE_AUTH_SDK] verifyClient entered
+2026-07-14 15:08:13.251 [PHONE_AUTH_SDK] simulator selected reCAPTCHA app verification
+2026-07-14 15:08:13.251 [PHONE_AUTH_SDK] reCAPTCHA flow entered
+2026-07-14 15:08:23.398 [PHONE_AUTH_SDK] submitting SendVerificationCodeRequest after app verification
+2026-07-14 15:08:24.485 [PHONE_AUTH_SDK] SendVerificationCodeRequest failed
+2026-07-14 15:08:24.486 [PHONE_AUTH_SDK] NSError domain=FIRAuthErrorDomain code=17999 localizedDescription="An internal error has occurred, print and inspect the error details for more information."
+  userInfo.FIRAuthErrorUserInfoNameKey=ERROR_INTERNAL_ERROR
+  userInfo.NSLocalizedDescription="An internal error has occurred, print and inspect the error details for more information."
+  underlying NSError domain=FIRAuthInternalErrorDomain code=3 localizedDescription="The operation couldn’t be completed. (FIRAuthInternalErrorDomain error 3.)"
+    deserializedResponse.code=503
+    deserializedResponse.errors[0].domain=global
+    deserializedResponse.errors[0].message="Error code: 39"
+    deserializedResponse.errors[0].reason=backendError
+    deserializedResponse.message="Error code: 39"
+    underlying NSError domain=com.google.HTTPStatus code=503 localizedDescription="The operation couldn’t be completed. (com.google.HTTPStatus error 503.)"
+      userInfo.data=[REDACTED RAW HTTP RESPONSE BODY, length=207]
+      userInfo.data_content_type="application/json; charset=UTF-8"
+2026-07-14 15:08:24.487 [PHONE_AUTH_SDK] verifyPhoneNumber task failed before completion callback
+2026-07-14 15:08:24.487 [PHONE_AUTH_SDK] NSError domain=FIRAuthErrorDomain code=17999 localizedDescription="An internal error has occurred, print and inspect the error details for more information."
+  userInfo.FIRAuthErrorUserInfoNameKey=ERROR_INTERNAL_ERROR
+  underlying NSError domain=FIRAuthInternalErrorDomain code=3
+    deserializedResponse.code=503
+    deserializedResponse.errors[0].domain=global
+    deserializedResponse.errors[0].message="Error code: 39"
+    deserializedResponse.errors[0].reason=backendError
+    deserializedResponse.message="Error code: 39"
+    underlying NSError domain=com.google.HTTPStatus code=503
+      userInfo.data=[REDACTED RAW HTTP RESPONSE BODY, length=207]
+      userInfo.data_content_type="application/json; charset=UTF-8"
+2026-07-14 15:08:24.488 [PHONE_AUTH_NATIVE] FIRPhoneAuthProvider completion ERROR before Flutter conversion; verificationIDPresent=NO
+2026-07-14 15:08:24.488 [PHONE_AUTH_NATIVE] NSError domain=FIRAuthErrorDomain code=17999 localizedDescription="An internal error has occurred, print and inspect the error details for more information."
+  userInfo.FIRAuthErrorUserInfoNameKey=ERROR_INTERNAL_ERROR
+  underlying NSError domain=FIRAuthInternalErrorDomain code=3
+    deserializedResponse.code=503
+    deserializedResponse.errors[0].domain=global
+    deserializedResponse.errors[0].message="Error code: 39"
+    deserializedResponse.errors[0].reason=backendError
+    deserializedResponse.message="Error code: 39"
+    underlying NSError domain=com.google.HTTPStatus code=503
+      userInfo.data=[REDACTED RAW HTTP RESPONSE BODY, length=207]
+      userInfo.data_content_type="application/json; charset=UTF-8"
+2026-07-14 15:08:24.489 [PHONE_AUTH_NATIVE] Flutter conversion complete; convertedCode=internal-error
+
+First native failure point:
+SendVerificationCodeRequest reached the Firebase backend after successful simulator
+reCAPTCHA app verification. The backend returned HTTP 503, reason backendError,
+message "Error code: 39". FirebaseAuth wrapped this as FIRAuthInternalErrorDomain
+code 3, then FIRAuthErrorDomain code 17999 (ERROR_INTERNAL_ERROR), before
+FlutterFire converted it to firebase_auth/internal-error.

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/services/business_chat_service.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessChatPage extends StatefulWidget {
   final String chatId;
@@ -72,9 +73,11 @@ class _BusinessChatPageState extends State<BusinessChatPage> {
       ),
       builder: (context) {
         if (docs.isEmpty) {
-          return const SizedBox(
+          return SizedBox(
             height: 180,
-            child: Center(child: Text('No quick replies found')),
+            child: Center(
+              child: Text(AppLocalizations.of(context)!.noQuickRepliesFound),
+            ),
           );
         }
 
@@ -95,9 +98,12 @@ class _BusinessChatPageState extends State<BusinessChatPage> {
 
                 const SizedBox(height: 18),
 
-                const Text(
-                  'Quick Replies',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Text(
+                  AppLocalizations.of(context)!.quickReplies,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
                 const SizedBox(height: 18),
@@ -245,13 +251,17 @@ class _BusinessChatPageState extends State<BusinessChatPage> {
                 }
 
                 if (snapshot.hasError) {
-                  return const Center(child: Text('Chat failed to load'));
+                  return Center(
+                    child: Text(AppLocalizations.of(context)!.chatFailedToLoad),
+                  );
                 }
 
                 final docs = snapshot.data?.docs ?? [];
 
                 if (docs.isEmpty) {
-                  return const Center(child: Text('No messages yet'));
+                  return Center(
+                    child: Text(AppLocalizations.of(context)!.noMessagesYet),
+                  );
                 }
 
                 return ListView.builder(
@@ -341,11 +351,11 @@ class _BusinessChatPageState extends State<BusinessChatPage> {
                         minLines: 1,
                         maxLines: 5,
 
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message...',
+                        decoration: InputDecoration(
+                          hintText: AppLocalizations.of(context)!.typeMessageHint,
                           border: InputBorder.none,
 
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 14,
                           ),

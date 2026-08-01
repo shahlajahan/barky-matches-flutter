@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminMapMonitorPage extends StatefulWidget {
   const AdminMapMonitorPage({super.key});
@@ -156,7 +157,7 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Admin Map Monitor"),
+        title: Text(AppLocalizations.of(context)!.adminMapMonitor),
         backgroundColor: Colors.pink,
       ),
 
@@ -190,25 +191,25 @@ class _AdminMapMonitorPageState extends State<AdminMapMonitorPage> {
 
           children: [
             FilterChip(
-              label: const Text("Businesses"),
+              label: Text(AppLocalizations.of(context)!.homeBusinessesTitle),
               selected: showBusinesses,
               onSelected: (_) => _toggle("business"),
             ),
 
             FilterChip(
-              label: const Text("Adoption"),
+              label: Text(AppLocalizations.of(context)!.dogViewAdoption),
               selected: showAdoptions,
               onSelected: (_) => _toggle("adoption"),
             ),
 
             FilterChip(
-              label: const Text("Lost Dogs"),
+              label: Text(AppLocalizations.of(context)!.lostDogsMenuItem),
               selected: showLostDogs,
               onSelected: (_) => _toggle("lost"),
             ),
 
             FilterChip(
-              label: const Text("Reports"),
+              label: Text(AppLocalizations.of(context)!.reportsTitle),
               selected: showReports,
               onSelected: (_) => _toggle("reports"),
             ),

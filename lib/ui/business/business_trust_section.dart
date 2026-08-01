@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../admin/admin_section.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessTrustSection extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -62,24 +63,27 @@ class _BusinessTrustSectionState extends State<BusinessTrustSection> {
 
             /// 🔷 RISK FLAGS
             if (riskFlags.isNotEmpty) ...[
-              const Text(
-                "Risk Flags",
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              Text(
+                AppLocalizations.of(context)!.riskFlags,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               ...riskFlags.map((flag) => _RiskFlagTile(flag: flag)),
             ] else
-              const Text(
-                "No risk flags",
-                style: TextStyle(fontSize: 13, color: Colors.black54),
+              Text(
+                AppLocalizations.of(context)!.noRiskFlags,
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
               ),
 
             const SizedBox(height: 18),
 
             /// 🔷 MODERATION NOTES
-            const Text(
-              "Admin Notes",
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.adminNotes,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
@@ -88,7 +92,7 @@ class _BusinessTrustSectionState extends State<BusinessTrustSection> {
               controller: _notesController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: "Add internal moderation notes...",
+                hintText: AppLocalizations.of(context)!.adminNotesHint,
                 filled: true,
                 fillColor: Colors.grey.shade100,
                 border: OutlineInputBorder(
@@ -110,7 +114,7 @@ class _BusinessTrustSectionState extends State<BusinessTrustSection> {
                     )
                   : TextButton(
                       onPressed: _saveNotes,
-                      child: const Text("Save Notes"),
+                      child: Text(AppLocalizations.of(context)!.saveNotes),
                     ),
             ),
           ],
@@ -139,13 +143,19 @@ class _BusinessTrustSectionState extends State<BusinessTrustSection> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Admin notes saved ✅")));
+        ).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.adminNotesSaved)),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Save failed: $e")));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.saveFailed('$e')),
+          ),
+        );
       }
     } finally {
       if (mounted) {

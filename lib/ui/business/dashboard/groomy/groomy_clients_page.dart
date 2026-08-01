@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class GroomyClientsPage extends StatefulWidget {
   final String businessId;
@@ -99,7 +100,7 @@ class _GroomyClientsPageState extends State<GroomyClientsPage> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Clients'),
+        title: Text(AppLocalizations.of(context)!.clients),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
@@ -117,7 +118,7 @@ class _GroomyClientsPageState extends State<GroomyClientsPage> {
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Search by pet or owner name',
+                hintText: AppLocalizations.of(context)!.searchPetOrOwnerHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _query.isEmpty
                     ? null
@@ -146,7 +147,7 @@ class _GroomyClientsPageState extends State<GroomyClientsPage> {
                 if (snapshot.hasError) {
                   return Center(
                     child: Text(
-                      'Could not load clients.',
+                      AppLocalizations.of(context)!.couldNotLoadClients,
                       style: AppTheme.body(color: AppTheme.muted),
                     ),
                   );
@@ -210,7 +211,7 @@ class _GroomyClientsPageState extends State<GroomyClientsPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddClientSheet,
         icon: const Icon(Icons.add),
-        label: const Text('Add Client'),
+        label: Text(AppLocalizations.of(context)!.addClient),
       ),
     );
   }
@@ -242,40 +243,53 @@ class _GroomyClientsPageState extends State<GroomyClientsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Add Client', style: AppTheme.h2()),
+                Text(
+                  AppLocalizations.of(context)!.addClient,
+                  style: AppTheme.h2(),
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _petNameController,
-                  decoration: const InputDecoration(labelText: 'Pet Name'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.petNameLabel,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _ownerNameController,
-                  decoration: const InputDecoration(labelText: 'Owner Name'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.ownerNameLabel,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _breedController,
-                  decoration: const InputDecoration(labelText: 'Breed'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.breed,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.phoneLabel,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _notesController,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Notes'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.notes,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _saveManualClient,
-                    child: const Text('Save Client'),
+                    child: Text(AppLocalizations.of(context)!.saveClient),
                   ),
                 ),
               ],
@@ -295,7 +309,9 @@ class _GroomyClientsPageState extends State<GroomyClientsPage> {
 
     if (petName.isEmpty || ownerName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pet name and owner name are required')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.petOwnerNamesRequired),
+        ),
       );
       return;
     }
@@ -330,9 +346,9 @@ class _GroomyClientsPageState extends State<GroomyClientsPage> {
     if (!mounted) return;
 
     Navigator.pop(context);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Client saved')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.clientSaved)),
+    );
   }
 
   String _stableManualClientKey({
@@ -465,7 +481,9 @@ class _ClientCard extends StatelessWidget {
                     if (lastGroomingDate != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Last grooming: $lastGroomingDate',
+                        AppLocalizations.of(
+                          context,
+                        )!.lastGrooming(lastGroomingDate!),
                         style: AppTheme.caption(color: AppTheme.muted),
                       ),
                     ],
@@ -501,10 +519,13 @@ class _EmptyClientsState extends StatelessWidget {
               color: Color(0xFF9E1B4F),
             ),
             const SizedBox(height: 12),
-            Text('No clients yet', style: AppTheme.h2(weight: FontWeight.w700)),
+            Text(
+              AppLocalizations.of(context)!.noClientsYet,
+              style: AppTheme.h2(weight: FontWeight.w700),
+            ),
             const SizedBox(height: 12),
             Text(
-              'Add your first grooming client to start tracking visits.',
+              AppLocalizations.of(context)!.addFirstGroomingClient,
               textAlign: TextAlign.center,
               style: AppTheme.body(color: AppTheme.muted),
             ),
@@ -512,7 +533,7 @@ class _EmptyClientsState extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onAddClient,
               icon: const Icon(Icons.add),
-              label: const Text('Add Client'),
+              label: Text(AppLocalizations.of(context)!.addClient),
             ),
           ],
         ),
@@ -617,7 +638,7 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: const Text('Client Profile')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.clientProfile)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -687,9 +708,11 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
                             'Schedule',
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text(
-                                    'Open appointment booking from business page',
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.openAppointmentBooking,
                                   ),
                                 ),
                               );
@@ -723,7 +746,10 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
                       ],
                     ),
                     const SizedBox(height: 30),
-                    Text('Grooming History', style: AppTheme.h2()),
+                    Text(
+                      AppLocalizations.of(context)!.groomingHistory,
+                      style: AppTheme.h2(),
+                    ),
                     const SizedBox(height: 12),
                     history,
                   ],
@@ -731,7 +757,7 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
               },
             ),
             const SizedBox(height: 28),
-            Text('Notes', style: AppTheme.h2()),
+            Text(AppLocalizations.of(context)!.notes, style: AppTheme.h2()),
             const SizedBox(height: 12),
             _messageCard(notes.trim().isEmpty ? 'No notes' : notes),
             const SizedBox(height: 40),
@@ -802,17 +828,17 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
     final ownerId = _patientData['ownerId']?.toString().trim();
 
     if (ownerId == null || ownerId.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Owner not found')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.ownerNotFound)),
+      );
       return;
     }
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Sign in required')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.signInRequired)),
+      );
       return;
     }
 
@@ -872,32 +898,39 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Add Grooming Visit', style: AppTheme.h2()),
+                Text(
+                  AppLocalizations.of(context)!.addGroomingVisit,
+                  style: AppTheme.h2(),
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _visitTitleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Service / Visit Title',
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.serviceVisitTitle,
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _visitPriceController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Price'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.price,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _visitNotesController,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Notes'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.notes,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => _saveVisit(context),
-                    child: const Text('Save Visit'),
+                    child: Text(AppLocalizations.of(context)!.saveVisit),
                   ),
                 ),
               ],
@@ -951,9 +984,9 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
     Navigator.of(sheetContext).pop();
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Visit saved')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.visitSaved)),
+    );
   }
 
   Future<void> _openEditClientSheet() async {
@@ -985,27 +1018,38 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Edit Client', style: AppTheme.h2()),
+                Text(
+                  AppLocalizations.of(context)!.editClient,
+                  style: AppTheme.h2(),
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _editPetNameController,
-                  decoration: const InputDecoration(labelText: 'Pet Name'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.petNameLabel,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _editOwnerNameController,
-                  decoration: const InputDecoration(labelText: 'Owner Name'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.ownerNameLabel,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _editBreedController,
-                  decoration: const InputDecoration(labelText: 'Breed'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.breed,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _editPhoneController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone'),
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.phoneLabel,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -1041,7 +1085,7 @@ class _GroomyPatientDetailPageState extends State<GroomyPatientDetailPage> {
 
                       Navigator.of(sheetContext).pop(result);
                     },
-                    child: const Text('Save'),
+                    child: Text(AppLocalizations.of(context)!.save),
                   ),
                 ),
               ],

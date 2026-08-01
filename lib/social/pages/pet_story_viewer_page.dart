@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../models/pet_story.dart';
 import '../services/pet_story_service.dart';
@@ -50,27 +51,27 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
         : widget.initialIndex.clamp(0, widget.stories.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
     _progressController = AnimationController(
-  vsync: this,
-  duration: _imageStoryDuration,
-);
+      vsync: this,
+      duration: _imageStoryDuration,
+    );
 
-_replyController.addListener(() {
-  if (mounted) {
-    setState(() {});
-  }
-});
+    _replyController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
 
-_replyFocusNode.addListener(() {
-  if (_replyFocusNode.hasFocus) {
-    _pauseStory();
-  } else {
-    _resumeStory();
-  }
-});
+    _replyFocusNode.addListener(() {
+      if (_replyFocusNode.hasFocus) {
+        _pauseStory();
+      } else {
+        _resumeStory();
+      }
+    });
 
-WidgetsBinding.instance.addPostFrameCallback((_) {
-  _handleStoryVisible();
-});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleStoryVisible();
+    });
   }
 
   @override
@@ -345,65 +346,53 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
   }
 
   Widget _buildBottomOverlay(PetStory story) {
-  final canSend = _replyController.text.trim().isNotEmpty;
+    final canSend = _replyController.text.trim().isNotEmpty;
 
-  return Row(
-    children: [
-      SizedBox(
-        width:
-            MediaQuery.sizeOf(context).width -
-            16 -
-            16 -
-            12 -
-            48 -
-            10 -
-            48,
-        child: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
+    return Row(
+      children: [
+        SizedBox(
+          width: MediaQuery.sizeOf(context).width - 16 - 16 - 12 - 48 - 10 - 48,
+          child: Container(
+            height: 48,
+            decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
-          ),
-          child: TextField(
-            controller: _replyController,
-            focusNode: _replyFocusNode,
-            style: const TextStyle(
-              color: Colors.black87, // برای تست می‌توانی موقتاً Colors.red بگذاری
-              fontSize: 16,
-            ),
-            cursorColor: Colors.white,
-            textInputAction: TextInputAction.send,
-            onSubmitted: (_) => _sendReply(),
-            decoration: const InputDecoration(
-              hintText: 'Reply...',
-              hintStyle: TextStyle(
-                color: Colors.white54,
+            child: TextField(
+              controller: _replyController,
+              focusNode: _replyFocusNode,
+              style: const TextStyle(
+                color: Colors
+                    .black87, // برای تست می‌توانی موقتاً Colors.red بگذاری
+                fontSize: 16,
               ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
+              cursorColor: Colors.white,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendReply(),
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.replyHint,
+                hintStyle: const TextStyle(color: Colors.white54),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
         ),
-      ),
-      const SizedBox(width: 12),
-      _buildLikeButton(story),
-      const SizedBox(width: 10),
-      _storyActionButton(
-        icon: Icons.send_rounded,
-        color: canSend
-            ? const Color(0xFFFF4D8D)
-            : Colors.white54,
-        onTap: canSend ? _sendReply : () {},
-      ),
-    ],
-  );
-}
+        const SizedBox(width: 12),
+        _buildLikeButton(story),
+        const SizedBox(width: 10),
+        _storyActionButton(
+          icon: Icons.send_rounded,
+          color: canSend ? const Color(0xFFFF4D8D) : Colors.white54,
+          onTap: canSend ? _sendReply : () {},
+        ),
+      ],
+    );
+  }
 
   Widget _buildLikeButton(PetStory story) {
     return StreamBuilder<bool>(
@@ -472,9 +461,9 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('💬 STORY REPLY SENT: ${story.id}');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Reply sent')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.replySent)),
+      );
     } catch (e) {
       debugPrint('❌ STORY REPLY FAILED: $e');
     } finally {
@@ -611,7 +600,7 @@ https://petsupo.com/story/${story.id}
             ),
           ),
           IconButton(
-            tooltip: 'Close',
+            tooltip: AppLocalizations.of(context)!.close,
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.close_rounded, color: Colors.white),
           ),
@@ -632,7 +621,7 @@ https://petsupo.com/story/${story.id}
           ),
           const SizedBox(height: 10),
           Text(
-            'Video stories are coming soon',
+            AppLocalizations.of(context)!.videoStoriesComingSoon,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.72),
               fontWeight: FontWeight.w700,

@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -777,8 +776,8 @@ class _PhotoPicker extends StatelessWidget {
           if (file != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(AppTheme.radius),
-              child: Image.file(
-                File(file!.path),
+              child: PlatformPathImage(
+                path: file!.path,
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -887,8 +886,8 @@ class _ImageThumb extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => _fallback(),
               )
-            : Image.file(
-                File(value),
+            : PlatformPathImage(
+                path: value,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => _fallback(),
               ),

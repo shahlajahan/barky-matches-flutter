@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ChatSearchDelegate extends SearchDelegate<String> {
   final List<Map<String, dynamic>> chats;
@@ -114,15 +115,15 @@ class ChatSearchDelegate extends SearchDelegate<String> {
 
   @override
   Widget buildResults(BuildContext context) {
-    return _buildContent();
+    return _buildContent(context);
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    return _buildContent();
+    return _buildContent(context);
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     final results = _filteredChats();
 
     if (results.isEmpty) {
@@ -163,7 +164,7 @@ class ChatSearchDelegate extends SearchDelegate<String> {
               const SizedBox(height: 24),
 
               Text(
-                'No chats found',
+                AppLocalizations.of(context)!.noChatsFound,
 
                 style: GoogleFonts.poppins(
                   fontSize: 24,
@@ -176,7 +177,7 @@ class ChatSearchDelegate extends SearchDelegate<String> {
               const SizedBox(height: 10),
 
               Text(
-                'Try another keyword or username.',
+                AppLocalizations.of(context)!.tryAnotherKeyword,
 
                 textAlign: TextAlign.center,
 

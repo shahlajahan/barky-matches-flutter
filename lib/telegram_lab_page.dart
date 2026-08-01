@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class TelegramLabPage extends StatefulWidget {
   const TelegramLabPage({super.key});
@@ -61,7 +62,7 @@ This message was sent securely through Firebase Cloud Functions v2.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Telegram Lab')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.telegramLab)),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -70,15 +71,15 @@ This message was sent securely through Firebase Cloud Functions v2.
 
             const SizedBox(height: 20),
 
-            const Text(
-              'Telegram Bot API Test',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.telegramBotApiTest,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 12),
 
-            const Text(
-              'Press the button below to send a test message.',
+            Text(
+              AppLocalizations.of(context)!.telegramTestInstructions,
               textAlign: TextAlign.center,
             ),
 
@@ -92,7 +93,9 @@ This message was sent securely through Firebase Cloud Functions v2.
                   padding: const EdgeInsets.all(16),
                   child: _isSending
                       ? const CircularProgressIndicator()
-                      : const Text('Send Telegram Message'),
+                      : Text(
+                          AppLocalizations.of(context)!.sendTelegramMessage,
+                        ),
                 ),
               ),
             ),

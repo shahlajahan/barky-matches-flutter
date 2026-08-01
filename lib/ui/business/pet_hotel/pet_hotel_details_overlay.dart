@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import '../dashboard/pet_hotel/pet_hotel_reviews_tab.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 enum _PetHotelDetailsTab { overview, services, reviews, gallery }
 
@@ -367,7 +368,9 @@ class _PetHotelDetailsOverlayState extends State<PetHotelDetailsOverlay> {
         }
 
         if (services.isEmpty) {
-          return const Center(child: Text('No services available'));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.noServicesAvailable),
+          );
         }
 
         return ListView.separated(
@@ -441,7 +444,9 @@ class _PetHotelDetailsOverlayState extends State<PetHotelDetailsOverlay> {
   Widget _gallery() {
     final images = _galleryImages();
     if (images.isEmpty) {
-      return const Center(child: Text('No gallery images yet'));
+      return Center(
+        child: Text(AppLocalizations.of(context)!.noGalleryImagesYet),
+      );
     }
 
     return GridView.builder(

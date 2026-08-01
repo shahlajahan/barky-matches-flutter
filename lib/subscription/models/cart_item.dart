@@ -22,6 +22,17 @@ class CartItem {
   });
 
   Map<String, dynamic> toJson() {
+    // Product.toJson() is also used to write directly to Firestore
+    // elsewhere (add_product_page.dart, product_service.dart), where a
+    // raw cloud_firestore Timestamp is the correct value — so it isn't
+    // touched here. HttpsCallable.call() instead only accepts JSON
+    // primitives (null/bool/num/String/List/Map); Timestamp is not one
+    // of them, so createdAt/updatedAt are converted to ISO-8601 strings
+    // just for this callable payload.
+    final productJson = Map<String, dynamic>.from(product.toJson());
+    productJson['createdAt'] = product.createdAt?.toDate().toIso8601String();
+    productJson['updatedAt'] = product.updatedAt?.toDate().toIso8601String();
+
     return {
       'productId': productId,
       'shopId': shopId,
@@ -42,7 +53,7 @@ class CartItem {
       'freeShippingThreshold': product.freeShippingThreshold,
       'allowFreeShipping': product.allowFreeShipping,
       'allowedCarrierCodes': allowedCarrierCodes ?? product.allowedCarrierCodes,
-      'product': product.toJson(),
+      'product': productJson,
     };
   }
 

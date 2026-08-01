@@ -9,9 +9,13 @@ import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/services/order_return_service.dart';
+import 'package:barky_matches_fixed/services/order_service.dart';
+import 'package:barky_matches_fixed/services/pre_shipment_cancellation_policy.dart';
 import 'package:barky_matches_fixed/models/order_return.dart';
 import 'package:barky_matches_fixed/ui/returns/order_return_card.dart';
 import 'package:barky_matches_fixed/ui/orders/return_request_sheet.dart';
+
+bool canViewInternalOrderPayout({required bool isSeller}) => isSeller;
 
 class OrderDetailPage extends StatefulWidget {
   final String sellerOrderId;
@@ -105,6 +109,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   String normalizeStatus(String s) {
     final lower = s.toLowerCase();
 
+    if (lower == "cancellation_refund_pending") {
+      return "cancellation_refund_pending";
+    }
+    if (lower == "cancellation_refund_failed") {
+      return "cancellation_refund_failed";
+    }
     if (lower.contains("pending")) return "pending";
     if (lower.contains("paid")) return "paid";
     if (lower.contains("confirmed")) return "confirmed";
@@ -134,6 +144,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         return Colors.red;
       case "cancelled":
         return Colors.redAccent;
+      case "cancellation_refund_pending":
+        return Colors.orange;
+      case "cancellation_refund_failed":
+        return Colors.red;
       default:
         return Colors.grey;
     }
@@ -159,6 +173,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         return l10n.failedStatusLabel;
       case "cancelled":
         return l10n.cancelledStatusLabel;
+      case "cancellation_refund_pending":
+        return l10n.cancellationRefundProcessingStatus;
+      case "cancellation_refund_failed":
+        return l10n.cancellationRefundFailedStatus;
       default:
         return status;
     }
@@ -316,6 +334,127 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _showCancelOrderDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    var selectedReason = 'ordered_by_mistake';
+    final otherController = TextEditingController();
+
+    final confirmed = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final isOther = selectedReason == 'other';
+          final canConfirm = !isOther || otherController.text.trim().isNotEmpty;
+          return AlertDialog(
+            title: Text(l10n.cancelOrderTitle),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.cancelOrderConfirmation),
+                    const SizedBox(height: 8),
+                    Text(l10n.cancelOrderRefundNotice),
+                    const SizedBox(height: 20),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedReason,
+                      decoration: InputDecoration(
+                        labelText: l10n.cancellationReasonLabel,
+                        border: const OutlineInputBorder(),
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'ordered_by_mistake',
+                          child: Text(l10n.cancelReasonOrderedByMistake),
+                        ),
+                        DropdownMenuItem(
+                          value: 'changed_mind',
+                          child: Text(l10n.cancelReasonChangedMind),
+                        ),
+                        DropdownMenuItem(
+                          value: 'duplicate_order',
+                          child: Text(l10n.cancelReasonDuplicateOrder),
+                        ),
+                        DropdownMenuItem(
+                          value: 'other',
+                          child: Text(l10n.cancelReasonOther),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedReason = value);
+                        }
+                      },
+                    ),
+                    if (isOther) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: otherController,
+                        maxLength: 300,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: l10n.cancellationReasonDetailsLabel,
+                          border: const OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setDialogState(() {}),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: canConfirm
+                    ? () => Navigator.pop(
+                        dialogContext,
+                        isOther ? otherController.text.trim() : selectedReason,
+                      )
+                    : null,
+                child: Text(l10n.cancelOrderButton),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    otherController.dispose();
+    if (confirmed == null || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await OrderService().cancelSellerOrderBeforeShipment(
+        sellerOrderId: widget.sellerOrderId,
+        cancelReason: confirmed,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.cancellationRefundProcessing)),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      final message = error.code == 'failed-precondition'
+          ? l10n.cancellationShipmentAlreadyStarted
+          : l10n.cancelOrderFailed;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.cancelOrderFailed)));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -546,7 +685,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               r.status == OrderReturnStatus.pending ||
               r.status == OrderReturnStatus.approved ||
               r.status == OrderReturnStatus.shippedBack ||
+              r.status == OrderReturnStatus.waitingForSellerConfirmation ||
               r.status == OrderReturnStatus.receivedBySeller ||
+              r.status == OrderReturnStatus.autoReceived ||
+              r.status == OrderReturnStatus.dispute ||
               r.status == OrderReturnStatus.refundPending ||
               r.status == OrderReturnStatus.refundFailed,
         );
@@ -823,6 +965,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           final List<dynamic> invoiceRiskFlags =
               (invoice['validation']?['riskFlags'] as List<dynamic>?) ?? [];
           final status = normalizeStatus(data['status'] ?? '');
+          final cancellationRefund =
+              (data['cancellationRefund'] as Map<String, dynamic>?) ?? {};
+          final isPreShipmentCancellation =
+              data['cancellationType'] == 'PRE_SHIPMENT';
           final timeline = data['timeline'] ?? [];
           final payout = (data['payout'] as Map<String, dynamic>?) ?? {};
 
@@ -833,6 +979,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               payout['amount'] ?? data['financial']?['sellerNetAmount'] ?? 0;
 
           final payoutRef = payout['reference'];
+          final buyerUid = (data['buyerUid'] ?? data['userId'] ?? '')
+              .toString();
+          final canBuyerCancel =
+              !isSeller &&
+              currentUserId == buyerUid &&
+              isPreShipmentCancellationEligible(
+                status,
+                shipmentStarted: shipping['shippedAt'] != null,
+              );
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -850,6 +1005,33 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                   ),
                 ),
+
+                if (isPreShipmentCancellation)
+                  _sectionCard(
+                    title: l10n.orderCancellationTitle,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          cancellationRefund['status'] == 'refunded'
+                              ? Icons.check_circle_outline
+                              : status == 'cancellation_refund_failed'
+                              ? Icons.error_outline
+                              : Icons.hourglass_top_rounded,
+                          color: getStatusColor(status),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            cancellationRefund['status'] == 'refunded'
+                                ? l10n.orderCancelledRefundCompleted
+                                : orderStatusLabel(status, l10n),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 /// 📦 ITEMS
                 _sectionCard(
@@ -873,7 +1055,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 _sectionCard(
                   title: l10n.totalLabel,
                   child: Text(
-                    "$total TRY",
+                    l10n.amountInTry(total),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1012,15 +1194,42 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   ),
                 ),
 
-                _buildReturnSection(
-                  context,
-                  data,
-                  isSeller,
-                  currentUserId,
-                  status,
-                ),
+                if (canBuyerCancel)
+                  _sectionCard(
+                    title: l10n.orderCancellationTitle,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.preShipmentCancellationAvailable),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading
+                                ? null
+                                : _showCancelOrderDialog,
+                            icon: const Icon(Icons.cancel_outlined),
+                            label: Text(l10n.cancelOrderButton),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                if (isSeller)
+                if (!{
+                  'cancelled',
+                  'cancellation_refund_pending',
+                  'cancellation_refund_failed',
+                }.contains(status))
+                  _buildReturnSection(
+                    context,
+                    data,
+                    isSeller,
+                    currentUserId,
+                    status,
+                  ),
+
+                if (canViewInternalOrderPayout(isSeller: isSeller))
                   _sectionCard(
                     title: l10n.buyerInfoTitle,
                     child: Column(
@@ -1306,68 +1515,73 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   child: buildTimeline(timeline, l10n),
                 ),
 
-                /// 💰 PAYOUT (🔥 درست شده)
-                _sectionCard(
-                  title: l10n.payoutTitle,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      /// STATUS
-                      Row(
-                        children: [
+                /// Seller payout is internal marketplace accounting and must
+                /// not be exposed on the buyer-facing order detail.
+                if (isSeller)
+                  _sectionCard(
+                    title: l10n.payoutTitle,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        /// STATUS
+                        Row(
+                          children: [
+                            Text(
+                              "${l10n.status}: ",
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              payoutStatusLabel(payoutStatus, l10n),
+                              style: TextStyle(
+                                color: payoutStatus == "paid"
+                                    ? Colors.green
+                                    : Colors.orange,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        /// AMOUNT
+                        Text(
+                          l10n.amountLabel("₺$payoutAmount"),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+
+                        if (payoutRef != null) ...[
+                          const SizedBox(height: 6),
+                          Text(l10n.referenceLabel(payoutRef.toString())),
+                        ],
+
+                        /// INFO MESSAGE
+                        if (payoutStatus == "pending") ...[
+                          const SizedBox(height: 10),
                           Text(
-                            "${l10n.status}: ",
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            payoutStatusLabel(payoutStatus, l10n),
-                            style: TextStyle(
-                              color: payoutStatus == "paid"
-                                  ? Colors.green
-                                  : Colors.orange,
-                              fontWeight: FontWeight.bold,
+                            isSeller
+                                ? l10n.paymentWillBeTransferredByPetsupo
+                                : l10n.pendingPayoutLabel,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
                             ),
                           ),
                         ],
-                      ),
 
-                      const SizedBox(height: 8),
-
-                      /// AMOUNT
-                      Text(
-                        l10n.amountLabel("₺$payoutAmount"),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-
-                      if (payoutRef != null) ...[
-                        const SizedBox(height: 6),
-                        Text(l10n.referenceLabel(payoutRef.toString())),
-                      ],
-
-                      /// INFO MESSAGE
-                      if (payoutStatus == "pending") ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          isSeller
-                              ? l10n.paymentWillBeTransferredByPetsupo
-                              : l10n.pendingPayoutLabel,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
+                        if (payoutStatus == "payment_pending") ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            l10n.waitingForCustomerPayment,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
-
-                      if (payoutStatus == "payment_pending") ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          l10n.waitingForCustomerPayment,
-                          style: TextStyle(fontSize: 12, color: Colors.black54),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
 
                 const SizedBox(height: 12),
 

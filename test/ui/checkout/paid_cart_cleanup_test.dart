@@ -15,12 +15,12 @@ void main() {
     addCartQuantity(appState, productId: 'purchased', quantity: 2);
     final guard = CheckoutCompletionGuard();
 
-    final sellerOrderId = guard.claimPaidSellerOrder(<String, dynamic>{
+    final sellerOrderIds = guard.claimPaidSellerOrders(<String, dynamic>{
       'paid': false,
       'cartReconciled': false,
       'sellerOrderIds': ['seller-order-1'],
     });
-    if (sellerOrderId != null) {
+    if (sellerOrderIds.isNotEmpty) {
       appState.removePurchasedCartItems([cartItem('purchased', 1)]);
     }
 
@@ -40,10 +40,10 @@ void main() {
       'sellerOrderIds': ['seller-order-1'],
     };
 
-    if (guard.claimPaidSellerOrder(paidState) != null) {
+    if (guard.claimPaidSellerOrders(paidState).isNotEmpty) {
       appState.removePurchasedCartItems(purchasedSnapshot);
     }
-    if (guard.claimPaidSellerOrder(paidState) != null) {
+    if (guard.claimPaidSellerOrders(paidState).isNotEmpty) {
       appState.removePurchasedCartItems(purchasedSnapshot);
     }
 

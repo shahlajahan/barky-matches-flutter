@@ -62,6 +62,20 @@ class OrderService {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
+  Future<Map<String, dynamic>> cancelSellerOrderBeforeShipment({
+    required String sellerOrderId,
+    required String cancelReason,
+  }) async {
+    final callable = _functions.httpsCallable(
+      'cancelSellerOrderBeforeShipment',
+    );
+    final result = await callable.call({
+      'sellerOrderId': sellerOrderId,
+      'cancelReason': cancelReason,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   /// ⚠️ OLD SYSTEM (KEEP TEMPORARILY)
   Future<String> createOrder({
     required List<Map<String, dynamic>> items,

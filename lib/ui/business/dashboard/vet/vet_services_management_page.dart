@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetServicesManagementPage extends StatefulWidget {
   final String businessId;
@@ -23,13 +24,17 @@ class _VetServicesManagementPageState extends State<VetServicesManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: const Text('Services')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.services)),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.card,
         child: const Icon(Icons.add),
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add service flow coming next')),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.addServiceFlowComingNext,
+              ),
+            ),
           );
         },
       ),
@@ -38,9 +43,15 @@ class _VetServicesManagementPageState extends State<VetServicesManagementPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Clinic Services', style: AppTheme.h1()),
+            Text(
+              AppLocalizations.of(context)!.clinicServices,
+              style: AppTheme.h1(),
+            ),
             const SizedBox(height: 8),
-            Text('Manage visible veterinary services', style: AppTheme.body()),
+            Text(
+              AppLocalizations.of(context)!.manageVisibleVetServices,
+              style: AppTheme.body(),
+            ),
             const SizedBox(height: 20),
 
             ..._services.map(

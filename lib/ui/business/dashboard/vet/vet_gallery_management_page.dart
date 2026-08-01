@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetGalleryManagementPage extends StatefulWidget {
   final String businessId;
@@ -122,16 +123,22 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo uploaded successfully')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.photoUploadedSuccessfully,
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('❌ GALLERY UPLOAD ERROR: $e');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.uploadFailed('$e')),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -184,17 +191,21 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Photo deleted')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.photoDeleted)),
+      );
     } catch (e) {
       debugPrint('❌ DELETE PHOTO ERROR: $e');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.deleteFailedWithError('$e'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -299,9 +310,11 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
         _coverImageUrl = url;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Cover image updated')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.coverImageUpdated),
+        ),
+      );
     } catch (e) {
       debugPrint('❌ COVER IMAGE ERROR: $e');
     } finally {
@@ -319,7 +332,9 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
 
-      appBar: AppBar(title: const Text('Gallery Management')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.galleryManagement),
+      ),
 
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppTheme.accent,
@@ -361,7 +376,10 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
 
                     children: [
-                      Text('Cover Image', style: AppTheme.h2()),
+                      Text(
+                        AppLocalizations.of(context)!.coverImage,
+                        style: AppTheme.h2(),
+                      ),
 
                       const SizedBox(height: 12),
 
@@ -475,11 +493,11 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
                                             ),
                                           ),
 
-                                          child: const Row(
+                                          child: Row(
                                             mainAxisSize: MainAxisSize.min,
 
                                             children: [
-                                              Icon(
+                                              const Icon(
                                                 LucideIcons.imagePlus,
 
                                                 color: Colors.white,
@@ -487,12 +505,14 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
                                                 size: 16,
                                               ),
 
-                                              SizedBox(width: 8),
+                                              const SizedBox(width: 8),
 
                                               Text(
-                                                'Tap to change cover',
+                                                AppLocalizations.of(
+                                                  context,
+                                                )!.tapToChangeCover,
 
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   color: Colors.white,
 
                                                   fontWeight: FontWeight.w600,
@@ -521,7 +541,9 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
                                         const SizedBox(height: 12),
 
                                         Text(
-                                          'Upload cover image',
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.uploadCoverImage,
 
                                           style: AppTheme.body(),
                                         ),
@@ -529,7 +551,9 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
                                         const SizedBox(height: 8),
 
                                         Text(
-                                          'Tap to upload clinic cover photo',
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.tapToUploadClinicCover,
 
                                           textAlign: TextAlign.center,
 
@@ -549,7 +573,10 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
                       Align(
                         alignment: Alignment.centerLeft,
 
-                        child: Text('Gallery Photos', style: AppTheme.h2()),
+                        child: Text(
+                          AppLocalizations.of(context)!.galleryPhotos,
+                          style: AppTheme.h2(),
+                        ),
                       ),
 
                       const SizedBox(height: 14),
@@ -576,12 +603,17 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
 
                             const SizedBox(height: 18),
 
-                            Text('No gallery photos yet', style: AppTheme.h2()),
+                            Text(
+                              AppLocalizations.of(context)!.noGalleryPhotosYet,
+                              style: AppTheme.h2(),
+                            ),
 
                             const SizedBox(height: 10),
 
                             Text(
-                              'Upload clinic photos to improve trust and visibility.',
+                              AppLocalizations.of(
+                                context,
+                              )!.uploadClinicPhotosDescription,
 
                               textAlign: TextAlign.center,
 
@@ -606,7 +638,9 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
 
                               icon: const Icon(LucideIcons.plus),
 
-                              label: const Text('Upload First Photo'),
+                              label: Text(
+                                AppLocalizations.of(context)!.uploadFirstPhoto,
+                              ),
                             ),
                           ],
                         ),
@@ -695,7 +729,9 @@ class _VetGalleryManagementPageState extends State<VetGalleryManagementPage> {
 
                                     Expanded(
                                       child: Text(
-                                        'Drag to reorder gallery photos',
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.dragToReorderGallery,
 
                                         style: AppTheme.body(),
                                       ),

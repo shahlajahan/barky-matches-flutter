@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetHotelBookingsTab extends StatelessWidget {
   final String businessId;
@@ -198,7 +199,7 @@ class PetHotelBookingsTab extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () =>
                   _updateBookingStatus(context, bookingId, 'confirmed'),
-              child: const Text('Accept'),
+              child: Text(AppLocalizations.of(context)!.accept),
             ),
           ),
           const SizedBox(width: 10),
@@ -207,7 +208,7 @@ class PetHotelBookingsTab extends StatelessWidget {
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () =>
                   _updateBookingStatus(context, bookingId, 'rejected'),
-              child: const Text('Reject'),
+              child: Text(AppLocalizations.of(context)!.reject),
             ),
           ),
         ],
@@ -222,7 +223,7 @@ class PetHotelBookingsTab extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () =>
                     _updateBookingStatus(context, bookingId, 'checked_in'),
-                child: const Text('Check In'),
+                child: Text(AppLocalizations.of(context)!.checkIn),
               ),
             ),
             const SizedBox(width: 10),
@@ -234,7 +235,7 @@ class PetHotelBookingsTab extends StatelessWidget {
                 bookingId,
                 'cancelled_by_hotel',
               ),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ),
         ],
@@ -255,14 +256,14 @@ class PetHotelBookingsTab extends StatelessWidget {
             }
             _updateBookingStatus(context, bookingId, 'completed');
           },
-          child: const Text('Complete Stay'),
+          child: Text(AppLocalizations.of(context)!.completeStay),
         ),
       );
     }
 
     return Center(
       child: Text(
-        'Already ${status.toUpperCase()}',
+        AppLocalizations.of(context)!.alreadyStatus(status.toUpperCase()),
         style: AppTheme.caption(color: Colors.grey),
       ),
     );
@@ -313,14 +314,18 @@ class PetHotelBookingsTab extends StatelessWidget {
       });
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Booking updated: $status')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.bookingUpdated(status)),
+        ),
+      );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.updateFailed('$e')),
+        ),
+      );
     }
   }
 

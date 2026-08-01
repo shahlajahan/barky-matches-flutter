@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AddServiceDetailPage extends StatefulWidget {
   final String businessId;
@@ -123,7 +124,9 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.message ?? 'Service details could not be saved.'),
+          content: Text(
+            e.message ?? AppLocalizations.of(context)!.serviceDetailsSaveFailed,
+          ),
         ),
       );
     } catch (e, stackTrace) {
@@ -133,7 +136,9 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Service details could not be saved.')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.serviceDetailsSaveFailed),
+        ),
       );
     } finally {
       if (shouldResetLoading && mounted) {
@@ -240,8 +245,9 @@ class _AddServiceDetailPageState extends State<AddServiceDetailPage> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      "Leave empty if the final price is "
-                                      "determined after examination.",
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.priceDeterminedAfterExamination,
                                       style: AppTheme.caption(
                                         color: const Color(0xFF75696E),
                                         size: 12.5,
@@ -480,7 +486,7 @@ class _ServiceIdentityCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          "Editing",
+                          AppLocalizations.of(context)!.editing,
                           style: AppTheme.caption(
                             color: Colors.white,
                             size: 11,
@@ -493,7 +499,7 @@ class _ServiceIdentityCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  "Set the price and estimated duration shown to pet owners.",
+                  AppLocalizations.of(context)!.setPriceDurationDescription,
                   style: AppTheme.caption(
                     color: const Color(0xFF75696E),
                     size: 12.5,
@@ -568,8 +574,7 @@ class _InfoStrip extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              "These details help pet owners understand the service "
-              "before booking.",
+              AppLocalizations.of(context)!.serviceDetailsBeforeBooking,
               style: AppTheme.caption(
                 color: const Color(0xFF655B60),
                 size: 12.5,

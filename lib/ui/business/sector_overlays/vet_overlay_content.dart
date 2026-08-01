@@ -4,6 +4,7 @@ import '../../../theme/app_theme.dart';
 import '../business_card_data.dart';
 import '../../vet/suggest_clinic_sheet.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetOverlayContent extends StatelessWidget {
   final BusinessCardData data;
@@ -33,7 +34,7 @@ class VetOverlayContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (showInfo) return _buildInfo();
+    if (showInfo) return _buildInfo(context);
     if (showServices) return _buildServices();
     if (showAction) return _buildAction(context);
 
@@ -43,7 +44,7 @@ class VetOverlayContent extends StatelessWidget {
   // ─────────────────────────────
   // INFO
   // ─────────────────────────────
-  Widget _buildInfo() {
+  Widget _buildInfo(BuildContext context) {
     final about =
         (data.description != null && data.description!.trim().isNotEmpty)
         ? data.description!.trim()
@@ -68,7 +69,9 @@ class VetOverlayContent extends StatelessWidget {
                 ),
                 if (data.reviewsCount != null)
                   Text(
-                    ' (${data.reviewsCount} reviews)',
+                    AppLocalizations.of(
+                      context,
+                    )!.reviewsCountParenthesized(data.reviewsCount!),
                     style: AppTheme.caption(color: Colors.white70),
                   ),
               ],
@@ -112,7 +115,7 @@ class VetOverlayContent extends StatelessWidget {
 
         if (snapshot.hasError) {
           return Text(
-            'Services could not be loaded.',
+            AppLocalizations.of(context)!.servicesCouldNotBeLoadedPeriod,
             style: AppTheme.caption(color: Colors.white70),
           );
         }
@@ -121,7 +124,7 @@ class VetOverlayContent extends StatelessWidget {
 
         if (docs.isEmpty) {
           return Text(
-            "No services provided.",
+            AppLocalizations.of(context)!.noServicesProvided,
             style: AppTheme.caption(color: Colors.white70),
           );
         }
@@ -249,7 +252,7 @@ class VetOverlayContent extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                "Request Appointment",
+                AppLocalizations.of(context)!.requestAppointment,
                 textAlign: TextAlign.center,
                 style: AppTheme.bodyMedium(
                   color: Colors.black,

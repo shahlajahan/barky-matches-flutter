@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/ui/business/settings/bank_account_settings_page.dart';
 
 class EditAdoptionCenterProfilePage extends StatefulWidget {
   final String businessId;
@@ -274,7 +276,9 @@ class _EditAdoptionCenterProfilePageState
     return Scaffold(
       backgroundColor: AppTheme.bg,
 
-      appBar: AppBar(title: const Text('Edit Adoption Center')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.editAdoptionCenter),
+      ),
 
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -328,7 +332,23 @@ class _EditAdoptionCenterProfilePageState
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(AppLocalizations.of(context)!.save),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BankAccountSettingsPage(
+                            businessId: widget.businessId,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      AppLocalizations.of(context)!.bankAccountSettingsTitle,
+                    ),
                   ),
                 ],
               ),

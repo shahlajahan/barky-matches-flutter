@@ -30,7 +30,11 @@ class ModerationQueuePage extends StatelessWidget {
         if (snapshot.hasError) {
           return Padding(
             padding: const EdgeInsets.all(16),
-            child: Text("Refund queue error: ${snapshot.error}"),
+            child: Text(
+              AppLocalizations.of(
+                context,
+              )!.refundQueueError('${snapshot.error}'),
+            ),
           );
         }
 
@@ -55,17 +59,19 @@ class ModerationQueuePage extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
               child: Text(
-                "Refund Requests",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                AppLocalizations.of(context)!.refundRequests,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             if (docs.isEmpty)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: Text("No pending refund requests"),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: Text(
+                  AppLocalizations.of(context)!.noPendingRefundRequests,
+                ),
               )
             else
               ...docs.map((doc) {
@@ -101,14 +107,34 @@ class ModerationQueuePage extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("User: ${_text(data["userName"], "Unknown")}"),
-            Text("Appointment: ${_formatDate(scheduledAt)}"),
-            Text("Cancelled: ${_formatDate(cancelledAt)}"),
-            Text("Amount: ${_amount(data)}"),
+            Text(
+              AppLocalizations.of(context)!.userValue(
+                _text(data["userName"], "Unknown"),
+              ),
+            ),
+            Text(
+              AppLocalizations.of(
+                context,
+              )!.appointmentValue(_formatDate(scheduledAt)),
+            ),
+            Text(
+              AppLocalizations.of(
+                context,
+              )!.cancelledValue(_formatDate(cancelledAt)),
+            ),
+            Text(AppLocalizations.of(context)!.amountValue(_amount(data))),
             if (hours != null)
-              Text("Hours before appointment: ${hours.toStringAsFixed(1)}"),
+              Text(
+                AppLocalizations.of(
+                  context,
+                )!.hoursBeforeAppointmentValue(hours.toStringAsFixed(1)),
+              ),
             if (_text(data["refundReason"], "").isNotEmpty)
-              Text("Reason: ${_text(data["refundReason"], "")}"),
+              Text(
+                AppLocalizations.of(context)!.reasonValue(
+                  _text(data["refundReason"], ""),
+                ),
+              ),
           ],
         ),
         trailing: const Icon(Icons.chevron_right),

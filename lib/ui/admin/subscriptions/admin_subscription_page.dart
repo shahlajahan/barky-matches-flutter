@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_subscription_details_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminSubscriptionPage extends StatefulWidget {
   const AdminSubscriptionPage({super.key});
@@ -20,13 +21,19 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Subscription Management")),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.subscriptionManagement),
+      ),
 
       body: StreamBuilder<QuerySnapshot>(
         stream: stream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(
+              child: Text(
+                AppLocalizations.of(context)!.genericError('${snapshot.error}'),
+              ),
+            );
           }
 
           if (!snapshot.hasData) {
@@ -36,7 +43,9 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(child: Text("No users found"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noUsersFound),
+            );
           }
 
           /// 🔎 Filter
@@ -52,10 +61,10 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: "Search userId...",
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(context)!.searchUserIdHint,
+                    prefixIcon: const Icon(Icons.search),
+                    border: const OutlineInputBorder(),
                   ),
                   onChanged: (value) {
                     setState(() {
@@ -83,9 +92,13 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
                         /// loading state
                         if (subSnap.connectionState ==
                             ConnectionState.waiting) {
-                          return const ListTile(
-                            leading: CircularProgressIndicator(),
-                            title: Text("Loading subscription..."),
+                          return ListTile(
+                            leading: const CircularProgressIndicator(),
+                            title: Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.loadingSubscription,
+                            ),
                           );
                         }
 

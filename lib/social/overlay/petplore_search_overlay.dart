@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../app_state.dart';
 import '../../ui/shell/nav_tab.dart';
 import '../../theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetploreSearchOverlay extends StatefulWidget {
   const PetploreSearchOverlay({super.key});
@@ -103,7 +104,9 @@ class _PetploreSearchOverlayState extends State<PetploreSearchOverlay> {
                         decoration: InputDecoration(
                           border: InputBorder.none,
 
-                          hintText: 'Search users...',
+                          hintText: AppLocalizations.of(
+                            context,
+                          )!.searchUsersHint,
 
                           hintStyle: TextStyle(color: AppTheme.muted),
 
@@ -170,7 +173,7 @@ class _PetploreSearchOverlayState extends State<PetploreSearchOverlay> {
                         if (docs.isEmpty) {
                           return Center(
                             child: Text(
-                              'No users found',
+                              AppLocalizations.of(context)!.noUsersFound,
 
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.5),
@@ -287,7 +290,7 @@ class _PetploreSearchOverlayState extends State<PetploreSearchOverlay> {
           const SizedBox(height: 18),
 
           Text(
-            'Search pets & users',
+            AppLocalizations.of(context)!.searchPetsAndUsers,
 
             style: TextStyle(
               color: AppTheme.textDark,
@@ -300,7 +303,7 @@ class _PetploreSearchOverlayState extends State<PetploreSearchOverlay> {
           const SizedBox(height: 8),
 
           Text(
-            'Find pet lovers around you',
+            AppLocalizations.of(context)!.findPetLoversNearby,
 
             style: TextStyle(
               color: AppTheme.textDark,

@@ -223,6 +223,60 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutPaymentCompletedSuccessfully => 'پرداخت با موفقیت انجام شد';
 
   @override
+  String get checkoutMultiSellerInfoTitle => 'یک پرداخت، سفارش‌های جداگانه';
+
+  @override
+  String get checkoutMultiSellerInfoBody => 'یک پرداخت انجام می‌دهید و برای هر فروشنده یک سفارش جداگانه ساخته می‌شود.';
+
+  @override
+  String checkoutSellerSection(Object sellerName) {
+    return '$sellerName';
+  }
+
+  @override
+  String checkoutSellerFallback(int number) {
+    return 'فروشنده $number';
+  }
+
+  @override
+  String get checkoutSellerSubtotal => 'جمع فروشنده';
+
+  @override
+  String get checkoutProductsTotal => 'جمع محصولات';
+
+  @override
+  String get checkoutShippingMethod => 'روش ارسال';
+
+  @override
+  String get checkoutShippingCost => 'هزینه ارسال';
+
+  @override
+  String get checkoutShippingTotal => 'جمع هزینه ارسال';
+
+  @override
+  String get checkoutEstimatedDelivery => 'زمان تقریبی تحویل';
+
+  @override
+  String get checkoutSellerTotal => 'جمع فروشنده';
+
+  @override
+  String get checkoutMultiOrderSuccessTitle => 'پرداخت موفق بود';
+
+  @override
+  String get checkoutMultiOrderSuccessBody => 'پرداخت شما تکمیل شد و برای هر فروشنده سفارش جداگانه‌ای ایجاد شد.';
+
+  @override
+  String checkoutSellerOrderLabel(int number) {
+    return 'سفارش فروشنده $number';
+  }
+
+  @override
+  String get checkoutOpenOrder => 'مشاهده سفارش';
+
+  @override
+  String get checkoutMultiOrderExit => 'بازگشت به خانه';
+
+  @override
   String get checkoutPaymentCancelledOrIncomplete => 'پرداخت لغو شد یا تکمیل نشد';
 
   @override
@@ -2755,7 +2809,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get trainingTitle => 'آموزش';
 
   @override
-  String get comingSoon => 'به زودی';
+  String get comingSoon => 'به‌زودی';
 
   @override
   String get trainingComingSoonMessage => 'بخش آموزش به زودی اضافه می‌شود 🐾';
@@ -3727,6 +3781,59 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get myOrdersTitle => 'سفارش‌های من';
+
+  @override
+  String get myOrdersUnknownProduct => 'محصول';
+
+  @override
+  String get myOrdersUnknownSeller => 'فروشنده';
+
+  @override
+  String myOrdersProductAndMore(Object product, int count) {
+    return '$product + $count مورد دیگر';
+  }
+
+  @override
+  String get myOrdersOrderNumberUnavailable => 'ناموجود';
+
+  @override
+  String get myOrdersDateUnavailable => 'تاریخ ناموجود';
+
+  @override
+  String get myOrdersSortNewest => 'تاریخ: جدیدترین';
+
+  @override
+  String get myOrdersSortOldest => 'تاریخ: قدیمی‌ترین';
+
+  @override
+  String get myOrdersSortProductAz => 'محصول: الف تا ی';
+
+  @override
+  String get myOrdersSortProductZa => 'محصول: ی تا الف';
+
+  @override
+  String get myOrdersSortSellerAz => 'فروشنده: الف تا ی';
+
+  @override
+  String get myOrdersSortSellerZa => 'فروشنده: ی تا الف';
+
+  @override
+  String get myOrdersSortAmountHigh => 'مبلغ: بیشترین';
+
+  @override
+  String get myOrdersSortAmountLow => 'مبلغ: کمترین';
+
+  @override
+  String get myOrdersProcessingStatus => 'در حال پردازش';
+
+  @override
+  String get myOrdersRefundedStatus => 'بازپرداخت‌شده';
+
+  @override
+  String get myOrdersReturnedStatus => 'مرجوع‌شده';
+
+  @override
+  String get myOrdersRefundedOrReturnedStatus => 'بازپرداخت / مرجوعی';
 
   @override
   String get ordersTitle => 'سفارش‌ها';
@@ -4967,6 +5074,41 @@ class AppLocalizationsFa extends AppLocalizations {
   String get shippingResponsibilityLabel => 'حمل بازگشت';
 
   @override
+  String get returnShippingTitle => 'حمل مرجوعی';
+
+  @override
+  String get returnShippingBuyerMessage => 'هزینه حمل مرجوعی بر عهده شماست.\n\nهزینه پیک جدا از مبلغ بازپرداخت است و ممکن است بازپرداخت نشود.';
+
+  @override
+  String get returnShippingSellerMessage => 'هزینه حمل مرجوعی بر عهده فروشنده است.';
+
+  @override
+  String get returnShippingContractedCarrierMessage => 'از شرکت حمل قراردادی فروشنده برای مرجوعی استفاده کنید.';
+
+  @override
+  String get returnShippingBuyerShipBackMessage => 'هزینه پیک بر عهده شماست و جدا از مبلغ بازپرداخت است.';
+
+  @override
+  String get returnShippingSellerShipBackMessage => 'فروشنده هزینه حمل مرجوعی را پرداخت می‌کند.';
+
+  @override
+  String get returnShippingAcknowledgement => 'سیاست حمل مرجوعی را درک می‌کنم.';
+
+  @override
+  String get returnShippingPolicyLoading => 'در حال بارگذاری سیاست حمل مرجوعی…';
+
+  @override
+  String returnShippingCarrierValue(Object carrier) {
+    return 'شرکت حمل: $carrier';
+  }
+
+  @override
+  String get returnShippingVerifiedCarrierHelper => 'از این شرکت حمل قراردادی تأییدشده استفاده کنید.';
+
+  @override
+  String get returnCarrierEnterHelperText => 'شرکت حمل استفاده‌شده برای این مرجوعی را وارد کنید.';
+
+  @override
   String get refundTypeLabel => 'نوع بازپرداخت';
 
   @override
@@ -5069,6 +5211,171 @@ class AppLocalizationsFa extends AppLocalizations {
   String get refundRejectedStatusLabel => 'بازگشت وجه رد شد';
 
   @override
+  String get refundDecisionTitle => 'تصمیم بازپرداخت';
+
+  @override
+  String get refundDecisionFullTitle => 'بازپرداخت کامل';
+
+  @override
+  String get refundDecisionFullDescription => 'تمام مبلغ واجد شرایط را بازپرداخت کنید.';
+
+  @override
+  String get refundDecisionFullRecommended => 'برای کالای آسیب‌دیده یا معیوب، کالای اشتباه، خطای فروشنده یا کالای تحویل‌نشده توصیه می‌شود.';
+
+  @override
+  String get refundDecisionPartialTitle => 'بازپرداخت جزئی';
+
+  @override
+  String get refundDecisionPartialDescription => 'فقط بخشی از مبلغ واجد شرایط را بازپرداخت کنید. ارائه دلیل الزامی است.';
+
+  @override
+  String get refundDecisionRejectTitle => 'رد بازپرداخت';
+
+  @override
+  String get refundDecisionRejectDescription => 'درخواست بازپرداخت را رد کنید. توضیح روشن الزامی است.';
+
+  @override
+  String get refundPartialAmountLabel => 'مبلغ بازپرداخت جزئی';
+
+  @override
+  String refundMaximumEligible(Object amount) {
+    return 'حداکثر مبلغ مجاز: $amount';
+  }
+
+  @override
+  String get refundAmountValidationError => 'مبلغی بیشتر از صفر و حداکثر برابر مبلغ مجاز وارد کنید.';
+
+  @override
+  String get refundDecisionReasonLabel => 'دلیل';
+
+  @override
+  String get refundReasonNotSelected => 'یک دلیل انتخاب کنید';
+
+  @override
+  String get refundSellerNotesLabel => 'یادداشت فروشنده';
+
+  @override
+  String get refundNotesOptional => 'اختیاری';
+
+  @override
+  String get refundNotesRequired => 'الزامی';
+
+  @override
+  String get refundBuyerExplanationLabel => 'توضیح قابل مشاهده برای خریدار';
+
+  @override
+  String get refundBuyerExplanationHelper => 'علت رد بازپرداخت را به‌روشنی توضیح دهید.';
+
+  @override
+  String get refundOriginalOrderLabel => 'سفارش اصلی';
+
+  @override
+  String get refundSummaryRefundLabel => 'بازپرداخت';
+
+  @override
+  String get refundDifferenceLabel => 'تفاوت';
+
+  @override
+  String get refundDecisionBuyerTitle => 'تصمیم بازپرداخت';
+
+  @override
+  String get refundDecisionLabel => 'تصمیم';
+
+  @override
+  String get refundSellerExplanationLabel => 'توضیح فروشنده';
+
+  @override
+  String get refundReasonItemReturnedDamaged => 'کالا آسیب‌دیده بازگردانده شد';
+
+  @override
+  String get refundReasonMissingAccessories => 'لوازم جانبی ناقص است';
+
+  @override
+  String get refundReasonCustomerCausedDamage => 'آسیب توسط مشتری ایجاد شده';
+
+  @override
+  String get refundReasonRestockingFee => 'هزینه بازگردانی به انبار';
+
+  @override
+  String get refundReasonPartialReturn => 'مرجوعی جزئی';
+
+  @override
+  String get refundReasonSellerMistake => 'خطای فروشنده';
+
+  @override
+  String get refundReasonWrongItem => 'کالای اشتباه';
+
+  @override
+  String get refundReasonDefectiveProduct => 'کالای معیوب';
+
+  @override
+  String get refundReasonItemNeverDelivered => 'کالا تحویل نشده';
+
+  @override
+  String get refundReasonOther => 'سایر';
+
+  @override
+  String get returnStatusWaitingSellerConfirmation => 'در انتظار تأیید فروشنده';
+
+  @override
+  String get returnStatusAutoReceived => 'دریافت خودکار';
+
+  @override
+  String get returnStatusDispute => 'اختلاف مرجوعی';
+
+  @override
+  String get waitingForSellerInspectionTitle => 'در انتظار بررسی فروشنده';
+
+  @override
+  String waitingForSellerInspectionMessage(Object date) {
+    return 'فروشنده تا $date برای بررسی بسته مرجوعی فرصت دارد. در صورت عدم اقدام، فرایند به‌طور خودکار ادامه می‌یابد.';
+  }
+
+  @override
+  String get inspectionDeadlineTitle => 'مهلت بررسی';
+
+  @override
+  String inspectionDaysRemaining(int days) {
+    return '$days روز باقی مانده';
+  }
+
+  @override
+  String get inspectionDeadlinePassed => 'مهلت گذشته است. تکمیل خودکار در انتظار است.';
+
+  @override
+  String get reportReturnProblemTitle => 'گزارش مشکل مرجوعی';
+
+  @override
+  String get reportProblemButton => 'گزارش مشکل';
+
+  @override
+  String get disputeReasonLabel => 'دلیل مشکل';
+
+  @override
+  String get disputeReasonPackageNotReceived => 'بسته دریافت نشده';
+
+  @override
+  String get disputeReasonWrongItemReturned => 'کالای اشتباه بازگردانده شده';
+
+  @override
+  String get disputeReasonEmptyPackage => 'بسته خالی';
+
+  @override
+  String get disputeReasonDamagedDuringReturn => 'آسیب در زمان بازگشت';
+
+  @override
+  String get disputeReasonTrackingIssue => 'مشکل رهگیری';
+
+  @override
+  String get adminReturnDisputesTitle => 'اختلاف‌های مرجوعی';
+
+  @override
+  String get adminReturnDisputesSubtitle => 'بررسی مرجوعی‌های مورد اختلاف بازار';
+
+  @override
+  String get noReturnDisputes => 'مرجوعی مورد اختلافی وجود ندارد';
+
+  @override
   String get locationUpdatedSuccessfully => 'موقعیت مکانی با موفقیت به‌روزرسانی شد';
 
   @override
@@ -5122,7 +5429,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get productDetails => 'جزئیات محصول';
 
   @override
-  String get servicesCouldNotBeLoaded => 'بارگذاری خدمات انجام نشد.';
+  String get servicesCouldNotBeLoaded => 'خدمات بارگیری نشدند';
 
   @override
   String get veterinaryClinics => 'کلینیک‌های دامپزشکی';
@@ -5629,6 +5936,2120 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
+  String get bankAccountSettingsTitle => 'حساب بانکی';
+
+  @override
+  String get bankAccountSettingsSubtitle => 'این حساب برای ارسال درآمد کسب‌وکار شما توسط PetSupo استفاده خواهد شد.';
+
+  @override
+  String get bankAccountInfoNotice => 'لطفاً مطمئن شوید که نام صاحب حساب و شماره شبا دقیقاً با حساب بانکی رسمی شما مطابقت دارد. اطلاعات نادرست ممکن است باعث تأخیر در پرداخت‌ها شود.';
+
+  @override
+  String get bankAccountSectionTitle => 'اطلاعات حساب';
+
+  @override
+  String get bankAccountHolderLabel => 'صاحب حساب';
+
+  @override
+  String get bankAccountBankNameLabel => 'نام بانک';
+
+  @override
+  String get bankAccountIbanLabel => 'شماره شبا (IBAN)';
+
+  @override
+  String get bankAccountBillingInfoLabel => 'اطلاعات صورتحساب (اختیاری)';
+
+  @override
+  String get bankAccountIbanInvalid => 'شماره شبا باید با TR شروع شده و ۲۴ رقم داشته باشد.';
+
+  @override
+  String get bankAccountSaveSuccess => 'اطلاعات حساب بانکی ذخیره شد.';
+
+  @override
+  String get diagnosticsSectionTitle => 'عیب‌یابی';
+
+  @override
+  String get diagnosticsSectionDescription => 'ابزارهای داخلی عیب‌یابی برای بررسی صف و آزمایش بارگذاری.';
+
+  @override
+  String get diagnosticsThrowButton => 'ایجاد خطا';
+
+  @override
+  String get diagnosticsTestButton => 'آزمایش';
+
+  @override
+  String get diagnosticsUploadButton => 'بارگذاری';
+
+  @override
+  String get diagnosticsRefreshButton => 'تازه‌سازی';
+
+  @override
+  String get diagnosticsClearButton => 'پاک کردن';
+
+  @override
+  String dogCardAgeWithBreed(Object age, Object breed) {
+    return '$age ساله • $breed';
+  }
+
+  @override
+  String dogCardAgeYears(Object age) {
+    return '$age ساله';
+  }
+
+  @override
+  String dogCardVaccines(int count) {
+    return '$count واکسن';
+  }
+
+  @override
+  String get dogParkPremiumMembersOnly => 'این پارک فقط برای اعضای Premium در دسترس است.';
+
+  @override
+  String get favoritesExplorePlaymates => 'هم‌بازی‌ها را پیدا کن 💛';
+
+  @override
+  String get vetServicesAvailableAfterLogin => 'خدمات دامپزشکی پس از ورود در دسترس است';
+
+  @override
+  String get loadingAccount => 'در حال بارگذاری حساب...';
+
+  @override
+  String get noNotificationsForGuest => 'اعلانی برای مهمان وجود ندارد';
+
+  @override
+  String get loginForNotifications => 'برای دریافت به‌روزرسانی‌ها و هشدارها وارد شوید';
+
+  @override
+  String get offerDetailsTitle => 'پیشنهاد';
+
+  @override
+  String get offerDiscountOffLabel => 'تخفیف';
+
+  @override
+  String get offerUseCodeLabel => 'استفاده از کد:';
+
+  @override
+  String get offerUseThisOffer => 'استفاده از این پیشنهاد';
+
+  @override
+  String get playdateScheduledAtLabel => 'قرار بازی در این مکان برنامه‌ریزی می‌شود:';
+
+  @override
+  String get continueToScheduling => 'ادامه برنامه‌ریزی';
+
+  @override
+  String get orderCancellationTitle => 'لغو سفارش';
+
+  @override
+  String get preShipmentCancellationAvailable => 'این سفارش هنوز ارسال نشده و قابل لغو است.';
+
+  @override
+  String get cancelOrderButton => 'لغو سفارش';
+
+  @override
+  String get cancelOrderTitle => 'سفارش لغو شود؟';
+
+  @override
+  String get cancelOrderConfirmation => 'آیا مطمئن هستید که می‌خواهید این سفارش را لغو کنید؟ سفارش هنوز ارسال نشده است.';
+
+  @override
+  String get cancelOrderRefundNotice => 'پس از لغو، مبلغ پرداختی شما بازپرداخت می‌شود.';
+
+  @override
+  String get cancellationReasonLabel => 'دلیل لغو';
+
+  @override
+  String get cancelReasonOrderedByMistake => 'سفارش اشتباهی';
+
+  @override
+  String get cancelReasonChangedMind => 'تغییر تصمیم';
+
+  @override
+  String get cancelReasonDuplicateOrder => 'سفارش تکراری';
+
+  @override
+  String get cancelReasonOther => 'سایر';
+
+  @override
+  String get cancellationReasonDetailsLabel => 'توضیحات دلیل لغو';
+
+  @override
+  String get cancellationRefundProcessing => 'سفارش لغو شد. بازپرداخت شما در حال پردازش است.';
+
+  @override
+  String get cancellationShipmentAlreadyStarted => 'به دلیل شروع ارسال، این سفارش دیگر قابل لغو نیست.';
+
+  @override
+  String get cancelOrderFailed => 'لغو سفارش انجام نشد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get cancellationRefundProcessingStatus => 'درخواست لغو ثبت شد · بازپرداخت در حال پردازش';
+
+  @override
+  String get cancellationRefundFailedStatus => 'بازپرداخت لغو نیاز به بررسی دارد';
+
+  @override
+  String get orderCancelledRefundCompleted => 'سفارش لغو شد · بازپرداخت تکمیل شد';
+
+  @override
+  String get foundPetDetailsTitle => 'جزئیات حیوان پیدا‌شده';
+
+  @override
+  String get viewOnMap => 'مشاهده روی نقشه';
+
+  @override
+  String get contactReporter => 'تماس با گزارش‌دهنده';
+
+  @override
+  String get foundPetReportedSuccess => 'حیوان پیدا‌شده با موفقیت گزارش شد!';
+
+  @override
+  String errorSubmittingReport(Object error) {
+    return 'خطا در ارسال گزارش: $error';
+  }
+
+  @override
+  String get tapToSelectImage => 'برای انتخاب تصویر ضربه بزنید';
+
+  @override
+  String get foundPetsSubtitle => 'به حیوانات پیدا‌شده کمک کنید سالم به خانه بازگردند';
+
+  @override
+  String get searchByNameHint => 'جستجو بر اساس نام...';
+
+  @override
+  String get noFoundPetsReportedYet => 'هنوز حیوان پیدا‌شده‌ای گزارش نشده است';
+
+  @override
+  String get reportedFoundPetsAppearHere => 'حیوانات پیدا‌شده گزارش‌شده اینجا نمایش داده می‌شوند';
+
+  @override
+  String get lostPetDetailsTitle => 'جزئیات حیوان گمشده';
+
+  @override
+  String get havePetInformationPrompt => 'درباره این حیوان اطلاعاتی دارید؟';
+
+  @override
+  String get callOwner => 'تماس با صاحب';
+
+  @override
+  String get emailOwner => 'ایمیل به صاحب';
+
+  @override
+  String get lostPetReportedSuccess => 'حیوان گمشده با موفقیت گزارش شد!';
+
+  @override
+  String get lostPetsSubtitle => 'به حیوانات گمشده کمک کنید راه خانه را پیدا کنند';
+
+  @override
+  String get noLostPetsReportedYet => 'هنوز حیوان گمشده‌ای گزارش نشده است';
+
+  @override
+  String get reportedLostPetsAppearHere => 'حیوانات گمشده گزارش‌شده اینجا نمایش داده می‌شوند';
+
+  @override
+  String get searchUsersHint => 'جستجوی کاربران...';
+
+  @override
+  String get noUsersFound => 'کاربری یافت نشد';
+
+  @override
+  String get searchPetsAndUsers => 'جستجوی حیوانات و کاربران';
+
+  @override
+  String get findPetLoversNearby => 'دوستداران حیوانات نزدیک خود را پیدا کنید';
+
+  @override
+  String get selectAtLeastOnePhotoOrVideo => 'لطفاً حداقل یک عکس/ویدیو انتخاب کنید';
+
+  @override
+  String errorCreatingPost(Object error) {
+    return 'خطا در ایجاد پست: $error';
+  }
+
+  @override
+  String get createPostTitle => 'ایجاد پست';
+
+  @override
+  String get share => 'اشتراک‌گذاری';
+
+  @override
+  String get addPhotosOrVideos => 'افزودن عکس/ویدیو';
+
+  @override
+  String get writeSomethingHint => 'چیزی بنویسید...';
+
+  @override
+  String get replyHint => 'پاسخ...';
+
+  @override
+  String get replySent => 'پاسخ ارسال شد';
+
+  @override
+  String get close => 'بستن';
+
+  @override
+  String get videoStoriesComingSoon => 'استوری‌های ویدیویی به‌زودی ارائه می‌شوند';
+
+  @override
+  String get petploreTitle => 'Petplore';
+
+  @override
+  String get explorePetMoments => 'لحظه‌های حیوانات را کاوش کنید';
+
+  @override
+  String followersCount(int count) {
+    return '$count دنبال‌کننده';
+  }
+
+  @override
+  String followingCount(int count) {
+    return '$count دنبال‌شونده';
+  }
+
+  @override
+  String get feed => 'خوراک';
+
+  @override
+  String get saved => 'ذخیره‌شده';
+
+  @override
+  String get myPosts => 'پست‌های من';
+
+  @override
+  String get loginRequired => 'ورود الزامی است';
+
+  @override
+  String genericError(Object error) {
+    return 'خطا: $error';
+  }
+
+  @override
+  String get noPostsYet => 'هنوز پستی نیست';
+
+  @override
+  String get noResults => 'نتیجه‌ای یافت نشد';
+
+  @override
+  String get commentsTitle => 'دیدگاه‌ها';
+
+  @override
+  String commentsError(Object error) {
+    return 'خطای دیدگاه‌ها: $error';
+  }
+
+  @override
+  String get noCommentsYet => 'هنوز دیدگاهی نیست';
+
+  @override
+  String get writeCommentHint => 'دیدگاهی بنویسید...';
+
+  @override
+  String get postsTitle => 'پست‌ها';
+
+  @override
+  String get storyUploaded => 'استوری بارگذاری شد';
+
+  @override
+  String storyUploadFailed(Object error) {
+    return 'بارگذاری استوری ناموفق بود: $error';
+  }
+
+  @override
+  String get addStory => 'افزودن استوری';
+
+  @override
+  String get storyDurationPrompt => 'لحظه‌ای از حیوان خود را برای ۲۴ ساعت به اشتراک بگذارید';
+
+  @override
+  String get seeWhosNearby => 'ببینید چه کسی نزدیک شماست 👀!';
+
+  @override
+  String get telegramLab => 'آزمایشگاه تلگرام';
+
+  @override
+  String get telegramBotApiTest => 'آزمایش API ربات تلگرام';
+
+  @override
+  String get telegramTestInstructions => 'برای ارسال پیام آزمایشی دکمه زیر را فشار دهید.';
+
+  @override
+  String get sendTelegramMessage => 'ارسال پیام تلگرام';
+
+  @override
+  String get telegramUsers => 'کاربران تلگرام';
+
+  @override
+  String get termsLastUpdated => 'آخرین به‌روزرسانی: ۹ مه ۲۰۲۵';
+
+  @override
+  String get termsIntroductionTitle => '۱. مقدمه';
+
+  @override
+  String get termsIntroductionBody => 'به PetSupo خوش آمدید! با ثبت‌نام، این شرایط و ضوابط را می‌پذیرید. این برنامه برای یافتن هم‌بازی برای سگ‌ها، ارتباط با صاحبان حیوانات و دسترسی به خدمات مرتبط طراحی شده است. این شرایط استفاده شما از برنامه و خدمات PetSupo را تنظیم می‌کند.';
+
+  @override
+  String get termsResponsibilitiesTitle => '۲. مسئولیت‌های کاربر';
+
+  @override
+  String get termsResponsibilitiesBody => '- برای استفاده از برنامه باید حداقل ۱۳ سال داشته باشید.\n- حفظ محرمانگی حساب و رمز عبور بر عهده شماست.\n- نباید از برنامه برای فعالیت‌های غیرقانونی یا ممنوع استفاده کنید.\n- هنگام ثبت‌نام باید اطلاعات دقیق و به‌روز ارائه دهید.';
+
+  @override
+  String get termsPrivacyTitle => '۳. جمع‌آوری داده و حریم خصوصی';
+
+  @override
+  String get termsPrivacyBody => 'برای ارائه خدمات، داده‌هایی مانند نام کاربری، ایمیل، موقعیت و اطلاعات حیوان را جمع‌آوری می‌کنیم. مطابق قانون حفاظت از داده‌های شخصی ترکیه و قوانین بین‌المللی، پیش از پردازش رضایت صریح می‌گیریم، داده‌ها را فقط برای اهداف اعلام‌شده استفاده می‌کنیم، تدابیر امنیتی به‌کار می‌بریم و امکان دسترسی، اصلاح یا حذف را فراهم می‌کنیم. برای اعمال حقوق خود با info@petsupo.com تماس بگیرید.';
+
+  @override
+  String get termsUserContentTitle => '۴. محتوای کاربر';
+
+  @override
+  String get termsUserContentBody => '- مالکیت محتوای بارگذاری‌شده برای شما باقی می‌ماند.\n- با بارگذاری، مجوزی غیرانحصاری و بدون حق امتیاز برای استفاده و نمایش محتوا در برنامه به PetSupo می‌دهید.\n- نباید محتوای غیرقانونی، توهین‌آمیز یا ناقض حقوق دیگران بارگذاری کنید.';
+
+  @override
+  String get termsLiabilityTitle => '۵. محدودیت مسئولیت';
+
+  @override
+  String get termsLiabilityBody => 'PetSupo در قبال خسارت ناشی از استفاده شما از برنامه، از جمله تعامل با کاربران یا حیوانات دیگر، مسئول نیست و صحت اطلاعات ارائه‌شده توسط کاربران را تضمین نمی‌کند.';
+
+  @override
+  String get termsGoverningLawTitle => '۶. قانون حاکم';
+
+  @override
+  String get termsGoverningLawBody => 'این شرایط تابع قوانین جمهوری ترکیه است. مگر آنکه قانون بین‌المللی خلاف آن را ایجاب کند، اختلاف‌ها در دادگاه‌های استانبول حل می‌شوند.';
+
+  @override
+  String get termsChangesTitle => '۷. تغییر شرایط';
+
+  @override
+  String get termsChangesBody => 'ممکن است این شرایط را به‌روزرسانی کنیم. تغییرات مهم از طریق ایمیل یا اعلان درون‌برنامه‌ای اطلاع داده می‌شود. ادامه استفاده به معنی پذیرش شرایط جدید است.';
+
+  @override
+  String get termsContactTitle => '۸. تماس با ما';
+
+  @override
+  String get termsContactBody => 'برای پرسش درباره این شرایط با info@petsupo.com تماس بگیرید.';
+
+  @override
+  String get pendingBusinessApprovals => 'تأییدهای در انتظار کسب‌وکار';
+
+  @override
+  String get invalidRequest => 'درخواست نامعتبر';
+
+  @override
+  String get noPendingBusinessRequests => 'درخواست کسب‌وکار در انتظاری نیست';
+
+  @override
+  String riskCount(Object count) {
+    return '$count خطر';
+  }
+
+  @override
+  String get verifiedLabel => 'تأییدشده';
+
+  @override
+  String get approve => 'تأیید';
+
+  @override
+  String get suspend => 'تعلیق';
+
+  @override
+  String get restore => 'بازگردانی';
+
+  @override
+  String get businessApproved => 'کسب‌وکار تأیید شد';
+
+  @override
+  String get businessRejected => 'کسب‌وکار رد شد';
+
+  @override
+  String get businessSuspended => 'کسب‌وکار تعلیق شد';
+
+  @override
+  String get businessRestored => 'کسب‌وکار بازگردانی شد';
+
+  @override
+  String actionFailed(Object error) {
+    return 'عملیات ناموفق بود: $error';
+  }
+
+  @override
+  String get adminDashboard => 'داشبورد مدیر';
+
+  @override
+  String dashboardError(Object error) {
+    return 'خطای داشبورد:\n$error';
+  }
+
+  @override
+  String get platformOverview => 'نمای کلی پلتفرم';
+
+  @override
+  String get adminActivity => 'فعالیت مدیر';
+
+  @override
+  String get developerTools => 'ابزارهای توسعه‌دهنده';
+
+  @override
+  String get testTelegramBotApi => 'آزمایش API ربات تلگرام';
+
+  @override
+  String get diagnostics => 'عیب‌یابی';
+
+  @override
+  String get diagnosticsDescription => 'گزارش‌های خرابی و عیب‌یابی راه‌اندازی';
+
+  @override
+  String get telegramUsersDescription => 'مشاهده کاربران متصل تلگرام';
+
+  @override
+  String adminActivityError(Object error) {
+    return 'خطای فعالیت:\n$error';
+  }
+
+  @override
+  String get noAdminActivity => 'هنوز فعالیت مدیری ثبت نشده';
+
+  @override
+  String get diagnosticReport => 'گزارش عیب‌یابی';
+
+  @override
+  String get diagnosticReportNotFound => 'گزارش عیب‌یابی یافت نشد';
+
+  @override
+  String get reopen => 'بازگشایی';
+
+  @override
+  String get resolve => 'حل';
+
+  @override
+  String get ignore => 'نادیده گرفتن';
+
+  @override
+  String get stackTrace => 'ردیابی پشته';
+
+  @override
+  String get breadcrumbsLogs => 'مسیرها / گزارش‌ها';
+
+  @override
+  String get noLogs => 'گزارشی نیست';
+
+  @override
+  String get rawJson => 'JSON خام';
+
+  @override
+  String get diagnosticReports => 'گزارش‌های عیب‌یابی';
+
+  @override
+  String get filters => 'فیلترها';
+
+  @override
+  String get noDiagnosticReports => 'گزارش عیب‌یابی نیست';
+
+  @override
+  String reasonValue(Object value) {
+    return 'دلیل: $value';
+  }
+
+  @override
+  String featureValue(Object value) {
+    return 'ویژگی: $value';
+  }
+
+  @override
+  String platformValue(Object value) {
+    return 'پلتفرم: $value';
+  }
+
+  @override
+  String versionValue(Object value) {
+    return 'نسخه: $value';
+  }
+
+  @override
+  String receivedValue(Object value) {
+    return 'دریافت: $value';
+  }
+
+  @override
+  String messageValue(Object value) {
+    return 'پیام: $value';
+  }
+
+  @override
+  String createdValue(Object value) {
+    return 'ایجاد: $value';
+  }
+
+  @override
+  String get adminActions => 'اقدامات مدیر';
+
+  @override
+  String get moderationCase => 'پرونده نظارت';
+
+  @override
+  String targetValue(Object value) {
+    return 'هدف: $value';
+  }
+
+  @override
+  String reportsCount(Object count) {
+    return 'گزارش‌ها: $count';
+  }
+
+  @override
+  String riskScoreValue(Object value) {
+    return 'امتیاز خطر: $value';
+  }
+
+  @override
+  String priorityValue(Object value) {
+    return 'اولویت: $value';
+  }
+
+  @override
+  String firestoreError(Object error) {
+    return 'خطای Firestore: $error';
+  }
+
+  @override
+  String get refundReview => 'بررسی بازپرداخت';
+
+  @override
+  String appointmentIdValue(Object value) {
+    return 'شناسه نوبت: $value';
+  }
+
+  @override
+  String paymentStatusValue(Object value) {
+    return 'وضعیت پرداخت: $value';
+  }
+
+  @override
+  String refundStatusValue(Object value) {
+    return 'وضعیت بازپرداخت: $value';
+  }
+
+  @override
+  String appointmentTimeValue(Object value) {
+    return 'زمان نوبت: $value';
+  }
+
+  @override
+  String cancellationTimeValue(Object value) {
+    return 'زمان لغو: $value';
+  }
+
+  @override
+  String hoursBeforeAppointmentValue(Object value) {
+    return 'ساعت تا نوبت: $value';
+  }
+
+  @override
+  String businessValue(Object value) {
+    return 'کسب‌وکار: $value';
+  }
+
+  @override
+  String userValue(Object value) {
+    return 'کاربر: $value';
+  }
+
+  @override
+  String petValue(Object value) {
+    return 'حیوان: $value';
+  }
+
+  @override
+  String amountPaidValue(Object value) {
+    return 'مبلغ پرداختی: $value';
+  }
+
+  @override
+  String refundReasonValue(Object value) {
+    return 'دلیل بازپرداخت: $value';
+  }
+
+  @override
+  String refundErrorValue(Object value) {
+    return 'خطای بازپرداخت: $value';
+  }
+
+  @override
+  String get approveRefund => 'تأیید بازپرداخت';
+
+  @override
+  String get rejectRefund => 'رد بازپرداخت';
+
+  @override
+  String refundReviewFailed(Object error) {
+    return 'بررسی بازپرداخت ناموفق بود: $error';
+  }
+
+  @override
+  String get note => 'یادداشت';
+
+  @override
+  String refundQueueError(Object error) {
+    return 'خطای صف بازپرداخت: $error';
+  }
+
+  @override
+  String get refundRequests => 'درخواست‌های بازپرداخت';
+
+  @override
+  String get noPendingRefundRequests => 'درخواست بازپرداخت در انتظاری نیست';
+
+  @override
+  String get reportsTitle => 'گزارش‌ها';
+
+  @override
+  String appointmentValue(Object value) {
+    return 'نوبت: $value';
+  }
+
+  @override
+  String cancelledValue(Object value) {
+    return 'لغوشده: $value';
+  }
+
+  @override
+  String amountValue(Object value) {
+    return 'مبلغ: $value';
+  }
+
+  @override
+  String statusValue(Object value) {
+    return 'وضعیت: $value';
+  }
+
+  @override
+  String get confirmViolation => 'تأیید تخلف';
+
+  @override
+  String get markClean => 'علامت‌گذاری به‌عنوان سالم';
+
+  @override
+  String get businessMetrics => 'شاخص‌های کسب‌وکار';
+
+  @override
+  String get businessSearch => 'جستجوی کسب‌وکار';
+
+  @override
+  String get searchBusinessNameHint => 'جستجوی نام کسب‌وکار...';
+
+  @override
+  String get suspendedLabel => 'تعلیق‌شده';
+
+  @override
+  String get filterByStatus => 'فیلتر بر اساس وضعیت';
+
+  @override
+  String get complaintCenter => 'مرکز شکایات';
+
+  @override
+  String get noData => 'داده‌ای نیست';
+
+  @override
+  String get noComplaintsFound => 'شکایتی یافت نشد';
+
+  @override
+  String categoryValue(Object value) {
+    return 'دسته‌بندی: $value';
+  }
+
+  @override
+  String get complaintDetail => 'جزئیات شکایت';
+
+  @override
+  String severityValue(Object value) {
+    return 'شدت: $value';
+  }
+
+  @override
+  String get evidence => 'مدرک';
+
+  @override
+  String get dismiss => 'رد کردن';
+
+  @override
+  String get fraudAnalytics => 'تحلیل تقلب';
+
+  @override
+  String get errorLoadingAnalytics => 'خطا در بارگذاری تحلیل‌ها';
+
+  @override
+  String get adminMapMonitor => 'پایش نقشه مدیر';
+
+  @override
+  String get platformMetrics => 'شاخص‌های پلتفرم';
+
+  @override
+  String get noMetricsData => 'داده شاخصی نیست';
+
+  @override
+  String lastUpdatedValue(Object value) {
+    return 'آخرین به‌روزرسانی: $value';
+  }
+
+  @override
+  String get revenueTitle => 'درآمد';
+
+  @override
+  String get noRevenueData => 'داده درآمدی نیست';
+
+  @override
+  String get auditLogs => 'گزارش‌های ممیزی';
+
+  @override
+  String verifiedValue(Object value) {
+    return 'تأییدشده: $value';
+  }
+
+  @override
+  String documentNumberValue(Object value) {
+    return 'شماره سند: $value';
+  }
+
+  @override
+  String get open => 'باز کردن';
+
+  @override
+  String get petTaxiDocument => 'سند تاکسی حیوانات';
+
+  @override
+  String get openPdf => 'باز کردن PDF';
+
+  @override
+  String get suspendedBusinesses => 'کسب‌وکارهای تعلیق‌شده';
+
+  @override
+  String get noDataReceived => 'داده‌ای دریافت نشد';
+
+  @override
+  String get noSuspendedBusinesses => 'کسب‌وکار تعلیق‌شده‌ای نیست';
+
+  @override
+  String get subscriptionDetails => 'جزئیات اشتراک';
+
+  @override
+  String planValue(Object value) {
+    return 'طرح: $value';
+  }
+
+  @override
+  String priceValue(Object value) {
+    return 'قیمت: $value';
+  }
+
+  @override
+  String get cancelSubscription => 'لغو اشتراک';
+
+  @override
+  String get expireNow => 'انقضا در حال حاضر';
+
+  @override
+  String get makePremium => '⭐ تبدیل به پریمیوم';
+
+  @override
+  String get upgradeToPartner => '👑 ارتقا به شریک PetSupo';
+
+  @override
+  String get downgradeToPremium => '⬇ تنزل به پریمیوم';
+
+  @override
+  String get extendThirtyDays => 'تمدید ۳۰ روزه';
+
+  @override
+  String get subscriptionManagement => 'مدیریت اشتراک';
+
+  @override
+  String get searchUserIdHint => 'جستجوی شناسه کاربر...';
+
+  @override
+  String get loadingSubscription => 'در حال بارگذاری اشتراک...';
+
+  @override
+  String get feedbackDetail => 'جزئیات بازخورد';
+
+  @override
+  String ratingValue(Object value) {
+    return 'امتیاز: $value';
+  }
+
+  @override
+  String contextValue(Object value) {
+    return 'زمینه: $value';
+  }
+
+  @override
+  String get messageLabel => 'پیام';
+
+  @override
+  String get userFeedback => 'بازخورد کاربر';
+
+  @override
+  String get noPayoutsFound => 'پرداختی یافت نشد';
+
+  @override
+  String get payoutManagement => 'مدیریت پرداخت‌ها';
+
+  @override
+  String get readyLabel => 'آماده';
+
+  @override
+  String get searchPayoutsHint => 'جستجوی سفارش، فروشنده، خریدار یا مرجع...';
+
+  @override
+  String get payoutMarkedReady => 'پرداخت آماده علامت‌گذاری شد';
+
+  @override
+  String get confirmPayout => 'تأیید پرداخت';
+
+  @override
+  String get bankTransferReference => 'مرجع انتقال بانکی';
+
+  @override
+  String get bankReferenceHint => 'مرجع بانکی / EFT / FAST';
+
+  @override
+  String get payoutMarkedPaid => 'پرداخت انجام‌شده علامت‌گذاری شد';
+
+  @override
+  String sellerValue(Object value) {
+    return 'فروشنده: $value';
+  }
+
+  @override
+  String buyerValue(Object value) {
+    return 'خریدار: $value';
+  }
+
+  @override
+  String referenceValue(Object value) {
+    return 'مرجع: $value';
+  }
+
+  @override
+  String get markReady => 'علامت آماده';
+
+  @override
+  String get markPaid => 'علامت پرداخت‌شده';
+
+  @override
+  String openEntity(Object id, Object type) {
+    return 'باز کردن $type: $id';
+  }
+
+  @override
+  String get globalAdminSearchHint => 'جستجوی کاربران، سگ‌ها، کسب‌وکارها، گزارش‌ها و شکایات...';
+
+  @override
+  String get globalAdminSearch => 'جستجوی سراسری مدیر';
+
+  @override
+  String get notAuthenticated => 'احراز هویت نشده';
+
+  @override
+  String get adoptionRequestNotFound => 'درخواست سرپرستی یافت نشد';
+
+  @override
+  String get backToRequests => 'بازگشت به درخواست‌ها';
+
+  @override
+  String get messageApplicant => 'پیام به متقاضی';
+
+  @override
+  String get unknownPet => 'حیوان ناشناس';
+
+  @override
+  String get adoptionRequest => 'درخواست سرپرستی';
+
+  @override
+  String get waitingForOwnerResponse => 'در انتظار پاسخ صاحب';
+
+  @override
+  String get doneWithIcon => '✅ انجام شد';
+
+  @override
+  String failedWithIcon(Object error) {
+    return '❌ ناموفق: $error';
+  }
+
+  @override
+  String get availablePets => 'حیوانات در دسترس';
+
+  @override
+  String get petsCouldNotBeLoaded => 'حیوانات بارگذاری نشدند.';
+
+  @override
+  String get noPetsAvailable => 'حیوانی در دسترس نیست';
+
+  @override
+  String get noImages => 'تصویری نیست';
+
+  @override
+  String get viewAvailablePets => 'مشاهده حیوانات در دسترس';
+
+  @override
+  String get signInToContinue => 'برای ادامه وارد شوید';
+
+  @override
+  String get writeReviewFirst => 'لطفاً ابتدا نظر خود را بنویسید';
+
+  @override
+  String get reviewSubmitted => 'نظر ارسال شد';
+
+  @override
+  String get reviewExperienceHint => 'تجربه خود را با دیگران در میان بگذارید';
+
+  @override
+  String get submitReview => 'ارسال نظر';
+
+  @override
+  String get adoptionCenterDetails => 'جزئیات مرکز سرپرستی';
+
+  @override
+  String get adoptionServices => 'خدمات سرپرستی';
+
+  @override
+  String get petTypes => 'انواع حیوانات';
+
+  @override
+  String get workingDays => 'روزهای کاری';
+
+  @override
+  String get vetCheckIncluded => 'معاینه دامپزشک شامل می‌شود';
+
+  @override
+  String get homeVisitAvailable => 'بازدید در منزل موجود است';
+
+  @override
+  String get transportSupport => 'پشتیبانی حمل‌ونقل';
+
+  @override
+  String get fosterSupport => 'پشتیبانی نگهداری موقت';
+
+  @override
+  String get media => 'رسانه';
+
+  @override
+  String get logo => 'نشان';
+
+  @override
+  String get approvedBusinesses => 'کسب‌وکارهای تأییدشده';
+
+  @override
+  String get searchBusinessesHint => 'جستجوی کسب‌وکارها...';
+
+  @override
+  String get noApprovedBusinesses => 'کسب‌وکار تأییدشده‌ای نیست';
+
+  @override
+  String get basic => 'پایه';
+
+  @override
+  String get disclaimerAccepted => 'سلب مسئولیت پذیرفته شد';
+
+  @override
+  String get mismatchDetected => '⚠ مغایرت شناسایی شد';
+
+  @override
+  String get languageCodeTr => 'TR';
+
+  @override
+  String get languageCodeEn => 'EN';
+
+  @override
+  String get riskFlags => 'نشان‌های خطر';
+
+  @override
+  String get noRiskFlags => 'نشان خطری نیست';
+
+  @override
+  String get adminNotes => 'یادداشت‌های مدیر';
+
+  @override
+  String get adminNotesHint => 'یادداشت‌های داخلی نظارت را اضافه کنید...';
+
+  @override
+  String get saveNotes => 'ذخیره یادداشت‌ها';
+
+  @override
+  String get adminNotesSaved => 'یادداشت‌های مدیر ذخیره شد ✅';
+
+  @override
+  String saveFailed(Object error) {
+    return 'ذخیره ناموفق بود: $error';
+  }
+
+  @override
+  String get noQuickRepliesFound => 'پاسخ سریعی یافت نشد';
+
+  @override
+  String get quickReplies => 'پاسخ‌های سریع';
+
+  @override
+  String get chatFailedToLoad => 'گفتگو بارگذاری نشد';
+
+  @override
+  String get noMessagesYet => 'هنوز پیامی نیست';
+
+  @override
+  String get typeMessageHint => 'پیامی بنویسید...';
+
+  @override
+  String get noRequests => 'درخواستی نیست';
+
+  @override
+  String phoneValue(Object value) {
+    return 'تلفن: $value';
+  }
+
+  @override
+  String genderValue(Object value) {
+    return 'جنسیت: $value';
+  }
+
+  @override
+  String petStatusUpdated(Object name) {
+    return 'وضعیت $name به‌روزرسانی شد';
+  }
+
+  @override
+  String statusUpdateFailed(Object error) {
+    return 'به‌روزرسانی وضعیت ناموفق بود: $error';
+  }
+
+  @override
+  String get deletePetQuestion => 'حیوان حذف شود؟';
+
+  @override
+  String deletePetConfirmation(Object name) {
+    return 'آیا از حذف $name مطمئن هستید؟ این عمل قابل بازگشت نیست.';
+  }
+
+  @override
+  String petDeleted(Object name) {
+    return '$name حذف شد';
+  }
+
+  @override
+  String deleteFailedWithError(Object error) {
+    return 'حذف ناموفق بود: $error';
+  }
+
+  @override
+  String get searchPetsHint => 'جستجوی حیوانات';
+
+  @override
+  String get noAdoptablePetsYet => 'هنوز حیوانی برای سرپرستی نیست';
+
+  @override
+  String get addAdoptablePetsDescription => 'حیوانات آماده سرپرستی را اضافه و وضعیتشان را اینجا مدیریت کنید.';
+
+  @override
+  String failedToLoadPets(Object error) {
+    return 'بارگذاری حیوانات ناموفق بود:\n$error';
+  }
+
+  @override
+  String breedValue(Object value) {
+    return 'نژاد: $value';
+  }
+
+  @override
+  String ageValue(Object value) {
+    return 'سن: $value';
+  }
+
+  @override
+  String get edit => 'ویرایش';
+
+  @override
+  String get noAdoptionPetsYet => 'هنوز حیوانی برای سرپرستی نیست';
+
+  @override
+  String get addPetsForAdoption => 'حیوانات آماده سرپرستی را اضافه کنید.';
+
+  @override
+  String get editAdoptionCenter => 'ویرایش مرکز واگذاری';
+
+  @override
+  String get pleaseAddCoverImage => 'لطفاً تصویر جلد اضافه کنید';
+
+  @override
+  String get addGalleryImages => 'افزودن تصاویر گالری';
+
+  @override
+  String get petNameLabel => 'نام حیوان';
+
+  @override
+  String get ageMonthsLabel => 'سن (ماه)';
+
+  @override
+  String get visible => 'قابل مشاهده';
+
+  @override
+  String failedToSetCover(Object error) {
+    return 'تنظیم جلد ناموفق بود: $error';
+  }
+
+  @override
+  String get uploadPetMedia => 'بارگذاری رسانه حیوان';
+
+  @override
+  String uploadedPercent(Object percent) {
+    return '$percent٪ بارگذاری شد';
+  }
+
+  @override
+  String get noMediaYet => 'هنوز رسانه‌ای نیست';
+
+  @override
+  String get cover => 'جلد';
+
+  @override
+  String get adoptionCenterInfo => 'اطلاعات مرکز واگذاری';
+
+  @override
+  String get centerNameLabel => 'نام مرکز';
+
+  @override
+  String get instagram => 'اینستاگرام';
+
+  @override
+  String get address => 'نشانی';
+
+  @override
+  String get saveCenterInfo => 'ذخیره اطلاعات مرکز';
+
+  @override
+  String get latestAdoptionApplications => 'آخرین درخواست‌های واگذاری';
+
+  @override
+  String get viewAll => 'مشاهده همه';
+
+  @override
+  String get tapForMoreDetails => 'برای جزئیات بیشتر ضربه بزنید';
+
+  @override
+  String get setAvailable => 'تنظیم به موجود';
+
+  @override
+  String get setReserved => 'تنظیم به رزروشده';
+
+  @override
+  String get setAdopted => 'تنظیم به واگذارشده';
+
+  @override
+  String get setPaused => 'تنظیم به متوقف';
+
+  @override
+  String get clients => 'مشتریان';
+
+  @override
+  String get searchPetOrOwnerHint => 'جستجو با نام حیوان یا صاحب';
+
+  @override
+  String get couldNotLoadClients => 'مشتریان بارگیری نشدند.';
+
+  @override
+  String get addClient => 'افزودن مشتری';
+
+  @override
+  String get ownerNameLabel => 'نام صاحب';
+
+  @override
+  String get notes => 'یادداشت‌ها';
+
+  @override
+  String get price => 'قیمت';
+
+  @override
+  String get saveClient => 'ذخیره مشتری';
+
+  @override
+  String get petOwnerNamesRequired => 'نام حیوان و صاحب الزامی است';
+
+  @override
+  String get clientSaved => 'مشتری ذخیره شد';
+
+  @override
+  String lastGrooming(Object date) {
+    return 'آخرین آرایش: $date';
+  }
+
+  @override
+  String get noClientsYet => 'هنوز مشتری‌ای نیست';
+
+  @override
+  String get addFirstGroomingClient => 'اولین مشتری آرایش را برای پیگیری مراجعات اضافه کنید.';
+
+  @override
+  String get clientProfile => 'نمایه مشتری';
+
+  @override
+  String get openAppointmentBooking => 'رزرو نوبت را از صفحه کسب‌وکار باز کنید';
+
+  @override
+  String get groomingHistory => 'تاریخچه آرایش';
+
+  @override
+  String get ownerNotFound => 'صاحب پیدا نشد';
+
+  @override
+  String get signInRequired => 'ورود الزامی است';
+
+  @override
+  String get addGroomingVisit => 'افزودن مراجعه آرایش';
+
+  @override
+  String get serviceVisitTitle => 'عنوان خدمت / مراجعه';
+
+  @override
+  String get saveVisit => 'ذخیره مراجعه';
+
+  @override
+  String get visitSaved => 'مراجعه ذخیره شد';
+
+  @override
+  String get editClient => 'ویرایش مشتری';
+
+  @override
+  String get salonSchedule => 'برنامه سالن';
+
+  @override
+  String get manageGroomingAppointments => 'مدیریت نوبت‌های آرایش';
+
+  @override
+  String amountTry(Object amount) {
+    return '$amount لیر';
+  }
+
+  @override
+  String get uploadGroomingMedia => 'بارگذاری رسانه آرایش';
+
+  @override
+  String get add => 'افزودن';
+
+  @override
+  String get afterPlatformCommission => 'پس از کمیسیون پلتفرم';
+
+  @override
+  String get recentAppointments => 'نوبت‌های اخیر';
+
+  @override
+  String get latestGroomingRequests => 'آخرین درخواست‌ها و جلسات آرایش';
+
+  @override
+  String appointmentError(Object error) {
+    return 'خطای نوبت: $error';
+  }
+
+  @override
+  String get noGroomingAppointmentsYet => 'هنوز نوبت آرایشی نیست';
+
+  @override
+  String get deleteService => 'حذف خدمت';
+
+  @override
+  String get deleteServiceConfirmation => 'آیا از حذف این خدمت مطمئن هستید؟';
+
+  @override
+  String get serviceDeleted => 'خدمت حذف شد';
+
+  @override
+  String get deleteFailed => 'حذف ناموفق بود';
+
+  @override
+  String get availabilityUpdated => 'ظرفیت به‌روزرسانی شد';
+
+  @override
+  String updateFailed(Object error) {
+    return 'به‌روزرسانی ناموفق بود: $error';
+  }
+
+  @override
+  String get availability => 'ظرفیت';
+
+  @override
+  String get capacityBookingExplanation => 'ظرفیت برای جلوگیری از اقامت‌های هم‌زمان بیش از اتاق‌های موجود استفاده می‌شود.';
+
+  @override
+  String get roomCapacity => 'ظرفیت اتاق';
+
+  @override
+  String get maximumPetsRooms => 'حداکثر حیوان / اتاق';
+
+  @override
+  String currentCapacity(int count) {
+    return 'ظرفیت فعلی: $count';
+  }
+
+  @override
+  String get saveAvailability => 'ذخیره ظرفیت';
+
+  @override
+  String get checkIn => 'پذیرش';
+
+  @override
+  String get completeStay => 'تکمیل اقامت';
+
+  @override
+  String alreadyStatus(Object status) {
+    return 'از قبل $status';
+  }
+
+  @override
+  String bookingUpdated(Object status) {
+    return 'رزرو به‌روزرسانی شد: $status';
+  }
+
+  @override
+  String bookingError(Object error) {
+    return 'خطای رزرو: $error';
+  }
+
+  @override
+  String get hotelProfile => 'نمایه هتل';
+
+  @override
+  String get hotelOverview => 'نمای کلی هتل';
+
+  @override
+  String get pendingRequests => 'درخواست‌های در انتظار';
+
+  @override
+  String get uploadHotelMedia => 'بارگذاری رسانه هتل';
+
+  @override
+  String get proposeFinalPrice => 'پیشنهاد قیمت نهایی';
+
+  @override
+  String get editProposedPrice => 'ویرایش قیمت پیشنهادی';
+
+  @override
+  String get notifyCustomerConfirmation => 'این کار به مشتری اطلاع می‌دهد.';
+
+  @override
+  String get finalPrice => 'قیمت نهایی';
+
+  @override
+  String get customerMustPayBeforeTrip => 'مشتری باید پیش از شروع سفر این مبلغ را در برنامه بپردازد.';
+
+  @override
+  String get sendPrice => 'ارسال قیمت';
+
+  @override
+  String get petTaxiOverview => 'نمای کلی تاکسی حیوانات';
+
+  @override
+  String get driverOnline => 'راننده آنلاین';
+
+  @override
+  String get serviceDetailsSaveFailed => 'جزئیات خدمت ذخیره نشد.';
+
+  @override
+  String get priceDeterminedAfterExamination => 'اگر قیمت نهایی پس از معاینه تعیین می‌شود، خالی بگذارید.';
+
+  @override
+  String get editing => 'در حال ویرایش';
+
+  @override
+  String get setPriceDurationDescription => 'قیمت و مدت تقریبی نمایش‌داده‌شده به صاحبان حیوان را تعیین کنید.';
+
+  @override
+  String get serviceDetailsBeforeBooking => 'این جزئیات به صاحبان حیوان کمک می‌کند پیش از رزرو خدمت را بشناسند.';
+
+  @override
+  String get addCustomService => 'افزودن خدمت سفارشی';
+
+  @override
+  String get create => 'ایجاد';
+
+  @override
+  String get paymentSuccessful => 'پرداخت موفق بود';
+
+  @override
+  String get paymentCancelled => 'پرداخت لغو شد';
+
+  @override
+  String paymentFailedWithError(Object error) {
+    return 'پرداخت ناموفق بود: $error';
+  }
+
+  @override
+  String get appointmentPayment => 'پرداخت نوبت';
+
+  @override
+  String get done => 'انجام شد';
+
+  @override
+  String get payNow => 'اکنون پرداخت کنید';
+
+  @override
+  String get titleLabel => 'عنوان';
+
+  @override
+  String get noQuickRepliesYet => 'هنوز پاسخ سریعی نیست';
+
+  @override
+  String get quickRepliesDescription => 'برای پرسش‌های رایج مشتریان پاسخ‌های قابل استفاده مجدد بسازید.';
+
+  @override
+  String get inbox => 'صندوق ورودی';
+
+  @override
+  String inboxError(Object error) {
+    return 'خطای صندوق ورودی:\n$error';
+  }
+
+  @override
+  String get emergency => 'اورژانسی';
+
+  @override
+  String get noClientMessagesYet => 'هنوز پیام مشتری‌ای نیست';
+
+  @override
+  String get clientMessagesDescription => 'وقتی صاحبان حیوان با درمانگاه تماس بگیرند، گفتگوها اینجا ظاهر می‌شوند.';
+
+  @override
+  String get passportNumberFormat => 'شماره گذرنامه باید فقط شامل حروف بزرگ، عدد، - یا / باشد';
+
+  @override
+  String get medicalProfileUpdated => 'نمایه پزشکی به‌روزرسانی شد';
+
+  @override
+  String profileUpdateFailed(Object error) {
+    return 'به‌روزرسانی نمایه ناموفق بود: $error';
+  }
+
+  @override
+  String get confirmMicrochipNumber => 'تأیید شماره میکروچیپ';
+
+  @override
+  String get review => 'بازبینی';
+
+  @override
+  String get saveAnyway => 'ذخیره با این حال';
+
+  @override
+  String get medicalProfile => 'نمایه پزشکی';
+
+  @override
+  String get saveMedicalProfile => 'ذخیره نمایه پزشکی';
+
+  @override
+  String get ownerProfileUpdated => 'نمایه صاحب به‌روزرسانی شد';
+
+  @override
+  String get ownerProfile => 'نمایه صاحب';
+
+  @override
+  String couldNotSaveVisit(Object error) {
+    return 'مراجعه ذخیره نشد: $error';
+  }
+
+  @override
+  String get deleteVisit => 'حذف مراجعه';
+
+  @override
+  String get deleteVisitConfirmation => 'این مراجعه از پرونده پزشکی حذف شود؟';
+
+  @override
+  String couldNotDeleteVisit(Object error) {
+    return 'مراجعه حذف نشد: $error';
+  }
+
+  @override
+  String get deleteVisitTooltip => 'حذف مراجعه';
+
+  @override
+  String get addVaccine => 'افزودن واکسن';
+
+  @override
+  String get vaccine => 'واکسن';
+
+  @override
+  String get reminder => 'یادآوری';
+
+  @override
+  String get notifyBeforeNextDueDate => 'پیش از موعد بعدی اطلاع بده';
+
+  @override
+  String get saveVaccine => 'ذخیره واکسن';
+
+  @override
+  String get patientNotFound => 'بیمار پیدا نشد';
+
+  @override
+  String get editOwnerProfile => 'ویرایش نمایه صاحب';
+
+  @override
+  String get ownerEmergencyContactDetails => 'اطلاعات صاحب و تماس اضطراری';
+
+  @override
+  String get editMedicalProfile => 'ویرایش نمایه پزشکی';
+
+  @override
+  String get clinicalVeterinaryInformation => 'اطلاعات بالینی و دامپزشکی';
+
+  @override
+  String get visits => 'مراجعات';
+
+  @override
+  String get vaccines => 'واکسن‌ها';
+
+  @override
+  String get ownerInformation => 'اطلاعات صاحب';
+
+  @override
+  String get visitsUnavailable => 'مراجعات در دسترس نیست';
+
+  @override
+  String visitsError(Object error) {
+    return 'خطای مراجعات: $error';
+  }
+
+  @override
+  String get followUp => 'پیگیری';
+
+  @override
+  String get editVisitTooltip => 'ویرایش مراجعه';
+
+  @override
+  String get editMedicalNotes => 'ویرایش یادداشت‌های پزشکی';
+
+  @override
+  String get medicalNotes => 'یادداشت‌های پزشکی';
+
+  @override
+  String get editVaccineTooltip => 'ویرایش واکسن';
+
+  @override
+  String get deleteVaccineTooltip => 'حذف واکسن';
+
+  @override
+  String get deleteVaccine => 'حذف واکسن';
+
+  @override
+  String get deleteVaccineConfirmation => 'آیا از حذف این سابقه واکسن مطمئن هستید؟';
+
+  @override
+  String get editVaccine => 'ویرایش واکسن';
+
+  @override
+  String get vaccineName => 'نام واکسن';
+
+  @override
+  String get updateVaccine => 'به‌روزرسانی واکسن';
+
+  @override
+  String get completeVaccine => 'تکمیل واکسن';
+
+  @override
+  String get clientNote => 'یادداشت مشتری';
+
+  @override
+  String get businessInfo => 'اطلاعات کسب‌وکار';
+
+  @override
+  String get clinicName => 'نام درمانگاه';
+
+  @override
+  String get emergencyServiceEnabled => 'خدمت اورژانسی فعال';
+
+  @override
+  String get saveBusinessInfo => 'ذخیره اطلاعات کسب‌وکار';
+
+  @override
+  String get openAppointmentsTab => 'زبانه نوبت‌ها را از بالا باز کنید';
+
+  @override
+  String get viewAllAppointments => 'مشاهده همه نوبت‌ها';
+
+  @override
+  String get checkConnectionTryAgain => 'اتصال خود را بررسی و دوباره تلاش کنید.';
+
+  @override
+  String get editServiceTooltip => 'ویرایش خدمت';
+
+  @override
+  String get deleteServiceTooltip => 'حذف خدمت';
+
+  @override
+  String get noServicesAddedYet => 'هنوز خدمتی اضافه نشده';
+
+  @override
+  String get addFirstServiceDescription => 'اولین خدمت را اضافه کنید تا در دسترس صاحبان حیوان باشد.';
+
+  @override
+  String get servicesPricing => 'خدمات و قیمت‌گذاری';
+
+  @override
+  String get addService => 'افزودن خدمت';
+
+  @override
+  String get noServicesYet => 'هنوز خدمتی نیست.';
+
+  @override
+  String servicePriceDuration(Object price, Object currency, Object duration) {
+    return '$price $currency • $duration دقیقه';
+  }
+
+  @override
+  String get serviceTitle => 'عنوان خدمت';
+
+  @override
+  String get durationMinutes => 'مدت (دقیقه)';
+
+  @override
+  String get requireDeposit => 'نیاز به بیعانه';
+
+  @override
+  String get depositAmount => 'مبلغ بیعانه (₺)';
+
+  @override
+  String get featured => 'ویژه';
+
+  @override
+  String get active => 'فعال';
+
+  @override
+  String get photoUploadedSuccessfully => 'عکس با موفقیت بارگذاری شد';
+
+  @override
+  String get photoDeleted => 'عکس حذف شد';
+
+  @override
+  String get coverImageUpdated => 'تصویر جلد به‌روزرسانی شد';
+
+  @override
+  String get galleryManagement => 'مدیریت گالری';
+
+  @override
+  String get coverImage => 'تصویر جلد';
+
+  @override
+  String get tapToChangeCover => 'برای تغییر جلد ضربه بزنید';
+
+  @override
+  String get uploadCoverImage => 'بارگذاری تصویر جلد';
+
+  @override
+  String get tapToUploadClinicCover => 'برای بارگذاری عکس جلد درمانگاه ضربه بزنید';
+
+  @override
+  String get galleryPhotos => 'عکس‌های گالری';
+
+  @override
+  String get noGalleryPhotosYet => 'هنوز عکس گالری‌ای نیست';
+
+  @override
+  String get uploadClinicPhotosDescription => 'برای افزایش اعتماد و دیده‌شدن عکس‌های درمانگاه را بارگذاری کنید.';
+
+  @override
+  String get uploadFirstPhoto => 'بارگذاری اولین عکس';
+
+  @override
+  String get dragToReorderGallery => 'برای مرتب‌سازی عکس‌های گالری بکشید';
+
+  @override
+  String get patients => 'بیماران';
+
+  @override
+  String get back => 'بازگشت';
+
+  @override
+  String get patientRecords => 'پرونده‌های بیماران';
+
+  @override
+  String shownCount(int count) {
+    return '$count نمایش داده شده';
+  }
+
+  @override
+  String get searchPetOwnerBreed => 'جستجوی حیوان، صاحب یا نژاد';
+
+  @override
+  String get clear => 'پاک کردن';
+
+  @override
+  String preVisitSettingsLoadFailed(Object error) {
+    return 'بارگیری تنظیمات پیش از مراجعه ناموفق بود: $error';
+  }
+
+  @override
+  String get preVisitSettingsSaved => 'تنظیمات فرم پیش از مراجعه ذخیره شد';
+
+  @override
+  String settingsSaveFailed(Object error) {
+    return 'ذخیره تنظیمات ناموفق بود: $error';
+  }
+
+  @override
+  String get preVisitForms => 'فرم‌های پیش از مراجعه';
+
+  @override
+  String get servicePreVisitForms => 'فرم‌های پیش از مراجعه خدمت';
+
+  @override
+  String get serviceMedicalIntakeDescription => 'هر خدمت می‌تواند پرسش‌های پذیرش پزشکی خود را داشته باشد.';
+
+  @override
+  String get servicesCouldNotBeLoadedPeriod => 'خدمات بارگیری نشدند.';
+
+  @override
+  String get noActiveServicesForForms => 'هنوز خدمت فعالی نیست. پیش از ساخت فرم، خدمت اضافه کنید.';
+
+  @override
+  String get enableForService => 'فعال‌سازی برای این خدمت';
+
+  @override
+  String get onlyServiceAsksQuestions => 'فقط این خدمت این پرسش‌ها را می‌پرسد.';
+
+  @override
+  String get noQuestionsForService => 'هنوز پرسشی برای این خدمت نیست.';
+
+  @override
+  String get question => 'پرسش';
+
+  @override
+  String get questionExample => 'مثلاً آیا حیوان شما امروز غذا خورده است؟';
+
+  @override
+  String get remove => 'حذف';
+
+  @override
+  String get questionType => 'نوع پرسش';
+
+  @override
+  String get textType => 'متن';
+
+  @override
+  String get longTextType => 'متن بلند';
+
+  @override
+  String get yesNoType => 'بله / خیر';
+
+  @override
+  String get singleChoice => 'تک‌گزینه‌ای';
+
+  @override
+  String get multipleChoice => 'چندگزینه‌ای';
+
+  @override
+  String get numberType => 'عدد';
+
+  @override
+  String get requiredLabel => 'الزامی';
+
+  @override
+  String get options => 'گزینه‌ها';
+
+  @override
+  String optionNumber(int number) {
+    return 'گزینه $number';
+  }
+
+  @override
+  String get addOption => 'افزودن گزینه';
+
+  @override
+  String get clinicSchedule => 'برنامه درمانگاه';
+
+  @override
+  String get appointments => 'نوبت‌ها';
+
+  @override
+  String totalCount(int count) {
+    return 'مجموع $count';
+  }
+
+  @override
+  String get services => 'خدمات';
+
+  @override
+  String get addServiceFlowComingNext => 'فرایند افزودن خدمت به‌زودی ارائه می‌شود';
+
+  @override
+  String get clinicServices => 'خدمات درمانگاه';
+
+  @override
+  String get manageVisibleVetServices => 'مدیریت خدمات دامپزشکی قابل مشاهده';
+
+  @override
+  String get clinicSettings => 'تنظیمات درمانگاه';
+
+  @override
+  String get emergencyAvailabilitySaveFailed => 'ذخیره دسترسی اورژانسی ناموفق بود';
+
+  @override
+  String managementNotAvailable(Object label) {
+    return 'مدیریت $label هنوز در دسترس نیست';
+  }
+
+  @override
+  String loadError(Object error) {
+    return 'خطای بارگیری: $error';
+  }
+
+  @override
+  String get workingHoursSaved => 'ساعات کاری ذخیره شد';
+
+  @override
+  String saveError(Object error) {
+    return 'خطای ذخیره: $error';
+  }
+
+  @override
+  String get workingHours => 'ساعات کاری';
+
+  @override
+  String get clinicWorkingHours => 'ساعات کاری درمانگاه';
+
+  @override
+  String get manageOpeningDays => 'مدیریت روزهای کاری و دسترسی نوبت';
+
+  @override
+  String get editGroomyProfile => 'ویرایش نمایه آرایشگاه';
+
+  @override
+  String get groomyDetails => 'جزئیات آرایشگاه';
+
+  @override
+  String get homeService => 'خدمت در منزل';
+
+  @override
+  String get pickupService => 'خدمت تحویل‌گیری';
+
+  @override
+  String get photos => 'عکس‌ها';
+
+  @override
+  String get complete => 'تکمیل';
+
+  @override
+  String get awaitingPayment => 'در انتظار پرداخت';
+
+  @override
+  String appointmentUpdated(Object status) {
+    return 'نوبت به‌روزرسانی شد: $status';
+  }
+
+  @override
+  String get galleryComingSoon => 'گالری به‌زودی';
+
+  @override
+  String get editHotelProfile => 'ویرایش نمایه هتل';
+
+  @override
+  String pricePerNight(Object price) {
+    return '$price₺ / شب';
+  }
+
+  @override
+  String bookStayAt(Object hotel) {
+    return 'رزرو اقامت • $hotel';
+  }
+
+  @override
+  String get hotelCareNotesHint => 'یادداشت‌های تغذیه، دارو یا مراقبت';
+
+  @override
+  String get requestBooking => 'درخواست رزرو';
+
+  @override
+  String get checkoutAfterCheckin => 'تاریخ خروج باید پس از ورود باشد';
+
+  @override
+  String get hotelBookingRequestSent => 'درخواست رزرو هتل شما ارسال شد.';
+
+  @override
+  String get noGalleryImagesYet => 'هنوز تصویری در گالری نیست';
+
+  @override
+  String get petHotelDetails => 'جزئیات هتل حیوانات';
+
+  @override
+  String get amenities => 'امکانات';
+
+  @override
+  String get petTaxiDetails => 'جزئیات تاکسی حیوانات';
+
+  @override
+  String get petTaxiManualReviewNotice => 'درخواست تاکسی حیوانات شما تا بررسی و تأیید دستی مدارک منتشر نمی‌شود.';
+
+  @override
+  String get transportationLawNotice => 'قوانین حمل‌ونقل ممکن است بر اساس شهر یا کشور متفاوت باشد. کسب‌وکارها مسئول رعایت مقررات محلی حمل‌ونقل، بیمه و مالیات هستند.';
+
+  @override
+  String get legalDocumentsPrivacyNotice => 'مدارک قانونی فقط برای بررسی صاحب کسب‌وکار و مدیر نگهداری می‌شوند و به کاربران عمومی نمایش داده نمی‌شوند.';
+
+  @override
+  String get savePetTaxiDetails => 'ذخیره جزئیات تاکسی حیوانات';
+
+  @override
+  String get driverVehicle => 'راننده و خودرو';
+
+  @override
+  String get vehicleType => 'نوع خودرو';
+
+  @override
+  String get preview => 'پیش‌نمایش';
+
+  @override
+  String get editPetShopProfile => 'ویرایش نمایه پت‌شاپ';
+
+  @override
+  String get petShopDetails => 'جزئیات پت‌شاپ';
+
+  @override
+  String get shopTypes => 'انواع فروشگاه';
+
+  @override
+  String get priceLevel => 'سطح قیمت';
+
+  @override
+  String get low => 'کم';
+
+  @override
+  String get mid => 'متوسط';
+
+  @override
+  String get high => 'زیاد';
+
+  @override
+  String get delivery => 'ارسال';
+
+  @override
+  String get hasDelivery => 'دارای ارسال';
+
+  @override
+  String get offers => 'پیشنهادها';
+
+  @override
+  String get hasOffers => 'دارای پیشنهاد';
+
+  @override
+  String get rejectedBusinesses => 'کسب‌وکارهای ردشده';
+
+  @override
+  String get noRejectedBusinesses => 'کسب‌وکار ردشده‌ای نیست';
+
+  @override
+  String get inheritedFromRegistration => 'از ثبت‌نام پایه به ارث رسیده';
+
+  @override
+  String get veterinaryDetails => 'جزئیات دامپزشکی';
+
+  @override
+  String get licenseReviewNotice => 'این شماره هنگام تأیید بررسی خواهد شد.';
+
+  @override
+  String get licenseExpiryDateNumbered => '۱۲. تاریخ انقضای مجوز';
+
+  @override
+  String get workingDaysNumbered => '۲۰. روزهای کاری';
+
+  @override
+  String get acceptedAnimalTypesNumbered => '۲۴. انواع حیوانات پذیرفته‌شده';
+
+  @override
+  String get confirmInformationAccurate => '۴۱. تأیید می‌کنم اطلاعات ارائه‌شده صحیح است';
+
+  @override
+  String get agreeDisplayInformation => '۴۲. با نمایش اطلاعاتم در برنامه موافقم';
+
+  @override
+  String get agreeDisplayReviews => '۴۳. با نمایش نظرات کاربران موافقم';
+
+  @override
+  String get acceptPartnershipTerms => '۴۴. شرایط همکاری PetSupo را می‌پذیرم';
+
+  @override
+  String get submitVeterinaryDetails => 'ارسال جزئیات دامپزشکی';
+
+  @override
+  String get adoptionCenterTemporary => 'مرکز واگذاری (موقت)';
+
+  @override
+  String reviewsCountParenthesized(Object count) {
+    return ' ($count نظر)';
+  }
+
+  @override
+  String get messageSendingTimedOut => 'زمان ارسال پیام به پایان رسید';
+
+  @override
+  String messageFailed(Object error) {
+    return 'ارسال پیام ناموفق بود: $error';
+  }
+
+  @override
+  String get chatCreating => 'گفتگو در حال ایجاد است...';
+
+  @override
+  String get startChatting => 'گفتگو را شروع کنید 👋';
+
+  @override
+  String get writeMessageHint => 'پیام بنویسید...';
+
+  @override
+  String get noChatsYet => 'هنوز گفتگویی نیست';
+
+  @override
+  String get startChattingWithPetOwners => 'با صاحبان حیوان گفتگو کنید و برای حیوانتان دوستان تازه بیابید 👋';
+
+  @override
+  String get failedToLoadChats => 'گفتگوها بارگیری نشدند';
+
+  @override
+  String get personalChatsCouldNotLoad => 'گفتگوهای شخصی بارگیری نشدند.';
+
+  @override
+  String get businessConversations => 'گفتگوهای کسب‌وکار';
+
+  @override
+  String get signInToUseChats => 'برای استفاده از گفتگوها وارد شوید';
+
+  @override
+  String get chats => 'گفتگوها';
+
+  @override
+  String get connectWithPetOwners => 'با صاحبان حیوان ارتباط برقرار کنید';
+
+  @override
+  String get noChatsFound => 'گفتگویی پیدا نشد';
+
+  @override
+  String get tryAnotherKeyword => 'کلیدواژه یا نام کاربری دیگری را امتحان کنید.';
+
+  @override
+  String get messages => 'پیام‌ها';
+
+  @override
+  String get failedToLoadMessages => 'پیام‌ها بارگیری نشدند';
+
+  @override
+  String get noConversationsYet => 'هنوز مکالمه‌ای نیست';
+
+  @override
+  String get userInboxEmptyDescription => 'وقتی با یک کسب‌وکار تماس بگیرید،\nمکالمات شما اینجا ظاهر می‌شوند.';
+
+  @override
+  String get medicalRecords => 'سوابق پزشکی';
+
+  @override
+  String get vaccinesVisitsAndTreatments => 'واکسن‌ها، ویزیت‌ها و درمان‌ها';
+
+  @override
+  String amountInTry(Object amount) {
+    return '$amount لیر';
+  }
+
+  @override
   String get reportDialogTitle => 'Report';
 
   @override
@@ -5821,4 +8242,509 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get suspendedAccountSignOut => 'Sign out';
+
+  @override
+  String get payoutEligibleTab => 'واجد شرایط';
+
+  @override
+  String get payoutBatchesTab => 'بسته‌ها';
+
+  @override
+  String get payoutExceptionsTab => 'استثناها';
+
+  @override
+  String get payoutSelectAllEligible => 'انتخاب همه فروشندگان واجد شرایط';
+
+  @override
+  String get payoutCreateBatch => 'ایجاد بسته پرداخت';
+
+  @override
+  String payoutBatchCreated(Object batchNumber) {
+    return 'بسته $batchNumber ایجاد شد';
+  }
+
+  @override
+  String payoutOperationFailed(Object details) {
+    return 'عملیات پرداخت ناموفق بود. $details';
+  }
+
+  @override
+  String get payoutLoadFailed => 'اطلاعات پرداخت بارگیری نشد.';
+
+  @override
+  String get payoutNoExceptions => 'استثنایی وجود ندارد';
+
+  @override
+  String get payoutDateFilter => 'دوره پرداخت';
+
+  @override
+  String get payoutToday => 'امروز';
+
+  @override
+  String get payoutYesterday => 'دیروز';
+
+  @override
+  String get payoutThisWeek => 'این هفته';
+
+  @override
+  String get payoutLastWeek => 'هفته گذشته';
+
+  @override
+  String get payoutThisMonth => 'این ماه';
+
+  @override
+  String get payoutValidBankOnly => 'حساب بانکی معتبر';
+
+  @override
+  String get payoutUnknownSeller => 'اطلاعات فروشنده موجود نیست';
+
+  @override
+  String get payoutBankMissing => 'بانک ثبت نشده';
+
+  @override
+  String get payoutIncludedOrders => 'سفارش‌های شامل‌شده';
+
+  @override
+  String get payoutPeriod => 'دوره';
+
+  @override
+  String get payoutGrossTotal => 'مجموع ناخالص';
+
+  @override
+  String get payoutCommissionTotal => 'مجموع کمیسیون';
+
+  @override
+  String get payoutNetPayable => 'خالص قابل پرداخت';
+
+  @override
+  String get payoutNoBatches => 'بسته پرداختی وجود ندارد';
+
+  @override
+  String get payoutSellers => 'فروشنده';
+
+  @override
+  String get payoutExportXlsx => 'خروجی XLSX';
+
+  @override
+  String get payoutValid => 'معتبر';
+
+  @override
+  String get payoutBlocked => 'مسدود';
+
+  @override
+  String get payoutMissingBusiness => 'اطلاعات کسب‌وکار ناقص';
+
+  @override
+  String get payoutMissingAccountHolder => 'نام صاحب حساب موجود نیست';
+
+  @override
+  String get payoutMissingIban => 'شماره شبا موجود نیست';
+
+  @override
+  String get payoutInvalidIban => 'شماره شبا نامعتبر است';
+
+  @override
+  String get payoutMissingBankName => 'نام بانک موجود نیست';
+
+  @override
+  String get payoutNonPositiveAmount => 'مبلغ خالص باید مثبت باشد';
+
+  @override
+  String get payoutSettlementIncomplete => 'تسویه تکمیل نشده';
+
+  @override
+  String get payoutCommissionUnknown => 'کمیسیون نیاز به بررسی دارد';
+
+  @override
+  String get payoutCustomerPaid => 'پرداخت مشتری';
+
+  @override
+  String get payoutSellerNetNotCalculated => 'خالص فروشنده: محاسبه نشده';
+
+  @override
+  String get payoutExcludedFromPayout => 'خارج از پرداخت';
+
+  @override
+  String get payoutRefundedOrCancelled => 'سفارش مرجوع یا لغوشده';
+
+  @override
+  String get payoutAlreadyBatched => 'قبلاً به بسته اختصاص یافته';
+
+  @override
+  String get payoutAlreadyPaid => 'قبلاً پرداخت شده';
+
+  @override
+  String get payoutUnsupportedCurrency => 'ارز پشتیبانی نمی‌شود';
+
+  @override
+  String get payoutIneligible => 'پرداخت واجد شرایط نیست';
+
+  @override
+  String get payoutStatusFilter => 'وضعیت پرداخت';
+
+  @override
+  String get payoutSettlementFilter => 'وضعیت تسویه';
+
+  @override
+  String get payoutBatchFilter => 'تخصیص دسته';
+
+  @override
+  String get payoutIncludedInBatch => 'در دسته قرار دارد';
+
+  @override
+  String get payoutNotIncludedInBatch => 'در دسته قرار ندارد';
+
+  @override
+  String get payoutSellerFilter => 'فروشنده / کسب‌وکار';
+
+  @override
+  String get payoutBankFilter => 'بانک';
+
+  @override
+  String get payoutMinimumAmount => 'حداقل پرداخت';
+
+  @override
+  String get payoutMaximumAmount => 'حداکثر پرداخت';
+
+  @override
+  String get payoutCustomRange => 'بازه سفارشی';
+
+  @override
+  String get financeOverviewTab => 'نمای کلی';
+
+  @override
+  String get financeWaitingTab => 'در انتظار';
+
+  @override
+  String get financeEligibleSellers => 'فروشندگان واجد شرایط';
+
+  @override
+  String get financeEligibleRecords => 'سوابق واجد شرایط';
+
+  @override
+  String get financeWaitingSellers => 'فروشندگان در انتظار';
+
+  @override
+  String get financeWaitingRecords => 'سوابق در انتظار';
+
+  @override
+  String get financeWaitingAmount => 'مبلغ در انتظار';
+
+  @override
+  String get financeBlockedRecords => 'سوابق مسدود';
+
+  @override
+  String get financeExceptionCount => 'استثناها';
+
+  @override
+  String get financeTodaySales => 'فروش امروز';
+
+  @override
+  String get financeTodayCommission => 'کمیسیون امروز';
+
+  @override
+  String get financeTodayRefunds => 'بازپرداخت امروز';
+
+  @override
+  String get financeTodayEligible => 'واجد شرایط امروز';
+
+  @override
+  String get financeTodayPaid => 'پرداخت امروز';
+
+  @override
+  String get financeOutstandingLiability => 'تعهد پرداخت‌نشده';
+
+  @override
+  String get financeMonthlyPlatformRevenue => 'درآمد ماهانه پلتفرم';
+
+  @override
+  String get financeNextEligibilityDate => 'تاریخ واجد شرایط بعدی';
+
+  @override
+  String get financeDaysRemaining => 'روزهای باقی‌مانده';
+
+  @override
+  String get financeOldestWaitingRecord => 'قدیمی‌ترین سابقه در انتظار';
+
+  @override
+  String get financeAmountEligibleNext => 'مبلغ واجد شرایط بعدی';
+
+  @override
+  String get financeSendForReview => 'ارسال برای بررسی';
+
+  @override
+  String get financeApproveBatch => 'تأیید';
+
+  @override
+  String get financeRejectBatch => 'رد دسته';
+
+  @override
+  String get sellerFinanceTitle => 'مالی و درآمد';
+
+  @override
+  String get sellerFinanceDetails => 'جزئیات';
+
+  @override
+  String get sellerFinanceAvailable => 'موجودی قابل برداشت';
+
+  @override
+  String get sellerFinanceWaiting => 'موجودی در انتظار';
+
+  @override
+  String get sellerFinanceProcessing => 'در دسته / در حال پردازش';
+
+  @override
+  String get sellerFinancePaidThisMonth => 'پرداخت‌شده این ماه';
+
+  @override
+  String get sellerFinanceTotalEarnings => 'کل درآمد';
+
+  @override
+  String get sellerFinanceBlocked => 'مبلغ مسدود';
+
+  @override
+  String get sellerFinanceBankBlocked => 'پرداخت شما به دلیل ناقص بودن اطلاعات بانکی مسدود است.';
+
+  @override
+  String get sellerFinanceUpdateBank => 'به‌روزرسانی حساب بانکی';
+
+  @override
+  String get sellerFinanceWaitingExplanation => 'درآمدها ۲۱ روز پس از پرداخت موفق واجد شرایط می‌شوند.';
+
+  @override
+  String get sellerFinanceWaitingSchedule => 'برنامه انتظار';
+
+  @override
+  String get sellerFinanceLastPayout => 'آخرین پرداخت';
+
+  @override
+  String get sellerFinanceOrders => 'سفارش';
+
+  @override
+  String get sellerFinanceAppointments => 'نوبت';
+
+  @override
+  String get sellerFinanceBookings => 'رزرو';
+
+  @override
+  String get sellerFinanceRides => 'سفر';
+
+  @override
+  String get sellerFinanceRequests => 'درخواست';
+
+  @override
+  String get financeRecommendedAction => 'اقدام پیشنهادی';
+
+  @override
+  String get financeOpenSeller => 'باز کردن فروشنده';
+
+  @override
+  String get financeTomorrowEligible => 'قابل پرداخت در فردا';
+
+  @override
+  String get financeNext7Days => '۷ روز آینده';
+
+  @override
+  String get financeNext30Days => '۳۰ روز آینده';
+
+  @override
+  String get financeEstimatedPayable => 'پرداخت تخمینی';
+
+  @override
+  String get financeStartProcessing => 'شروع پردازش';
+
+  @override
+  String get sellerFinanceEstimatedNext => 'پرداخت بعدی تخمینی';
+
+  @override
+  String get sellerFinanceTimeline => 'خط زمانی پرداخت';
+
+  @override
+  String get sellerFinanceTimelineValue => 'پرداخت‌شده ← انتظار (۲۱ روز) ← واجد شرایط ← در بسته ← انتقال ← تکمیل';
+
+  @override
+  String get sellerFinanceEligibleRecords => 'رکوردهای واجد شرایط';
+
+  @override
+  String get sellerFinancePayoutHistory => 'تاریخچه پرداخت';
+
+  @override
+  String get sellerFinanceExceptions => 'استثناها';
+
+  @override
+  String get financeMarkFailed => 'علامت‌گذاری ناموفق';
+
+  @override
+  String get financeFailureReason => 'دلیل شکست';
+
+  @override
+  String get userProfileCreatorProgram => 'برنامه سازندگان';
+
+  @override
+  String get userProfileOpenCreatorDashboard => 'داشبورد سازنده';
+
+  @override
+  String get creatorDashboardTitle => 'داشبورد سازنده';
+
+  @override
+  String get creatorWelcomeBack => 'خوش آمدید';
+
+  @override
+  String get creatorLevelLabel => 'سطح سازنده';
+
+  @override
+  String get creatorCurrentCampaign => 'کمپین فعلی';
+
+  @override
+  String get creatorReferralCodeLabel => 'کد معرف';
+
+  @override
+  String get creatorReferralLinkLabel => 'لینک معرف';
+
+  @override
+  String get creatorCopyCode => 'کپی کد';
+
+  @override
+  String get creatorCopyLink => 'کپی لینک';
+
+  @override
+  String get creatorReferralCodeCopied => 'کد معرف کپی شد';
+
+  @override
+  String get creatorReferralLinkCopied => 'لینک معرف کپی شد';
+
+  @override
+  String get creatorQualifiedUsers => 'کاربران واجد شرایط';
+
+  @override
+  String get creatorVerifiedPartners => 'شرکای تأیید شده';
+
+  @override
+  String get creatorPendingRewards => 'پاداش‌های در انتظار';
+
+  @override
+  String get creatorPaidRewards => 'پاداش‌های پرداخت‌شده';
+
+  @override
+  String get creatorRecentActivity => 'فعالیت‌های اخیر';
+
+  @override
+  String get creatorNoActivityYet => 'هنوز فعالیتی وجود ندارد';
+
+  @override
+  String get creatorNoActivityMessage => 'به محض استفاده کسی از لینک معرف شما، فعالیت اینجا نمایش داده می‌شود.';
+
+  @override
+  String get creatorUpcomingPayout => 'پرداخت بعدی';
+
+  @override
+  String get creatorEstimatedPayout => 'مبلغ تخمینی پرداخت';
+
+  @override
+  String get creatorPayoutDate => 'تاریخ پرداخت';
+
+  @override
+  String get creatorPayoutMethod => 'روش پرداخت';
+
+  @override
+  String get creatorOpenFullDashboard => 'باز کردن داشبورد کامل';
+
+  @override
+  String get creatorOpenFullDashboardHint => 'نمودارها، تحلیل‌ها و گزارش کامل را در وب مشاهده کنید';
+
+  @override
+  String get creatorPerformanceOverview => 'نمای کلی عملکرد';
+
+  @override
+  String get creatorTotalClicks => 'کل کلیک‌ها';
+
+  @override
+  String get creatorRegistrations => 'ثبت‌نام‌ها';
+
+  @override
+  String get creatorConversionRate => 'نرخ تبدیل';
+
+  @override
+  String get creatorRewardBreakdown => 'تفکیک پاداش';
+
+  @override
+  String get creatorPayoutHistory => 'تاریخچه پرداخت';
+
+  @override
+  String get creatorAnalytics => 'تحلیل‌ها';
+
+  @override
+  String get creatorReferralsTab => 'معرفی‌ها';
+
+  @override
+  String get creatorRewardsTab => 'پاداش‌ها';
+
+  @override
+  String get creatorFilters => 'فیلترها';
+
+  @override
+  String get creatorExport => 'خروجی گرفتن';
+
+  @override
+  String get creatorTimeframe7d => '۷ روز';
+
+  @override
+  String get creatorTimeframe30d => '۳۰ روز';
+
+  @override
+  String get creatorTimeframe90d => '۹۰ روز';
+
+  @override
+  String get creatorTimeframe12m => '۱۲ ماه';
+
+  @override
+  String get creatorSignInRequiredTitle => 'ورود لازم است';
+
+  @override
+  String get creatorSignInRequiredMessage => 'برای مشاهده داشبورد سازنده وارد شوید';
+
+  @override
+  String get creatorAccessDeniedTitle => 'دسترسی سازنده لازم است';
+
+  @override
+  String get creatorAccessDeniedMessage => 'این داشبورد فقط برای سازندگان تأییدشده پت‌سوپو در دسترس است.';
+
+  @override
+  String get creatorGoToSignIn => 'رفتن به ورود';
+
+  @override
+  String get creatorBadgesAchievements => 'نشان‌ها و دستاوردها';
+
+  @override
+  String get creatorProgressToNextLevelPrefix => 'پیشرفت تا';
+
+  @override
+  String get creatorTotalEarned => 'کل درآمد';
+
+  @override
+  String get creatorShareYourLink => 'لینک معرف خود را به اشتراک بگذارید';
+
+  @override
+  String get creatorStatusPaid => 'پرداخت‌شده';
+
+  @override
+  String get creatorStatusScheduled => 'زمان‌بندی‌شده';
+
+  @override
+  String get creatorExportComingSoon => 'خروجی گرفتن به‌زودی';
+
+  @override
+  String get creatorFiltersComingSoon => 'فیلترهای پیشرفته به‌زودی';
+
+  @override
+  String get creatorStatusLabel => 'وضعیت';
+
+  @override
+  String get creatorStatusActive => 'فعال';
+
+  @override
+  String get creatorStatusInactive => 'غیرفعال';
+
+  @override
+  String get creatorSampleData => 'داده نمونه';
 }

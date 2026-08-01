@@ -19,24 +19,377 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description"
+    content="Discover trusted pet-care services, connect with pet owners, shop for your pet, and manage everything in one place with PetSupo.">
+  <meta name="application-name" content="PetSupo">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="barky_matches_fixed">
+  <meta name="apple-mobile-web-app-title" content="PetSupo">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>barky_matches_fixed</title>
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PetSupo">
+  <meta property="og:title" content="PetSupo – All-in-One Pet Care Platform">
+  <meta property="og:description"
+    content="Discover trusted pet-care services, connect with pet owners, shop for your pet, and manage everything in one place with PetSupo.">
+  <meta property="og:url" content="https://app.petsupo.com/">
+  <meta property="og:image" content="https://app.petsupo.com/social-preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PetSupo – All-in-One Pet Care Platform">
+  <meta name="twitter:description"
+    content="Discover trusted pet-care services, connect with pet owners, shop for your pet, and manage everything in one place with PetSupo.">
+  <meta name="twitter:image" content="https://app.petsupo.com/social-preview.png">
+
+  <title>PetSupo – All-in-One Pet Care Platform</title>
+  <link rel="canonical" href="https://app.petsupo.com/">
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    #barky-startup-status {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #120914;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      text-align: center;
+      padding: 24px;
+    }
+
+    #barky-startup-status[hidden] {
+      display: none;
+    }
+
+    .barky-startup-spinner {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #ffffff;
+      animation: barky-startup-spin 0.9s linear infinite;
+    }
+
+    @keyframes barky-startup-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #barky-startup-reload {
+      display: none;
+      margin-top: 4px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      background: #ffffff;
+      color: #120914;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 
 <body>
-  <script src="flutter_bootstrap.js" async></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAMpyDBgPKo4WlpiU0zOCzARZ43KTZDFBs"></script>
+  <!--
+    Startup safety net, independent of Flutter/Firebase (both are exactly
+    what could be failing): shown immediately, hidden by Dart once the
+    first Flutter frame paints (see web_startup_status_web.dart). If the
+    app fails or hangs before that, this becomes a visible, actionable
+    message instead of a permanent blank white page. No stack traces,
+    tokens, or user data are ever rendered here — only a generic message;
+    full diagnostics go to the developer console only.
+  -->
+  <div id="barky-startup-status" role="status" aria-live="polite">
+    <div class="barky-startup-spinner"></div>
+    <div id="barky-startup-message">Loading…</div>
+    <button id="barky-startup-reload" onclick="window.location.reload()">Reload</button>
+  </div>
+  <script>
+    (function () {
+      // Explicit lifecycle: this overlay may only represent failures BEFORE
+      // Flutter's first successful frame. Once startupCompleted flips true,
+      // every entry point below (showFallback, the two listeners, the
+      // timeout) is permanently inert — a later runtime exception anywhere
+      // in the running app (e.g. a Profile-tab error) must never be able to
+      // cover the app again. This is intentionally the only global error
+      // interception this page installs, and it is removed, not just
+      // disabled-by-flag, once startup completes.
+      var startupCompleted = false;
+      var startupTimer = null;
+
+      // Ordered startup trace, console-only, never rendered to the user.
+      // Kept as a plain array (not just individual console.log calls) so
+      // the *sequence* — and exactly where it stops — is easy to read back
+      // in one place from Safari Web Inspector: run
+      // `copy(window.barkyStartupTrace)` in the console to copy it.
+      var trace = [];
+      window.barkyStartupTrace = trace;
+
+      function record(message) {
+        var entry = (Date.now() - traceStart) + 'ms: ' + message;
+        trace.push(entry);
+        try { console.log('[barky-startup] ' + entry); } catch (_) {}
+      }
+
+      function logDiagnostic(source, detail) {
+        trace.push((Date.now() - traceStart) + 'ms: ERROR at ' + source);
+        try { console.error('[barky-startup] ' + source, detail); } catch (_) {}
+      }
+
+      var traceStart = Date.now();
+      record('index.html execution started');
+
+      // Coarse feature/UA logging only — no canvas/font fingerprinting, no
+      // entropy collection beyond what any page already gets from the
+      // request headers. Purely to distinguish "which code path Safari
+      // takes" from "which code path Chrome takes" when reading the trace.
+      try {
+        var nav = window.navigator || {};
+        record('UA: ' + (nav.userAgent || 'unknown'));
+        record(
+          'features: wasm=' + (typeof WebAssembly !== 'undefined') +
+          ' indexedDB=' + (typeof window.indexedDB !== 'undefined') +
+          ' serviceWorker=' + ('serviceWorker' in nav) +
+          ' crossOriginIsolated=' + (typeof window.crossOriginIsolated !== 'undefined' ? window.crossOriginIsolated : 'n/a')
+        );
+        try {
+          var probeCanvas = document.createElement('canvas');
+          record(
+            'webgl: webgl2=' + !!probeCanvas.getContext('webgl2') +
+            ' webgl1=' + !!probeCanvas.getContext('webgl')
+          );
+        } catch (webglError) {
+          logDiagnostic('webgl-probe', webglError);
+        }
+      } catch (featureProbeError) {
+        logDiagnostic('feature-probe', featureProbeError);
+      }
+
+      function showFallback() {
+        if (startupCompleted) return;
+        var el = document.getElementById('barky-startup-status');
+        var messageEl = document.getElementById('barky-startup-message');
+        var reloadEl = document.getElementById('barky-startup-reload');
+        var spinnerEl = document.querySelector('#barky-startup-status .barky-startup-spinner');
+        if (spinnerEl) spinnerEl.style.display = 'none';
+        if (messageEl) messageEl.textContent = 'The app could not start. Please reload the page.';
+        if (reloadEl) reloadEl.style.display = 'inline-block';
+        if (el) el.removeAttribute('hidden');
+      }
+
+      function onWindowError(event) {
+        logDiagnostic('window.onerror', event.error || event.message);
+        showFallback();
+      }
+
+      function onUnhandledRejection(event) {
+        logDiagnostic('unhandledrejection', event.reason);
+        showFallback();
+      }
+
+      window.addEventListener('error', onWindowError);
+      window.addEventListener('unhandledrejection', onUnhandledRejection);
+
+      // If Flutter never reports a first frame within a generous window,
+      // treat that as a startup failure too — this is what turns a silent
+      // hang (e.g. a startup Future that never resolves, with nothing ever
+      // thrown) into a visible, actionable state instead of leaving the
+      // page blank forever.
+      startupTimer = setTimeout(function () {
+        logDiagnostic('startup-timeout', 'Flutter did not report a first frame within 20s');
+        showFallback();
+      }, 20000);
+
+      // Exposed for flutter_bootstrap.js (a separate <script>, no shared
+      // closure) and for the bootstrap script tag's own onload/onerror
+      // attributes below — every call is defensive (typeof-checked at the
+      // call site) so a version mismatch between this file and a cached
+      // main.dart.js can never throw.
+      window.barkyLog = record;
+      window.barkyLogError = logDiagnostic;
+      window.barkyShowStartupFallback = showFallback;
+
+      window.barkyHideStartupStatus = function () {
+        if (startupCompleted) return; // idempotent
+        startupCompleted = true;
+        record('startup completed — overlay, timer, and listeners disarmed');
+
+        if (startupTimer !== null) {
+          clearTimeout(startupTimer);
+          startupTimer = null;
+        }
+
+        // Remove — not disable-by-flag — the startup-only listeners. Any
+        // runtime exception after this point is a normal uncaught error:
+        // the browser still logs it to the console by default, but nothing
+        // on this page reacts to it or changes the UI.
+        window.removeEventListener('error', onWindowError);
+        window.removeEventListener('unhandledrejection', onUnhandledRejection);
+
+        var el = document.getElementById('barky-startup-status');
+        if (el) {
+          el.setAttribute('hidden', 'true');
+          el.remove();
+        }
+      };
+    })();
+  </script>
+  <script>
+    const barkyGooglePlaceSessions = new Map();
+
+    function barkyWaitForGoogleMaps() {
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const check = () => {
+          if (window.google?.maps?.places && window.google?.maps?.Geocoder) {
+            resolve();
+            return;
+          }
+          attempts += 1;
+          if (attempts >= 100) {
+            reject(new Error("Google Maps JavaScript API did not load."));
+            return;
+          }
+          setTimeout(check, 100);
+        };
+        check();
+      });
+    }
+
+    function barkyAddressParts(components) {
+      const valueFor = (type) => {
+        const component = (components || []).find((item) =>
+          (item.types || []).includes(type)
+        );
+        return component?.long_name || component?.longText || null;
+      };
+      return {
+        city: valueFor("administrative_area_level_1") ||
+          valueFor("locality"),
+        district: valueFor("administrative_area_level_2") ||
+          valueFor("sublocality_level_1") ||
+          valueFor("sublocality"),
+      };
+    }
+
+    window.barkyGooglePlacesAutocomplete = async (
+      query,
+      countryCode,
+      sessionKey
+    ) => {
+      await barkyWaitForGoogleMaps();
+      let token = barkyGooglePlaceSessions.get(sessionKey);
+      if (!token) {
+        token = new google.maps.places.AutocompleteSessionToken();
+        barkyGooglePlaceSessions.set(sessionKey, token);
+      }
+      const service = new google.maps.places.AutocompleteService();
+      const request = { input: query, sessionToken: token };
+      if (countryCode) {
+        request.componentRestrictions = { country: countryCode.toLowerCase() };
+      }
+      const predictions = await new Promise((resolve, reject) => {
+        service.getPlacePredictions(request, (items, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+            resolve([]);
+          } else if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            Array.isArray(items)
+          ) {
+            resolve(items);
+          } else {
+            reject(new Error(`Places autocomplete failed: ${status}`));
+          }
+        });
+      });
+      return JSON.stringify(predictions.flatMap((prediction) => {
+        const placeId = prediction?.place_id;
+        const description = prediction?.description;
+        return placeId && description ? [{ placeId, description }] : [];
+      }));
+    };
+
+    window.barkyGooglePlaceDetails = async (placeId, sessionKey) => {
+      await barkyWaitForGoogleMaps();
+      const service = new google.maps.places.PlacesService(
+        document.createElement("div")
+      );
+      const token = barkyGooglePlaceSessions.get(sessionKey);
+      const place = await new Promise((resolve, reject) => {
+        service.getDetails(
+          {
+            placeId,
+            sessionToken: token,
+            fields: ["formatted_address", "geometry", "address_components"],
+          },
+          (result, status) => {
+            if (
+              status === google.maps.places.PlacesServiceStatus.OK &&
+              result
+            ) {
+              resolve(result);
+            } else {
+              reject(new Error(`Place details failed: ${status}`));
+            }
+          }
+        );
+      });
+      barkyGooglePlaceSessions.delete(sessionKey);
+      const location = place?.geometry?.location;
+      const latitude = location?.lat?.();
+      const longitude = location?.lng?.();
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return JSON.stringify({});
+      }
+      return JSON.stringify({
+        latitude,
+        longitude,
+        formattedAddress: place.formatted_address || "",
+        ...barkyAddressParts(place.address_components),
+      });
+    };
+
+    window.barkyGoogleReverseGeocode = async (latitude, longitude) => {
+      await barkyWaitForGoogleMaps();
+      const results = await new google.maps.Geocoder().geocode({
+        location: { lat: latitude, lng: longitude },
+      });
+      const place = results?.results?.[0];
+      if (!place) return JSON.stringify({});
+      return JSON.stringify({
+        latitude,
+        longitude,
+        formattedAddress: place.formatted_address || "",
+        ...barkyAddressParts(place.address_components),
+      });
+    };
+  </script>
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAMpyDBgPKo4WlpiU0zOCzARZ43KTZDFBs&libraries=places&loading=async"
+    async
+  ></script>
+  <script
+    src="flutter_bootstrap.js"
+    async
+    onload="if (typeof window.barkyLog === 'function') window.barkyLog('flutter_bootstrap.js script tag loaded');"
+    onerror="if (typeof window.barkyLogError === 'function') window.barkyLogError('flutter_bootstrap.js failed to load (network/404)', event); if (typeof window.barkyShowStartupFallback === 'function') window.barkyShowStartupFallback();"
+  ></script>
 </body>
 
 </html>

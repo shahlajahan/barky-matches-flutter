@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:barky_matches_fixed/models/business_draft.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetTaxiRegistrationDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -140,11 +142,14 @@ class _PetTaxiRegistrationDetailsPageState
     super.dispose();
   }
 
-  Future<Map<String, dynamic>> _uploadFile(File file, String field) async {
+  Future<Map<String, dynamic>> _uploadFile(
+    PlatformFile platformFile,
+    String field,
+  ) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final extension = file.path.split('.').last.toLowerCase();
+    final extension = platformFile.name.split('.').last.toLowerCase();
     final contentType = switch (extension) {
       'pdf' => 'application/pdf',
       'png' => 'image/png',
@@ -155,8 +160,38 @@ class _PetTaxiRegistrationDetailsPageState
       'business_sector_docs/${user.uid}/pet_taxi/$field/${DateTime.now().millisecondsSinceEpoch}.$extension',
     );
 
-    await ref.putFile(file, SettableMetadata(contentType: contentType));
+    if (kIsWeb) {
+      final bytes = platformFile.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw StateError(
+          'The browser returned no bytes for ${platformFile.name}',
+        );
+      }
+      debugPrint(
+        '📤 Firebase upload started: field=$field '
+        'filename=${platformFile.name} mode=putData bytes=${bytes.length}',
+      );
+      await ref.putData(bytes, SettableMetadata(contentType: contentType));
+    } else {
+      final path = platformFile.path;
+      if (path == null || path.isEmpty) {
+        throw StateError('The native picker returned no file path.');
+      }
+      debugPrint(
+        '📤 Firebase upload started: field=$field '
+        'filename=${platformFile.name} mode=putFile',
+      );
+      await ref.putFile(File(path), SettableMetadata(contentType: contentType));
+    }
+    debugPrint(
+      '✅ Firebase upload completed: field=$field '
+      'filename=${platformFile.name}',
+    );
     final url = await ref.getDownloadURL();
+    debugPrint(
+      '🔗 Download URL received: field=$field '
+      'filename=${platformFile.name} url=$url',
+    );
 
     return {
       'url': url,
@@ -167,22 +202,38 @@ class _PetTaxiRegistrationDetailsPageState
       'verified': false,
       'rejectedReason': null,
       'contentType': contentType,
-      'fileName': file.path.split(Platform.pathSeparator).last,
+      'fileName': platformFile.name,
     };
   }
 
   Future<void> _pickDocument(_DocSpec spec) async {
+    debugPrint('🖱️ Upload button pressed: field=${spec.key}');
+    debugPrint(
+      '📂 File picker opened: field=${spec.key} '
+      'platform=${kIsWeb ? 'web' : 'native'}',
+    );
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
       allowMultiple: false,
+      withData: kIsWeb,
     );
-    final path = result?.files.single.path;
-    if (path == null) return;
+    if (result == null || result.files.isEmpty) {
+      debugPrint('↩️ File picker closed without selection: field=${spec.key}');
+      return;
+    }
+
+    final platformFile = result.files.first;
+    debugPrint('📄 File selected: field=${spec.key}');
+    debugPrint('📄 filename=${platformFile.name}');
+    debugPrint('📄 size=${platformFile.size}');
+    debugPrint(
+      '📄 bytes length=${platformFile.bytes?.length ?? (kIsWeb ? 0 : 'not loaded (native putFile)')}',
+    );
 
     setState(() => _loading = true);
     try {
-      final metadata = await _uploadFile(File(path), spec.key);
+      final metadata = await _uploadFile(platformFile, spec.key);
       if (!mounted) return;
       setState(() => _documents[spec.key] = metadata);
     } catch (e) {
@@ -403,7 +454,7 @@ class _PetTaxiRegistrationDetailsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pet Taxi Details')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.petTaxiDetails)),
 
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -435,21 +486,21 @@ class _PetTaxiRegistrationDetailsPageState
                 title: 'Compliance & Legal Confirmations',
                 subtitle: 'Required confirmations before submitting',
                 children: [
-                  const Text(
-                    'Your Pet Taxi application will not be published until documents are manually reviewed and approved.',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)!.petTaxiManualReviewNotice,
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF9E1B4F),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Transportation laws may vary by city/country. Businesses are responsible for complying with local transportation, insurance, and tax regulations.',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  Text(
+                    AppLocalizations.of(context)!.transportationLawNotice,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Legal documents are stored for business owner and admin review only. They are not shown to public users.',
+                  Text(
+                    AppLocalizations.of(context)!.legalDocumentsPrivacyNotice,
                   ),
                   const SizedBox(height: 12),
                   _check(
@@ -532,7 +583,7 @@ class _PetTaxiRegistrationDetailsPageState
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Save Pet Taxi Details'),
+                : Text(AppLocalizations.of(context)!.savePetTaxiDetails),
           ),
         ),
       ),
@@ -579,9 +630,9 @@ class _PetTaxiRegistrationDetailsPageState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Driver & Vehicle',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            Text(
+              AppLocalizations.of(context)!.driverVehicle,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
             _field(_driverName, 'Driver full name'),
@@ -606,7 +657,9 @@ class _PetTaxiRegistrationDetailsPageState
             ),
             DropdownButtonFormField<String>(
               initialValue: _selectedVehicleType,
-              decoration: const InputDecoration(labelText: 'Vehicle type'),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.vehicleType,
+              ),
               items: _vehicleTypes.map((type) {
                 return DropdownMenuItem(value: type, child: Text(type));
               }).toList(),
@@ -703,7 +756,7 @@ class _PetTaxiRegistrationDetailsPageState
                   Expanded(
                     child: TextButton(
                       onPressed: () => _openDocument(spec),
-                      child: const Text('Preview'),
+                      child: Text(AppLocalizations.of(context)!.preview),
                     ),
                   ),
               ],

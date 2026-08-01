@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../models/pet_story.dart';
 import '../pages/pet_story_viewer_page.dart';
@@ -51,13 +52,21 @@ class _PetploreStoriesBarState extends State<PetploreStoriesBar> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Story uploaded')));
+      ).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.storyUploaded)),
+      );
     } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Story upload failed: $e')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.storyUploadFailed('$e'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -223,7 +232,7 @@ class _PetploreStoriesBarState extends State<PetploreStoriesBar> {
           ),
           const SizedBox(height: 7),
           Text(
-            'Add Story',
+            AppLocalizations.of(context)!.addStory,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -359,7 +368,7 @@ class _PetploreStoriesBarState extends State<PetploreStoriesBar> {
       child: Padding(
         padding: const EdgeInsets.only(top: 16),
         child: Text(
-          'Share a pet moment that lasts 24h',
+          AppLocalizations.of(context)!.storyDurationPrompt,
           maxLines: 2,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.48),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/business_draft.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetShopDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -162,7 +163,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('PetShop Details')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.petShopDetails)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -172,33 +173,42 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
             _field(_ownerName, 'Owner Name'),
 
             const SizedBox(height: 10),
-            const Text("Shop Types"),
+            Text(AppLocalizations.of(context)!.shopTypes),
             _chips(_shopTypes, _selectedShopTypes),
 
             const SizedBox(height: 20),
-            const Text("Categories"),
+            Text(AppLocalizations.of(context)!.categoriesTitle),
             _chips(_categories, _selectedCategories),
 
             _field(_brands, 'Brands'),
 
             const SizedBox(height: 20),
-            const Text("Price Level"),
+            Text(AppLocalizations.of(context)!.priceLevel),
             DropdownButtonFormField(
               initialValue: _priceLevel,
-              items: const [
-                DropdownMenuItem(value: 'low', child: Text('Low')),
-                DropdownMenuItem(value: 'mid', child: Text('Mid')),
-                DropdownMenuItem(value: 'high', child: Text('High')),
+              items: [
+                DropdownMenuItem(
+                  value: 'low',
+                  child: Text(AppLocalizations.of(context)!.low),
+                ),
+                DropdownMenuItem(
+                  value: 'mid',
+                  child: Text(AppLocalizations.of(context)!.mid),
+                ),
+                DropdownMenuItem(
+                  value: 'high',
+                  child: Text(AppLocalizations.of(context)!.high),
+                ),
               ],
               onChanged: (v) => setState(() => _priceLevel = v as String),
             ),
 
             const SizedBox(height: 20),
-            const Text("Delivery"),
+            Text(AppLocalizations.of(context)!.delivery),
             SwitchListTile(
               value: _hasDelivery == 'yes',
               onChanged: (v) => setState(() => _hasDelivery = v ? 'yes' : 'no'),
-              title: const Text("Has Delivery"),
+              title: Text(AppLocalizations.of(context)!.hasDelivery),
             ),
 
             _field(_workingHours, 'Working Hours'),
@@ -206,11 +216,11 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
             _field(_bio, 'Description'),
 
             const SizedBox(height: 20),
-            const Text("Offers"),
+            Text(AppLocalizations.of(context)!.offers),
             SwitchListTile(
               value: _hasOffers == 'yes',
               onChanged: (v) => setState(() => _hasOffers = v ? 'yes' : 'no'),
-              title: const Text("Has Offers"),
+              title: Text(AppLocalizations.of(context)!.hasOffers),
             ),
 
             if (_hasOffers == 'yes') _field(_offerDetails, 'Offer Details'),
@@ -221,7 +231,7 @@ class _PetShopDetailsPageState extends State<PetShopDetailsPage> {
               onPressed: _loading ? null : _submit,
               child: _loading
                   ? const CircularProgressIndicator()
-                  : const Text("Submit"),
+                  : Text(AppLocalizations.of(context)!.submit),
             ),
           ],
         ),

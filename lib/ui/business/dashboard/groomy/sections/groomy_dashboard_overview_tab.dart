@@ -12,6 +12,7 @@ import 'package:barky_matches_fixed/ui/business/groomy/edit_groomy_profile_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_schedule_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class GroomyDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -128,13 +129,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
           _profileCard(context, profile, contact),
           const SizedBox(height: 20),
 
-          _SectionTitle('Revenue'),
-          const SizedBox(height: 10),
-          _KeepAliveWrapper(
-            child: RepaintBoundary(child: _buildRevenueCard(context)),
-          ),
-          const SizedBox(height: 20),
-
           _buildAppointmentsSection(context),
           const SizedBox(height: 20),
 
@@ -151,7 +145,7 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
                   context.read<AppState>().openAddService();
                 },
                 icon: const Icon(LucideIcons.plus, size: 18),
-                label: const Text('Add'),
+                label: Text(AppLocalizations.of(context)!.add),
               ),
             ],
           ),
@@ -305,9 +299,9 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Net Revenue',
-                style: TextStyle(color: Colors.white70),
+              Text(
+                AppLocalizations.of(context)!.vetRevenueNetRevenue,
+                style: const TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 6),
               Text(
@@ -319,9 +313,9 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'After platform commission',
-                style: TextStyle(color: Colors.white60, fontSize: 12),
+              Text(
+                AppLocalizations.of(context)!.afterPlatformCommission,
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
               ),
               const SizedBox(height: 12),
               _revenueRow('Gross Sales', grossSales),
@@ -358,10 +352,13 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Recent Appointments', style: AppTheme.h2()),
+                  Text(
+                    AppLocalizations.of(context)!.recentAppointments,
+                    style: AppTheme.h2(),
+                  ),
                   const SizedBox(height: 4),
                   Text(
-                    'Latest grooming requests and sessions',
+                    AppLocalizations.of(context)!.latestGroomingRequests,
                     style: AppTheme.caption(color: AppTheme.muted),
                   ),
                 ],
@@ -369,7 +366,7 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
             ),
             TextButton(
               onPressed: widget.onOpenAppointments,
-              child: const Text('View All'),
+              child: Text(AppLocalizations.of(context)!.viewAll),
             ),
           ],
         ),
@@ -380,7 +377,11 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
               stream: _appointmentsStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Text('Appointment error: ${snapshot.error}');
+                  return Text(
+                    AppLocalizations.of(
+                      context,
+                    )!.appointmentError('${snapshot.error}'),
+                  );
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -402,7 +403,9 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
                         const Icon(LucideIcons.calendar, color: Colors.black38),
                         const SizedBox(width: 10),
                         Text(
-                          'No grooming appointments yet',
+                          AppLocalizations.of(
+                            context,
+                          )!.noGroomingAppointmentsYet,
                           style: AppTheme.body(color: AppTheme.muted),
                         ),
                       ],
@@ -534,7 +537,7 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
                   );
                 },
                 icon: const Icon(LucideIcons.edit2, size: 18),
-                label: const Text('Edit'),
+                label: Text(AppLocalizations.of(context)!.edit),
               ),
             ],
           ),
@@ -743,16 +746,16 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Service'),
-        content: const Text('Are you sure you want to delete this service?'),
+        title: Text(AppLocalizations.of(context)!.deleteService),
+        content: Text(AppLocalizations.of(context)!.deleteServiceConfirmation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -770,17 +773,17 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Service deleted')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.serviceDeleted)),
+      );
     } catch (e) {
       debugPrint('❌ deleteService error: $e');
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Delete failed')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.deleteFailed)),
+      );
     }
   }
 

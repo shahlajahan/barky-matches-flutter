@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../models/business_draft.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionCenterDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -374,7 +375,9 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Adoption Center Details")),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.adoptionCenterDetails),
+      ),
 
       body: Form(
         key: _formKey,
@@ -399,9 +402,9 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
             // =========================
             // SERVICES
             // =========================
-            const Text(
-              "Adoption Services",
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.adoptionServices,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
@@ -413,9 +416,9 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
             // =========================
             // PET TYPES
             // =========================
-            const Text(
-              "Pet Types",
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.petTypes,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
@@ -427,9 +430,9 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
             // =========================
             // WORKING DAYS
             // =========================
-            const Text(
-              "Working Days",
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.workingDays,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 8),
@@ -456,7 +459,7 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
                 });
               },
 
-              title: const Text("Vet Check Included"),
+              title: Text(AppLocalizations.of(context)!.vetCheckIncluded),
             ),
 
             SwitchListTile(
@@ -470,7 +473,7 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
                 });
               },
 
-              title: const Text("Home Visit Available"),
+              title: Text(AppLocalizations.of(context)!.homeVisitAvailable),
             ),
 
             SwitchListTile(
@@ -484,7 +487,7 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
                 });
               },
 
-              title: const Text("Transport Support"),
+              title: Text(AppLocalizations.of(context)!.transportSupport),
             ),
 
             SwitchListTile(
@@ -498,7 +501,7 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
                 });
               },
 
-              title: const Text("Foster Support"),
+              title: Text(AppLocalizations.of(context)!.fosterSupport),
             ),
 
             const SizedBox(height: 24),
@@ -506,7 +509,10 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
             // =========================
             // MEDIA
             // =========================
-            const Text("Media", style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              AppLocalizations.of(context)!.media,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
 
             const SizedBox(height: 10),
 
@@ -518,7 +524,7 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
 
                     icon: const Icon(Icons.image),
 
-                    label: const Text("Logo"),
+                    label: Text(AppLocalizations.of(context)!.logo),
                   ),
                 ),
 
@@ -530,7 +536,7 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
 
                     icon: const Icon(Icons.photo_library),
 
-                    label: const Text("Photos"),
+                    label: Text(AppLocalizations.of(context)!.photosLabel),
                   ),
                 ),
               ],
@@ -592,7 +598,9 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
 
               child: _loading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Continue"),
+                  : Text(
+                      AppLocalizations.of(context)!.businessRegisterContinue,
+                    ),
             ),
 
             const SizedBox(height: 20),

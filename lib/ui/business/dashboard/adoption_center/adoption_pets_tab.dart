@@ -5,6 +5,7 @@ import 'sections/adoption_pet_model.dart';
 import 'sections/adoption_pet_card.dart';
 import 'sections/add_edit_adoption_pet_page.dart';
 import 'package:barky_matches_fixed/add_dog_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionPetsTab extends StatefulWidget {
   final String businessId;
@@ -116,14 +117,24 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('${pet.name} status updated')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.petStatusUpdated(pet.name),
+          ),
+        ),
+      );
     } catch (e) {
       debugPrint('ADOPTION PET STATUS ERROR: $e');
 
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Status update failed: $e')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.statusUpdateFailed('$e')),
+        ),
+      );
     }
   }
 
@@ -132,19 +143,19 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete pet?'),
+          title: Text(AppLocalizations.of(context)!.deletePetQuestion),
           content: Text(
-            'Are you sure you want to delete ${pet.name}? This action cannot be undone.',
+            AppLocalizations.of(context)!.deletePetConfirmation(pet.name),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete'),
+              child: Text(AppLocalizations.of(context)!.delete),
             ),
           ],
         );
@@ -159,14 +170,22 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('${pet.name} deleted')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.petDeleted(pet.name)),
+        ),
+      );
     } catch (e) {
       debugPrint('ADOPTION PET DELETE ERROR: $e');
 
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.deleteFailedWithError('$e')),
+        ),
+      );
     }
   }
 
@@ -180,7 +199,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
               setState(() => _search = value);
             },
             decoration: InputDecoration(
-              hintText: 'Search pets',
+              hintText: AppLocalizations.of(context)!.searchPetsHint,
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: Colors.white,
@@ -252,13 +271,16 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
           children: [
             Icon(Icons.pets_rounded, size: 56, color: Colors.grey.shade400),
             const SizedBox(height: 14),
-            const Text(
-              'No adoptable pets yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            Text(
+              AppLocalizations.of(context)!.noAdoptablePetsYet,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Add pets that are available for adoption and manage their status here.',
+              AppLocalizations.of(context)!.addAdoptablePetsDescription,
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, height: 1.35),
             ),
@@ -266,7 +288,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
             FilledButton.icon(
               onPressed: _openAddPet,
               icon: const Icon(Icons.add),
-              label: const Text('Add Pet'),
+              label: Text(AppLocalizations.of(context)!.addDogButton),
             ),
           ],
         ),
@@ -279,7 +301,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          'Failed to load pets:\n$error',
+          AppLocalizations.of(context)!.failedToLoadPets(error.toString()),
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.red),
         ),
@@ -381,7 +403,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
             heroTag: 'add_adoption_pet_${widget.businessId}',
             onPressed: _openAddPet,
             icon: const Icon(Icons.add),
-            label: const Text('Add Pet'),
+            label: Text(AppLocalizations.of(context)!.addDogButton),
           ),
         ),
       ],

@@ -30,6 +30,7 @@ const {
 } = require("./settlement");
 
 const revenue = require("./revenue");
+const payoutEngine = require("./payout");
 
 const { requireAdmin } = require("./src/moderation/adminAuth");
 const {
@@ -92,14 +93,77 @@ const {
 } = require("./commission/commissionEngine");
 const {
   calculateAppointmentFinancial,
+  buildCanonicalFinancialSnapshot,
+  assertVerifiedCanonicalFinancial,
+  hasCompleteFinancial,
   positiveNumber: positiveFinancialNumber,
 } = require("./commission/paymentFinancialSnapshot");
+
 const webSubscriptionCore = require("./subscription/webSubscriptionCore");
 const {
   calculateMarketplaceShipping,
 } = require("./shipping/marketplaceShipping");
 
 const { Resend } = require("resend");
+const { settlePayable } = require("./settlement/settlementFinalizer");
+const {
+  PAYOUT_INDEX_COLLECTION,
+  buildPayoutIndexId,
+  projectPayoutIndex,
+} = require("./payout/payoutIndex");
+const {
+  createPayoutBatch,
+  submitPayoutBatchForReview,
+  approvePayoutBatch,
+  rejectPayoutBatch,
+  createPayoutBatchVersion,
+  exportPayoutBatch,
+  downloadPayoutBatchExport,
+  markPayoutBatchProcessing,
+  cancelPayoutBatch,
+  updatePayoutBatchReferences,
+  markPayoutBatchItemPaid,
+  markPayoutBatchItemFailed,
+  markPayoutBatchPaid,
+} = require("./payout/payoutBatchService");
+const {
+  FINANCE_PERMISSION,
+  requireFinancePermission,
+} = require("./finance/financePermissions");
+const {
+  INVOICE_INACTIVE_STATUS,
+  INVOICE_PENDING_STATUS,
+  INVOICE_UPLOAD_THRESHOLD_HOURS,
+  INVOICE_ACTIONABLE_ORDER_STATUSES,
+  invoiceDiagnosticReason,
+} = require("./invoice/invoiceDeadlineState");
+const {
+  createAccountingPeriod,
+  closeAccountingPeriod,
+  createManualAdjustment,
+} = require("./finance/financeOperationsService");
+const {
+  saveFinanceFilter,
+  deleteFinanceFilter,
+} = require("./finance/savedFinanceFilters");
+const {
+  generateFinancePayablesReports,
+  downloadFinancePayablesReport,
+} = require("./finance/financePayablesReport");
+const {
+  rebuildSellerFinanceSummary,
+  rebuildAdminFinanceOverview,
+} = require("./finance/financeSummaryProjector");
+const {
+  FINANCE_LEDGER_COLLECTION,
+  ledgerEntryId,
+  ledgerEntry,
+} = require("./finance/financeLedger");
+const {
+  FINANCIAL_STATUS,
+  isVerifiedFinancial,
+  financialStatusFor,
+} = require("./finance/paymentIntegrity");
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const ORDER_EXTERNAL_NOTIFICATIONS_ENABLED = defineSecret(
@@ -113,6 +177,404 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
+
+async function projectPayoutIndexFromSource(event, sourceCollection) {
+  const sourceDocumentId = event.params?.sourceDocumentId || event.params?.sellerOrderId || event.params?.appointmentId || event.params?.bookingId;
+  if (!sourceDocumentId) return;
+  const after = event.data?.after;
+  const indexRef = db.collection(PAYOUT_INDEX_COLLECTION).doc(
+    buildPayoutIndexId(sourceCollection, sourceDocumentId)
+  );
+  if (!after || !after.exists) {
+    await indexRef.delete();
+    return;
+  }
+  try {
+    await projectPayoutIndex({
+      db,
+      sourceCollection,
+      sourceDocumentId,
+      record: after.data() || {},
+    });
+  } catch (error) {
+    // Invalid/negative contracts are intentionally excluded from the
+    // read-only projection rather than being represented as payable rows.
+    await db.runTransaction(async (transaction) => {
+      const existingSnap = await transaction.get(indexRef);
+      const existing = existingSnap.exists ? existingSnap.data() || {} : null;
+      const existingMillis = existing?.sourceUpdatedAt?.toMillis?.() || 0;
+      const incomingMillis = after.data()?.updatedAt?.toMillis?.() || 0;
+      if (!existing || existingMillis <= incomingMillis) {
+        transaction.delete(indexRef);
+      }
+    });
+    logger.warn("payout_index_projection_skipped", {
+      sourceCollection,
+      sourceDocumentId,
+      reason: error.code || error.message,
+    });
+  }
+}
+
+exports.projectSellerOrderPayoutIndex = onDocumentWritten(
+  "sellerOrders/{sourceDocumentId}",
+  (event) => projectPayoutIndexFromSource(event, "sellerOrders")
+);
+exports.projectVetPayoutIndex = onDocumentWritten(
+  "vet_appointments/{sourceDocumentId}",
+  (event) => projectPayoutIndexFromSource(event, "vet_appointments")
+);
+exports.projectGroomyPayoutIndex = onDocumentWritten(
+  "groomy_appointments/{sourceDocumentId}",
+  (event) => projectPayoutIndexFromSource(event, "groomy_appointments")
+);
+exports.projectHotelPayoutIndex = onDocumentWritten(
+  "hotel_bookings/{sourceDocumentId}",
+  (event) => projectPayoutIndexFromSource(event, "hotel_bookings")
+);
+exports.projectTaxiPayoutIndex = onDocumentWritten(
+  "pet_taxi_bookings/{sourceDocumentId}",
+  (event) => projectPayoutIndexFromSource(event, "pet_taxi_bookings")
+);
+
+exports.refreshBusinessPayoutIndex = onDocumentWritten(
+  "businesses/{businessId}",
+  async (event) => {
+    const businessId = event.params.businessId;
+    const indexSnap = await db
+      .collection(PAYOUT_INDEX_COLLECTION)
+      .where("businessId", "==", businessId)
+      .get();
+    for (let offset = 0; offset < indexSnap.docs.length; offset += 20) {
+      const page = indexSnap.docs.slice(offset, offset + 20);
+      await Promise.all(
+        page.map(async (indexDoc) => {
+          const index = indexDoc.data() || {};
+          const sourceCollection = String(index.sourceCollection || "");
+          const sourceDocumentId = String(index.sourceDocumentId || "");
+          if (!sourceCollection || !sourceDocumentId) return;
+          const sourceSnap = await db
+            .collection(sourceCollection)
+            .doc(sourceDocumentId)
+            .get();
+          if (!sourceSnap.exists) return;
+          await projectPayoutIndex({
+            db,
+            sourceCollection,
+            sourceDocumentId,
+            record: sourceSnap.data() || {},
+          });
+        })
+      );
+    }
+  }
+);
+
+exports.invalidateFinanceBatchesOnBankChange = onDocumentUpdated(
+  "businesses/{businessId}",
+  async (event) => {
+    const beforePayment = event.data.before.data()?.payment || {};
+    const afterPayment = event.data.after.data()?.payment || {};
+    const bankSnapshot = (payment) =>
+      JSON.stringify({
+        iban: String(payment.iban || "").replace(/\s+/g, "").toUpperCase(),
+        accountHolder: String(payment.accountHolder || "").trim(),
+        bankName: String(payment.bankName || "").trim(),
+      });
+    if (bankSnapshot(beforePayment) === bankSnapshot(afterPayment)) return;
+    const businessId = event.params.businessId;
+    const indexSnap = await db
+      .collection(PAYOUT_INDEX_COLLECTION)
+      .where("businessId", "==", businessId)
+      .get();
+    for (const indexDoc of indexSnap.docs) {
+      const index = indexDoc.data() || {};
+      const batchId = String(index.batchId || "").trim();
+      let frozen = false;
+      if (batchId) {
+        const batchSnap = await db.collection("payoutBatches").doc(batchId).get();
+        frozen = Boolean(batchSnap.data()?.frozenAt);
+      }
+      if (frozen) continue;
+      const sourceCollection = String(index.sourceCollection || "");
+      const sourceDocumentId = String(index.sourceDocumentId || "");
+      if (!sourceCollection || !sourceDocumentId) continue;
+      const sourceSnap = await db
+        .collection(sourceCollection)
+        .doc(sourceDocumentId)
+        .get();
+      if (sourceSnap.exists) {
+        await projectPayoutIndex({
+          db,
+          sourceCollection,
+          sourceDocumentId,
+          record: sourceSnap.data() || {},
+        });
+      }
+    }
+    const batchIds = Array.from(
+      new Set(
+        indexSnap.docs
+          .map((doc) => String(doc.data()?.batchId || "").trim())
+          .filter(Boolean)
+      )
+    );
+    for (const batchId of batchIds) {
+      const batchRef = db.collection("payoutBatches").doc(batchId);
+      await db.runTransaction(async (transaction) => {
+        const batchSnap = await transaction.get(batchRef);
+        if (!batchSnap.exists) return;
+        const batch = batchSnap.data() || {};
+        if (
+          !(
+            (batch.status === "draft" && batch.frozenAt) ||
+            [
+              "finance_review",
+              "approved",
+              "exported",
+              "processing",
+              "partially_paid",
+            ].includes(batch.status)
+          )
+        ) {
+          return;
+        }
+        const idempotencyKey = `bank_change_after_snapshot:${businessId}:${batchId}`;
+        const data = {
+          eventType: "seller_bank_details_changed",
+          sourceCollection: "payoutBatches",
+          sourceDocumentId: batchId,
+          businessId,
+          batchId,
+          amount: Number(batch.netTotal || 0),
+          currency: batch.currency || "TRY",
+          direction: "memo",
+          actor: { type: "system", id: "bank_change_guard" },
+          reason: "frozen_bank_snapshot_preserved",
+          idempotencyKey,
+        };
+        const ledgerRef = db
+          .collection(FINANCE_LEDGER_COLLECTION)
+          .doc(ledgerEntryId(data));
+        const ledgerSnap = await transaction.get(ledgerRef);
+        if (!ledgerSnap.exists) transaction.create(ledgerRef, ledgerEntry(data));
+      });
+    }
+  }
+);
+
+exports.promoteFinanceEligibility = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 15 minutes",
+    timeZone: "UTC",
+    timeoutSeconds: 300,
+    memory: "512MiB",
+  },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+    const waitingSnap = await db
+      .collection(PAYOUT_INDEX_COLLECTION)
+      .where("eligibilityStatus", "==", "waiting_period")
+      .where("eligibilityDate", "<=", now)
+      .limit(250)
+      .get();
+    let promoted = 0;
+    let skipped = 0;
+    for (let offset = 0; offset < waitingSnap.docs.length; offset += 25) {
+      const page = waitingSnap.docs.slice(offset, offset + 25);
+      await Promise.all(
+        page.map(async (indexDoc) => {
+          const index = indexDoc.data() || {};
+          const sourceCollection = String(index.sourceCollection || "");
+          const sourceDocumentId = String(index.sourceDocumentId || "");
+          if (!sourceCollection || !sourceDocumentId) {
+            skipped += 1;
+            return;
+          }
+          const sourceSnap = await db
+            .collection(sourceCollection)
+            .doc(sourceDocumentId)
+            .get();
+          if (!sourceSnap.exists) {
+            skipped += 1;
+            return;
+          }
+          await projectPayoutIndex({
+            db,
+            sourceCollection,
+            sourceDocumentId,
+            record: sourceSnap.data() || {},
+          });
+          promoted += 1;
+        })
+      );
+    }
+    logger.info("finance_eligibility_promotion_completed", {
+      scanned: waitingSnap.size,
+      promoted,
+      skipped,
+    });
+  }
+);
+
+exports.projectSellerFinanceSummary = onDocumentWritten(
+  "payoutIndex/{payoutIndexId}",
+  async (event) => {
+    const businessIds = new Set();
+    const beforeId = event.data?.before?.data()?.businessId;
+    const afterId = event.data?.after?.data()?.businessId;
+    if (beforeId) businessIds.add(String(beforeId));
+    if (afterId) businessIds.add(String(afterId));
+    await Promise.all(
+      Array.from(businessIds).map((businessId) =>
+        rebuildSellerFinanceSummary({ db, businessId })
+      )
+    );
+    const before = event.data?.before?.data() || {};
+    const after = event.data?.after?.data() || {};
+    const sellerUid = after.sellerOwnerUid;
+    if (
+      sellerUid &&
+      before.eligibilityStatus !== "waiting_period" &&
+      after.eligibilityStatus === "waiting_period"
+    ) {
+      await createDeterministicNotification(
+        `finance_waiting_${event.params.payoutIndexId}`,
+        {
+          recipientUserId: sellerUid,
+          userId: sellerUid,
+          type: "finance_waiting_period_started",
+          title: "Payout protection period started",
+          body: "These earnings become eligible after the 21-day protection period.",
+          businessId: after.businessId || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+    if (
+      sellerUid &&
+      before.batchStatus !== "failed" &&
+      after.batchStatus === "failed"
+    ) {
+      await createDeterministicNotification(
+        `finance_failed_${event.params.payoutIndexId}_${after.batchId}`,
+        {
+          recipientUserId: sellerUid,
+          userId: sellerUid,
+          type: "finance_payout_failed",
+          title: "Payout requires retry",
+          body: "The transfer was not completed. Finance will retry it; your balance is preserved.",
+          businessId: after.businessId || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+    if (
+      sellerUid &&
+      before.eligibilityStatus !== "eligible" &&
+      after.eligibilityStatus === "eligible"
+    ) {
+      await createDeterministicNotification(
+        `finance_eligible_${event.params.payoutIndexId}`,
+        {
+          recipientUserId: sellerUid,
+          userId: sellerUid,
+          type: "finance_funds_eligible",
+          title: "Funds are now eligible",
+          body: "Your protected earnings are now available for payout.",
+          businessId: after.businessId || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+    if (
+      sellerUid &&
+      before.eligibilityStatus !== "batched" &&
+      after.eligibilityStatus === "batched"
+    ) {
+      await createDeterministicNotification(
+        `finance_batched_${event.params.payoutIndexId}_${after.batchId}`,
+        {
+          recipientUserId: sellerUid,
+          userId: sellerUid,
+          type: "finance_payout_batched",
+          title: "Payout is being prepared",
+          body: "Eligible earnings were included in a payout batch.",
+          businessId: after.businessId || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+    if (
+      sellerUid &&
+      before.eligibilityStatus !== "paid" &&
+      after.eligibilityStatus === "paid"
+    ) {
+      await createDeterministicNotification(
+        `finance_paid_${event.params.payoutIndexId}`,
+        {
+          recipientUserId: sellerUid,
+          userId: sellerUid,
+          type: "finance_payout_completed",
+          title: "Payout completed",
+          body: "Your seller payout has been marked completed.",
+          businessId: after.businessId || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+    if (
+      sellerUid &&
+      !["blocked", "on_hold"].includes(before.eligibilityStatus) &&
+      ["blocked", "on_hold"].includes(after.eligibilityStatus)
+    ) {
+      await createDeterministicNotification(
+        `finance_blocked_${event.params.payoutIndexId}_${after.eligibilityStatus}`,
+        {
+          recipientUserId: sellerUid,
+          userId: sellerUid,
+          type: "finance_payout_blocked",
+          title: "Payout needs attention",
+          body: "A payout record is blocked or under review. Your balance remains visible.",
+          businessId: after.businessId || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+    if (
+      sellerUid &&
+      after.bankValidationStatus !== "valid" &&
+      ["eligible", "waiting_period"].includes(after.eligibilityStatus)
+    ) {
+      await createDeterministicNotification(
+        `finance_bank_missing_${after.businessId}`,
+        {
+          recipientUserId: sellerUid,
+          userId: sellerUid,
+          type: "finance_bank_information_required",
+          title: "Bank information required",
+          body: "Update your bank account to receive eligible payouts.",
+          businessId: after.businessId || null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }
+      );
+    }
+  }
+);
+
+exports.rebuildFinanceOperationsOverview = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 15 minutes",
+    timeZone: "UTC",
+    timeoutSeconds: 540,
+    memory: "1GiB",
+  },
+  async () => {
+    await rebuildAdminFinanceOverview({ db });
+  }
+);
 
 /**
  * Removes only the quantities captured by a verified paid marketplace order.
@@ -656,32 +1118,79 @@ async function finalizeAppointmentAfterPaid({
       : "default";
   }
 
-  const paidAmount = positiveFinancialNumber(
-    orderData.pricing?.grandTotal,
-    orderData.payment?.amount,
-    appointmentData.price,
-    appointmentData.servicePrice,
-    appointmentData.finalPrice
-  );
-  const financial = await calculateAppointmentFinancial({
-    collectionName: appointmentCollection,
-    record: appointmentData,
-    paidAmount,
-    resolvedVetServiceCategory,
-  });
+  const payoutTimestamp = admin.firestore.FieldValue.serverTimestamp();
+  const existingFinancialStatus = hasCompleteFinancial(appointmentData.financial)
+    ? FINANCIAL_STATUS.VERIFIED
+    : FINANCIAL_STATUS.PENDING;
 
   await appointmentRef.update({
     paymentStatus: "paid",
     status: "confirmed_paid",
-    paidAt: admin.firestore.FieldValue.serverTimestamp(),
+    paidAt: payoutTimestamp,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     orderId,
+    paymentId: transactionId || null,
     paymentTransactionId: transactionId,
+    "payment.finalizationStatus": "completed",
+    "payment.finalizationCompletedAt": payoutTimestamp,
+    financialStatus: existingFinancialStatus,
     ...(resolvedVetServiceCategory
       ? { serviceCategory: resolvedVetServiceCategory }
       : {}),
-    financial,
   });
+
+  // Payment persistence is intentionally completed before financial settlement
+  // work. If calculation fails, the payment remains paid and settlement retry
+  // records the missing/failed snapshot without contacting the bank again.
+  let financial = appointmentData.financial;
+  if (!hasCompleteFinancial(financial)) {
+    try {
+      financial = await calculateAppointmentFinancial({
+        collectionName: appointmentCollection,
+        record: appointmentData,
+        paidAmount: positiveFinancialNumber(
+          orderData.pricing?.grandTotal,
+          orderData.payment?.amount,
+          appointmentData.price,
+          appointmentData.servicePrice,
+          appointmentData.finalPrice
+        ),
+        resolvedVetServiceCategory,
+      });
+      assertVerifiedCanonicalFinancial(financial);
+      await appointmentRef.update({ financial });
+    } catch (financialError) {
+      logger.error("isbank_paid_financial_snapshot_failed", {
+        orderId,
+        appointmentId,
+        appointmentCollection,
+        message: financialError?.message || String(financialError),
+      });
+      await appointmentRef.update({
+        financialStatus: FINANCIAL_STATUS.REQUIRES_REPAIR,
+        settlement: {
+          ...(appointmentData.settlement || {}),
+          status: "blocked",
+          failureCode: "FINANCIAL_REPAIR_REQUIRED",
+          failureMessage: financialError?.message || String(financialError),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return {
+        recordRef: appointmentRef,
+        sector: appointmentCollection === "vet_appointments"
+          ? "vet"
+          : appointmentCollection === "groomy_appointments"
+            ? "groomy"
+            : "hotel",
+      };
+    }
+    await appointmentRef.update({
+      financialStatus: financialStatusFor(financial),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
 
   logger.info("isbank_paid_appointment_finalized", {
     orderId,
@@ -689,6 +1198,15 @@ async function finalizeAppointmentAfterPaid({
     appointmentCollection,
     transactionId,
   });
+
+  return {
+    recordRef: appointmentRef,
+    sector: appointmentCollection === "vet_appointments"
+      ? "vet"
+      : appointmentCollection === "groomy_appointments"
+        ? "groomy"
+        : "hotel",
+  };
 }
 
 async function finalizeIsbankPaidOrder({
@@ -859,6 +1377,9 @@ async function finalizeIsbankPaidOrder({
 
       for (const doc of rawSellerOrdersSnap.docs) {
         const sellerOrder = doc.data() || {};
+        const sellerFinancialStatus = hasCompleteFinancial(sellerOrder.financial)
+          ? FINANCIAL_STATUS.VERIFIED
+          : FINANCIAL_STATUS.REQUIRES_REPAIR;
         const sellerNetAmount = asNumber(
           sellerOrder.financial?.sellerNetAmount ?? sellerOrder.payout?.amount ?? 0,
           0
@@ -876,6 +1397,7 @@ async function finalizeIsbankPaidOrder({
           {
             status: "paid",
             paymentStatus: "paid",
+            financialStatus: sellerFinancialStatus,
             paidAt: now,
             payment: {
               ...(sellerOrder.payment || {}),
@@ -890,7 +1412,7 @@ async function finalizeIsbankPaidOrder({
               response: responseText || null,
               transId: transId || null,
               mdStatus: mdStatus || null,
-              amount: sellerGrossAmount,
+              amount: sellerNetAmount,
               grossAmount: sellerGrossAmount,
               sellerNetAmount,
               currency: canonicalCallbackCurrency,
@@ -901,18 +1423,6 @@ async function finalizeIsbankPaidOrder({
               finalizationMarker,
               finalizationStatus: "completed",
               finalizationCompletedAt: now,
-            },
-            payout: {
-              ...(sellerOrder.payout || {}),
-              status: "pending",
-              amount: sellerNetAmount,
-              currency: canonicalCallbackCurrency,
-              currencyRaw: rawCallbackCurrency,
-              requestedAt: sellerOrder.payout?.requestedAt || now,
-              paidAt: sellerOrder.payout?.paidAt || null,
-              reference: sellerOrder.payout?.reference || orderId,
-              note: sellerOrder.payout?.note || null,
-              updatedAt: now,
             },
             updatedAt: now,
             timeline: admin.firestore.FieldValue.arrayUnion({
@@ -1107,7 +1617,7 @@ async function finalizeIsbankPaidOrder({
       }
     }
 
-    await finalizeAppointmentAfterPaid({
+    const appointmentSettlementTarget = await finalizeAppointmentAfterPaid({
       orderData: effectiveOrderData,
       orderId,
       transactionId: transId || null,
@@ -1199,6 +1709,32 @@ async function finalizeIsbankPaidOrder({
       completionResult.status === "completed" ||
       completionResult.status === "alreadyProcessed"
     ) {
+      const settlementTargets = [];
+      if (appointmentSettlementTarget) {
+        settlementTargets.push(appointmentSettlementTarget);
+      }
+      for (const sellerDoc of rawSellerOrdersSnap.docs || []) {
+        settlementTargets.push({
+          recordRef: sellerDoc.ref,
+          sector: "petshop",
+        });
+      }
+      for (const target of settlementTargets) {
+        try {
+          await settlePayable({
+            db,
+            sector: target.sector,
+            recordRef: target.recordRef,
+            actor: { type: "system", id: "isbank_settlement" },
+          });
+        } catch (settlementError) {
+          logger.error("settlement_retryable_failure", {
+            orderId,
+            sector: target.sector,
+            message: settlementError?.message || String(settlementError),
+          });
+        }
+      }
       try {
         await sendExternalOrderNotifications({
           orderId,
@@ -1347,13 +1883,18 @@ async function markIsbankPaymentFailed({
             finalizationStatus: "failed",
             finalizationCompletedAt: null,
           },
-          payout: {
-            ...(sellerOrder.payout || {}),
-            status: "payment_failed",
-            amount: sellerNetAmount,
-            currency: safeCurrency,
-            updatedAt: now,
-          },
+          payout: payoutEngine
+            .getPayoutSectorAdapter("petshop")
+            .normalizePayout({
+              record: sellerOrder,
+              financial: sellerOrder.financial,
+              existingPayout: sellerOrder.payout,
+              amount: sellerNetAmount,
+              currency: safeCurrency,
+              currencyRaw: rawCurrency,
+              status: "payment_failed",
+              timestamp: now,
+            }),
           updatedAt: now,
           timeline: admin.firestore.FieldValue.arrayUnion({
             eventId: `isbank_failed_${orderId}_${doc.id}`,
@@ -1546,6 +2087,36 @@ function parseIsbankCallbackForm(req) {
   }
 
   return { fields, entries };
+}
+
+function buildSafeIsbankCallbackLogFields(fields, callbackType, fallbackOid) {
+  return {
+    oid:
+      normalizeIsbankValue(
+        getIsbankCallbackValue(fields, "oid") ||
+        getIsbankCallbackValue(fields, "ReturnOid") ||
+        fallbackOid
+      ) || null,
+    mdStatus:
+      normalizeIsbankValue(getIsbankCallbackValue(fields, "mdStatus")) || null,
+    Response:
+      normalizeIsbankValue(getIsbankCallbackValue(fields, "Response")) || null,
+    ProcReturnCode:
+      normalizeIsbankValue(
+        getIsbankCallbackValue(fields, "ProcReturnCode")
+      ) || null,
+    ErrMsg:
+      normalizeIsbankValue(getIsbankCallbackValue(fields, "ErrMsg")) || null,
+    TransId:
+      normalizeIsbankValue(getIsbankCallbackValue(fields, "TransId")) || null,
+    HostRefNum:
+      normalizeIsbankValue(getIsbankCallbackValue(fields, "HostRefNum")) || null,
+    AuthCode:
+      normalizeIsbankValue(getIsbankCallbackValue(fields, "AuthCode")) || null,
+    HASHPARAMS:
+      normalizeIsbankValue(getIsbankCallbackValue(fields, "HASHPARAMS")) || null,
+    callbackType,
+  };
 }
 
 // Never persist or log full bank callback payloads, even in debug deployments.
@@ -1878,6 +2449,27 @@ function webSubscriptionReturnOrigin() {
     .replace(/\/+$/, "");
 }
 
+// Strict allowlist for where a browser may be sent back to after the İş Bank
+// hosted payment page completes. The bank-facing callback URL itself
+// (webSubscriptionReturnOrigin(), used for the /isbank/3d-success path) is
+// never influenced by this — that must always be the deployed HTTPS
+// backend. This only governs the *second*, final browser redirect, so both
+// production (https://app.petsupo.com) and an explicit local Flutter Web
+// dev server (http://localhost:5001) can round-trip correctly without
+// hardcoding one value or trusting an arbitrary client-supplied origin.
+const WEB_SUBSCRIPTION_RETURN_ORIGIN_ALLOWLIST = [
+  "https://app.petsupo.com",
+  "http://localhost:5001",
+];
+
+function resolveWebSubscriptionReturnOrigin(candidateOrigin) {
+  const normalized = String(candidateOrigin || "").trim().replace(/\/+$/, "");
+  if (!normalized) return null;
+  return WEB_SUBSCRIPTION_RETURN_ORIGIN_ALLOWLIST.includes(normalized)
+    ? normalized
+    : null;
+}
+
 exports.getWebSubscriptionCatalog = onCall(
   {
     region: "europe-west3",
@@ -1925,6 +2517,23 @@ exports.createWebSubscriptionCheckout = onCall(
     const orderRef = db.collection("orders").doc(orderId);
     const now = admin.firestore.FieldValue.serverTimestamp();
 
+    // The browser-return origin the client is currently running on. Absent
+    // (older clients) falls back to the production default; present but not
+    // on the allowlist is rejected outright — arbitrary origins must never
+    // reach the stored order, since webSubscriptionBrowserReturn redirects
+    // to whatever is stored here.
+    const requestedReturnOrigin = request.data?.returnOrigin;
+    const browserReturnOrigin =
+      requestedReturnOrigin === undefined || requestedReturnOrigin === null
+        ? webSubscriptionReturnOrigin()
+        : resolveWebSubscriptionReturnOrigin(requestedReturnOrigin);
+    if (!browserReturnOrigin) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Unsupported return origin for web subscription checkout."
+      );
+    }
+
     await db.runTransaction(async (transaction) => {
       const existing = await transaction.get(orderRef);
       if (existing.exists) {
@@ -1956,6 +2565,7 @@ exports.createWebSubscriptionCheckout = onCall(
         },
         termDays: pricing.durationDays,
         source: "web",
+        browserReturnOrigin,
         createdAt: now,
         updatedAt: now,
         payment: {
@@ -2126,7 +2736,53 @@ function webSubscriptionBrowserReturn(kind) {
     { region: "europe-west3" },
     async (req, res) => {
       const orderId = normalizeIsbankValue(req.query?.oid);
-      const target = new URL(webSubscriptionReturnOrigin());
+      const safeReturnFields = buildSafeIsbankCallbackLogFields(
+        req.query || {},
+        kind === "success" ? "success_return" : "fail_return",
+        orderId
+      );
+      if (kind === "fail") {
+        logger.warn("ISBANK_FAIL_RETURN", {
+          oid: safeReturnFields.oid,
+          mdStatus: safeReturnFields.mdStatus,
+          ProcReturnCode: safeReturnFields.ProcReturnCode,
+          Response: safeReturnFields.Response,
+          ErrMsg: safeReturnFields.ErrMsg,
+        });
+      } else {
+        logger.info("ISBANK_SUCCESS_RETURN", {
+          oid: safeReturnFields.oid,
+          mdStatus: safeReturnFields.mdStatus,
+          ProcReturnCode: safeReturnFields.ProcReturnCode,
+          Response: safeReturnFields.Response,
+        });
+      }
+      // Resolve where to send the browser back to. The stored value was
+      // already validated against the allowlist at checkout time
+      // (createWebSubscriptionCheckout); it is re-validated here rather
+      // than trusted blindly, so this can never become an open redirect
+      // even if some other write path ever stored something unexpected.
+      // Orders created before this field existed (or any resolution
+      // failure) fall back to the same production default this always
+      // used — no behavior change for those orders.
+      let resolvedReturnOrigin = webSubscriptionReturnOrigin();
+      if (orderId) {
+        try {
+          const orderSnap = await db.collection("orders").doc(orderId).get();
+          const storedOrigin = orderSnap.exists
+            ? orderSnap.data()?.browserReturnOrigin
+            : null;
+          const validatedOrigin = resolveWebSubscriptionReturnOrigin(storedOrigin);
+          if (validatedOrigin) resolvedReturnOrigin = validatedOrigin;
+        } catch (error) {
+          logger.warn("WEB_SUBSCRIPTION_RETURN_ORIGIN_LOOKUP_FAILED", {
+            oid: orderId,
+            message: error?.message || String(error),
+          });
+        }
+      }
+
+      const target = new URL(resolvedReturnOrigin);
       target.searchParams.set(
         "webSubscriptionReturn",
         kind === "success" ? "success" : "fail"
@@ -2151,6 +2807,19 @@ exports.isbank3DPayHostingCallback = onRequest(
     ],
   },
   async (req, res) => {
+    const callback = parseIsbankCallbackForm(req);
+    const preValidationOrderId = normalizeIsbankValue(
+      getIsbankCallbackValue(callback.fields, "oid") ||
+      getIsbankCallbackValue(callback.fields, "ReturnOid") ||
+      req.query?.oid
+    );
+    const safeCallbackLogFields = buildSafeIsbankCallbackLogFields(
+      callback.fields,
+      "pay_hosting_callback",
+      preValidationOrderId
+    );
+    logger.info("ISBANK_CALLBACK_RECEIVED", safeCallbackLogFields);
+
     if (req.method !== "POST") {
       res.set("Allow", "POST");
       res.status(405).send(
@@ -2167,7 +2836,6 @@ exports.isbank3DPayHostingCallback = onRequest(
           : Buffer.from(typeof req.body === "string" ? req.body : "", "utf8"),
       }
       : null;
-    const callback = parseIsbankCallbackForm(req);
     logger.info("isbank_callback_request", {
       contentType: req.headers["content-type"],
     });
@@ -2195,44 +2863,48 @@ exports.isbank3DPayHostingCallback = onRequest(
 
     let isbankHashInputForensicWrite = null;
 
-const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
-  fields: callback.fields,
-  storeKey,
-  forensicObserver: ISBANK_FORENSIC_DEBUG_ENABLED
-    ? (hashInputString) => {
-      const hashInputBytes = Buffer.from(hashInputString, "utf8");
-      const hashInputStringSHA256 = crypto
-        .createHash("sha256")
-        .update(hashInputBytes)
-        .digest("hex");
+    const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
+      fields: callback.fields,
+      storeKey,
+      forensicObserver: ISBANK_FORENSIC_DEBUG_ENABLED
+        ? (hashInputString) => {
+          const hashInputBytes = Buffer.from(hashInputString, "utf8");
+          const hashInputStringSHA256 = crypto
+            .createHash("sha256")
+            .update(hashInputBytes)
+            .digest("hex");
 
-      logger.info("isbank_hash_input_forensic", {
-        oid: orderId || null,
-        hashInputStringLength: hashInputString.length,
-        hashInputStringSHA256,
-        hashInputStringBase64: hashInputBytes.toString("base64"),
-      });
+          logger.info("isbank_hash_input_forensic", {
+            oid: orderId || null,
+            hashInputStringLength: hashInputString.length,
+            hashInputStringSHA256,
+            hashInputStringBase64: hashInputBytes.toString("base64"),
+          });
 
-      const safeOid = String(orderId || "unknown")
-        .replace(/[^A-Za-z0-9._-]/g, "_");
+          const safeOid = String(orderId || "unknown")
+            .replace(/[^A-Za-z0-9._-]/g, "_");
 
-      isbankHashInputForensicWrite = db
-        .collection("debug_isbank_hash_inputs")
-        .doc(safeOid)
-        .set({
-          hashInputString,
-          hashInputLength: hashInputString.length,
-          hashInputSha256: hashInputStringSHA256,
-          generatedAt: new Date().toISOString(),
-        })
-        .catch(() => null);
-    }
-    : null,
-});
+          isbankHashInputForensicWrite = db
+            .collection("debug_isbank_hash_inputs")
+            .doc(safeOid)
+            .set({
+              hashInputString,
+              hashInputLength: hashInputString.length,
+              hashInputSha256: hashInputStringSHA256,
+              generatedAt: new Date().toISOString(),
+            })
+            .catch(() => null);
+        }
+        : null,
+    });
 
     // Hash V3 validation is mandatory for every hosted callback. Browser
     // return URLs are never treated as proof of payment.
     const hashValid = calculatedHashValid;
+    logger.info("ISBANK_HASH_VALIDATION", {
+      oid: orderId || null,
+      hashValid,
+    });
 
     if (isbankHashInputForensicWrite) {
       try {
@@ -2265,6 +2937,20 @@ const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
     });
 
     if (!hashValid) {
+      logger.warn("ISBANK_HASH_INVALID", {
+        oid: orderId || null,
+        mdStatus: safeCallbackLogFields.mdStatus,
+        ProcReturnCode: safeCallbackLogFields.ProcReturnCode,
+        Response: safeCallbackLogFields.Response,
+      });
+      logger.info("ISBANK_PAYMENT_DECISION", {
+        oid: orderId || null,
+        paymentApproved: false,
+        mdStatus: safeCallbackLogFields.mdStatus,
+        ProcReturnCode: safeCallbackLogFields.ProcReturnCode,
+        Response: safeCallbackLogFields.Response,
+        reason: "hash_invalid",
+      });
       const hashDiagnostics = buildIsbankCallbackHashDiagnostics({
         fields: callback.fields,
         storeKey,
@@ -2298,6 +2984,11 @@ const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
 
     const orderRef = db.collection("orders").doc(orderId);
     const orderSnap = await orderRef.get();
+    logger.info("ISBANK_ORDER_LOOKUP", {
+      oid: orderId || null,
+      orderFound: orderSnap.exists,
+      sellerOrdersFound: orderSnap.exists ? null : 0,
+    });
 
     if (!orderSnap.exists) {
       logger.warn("isbank_3d_callback_order_missing", {
@@ -2551,11 +3242,33 @@ const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
       mdStatus: callbackMdStatus,
       hashValid,
     });
+    const paymentDecisionReason = !hashValid
+      ? "hash_invalid"
+      : callbackMdStatus !== "1"
+        ? "mdStatus_not_1"
+        : callbackProcReturnCode !== "00"
+          ? "procReturnCode_not_00"
+          : callbackResponse !== "approved"
+            ? "response_not_approved"
+            : "approved";
+    logger.info("ISBANK_PAYMENT_DECISION", {
+      oid: orderId || null,
+      paymentApproved: successResponse,
+      mdStatus: callbackMdStatus || null,
+      ProcReturnCode: callbackProcReturnCode || null,
+      Response: callbackResponse || null,
+      reason: paymentDecisionReason,
+    });
 
     const sellerOrdersSnap = await db
       .collection("sellerOrders")
       .where("rootOrderId", "==", orderId)
       .get();
+    logger.info("ISBANK_ORDER_LOOKUP", {
+      oid: orderId || null,
+      orderFound: true,
+      sellerOrdersFound: sellerOrdersSnap.size,
+    });
 
     if (!successResponse) {
       await markIsbankPaymentFailed({
@@ -2584,21 +3297,43 @@ const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
       return;
     }
 
+    logger.info("ISBANK_SUCCESS_RETURN", {
+      oid: orderId || null,
+      mdStatus: callbackMdStatus || null,
+      ProcReturnCode: callbackProcReturnCode || null,
+      Response: callbackResponse || null,
+    });
+
     if (orderData.orderType === "web_subscription") {
-      const subscriptionResult = await finalizeWebSubscriptionPayment({
-        orderRef,
-        orderId,
-        callbackAmount,
-        callbackCurrency: callbackCurrencyRaw,
-        callbackMetadata: {
-          authCode: callbackAuthCode || null,
-          hostRefNum: callbackHostRefNum || null,
-          procReturnCode: callbackProcReturnCode,
-          response: callbackResponse,
-          transId: callbackTransId || null,
-          mdStatus: callbackMdStatus,
-        },
+      logger.info("ISBANK_FINALIZATION_START", {
+        oid: orderId || null,
       });
+      let subscriptionResult;
+      try {
+        subscriptionResult = await finalizeWebSubscriptionPayment({
+          orderRef,
+          orderId,
+          callbackAmount,
+          callbackCurrency: callbackCurrencyRaw,
+          callbackMetadata: {
+            authCode: callbackAuthCode || null,
+            hostRefNum: callbackHostRefNum || null,
+            procReturnCode: callbackProcReturnCode,
+            response: callbackResponse,
+            transId: callbackTransId || null,
+            mdStatus: callbackMdStatus,
+          },
+        });
+        logger.info("ISBANK_FINALIZATION_SUCCESS", {
+          oid: orderId || null,
+        });
+      } catch (error) {
+        logger.error("ISBANK_FINALIZATION_ERROR", {
+          oid: orderId || null,
+          error: error?.message || String(error),
+        });
+        throw error;
+      }
       const completed = [
         "completed",
         "alreadyProcessed",
@@ -2620,22 +3355,37 @@ const calculatedHashValid = validateIsbankGenericVer3CallbackHash({
       return;
     }
 
-    const finalizationResult = await finalizeIsbankPaidOrder({
-      orderRef,
-      orderData,
-      sellerOrdersSnap,
-      orderId,
-      callbackAmount,
-      callbackCurrency: callbackCurrencyRaw,
-      callbackClientId,
-      authCode: callbackAuthCode,
-      hostRefNum: callbackHostRefNum,
-      procReturnCode: callbackProcReturnCode,
-      responseText: callbackResponse,
-      transId: callbackTransId,
-      mdStatus: callbackMdStatus,
-      callbackResponse,
+    logger.info("ISBANK_FINALIZATION_START", {
+      oid: orderId || null,
     });
+    let finalizationResult;
+    try {
+      finalizationResult = await finalizeIsbankPaidOrder({
+        orderRef,
+        orderData,
+        sellerOrdersSnap,
+        orderId,
+        callbackAmount,
+        callbackCurrency: callbackCurrencyRaw,
+        callbackClientId,
+        authCode: callbackAuthCode,
+        hostRefNum: callbackHostRefNum,
+        procReturnCode: callbackProcReturnCode,
+        responseText: callbackResponse,
+        transId: callbackTransId,
+        mdStatus: callbackMdStatus,
+        callbackResponse,
+      });
+      logger.info("ISBANK_FINALIZATION_SUCCESS", {
+        oid: orderId || null,
+      });
+    } catch (error) {
+      logger.error("ISBANK_FINALIZATION_ERROR", {
+        oid: orderId || null,
+        error: error?.message || String(error),
+      });
+      throw error;
+    }
 
     if (finalizationResult?.status === "alreadyProcessed") {
       res.status(200).send(
@@ -2745,7 +3495,7 @@ exports.readPaymentStatusByOrderId = onCall(
         orderData.paymentStatus || orderData.payment?.status || ""
       ) === "paid" &&
       normalizeLower(orderData.payment?.finalizationStatus || "") ===
-        "completed";
+      "completed";
     const initiallyReconciled =
       Number(orderData?.cartReconciliation?.version || 0) >= 1 &&
       orderData?.cartReconciliation?.status === "completed";
@@ -3982,7 +4732,13 @@ function addReturnTimelineStep(steps, status, by, note = null, extra = {}) {
 function normalizeReturnStatus(value) {
   const lower = normalizeLower(value);
 
+  if (lower.includes("waiting_for_seller_confirmation")) {
+    return "waiting_for_seller_confirmation";
+  }
+  if (lower.includes("auto_received")) return "auto_received";
+  if (lower.includes("dispute")) return "dispute";
   if (lower.includes("approved")) return "approved";
+  if (lower.includes("refund_rejected")) return "refund_rejected";
   if (lower.includes("rejected")) return "rejected";
   if (lower.includes("shipped")) return "shipped_back";
   if (lower.includes("received")) return "received_by_seller";
@@ -4423,7 +5179,7 @@ async function refundWithIsbank({
     errorMessage: approved
       ? null
       : parsed.errMsg ||
-        `İş Bank refund declined (ProcReturnCode=${parsed.procReturnCode || "unknown"})`,
+      `İş Bank refund declined (ProcReturnCode=${parsed.procReturnCode || "unknown"})`,
     errorCode: parsed.procReturnCode || null,
     authCode: parsed.authCode || null,
     hostRefNum: parsed.hostRefNum || null,
@@ -4460,6 +5216,280 @@ function resolveReturnShippingResponsibility(values = []) {
   }
 
   return "seller_if_contract_carrier";
+}
+
+const RETURN_SHIPPING_RESPONSIBILITIES = [
+  "buyer",
+  "seller",
+  "seller_if_contract_carrier",
+];
+
+function normalizeReturnShippingResponsibility(value) {
+  const normalized = normalizeLower(value);
+  return RETURN_SHIPPING_RESPONSIBILITIES.includes(normalized)
+    ? normalized
+    : null;
+}
+
+function buildInitialReturnShipping({
+  responsibility,
+  buyerAcknowledged,
+  timestamp,
+}) {
+  const safeResponsibility =
+    normalizeReturnShippingResponsibility(responsibility) ||
+    "seller_if_contract_carrier";
+  const buyerWarningRequired = safeResponsibility === "buyer";
+
+  return {
+    responsibility: safeResponsibility,
+    resolution: null,
+    carrierCode: null,
+    contractedCarrierVerified: false,
+    costAmount: null,
+    currency: "TRY",
+    costSource: "not_available",
+    costStatus: "unknown",
+    buyerWarningRequired,
+    buyerAcknowledgedAt:
+      buyerWarningRequired && buyerAcknowledged === true ? timestamp : null,
+    resolvedAt: null,
+    resolvedBy: null,
+  };
+}
+
+function verifyContractedReturnCarrierProducts(products = []) {
+  const productIds = [];
+  const carrierCodes = [];
+
+  for (const product of products) {
+    const productId = String(product?.productId || "").trim();
+    const carrierCode = String(product?.returnCarrierCode || "").trim();
+    if (productId) productIds.push(productId);
+
+    if (
+      product?.hasContractedReturnCarrier !== true ||
+      !carrierCode
+    ) {
+      return {
+        verified: false,
+        carrierCode: null,
+        productIds,
+      };
+    }
+
+    carrierCodes.push(carrierCode);
+  }
+
+  const normalizedCarriers = new Set(
+    carrierCodes.map((carrier) => normalizeLower(carrier))
+  );
+  if (
+    productIds.length === 0 ||
+    carrierCodes.length !== productIds.length ||
+    normalizedCarriers.size !== 1
+  ) {
+    return {
+      verified: false,
+      carrierCode: null,
+      productIds,
+    };
+  }
+
+  return {
+    verified: true,
+    carrierCode: carrierCodes[0],
+    productIds,
+  };
+}
+
+function resolveApprovedReturnShipping({
+  requestedResponsibility,
+  products,
+  decidedAt,
+  decidedBy,
+  previousReturnShipping,
+}) {
+  const responsibility = normalizeReturnShippingResponsibility(
+    requestedResponsibility
+  );
+  if (!responsibility) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Invalid return shipping responsibility"
+    );
+  }
+
+  const productIds = products
+    .map((product) => String(product?.productId || "").trim())
+    .filter(Boolean);
+  let resolution = responsibility;
+  let contractedCarrierVerified = false;
+  let carrierCode = null;
+
+  if (responsibility === "seller_if_contract_carrier") {
+    const verification = verifyContractedReturnCarrierProducts(products);
+    if (!verification.verified) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Contracted return carrier is not configured for all returned items."
+      );
+    }
+    resolution = "seller";
+    contractedCarrierVerified = true;
+    carrierCode = verification.carrierCode;
+  }
+
+  return {
+    returnShipping: {
+      responsibility,
+      resolution,
+      carrierCode,
+      contractedCarrierVerified,
+      costAmount: null,
+      currency: "TRY",
+      costSource: "not_available",
+      costStatus: "unknown",
+      buyerWarningRequired: resolution === "buyer",
+      buyerAcknowledgedAt:
+        previousReturnShipping?.buyerAcknowledgedAt || null,
+      resolvedAt: decidedAt,
+      resolvedBy: decidedBy,
+    },
+    decisionSnapshot: {
+      requestedResponsibility: responsibility,
+      resolvedResponsibility: resolution,
+      contractedCarrierVerified,
+      carrierCode,
+      productIds,
+      decidedBy,
+      decidedAt,
+      policyVersion: 1,
+    },
+  };
+}
+
+function buildRefundCalculation({
+  returnItemsAmount,
+  outboundShippingAmount,
+  returnShipping,
+  requestedRefundAmount,
+  maxAllowedRefund,
+  finalRefundAmount,
+  currency,
+  calculatedAt,
+}) {
+  const safeReturnShipping = returnShipping || {};
+  return {
+    returnItemsAmount,
+    outboundShippingAmount,
+    returnShippingResponsibility:
+      safeReturnShipping.resolution ||
+      safeReturnShipping.responsibility ||
+      null,
+    returnShippingCostAmount:
+      typeof safeReturnShipping.costAmount === "number"
+        ? safeReturnShipping.costAmount
+        : null,
+    returnShippingCostStatus:
+      safeReturnShipping.costStatus || "unknown",
+    requestedRefundAmount,
+    maxAllowedRefund,
+    finalRefundAmount,
+    currency,
+    calculatedAt,
+    calculationVersion: 1,
+  };
+}
+
+const REFUND_DECISION_REASON_LABELS = {
+  item_returned_damaged: "Item returned damaged",
+  missing_accessories: "Missing accessories",
+  customer_caused_damage: "Customer caused damage",
+  restocking_fee: "Restocking fee",
+  partial_return: "Partial return",
+  seller_mistake: "Seller mistake",
+  wrong_item: "Wrong item",
+  defective_product: "Defective product",
+  item_never_delivered: "Item never delivered",
+  other: "Other",
+};
+
+function normalizeRefundDecisionType(value, legacyRefundType) {
+  const normalized = normalizeLower(value);
+  if (["full", "partial", "rejected"].includes(normalized)) {
+    return normalized.toUpperCase();
+  }
+  return normalizeLower(legacyRefundType) === "partial" ? "PARTIAL" : "FULL";
+}
+
+function validateRefundDecisionPolicy({
+  decisionType,
+  reasonCode,
+  sellerNotes,
+  buyerExplanation,
+  refundAmount,
+  maxAllowedRefund,
+  enforcePolicy,
+}) {
+  if (!enforcePolicy) return;
+
+  if (!["FULL", "PARTIAL", "REJECTED"].includes(decisionType)) {
+    throw new HttpsError("invalid-argument", "Invalid refund decision type");
+  }
+  if (!Object.prototype.hasOwnProperty.call(
+    REFUND_DECISION_REASON_LABELS,
+    reasonCode
+  )) {
+    throw new HttpsError("invalid-argument", "Refund reason is required");
+  }
+  if (
+    (decisionType === "PARTIAL" ||
+      decisionType === "REJECTED" ||
+      reasonCode === "other") &&
+    !sellerNotes
+  ) {
+    throw new HttpsError("invalid-argument", "Seller notes are required");
+  }
+  if (decisionType === "REJECTED" && !buyerExplanation) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Buyer-visible explanation is required"
+    );
+  }
+  if (
+    decisionType === "PARTIAL" &&
+    (!(refundAmount > 0) || refundAmount > maxAllowedRefund)
+  ) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Partial refund amount must be greater than zero and cannot exceed the eligible refund"
+    );
+  }
+}
+
+function buildRefundDecisionFields({
+  decisionType,
+  reasonCode,
+  sellerNotes,
+  buyerExplanation,
+  eligibleRefundAmount,
+  finalRefundAmount,
+  sellerDecisionAt,
+  sellerDecisionUid,
+}) {
+  return {
+    refundDecisionType: decisionType,
+    refundReason: REFUND_DECISION_REASON_LABELS[reasonCode] || reasonCode,
+    refundReasonCode: reasonCode,
+    refundExplanation: buyerExplanation || sellerNotes || null,
+    sellerDecisionNotes: sellerNotes || null,
+    refundDifference: Number(
+      Math.max(0, eligibleRefundAmount - finalRefundAmount).toFixed(2)
+    ),
+    sellerDecisionAt,
+    sellerDecisionUid,
+  };
 }
 
 async function uploadReturnImagesToStorage({
@@ -9858,6 +10888,45 @@ exports.repairAdoptionBusinessOwnerUid = onSchedule(
   }
 );
 
+function extractBusinessDocumentIdentifiers(fullText) {
+  const normalizedDigitGroups = (text, minimumLength) =>
+    (text.match(new RegExp(`\\d(?:[ \\t./-]*\\d){${minimumLength - 1},}`, "g")) || [])
+      .map((value) => value.replace(/\D/g, ""));
+  const taxGroups = normalizedDigitGroups(fullText, 10);
+  const extractedTaxNumber =
+    taxGroups.find((value) => value.length === 10) || null;
+
+  const mersisLabel = /MERS[İI]S(?:\s*(?:NO|NUMARASI))?\s*[:.-]?/i.exec(
+    fullText
+  );
+  const labeledText = mersisLabel
+    ? fullText.slice(
+      mersisLabel.index + mersisLabel[0].length,
+      mersisLabel.index + mersisLabel[0].length + 160
+    )
+    : "";
+  const labeledGroups = normalizedDigitGroups(labeledText, 16);
+  const allGroups = normalizedDigitGroups(fullText, 16);
+  const extractedMersisNumber =
+    labeledGroups.find((value) => value.length === 16) ||
+    allGroups.find((value) => value.length === 16) ||
+    null;
+
+  return { extractedTaxNumber, extractedMersisNumber };
+}
+
+function businessDocumentKind(fileName, metadataKind) {
+  const inferredKind = [
+    "tax",
+    "registry",
+    "signature",
+    "gewerbe",
+    "license",
+    "ein",
+  ].find((kind) => fileName.includes(`_${kind}`));
+  return metadataKind || inferredKind || "unknown";
+}
+
 exports.ocrBusinessDoc = onObjectFinalized(
   {
     region: "europe-west3",
@@ -9879,6 +10948,15 @@ exports.ocrBusinessDoc = onObjectFinalized(
     }
 
     const uid = parts[1]; // ✅ now defined safely
+    const fileName = parts[parts.length - 1] || "";
+    const metadataKind = event.data.metadata?.documentKind;
+    const documentKind = businessDocumentKind(fileName, metadataKind);
+
+    console.log("DOCUMENT UPLOADED", {
+      uid,
+      filePath,
+      documentKind,
+    });
 
     let result;
 
@@ -9894,38 +10972,223 @@ exports.ocrBusinessDoc = onObjectFinalized(
 
     const fullText = detections[0].description;
 
-    // 🔥 VKN
-    const vknMatch = fullText.match(/\b\d{10}\b/);
-    const extractedTaxNumber = vknMatch ? vknMatch[0] : null;
+    const { extractedTaxNumber, extractedMersisNumber } =
+      extractBusinessDocumentIdentifiers(fullText);
 
-    // 🔥 MERSIS (label first, fallback second)
-    let mersisMatch = fullText.match(/MERS[İI]S\s*(NO|NUMARASI)?[:\s]*([0-9]{16})/i);
+    console.log("OCR COMPLETED", {
+      uid,
+      documentKind,
+      extractedTaxNumber,
+      extractedMersisNumber,
+    });
 
-    let extractedMersisNumber = null;
-
-    if (mersisMatch && mersisMatch[2]) {
-      extractedMersisNumber = mersisMatch[2];
-    } else {
-      const fallback = fullText.match(/\b\d{16}\b/);
-      extractedMersisNumber = fallback ? fallback[0] : null;
-    }
-
-    await admin.firestore()
-      .collection("businessDrafts")
-      .doc(uid)
-      .set({
-        verification: {
-          status: "ocr_extracted",
-          ocr: {
+    const draftRef = admin.firestore().collection("businessDrafts").doc(uid);
+    const verificationState = await admin.firestore().runTransaction(
+      async (transaction) => {
+        const draftSnap = await transaction.get(draftRef);
+        const currentVerification = draftSnap.data()?.verification || {};
+        const currentDocuments = currentVerification.documents || {};
+        const documents = {
+          ...currentDocuments,
+          [documentKind]: {
+            status: "ocr_extracted",
+            storagePath: filePath,
             extractedTaxNumber,
             extractedMersisNumber,
             rawText: fullText,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          }
-        }
-      }, { merge: true });
+          },
+        };
+        const documentResults = Object.values(documents);
+        const aggregateTaxNumber = documentResults
+          .map((document) => document?.extractedTaxNumber)
+          .find((value) => /^\d{10}$/.test(String(value || ""))) || null;
+        const aggregateMersisNumber = documentResults
+          .map((document) => document?.extractedMersisNumber)
+          .find((value) => /^\d{16}$/.test(String(value || ""))) || null;
+        const documentsVerified =
+          aggregateTaxNumber !== null && aggregateMersisNumber !== null;
+        const status = documentsVerified ? "verified" : "ocr_extracted";
 
-    console.log("OCR SUCCESS → UID:", uid);
+        transaction.set(
+          draftRef,
+          {
+            verification: {
+              ...currentVerification,
+              status,
+              documentsVerified,
+              pendingVerification: !documentsVerified,
+              documents,
+              ocr: {
+                extractedTaxNumber: aggregateTaxNumber,
+                extractedMersisNumber: aggregateMersisNumber,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              verifiedAt: documentsVerified
+                ? admin.firestore.FieldValue.serverTimestamp()
+                : null,
+            },
+          },
+          { merge: true }
+        );
+
+        return {
+          status,
+          documentsVerified,
+          extractedTaxNumber: aggregateTaxNumber,
+          extractedMersisNumber: aggregateMersisNumber,
+        };
+      }
+    );
+
+    console.log("FIRESTORE VERIFICATION UPDATED", {
+      uid,
+      documentKind,
+      ...verificationState,
+    });
+  }
+);
+
+exports.syncBusinessDocumentVerification = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const draftRef = admin.firestore().collection("businessDrafts").doc(uid);
+    const initialDraft = await draftRef.get();
+    if (!initialDraft.exists) {
+      throw new HttpsError("not-found", "Business draft not found");
+    }
+
+    const initialVerification = initialDraft.data()?.verification || {};
+    const initialOcr = initialVerification.ocr || {};
+    let extractedTaxNumber = String(
+      initialOcr.extractedTaxNumber || ""
+    ).trim();
+    let extractedMersisNumber = String(
+      initialOcr.extractedMersisNumber || ""
+    ).trim();
+    const recoveredDocuments = {};
+
+    if (
+      !/^\d{10}$/.test(extractedTaxNumber) ||
+      !/^\d{16}$/.test(extractedMersisNumber)
+    ) {
+      const bucket = admin.storage().bucket(
+        "barkymatches-new.firebasestorage.app"
+      );
+      const [files] = await bucket.getFiles({
+        prefix: `business_docs/${uid}/`,
+      });
+      const latestByKind = new Map();
+      for (const file of files) {
+        const fileName = file.name.split("/").pop() || "";
+        const kind = businessDocumentKind(
+          fileName,
+          file.metadata?.metadata?.documentKind
+        );
+        if (kind === "unknown") continue;
+        const current = latestByKind.get(kind);
+        if (!current || file.name > current.name) {
+          latestByKind.set(kind, file);
+        }
+      }
+
+      console.log("VERIFICATION OCR RECOVERY STARTED", {
+        uid,
+        documentKinds: [...latestByKind.keys()],
+      });
+
+      for (const [kind, file] of latestByKind.entries()) {
+        try {
+          const [visionResult] = await client.textDetection(
+            `gs://${bucket.name}/${file.name}`
+          );
+          const text = visionResult.textAnnotations?.[0]?.description || "";
+          const identifiers = extractBusinessDocumentIdentifiers(text);
+          recoveredDocuments[kind] = {
+            status: text ? "ocr_extracted" : "ocr_empty",
+            storagePath: file.name,
+            ...identifiers,
+            rawText: text,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          if (
+            !/^\d{10}$/.test(extractedTaxNumber) &&
+            identifiers.extractedTaxNumber
+          ) {
+            extractedTaxNumber = identifiers.extractedTaxNumber;
+          }
+          if (
+            !/^\d{16}$/.test(extractedMersisNumber) &&
+            identifiers.extractedMersisNumber
+          ) {
+            extractedMersisNumber = identifiers.extractedMersisNumber;
+          }
+        } catch (error) {
+          console.error("VERIFICATION OCR RECOVERY FAILED", {
+            uid,
+            kind,
+            storagePath: file.name,
+            error: error?.message || String(error),
+          });
+        }
+      }
+    }
+
+    const result = await admin.firestore().runTransaction(
+      async (transaction) => {
+        const draftSnap = await transaction.get(draftRef);
+        if (!draftSnap.exists) {
+          throw new HttpsError("not-found", "Business draft not found");
+        }
+
+        const verification = draftSnap.data()?.verification || {};
+        const documentsVerified =
+          /^\d{10}$/.test(extractedTaxNumber) &&
+          /^\d{16}$/.test(extractedMersisNumber);
+        const status = documentsVerified
+          ? "verified"
+          : verification.status || "pending_verification";
+
+        transaction.set(
+          draftRef,
+          {
+            verification: {
+              status,
+              documentsVerified,
+              pendingVerification: !documentsVerified,
+              documents: {
+                ...(verification.documents || {}),
+                ...recoveredDocuments,
+              },
+              ocr: {
+                extractedTaxNumber: extractedTaxNumber || null,
+                extractedMersisNumber: extractedMersisNumber || null,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              verifiedAt: documentsVerified
+                ? admin.firestore.FieldValue.serverTimestamp()
+                : null,
+            },
+          },
+          { merge: true }
+        );
+
+        return {
+          status,
+          documentsVerified,
+          extractedTaxNumber,
+          extractedMersisNumber,
+        };
+      }
+    );
+
+    console.log("VERIFICATION SYNCHRONIZED", { uid, ...result });
+    return result;
   }
 );
 
@@ -10002,10 +11265,12 @@ exports.restoreBusiness = onCall(
     }
   }
 );
+
 exports.expireSubscriptions =
   require("./src/expireSubscriptions").expireSubscriptions;
 exports.submitDiagnosticsReport =
   require("./src/diagnostics/submitDiagnosticsReport").submitDiagnosticsReport;
+
 
 // =====================================================
 // CREATE REPORT
@@ -10378,7 +11643,6 @@ exports.reactivateUser = onCall(
     }
   }
 );
-
 
 exports.createComplaint = onCall(
   {
@@ -11115,7 +12379,7 @@ const MARKETPLACE_INVOICE_READY_STATUSES = [
 ];
 
 const MARKETPLACE_PENDING_RESPONSE_THRESHOLD_HOURS = 24;
-const MARKETPLACE_INVOICE_UPLOAD_THRESHOLD_HOURS = 72;
+const MARKETPLACE_INVOICE_UPLOAD_THRESHOLD_HOURS = INVOICE_UPLOAD_THRESHOLD_HOURS;
 const MARKETPLACE_COMPLETION_INVOICE_STATUSES = ["issued", "approved"];
 const MARKETPLACE_TRANSACTION_COLLECTIONS = [
   "vet_appointments",
@@ -11545,6 +12809,15 @@ exports.createCheckoutSession = onCall(
 
       const sellerInvoiceMap = new Map();
 
+      // Internal-only operational/accounting figure: the real carrier cost
+      // absorbed by the seller/platform when the buyer paid nothing for
+      // shipping (free_shipping / seller_absorbs / seller-paid fixed fee).
+      // Deliberately kept in its own map, never merged into sellerPricingMap,
+      // so it can never leak into pricing.shippingTotal, pricing.grandTotal,
+      // financial.grossAmount, businessNetAmount, sellerNetAmount,
+      // payment.amount, payment.grossAmount, or payout.amount.
+      const sellerAbsorbedShippingMap = new Map();
+
       for (const [businessId, sellerItems] of grouped.entries()) {
         logger.info("💸 COMMISSION BLOCK ENTERED", { businessId });
         const businessSnap = await db.collection("businesses").doc(businessId).get();
@@ -11568,6 +12841,7 @@ exports.createCheckoutSession = onCall(
 
         let sellerSubtotal = 0;
         let sellerShippingTotal = 0;
+        let sellerAbsorbedShippingCostTotal = 0;
         let sellerTaxTotal = 0;
         let sellerCommissionTotal = 0;
         const sellerInvoiceItems = [];
@@ -11616,23 +12890,27 @@ exports.createCheckoutSession = onCall(
             );
           }
 
-          logger.info("✅ PRODUCT FETCH OK", {
-            businessId,
-            productId,
-          });
-
           const serverUnitPrice = asNumber(
             productData.salePrice || productData.price || rawItem.price,
             0
           );
 
+          logger.info("🧪 PRICE TRACE", {
+            businessId,
+            productId,
 
-          if (serverUnitPrice <= 0) {
-            throw new HttpsError(
-              "failed-precondition",
-              `Invalid product price for ${productId}`
-            );
-          }
+            // Product document
+            productPrice: productData.price,
+            productSalePrice: productData.salePrice,
+
+            // Client payload
+            rawItemPrice: rawItem.price,
+
+            // Final value used
+            selectedPrice: serverUnitPrice,
+
+            quantity: rawItem.quantity,
+          });
 
           const kdvRate = asNumber(
             productData.kdvRate ?? productData.taxRate ?? rawItem.kdvRate ?? 0,
@@ -11726,14 +13004,49 @@ exports.createCheckoutSession = onCall(
             selectedCarrier,
           });
 
+          // Buyer-facing shipping charge only. sellerShippingCostTotal is a
+          // *different* concept — the real carrier cost the seller/platform
+          // absorbs, which calculateMarketplaceShipping only populates when
+          // the buyer pays nothing for shipping. It must never be folded
+          // into anything the buyer is charged or the seller is paid out.
+          let buyerFacingShippingTotal = shippingCalc.shippingFeeTotal;
+
+          // Defensive invariant: free-shipping items must never carry a
+          // buyer-facing shipping charge. calculateMarketplaceShipping
+          // already guarantees this today; this is a safety clamp against
+          // a future regression there, not expected to ever trigger.
+          if (
+            (shippingCalc.shippingMode === "free_shipping" ||
+              shippingCalc.shippingMethod === "free_shipping") &&
+            buyerFacingShippingTotal !== 0
+          ) {
+            logger.error("🚨 FREE SHIPPING INVARIANT VIOLATED", {
+              businessId,
+              productId,
+              shippingMode: shippingCalc.shippingMode,
+              shippingMethod: shippingCalc.shippingMethod,
+              buyerFacingShippingTotal,
+            });
+            buyerFacingShippingTotal = 0;
+          }
+
+          logger.info("🚚 SELLER SHIPPING ITEM", {
+            businessId,
+            shippingMode: shippingCalc.shippingMode,
+            buyerShippingTotal: buyerFacingShippingTotal,
+            sellerShippingCostTotal: shippingCalc.sellerShippingCostTotal,
+          });
+
           subtotal += itemSubtotal;
           shippingTotal += shippingCalc.shippingFeeTotal;
           taxTotal += itemTaxTotal;
           totalCommission += itemCommission;
           sellerSubtotal += itemSubtotal;
-          sellerShippingTotal +=
-            shippingCalc.sellerShippingCostTotal ??
-            shippingCalc.shippingFeeTotal;
+          sellerShippingTotal += buyerFacingShippingTotal;
+          sellerAbsorbedShippingCostTotal += asNumber(
+            shippingCalc.sellerShippingCostTotal,
+            0
+          );
           sellerTaxTotal += itemTaxTotal;
 
           normalizedItems.push({
@@ -11799,6 +13112,22 @@ exports.createCheckoutSession = onCall(
           // 🔥 NEW
           commissionAmount: roundMoney(sellerCommissionTotal),
         });
+        sellerAbsorbedShippingMap.set(
+          businessId,
+          roundMoney(sellerAbsorbedShippingCostTotal)
+        );
+
+        logger.info("🧾 SELLER PRICING AGGREGATE", {
+          businessId,
+          sellerSubtotal: roundMoney(sellerSubtotal),
+          sellerTaxTotal: roundMoney(sellerTaxTotal),
+          sellerGrandTotal: roundMoney(
+            sellerSubtotal + sellerShippingTotal + sellerTaxTotal
+          ),
+          buyerShippingTotal: roundMoney(sellerShippingTotal),
+          sellerShippingCostTotal: roundMoney(sellerAbsorbedShippingCostTotal),
+        });
+
         sellerInvoiceMap.set(businessId, {
           items: sellerInvoiceItems,
           pricing: {
@@ -11939,6 +13268,12 @@ exports.createCheckoutSession = onCall(
               grandTotal: 0,
             },
           };
+          // Internal-only accounting figure — see sellerAbsorbedShippingMap
+          // above. Read explicitly here and placed only under financial.*
+          // as its own named field; never merged into sellerPricing/pricing.
+          const sellerAbsorbedShippingCostTotal = roundMoney(
+            asNumber(sellerAbsorbedShippingMap.get(sellerBusinessId), 0)
+          );
 
           const existingShipping = sellerData.shipping || {};
 
@@ -12033,6 +13368,95 @@ exports.createCheckoutSession = onCall(
             sellerPricing.grandTotal - sellerPricing.commissionAmount
           );
 
+          const itemSnapshots = sellerInvoiceData.items
+            .map((item) => item.financialSnapshot)
+            .filter((snapshot) => snapshot && typeof snapshot === "object");
+          const ruleIds = Array.from(new Set(itemSnapshots
+            .map((snapshot) => snapshot.commissionRuleId || snapshot.ruleSnapshot?.ruleId)
+            .filter(Boolean).map(String)));
+          const ruleVersions = Array.from(new Set(itemSnapshots
+            .map((snapshot) => snapshot.commissionRuleVersion || snapshot.ruleSnapshot?.configVersion)
+            .filter(Boolean).map(String)));
+          const rates = Array.from(new Set(itemSnapshots
+            .map((snapshot) => snapshot.commissionRate ?? snapshot.ruleSnapshot?.commissionRate)
+            .filter((rate) => rate !== null && rate !== undefined)
+            .map(Number)));
+          const firstSnapshot = itemSnapshots[0] || {};
+          const canonicalFinancial = buildCanonicalFinancialSnapshot({
+            financial: {
+              ...firstSnapshot,
+              finalPrice: sellerPricing.grandTotal,
+              grossAmount: sellerPricing.grandTotal,
+              commissionAmount: sellerPricing.commissionAmount,
+              sellerNetAmount,
+              businessNetAmount: sellerNetAmount,
+              commissionModel: ruleIds.length > 1
+                ? "aggregate"
+                : firstSnapshot.commissionModel || firstSnapshot.commissionType,
+              commissionType: ruleIds.length > 1
+                ? "aggregate"
+                : firstSnapshot.commissionType,
+              commissionRate: rates.length === 1 ? rates[0] : null,
+              commissionRuleId: ruleIds.length > 0 ? ruleIds.join(",") : null,
+              commissionRuleVersion: ruleVersions.length > 0
+                ? ruleVersions.join(",")
+                : null,
+              pricingRuleVersion: ruleVersions.length > 0
+                ? ruleVersions.join(",")
+                : null,
+              ruleSnapshot: {
+                ...(firstSnapshot.ruleSnapshot || {}),
+                ruleId: ruleIds.length > 0 ? ruleIds.join(",") : null,
+                configVersion: ruleVersions.length > 0
+                  ? ruleVersions.join(",")
+                  : null,
+              },
+            },
+            currency,
+            calculationInputs: {
+              sector: "petshop",
+              category: Array.from(new Set(itemSnapshots
+                .map((snapshot) => snapshot.ruleSnapshot?.productCategory)
+                .filter(Boolean))),
+              productId: sellerInvoiceData.items.map((item) => item.productId),
+              quantity: sellerInvoiceData.items.reduce(
+                (total, item) => total + Number(item.quantity || 0), 0
+              ),
+              unitPrice: sellerInvoiceData.items.map((item) => item.unitPriceExclTax),
+              discountAmount: sellerInvoiceData.items.reduce(
+                (total, item) => total + Math.max(
+                  0,
+                  Number(item.financialSnapshot?.referencePrice || 0) -
+                    Number(item.unitPriceExclTax || 0)
+                ),
+                0
+              ),
+              shippingAmount: sellerPricing.shippingTotal,
+              taxAmount: sellerPricing.taxTotal,
+            },
+          });
+          if (canonicalFinancial.commissionDataQuality !== "verified_snapshot") {
+            throw new Error(
+              `Commission snapshot metadata missing for seller ${sellerBusinessId}`
+            );
+          }
+
+          logger.info("🧪 SELLER PRICING", {
+            businessId: sellerBusinessId,
+            subtotal: sellerPricing.subtotal,
+            shippingTotal: sellerPricing.shippingTotal,
+            taxTotal: sellerPricing.taxTotal,
+            grandTotal: sellerPricing.grandTotal,
+            commissionAmount: sellerPricing.commissionAmount,
+            sellerNetAmount,
+          });
+
+          logger.info("🧪 SELLER ORDER WRITE", {
+            businessId: sellerBusinessId,
+            pricing: sellerPricing,
+            payoutAmount: sellerNetAmount,
+          });
+
           sellerBatch.set(
             doc.ref,
             {
@@ -12051,22 +13475,13 @@ exports.createCheckoutSession = onCall(
                 lastInvoiceReminderAt: null,
               },
               financial: {
+                ...canonicalFinancial,
                 version: 1,
-                sector: "petshop",
-                finalPrice: sellerPricing.grandTotal,
-                grossAmount: sellerPricing.grandTotal,
-                commissionAmount: sellerPricing.commissionAmount,
-                businessNetAmount: sellerNetAmount,
-                sellerNetAmount,
-                platformRevenue: sellerPricing.commissionAmount,
-                businessReceivable: sellerNetAmount,
-                platformNet: sellerPricing.commissionAmount,
-                commissionType: "product_category_snapshot",
-                commissionRate: null,
-                ruleSnapshot: {
-                  source: "server_product_pricing",
-                  recalculatedInClient: false,
-                },
+                // Internal-only: real carrier cost absorbed by the
+                // seller/platform on free/seller-paid shipping items.
+                // Never read for grossAmount, businessNetAmount,
+                // sellerNetAmount, payment.amount, or payout.amount.
+                sellerAbsorbedShippingCostTotal,
                 payoutStatus: "payment_pending",
                 calculatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 settlement: {
@@ -12080,17 +13495,17 @@ exports.createCheckoutSession = onCall(
                   lastError: null,
                 },
               },
-              payout: {
-                status: "payment_pending",
+
+
+
+              payout: payoutEngine.canonicalPayoutContract({
+                sector: "petshop",
+                businessId: sellerBusinessId,
                 amount: sellerNetAmount,
                 currency,
-                requestedAt: null,
-                readyAt: null,
-                paidAt: null,
-                reference: null,
-                note: null,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-              },
+                status: "payment_pending",
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+              }),
               documents: {
                 ...(sellerData.documents || {}),
                 invoiceStatus: "pending_upload",
@@ -12428,6 +13843,192 @@ exports.createCheckoutSession = onCall(
 );
 
 // ============================================================
+// Business bank account (Phase 2)
+// ============================================================
+//
+// Canonical, sector-agnostic payout destination for a business:
+// businesses/{businessId}.payment.{iban, accountHolder, billingInfo}.
+// This field already existed in the Dart data model but was never
+// populated by any live code path — registerBusiness only ever wrote a
+// legacy, vet-only businesses/{id}.sectorData.veterinary.partnershipPayment
+// blob, unvalidated, which this Cloud Function does not touch or migrate.
+const TURKISH_IBAN_REGEX = /^TR\d{24}$/;
+
+exports.updateBusinessBankAccount = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const auth = request.auth;
+
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const uid = auth.uid;
+    const data = request.data || {};
+    const businessId = String(data.businessId || "").trim();
+
+    if (!businessId) {
+      throw new HttpsError("invalid-argument", "businessId is required.");
+    }
+
+    const businessRef = db.collection("businesses").doc(businessId);
+    const businessSnap = await businessRef.get();
+
+    if (!businessSnap.exists) {
+      throw new HttpsError("not-found", "Business not found.");
+    }
+
+    const business = businessSnap.data() || {};
+    const ownerUid = business.ownerUid || business.uid || null;
+    const isOwner = Boolean(ownerUid) && ownerUid === uid;
+
+    if (!isOwner && !(await isAdminUser(db, uid))) {
+      throw new HttpsError(
+        "permission-denied",
+        "You are not authorized to update this business's bank account."
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // One-time, idempotent repair for a prior bug in this function.
+    //
+    // This function used to write with
+    //   businessRef.set({ "payment.iban": ..., ... }, { merge: true })
+    // Dot-notation keys are only parsed as a nested field PATH by
+    // DocumentReference.update() (and by dot-paths passed to
+    // Transaction.update()). set(data, { merge: true }) does NOT do this —
+    // it treats a key like "payment.iban" as a single, literal top-level
+    // field name that happens to contain a dot character. Verified against
+    // the real firebase-admin SDK (via the Firestore emulator, not
+    // assumed): .set(x, {merge:true}) with dotted keys produces literal
+    // flat fields; only .update() path-parses dots.
+    //
+    // Net effect of the bug: every save created six new top-level fields
+    // literally named "payment.iban", "payment.accountHolder", etc.,
+    // instead of ever populating a real payment.{...} map. Reads that
+    // expect a nested `payment` object always saw it as absent.
+    //
+    // Repair: if any of those literal fields are present on this document,
+    // fold their values into a real nested `payment` map and delete the
+    // malformed literal fields, in a single atomic update(). A literal
+    // field name containing a dot can only be targeted for deletion via a
+    // FieldPath object (a plain string key would, again, be path-parsed) —
+    // also verified empirically against the real SDK.
+    // ------------------------------------------------------------------
+    const MALFORMED_PAYMENT_KEYS = [
+      "payment.iban",
+      "payment.accountHolder",
+      "payment.bankName",
+      "payment.billingInfo",
+      "payment.createdAt",
+      "payment.updatedAt",
+    ];
+
+    let existingPayment =
+      business.payment && typeof business.payment === "object"
+        ? business.payment
+        : {};
+
+    const malformedKeysPresent = MALFORMED_PAYMENT_KEYS.filter((key) =>
+      Object.prototype.hasOwnProperty.call(business, key)
+    );
+
+    if (malformedKeysPresent.length > 0) {
+      const migratedPayment = { ...existingPayment };
+
+      for (const key of malformedKeysPresent) {
+        const fieldName = key.slice("payment.".length);
+        migratedPayment[fieldName] = business[key];
+      }
+
+      const updateArgs = ["payment", migratedPayment];
+      for (const key of malformedKeysPresent) {
+        updateArgs.push(
+          new admin.firestore.FieldPath(key),
+          admin.firestore.FieldValue.delete()
+        );
+      }
+
+      await businessRef.update(...updateArgs);
+
+      logger.info("🔧 MIGRATED MALFORMED payment.* FIELDS", {
+        businessId,
+        migratedKeys: malformedKeysPresent,
+      });
+
+      existingPayment = migratedPayment;
+    }
+
+    const accountHolder = String(data.accountHolder || "").trim();
+    const bankName = String(data.bankName || "").trim();
+    // Normalize: strip whitespace, uppercase (Turkish IBANs are always
+    // upper-case; this also tolerates users pasting a spaced/lowercase
+    // IBAN exactly like most banking apps display it).
+    const iban = String(data.iban || "").replace(/\s+/g, "").toUpperCase();
+    const billingInfo = String(data.billingInfo || "").trim();
+
+    if (!accountHolder) {
+      throw new HttpsError(
+        "invalid-argument",
+        "accountHolder is required."
+      );
+    }
+
+    if (!bankName) {
+      throw new HttpsError("invalid-argument", "bankName is required.");
+    }
+
+    if (!iban) {
+      throw new HttpsError("invalid-argument", "iban is required.");
+    }
+
+    if (!TURKISH_IBAN_REGEX.test(iban)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Invalid IBAN. Expected format: TR followed by 24 digits."
+      );
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // A genuinely nested object (no dots in any key) assigned to the
+    // single top-level `payment` field. Firestore's set(..., {merge:true})
+    // correctly deep-merges a plain nested map like this against whatever
+    // is already stored — verified empirically — so any other sibling
+    // field under payment (e.g. a future verification flag, which the
+    // client never supplies and can therefore never overwrite here) is
+    // preserved. existingPayment is still spread in explicitly for
+    // clarity and as a defensive belt-and-braces measure.
+    const payment = {
+      ...existingPayment,
+      iban,
+      accountHolder,
+      bankName,
+      billingInfo: billingInfo || null,
+      updatedAt: now,
+      createdAt: existingPayment.createdAt || now,
+    };
+
+    await businessRef.set({ payment, updatedAt: now }, { merge: true });
+
+    return {
+      success: true,
+      businessId,
+      payment: {
+        iban,
+        accountHolder,
+        bankName,
+        billingInfo: billingInfo || null,
+      },
+    };
+  }
+);
+
+// ============================================================
 // Seller payout financial safety (Phase 1 hardening)
 // ============================================================
 //
@@ -12435,204 +14036,595 @@ exports.createCheckoutSession = onCall(
 // order. A payout must not be approved/paid while any of these are active,
 // independent of the payout.status hold applied once a refund completes
 // (see applyRefundToSellerPayout below).
-const PAYOUT_BLOCKING_RETURN_STATUSES = [
-  "pending",
-  "approved",
-  "shipped_back",
-  "received_by_seller",
-  "refund_pending",
-  "refund_failed",
-];
+// ------------------------------------------------------------------
+// Payout Engine V2, Milestone 1 (docs/architecture/payout-engine-v2.md,
+// docs/architecture/TASK.md): the Pet Shop payout engine that used to
+// live here directly — PAYOUT_BLOCKING_RETURN_STATUSES,
+// MALFORMED_PAYOUT_KEYS, migrateMalformedPayoutFields,
+// assertSellerOrderPayoutApprovable, assertSellerBankAccountValid — has
+// been generalized and moved to functions/payout/ (payoutEngine.js +
+// adapters/petshopPayoutAdapter.js), registered as the "petshop" sector
+// adapter. Behavior for Pet Shop is unchanged; see markSellerPayoutReady,
+// markSellerPayoutPaid, and applyRefundToSellerPayout below, which now
+// call payoutEngine.markPayoutReady/markPayoutPaid/applyRefundToPayout
+// with sector: "petshop".
+// ------------------------------------------------------------------
 
-// Throws HttpsError("failed-precondition", ...) if this seller order must
-// not be approved for payout right now: an unresolved return exists, or a
-// prior refund has already put the payout on hold / flagged it for debt
-// recovery. Called from inside the same transaction that reads the seller
-// order so the check and the subsequent write are atomic.
-async function assertSellerOrderPayoutApprovable({
-  transaction,
-  db,
-  sellerOrderId,
-  sellerOrder,
-}) {
-  const payoutStatus = normalizeLower(sellerOrder?.payout?.status);
-
-  if (payoutStatus === "recovery_required") {
-    throw new HttpsError(
-      "failed-precondition",
-      "This payout requires manual seller debt recovery before it can be approved. A refund was issued after this seller was already paid."
-    );
+async function assertAdminCaller(request) {
+  const auth = request.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Login required.");
+  const userSnap = await db.collection("users").doc(auth.uid).get();
+  if (userSnap.data()?.role !== "admin") {
+    throw new HttpsError("permission-denied", "Admin only.");
   }
-
-  if (payoutStatus === "hold") {
-    throw new HttpsError(
-      "failed-precondition",
-      "This payout is on hold pending refund reconciliation and cannot be approved yet."
-    );
-  }
-
-  const returnsQuery = db
-    .collection("order_returns")
-    .where("sellerOrderId", "==", sellerOrderId);
-  const returnsSnap = transaction
-    ? await transaction.get(returnsQuery)
-    : await returnsQuery.get();
-
-  const activeReturn = returnsSnap.docs.find((doc) =>
-    PAYOUT_BLOCKING_RETURN_STATUSES.includes(
-      normalizeReturnStatus(doc.data()?.status)
-    )
-  );
-
-  if (activeReturn) {
-    throw new HttpsError(
-      "failed-precondition",
-      `This seller order has an active return (${activeReturn.id}, status: ${activeReturn.data().status}) and cannot be approved for payout until it is resolved.`
-    );
-  }
+  return auth.uid;
 }
 
+exports.markPayoutReady = onCall(
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
+  async (request) => {
+    const uid = await assertAdminCaller(request);
+    const payoutIndexId = String(request.data?.payoutIndexId || "").trim();
+    if (!payoutIndexId) throw new HttpsError("invalid-argument", "payoutIndexId is required.");
+    return payoutEngine.markPayoutReady({
+      db,
+      payoutIndexId,
+      actor: { type: "user", id: uid },
+    });
+  }
+);
+
+exports.markPayoutPaid = onCall(
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
+  async (request) => {
+    const uid = await assertAdminCaller(request);
+    const payoutIndexId = String(request.data?.payoutIndexId || "").trim();
+    const reference = String(request.data?.reference || "").trim();
+    const note = String(request.data?.note || "").trim();
+    if (!payoutIndexId) throw new HttpsError("invalid-argument", "payoutIndexId is required.");
+    if (!reference) throw new HttpsError("invalid-argument", "Bank transfer reference is required.");
+    return payoutEngine.markPayoutPaid({
+      db,
+      payoutIndexId,
+      reference,
+      note,
+      actor: { type: "user", id: uid },
+    });
+  }
+);
+
+exports.createPayoutBatch = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const { uid: adminUid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    try {
+      return await createPayoutBatch({
+        db,
+        adminUid,
+        payoutIndexIds: request.data?.payoutIndexIds,
+        accountingPeriodId: request.data?.accountingPeriodId || null,
+        periodStart: request.data?.periodStart || null,
+        periodEnd: request.data?.periodEnd || null,
+        notes: request.data?.notes || null,
+      });
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      console.error("[FinanceReport] generate callable failure", {
+        originalCode: error?.code ?? null,
+        originalMessage: error?.message ?? String(error),
+        originalDetails: error?.details ?? null,
+        originalStack: error?.stack || null,
+      });
+      throw new HttpsError(
+        error.code || "internal",
+        error.message || "Payout batch creation failed.",
+        error.details
+      );
+    }
+  }
+);
+
+exports.submitPayoutBatchForReview = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "512MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    return submitPayoutBatchForReview({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      executionProvider: request.data?.executionProvider || "manual_eft",
+    });
+  }
+);
+
+exports.saveFinanceFilter = onCall(
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.VIEW
+    );
+    return saveFinanceFilter({
+      db,
+      userId: uid,
+      filterId: request.data?.filterId,
+      name: request.data?.name,
+      filters: request.data?.filters,
+    });
+  }
+);
+
+exports.deleteFinanceFilter = onCall(
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.VIEW
+    );
+    return deleteFinanceFilter({
+      db,
+      userId: uid,
+      filterId: request.data?.filterId,
+    });
+  }
+);
+
+exports.approvePayoutBatch = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "512MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.APPROVE
+    );
+    return approvePayoutBatch({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      approvalNotes: request.data?.approvalNotes,
+    });
+  }
+);
+
+exports.rejectPayoutBatch = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "512MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.APPROVE
+    );
+    return rejectPayoutBatch({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      approvalNotes: request.data?.approvalNotes,
+    });
+  }
+);
+
+exports.createPayoutBatchVersion = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "512MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    return createPayoutBatchVersion({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      payoutIndexIds: request.data?.payoutIndexIds || null,
+      notes: request.data?.notes || null,
+    });
+  }
+);
+
+exports.refreshPayoutIndexEnrichment = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+  },
+  async (request) => {
+    await requireFinancePermission(db, request, FINANCE_PERMISSION.MANAGE);
+    const staleSnap = await db
+      .collection(PAYOUT_INDEX_COLLECTION)
+      .where("projectionVersion", "<", 3)
+      .limit(100)
+      .get();
+    let refreshed = 0;
+    for (let offset = 0; offset < staleSnap.docs.length; offset += 20) {
+      const page = staleSnap.docs.slice(offset, offset + 20);
+      await Promise.all(
+        page.map(async (indexDoc) => {
+          const index = indexDoc.data() || {};
+          const sourceCollection = String(index.sourceCollection || "");
+          const sourceDocumentId = String(index.sourceDocumentId || "");
+          if (!sourceCollection || !sourceDocumentId) return;
+          const sourceSnap = await db
+            .collection(sourceCollection)
+            .doc(sourceDocumentId)
+            .get();
+          if (!sourceSnap.exists) return;
+          await projectPayoutIndex({
+            db,
+            sourceCollection,
+            sourceDocumentId,
+            record: sourceSnap.data() || {},
+          });
+          refreshed += 1;
+        })
+      );
+    }
+    return {
+      refreshed,
+      hasMore: staleSnap.size === 100,
+      projectionVersion: 3,
+    };
+  }
+);
+
+exports.exportPayoutBatch = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 120,
+    memory: "1GiB",
+  },
+  async (request) => {
+    const { uid: adminUid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    const batchId = String(request.data?.batchId || "").trim();
+    if (!batchId) {
+      throw new HttpsError("invalid-argument", "batchId is required.");
+    }
+    try {
+      return await exportPayoutBatch({
+        db,
+        bucket: admin.storage().bucket(),
+        adminUid,
+        batchId,
+        format: request.data?.format || "xlsx",
+      });
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      console.error("[FinanceReport] download callable failure", {
+        originalCode: error?.code ?? null,
+        originalMessage: error?.message ?? String(error),
+        originalDetails: error?.details ?? null,
+        originalStack: error?.stack || null,
+      });
+      throw new HttpsError(
+        error.code || "internal",
+        error.message || "Payout batch export failed.",
+        error.details
+      );
+    }
+  }
+);
+
+exports.downloadPayoutBatchExport = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 120,
+    memory: "1GiB",
+  },
+  async (request) => {
+    const { uid: adminUid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    const batchId = String(request.data?.batchId || "").trim();
+    if (!batchId) throw new HttpsError("invalid-argument", "batchId is required.");
+    try {
+      return await downloadPayoutBatchExport({
+        db,
+        bucket: admin.storage().bucket(),
+        batchId,
+        adminUid,
+      });
+    } catch (error) {
+      throw new HttpsError(
+        error.code || "internal",
+        error.message || "Payout export download failed.",
+        error.details
+      );
+    }
+  }
+);
+
+exports.generateFinancePayablesReport = onCall(
+  { region: "europe-west3", timeoutSeconds: 300, memory: "1GiB" },
+  async (request) => {
+    const authorization = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.VIEW
+    );
+    const { uid } = authorization;
+    try {
+      return await generateFinancePayablesReports({
+        db,
+        bucket: admin.storage().bucket(),
+        adminUid: uid,
+        filters: request.data?.filters || {},
+        fullIban:
+          request.data?.fullIban === true && authorization.hasFinanceOperate,
+      });
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError(
+        error.code || "internal",
+        error.message || "Finance report generation failed.",
+        error.details
+      );
+    }
+  }
+);
+
+exports.downloadFinancePayablesReport = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const authorization = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.VIEW
+    );
+    const { uid } = authorization;
+    try {
+      return await downloadFinancePayablesReport({
+        db,
+        bucket: admin.storage().bucket(),
+        adminUid: uid,
+        reportId: String(request.data?.reportId || "").trim(),
+        language: String(request.data?.language || "").trim().toLowerCase(),
+        fullIban: authorization.hasFinanceOperate,
+        authorization,
+      });
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError(
+        error.code || "internal",
+        error.message || "Finance report download failed.",
+        error.details
+      );
+    }
+  }
+);
+
+exports.markPayoutBatchProcessing = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    return markPayoutBatchProcessing({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+    });
+  }
+);
+
+exports.cancelPayoutBatch = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "512MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    return cancelPayoutBatch({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      reason: request.data?.reason,
+    });
+  }
+);
+
+exports.updatePayoutBatchReferences = onCall(
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    return updatePayoutBatchReferences({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      accountingReference: request.data?.accountingReference,
+      erpReference: request.data?.erpReference,
+      bankTransferReference: request.data?.bankTransferReference,
+      notes: request.data?.notes,
+    });
+  }
+);
+
+exports.markPayoutBatchItemPaid = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const { uid: adminUid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    const batchId = String(request.data?.batchId || "").trim();
+    const itemId = String(request.data?.itemId || "").trim();
+    if (!batchId || !itemId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "batchId and itemId are required."
+      );
+    }
+    try {
+      return await markPayoutBatchItemPaid({
+        db,
+        adminUid,
+        batchId,
+        itemId,
+        paymentReference: request.data?.paymentReference,
+        paymentDate: request.data?.paymentDate,
+        note: request.data?.note,
+      });
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError(
+        error.code || "internal",
+        error.message || "Payout payment completion failed.",
+        error.details
+      );
+    }
+  }
+);
+
+exports.markPayoutBatchItemFailed = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "512MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    return markPayoutBatchItemFailed({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      itemId: String(request.data?.itemId || "").trim(),
+      failureReason: request.data?.failureReason,
+    });
+  }
+);
+
+exports.markPayoutBatchPaid = onCall(
+  { region: "europe-west3", timeoutSeconds: 300, memory: "512MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.OPERATE
+    );
+    return markPayoutBatchPaid({
+      db,
+      adminUid: uid,
+      batchId: String(request.data?.batchId || "").trim(),
+      paymentReference: request.data?.paymentReference,
+      paymentDate: request.data?.paymentDate,
+      note: request.data?.note,
+    });
+  }
+);
+
+exports.createFinanceAccountingPeriod = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.MANAGE
+    );
+    return createAccountingPeriod({
+      db,
+      adminUid: uid,
+      type: request.data?.type,
+      periodStart: request.data?.periodStart,
+      periodEnd: request.data?.periodEnd,
+      currency: request.data?.currency || "TRY",
+    });
+  }
+);
+
+exports.closeFinanceAccountingPeriod = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.MANAGE
+    );
+    return closeAccountingPeriod({
+      db,
+      adminUid: uid,
+      periodId: request.data?.periodId,
+    });
+  }
+);
+
+exports.createFinanceManualAdjustment = onCall(
+  { region: "europe-west3", timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const { uid } = await requireFinancePermission(
+      db,
+      request,
+      FINANCE_PERMISSION.APPROVE
+    );
+    return createManualAdjustment({
+      db,
+      adminUid: uid,
+      businessId: request.data?.businessId,
+      amount: request.data?.amount,
+      currency: request.data?.currency || "TRY",
+      reason: request.data?.reason,
+      reference: request.data?.reference,
+      accountingPeriodId: request.data?.accountingPeriodId || null,
+    });
+  }
+);
+
 // Applies the financial consequence of a successful refund to the seller's
-// payout record. Never moves money and never recovers debt automatically —
-// it only holds/flags the payout and, when the seller was already paid,
-// records a seller debt for later manual/future-phase recovery.
-//
-// - payout.status "pending" or "ready" (or anything not yet paid) -> "hold"
-// - payout.status "paid" -> "recovery_required" + a sellerDebts record
-//
-// Runs in its own transaction so it is safe to call concurrently with
-// markSellerPayoutReady/markSellerPayoutPaid (Firestore will serialize the
-// conflicting transactions on the same sellerOrder document).
+// payout record. Thin, signature-preserving wrapper around the shared
+// payout engine (functions/payout/payoutEngine.js#applyRefundToPayout),
+// kept so the one external call site (triggerOrderReturnRefund) needs no
+// changes. See that module for the actual logic.
 async function applyRefundToSellerPayout({
   db,
   sellerOrderId,
   returnId,
   refundAmount,
+  refundedCommissionBase,
+  isFullRefund,
+  rootOrderId,
   reason,
+  actor,
 }) {
-  if (!sellerOrderId) {
-    return { applied: false, reason: "missing_sellerOrderId" };
-  }
-
-  const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
-  // Deterministic id keyed on returnId: a given return can only ever be
-  // refunded once (enforced by the transactional claim in
-  // triggerOrderReturnRefund), so this makes debt recording idempotent even
-  // if this function is ever invoked twice for the same refund.
-  const debtRef = db.collection("sellerDebts").doc(returnId);
-
-  return db.runTransaction(async (transaction) => {
-    const sellerOrderSnap = await transaction.get(sellerOrderRef);
-
-    if (!sellerOrderSnap.exists) {
-      return { applied: false, reason: "sellerOrder_not_found" };
-    }
-
-    const sellerOrder = sellerOrderSnap.data() || {};
-    const payout = sellerOrder.payout || {};
-    const payoutStatus = normalizeLower(payout.status || "pending");
-    const now = admin.firestore.FieldValue.serverTimestamp();
-
-    // "paid" is the first refund-after-payout on this seller order: it
-    // transitions payout.status into recovery_required. "recovery_required"
-    // is every subsequent refund-after-payout on the *same* seller order
-    // (e.g. two separate returns both refunded after payout) — it must be
-    // handled the same way (its own deterministic debt record, debt
-    // accumulated), and must NEVER be downgraded back to "hold" by falling
-    // through to the default branch below.
-    if (payoutStatus === "paid" || payoutStatus === "recovery_required") {
-      const debtSnap = await transaction.get(debtRef);
-
-      if (!debtSnap.exists) {
-        transaction.set(debtRef, {
-          sellerDebt: refundAmount,
-          refundAmount,
-          reason: reason || "refund_after_payout",
-          createdAt: now,
-          sellerOrderId,
-          returnId,
-          // Additional linkage/bookkeeping fields — required to ever query
-          // or later deduct this debt; not part of the recovery logic
-          // itself (which remains manual / a later phase).
-          sellerUid:
-            sellerOrder.sellerUid ||
-            sellerOrder.sellerSnapshot?.ownerUid ||
-            null,
-          businessId: sellerOrder.businessId || sellerOrder.shopId || null,
-          status: "outstanding",
-          recovered: false,
-          recoveredAmount: 0,
-          updatedAt: now,
-        });
-      }
-
-      transaction.set(
-        sellerOrderRef,
-        {
-          "payout.status": "recovery_required",
-          // Preserve the original pre-recovery status (e.g. "paid") and the
-          // original recovery reason/timestamp across repeated calls —
-          // only set them the first time this seller order enters
-          // recovery_required, never overwrite them on subsequent refunds.
-          "payout.previousStatus":
-            payout.previousStatus || payout.status || null,
-          "payout.recoveryRequiredAt": payout.recoveryRequiredAt || now,
-          "payout.recoveryReason":
-            payout.recoveryReason || reason || "refund_after_payout",
-          "payout.updatedAt": now,
-          "payout.relatedReturnIds":
-            admin.firestore.FieldValue.arrayUnion(returnId),
-          "payout.outstandingDebt":
-            admin.firestore.FieldValue.increment(refundAmount),
-          updatedAt: now,
-        },
-        { merge: true }
-      );
-
-      return {
-        applied: true,
-        case:
-          payoutStatus === "paid"
-            ? "recovery_required"
-            : "recovery_required_debt_added",
-        debtId: debtRef.id,
-      };
-    }
-
-    if (payoutStatus === "hold") {
-      transaction.set(
-        sellerOrderRef,
-        {
-          "payout.relatedReturnIds":
-            admin.firestore.FieldValue.arrayUnion(returnId),
-          "payout.updatedAt": now,
-          updatedAt: now,
-        },
-        { merge: true }
-      );
-      return { applied: true, case: "already_held" };
-    }
-
-    // pending / ready / unknown -> hold
-    transaction.set(
-      sellerOrderRef,
-      {
-        "payout.status": "hold",
-        "payout.previousStatus": payout.status || "pending",
-        "payout.holdAt": now,
-        "payout.holdReason": reason || "refund_pending_or_completed",
-        "payout.updatedAt": now,
-        "payout.relatedReturnIds":
-          admin.firestore.FieldValue.arrayUnion(returnId),
-        updatedAt: now,
-      },
-      { merge: true }
-    );
-
-    return {
-      applied: true,
-      case: payoutStatus === "ready" ? "reverted_to_hold" : "held",
-    };
+  return payoutEngine.applyRefundToPayout({
+    db,
+    sector: "petshop",
+    payableId: sellerOrderId,
+    refundEventId: returnId,
+    refundAmount,
+    refundedCommissionBase,
+    isFullRefund,
+    rootOrderId,
+    reason,
+    actor,
   });
 }
 
@@ -12664,42 +14656,11 @@ exports.markSellerPayoutReady = onCall(
       throw new HttpsError("permission-denied", "Admin only.");
     }
 
-    const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
-
-    await db.runTransaction(async (transaction) => {
-      const sellerOrderSnap = await transaction.get(sellerOrderRef);
-
-      if (!sellerOrderSnap.exists) {
-        throw new HttpsError("not-found", "Seller order not found.");
-      }
-
-      const sellerOrder = sellerOrderSnap.data() || {};
-      const currentPayoutStatus = sellerOrder.payout?.status || "unknown";
-
-      if (currentPayoutStatus === "paid") {
-        throw new HttpsError(
-          "failed-precondition",
-          "This payout is already paid."
-        );
-      }
-
-      await assertSellerOrderPayoutApprovable({
-        transaction,
-        db,
-        sellerOrderId,
-        sellerOrder,
-      });
-
-      transaction.set(
-        sellerOrderRef,
-        {
-          "payout.status": "ready",
-          "payout.readyAt": admin.firestore.FieldValue.serverTimestamp(),
-          "payout.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    await payoutEngine.markPayoutReady({
+      db,
+      sector: "petshop",
+      payableId: sellerOrderId,
+      actor: { type: "user", id: uid },
     });
 
     return {
@@ -12748,45 +14709,13 @@ exports.markSellerPayoutPaid = onCall(
       throw new HttpsError("permission-denied", "Admin only.");
     }
 
-    const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
-
-    await db.runTransaction(async (transaction) => {
-      const sellerOrderSnap = await transaction.get(sellerOrderRef);
-
-      if (!sellerOrderSnap.exists) {
-        throw new HttpsError("not-found", "Seller order not found.");
-      }
-
-      const sellerOrder = sellerOrderSnap.data() || {};
-      const payoutStatus = sellerOrder.payout?.status || "unknown";
-
-      if (payoutStatus === "paid") {
-        throw new HttpsError(
-          "failed-precondition",
-          "This payout is already paid."
-        );
-      }
-
-      await assertSellerOrderPayoutApprovable({
-        transaction,
-        db,
-        sellerOrderId,
-        sellerOrder,
-      });
-
-      transaction.set(
-        sellerOrderRef,
-        {
-          "payout.status": "paid",
-          "payout.paidAt": admin.firestore.FieldValue.serverTimestamp(),
-          "payout.reference": reference,
-          "payout.note": note || null,
-          "payout.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
-
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    await payoutEngine.markPayoutPaid({
+      db,
+      sector: "petshop",
+      payableId: sellerOrderId,
+      reference,
+      note,
+      actor: { type: "user", id: uid },
     });
 
     return {
@@ -12795,6 +14724,46 @@ exports.markSellerPayoutPaid = onCall(
       payoutStatus: "paid",
       reference,
     };
+  }
+);
+
+// Settlement-only retry. This endpoint never contacts a payment provider and
+// never replays or mutates the verified payment result.
+exports.retrySettlement = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const userSnap = await db.collection("users").doc(auth.uid).get();
+    if (userSnap.data()?.role !== "admin") {
+      throw new HttpsError("permission-denied", "Admin only.");
+    }
+
+    const sector = String(request.data?.sector || "").trim().toLowerCase();
+    const payableId = String(request.data?.payableId || "").trim();
+    if (!sector || !payableId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "sector and payableId are required."
+      );
+    }
+
+    const adapter = payoutEngine.getPayoutSectorAdapter(sector);
+    const result = await settlePayable({
+      db,
+      sector,
+      recordRef: db.collection(adapter.collection).doc(payableId),
+      actor: { type: "user", id: auth.uid },
+    });
+
+    return { success: true, sector, payableId, settlement: result.status };
   }
 );
 
@@ -12847,9 +14816,14 @@ exports.verifyPaymentByOrderId = onCall(
 
       // idempotent
       if (
-        normalizeLower(orderData.status) === "paid" ||
-        normalizeLower(orderData?.payment?.status) === "paid" ||
-        normalizeLower(orderData?.payment?.status) === "success"
+        (
+          normalizeLower(orderData.status) === "paid" ||
+          normalizeLower(orderData?.payment?.status) === "paid" ||
+          normalizeLower(orderData?.payment?.status) === "success"
+        ) &&
+        ![FINANCIAL_STATUS.PENDING, FINANCIAL_STATUS.REQUIRES_REPAIR].includes(
+          normalizeLower(orderData.financialStatus)
+        )
       ) {
         const cartReconciliation = await reconcilePaidMarketplaceCart(
           safeOrderId
@@ -13016,6 +14990,11 @@ exports.verifyPaymentByOrderId = onCall(
       // SUCCESS
       // -------------------------
       const batch = db.batch();
+      const marketplaceFinancialStatus = sellerOrdersSnap.docs.every((doc) =>
+        hasCompleteFinancial(doc.data()?.financial)
+      )
+        ? FINANCIAL_STATUS.VERIFIED
+        : FINANCIAL_STATUS.REQUIRES_REPAIR;
 
       batch.set(
         orderRef,
@@ -13039,6 +15018,7 @@ exports.verifyPaymentByOrderId = onCall(
             installment: asNumber(result?.installment, 1),
             raw: result,
           },
+          financialStatus: marketplaceFinancialStatus,
           updatedAt: now,
           timeline: admin.firestore.FieldValue.arrayUnion({
             status: "paid",
@@ -13067,6 +15047,9 @@ exports.verifyPaymentByOrderId = onCall(
           {
             status: "paid",
             paymentStatus: "paid",
+            financialStatus: hasCompleteFinancial(sellerOrder.financial)
+              ? FINANCIAL_STATUS.VERIFIED
+              : FINANCIAL_STATUS.REQUIRES_REPAIR,
             paidAt: now,
             payment: {
               ...(sellerOrder.payment || {}),
@@ -13394,8 +15377,14 @@ exports.verifyPayment = onCall(
 
       // 🔁 جلوگیری از دوباره پرداخت
       let appointmentFinancial = null;
+      let appointmentFinancialError = null;
       let resolvedServiceCategory = null;
-      if (orderData.payment?.status === "paid") {
+      if (
+        orderData.payment?.status === "paid" &&
+        ![FINANCIAL_STATUS.PENDING, FINANCIAL_STATUS.REQUIRES_REPAIR].includes(
+          normalizeLower(orderData.financialStatus)
+        )
+      ) {
 
         if (orderData.type === "appointment") {
           const appointmentCollection = appointmentCollectionForOrder(orderData);
@@ -13505,18 +15494,32 @@ exports.verifyPayment = onCall(
 
         }
 
-        appointmentFinancial = await calculateAppointmentFinancial({
-          collectionName: appointmentCollection,
-          record: appointmentData,
-          paidAmount,
-          resolvedVetServiceCategory: resolvedServiceCategory,
-        });
+        try {
+          appointmentFinancial = await calculateAppointmentFinancial({
+            collectionName: appointmentCollection,
+            record: appointmentData,
+            paidAmount,
+            resolvedVetServiceCategory: resolvedServiceCategory,
+          });
+          assertVerifiedCanonicalFinancial(appointmentFinancial);
+        } catch (financialError) {
+          appointmentFinancialError = financialError;
+          logger.error("iyzico_paid_financial_snapshot_failed", {
+            orderId,
+            appointmentId,
+            appointmentCollection,
+            message: financialError?.message || String(financialError),
+          });
+        }
 
         logger.info("paid_appointment_financial_snapshot_calculated", {
           appointmentId,
           appointmentCollection,
-          sector: appointmentFinancial.sector,
-          financialVersion: appointmentFinancial.version,
+          sector: appointmentFinancial?.sector || null,
+          financialVersion: appointmentFinancial?.version || null,
+          financialStatus: appointmentFinancial
+            ? FINANCIAL_STATUS.VERIFIED
+            : FINANCIAL_STATUS.REQUIRES_REPAIR,
         });
         const appointmentStatus = appointmentData.status || "pending";
         const appointmentPaymentPolicy = resolveAppointmentPaymentPolicy(
@@ -13564,6 +15567,15 @@ exports.verifyPayment = onCall(
         "payment.paymentTransactionIds": paymentTransactionIds,
         "payment.iyzicoPaymentTransactionId": paymentTransactionId || null,
         "payment.currency": result.currency || orderData.payment?.currency || orderData.currency || "TRY",
+        "payment.finalizationStatus": "completed",
+        "payment.finalizationCompletedAt": admin.firestore.FieldValue.serverTimestamp(),
+        ...(orderData.type === "appointment"
+          ? {
+            financialStatus: appointmentFinancial
+              ? FINANCIAL_STATUS.VERIFIED
+              : FINANCIAL_STATUS.REQUIRES_REPAIR,
+          }
+          : {}),
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -13584,14 +15596,32 @@ exports.verifyPayment = onCall(
           const appointmentData = appointmentSnap.exists
             ? appointmentSnap.data() || {}
             : {};
+          const payoutTimestamp =
+            admin.firestore.FieldValue.serverTimestamp();
 
           await appointmentRef.update({
             paymentStatus: "paid",
             status: "confirmed_paid",
             ...(appointmentCollection === "vet_appointments"
               ? { serviceCategory: resolvedServiceCategory }
+            : {}),
+            ...(appointmentFinancial ? { financial: appointmentFinancial } : {}),
+            financialStatus: appointmentFinancial
+              ? FINANCIAL_STATUS.VERIFIED
+              : FINANCIAL_STATUS.REQUIRES_REPAIR,
+            ...(appointmentFinancialError
+              ? {
+                settlement: {
+                  ...(appointmentData.settlement || {}),
+                  status: "blocked",
+                  failureCode: "FINANCIAL_REPAIR_REQUIRED",
+                  failureMessage:
+                    appointmentFinancialError.message ||
+                    String(appointmentFinancialError),
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+              }
               : {}),
-            financial: appointmentFinancial,
             "marketplace.lifecycleStatus": buildMarketplaceStatus("confirmed_paid"),
             "marketplace.pendingAction": false,
             "marketplace.updatedAt": new Date().toISOString(),
@@ -13601,7 +15631,7 @@ exports.verifyPayment = onCall(
               price: result.paidPrice || result.price || appointmentData.price || 0,
             }),
 
-            paidAt: admin.firestore.FieldValue.serverTimestamp(),
+            paidAt: payoutTimestamp,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             paymentId: result.paymentId || null,
             iyzicoPaymentId: result.paymentId || null,
@@ -13612,7 +15642,27 @@ exports.verifyPayment = onCall(
               result.conversationId || orderData.payment?.conversationId || null,
             orderId: orderId || null,
             checkoutToken: orderData.payment?.checkoutToken || null,
+            "payment.finalizationStatus": "completed",
+            "payment.finalizationCompletedAt": payoutTimestamp,
           });
+
+          if (!appointmentFinancialError) try {
+            await settlePayable({
+              db,
+              sector:
+                payoutEngine.getPayoutSectorAdapterByCollection(
+                  appointmentCollection
+                ).sector,
+              recordRef: appointmentRef,
+              actor: { type: "system", id: "iyzico_settlement" },
+            });
+          } catch (settlementError) {
+            logger.error("settlement_retryable_failure", {
+              orderId,
+              appointmentId,
+              message: settlementError?.message || String(settlementError),
+            });
+          }
 
           // 🎯 پیدا کردن گیرنده (vet)
           const targetBusinessId =
@@ -13850,11 +15900,22 @@ exports.verifyPayment = onCall(
             admin.firestore.FieldValue.serverTimestamp(),
           "payout.updatedAt":
             admin.firestore.FieldValue.serverTimestamp(),
+          financialStatus: hasCompleteFinancial(data.financial)
+            ? FINANCIAL_STATUS.VERIFIED
+            : FINANCIAL_STATUS.REQUIRES_REPAIR,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
 
       await batch.commit();
+      await orderRef.update({
+        financialStatus: sellerOrdersSnap.docs.every((doc) =>
+          hasCompleteFinancial(doc.data()?.financial)
+        )
+          ? FINANCIAL_STATUS.VERIFIED
+          : FINANCIAL_STATUS.REQUIRES_REPAIR,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
       for (const doc of sellerOrdersSnap.docs) {
         const sellerOrderId = doc.id;
@@ -16641,13 +18702,14 @@ exports.createMarketplaceOrderV2 = onCall(
         },
         invoice: {
           required: true,
-          status: "pending_upload",
+          status: INVOICE_INACTIVE_STATUS,
           type: "seller_uploaded",
 
           invoiceNumber: null,
           invoiceDate: null,
           uploadDeadlineAt: null,
-          uploadDeadlineAt: null,
+          activatedAt: null,
+          activationReason: null,
           uploadedAt: null,
           approvedAt: null,
           rejectedAt: null,
@@ -16685,6 +18747,12 @@ exports.createMarketplaceOrderV2 = onCall(
             address: billing.address || delivery.address || null,
             country: billing.country || "Turkey",
           },
+        },
+        invoiceStatus: INVOICE_INACTIVE_STATUS,
+        invoiceDeadline: null,
+        documents: {
+          invoiceStatus: INVOICE_INACTIVE_STATUS,
+          invoiceRequired: true,
         },
         timeline: buildInitialTimeline(
           payment.status === "paid" ? "paid" : "pending_payment"
@@ -16799,7 +18867,154 @@ exports.createMarketplaceOrderV2 = onCall(
   }
 );
 
+function normalizeCheckoutFailureReason(value) {
+  const reason = String(value || "").trim();
+  return reason ? reason.slice(0, 200) : "unknown";
+}
 
+// Marks the order pair created by one failed/cancelled/abandoned
+// createMarketplaceOrderV2 + createCheckoutSession attempt as
+// payment_failed, so retrying checkout doesn't leave an unbounded number
+// of indistinguishable payment_pending orders behind. Never deletes
+// anything (cart, orders, seller orders, payment records all stay) and
+// never downgrades an order that is already paid.
+exports.markMarketplaceCheckoutFailed = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const auth = request.auth;
+
+    if (!auth?.uid) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const data = request.data || {};
+    const orderId = String(data.orderId || "").trim();
+
+    if (!orderId) {
+      throw new HttpsError("invalid-argument", "orderId is required.");
+    }
+
+    const reason = normalizeCheckoutFailureReason(data.reason);
+
+    logger.info("marketplace_checkout_failed_mark_started", {
+      orderId,
+      uid: auth.uid,
+      reason,
+    });
+
+    const orderRef = db.collection("orders").doc(orderId);
+
+    const result = await db.runTransaction(async (transaction) => {
+      const orderSnap = await transaction.get(orderRef);
+
+      if (!orderSnap.exists) {
+        throw new HttpsError("not-found", "Order not found.");
+      }
+
+      const orderData = orderSnap.data() || {};
+      const buyerUid = orderData.buyerUid || orderData.userId || null;
+
+      if (buyerUid !== auth.uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "This order does not belong to the current user."
+        );
+      }
+
+      const currentStatus = normalizeLower(orderData.status);
+      const currentPaymentStatus = normalizeLower(
+        orderData.paymentStatus || orderData.payment?.status
+      );
+      const isAlreadyPaid =
+        currentStatus === "paid" || currentPaymentStatus === "paid";
+
+      if (isAlreadyPaid) {
+        return { skipped: true, updatedSellerOrderCount: 0 };
+      }
+
+      // Reads must complete before any writes in a Firestore transaction.
+      const sellerOrdersQuery = db
+        .collection("sellerOrders")
+        .where("rootOrderId", "==", orderId);
+      const sellerOrdersSnap = await transaction.get(sellerOrdersQuery);
+
+      const now = admin.firestore.FieldValue.serverTimestamp();
+
+      transaction.set(
+        orderRef,
+        {
+          status: "payment_failed",
+          paymentStatus: "failed",
+          payment: {
+            ...(orderData.payment || {}),
+            status: "failed",
+            failureReason: reason,
+            failedAt: now,
+          },
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+
+      let updatedSellerOrderCount = 0;
+      for (const doc of sellerOrdersSnap.docs) {
+        const sellerOrder = doc.data() || {};
+        const sellerStatus = normalizeLower(sellerOrder.status);
+        const sellerPaymentStatus = normalizeLower(
+          sellerOrder.paymentStatus || sellerOrder.payment?.status
+        );
+        const sellerIsPaid =
+          sellerStatus === "paid" || sellerPaymentStatus === "paid";
+
+        if (sellerIsPaid) continue;
+
+        transaction.set(
+          doc.ref,
+          {
+            status: "payment_failed",
+            paymentStatus: "failed",
+            payment: {
+              ...(sellerOrder.payment || {}),
+              status: "failed",
+            },
+            updatedAt: now,
+          },
+          { merge: true }
+        );
+        updatedSellerOrderCount += 1;
+      }
+
+      return { skipped: false, updatedSellerOrderCount };
+    });
+
+    if (result.skipped) {
+      logger.info("marketplace_checkout_failed_mark_skipped_paid", {
+        orderId,
+        uid: auth.uid,
+      });
+
+      return { success: true, skipped: true, reason: "already_paid" };
+    }
+
+    logger.info("marketplace_checkout_failed_mark_completed", {
+      orderId,
+      uid: auth.uid,
+      reason,
+      updatedSellerOrderCount: result.updatedSellerOrderCount,
+    });
+
+    return {
+      success: true,
+      skipped: false,
+      orderId,
+      updatedSellerOrderCount: result.updatedSellerOrderCount,
+    };
+  }
+);
 
 exports.updateSellerOrderStatusV2 = onCall(
   {
@@ -17114,36 +19329,41 @@ exports.updateSellerOrderStatusV2 = onCall(
       });
 
       try {
-        if (newStatus === "preparing") {
+        if (INVOICE_ACTIONABLE_ORDER_STATUSES.has(newStatus)) {
           const currentInvoice = sellerOrder.invoice || {};
-
           if (!currentInvoice.uploadDeadlineAt) {
-            const nowTs = admin.firestore.Timestamp.now();
-
+            const activatedAt = admin.firestore.Timestamp.now();
             const deadline = admin.firestore.Timestamp.fromMillis(
-              nowTs.toMillis() + 3 * 24 * 60 * 60 * 1000
+              activatedAt.toMillis() +
+              MARKETPLACE_INVOICE_UPLOAD_THRESHOLD_HOURS * 60 * 60 * 1000
             );
 
-            sellerPatch["invoice.status"] = "pending_upload";
+            sellerPatch["invoice.status"] = INVOICE_PENDING_STATUS;
             sellerPatch["invoice.uploadDeadlineAt"] = deadline;
+            sellerPatch["invoice.activatedAt"] = activatedAt;
+            sellerPatch["invoice.activationReason"] = newStatus;
+            sellerPatch["invoice.diagnosticClassification"] = null;
+            sellerPatch["invoice.diagnosticLoggedAt"] = null;
+            sellerPatch["deadlines.invoiceUploadDeadlineAt"] = deadline;
+            sellerPatch["documents.invoiceStatus"] = INVOICE_PENDING_STATUS;
+            sellerPatch["documents.invoiceRequired"] = true;
+            sellerPatch.invoiceStatus = INVOICE_PENDING_STATUS;
+            sellerPatch.invoiceDeadline = deadline;
 
-            // ✅ DEBUG LOG
-            logger.info("🧾 INVOICE DEADLINE SET (FAILSAFE)", {
+            logger.info("🧾 INVOICE DEADLINE SET", {
               sellerOrderId,
               previousDeadline: currentInvoice.uploadDeadlineAt || null,
+              activatedAt: activatedAt.toDate().toISOString(),
               newDeadline: deadline.toDate().toISOString(),
-              triggeredBy: "shipped",
-              now: nowTs.toDate().toISOString(),
+              activationReason: newStatus,
             });
           } else {
-            // ✅ DEBUG LOG (already exists)
             logger.info("🧾 INVOICE DEADLINE ALREADY EXISTS", {
               sellerOrderId,
               existingDeadline: currentInvoice.uploadDeadlineAt?.toDate?.() || null,
               skipped: true,
             });
           }
-
         }
         if (newStatus === "shipped") {
           sellerPatch.shipping = {
@@ -17155,19 +19375,6 @@ exports.updateSellerOrderStatusV2 = onCall(
             deliveredAt: existingShipping.deliveredAt || null,
           };
 
-          // 🔥 FAILSAFE INVOICE TRIGGER
-          const currentInvoice = sellerOrder.invoice || {};
-
-          if (!currentInvoice.uploadDeadlineAt) {
-            const nowTs = admin.firestore.Timestamp.now();
-
-            const deadline = admin.firestore.Timestamp.fromMillis(
-              nowTs.toMillis() + 3 * 24 * 60 * 60 * 1000
-            );
-
-            sellerPatch["invoice.status"] = "pending_upload";
-            sellerPatch["invoice.uploadDeadlineAt"] = deadline;
-          }
         }
       } catch (error) {
         logger.error("💥 STEP FAILED: invoice trigger", {
@@ -17228,7 +19435,33 @@ exports.updateSellerOrderStatusV2 = onCall(
       });
 
       try {
-        await sellerOrderRef.set(sellerPatch, { merge: true });
+        await db.runTransaction(async (transaction) => {
+          const freshSellerOrderSnap = await transaction.get(sellerOrderRef);
+          if (!freshSellerOrderSnap.exists) {
+            throw new HttpsError("not-found", "Seller order not found.");
+          }
+          const freshStatus = normalizeLower(
+            freshSellerOrderSnap.data()?.status
+          );
+          if (freshStatus !== currentStatus) {
+            throw new HttpsError(
+              "failed-precondition",
+              `Order status changed while updating: ${currentStatus} -> ${freshStatus}`
+            );
+          }
+          const freshShipping = freshSellerOrderSnap.data()?.shipping || {};
+          if (
+            newStatus === "shipped" &&
+            (freshShipping.shippedAt ||
+              !["paid", "confirmed", "preparing"].includes(freshStatus))
+          ) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Order can no longer be shipped"
+            );
+          }
+          transaction.set(sellerOrderRef, sellerPatch, { merge: true });
+        });
       } catch (error) {
         logger.error("💥 STEP FAILED: sellerOrder update", {
           sellerOrderId,
@@ -17239,6 +19472,9 @@ exports.updateSellerOrderStatusV2 = onCall(
           message: error?.message || String(error),
           stack: error?.stack || null,
         });
+        if (error instanceof HttpsError) {
+          throw error;
+        }
         throw new HttpsError(
           "internal",
           "Failed to update seller order.",
@@ -17505,6 +19741,471 @@ exports.updateSellerOrderStatusV2 = onCall(
   }
 );
 
+exports.cancelSellerOrderBeforeShipment = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    secrets: [
+      IYZICO_API_KEY,
+      IYZICO_SECRET_KEY,
+      ISBANK_CLIENT_ID,
+      ISBANK_API_USERNAME,
+      ISBANK_API_PASSWORD,
+    ],
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const authUid = request.auth?.uid;
+    const data = request.data || {};
+    const sellerOrderId = String(data.sellerOrderId || "").trim();
+    const cancelReason = String(data.cancelReason || "").trim();
+    const cancellationType = "PRE_SHIPMENT";
+
+    logger.info("ORDER_CANCELLATION_REQUEST", {
+      sellerOrderId: sellerOrderId || null,
+      authUid: authUid || null,
+      cancellationType,
+    });
+
+    if (!authUid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+    if (!sellerOrderId || !cancelReason) {
+      throw new HttpsError(
+        "invalid-argument",
+        "sellerOrderId and cancelReason are required"
+      );
+    }
+    if (cancelReason.length > 300) {
+      throw new HttpsError(
+        "invalid-argument",
+        "cancelReason must be 300 characters or fewer"
+      );
+    }
+
+    const sellerOrderRef = db.collection("sellerOrders").doc(sellerOrderId);
+    const initialSnap = await sellerOrderRef.get();
+    if (!initialSnap.exists) {
+      throw new HttpsError("not-found", "Seller order not found");
+    }
+    const initialOrder = initialSnap.data() || {};
+    const rootOrderId = initialOrder.rootOrderId || null;
+    const rootOrderRef = rootOrderId
+      ? db.collection("orders").doc(String(rootOrderId))
+      : null;
+    const rootOrderSnap = rootOrderRef ? await rootOrderRef.get() : null;
+    const rootOrder = rootOrderSnap?.exists ? rootOrderSnap.data() || {} : {};
+    const buyerUid =
+      initialOrder.buyerUid ||
+      initialOrder.userId ||
+      rootOrder.buyerUid ||
+      rootOrder.userId ||
+      null;
+    if (buyerUid !== authUid) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only the buyer can cancel this order"
+      );
+    }
+
+    const sellerPayment = initialOrder.payment || {};
+    const rootPayment = rootOrder.payment || {};
+    const mergedPayment = {
+      ...rootPayment,
+      ...sellerPayment,
+      paymentId:
+        sellerPayment.paymentId ||
+        rootPayment.paymentId ||
+        rootOrder.paymentId ||
+        null,
+      oid:
+        sellerPayment.oid ||
+        sellerPayment.orderId ||
+        rootPayment.oid ||
+        rootOrder.oid ||
+        null,
+    };
+    const refundReference = resolveRefundReference({
+      paymentProvider:
+        sellerPayment.paymentProvider ||
+        sellerPayment.provider ||
+        rootPayment.paymentProvider ||
+        rootPayment.provider ||
+        null,
+      payment: mergedPayment,
+    });
+    const refundAmount = Number(
+      Math.max(
+        0,
+        asNumber(
+          initialOrder?.pricing?.grandTotal ??
+          initialOrder?.financial?.grossAmount ??
+          sellerPayment.paidPrice ??
+          sellerPayment.price ??
+          0,
+          0
+        )
+      ).toFixed(2)
+    );
+    if (!(refundAmount > 0)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Original paid amount is unavailable"
+      );
+    }
+    if (!SUPPORTED_REFUND_PROVIDERS.includes(refundReference.provider)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Unsupported payment provider"
+      );
+    }
+    if (refundReference.provider === "iyzico" && !refundReference.paymentId) {
+      throw new HttpsError("failed-precondition", "paymentId required");
+    }
+    if (refundReference.provider === "isbank" && !refundReference.oid) {
+      throw new HttpsError(
+        "failed-precondition",
+        "oid required for İş Bank refund"
+      );
+    }
+
+    const claimResult = await db.runTransaction(async (transaction) => {
+      const freshSnap = await transaction.get(sellerOrderRef);
+      if (!freshSnap.exists) return { status: "missing" };
+      const freshData = freshSnap.data() || {};
+      const freshStatus = normalizeLower(freshData.status);
+      const refundStatus = normalizeLower(
+        freshData.cancellationRefund?.status
+      );
+      if (
+        freshStatus === "cancelled" &&
+        refundStatus === "refunded"
+      ) {
+        return { status: "alreadyRefunded" };
+      }
+      if (
+        freshStatus === "cancellation_refund_pending" ||
+        refundStatus === "refund_pending"
+      ) {
+        return { status: "pending" };
+      }
+      const eligibleStatuses = [
+        "paid",
+        "confirmed",
+        "preparing",
+        "cancellation_refund_failed",
+      ];
+      if (
+        !eligibleStatuses.includes(freshStatus) ||
+        freshData.shipping?.shippedAt
+      ) {
+        return { status: "ineligible", currentStatus: freshStatus };
+      }
+      if (
+        (freshData.buyerUid || freshData.userId || buyerUid) !== authUid
+      ) {
+        return { status: "forbidden" };
+      }
+
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      transaction.set(
+        sellerOrderRef,
+        {
+          status: "cancellation_refund_pending",
+          cancellationRequestedAt:
+            freshData.cancellationRequestedAt || now,
+          cancelledBy: authUid,
+          cancelReason,
+          cancellationType,
+          updatedAt: now,
+          cancellationRefund: {
+            ...(freshData.cancellationRefund || {}),
+            status: "refund_pending",
+            amount: refundAmount,
+            currency: mergedPayment.currency || "TRY",
+            provider: refundReference.provider,
+            startedAt: now,
+            completedAt: null,
+            errorMessage: null,
+          },
+          timeline: admin.firestore.FieldValue.arrayUnion({
+            status: "cancellation_refund_pending",
+            at: new Date().toISOString(),
+            by: authUid,
+            reason: cancelReason,
+          }),
+        },
+        { merge: true }
+      );
+      return { status: "claimed" };
+    });
+
+    logger.info("ORDER_CANCELLATION_VALIDATION", {
+      sellerOrderId,
+      result: claimResult.status,
+    });
+    if (claimResult.status === "alreadyRefunded") {
+      await applyRefundToSellerPayout({
+        db,
+        sellerOrderId,
+        returnId: `cancel_${sellerOrderId}`,
+        refundAmount,
+        refundedCommissionBase: asNumber(
+          initialOrder?.pricing?.subtotal,
+          0
+        ),
+        isFullRefund: true,
+        rootOrderId,
+        reason: "pre_shipment_cancellation_refund",
+        actor: { type: "system", id: "cancellation_reconciliation" },
+      });
+      return { success: true, status: "refunded", idempotent: true };
+    }
+    if (claimResult.status === "pending") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Cancellation refund is already processing"
+      );
+    }
+    if (claimResult.status === "forbidden") {
+      throw new HttpsError("permission-denied", "Not allowed");
+    }
+    if (claimResult.status !== "claimed") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Order can no longer be cancelled because shipment has started"
+      );
+    }
+
+    logger.info("ORDER_CANCELLATION_REFUND_STARTED", {
+      sellerOrderId,
+      provider: refundReference.provider,
+      refundAmount,
+    });
+    await Promise.allSettled([
+      createNotification(db, {
+        recipientUserId: buyerUid,
+        userId: buyerUid,
+        type: "order_cancellation_refund_processing",
+        title: "Refund processing",
+        body: "Your pre-shipment cancellation refund is processing.",
+        orderId: rootOrderId,
+        sellerOrderId,
+      }),
+      createNotification(db, {
+        recipientUserId:
+          initialOrder.sellerUid ||
+          initialOrder.sellerSnapshot?.ownerUid ||
+          initialOrder.shopId ||
+          null,
+        userId:
+          initialOrder.sellerUid ||
+          initialOrder.sellerSnapshot?.ownerUid ||
+          initialOrder.shopId ||
+          null,
+        type: "order_cancelled_before_shipment",
+        title: "Order cancelled before shipment",
+        body: `Order ${sellerOrderId} was cancelled before shipment.`,
+        orderId: rootOrderId,
+        sellerOrderId,
+      }),
+    ]);
+
+    let gatewaySucceeded = false;
+    let refundPersisted = false;
+    try {
+      let refundResult;
+      if (refundReference.provider === "iyzico") {
+        refundResult = await refundWithIyzipay({
+          apiKey: IYZICO_API_KEY.value(),
+          secretKey: IYZICO_SECRET_KEY.value(),
+          returnId: `cancel_${sellerOrderId}`,
+          paymentId: refundReference.paymentId,
+          amount: refundAmount,
+          currency: mergedPayment.currency || "TRY",
+          ip: request.rawRequest?.ip,
+        });
+      } else {
+        refundResult = await refundWithIsbank({
+          clientId: ISBANK_CLIENT_ID.value(),
+          apiUsername: ISBANK_API_USERNAME.value(),
+          apiPassword: ISBANK_API_PASSWORD.value(),
+          apiUrl: ISBANK_API_URL.value(),
+          currencyCode: ISBANK_CURRENCY_CODE.value(),
+          refundReference,
+          amount: refundAmount,
+        });
+      }
+      if (!refundResult || normalizeLower(refundResult.status) !== "success") {
+        throw new Error(refundResult?.errorMessage || "Refund failed");
+      }
+      gatewaySucceeded = true;
+
+      const completedAt = admin.firestore.FieldValue.serverTimestamp();
+      await firestoreSetWithRetry(
+        sellerOrderRef,
+        {
+          status: "cancelled",
+          cancelledAt: completedAt,
+          cancelledBy: authUid,
+          cancelReason,
+          cancellationType,
+          updatedAt: completedAt,
+          "cancellationRefund.status": "refunded",
+          "cancellationRefund.amount": refundAmount,
+          "cancellationRefund.currency": mergedPayment.currency || "TRY",
+          "cancellationRefund.provider": refundReference.provider,
+          "cancellationRefund.completedAt": completedAt,
+          "cancellationRefund.errorMessage": null,
+          "cancellationRefund.raw": refundResult,
+          timeline: admin.firestore.FieldValue.arrayUnion({
+            status: "cancelled",
+            at: new Date().toISOString(),
+            by: "system",
+          }),
+        },
+        { merge: true }
+      );
+      refundPersisted = true;
+
+      try {
+        const payoutSyncResult = await applyRefundToSellerPayout({
+          db,
+          sellerOrderId,
+          returnId: `cancel_${sellerOrderId}`,
+          refundAmount,
+          refundedCommissionBase: asNumber(
+            initialOrder?.pricing?.subtotal,
+            0
+          ),
+          isFullRefund: true,
+          rootOrderId,
+          reason: "pre_shipment_cancellation_refund",
+          actor: { type: "user", id: authUid },
+        });
+        logger.info("ORDER_CANCELLATION_PAYOUT_RECONCILED", {
+          sellerOrderId,
+          rootOrderId,
+          ...payoutSyncResult,
+        });
+      } catch (payoutSyncError) {
+        logger.error(
+          "ORDER_CANCELLATION_PAYOUT_RECONCILIATION_REQUIRED",
+          {
+            sellerOrderId,
+            rootOrderId,
+            message: payoutSyncError?.message || String(payoutSyncError),
+          }
+        );
+        await sellerOrderRef
+          .set(
+            {
+              "cancellationRefund.payoutSyncFailed": true,
+              "cancellationRefund.payoutSyncError":
+                payoutSyncError?.message || String(payoutSyncError),
+              "cancellationRefund.needsManualReconciliation": true,
+            },
+            { merge: true }
+          )
+          .catch(() => {});
+      }
+
+      if (rootOrderRef) {
+        try {
+          const siblingsSnap = await db
+            .collection("sellerOrders")
+            .where("rootOrderId", "==", rootOrderId)
+            .get();
+          const rootStatus = computeRootStatusFromSellerStatuses(
+            siblingsSnap.docs.map((document) => document.data()?.status)
+          );
+          await rootOrderRef.set(
+            {
+              status: rootStatus,
+              updatedAt: completedAt,
+            },
+            { merge: true }
+          );
+        } catch (error) {
+          logger.error("ORDER_CANCELLATION_ROOT_SYNC_FAILED", {
+            sellerOrderId,
+            rootOrderId,
+            error: error?.message || String(error),
+          });
+        }
+      }
+
+      await createNotification(db, {
+        recipientUserId: buyerUid,
+        userId: buyerUid,
+        type: "order_cancellation_refunded",
+        title: "Refund completed",
+        body: "Your cancelled order payment was refunded.",
+        orderId: rootOrderId,
+        sellerOrderId,
+      }).catch((error) => {
+        logger.error("ORDER_CANCELLATION_NOTIFICATION_FAILED", {
+          sellerOrderId,
+          notificationType: "order_cancellation_refunded",
+          error: error?.message || String(error),
+        });
+      });
+      logger.info("ORDER_CANCELLATION_SUCCESS", {
+        sellerOrderId,
+        refundAmount,
+      });
+      logger.info("ORDER_CANCELLATION_REFUND_COMPLETED", {
+        sellerOrderId,
+        provider: refundReference.provider,
+      });
+      return { success: true, status: "refunded" };
+    } catch (error) {
+      if (gatewaySucceeded && !refundPersisted) {
+        await sellerOrderRef
+          .set(
+            {
+              status: "cancellation_refund_pending",
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              "cancellationRefund.gatewaySucceeded": true,
+              "cancellationRefund.needsManualReconciliation": true,
+              "cancellationRefund.errorMessage":
+                error?.message || String(error),
+            },
+            { merge: true }
+          )
+          .catch(() => {});
+        logger.error("ORDER_CANCELLATION_REFUND_RECONCILIATION_REQUIRED", {
+          sellerOrderId,
+          error: error?.message || String(error),
+        });
+        throw new HttpsError(
+          "internal",
+          "Refund succeeded but could not be fully recorded. Do not retry."
+        );
+      }
+      await sellerOrderRef.set(
+        {
+          status: "cancellation_refund_failed",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          "cancellationRefund.status": "refund_failed",
+          "cancellationRefund.errorMessage":
+            error?.message || String(error),
+        },
+        { merge: true }
+      );
+      logger.error("ORDER_CANCELLATION_REFUND_FAILED", {
+        sellerOrderId,
+        error: error?.message || String(error),
+      });
+      throw new HttpsError(
+        "internal",
+        "Order was cancelled but the refund could not be completed"
+      );
+    }
+  }
+);
+
 
 function extractInvoiceNumber(text = "") {
   const normalized = text
@@ -17663,9 +20364,8 @@ exports.createOrderReturnRequest = onCall(
     const reason = normalizeLower(data.reason) || "other";
     const description = String(data.description || "").trim();
     const refundType = normalizeLower(data.refundType) || "partial";
-    const shippingResponsibilityInput = normalizeLower(
-      data.shippingResponsibility
-    );
+    const buyerAcknowledgedReturnShipping =
+      data.buyerAcknowledgedReturnShipping === true;
     const requestedRefundAmount = asNumber(data.refundAmount, 0);
     const returnWindowDaysInput = Math.max(
       1,
@@ -17982,9 +20682,11 @@ exports.createOrderReturnRequest = onCall(
       });
     }
 
-    const shippingResponsibility =
-      shippingResponsibilityInput ||
-      resolveReturnShippingResponsibility(shippingPayerSources);
+    // Product policy is authoritative at request creation. A legacy client
+    // may still send shippingResponsibility, but it is intentionally ignored.
+    const shippingResponsibility = resolveReturnShippingResponsibility(
+      shippingPayerSources
+    );
 
     const returnRef = db.collection("order_returns").doc();
     console.log("💳 REFUND PAYMENT META", {
@@ -18027,6 +20729,11 @@ exports.createOrderReturnRequest = onCall(
     const requestedAt = admin.firestore.FieldValue.serverTimestamp();
     const timeline = [];
     addReturnTimelineStep(timeline, "pending", authUid, "created");
+    const returnShipping = buildInitialReturnShipping({
+      responsibility: shippingResponsibility,
+      buyerAcknowledged: buyerAcknowledgedReturnShipping,
+      timestamp: requestedAt,
+    });
 
     const refundAmount = Number(
       (
@@ -18055,6 +20762,7 @@ exports.createOrderReturnRequest = onCall(
       refundAmount,
       refundType,
       shippingResponsibility,
+      returnShipping,
       trackingNumber: null,
       carrier: null,
       ...refundReferenceFields,
@@ -18146,6 +20854,16 @@ exports.reviewOrderReturnRequest = onCall(
       throw new HttpsError("invalid-argument", "Invalid return action");
     }
 
+    if (
+      action === "approved" &&
+      !normalizeReturnShippingResponsibility(shippingResponsibility)
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Invalid return shipping responsibility"
+      );
+    }
+
     const returnRef = db.collection("order_returns").doc(returnId);
     const returnSnap = await returnRef.get();
 
@@ -18174,46 +20892,121 @@ exports.reviewOrderReturnRequest = onCall(
       throw new HttpsError("permission-denied", "Not allowed");
     }
 
-    if (normalizeReturnStatus(returnData.status) !== "pending") {
-      throw new HttpsError(
-        "failed-precondition",
-        `Return is already ${returnData.status}`
-      );
-    }
+    await db.runTransaction(async (transaction) => {
+      const freshReturnSnap = await transaction.get(returnRef);
+      if (!freshReturnSnap.exists) {
+        throw new HttpsError("not-found", "Return request not found");
+      }
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
-    const timeline = Array.isArray(returnData.timeline)
-      ? [...returnData.timeline]
-      : [];
+      const freshReturnData = freshReturnSnap.data() || {};
+      if (normalizeReturnStatus(freshReturnData.status) !== "pending") {
+        throw new HttpsError(
+          "failed-precondition",
+          `Return is already ${freshReturnData.status}`
+        );
+      }
 
-    addReturnTimelineStep(
-      timeline,
-      action,
-      authUid,
-      notes || null,
-      shippingResponsibility ? { shippingResponsibility } : {}
-    );
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const timeline = Array.isArray(freshReturnData.timeline)
+        ? [...freshReturnData.timeline]
+        : [];
+      let approvedShipping = null;
 
-    const updateData = {
-      status: action,
-      reviewedAt: now,
-      updatedAt: now,
-      sellerNotes: notes || returnData.sellerNotes || null,
-      ...(shippingResponsibility
-        ? { shippingResponsibility }
-        : {}),
-      ...(action === "approved"
-        ? {
-          refundDetails: {
-            ...(returnData.refundDetails || {}),
-            shippingResponsibility:
-              shippingResponsibility || returnData.shippingResponsibility || null,
-          },
+      if (action === "approved") {
+        if (freshReturnData.returnShippingDecisionSnapshot) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Return shipping decision has already been recorded"
+          );
         }
-        : {}),
-    };
 
-    await returnRef.set(updateData, { merge: true });
+        const productIds = Array.from(
+          new Set(
+            (Array.isArray(freshReturnData.returnItems)
+              ? freshReturnData.returnItems
+              : [])
+              .map((item) => String(item?.productId || "").trim())
+              .filter(Boolean)
+          )
+        );
+        if (!freshReturnData.businessId || productIds.length === 0) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Returned product configuration is unavailable"
+          );
+        }
+
+        const products = [];
+        for (const productId of productIds) {
+          const productRef = db
+            .collection("businesses")
+            .doc(String(freshReturnData.businessId))
+            .collection("products")
+            .doc(productId);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists) {
+            throw new HttpsError(
+              "failed-precondition",
+              `Returned product configuration is unavailable: ${productId}`
+            );
+          }
+          products.push({
+            productId,
+            ...(productSnap.data() || {}),
+          });
+        }
+
+        approvedShipping = resolveApprovedReturnShipping({
+          requestedResponsibility: shippingResponsibility,
+          products,
+          decidedAt: now,
+          decidedBy: authUid,
+          previousReturnShipping: freshReturnData.returnShipping || null,
+        });
+      }
+
+      addReturnTimelineStep(
+        timeline,
+        action,
+        authUid,
+        notes || null,
+        approvedShipping
+          ? {
+            shippingResponsibility:
+              approvedShipping.returnShipping.responsibility,
+            resolvedShippingResponsibility:
+              approvedShipping.returnShipping.resolution,
+            carrierCode: approvedShipping.returnShipping.carrierCode,
+          }
+          : {}
+      );
+
+      const updateData = {
+        status: action,
+        reviewedAt: now,
+        updatedAt: now,
+        sellerNotes: notes || freshReturnData.sellerNotes || null,
+        timeline,
+        ...(approvedShipping
+          ? {
+            shippingResponsibility:
+              approvedShipping.returnShipping.responsibility,
+            returnShipping: approvedShipping.returnShipping,
+            returnShippingDecisionSnapshot:
+              approvedShipping.decisionSnapshot,
+            refundDetails: {
+              ...(freshReturnData.refundDetails || {}),
+              shippingResponsibility:
+                approvedShipping.returnShipping.responsibility,
+              resolvedShippingResponsibility:
+                approvedShipping.returnShipping.resolution,
+            },
+          }
+          : {}),
+      };
+
+      transaction.set(returnRef, updateData, { merge: true });
+    });
 
     logger.info("✅ RETURN REVIEWED", {
       returnId,
@@ -18345,7 +21138,7 @@ exports.markOrderReturnShippedBack = onCall(
       const { returnId, trackingNumber, carrier, notes } = request.data || {};
       const safeReturnId = String(returnId || "").trim();
       const safeTracking = String(trackingNumber || "").trim();
-      const safeCarrier = String(carrier || "").trim();
+      let safeCarrier = String(carrier || "").trim();
 
       if (!safeReturnId) {
         console.error("❌ RETURN_ID_REQUIRED", {
@@ -18380,6 +21173,16 @@ exports.markOrderReturnShippedBack = onCall(
 
       const returnData = returnSnap.data() || {};
       console.log("📦 SHIPPED BACK SNAPSHOT", returnData);
+      const resolvedReturnShipping = returnData.returnShipping || {};
+      if (
+        resolvedReturnShipping.resolution === "seller" &&
+        resolvedReturnShipping.contractedCarrierVerified === true &&
+        String(resolvedReturnShipping.carrierCode || "").trim()
+      ) {
+        // The verified contracted carrier is authoritative. Legacy clients
+        // may still submit the original outbound carrier; do not persist it.
+        safeCarrier = String(resolvedReturnShipping.carrierCode).trim();
+      }
 
       const businessId = returnData.businessId || null;
       const trackingInfo = {
@@ -18450,14 +21253,31 @@ exports.markOrderReturnShippedBack = onCall(
       const timeline = Array.isArray(returnData.timeline)
         ? [...returnData.timeline]
         : [];
-      addReturnTimelineStep(timeline, "shipped_back", authUid, notes || null, {
+      const buyerShippedAt = admin.firestore.FieldValue.serverTimestamp();
+      const sellerConfirmationDeadlineAt =
+        admin.firestore.Timestamp.fromMillis(
+          Date.now() + 5 * 24 * 60 * 60 * 1000
+        );
+      addReturnTimelineStep(
+        timeline,
+        "waiting_for_seller_confirmation",
+        authUid,
+        notes || null,
+        {
         trackingNumber: safeTracking,
         carrier: safeCarrier,
-      });
+          sellerConfirmationDeadlineAt:
+            sellerConfirmationDeadlineAt.toDate().toISOString(),
+        }
+      );
 
       await returnRef.set(
         {
-          status: "shipped_back",
+          status: "waiting_for_seller_confirmation",
+          buyerShippedAt,
+          sellerConfirmationDeadlineAt,
+          autoReceived: false,
+          autoReceivedAt: null,
           trackingNumber: safeTracking,
           carrier: safeCarrier,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -18471,7 +21291,9 @@ exports.markOrderReturnShippedBack = onCall(
         userId: returnData.sellerUid,
         type: "order_return_shipped_back",
         title: "Return shipped back",
-        body: `Return request ${safeReturnId} has been shipped back`,
+        body:
+          `Return ${safeReturnId} was shipped. Inspection deadline: ` +
+          sellerConfirmationDeadlineAt.toDate().toISOString(),
         orderId: returnData.rootOrderId || returnData.orderId || null,
         sellerOrderId: returnData.sellerOrderId || null,
         returnId: safeReturnId,
@@ -18567,7 +21389,8 @@ exports.markOrderReturnReceived = onCall(
         authUid === returnData.sellerUid ||
         authUid === ownerUid ||
         (await isAdminUser(db, authUid)),
-      expectedPreviousStatus: "approved|shipped_back",
+      expectedPreviousStatus:
+        "approved|shipped_back|waiting_for_seller_confirmation",
     });
 
     if (
@@ -18595,9 +21418,16 @@ exports.markOrderReturnReceived = onCall(
       sellerUid: returnData.sellerUid || null,
       businessId,
       buyerUid: returnData.buyerUid || null,
-      expectedPreviousStatus: "approved|shipped_back",
+      expectedPreviousStatus:
+        "approved|shipped_back|waiting_for_seller_confirmation",
     });
-    if (!["approved", "shipped_back"].includes(currentStatus)) {
+    if (
+      ![
+        "approved",
+        "shipped_back",
+        "waiting_for_seller_confirmation",
+      ].includes(currentStatus)
+    ) {
       console.error("❌ INVALID_STATUS", {
         returnId: safeReturnId,
         authUid,
@@ -18605,7 +21435,8 @@ exports.markOrderReturnReceived = onCall(
         sellerUid: returnData.sellerUid || null,
         businessId,
         buyerUid: returnData.buyerUid || null,
-        expectedPreviousStatus: "approved|shipped_back",
+        expectedPreviousStatus:
+          "approved|shipped_back|waiting_for_seller_confirmation",
       });
       throw new HttpsError(
         "failed-precondition",
@@ -18621,6 +21452,8 @@ exports.markOrderReturnReceived = onCall(
     await returnRef.set(
       {
         status: "received_by_seller",
+        sellerInspectionCompletedAt:
+          admin.firestore.FieldValue.serverTimestamp(),
         reviewedAt:
           returnData.reviewedAt || admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -18647,6 +21480,209 @@ exports.markOrderReturnReceived = onCall(
     });
 
     return { success: true };
+  }
+);
+
+const RETURN_DISPUTE_REASON_LABELS = {
+  package_not_received: "Package not received",
+  wrong_item_returned: "Wrong item returned",
+  empty_package: "Empty package",
+  missing_accessories: "Missing accessories",
+  damaged_during_return: "Damaged during return",
+  tracking_issue: "Tracking issue",
+  other: "Other",
+};
+
+exports.reportOrderReturnProblem = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const db = admin.firestore();
+    const authUid = request.auth?.uid;
+    if (!authUid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const data = request.data || {};
+    const returnId = String(data.returnId || "").trim();
+    const disputeReasonCode = normalizeLower(data.disputeReasonCode);
+    const sellerNotes = String(data.sellerNotes || "").trim();
+    if (!returnId) {
+      throw new HttpsError("invalid-argument", "returnId required");
+    }
+    if (!RETURN_DISPUTE_REASON_LABELS[disputeReasonCode]) {
+      throw new HttpsError("invalid-argument", "Dispute reason is required");
+    }
+    if (disputeReasonCode === "other" && !sellerNotes) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Seller notes are required for other disputes"
+      );
+    }
+
+    const returnRef = db.collection("order_returns").doc(returnId);
+    const returnSnap = await returnRef.get();
+    if (!returnSnap.exists) {
+      throw new HttpsError("not-found", "Return request not found");
+    }
+    const returnData = returnSnap.data() || {};
+    const businessSnap = returnData.businessId
+      ? await db
+        .collection("businesses")
+        .doc(String(returnData.businessId))
+        .get()
+      : null;
+    const ownerUid = businessSnap?.exists
+      ? businessSnap.data()?.ownerUid || null
+      : null;
+    if (
+      authUid !== returnData.sellerUid &&
+      authUid !== ownerUid &&
+      !(await isAdminUser(db, authUid))
+    ) {
+      throw new HttpsError("permission-denied", "Not allowed");
+    }
+
+    const disputedAt = admin.firestore.FieldValue.serverTimestamp();
+    await db.runTransaction(async (transaction) => {
+      const freshSnap = await transaction.get(returnRef);
+      const freshData = freshSnap.data() || {};
+      if (
+        normalizeReturnStatus(freshData.status) !==
+        "waiting_for_seller_confirmation"
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Return is not awaiting seller inspection"
+        );
+      }
+      const timeline = Array.isArray(freshData.timeline)
+        ? [...freshData.timeline]
+        : [];
+      addReturnTimelineStep(
+        timeline,
+        "dispute",
+        authUid,
+        sellerNotes || null,
+        { disputeReasonCode }
+      );
+      transaction.set(
+        returnRef,
+        {
+          status: "dispute",
+          disputeReasonCode,
+          disputeReason: RETURN_DISPUTE_REASON_LABELS[disputeReasonCode],
+          sellerNotes: sellerNotes || null,
+          disputedAt,
+          sellerInspectionCompletedAt: disputedAt,
+          updatedAt: disputedAt,
+          timeline,
+        },
+        { merge: true }
+      );
+    });
+
+    await createNotification(db, {
+      recipientUserId: returnData.buyerUid,
+      userId: returnData.buyerUid,
+      type: "order_return_disputed",
+      title: "Return moved to dispute",
+      body: sellerNotes || RETURN_DISPUTE_REASON_LABELS[disputeReasonCode],
+      orderId: returnData.rootOrderId || returnData.orderId || null,
+      sellerOrderId: returnData.sellerOrderId || null,
+      returnId,
+    });
+    return { success: true };
+  }
+);
+
+exports.autoCompleteOverdueOrderReturns = onSchedule(
+  {
+    schedule: "every 6 hours",
+    region: "europe-west3",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+  },
+  async () => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    const overdueSnap = await db
+      .collection("order_returns")
+      .where("status", "==", "waiting_for_seller_confirmation")
+      .where("sellerConfirmationDeadlineAt", "<", now)
+      .limit(200)
+      .get();
+
+    let completedCount = 0;
+    for (const document of overdueSnap.docs) {
+      const transition = await db.runTransaction(async (transaction) => {
+        const freshSnap = await transaction.get(document.ref);
+        if (!freshSnap.exists) return null;
+        const freshData = freshSnap.data() || {};
+        const deadlineMs = toMillisSafe(
+          freshData.sellerConfirmationDeadlineAt
+        );
+        if (
+          normalizeReturnStatus(freshData.status) !==
+          "waiting_for_seller_confirmation" ||
+          !deadlineMs ||
+          deadlineMs >= Date.now()
+        ) {
+          return null;
+        }
+
+        const autoReceivedAt =
+          admin.firestore.FieldValue.serverTimestamp();
+        const timeline = Array.isArray(freshData.timeline)
+          ? [...freshData.timeline]
+          : [];
+        addReturnTimelineStep(
+          timeline,
+          "auto_received",
+          "system",
+          "seller_confirmation_deadline_expired"
+        );
+        transaction.set(
+          document.ref,
+          {
+            status: "auto_received",
+            autoReceived: true,
+            autoReceivedAt,
+            sellerInspectionCompletedAt: autoReceivedAt,
+            updatedAt: autoReceivedAt,
+            timeline,
+          },
+          { merge: true }
+        );
+        return freshData;
+      });
+
+      if (!transition) continue;
+      completedCount += 1;
+      await createNotification(db, {
+        recipientUserId: transition.buyerUid,
+        userId: transition.buyerUid,
+        type: "order_return_auto_received",
+        title: "Return automatically completed",
+        body: "The seller inspection deadline expired. The return can now continue to refund.",
+        orderId: transition.rootOrderId || transition.orderId || null,
+        sellerOrderId: transition.sellerOrderId || null,
+        returnId: document.id,
+      }).catch((error) => {
+        logger.error("AUTO_RETURN_NOTIFICATION_FAILED", {
+          returnId: document.id,
+          error: error?.message || String(error),
+        });
+      });
+    }
+
+    logger.info("AUTO_RETURN_COMPLETION_FINISHED", {
+      scannedCount: overdueSnap.size,
+      completedCount,
+    });
   }
 );
 
@@ -18680,8 +21716,28 @@ exports.triggerOrderReturnRefund = onCall(
     console.log("RETURN REFUND RAW DATA", data);
     const returnId = String(data.returnId || "").trim();
     const refundAmount = asNumber(data.refundAmount, 0);
-    const refundType = normalizeLower(data.refundType) || "full";
+    let refundType = normalizeLower(data.refundType) || "full";
     const notes = String(data.notes || "").trim();
+    const enforceRefundDecisionPolicy =
+      data.refundDecisionType !== undefined &&
+      data.refundDecisionType !== null;
+    const refundDecisionType = normalizeRefundDecisionType(
+      data.refundDecisionType,
+      refundType
+    );
+    if (
+      enforceRefundDecisionPolicy &&
+      refundDecisionType !== "REJECTED"
+    ) {
+      refundType = refundDecisionType.toLowerCase();
+    }
+    const refundReasonCode = normalizeLower(data.refundReasonCode);
+    const sellerDecisionNotes = String(
+      data.sellerDecisionNotes ?? data.notes ?? ""
+    ).trim();
+    const buyerVisibleExplanation = String(
+      data.refundExplanation ?? data.notes ?? ""
+    ).trim();
     // Legacy clients may still send a bare paymentId; current clients send
     // the full provider-aware RefundReference instead. Neither is required —
     // the authoritative source is always the stored sellerOrder/order
@@ -18711,7 +21767,11 @@ exports.triggerOrderReturnRefund = onCall(
       failRefundValidation("invalid-argument", "returnId required");
     }
 
-    if (!(refundAmount > 0)) {
+    if (
+      (!enforceRefundDecisionPolicy ||
+        refundDecisionType === "PARTIAL") &&
+      !(refundAmount > 0)
+    ) {
       failRefundValidation("invalid-argument", "refundAmount required");
     }
 
@@ -18755,7 +21815,13 @@ exports.triggerOrderReturnRefund = onCall(
       });
     }
 
-    if (!["received_by_seller", "refund_failed"].includes(returnStatus)) {
+    if (
+      ![
+        "received_by_seller",
+        "auto_received",
+        "refund_failed",
+      ].includes(returnStatus)
+    ) {
       failRefundValidation(
         "failed-precondition",
         "Return must be received before refund",
@@ -18773,6 +21839,129 @@ exports.triggerOrderReturnRefund = onCall(
       ? await db.collection("orders").doc(String(rootOrderId)).get()
       : null;
     const rootOrder = rootOrderSnap?.exists ? rootOrderSnap.data() || {} : {};
+
+    if (!sellerOrderSnap?.exists) {
+      failRefundValidation("not-found", "Seller order not found", {
+        sellerOrderId,
+        rootOrderId: returnData.rootOrderId || null,
+      });
+    }
+
+    const policyOriginalPaidAmount = Math.max(
+      0,
+      asNumber(
+        sellerOrder?.payment?.paidPrice ??
+        sellerOrder?.pricing?.grandTotal ??
+        sellerOrder?.financial?.grossAmount ??
+        sellerOrder?.payment?.price ??
+        0,
+        0
+      )
+    );
+    const policyReturnItemsAmount = Number(
+      sumReturnItemAmount(
+        Array.isArray(returnData.returnItems) ? returnData.returnItems : []
+      ).toFixed(2)
+    );
+    const policyOutboundShippingAmount = Math.max(
+      0,
+      asNumber(
+        sellerOrder?.pricing?.shippingTotal ??
+        sellerOrder?.shipping?.price ??
+        sellerOrder?.shipping?.amount ??
+        0,
+        0
+      )
+    );
+    const policyMaxAllowedRefund =
+      refundDecisionType === "PARTIAL"
+        ? Math.min(policyOriginalPaidAmount, policyReturnItemsAmount)
+        : Math.min(
+          policyOriginalPaidAmount,
+          policyReturnItemsAmount + policyOutboundShippingAmount
+        );
+
+    validateRefundDecisionPolicy({
+      decisionType: refundDecisionType,
+      reasonCode: refundReasonCode,
+      sellerNotes: sellerDecisionNotes,
+      buyerExplanation: buyerVisibleExplanation,
+      refundAmount,
+      maxAllowedRefund: policyMaxAllowedRefund,
+      enforcePolicy: enforceRefundDecisionPolicy,
+    });
+
+    if (refundDecisionType === "REJECTED") {
+      const rejectedAt = admin.firestore.FieldValue.serverTimestamp();
+      const rejectionDecision = buildRefundDecisionFields({
+        decisionType: "REJECTED",
+        reasonCode: refundReasonCode,
+        sellerNotes: sellerDecisionNotes,
+        buyerExplanation: buyerVisibleExplanation,
+        eligibleRefundAmount: policyOriginalPaidAmount,
+        finalRefundAmount: 0,
+        sellerDecisionAt: rejectedAt,
+        sellerDecisionUid: authUid,
+      });
+
+      await db.runTransaction(async (transaction) => {
+        const freshSnap = await transaction.get(returnRef);
+        if (!freshSnap.exists) {
+          throw new HttpsError("not-found", "Return request not found");
+        }
+        const freshData = freshSnap.data() || {};
+        const freshStatus = normalizeReturnStatus(freshData.status);
+        if (
+          ![
+            "received_by_seller",
+            "auto_received",
+            "refund_failed",
+          ].includes(freshStatus)
+        ) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Return must be received before refund decision"
+          );
+        }
+        const timeline = Array.isArray(freshData.timeline)
+          ? [...freshData.timeline]
+          : [];
+        addReturnTimelineStep(
+          timeline,
+          "refund_rejected",
+          authUid,
+          buyerVisibleExplanation,
+          {
+            refundReasonCode,
+          }
+        );
+        transaction.set(
+          returnRef,
+          {
+            status: "refund_rejected",
+            resolvedAt: rejectedAt,
+            updatedAt: rejectedAt,
+            refundAmount: 0,
+            ...rejectionDecision,
+            timeline,
+          },
+          { merge: true }
+        );
+      });
+
+      await createNotification(db, {
+        recipientUserId: returnData.buyerUid,
+        userId: returnData.buyerUid,
+        type: "order_return_refund_rejected",
+        title: "Refund rejected",
+        body: buyerVisibleExplanation,
+        orderId: rootOrderId,
+        sellerOrderId,
+        returnId,
+      });
+
+      return { success: true, decision: "REJECTED" };
+    }
 
     const sellerPayment = sellerOrder.payment || {};
     const rootPayment = rootOrder.payment || {};
@@ -18885,10 +22074,14 @@ exports.triggerOrderReturnRefund = onCall(
       refundType === "shipping"
         ? shippingAmount
         : refundType === "full"
-          ? Math.min(originalPaidAmount, returnItemsAmount + shippingAmount)
+          ? originalPaidAmount
           : Math.min(originalPaidAmount, returnItemsAmount);
     const requestedRefundAmount =
-      refundAmount > 0 ? refundAmount : asNumber(returnData.refundAmount, 0);
+      enforceRefundDecisionPolicy && refundDecisionType === "FULL"
+        ? maxAllowedRefund
+        : refundAmount > 0
+          ? refundAmount
+          : asNumber(returnData.refundAmount, 0);
     const clampedRefundAmount = Number(
       Math.min(
         requestedRefundAmount > 0 ? requestedRefundAmount : maxAllowedRefund,
@@ -19008,9 +22201,12 @@ exports.triggerOrderReturnRefund = onCall(
       }
 
       if (
-        !["received_by_seller", "refund_failed", "refund_pending"].includes(
-          freshStatus
-        )
+        ![
+          "received_by_seller",
+          "auto_received",
+          "refund_failed",
+          "refund_pending",
+        ].includes(freshStatus)
       ) {
         return { status: "invalidStatus", currentStatus: freshStatus };
       }
@@ -19024,6 +22220,41 @@ exports.triggerOrderReturnRefund = onCall(
         Date.now() + REFUND_CLAIM_LEASE_MS
       );
       const claimAt = admin.firestore.FieldValue.serverTimestamp();
+      const refundDecisionFields = enforceRefundDecisionPolicy
+        ? buildRefundDecisionFields({
+          decisionType: refundDecisionType,
+          reasonCode: refundReasonCode,
+          sellerNotes: sellerDecisionNotes,
+          buyerExplanation: buyerVisibleExplanation,
+          eligibleRefundAmount: originalPaidAmount,
+          finalRefundAmount: clampedRefundAmount,
+          sellerDecisionAt: claimAt,
+          sellerDecisionUid: authUid,
+        })
+        : {};
+      const effectiveReturnShipping =
+        freshData.returnShipping || {
+          responsibility:
+            normalizeReturnShippingResponsibility(
+              freshData.shippingResponsibility
+            ) || null,
+          resolution:
+            normalizeReturnShippingResponsibility(
+              freshData.shippingResponsibility
+            ) || null,
+          costAmount: null,
+          costStatus: "unknown",
+        };
+      const refundCalculation = buildRefundCalculation({
+        returnItemsAmount,
+        outboundShippingAmount: shippingAmount,
+        returnShipping: effectiveReturnShipping,
+        requestedRefundAmount,
+        maxAllowedRefund,
+        finalRefundAmount: clampedRefundAmount,
+        currency,
+        calculatedAt: claimAt,
+      });
       const claimTimeline = Array.isArray(freshData.timeline)
         ? [...freshData.timeline]
         : [];
@@ -19062,6 +22293,7 @@ exports.triggerOrderReturnRefund = onCall(
           ...refundReferenceFields,
           retryCount: claimedRetryCount,
         },
+        ...refundDecisionFields,
       };
 
       transaction.set(
@@ -19073,6 +22305,8 @@ exports.triggerOrderReturnRefund = onCall(
           updatedAt: claimAt,
           refundAmount: clampedRefundAmount,
           refundType,
+          refundCalculation,
+          ...refundDecisionFields,
           refundRetryCount: claimedRetryCount,
           paymentTransactionId: sellerPaymentTransactionId || null,
           paymentTransactionIds: sellerPaymentTransactionIds,
@@ -19351,7 +22585,18 @@ exports.triggerOrderReturnRefund = onCall(
           sellerOrderId,
           returnId,
           refundAmount: clampedRefundAmount,
+          refundedCommissionBase:
+            refundType === "shipping"
+              ? 0
+              : refundType === "full"
+                ? asNumber(sellerOrder?.pricing?.subtotal, 0)
+                : Math.min(returnItemsAmount, clampedRefundAmount),
+          isFullRefund:
+            refundType === "full" &&
+            clampedRefundAmount === Number(originalPaidAmount.toFixed(2)),
+          rootOrderId,
           reason: "order_return_refund",
+          actor: { type: "user", id: authUid },
         });
         logger.info("💳 REFUND PAYOUT SYNC", {
           returnId,
@@ -19380,7 +22625,7 @@ exports.triggerOrderReturnRefund = onCall(
             },
             { merge: true }
           )
-          .catch(() => {});
+          .catch(() => { });
       }
 
       logger.info("✅ RETURN REFUND SUCCESS", {
@@ -19967,6 +23212,23 @@ exports.onInvoiceReadyEmail = onDocumentUpdated(
     }
   }
 );
+async function recordInvoiceDiagnostic(doc, data, reason) {
+  const invoice = data.invoice || {};
+  if (invoice.diagnosticClassification === reason) return;
+  await doc.ref.set({
+    "invoice.diagnosticClassification": reason,
+    "invoice.diagnosticLoggedAt": admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+  logger.warn("⚠️ INVOICE DIAGNOSTIC", {
+    sellerOrderId: doc.id,
+    reason,
+    paymentStatus: data.paymentStatus || data.payment?.status || null,
+    sellerOrderStatus: data.status || null,
+    invoiceStatus: invoice.status || null,
+    uploadDeadlineAt: invoice.uploadDeadlineAt || null,
+  });
+}
+
 exports.checkPendingInvoices = onSchedule(
   {
     schedule: "every 5 minutes",
@@ -20008,22 +23270,18 @@ exports.checkPendingInvoices = onSchedule(
           uploadDeadlineAt: invoice.uploadDeadlineAt || null,
         });
 
-        const deadline = invoice.uploadDeadlineAt;
-
-        if (!deadline) {
-          logger.warn("⚠️ NO DEADLINE FOUND", {
-            sellerOrderId: doc.id,
-          });
+        const diagnosticReason = invoiceDiagnosticReason(data);
+        if (diagnosticReason) {
+          await recordInvoiceDiagnostic(doc, data, diagnosticReason);
           continue;
         }
+
+        const deadline = invoice.uploadDeadlineAt;
 
         const deadlineMillis = toMillisSafe(deadline);
 
         if (!deadlineMillis) {
-          logger.warn("⚠️ INVALID DEADLINE", {
-            sellerOrderId: doc.id,
-            deadline,
-          });
+          await recordInvoiceDiagnostic(doc, data, "invoice_deadline_invalid");
           continue;
         }
 
@@ -25188,7 +28446,13 @@ exports.verifyPetTaxiPayment = onCall(
       }
       const bookingData = bookingSnap.data() || {};
 
-      if (orderData.payment?.status === "paid") {
+      if (
+        orderData.payment?.status === "paid" &&
+        isVerifiedFinancial({
+          financialStatus: bookingData.financialStatus,
+          financial: bookingData.financial,
+        })
+      ) {
         return {
           success: true,
           alreadyPaid: true,
@@ -25270,6 +28534,7 @@ exports.verifyPetTaxiPayment = onCall(
         "payment.paymentTransactionIds": paymentTransactionIds,
         "payment.iyzicoPaymentTransactionId": paymentTransactionId || null,
         "payment.currency": result.currency || orderData.payment?.currency || orderData.pricing?.currency || "TRY",
+        financialStatus: FINANCIAL_STATUS.PENDING,
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -25277,21 +28542,34 @@ exports.verifyPetTaxiPayment = onCall(
       // Commission Engine
       // ========================================
 
-      const financial = await calculateCommission({
-        sector: "taxi",
-        finalPrice: Number(
-          result.paidPrice ||
-          result.price ||
-          bookingData.finalPrice ||
-          0
-        ),
-      });
+      let financial = null;
+      let financialError = null;
+      try {
+        financial = await calculateAppointmentFinancial({
+          collectionName: "pet_taxi_bookings",
+          record: bookingData,
+          paidAmount: positiveFinancialNumber(
+            result.paidPrice,
+            result.price,
+            bookingData.finalPrice
+          ),
+        });
+        assertVerifiedCanonicalFinancial(financial);
+      } catch (error) {
+        financialError = error;
+        logger.error("pet_taxi_paid_financial_snapshot_failed", {
+          orderId,
+          bookingId,
+          message: error?.message || String(error),
+        });
+      }
 
       logger.info("💰 Pet Taxi Commission Result", {
         bookingId,
         orderId,
         financial,
       });
+      const payoutTimestamp = admin.firestore.FieldValue.serverTimestamp();
       await bookingRef.update({
         paymentStatus: "paid",
         status: "confirmed_paid",
@@ -25303,7 +28581,7 @@ exports.verifyPetTaxiPayment = onCall(
         "invoice.pricing": appointmentInvoicePricingSnapshot({
           paymentAmount: result.paidPrice || result.price || bookingData.finalPrice || 0,
         }),
-        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        paidAt: payoutTimestamp,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         paymentOrderId: orderId,
         orderId,
@@ -25313,9 +28591,25 @@ exports.verifyPetTaxiPayment = onCall(
         paymentTransactionIds,
         iyzicoPaymentTransactionId: paymentTransactionId || null,
         paymentProvider: "iyzico",
+        financialStatus: financial
+          ? FINANCIAL_STATUS.VERIFIED
+          : FINANCIAL_STATUS.REQUIRES_REPAIR,
+        "payment.finalizationStatus": "completed",
+        "payment.finalizationCompletedAt": payoutTimestamp,
         paymentAmount: Number(result.paidPrice || result.price || bookingData.finalPrice || 0),
         paymentCurrency: result.currency || bookingData.finalPriceCurrency || "TRY",
-        financial,
+        ...(financial ? { financial } : {}),
+        ...(financialError
+          ? {
+            settlement: {
+              ...(bookingData.settlement || {}),
+              status: "blocked",
+              failureCode: "FINANCIAL_REPAIR_REQUIRED",
+              failureMessage: financialError.message || String(financialError),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          }
+          : {}),
         providerPayoutStatus: "pending_completion",
         providerPayoutAt: null,
         refundStatus: bookingData.refundStatus || "none",
@@ -25330,6 +28624,30 @@ exports.verifyPetTaxiPayment = onCall(
         },
 
       });
+
+      await orderRef.update({
+        financialStatus: financial
+          ? FINANCIAL_STATUS.VERIFIED
+          : FINANCIAL_STATUS.REQUIRES_REPAIR,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      if (!financialError) {
+        try {
+          await settlePayable({
+            db,
+            sector: "taxi",
+            recordRef: bookingRef,
+            actor: { type: "system", id: "iyzico_settlement" },
+          });
+        } catch (settlementError) {
+          logger.error("settlement_retryable_failure", {
+            orderId,
+            bookingId,
+            message: settlementError?.message || String(settlementError),
+          });
+        }
+      }
 
       const businessId = bookingData.businessId || orderData.businessId;
       let recipientUserId = businessId;
@@ -25837,5 +29155,289 @@ exports.sendTelegramMessage = onCall(
       ok: true,
       result,
     };
+  }
+);
+
+// ============================================================================
+// CREATOR REFERRAL ENGINE — SPRINT 1 (Creator Foundation)
+//
+// See docs/architecture/creator-referral-engine.md for the full target
+// architecture and docs/SPRINT1_REPORT.md for exactly what this sprint
+// covers. Intentionally minimal: profile bootstrap, referral code
+// assignment, and enable/disable. No applications, no admin review UI, no
+// click tracking, no attribution, no rewards, no payouts — all deferred to
+// later sprints per the ADR.
+//
+// Every function below is admin-only (isAdminUser) and writes exclusively
+// through the Admin SDK, which bypasses firestore.rules entirely — this is
+// what makes the SEC-1 fix in firestore.rules meaningful: the `creator` map
+// is reachable only from here, never from a client write.
+// ============================================================================
+
+const CREATOR_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous 0/O/1/I
+
+function normalizeCreatorUid(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function randomCreatorCodeSuffix(length) {
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += CREATOR_CODE_ALPHABET[crypto.randomInt(CREATOR_CODE_ALPHABET.length)];
+  }
+  return out;
+}
+
+function creatorCodeBase(username) {
+  const cleaned = String(username || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 10);
+  return cleaned || "CREATOR";
+}
+
+async function requireCreatorAdmin(auth) {
+  if (!auth?.uid) {
+    throw new HttpsError("unauthenticated", "Login required.");
+  }
+  if (!(await isAdminUser(db, auth.uid))) {
+    throw new HttpsError("permission-denied", "Admin access required.");
+  }
+}
+
+/**
+ * Bootstraps an inactive creator profile on users/{uid}.creator.
+ * Idempotent: calling this twice on an existing profile is a no-op, not an
+ * error, matching this codebase's established idempotency conventions
+ * (e.g. createWebSubscriptionCheckout's existing-order handling).
+ */
+exports.createCreatorProfile = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    await requireCreatorAdmin(request.auth);
+
+    const targetUid = normalizeCreatorUid(request.data?.uid);
+    if (!targetUid) {
+      throw new HttpsError("invalid-argument", "uid required");
+    }
+
+    const userRef = db.collection("users").doc(targetUid);
+
+    const result = await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Target user does not exist.");
+      }
+      const existing = snap.data()?.creator;
+      if (existing) {
+        return { status: existing.status || "inactive", alreadyExisted: true };
+      }
+      transaction.update(userRef, {
+        creator: {
+          enabled: false,
+          status: "inactive",
+          referralCode: null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+      });
+      return { status: "inactive", alreadyExisted: false };
+    });
+
+    logger.info("creator_profile_created", {
+      targetUid,
+      adminUid: request.auth.uid,
+      alreadyExisted: result.alreadyExisted,
+    });
+
+    return { uid: targetUid, status: result.status };
+  }
+);
+
+/**
+ * Generates and atomically assigns a unique, permanent referral code.
+ * Uniqueness is enforced by using the code itself as the referralCodes
+ * document ID and relying on transaction.create() to fail on collision —
+ * the same idiom this codebase already uses for orders/{orderId} and
+ * websub_{...} deterministic IDs.
+ */
+exports.assignReferralCode = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    await requireCreatorAdmin(request.auth);
+
+    const targetUid = normalizeCreatorUid(request.data?.uid);
+    if (!targetUid) {
+      throw new HttpsError("invalid-argument", "uid required");
+    }
+
+    const userRef = db.collection("users").doc(targetUid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      throw new HttpsError("not-found", "Target user does not exist.");
+    }
+
+    const existingCreator = userSnap.data()?.creator;
+    if (!existingCreator) {
+      throw new HttpsError(
+        "failed-precondition",
+        "createCreatorProfile must be called before assignReferralCode."
+      );
+    }
+    if (existingCreator.referralCode) {
+      // Codes are permanent (ADR Business Rules) — re-calling this is a
+      // read, not a regeneration.
+      return { uid: targetUid, referralCode: existingCreator.referralCode };
+    }
+
+    const base = creatorCodeBase(userSnap.data()?.username);
+    let assignedCode = null;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < 8 && !assignedCode; attempt++) {
+      const suffixLength = attempt === 0 ? 2 : 4;
+      const candidate = `${base}${randomCreatorCodeSuffix(suffixLength)}`;
+      const codeRef = db.collection("referralCodes").doc(candidate);
+
+      try {
+        await db.runTransaction(async (transaction) => {
+          const codeSnap = await transaction.get(codeRef);
+          if (codeSnap.exists) {
+            throw new HttpsError("already-exists", "collision");
+          }
+          transaction.create(codeRef, {
+            creatorUid: targetUid,
+            active: true,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          transaction.update(userRef, {
+            "creator.referralCode": candidate,
+            "creator.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+          });
+        });
+        assignedCode = candidate;
+      } catch (error) {
+        lastError = error;
+        if (error instanceof HttpsError && error.code === "already-exists") {
+          continue; // collision — retry with a new random suffix
+        }
+        throw error;
+      }
+    }
+
+    if (!assignedCode) {
+      logger.warn("creator_referral_code_generation_exhausted", {
+        targetUid,
+        lastError: lastError?.message || String(lastError),
+      });
+      throw new HttpsError(
+        "aborted",
+        "Could not generate a unique referral code — please retry."
+      );
+    }
+
+    logger.info("creator_referral_code_assigned", {
+      targetUid,
+      adminUid: request.auth.uid,
+    });
+
+    return { uid: targetUid, referralCode: assignedCode };
+  }
+);
+
+/**
+ * Activates a creator profile: flips creator.enabled true and
+ * creator.status to "active". Requires a referral code to already exist —
+ * a creator cannot be activated without a working referral link.
+ */
+exports.activateCreator = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    await requireCreatorAdmin(request.auth);
+
+    const targetUid = normalizeCreatorUid(request.data?.uid);
+    if (!targetUid) {
+      throw new HttpsError("invalid-argument", "uid required");
+    }
+
+    const userRef = db.collection("users").doc(targetUid);
+
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Target user does not exist.");
+      }
+      const creator = snap.data()?.creator;
+      if (!creator) {
+        throw new HttpsError(
+          "failed-precondition",
+          "createCreatorProfile must be called before activateCreator."
+        );
+      }
+      if (!creator.referralCode) {
+        throw new HttpsError(
+          "failed-precondition",
+          "assignReferralCode must be called before activateCreator."
+        );
+      }
+      transaction.update(userRef, {
+        "creator.enabled": true,
+        "creator.status": "active",
+        "creator.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    logger.info("creator_activated", {
+      targetUid,
+      adminUid: request.auth.uid,
+    });
+
+    return { uid: targetUid, enabled: true, status: "active" };
+  }
+);
+
+/**
+ * Deactivates a creator profile: flips creator.enabled false and
+ * creator.status back to "inactive". Does NOT clear the referral code —
+ * codes are permanent and history is never rewritten (ADR Principle 4),
+ * only the active/enabled state changes.
+ */
+exports.deactivateCreator = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    await requireCreatorAdmin(request.auth);
+
+    const targetUid = normalizeCreatorUid(request.data?.uid);
+    if (!targetUid) {
+      throw new HttpsError("invalid-argument", "uid required");
+    }
+
+    const userRef = db.collection("users").doc(targetUid);
+
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Target user does not exist.");
+      }
+      const creator = snap.data()?.creator;
+      if (!creator) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This user does not have a creator profile."
+        );
+      }
+      transaction.update(userRef, {
+        "creator.enabled": false,
+        "creator.status": "inactive",
+        "creator.updatedAt": admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    logger.info("creator_deactivated", {
+      targetUid,
+      adminUid: request.auth.uid,
+    });
+
+    return { uid: targetUid, enabled: false, status: "inactive" };
   }
 );

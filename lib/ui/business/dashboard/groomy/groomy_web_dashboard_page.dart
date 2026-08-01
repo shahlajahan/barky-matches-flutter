@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../web/business_web_dashboard_shell.dart';
-import '../vet/web/revenue/vet_revenue_repository.dart';
-import '../vet/web/revenue/vet_revenue_section.dart';
+import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
 import 'groomy_dashboard_page.dart';
 
 class GroomyWebDashboardPage extends StatelessWidget {
@@ -33,11 +32,9 @@ class GroomyWebDashboardPage extends StatelessWidget {
         label: 'Revenue',
         subtitle: 'Verified payments and settlement data',
         icon: LucideIcons.lineChart,
-        child: VetRevenueSection(
+        child: SellerFinanceSummarySection(
           businessId: businessId,
-          repository: VetRevenueRepository(
-            collectionName: 'groomy_appointments',
-          ),
+          recordLabel: 'appointments',
         ),
       ),
     ],

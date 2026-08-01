@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionCenterDashboardInfoTab extends StatefulWidget {
   final String businessId;
@@ -102,63 +103,63 @@ class _AdoptionCenterDashboardInfoTabState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Adoption Center Info',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+          Text(
+            AppLocalizations.of(context)!.adoptionCenterInfo,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 18),
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Center name'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.centerNameLabel),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _descriptionController,
             maxLines: 4,
-            decoration: const InputDecoration(labelText: 'Description'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.description),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Phone'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.phoneLabel),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _whatsappController,
-            decoration: const InputDecoration(labelText: 'WhatsApp'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.whatsappLabel),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _websiteController,
-            decoration: const InputDecoration(labelText: 'Website'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.websiteLabel),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _instagramController,
-            decoration: const InputDecoration(labelText: 'Instagram'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.instagram),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _cityController,
-            decoration: const InputDecoration(labelText: 'City'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.cityLabel),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _districtController,
-            decoration: const InputDecoration(labelText: 'District'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.districtLabel),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _addressController,
             maxLines: 2,
-            decoration: const InputDecoration(labelText: 'Address'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context)!.address),
           ),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _save,
-              child: const Text('Save Center Info'),
+              child: Text(AppLocalizations.of(context)!.saveCenterInfo),
             ),
           ),
         ],

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../../core/debug/diagnostics_queue.dart';
 import '../../core/debug/diagnostics_report.dart';
@@ -117,17 +118,18 @@ class _DiagnosticsSectionState extends State<DiagnosticsSection> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'Diagnostics',
+          l10n.diagnosticsSectionTitle,
           style: theme.textTheme.headlineSmall,
         ),
         const SizedBox(height: 8),
         Text(
-          'Internal diagnostics tools for queue inspection and upload testing.',
+          l10n.diagnosticsSectionDescription,
           style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
@@ -136,7 +138,7 @@ class _DiagnosticsSectionState extends State<DiagnosticsSection> {
           description: 'Trigger an unhandled exception for diagnostics testing.',
           trailing: FilledButton(
             onPressed: _busy ? null : _throwTestException,
-            child: const Text('Throw'),
+            child: Text(l10n.diagnosticsThrowButton),
           ),
         ),
         const SizedBox(height: 12),
@@ -150,7 +152,7 @@ class _DiagnosticsSectionState extends State<DiagnosticsSection> {
                 : () {
                     unawaited(_runBusy(_testFirestorePermissionDenied));
                   },
-            child: const Text('Test'),
+            child: Text(l10n.diagnosticsTestButton),
           ),
         ),
         const SizedBox(height: 12),
@@ -168,7 +170,7 @@ class _DiagnosticsSectionState extends State<DiagnosticsSection> {
                       }),
                     );
                   },
-            child: const Text('Upload'),
+            child: Text(l10n.diagnosticsUploadButton),
           ),
         ),
         const SizedBox(height: 12),
@@ -181,7 +183,7 @@ class _DiagnosticsSectionState extends State<DiagnosticsSection> {
                 : () {
                     unawaited(_runBusy(_refresh));
                   },
-            child: const Text('Refresh'),
+            child: Text(l10n.diagnosticsRefreshButton),
           ),
         ),
         const SizedBox(height: 12),
@@ -194,7 +196,7 @@ class _DiagnosticsSectionState extends State<DiagnosticsSection> {
                 : () {
                     unawaited(_runBusy(_refresh));
                   },
-            child: const Text('Refresh'),
+            child: Text(l10n.diagnosticsRefreshButton),
           ),
         ),
         const SizedBox(height: 12),
@@ -212,7 +214,7 @@ class _DiagnosticsSectionState extends State<DiagnosticsSection> {
                       }),
                     );
                   },
-            child: const Text('Clear'),
+            child: Text(l10n.diagnosticsClearButton),
           ),
         ),
       ],

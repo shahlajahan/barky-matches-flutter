@@ -81,6 +81,7 @@ enum ProfileSubPage {
   faq,
   appointmentStatus,
   appointmentHistory,
+  creatorDashboard,
 }
 
 enum GlobalRoute { none, feedback, reportProblem, privacy }
@@ -550,6 +551,55 @@ class AppState with ChangeNotifier {
     _businessStatus = null;
     _isBusinessVerified = false;
     _businessSectors = [];
+    notifyListeners();
+  }
+
+  // ─────────────────────────────
+  // CREATOR STATE (CREATOR PROGRAM)
+  // ─────────────────────────────
+  // Mirrors the BUSINESS STATE section above: populated from the same
+  // users/{uid} document (a sibling `creator` map next to `business`), by
+  // the same live snapshot listener and cached-profile path, and gates
+  // Profile page access the same way `hasApprovedBusiness` gates the
+  // Business Dashboard card.
+
+  bool _creatorEnabled = false;
+  String? _creatorStatus;
+  String? _creatorLevel;
+  String? _creatorReferralCode;
+  String? _creatorCampaign;
+
+  bool get creatorEnabled => _creatorEnabled;
+  String? get creatorStatus => _creatorStatus;
+  String? get creatorLevel => _creatorLevel;
+  String? get creatorReferralCode => _creatorReferralCode;
+  String? get creatorCampaign => _creatorCampaign;
+
+  // Derived, not stored (docs/architecture/creator-referral-engine.md,
+  // "Refinement over the current shipped contract"): the link is always
+  // this exact template applied to the canonical referral code, so there
+  // is only ever one source of truth for it. Public marketing domain, not
+  // app.petsupo.com — a referral link's job is to land a logged-out
+  // visitor on a conversion page, which is a marketing-site concern
+  // distinct from the authenticated Flutter Web app.
+  String? get creatorReferralLink => _creatorReferralCode == null
+      ? null
+      : 'https://petsupo.com/r/$_creatorReferralCode';
+
+  void _applyCreatorMap(dynamic creator) {
+    _creatorEnabled = creator?['enabled'] == true;
+    _creatorStatus = creator?['status']?.toString();
+    _creatorLevel = creator?['level']?.toString();
+    _creatorReferralCode = creator?['referralCode']?.toString();
+    _creatorCampaign = creator?['currentCampaign']?.toString();
+  }
+
+  void clearCreatorState() {
+    _creatorEnabled = false;
+    _creatorStatus = null;
+    _creatorLevel = null;
+    _creatorReferralCode = null;
+    _creatorCampaign = null;
     notifyListeners();
   }
 
@@ -1383,6 +1433,8 @@ class AppState with ChangeNotifier {
           [];
     }
 
+    _applyCreatorMap(cached['creator']);
+
     return true;
   }
 
@@ -1515,6 +1567,12 @@ class AppState with ChangeNotifier {
     _businessSectors = [];
     _isAccountSuspended = false;
     _accountModerationReason = null;
+
+    _creatorEnabled = false;
+    _creatorStatus = null;
+    _creatorLevel = null;
+    _creatorReferralCode = null;
+    _creatorCampaign = null;
 
     _favoriteDogs.clear();
     favoriteDogsNotifier.value = <Dog>[];
@@ -2572,6 +2630,15 @@ class AppState with ChangeNotifier {
               final newId = business?['businessId'];
               final newVerified = business?['isVerified'] == true;
 
+              final creator = doc.data()?['creator'];
+              final newCreatorEnabled = creator?['enabled'] == true;
+              final newCreatorStatus = creator?['status']?.toString();
+              final newCreatorLevel = creator?['level']?.toString();
+              final newCreatorReferralCode = creator?['referralCode']
+                  ?.toString();
+              final newCreatorCampaign = creator?['currentCampaign']
+                  ?.toString();
+
               final accountStatus = doc.data()?['accountStatus'];
               final newSuspended =
                   accountStatus == 'suspended' || accountStatus == 'blocked';
@@ -2581,12 +2648,22 @@ class AppState with ChangeNotifier {
                   _businessId != newId ||
                   _isBusinessVerified != newVerified ||
                   _isAccountSuspended != newSuspended ||
-                  _accountModerationReason != newReason) {
+                  _accountModerationReason != newReason ||
+                  _creatorEnabled != newCreatorEnabled ||
+                  _creatorStatus != newCreatorStatus ||
+                  _creatorLevel != newCreatorLevel ||
+                  _creatorReferralCode != newCreatorReferralCode ||
+                  _creatorCampaign != newCreatorCampaign) {
                 _businessStatus = newStatus;
                 _businessId = newId;
                 _isBusinessVerified = newVerified;
                 _isAccountSuspended = newSuspended;
                 _accountModerationReason = newReason;
+                _creatorEnabled = newCreatorEnabled;
+                _creatorStatus = newCreatorStatus;
+                _creatorLevel = newCreatorLevel;
+                _creatorReferralCode = newCreatorReferralCode;
+                _creatorCampaign = newCreatorCampaign;
                 notifyListeners();
               }
             },
@@ -3131,6 +3208,8 @@ class AppState with ChangeNotifier {
                 ?.map((e) => e.toString())
                 .toList() ??
             [];
+
+        _applyCreatorMap(data['creator']);
 
         debugPrint(
           '✅ Username & business loaded → $_username / status=$_businessStatus',

@@ -7,6 +7,8 @@ import '../../l10n/app_localizations.dart';
 import '../../models/order_return.dart';
 import '../../services/order_return_service.dart';
 import '../../theme/app_theme.dart';
+import 'refund_decision_dialog.dart';
+import 'return_shipping_summary_card.dart';
 
 class OrderReturnCard extends StatefulWidget {
   final OrderReturnRecord record;
@@ -56,12 +58,20 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
         return Colors.red;
       case OrderReturnStatus.shippedBack:
         return Colors.teal;
+      case OrderReturnStatus.waitingForSellerConfirmation:
+        return Colors.orange;
       case OrderReturnStatus.receivedBySeller:
         return Colors.deepPurple;
+      case OrderReturnStatus.autoReceived:
+        return Colors.indigo;
+      case OrderReturnStatus.dispute:
+        return Colors.red;
       case OrderReturnStatus.refundPending:
         return Colors.orange;
       case OrderReturnStatus.refundFailed:
         return Colors.redAccent;
+      case OrderReturnStatus.refundRejected:
+        return Colors.red;
       case OrderReturnStatus.refunded:
         return Colors.green;
       case OrderReturnStatus.cancelled:
@@ -79,12 +89,20 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
         return l10n.returnStatusRejected;
       case OrderReturnStatus.shippedBack:
         return l10n.returnStatusShippedBack;
+      case OrderReturnStatus.waitingForSellerConfirmation:
+        return l10n.returnStatusWaitingSellerConfirmation;
       case OrderReturnStatus.receivedBySeller:
         return l10n.returnStatusReceivedBySeller;
+      case OrderReturnStatus.autoReceived:
+        return l10n.returnStatusAutoReceived;
+      case OrderReturnStatus.dispute:
+        return l10n.returnStatusDispute;
       case OrderReturnStatus.refundPending:
         return l10n.returnStatusRefundPending;
       case OrderReturnStatus.refundFailed:
         return l10n.returnStatusRefundFailed;
+      case OrderReturnStatus.refundRejected:
+        return l10n.refundRejectedStatusLabel;
       case OrderReturnStatus.refunded:
         return l10n.returnStatusRefunded;
       case OrderReturnStatus.cancelled:
@@ -120,16 +138,37 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
     }
   }
 
-  String _shippingResponsibilityLabel(AppLocalizations l10n, String value) {
-    switch (value) {
-      case 'buyer':
-        return l10n.shippingResponsibilityBuyerLabel;
-      case 'seller':
-        return l10n.shippingResponsibilitySellerLabel;
-      case 'seller_if_contract_carrier':
-      default:
-        return l10n.shippingResponsibilityContractCarrierLabel;
+  String _refundDecisionReasonLabel(AppLocalizations l10n, String? code) {
+    return switch (code) {
+      'item_returned_damaged' => l10n.refundReasonItemReturnedDamaged,
+      'missing_accessories' => l10n.refundReasonMissingAccessories,
+      'customer_caused_damage' => l10n.refundReasonCustomerCausedDamage,
+      'restocking_fee' => l10n.refundReasonRestockingFee,
+      'partial_return' => l10n.refundReasonPartialReturn,
+      'seller_mistake' => l10n.refundReasonSellerMistake,
+      'wrong_item' => l10n.refundReasonWrongItem,
+      'defective_product' => l10n.refundReasonDefectiveProduct,
+      'item_never_delivered' => l10n.refundReasonItemNeverDelivered,
+      _ => l10n.refundReasonOther,
+    };
+  }
+
+  ReturnShippingDisplayType _returnShippingDisplayType() {
+    if (widget.record.hasVerifiedContractedReturnCarrier) {
+      return ReturnShippingDisplayType.contractedCarrier;
     }
+    return widget.record.resolvedShippingResponsibility == 'buyer'
+        ? ReturnShippingDisplayType.buyer
+        : ReturnShippingDisplayType.seller;
+  }
+
+  String _inspectionDeadlineText(AppLocalizations l10n) {
+    final deadline = widget.record.sellerConfirmationDeadlineAt?.toDate();
+    if (deadline == null) return '';
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining.isNegative) return l10n.inspectionDeadlinePassed;
+    final days = (remaining.inHours / 24).ceil().clamp(1, 999);
+    return l10n.inspectionDaysRemaining(days);
   }
 
   String _trackingUrl(String carrier, String code) {
@@ -371,49 +410,61 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
     if (_isProcessingReturn) return;
     final l10n = AppLocalizations.of(context)!;
     final trackingController = TextEditingController();
-    final originalCarrier = await OrderReturnService.instance
-        .resolveOriginalCarrierForReturn(
-          sellerOrderId: widget.record.sellerOrderId,
-          rootOrderId: widget.record.rootOrderId,
-        );
+    final verifiedCarrier = widget.record.verifiedReturnCarrier;
+    final originalCarrier = verifiedCarrier == null
+        ? await OrderReturnService.instance.resolveOriginalCarrierForReturn(
+            sellerOrderId: widget.record.sellerOrderId,
+            rootOrderId: widget.record.rootOrderId,
+          )
+        : null;
 
     if (!context.mounted) return;
 
-    if (originalCarrier == null || originalCarrier.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.carrierMissingFromOrder)));
-      return;
-    }
-
-    final carrierController = TextEditingController(text: originalCarrier);
+    final carrierController = TextEditingController(
+      text: verifiedCarrier ?? originalCarrier ?? '',
+    );
+    final usesVerifiedCarrier =
+        widget.record.hasVerifiedContractedReturnCarrier;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(l10n.markShippedBackButton),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: carrierController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: l10n.returnCarrierLabel,
-                  helperText: l10n.returnCarrierHelperText,
-                ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ReturnShippingSummaryCard(
+                    type: _returnShippingDisplayType(),
+                    carrierCode: verifiedCarrier,
+                    shipBackContext: true,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: carrierController,
+                    readOnly: usesVerifiedCarrier,
+                    decoration: InputDecoration(
+                      labelText: l10n.returnCarrierLabel,
+                      helperText: usesVerifiedCarrier
+                          ? l10n.returnShippingVerifiedCarrierHelper
+                          : l10n.returnCarrierEnterHelperText,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: trackingController,
+                    decoration: InputDecoration(
+                      labelText: l10n.returnTrackingNumberLabel,
+                      hintText: l10n.enterTrackingNumber,
+                      helperText: l10n.returnTrackingNumberHelperText,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: trackingController,
-                decoration: InputDecoration(
-                  labelText: l10n.returnTrackingNumberLabel,
-                  hintText: l10n.enterTrackingNumber,
-                  helperText: l10n.returnTrackingNumberHelperText,
-                ),
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -481,171 +532,176 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
   }
 
   Future<void> _showRefundDialog(BuildContext context) async {
-  if (_refundLoading) return;
+    if (_refundLoading) return;
 
-  final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
-  final amountController = TextEditingController(
-    text: widget.record.refundAmount.toStringAsFixed(2),
-  );
+    try {
+      setState(() => _refundLoading = true);
+      final amounts = await OrderReturnService.instance.loadRefundPolicyAmounts(
+        record: widget.record,
+      );
+      if (!context.mounted) return;
+      final decision = await showRefundDecisionDialog(
+        context: context,
+        amounts: amounts,
+      );
+      if (decision == null || !context.mounted) return;
 
-  final notesController = TextEditingController();
+      RefundReference? refundReference;
+      if (decision.type != RefundDecisionType.rejected) {
+        final directReference = RefundReference.fromMap(
+          widget.record.refundDetails,
+        );
+        refundReference = directReference.hasIdentifier
+            ? directReference
+            : await OrderReturnService.instance.resolveRefundReferenceForReturn(
+                returnId: widget.record.returnId,
+              );
+        if (refundReference == null) {
+          throw FirebaseException(
+            plugin: 'order_returns',
+            code: 'missing-refund-reference',
+          );
+        }
+      }
 
-  String refundType = widget.record.refundType.value;
+      await OrderReturnService.instance.triggerRefund(
+        returnId: widget.record.returnId,
+        refundAmount: decision.amount,
+        refundType: decision.type == RefundDecisionType.partial
+            ? 'partial'
+            : 'full',
+        refundReference: refundReference,
+        refundDecisionType: decision.type.name.toUpperCase(),
+        refundReasonCode: decision.reasonCode,
+        sellerDecisionNotes: decision.sellerNotes,
+        refundExplanation: decision.buyerExplanation,
+      );
 
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
-        title: Text(l10n.triggerRefundButton),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) {
-            return SingleChildScrollView(
+      widget.onChanged?.call();
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.returnActionCompleted)));
+    } on FirebaseException catch (e) {
+      if (!context.mounted) return;
+
+      final message = e.code == 'unavailable'
+          ? 'Connection to the server is temporarily unavailable. Please try again.'
+          : (e.message ?? e.code);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.errorOccurred(message))));
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.errorOccurred(e.toString()))));
+    } finally {
+      if (mounted) {
+        setState(() => _refundLoading = false);
+      }
+    }
+  }
+
+  Future<void> _showDisputeDialog(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final notesController = TextEditingController();
+    String? reasonCode;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l10n.reportReturnProblemTitle),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: amountController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: l10n.refundAmountLabel,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: refundType,
+                    initialValue: reasonCode,
+                    isExpanded: true,
                     decoration: InputDecoration(
-                      labelText: l10n.refundTypeLabel,
+                      labelText: l10n.disputeReasonLabel,
                     ),
                     items: [
                       DropdownMenuItem(
-                        value: 'full',
-                        child: Text(l10n.refundTypeFullLabel),
+                        value: 'package_not_received',
+                        child: Text(l10n.disputeReasonPackageNotReceived),
                       ),
                       DropdownMenuItem(
-                        value: 'partial',
-                        child: Text(l10n.refundTypePartialLabel),
+                        value: 'wrong_item_returned',
+                        child: Text(l10n.disputeReasonWrongItemReturned),
                       ),
                       DropdownMenuItem(
-                        value: 'shipping',
-                        child: Text(l10n.refundTypeShippingLabel),
+                        value: 'empty_package',
+                        child: Text(l10n.disputeReasonEmptyPackage),
+                      ),
+                      DropdownMenuItem(
+                        value: 'missing_accessories',
+                        child: Text(l10n.refundReasonMissingAccessories),
+                      ),
+                      DropdownMenuItem(
+                        value: 'damaged_during_return',
+                        child: Text(l10n.disputeReasonDamagedDuringReturn),
+                      ),
+                      DropdownMenuItem(
+                        value: 'tracking_issue',
+                        child: Text(l10n.disputeReasonTrackingIssue),
+                      ),
+                      DropdownMenuItem(
+                        value: 'other',
+                        child: Text(l10n.refundReasonOther),
                       ),
                     ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => refundType = value);
-                    },
+                    onChanged: (value) =>
+                        setDialogState(() => reasonCode = value),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: notesController,
-                    maxLines: 3,
+                    maxLines: 4,
+                    onChanged: (_) => setDialogState(() {}),
                     decoration: InputDecoration(
-                      labelText: l10n.notesOptional,
-                      hintText: l10n.descriptionLabel,
+                      labelText: l10n.refundSellerNotesLabel,
                     ),
                   ),
                 ],
               ),
-            );
-          },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed:
+                  reasonCode != null &&
+                      (reasonCode != 'other' ||
+                          notesController.text.trim().isNotEmpty)
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: Text(l10n.reportProblemButton),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(l10n.triggerRefundButton),
-          ),
-        ],
-      );
-    },
-  );
-
-  if (confirmed != true) return;
-
-  if (mounted) {
-    setState(() => _refundLoading = true);
-  }
-
-  try {
-    // No caller extracts paymentId directly anymore — Iyzico and İş Bank
-    // are addressed by different identifiers, so the provider-aware
-    // RefundReference is resolved (and passed through) as a whole.
-    final directReference = RefundReference.fromMap(
-      widget.record.refundDetails,
+      ),
     );
-
-    final resolvedReference = directReference.hasIdentifier
-        ? directReference
-        : await OrderReturnService.instance.resolveRefundReferenceForReturn(
-            returnId: widget.record.returnId,
-          );
-
-    if (!context.mounted) return;
-
-    if (resolvedReference == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.errorOccurred('Missing refund reference'),
-          ),
-        ),
-      );
-      return;
-    }
-
-    await OrderReturnService.instance.triggerRefund(
+    if (confirmed != true || reasonCode == null) return;
+    await OrderReturnService.instance.reportReturnProblem(
       returnId: widget.record.returnId,
-      refundAmount: double.tryParse(amountController.text.trim()) ?? 0,
-      refundType: refundType,
-      refundReference: resolvedReference,
-      notes: notesController.text.trim().isEmpty
-          ? null
-          : notesController.text.trim(),
+      disputeReasonCode: reasonCode!,
+      sellerNotes: notesController.text.trim(),
     );
-
     widget.onChanged?.call();
-
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.returnActionCompleted),
-      ),
-    );
-  } on FirebaseException catch (e) {
-    if (!context.mounted) return;
-
-    final message = e.code == 'unavailable'
-        ? 'Connection to the server is temporarily unavailable. Please try again.'
-        : (e.message ?? e.code);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          l10n.errorOccurred(message),
-        ),
-      ),
-    );
-  } catch (e) {
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          l10n.errorOccurred(e.toString()),
-        ),
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() => _refundLoading = false);
-    }
   }
-}
 
   Future<void> _markReceived(BuildContext context) async {
     if (_isProcessingReturn) return;
@@ -754,14 +810,124 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
             children: [
               _chip('${l10n.returnAmountLabel}: $amountLabel'),
               _chip(
-                '${l10n.shippingResponsibilityLabel}: '
-                '${_shippingResponsibilityLabel(l10n, widget.record.shippingResponsibility)}',
-              ),
-              _chip(
                 '${l10n.refundTypeLabel}: ${_refundTypeLabel(l10n, widget.record.refundType)}',
               ),
             ],
           ),
+          if (widget.isBuyer &&
+              widget.record.status != OrderReturnStatus.pending &&
+              widget.record.status != OrderReturnStatus.rejected &&
+              widget.record.status != OrderReturnStatus.cancelled) ...[
+            const SizedBox(height: 18),
+            ReturnShippingSummaryCard(
+              type: _returnShippingDisplayType(),
+              carrierCode: widget.record.verifiedReturnCarrier,
+            ),
+          ],
+          if (widget.record.status ==
+                  OrderReturnStatus.waitingForSellerConfirmation &&
+              widget.record.sellerConfirmationDeadlineAt != null) ...[
+            const SizedBox(height: 18),
+            Card(
+              margin: EdgeInsets.zero,
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.isSeller
+                          ? l10n.inspectionDeadlineTitle
+                          : l10n.waitingForSellerInspectionTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.isSeller
+                          ? _inspectionDeadlineText(l10n)
+                          : l10n.waitingForSellerInspectionMessage(
+                              _formatDate(
+                                widget.record.sellerConfirmationDeadlineAt!
+                                    .toDate(),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (widget.record.status == OrderReturnStatus.dispute) ...[
+            const SizedBox(height: 18),
+            Card(
+              margin: EdgeInsets.zero,
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: ListTile(
+                leading: const Icon(Icons.gavel_rounded),
+                title: Text(l10n.returnStatusDispute),
+                subtitle: Text(
+                  widget.record.sellerNotes ??
+                      widget.record.disputeReason ??
+                      '',
+                ),
+              ),
+            ),
+          ],
+          if (widget.isBuyer && widget.record.refundDecisionType != null) ...[
+            const SizedBox(height: 18),
+            Card(
+              margin: EdgeInsets.zero,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.refundDecisionBuyerTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _decisionDetailRow(
+                      l10n.refundDecisionLabel,
+                      switch (widget.record.refundDecisionType) {
+                        'FULL' => l10n.refundDecisionFullTitle,
+                        'PARTIAL' => l10n.refundDecisionPartialTitle,
+                        _ => l10n.refundDecisionRejectTitle,
+                      },
+                    ),
+                    _decisionDetailRow(
+                      l10n.refundSummaryRefundLabel,
+                      '${widget.record.refundAmount.toStringAsFixed(2)} TRY',
+                    ),
+                    if (widget.record.refundDifference > 0)
+                      _decisionDetailRow(
+                        l10n.refundDifferenceLabel,
+                        '${widget.record.refundDifference.toStringAsFixed(2)} TRY',
+                      ),
+                    _decisionDetailRow(
+                      l10n.refundDecisionReasonLabel,
+                      _refundDecisionReasonLabel(
+                        l10n,
+                        widget.record.refundReasonCode,
+                      ),
+                    ),
+                    if (widget.record.refundExplanation != null)
+                      _decisionDetailRow(
+                        l10n.refundSellerExplanationLabel,
+                        widget.record.refundExplanation!,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (widget.record.returnItems.isNotEmpty) ...[
             const SizedBox(height: 18),
             Text(
@@ -951,7 +1117,9 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                 ),
               if (widget.isSeller &&
                   (widget.record.status == OrderReturnStatus.approved ||
-                      widget.record.status == OrderReturnStatus.shippedBack))
+                      widget.record.status == OrderReturnStatus.shippedBack ||
+                      widget.record.status ==
+                          OrderReturnStatus.waitingForSellerConfirmation))
                 ElevatedButton(
                   onPressed: _isProcessingReturn
                       ? null
@@ -959,7 +1127,16 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
                   child: Text(l10n.markReceivedButton),
                 ),
               if (widget.isSeller &&
+                  widget.record.status ==
+                      OrderReturnStatus.waitingForSellerConfirmation)
+                OutlinedButton.icon(
+                  onPressed: () => _showDisputeDialog(context),
+                  icon: const Icon(Icons.report_problem_outlined),
+                  label: Text(l10n.reportProblemButton),
+                ),
+              if (widget.isSeller &&
                   (widget.record.status == OrderReturnStatus.receivedBySeller ||
+                      widget.record.status == OrderReturnStatus.autoReceived ||
                       widget.record.status == OrderReturnStatus.refundFailed))
                 ElevatedButton(
                   onPressed: _refundLoading
@@ -986,6 +1163,26 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
         style: AppTheme.caption(
           color: AppTheme.textDark,
         ).copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _decisionDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
   }

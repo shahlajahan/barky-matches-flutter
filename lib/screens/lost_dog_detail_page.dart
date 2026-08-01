@@ -7,6 +7,7 @@ import '../../app_state.dart';
 import '../../theme/app_theme.dart';
 import '../models/lost_dog.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class LostDogDetailPage extends StatelessWidget {
   final LostDog lostDog;
@@ -15,6 +16,7 @@ class LostDogDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isFound = lostDog.isFound;
 
     return SafeArea(
@@ -35,7 +37,7 @@ class LostDogDetailPage extends StatelessWidget {
                   },
                 ),
                 const SizedBox(width: 6),
-                Text("Lost Pet Details", style: AppTheme.h2()),
+                Text(l10n.lostPetDetailsTitle, style: AppTheme.h2()),
               ],
             ),
 
@@ -169,7 +171,7 @@ class LostDogDetailPage extends StatelessWidget {
                         }
                       },
                       icon: const Icon(Icons.location_on, size: 16),
-                      label: const Text("View on Map"),
+                      label: Text(l10n.viewOnMap),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white70,
                       ),
@@ -186,7 +188,7 @@ class LostDogDetailPage extends StatelessWidget {
                       const SizedBox(height: 18),
 
                       Text(
-                        "Have information about this pet?",
+                        l10n.havePetInformationPrompt,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(
                           fontSize: 14,
@@ -220,7 +222,7 @@ class LostDogDetailPage extends StatelessWidget {
 
                               icon: const Icon(Icons.call, size: 18),
 
-                              label: const Text("Call Owner"),
+                              label: Text(l10n.callOwner),
 
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
@@ -251,7 +253,7 @@ class LostDogDetailPage extends StatelessWidget {
 
                               icon: const Icon(Icons.email, size: 18),
 
-                              label: const Text("Email Owner"),
+                              label: Text(l10n.emailOwner),
 
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
@@ -283,7 +285,7 @@ class LostDogDetailPage extends StatelessWidget {
 
                               icon: const Icon(Icons.chat, size: 18),
 
-                              label: const Text("WhatsApp"),
+                              label: Text(l10n.whatsappLabel),
 
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,

@@ -10,6 +10,7 @@ import 'dog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
@@ -406,13 +407,13 @@ class _AddDogPageState extends State<AddDogPage> {
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
-  SnackBar(
-    content: Text(
-      AppLocalizations.of(context)!.locationUpdatedSuccessfully,
-    ),
-    duration: const Duration(seconds: 2),
-  ),
-);
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.locationUpdatedSuccessfully,
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('AddDogPage - Error getting location: $e');
@@ -725,15 +726,15 @@ class _AddDogPageState extends State<AddDogPage> {
         debugPrint(
           'AddDogPage - Dog added to Firestore: ${newDog.name}, dogId=$dogId',
         );
-        
-      await AnalyticsService.petCreated(
-  petType: _selectedPetType,
-  breed: _selectedBreed ?? AnalyticsValues.other,
-  age: newDog.age,
-  gender: newDog.gender.toLowerCase() == 'male'
-      ? AnalyticsValues.male
-      : AnalyticsValues.female,
-);
+
+        await AnalyticsService.petCreated(
+          petType: _selectedPetType,
+          breed: _selectedBreed ?? AnalyticsValues.other,
+          age: newDog.age,
+          gender: newDog.gender.toLowerCase() == 'male'
+              ? AnalyticsValues.male
+              : AnalyticsValues.female,
+        );
 
         debugPrint('AddDogPage - Redirecting to Home...');
 
@@ -1322,6 +1323,18 @@ class _AddDogPageState extends State<AddDogPage> {
             spacing: 8.0,
             runSpacing: 4.0,
             children: _imageFiles.map((imageFile) {
+              if (kIsWeb) {
+                return PlatformPathImage(
+                  path: imageFile.path,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('AddDogPage - Web image error: $error');
+                    return const Icon(Icons.error, color: Colors.red);
+                  },
+                );
+              }
               return FutureBuilder<File?>(
                 future: File(imageFile.path).exists().then(
                   (exists) => exists ? File(imageFile.path) : null,
@@ -1335,8 +1348,8 @@ class _AddDogPageState extends State<AddDogPage> {
                     );
                     return const Icon(Icons.error, color: Colors.red);
                   }
-                  return Image.file(
-                    snapshot.data!,
+                  return PlatformPathImage(
+                    path: snapshot.data!.path,
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,

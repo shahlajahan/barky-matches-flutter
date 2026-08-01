@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetPreVisitFormSettingsPage extends StatefulWidget {
   final String businessId;
@@ -87,7 +88,11 @@ class _VetPreVisitFormSettingsPageState
 
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load pre-visit settings: $e')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.preVisitSettingsLoadFailed('$e'),
+          ),
+        ),
       );
     }
   }
@@ -144,16 +149,20 @@ class _VetPreVisitFormSettingsPageState
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pre-visit form settings saved')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.preVisitSettingsSaved),
+        ),
       );
     } catch (e) {
       debugPrint('🩺 PREVISIT SETTINGS SAVE error=$e');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to save settings: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.settingsSaveFailed('$e')),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -191,11 +200,11 @@ class _VetPreVisitFormSettingsPageState
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Pre-visit forms'),
+        title: Text(AppLocalizations.of(context)!.preVisitForms),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
+          tooltip: AppLocalizations.of(context)!.back,
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -258,12 +267,12 @@ class _VetPreVisitFormSettingsPageState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Service pre-visit forms',
+                  AppLocalizations.of(context)!.servicePreVisitForms,
                   style: AppTheme.h2(color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Each service can have its own medical intake questions.',
+                  AppLocalizations.of(context)!.serviceMedicalIntakeDescription,
                   style: AppTheme.caption(
                     color: Colors.white.withValues(alpha: 0.78),
                   ),
@@ -297,7 +306,7 @@ class _VetPreVisitFormSettingsPageState
 
             if (snapshot.hasError) {
               return Text(
-                'Services could not be loaded.',
+                AppLocalizations.of(context)!.servicesCouldNotBeLoadedPeriod,
                 style: AppTheme.caption(color: Colors.red),
               );
             }
@@ -306,7 +315,7 @@ class _VetPreVisitFormSettingsPageState
 
             if (docs.isEmpty) {
               return Text(
-                'No active services yet. Add services before creating forms.',
+                AppLocalizations.of(context)!.noActiveServicesForForms,
                 style: AppTheme.caption(),
               );
             }
@@ -382,16 +391,19 @@ class _VetPreVisitFormSettingsPageState
       trailing: TextButton.icon(
         onPressed: () => _addQuestion(serviceId),
         icon: const Icon(LucideIcons.plus, size: 18),
-        label: const Text('Add'),
+        label: Text(AppLocalizations.of(context)!.add),
       ),
       children: [
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           value: form.enabled,
           activeThumbColor: AppTheme.accent,
-          title: Text('Enable for this service', style: AppTheme.h3(size: 15)),
+          title: Text(
+            AppLocalizations.of(context)!.enableForService,
+            style: AppTheme.h3(size: 15),
+          ),
           subtitle: Text(
-            'Only this service will ask these questions.',
+            AppLocalizations.of(context)!.onlyServiceAsksQuestions,
             style: AppTheme.caption(),
           ),
           onChanged: (value) {
@@ -400,7 +412,10 @@ class _VetPreVisitFormSettingsPageState
         ),
         const SizedBox(height: 10),
         if (form.questions.isEmpty)
-          Text('No questions for this service yet.', style: AppTheme.caption())
+          Text(
+            AppLocalizations.of(context)!.noQuestionsForService,
+            style: AppTheme.caption(),
+          )
         else
           ...form.questions.asMap().entries.map((entry) {
             return _questionCard(serviceId, entry.key, entry.value);
@@ -432,9 +447,9 @@ class _VetPreVisitFormSettingsPageState
               Expanded(
                 child: TextFormField(
                   initialValue: question.question,
-                  decoration: const InputDecoration(
-                    labelText: 'Question',
-                    hintText: 'e.g. Has your pet eaten today?',
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.question,
+                    hintText: AppLocalizations.of(context)!.questionExample,
                   ),
                   onChanged: (value) => question.question = value,
                 ),
@@ -466,27 +481,41 @@ class _VetPreVisitFormSettingsPageState
                 onPressed: () {
                   setState(() => form.questions.removeAt(index));
                 },
-                tooltip: 'Remove',
+                tooltip: AppLocalizations.of(context)!.remove,
               ),
             ],
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: question.type,
-            decoration: const InputDecoration(labelText: 'Question type'),
-            items: const [
-              DropdownMenuItem(value: 'text', child: Text('Text')),
-              DropdownMenuItem(value: 'multiline', child: Text('Long text')),
-              DropdownMenuItem(value: 'boolean', child: Text('Yes / No')),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.questionType,
+            ),
+            items: [
+              DropdownMenuItem(
+                value: 'text',
+                child: Text(AppLocalizations.of(context)!.textType),
+              ),
+              DropdownMenuItem(
+                value: 'multiline',
+                child: Text(AppLocalizations.of(context)!.longTextType),
+              ),
+              DropdownMenuItem(
+                value: 'boolean',
+                child: Text(AppLocalizations.of(context)!.yesNoType),
+              ),
               DropdownMenuItem(
                 value: 'single_select',
-                child: Text('Single choice'),
+                child: Text(AppLocalizations.of(context)!.singleChoice),
               ),
               DropdownMenuItem(
                 value: 'multi_select',
-                child: Text('Multiple choice'),
+                child: Text(AppLocalizations.of(context)!.multipleChoice),
               ),
-              DropdownMenuItem(value: 'number', child: Text('Number')),
+              DropdownMenuItem(
+                value: 'number',
+                child: Text(AppLocalizations.of(context)!.numberType),
+              ),
             ],
             onChanged: (value) {
               if (value == null) return;
@@ -505,14 +534,20 @@ class _VetPreVisitFormSettingsPageState
             contentPadding: EdgeInsets.zero,
             value: question.required,
             activeThumbColor: AppTheme.accent,
-            title: Text('Required', style: AppTheme.body()),
+            title: Text(
+              AppLocalizations.of(context)!.requiredLabel,
+              style: AppTheme.body(),
+            ),
             onChanged: (value) {
               setState(() => question.required = value);
             },
           ),
           if (question.isChoiceType) ...[
             const SizedBox(height: 8),
-            Text('Options', style: AppTheme.h3(size: 15)),
+            Text(
+              AppLocalizations.of(context)!.options,
+              style: AppTheme.h3(size: 15),
+            ),
             const SizedBox(height: 8),
             ...question.options.asMap().entries.map((entry) {
               return Padding(
@@ -523,7 +558,9 @@ class _VetPreVisitFormSettingsPageState
                       child: TextFormField(
                         initialValue: entry.value,
                         decoration: InputDecoration(
-                          labelText: 'Option ${entry.key + 1}',
+                          labelText: AppLocalizations.of(
+                            context,
+                          )!.optionNumber(entry.key + 1),
                         ),
                         onChanged: (value) {
                           question.options[entry.key] = value;
@@ -549,7 +586,7 @@ class _VetPreVisitFormSettingsPageState
                 setState(() => question.options.add(''));
               },
               icon: const Icon(LucideIcons.plus, size: 18),
-              label: const Text('Add option'),
+              label: Text(AppLocalizations.of(context)!.addOption),
             ),
           ],
         ],

@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/order_return.dart';
 import '../../services/order_return_service.dart';
 import '../../theme/app_theme.dart';
+import '../returns/return_shipping_summary_card.dart';
 
 class ReturnRequestSheet extends StatefulWidget {
   final String sellerOrderId;
@@ -37,6 +38,10 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
   final List<String> _imageContentTypes = [];
 
   String _reason = OrderReturnReason.damaged.value;
+  ReturnShippingPolicyPreview? _returnShippingPolicy;
+  bool _returnShippingPolicyLoading = true;
+  bool _returnShippingAcknowledged = false;
+  int _returnShippingPolicyRequest = 0;
 
   @override
   void initState() {
@@ -46,6 +51,7 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
           .map((e) => (e['productId'] ?? '').toString())
           .where((e) => e.isNotEmpty),
     );
+    _loadReturnShippingPolicy();
   }
 
   @override
@@ -85,6 +91,49 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
       0,
       (sum, item) => sum + ((item['lineTotal'] as num?)?.toDouble() ?? 0),
     );
+  }
+
+  ReturnShippingDisplayType _displayType(ReturnShippingPolicyPreview policy) {
+    return switch (policy.kind) {
+      ReturnShippingPolicyKind.buyer => ReturnShippingDisplayType.buyer,
+      ReturnShippingPolicyKind.seller => ReturnShippingDisplayType.seller,
+      ReturnShippingPolicyKind.contractedCarrier =>
+        ReturnShippingDisplayType.contractedCarrier,
+    };
+  }
+
+  Future<void> _loadReturnShippingPolicy() async {
+    final requestId = ++_returnShippingPolicyRequest;
+    if (mounted) {
+      setState(() {
+        _returnShippingPolicyLoading = true;
+        _returnShippingAcknowledged = false;
+      });
+    }
+
+    try {
+      final policy = await OrderReturnService.instance
+          .loadReturnShippingPolicyPreview(
+            businessId: widget.businessId,
+            productIds: _selectedProductIds,
+          );
+      if (!mounted || requestId != _returnShippingPolicyRequest) return;
+      setState(() {
+        _returnShippingPolicy = policy;
+        _returnShippingPolicyLoading = false;
+      });
+    } catch (error) {
+      debugPrint('Return shipping policy lookup failed: $error');
+      if (!mounted || requestId != _returnShippingPolicyRequest) return;
+      setState(() {
+        // Fail safely: when policy cannot be loaded, warn that the buyer may
+        // be responsible instead of presenting an unverified seller benefit.
+        _returnShippingPolicy = const ReturnShippingPolicyPreview(
+          kind: ReturnShippingPolicyKind.buyer,
+        );
+        _returnShippingPolicyLoading = false;
+      });
+    }
   }
 
   String _reasonLabel(AppLocalizations l10n, String reason) {
@@ -133,11 +182,18 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
 
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
+    final policy = _returnShippingPolicy;
 
     if (_selectedItems.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l10n.selectReturnItemsLabel)));
+      return;
+    }
+    if (_returnShippingPolicyLoading || policy == null) {
+      return;
+    }
+    if (policy.buyerWarningRequired && !_returnShippingAcknowledged) {
       return;
     }
 
@@ -173,6 +229,7 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
         shippingResponsibility: '',
         refundAmount: _estimatedRefundAmount,
         returnWindowDays: 14,
+        buyerAcknowledgedReturnShipping: _returnShippingAcknowledged,
       );
 
       if (!mounted) return;
@@ -283,6 +340,7 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
                           _selectedProductIds.remove(productId);
                         }
                       });
+                      _loadReturnShippingPolicy();
                     },
                     title: Text(title),
                     subtitle: Text(
@@ -314,7 +372,7 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -323,10 +381,57 @@ class _ReturnRequestSheetState extends State<ReturnRequestSheet> {
                 ),
               ),
               const SizedBox(height: 16),
+              if (_returnShippingPolicyLoading)
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(l10n.returnShippingPolicyLoading)),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_returnShippingPolicy != null)
+                ReturnShippingSummaryCard(
+                  type: _displayType(_returnShippingPolicy!),
+                  carrierCode: _returnShippingPolicy!.carrierCode,
+                ),
+              if (!_returnShippingPolicyLoading &&
+                  (_returnShippingPolicy?.buyerWarningRequired ?? false)) ...[
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _returnShippingAcknowledged,
+                  onChanged: (value) {
+                    setState(
+                      () => _returnShippingAcknowledged = value ?? false,
+                    );
+                  },
+                  title: Text(l10n.returnShippingAcknowledgement),
+                ),
+              ],
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _submit,
+                  onPressed:
+                      !_returnShippingPolicyLoading &&
+                          _selectedItems.isNotEmpty &&
+                          OrderReturnService.canSubmitWithReturnShippingPolicy(
+                            policy: _returnShippingPolicy,
+                            acknowledged: _returnShippingAcknowledged,
+                          )
+                      ? _submit
+                      : null,
                   child: Text(l10n.requestReturnButton),
                 ),
               ),

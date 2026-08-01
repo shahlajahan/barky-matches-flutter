@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../controllers/diagnostics_report_details_controller.dart';
 import '../models/diagnostics_report_detail.dart';
@@ -35,7 +36,9 @@ class _DiagnosticsReportDetailsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Diagnostic Report')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.diagnosticReport),
+      ),
       body: ListenableBuilder(
         listenable: widget.controller,
         builder: (context, child) {
@@ -58,7 +61,11 @@ class _DiagnosticsReportDetailsPageState
 
           final report = widget.controller.detail;
           if (report == null) {
-            return const Center(child: Text('Diagnostic report not found'));
+            return Center(
+              child: Text(
+                AppLocalizations.of(context)!.diagnosticReportNotFound,
+              ),
+            );
           }
 
           return _DiagnosticsReportDetailsView(
@@ -150,22 +157,25 @@ class _ActionsSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Actions', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              AppLocalizations.of(context)!.actionsTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             if (status == 'resolved' || status == 'ignored')
               ElevatedButton(
                 onPressed: actionInProgress ? null : controller.reopen,
-                child: const Text('Reopen'),
+                child: Text(AppLocalizations.of(context)!.reopen),
               )
             else ...[
               ElevatedButton(
                 onPressed: actionInProgress ? null : controller.markResolved,
-                child: const Text('Resolve'),
+                child: Text(AppLocalizations.of(context)!.resolve),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: actionInProgress ? null : controller.ignore,
-                child: const Text('Ignore'),
+                child: Text(AppLocalizations.of(context)!.ignore),
               ),
             ],
           ],
@@ -194,7 +204,10 @@ class _StackTraceSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Stack Trace', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              AppLocalizations.of(context)!.stackTrace,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             SelectableText(value),
           ],
@@ -280,12 +293,12 @@ class _LogsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Breadcrumbs / Logs',
+              AppLocalizations.of(context)!.breadcrumbsLogs,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
             if (logs.isEmpty)
-              const Text('No logs')
+              Text(AppLocalizations.of(context)!.noLogs)
             else
               for (final log in logs) _LogEntryRow(log: log),
           ],
@@ -330,7 +343,7 @@ class _RawJsonSection extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
-        title: const Text('Raw JSON'),
+        title: Text(AppLocalizations.of(context)!.rawJson),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
           SelectableText(const JsonEncoder.withIndent('  ').convert(rawJson)),

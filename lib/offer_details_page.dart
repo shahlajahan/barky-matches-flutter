@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class OfferDetailsPage extends StatelessWidget {
   final String? title;
@@ -20,13 +21,14 @@ class OfferDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFFFC107), // 🔥 gold background
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black,
-        title: const Text('Offer'),
+        title: Text(l10n.offerDetailsTitle),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -46,7 +48,7 @@ class OfferDetailsPage extends StatelessWidget {
             const SizedBox(height: 4),
 
             Text(
-              "OFF",
+              l10n.offerDiscountOffLabel,
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
@@ -83,7 +85,7 @@ class OfferDetailsPage extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  "Use code:",
+                  l10n.offerUseCodeLabel,
                   style: GoogleFonts.poppins(fontSize: 16, color: Colors.black),
                 ),
                 const SizedBox(width: 8),
@@ -109,7 +111,7 @@ class OfferDetailsPage extends StatelessWidget {
                   // 🔥 copy code or redirect
                   if (code != null) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Code copied: $code")),
+                      SnackBar(content: Text(l10n.offerCodeCopied(code!))),
                     );
                   }
                 },
@@ -121,7 +123,7 @@ class OfferDetailsPage extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  "Use This Offer",
+                  l10n.offerUseThisOffer,
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     color: Colors.white,

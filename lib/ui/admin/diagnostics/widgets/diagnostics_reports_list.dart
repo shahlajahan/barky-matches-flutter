@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../models/diagnostics_report_list_item.dart';
 
@@ -69,11 +70,23 @@ class _DiagnosticsReportListTile extends StatelessWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Reason: ${report.reason}'),
-          Text('Feature: ${report.feature ?? '-'}'),
-          Text('Platform: ${report.platform ?? '-'}'),
-          Text('Version: ${report.version ?? '-'}'),
-          Text('Received: ${report.receivedAt.toLocal()}'),
+          Text(AppLocalizations.of(context)!.reasonValue(report.reason)),
+          Text(
+            AppLocalizations.of(context)!.featureValue(report.feature ?? '-'),
+          ),
+          Text(
+            AppLocalizations.of(context)!.platformValue(
+              report.platform ?? '-',
+            ),
+          ),
+          Text(
+            AppLocalizations.of(context)!.versionValue(report.version ?? '-'),
+          ),
+          Text(
+            AppLocalizations.of(
+              context,
+            )!.receivedValue(report.receivedAt.toLocal().toString()),
+          ),
         ],
       ),
     );

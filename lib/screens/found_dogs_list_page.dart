@@ -13,6 +13,7 @@ import '../ui/shell/nav_tab.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class FoundDogsListPage extends StatefulWidget {
   const FoundDogsListPage({super.key});
@@ -92,7 +93,7 @@ class _FoundDogsListPageState extends State<FoundDogsListPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Error updating status: $e',
+            AppLocalizations.of(context)!.errorUpdatingStatus('$e'),
             style: GoogleFonts.poppins(color: const Color(0xFFFFC107)),
           ),
         ),
@@ -152,6 +153,7 @@ class _FoundDogsListPageState extends State<FoundDogsListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final appState = context.watch<AppState>();
     final activeFoundDogId = appState.activeFoundDogId;
     final currentTab = appState.currentTab;
@@ -206,7 +208,7 @@ class _FoundDogsListPageState extends State<FoundDogsListPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Found Pets",
+                        l10n.foundPetsTitle,
                         style: AppTheme.h1().copyWith(
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
@@ -217,7 +219,7 @@ class _FoundDogsListPageState extends State<FoundDogsListPage> {
                       const SizedBox(height: 2),
 
                       Text(
-                        "Help found pets return home safely",
+                        l10n.foundPetsSubtitle,
                         style: AppTheme.caption().copyWith(
                           color: Colors.black54,
                         ),
@@ -258,7 +260,7 @@ class _FoundDogsListPageState extends State<FoundDogsListPage> {
                         controller: _searchController,
                         style: AppTheme.body(),
                         decoration: InputDecoration(
-                          hintText: "Search by name...",
+                          hintText: l10n.searchByNameHint,
                           hintStyle: AppTheme.body(color: Colors.grey.shade500),
                           border: InputBorder.none,
                           isCollapsed: true,
@@ -315,7 +317,7 @@ class _FoundDogsListPageState extends State<FoundDogsListPage> {
                           const SizedBox(height: 10),
 
                           Text(
-                            "No found pets reported yet",
+                            l10n.noFoundPetsReportedYet,
                             style: AppTheme.h2().copyWith(
                               color: const Color(0xFF9E1B4F),
                               fontWeight: FontWeight.w600,
@@ -325,7 +327,7 @@ class _FoundDogsListPageState extends State<FoundDogsListPage> {
                           const SizedBox(height: 6),
 
                           Text(
-                            "Reported found pets will appear here",
+                            l10n.reportedFoundPetsAppearHere,
                             style: AppTheme.caption().copyWith(
                               color: AppTheme.muted,
                             ),

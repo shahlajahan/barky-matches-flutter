@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/social_post.dart';
 import '../pages/social_post_detail_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class UserPostsGrid extends StatelessWidget {
   final String userId;
@@ -37,7 +38,7 @@ class UserPostsGrid extends StatelessWidget {
 
           return Center(
             child: Text(
-              'Error: ${snapshot.error}',
+              AppLocalizations.of(context)!.genericError('${snapshot.error}'),
               style: const TextStyle(color: Colors.white),
             ),
           );
@@ -54,13 +55,13 @@ class UserPostsGrid extends StatelessWidget {
         debugPrint("🔥 USER POSTS COUNT = ${posts.length}");
 
         if (posts.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(30),
+          return Padding(
+            padding: const EdgeInsets.all(30),
 
             child: Center(
               child: Text(
-                'No posts yet',
-                style: TextStyle(color: Colors.white70),
+                AppLocalizations.of(context)!.noPostsYet,
+                style: const TextStyle(color: Colors.white70),
               ),
             ),
           );

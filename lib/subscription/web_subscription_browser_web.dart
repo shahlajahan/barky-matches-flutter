@@ -15,3 +15,12 @@ Future<void> submitWebSubscriptionCheckout(String checkoutHtml) async {
     );
   }
 }
+
+void clearWebSubscriptionReturnQueryParams() {
+  final uri = Uri.base;
+  if (!uri.queryParameters.containsKey('webSubscriptionReturn') &&
+      !uri.queryParameters.containsKey('oid')) {
+    return;
+  }
+  html.window.history.replaceState(null, '', uri.path);
+}

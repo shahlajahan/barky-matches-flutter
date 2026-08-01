@@ -11,6 +11,7 @@ import '../overlay/petplore_search_overlay.dart';
 
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetplorePage extends StatefulWidget {
   const PetplorePage({super.key});
@@ -98,10 +99,10 @@ class _PetplorePageState extends State<PetplorePage>
                               ).createShader(bounds);
                             },
 
-                            child: const Text(
-                              'Petplore',
+                            child: Text(
+                              AppLocalizations.of(context)!.petploreTitle,
 
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 38,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -1.6,
@@ -115,7 +116,7 @@ class _PetplorePageState extends State<PetplorePage>
 
                           // SUBTITLE
                           Text(
-                            'Explore pet moments',
+                            AppLocalizations.of(context)!.explorePetMoments,
 
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.45),
@@ -164,7 +165,9 @@ class _PetplorePageState extends State<PetplorePage>
                                       ),
 
                                       child: Text(
-                                        '$followers Followers',
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.followersCount(followers),
 
                                         style: TextStyle(
                                           color: Colors.white.withValues(
@@ -209,7 +212,9 @@ class _PetplorePageState extends State<PetplorePage>
                                       ),
 
                                       child: Text(
-                                        '$following Following',
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.followingCount(following),
 
                                         style: TextStyle(
                                           color: Colors.white.withValues(
@@ -364,24 +369,27 @@ class _PetplorePageState extends State<PetplorePage>
                     ),
 
                     tabs: isGuest
-                        ? const [
+                        ? [
                             Tab(
-                              icon: Icon(LucideIcons.compass, size: 20),
-                              text: 'Feed',
+                              icon: const Icon(LucideIcons.compass, size: 20),
+                              text: AppLocalizations.of(context)!.feed,
                             ),
                           ]
-                        : const [
+                        : [
                             Tab(
-                              icon: Icon(LucideIcons.compass, size: 20),
-                              text: 'Feed',
+                              icon: const Icon(LucideIcons.compass, size: 20),
+                              text: AppLocalizations.of(context)!.feed,
                             ),
                             Tab(
-                              icon: Icon(LucideIcons.bookmark, size: 20),
-                              text: 'Saved',
+                              icon: const Icon(LucideIcons.bookmark, size: 20),
+                              text: AppLocalizations.of(context)!.saved,
                             ),
                             Tab(
-                              icon: Icon(LucideIcons.layoutGrid, size: 20),
-                              text: 'My Posts',
+                              icon: const Icon(
+                                LucideIcons.layoutGrid,
+                                size: 20,
+                              ),
+                              text: AppLocalizations.of(context)!.myPosts,
                             ),
                           ],
                   ),
@@ -482,11 +490,11 @@ class _MyPostsTab extends StatelessWidget {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     if (currentUserId == null) {
-      return const Center(
+      return Center(
         child: Text(
-          'Login required',
+          AppLocalizations.of(context)!.loginRequired,
 
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w600,

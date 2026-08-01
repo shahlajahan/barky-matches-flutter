@@ -307,8 +307,6 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     setState(() => paying = true);
 
     try {
-     
-
       final callable = FirebaseFunctions.instanceFor(
         region: 'europe-west3',
       ).httpsCallable(widget.createOrderFunctionName);
@@ -323,9 +321,6 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         Map<String, dynamic>.from(res.data as Map),
       );
       final orderId = session.orderId;
-
-     
-    
 
       if (!mounted) return;
 
@@ -353,9 +348,11 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Payment successful")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.paymentSuccessful),
+          ),
+        );
 
         await _refreshAppointment();
       } else if (result == "isbank_success_redirect") {
@@ -365,29 +362,38 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         if (!mounted) return;
 
         final paymentStatus =
-            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ?? '';
+            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ??
+            '';
         final orderStatus =
             paymentState?['orderStatus']?.toString().trim().toLowerCase() ?? '';
-        final paid = paymentState?['paid'] == true ||
+        final paid =
+            paymentState?['paid'] == true ||
             paymentStatus == 'paid' ||
             orderStatus == 'paid';
-        final failed = paymentStatus == 'failed' || orderStatus == 'payment_failed';
+        final failed =
+            paymentStatus == 'failed' || orderStatus == 'payment_failed';
 
         if (paid) {
           await _syncClientRecordAfterPayment();
           if (!mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("Payment successful")));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.paymentSuccessful),
+            ),
+          );
           await _refreshAppointment();
         } else if (failed) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("Payment cancelled")));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.paymentCancelled),
+            ),
+          );
           await _refreshAppointment();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.processingLabel)),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.processingLabel),
+            ),
           );
         }
       }
@@ -397,18 +403,24 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Payment cancelled")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.paymentCancelled),
+          ),
+        );
       }
     } catch (e) {
       debugPrint("❌ PAYMENT ERROR: $e");
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Payment failed: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.paymentFailedWithError('$e'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => paying = false);
@@ -831,7 +843,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
       foregroundColor: Colors.white,
       centerTitle: true,
       title: Text(
-        "Appointment Payment",
+        AppLocalizations.of(context)!.appointmentPayment,
         style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 17),
       ),
     );
@@ -1141,7 +1153,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
           onPressed: () => Navigator.pop(context, true),
           icon: const Icon(LucideIcons.checkCircle2),
           label: Text(
-            "Done",
+            AppLocalizations.of(context)!.done,
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w800,
               fontSize: 15,
@@ -1179,7 +1191,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                 ),
               )
             : Text(
-                "Pay Now",
+                AppLocalizations.of(context)!.payNow,
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,

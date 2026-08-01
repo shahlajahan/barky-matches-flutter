@@ -9,6 +9,7 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionCenterDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -179,7 +180,7 @@ class _AdoptionCenterDashboardOverviewTabState
                           const SizedBox(height: 4),
 
                           Text(
-                            "Latest adoption applications",
+                            AppLocalizations.of(context)!.latestAdoptionApplications,
 
                             style: AppTheme.caption(color: AppTheme.muted),
                           ),
@@ -190,7 +191,7 @@ class _AdoptionCenterDashboardOverviewTabState
                     TextButton(
                       onPressed: widget.onOpenRequests,
 
-                      child: const Text("View All"),
+                      child: Text(AppLocalizations.of(context)!.viewAll),
                     ),
                   ],
                 ),
@@ -565,7 +566,7 @@ class _AdoptionRequestItemState extends State<_AdoptionRequestItem> {
                   const SizedBox(height: 10),
 
                   Text(
-                    "Tap for more details",
+                    AppLocalizations.of(context)!.tapForMoreDetails,
 
                     style: AppTheme.caption(color: AppTheme.muted),
                   ),

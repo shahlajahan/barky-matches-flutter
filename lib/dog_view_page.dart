@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'dog.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
@@ -143,8 +143,8 @@ class _DogViewPageState extends State<DogViewPage> {
                             },
                           );
                         } else {
-                          return Image.file(
-                            File(path),
+                          return PlatformPathImage(
+                            path: path,
                             height: 250,
                             width: double.infinity,
                             fit: BoxFit.cover,

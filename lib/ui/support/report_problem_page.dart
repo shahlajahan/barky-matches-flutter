@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -242,8 +243,8 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Image.file(
-              screenshot!,
+            child: PlatformPathImage(
+              path: screenshot!.path,
               height: 180,
               width: double.infinity,
               fit: BoxFit.cover,

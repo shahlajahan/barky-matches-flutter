@@ -199,9 +199,14 @@ class WebSubscriptionService {
   }
 
   Future<WebSubscriptionCheckoutSession> createCheckout(String planId) async {
+    // The backend validates this against a strict allowlist and stores it
+    // on the pending order — it decides where the browser-return handler
+    // sends the user back to after payment (production vs. an explicit
+    // local dev server), never the client. kIsWeb is guaranteed true here:
+    // this is only ever called from a kIsWeb-gated call site.
     final result = await _functions
         .httpsCallable('createWebSubscriptionCheckout')
-        .call({'planId': planId});
+        .call({'planId': planId, 'returnOrigin': Uri.base.origin});
     final data = Map<String, dynamic>.from(result.data as Map);
     final orderId = data['orderId']?.toString() ?? '';
     final html = data['html']?.toString() ?? '';
@@ -212,6 +217,7 @@ class WebSubscriptionService {
   }
 
   Future<WebSubscriptionPaymentStatus> readStatus(String orderId) async {
+    await _requireAuthenticatedUser();
     final result = await _functions
         .httpsCallable('readWebSubscriptionPaymentStatus')
         .call({'orderId': orderId});

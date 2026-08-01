@@ -223,6 +223,60 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutPaymentCompletedSuccessfully => 'Оплата успешно завершена';
 
   @override
+  String get checkoutMultiSellerInfoTitle => 'Один платёж, отдельные заказы';
+
+  @override
+  String get checkoutMultiSellerInfoBody => 'Вы совершите один платёж. Для каждого продавца будет создан отдельный заказ.';
+
+  @override
+  String checkoutSellerSection(Object sellerName) {
+    return '$sellerName';
+  }
+
+  @override
+  String checkoutSellerFallback(int number) {
+    return 'Продавец $number';
+  }
+
+  @override
+  String get checkoutSellerSubtotal => 'Итого у продавца';
+
+  @override
+  String get checkoutProductsTotal => 'Стоимость товаров';
+
+  @override
+  String get checkoutShippingMethod => 'Способ доставки';
+
+  @override
+  String get checkoutShippingCost => 'Стоимость доставки';
+
+  @override
+  String get checkoutShippingTotal => 'Общая стоимость доставки';
+
+  @override
+  String get checkoutEstimatedDelivery => 'Ожидаемая доставка';
+
+  @override
+  String get checkoutSellerTotal => 'Итого у продавца';
+
+  @override
+  String get checkoutMultiOrderSuccessTitle => 'Оплата прошла успешно';
+
+  @override
+  String get checkoutMultiOrderSuccessBody => 'Оплата завершена, и для каждого продавца создан отдельный заказ.';
+
+  @override
+  String checkoutSellerOrderLabel(int number) {
+    return 'Заказ продавца $number';
+  }
+
+  @override
+  String get checkoutOpenOrder => 'Посмотреть заказ';
+
+  @override
+  String get checkoutMultiOrderExit => 'На главную';
+
+  @override
   String get checkoutPaymentCancelledOrIncomplete => 'Оплата была отменена или не завершена';
 
   @override
@@ -293,7 +347,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get notesOptional => 'Заметки (необязательно)';
 
   @override
-  String get selectDate => 'Выберите дату';
+  String get selectDate => 'Выбрать дату';
 
   @override
   String get selectTime => 'Выберите время';
@@ -302,7 +356,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appointmentNoteHint => 'Добавьте заметку для клиники...';
 
   @override
-  String get requestAppointment => 'Запросить запись';
+  String get requestAppointment => 'Запросить приём';
 
   @override
   String get requestSentTitle => 'Запрос отправлен 🐾';
@@ -383,7 +437,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get bookAppointment => 'Записаться';
 
   @override
-  String get noServicesAvailable => 'Услуги недоступны';
+  String get noServicesAvailable => 'Нет доступных услуг';
 
   @override
   String errorLoadingServices(Object error) {
@@ -3731,6 +3785,59 @@ class AppLocalizationsRu extends AppLocalizations {
   String get myOrdersTitle => 'Мои заказы';
 
   @override
+  String get myOrdersUnknownProduct => 'Товар';
+
+  @override
+  String get myOrdersUnknownSeller => 'Продавец';
+
+  @override
+  String myOrdersProductAndMore(Object product, int count) {
+    return '$product + ещё $count';
+  }
+
+  @override
+  String get myOrdersOrderNumberUnavailable => 'Недоступен';
+
+  @override
+  String get myOrdersDateUnavailable => 'Дата недоступна';
+
+  @override
+  String get myOrdersSortNewest => 'Дата: сначала новые';
+
+  @override
+  String get myOrdersSortOldest => 'Дата: сначала старые';
+
+  @override
+  String get myOrdersSortProductAz => 'Товар: А–Я';
+
+  @override
+  String get myOrdersSortProductZa => 'Товар: Я–А';
+
+  @override
+  String get myOrdersSortSellerAz => 'Продавец: А–Я';
+
+  @override
+  String get myOrdersSortSellerZa => 'Продавец: Я–А';
+
+  @override
+  String get myOrdersSortAmountHigh => 'Сумма: по убыванию';
+
+  @override
+  String get myOrdersSortAmountLow => 'Сумма: по возрастанию';
+
+  @override
+  String get myOrdersProcessingStatus => 'Обрабатывается';
+
+  @override
+  String get myOrdersRefundedStatus => 'Возврат средств';
+
+  @override
+  String get myOrdersReturnedStatus => 'Возвращён';
+
+  @override
+  String get myOrdersRefundedOrReturnedStatus => 'Возврат средств / товара';
+
+  @override
   String get ordersTitle => 'Заказы';
 
   @override
@@ -4969,6 +5076,41 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shippingResponsibilityLabel => 'Доставка возврата';
 
   @override
+  String get returnShippingTitle => 'Доставка возврата';
+
+  @override
+  String get returnShippingBuyerMessage => 'Вы оплачиваете доставку возврата.\n\nСтоимость курьерской доставки не входит в возврат средств и может не возмещаться.';
+
+  @override
+  String get returnShippingSellerMessage => 'Продавец оплачивает доставку возврата.';
+
+  @override
+  String get returnShippingContractedCarrierMessage => 'Используйте перевозчика продавца по договору.';
+
+  @override
+  String get returnShippingBuyerShipBackMessage => 'Курьерская доставка оплачивается вами отдельно от возврата средств.';
+
+  @override
+  String get returnShippingSellerShipBackMessage => 'Продавец покрывает стоимость доставки возврата.';
+
+  @override
+  String get returnShippingAcknowledgement => 'Я понимаю правила оплаты доставки возврата.';
+
+  @override
+  String get returnShippingPolicyLoading => 'Загружаем правила доставки возврата…';
+
+  @override
+  String returnShippingCarrierValue(Object carrier) {
+    return 'Перевозчик: $carrier';
+  }
+
+  @override
+  String get returnShippingVerifiedCarrierHelper => 'Используйте этого подтверждённого перевозчика продавца.';
+
+  @override
+  String get returnCarrierEnterHelperText => 'Укажите перевозчика для этой отправки возврата.';
+
+  @override
   String get refundTypeLabel => 'Тип возврата';
 
   @override
@@ -5071,6 +5213,171 @@ class AppLocalizationsRu extends AppLocalizations {
   String get refundRejectedStatusLabel => 'Возврат отклонён';
 
   @override
+  String get refundDecisionTitle => 'Решение о возврате средств';
+
+  @override
+  String get refundDecisionFullTitle => 'Полный возврат';
+
+  @override
+  String get refundDecisionFullDescription => 'Вернуть всю доступную сумму.';
+
+  @override
+  String get refundDecisionFullRecommended => 'Рекомендуется для повреждённых или дефектных товаров, неверного товара, ошибки продавца или недоставленного товара.';
+
+  @override
+  String get refundDecisionPartialTitle => 'Частичный возврат';
+
+  @override
+  String get refundDecisionPartialDescription => 'Вернуть только часть доступной суммы. Требуется обоснование.';
+
+  @override
+  String get refundDecisionRejectTitle => 'Отклонить возврат';
+
+  @override
+  String get refundDecisionRejectDescription => 'Отклонить запрос на возврат средств. Требуется ясное объяснение.';
+
+  @override
+  String get refundPartialAmountLabel => 'Сумма частичного возврата';
+
+  @override
+  String refundMaximumEligible(Object amount) {
+    return 'Максимально доступно: $amount';
+  }
+
+  @override
+  String get refundAmountValidationError => 'Введите сумму больше нуля, не превышающую доступный возврат.';
+
+  @override
+  String get refundDecisionReasonLabel => 'Причина';
+
+  @override
+  String get refundReasonNotSelected => 'Выберите причину';
+
+  @override
+  String get refundSellerNotesLabel => 'Примечания продавца';
+
+  @override
+  String get refundNotesOptional => 'Необязательно';
+
+  @override
+  String get refundNotesRequired => 'Обязательно';
+
+  @override
+  String get refundBuyerExplanationLabel => 'Объяснение для покупателя';
+
+  @override
+  String get refundBuyerExplanationHelper => 'Чётко объясните причину отказа в возврате.';
+
+  @override
+  String get refundOriginalOrderLabel => 'Исходный заказ';
+
+  @override
+  String get refundSummaryRefundLabel => 'Возврат';
+
+  @override
+  String get refundDifferenceLabel => 'Разница';
+
+  @override
+  String get refundDecisionBuyerTitle => 'Решение о возврате средств';
+
+  @override
+  String get refundDecisionLabel => 'Решение';
+
+  @override
+  String get refundSellerExplanationLabel => 'Объяснение продавца';
+
+  @override
+  String get refundReasonItemReturnedDamaged => 'Товар возвращён повреждённым';
+
+  @override
+  String get refundReasonMissingAccessories => 'Отсутствуют принадлежности';
+
+  @override
+  String get refundReasonCustomerCausedDamage => 'Повреждение по вине покупателя';
+
+  @override
+  String get refundReasonRestockingFee => 'Плата за возврат на склад';
+
+  @override
+  String get refundReasonPartialReturn => 'Частичный возврат товара';
+
+  @override
+  String get refundReasonSellerMistake => 'Ошибка продавца';
+
+  @override
+  String get refundReasonWrongItem => 'Неверный товар';
+
+  @override
+  String get refundReasonDefectiveProduct => 'Дефектный товар';
+
+  @override
+  String get refundReasonItemNeverDelivered => 'Товар не был доставлен';
+
+  @override
+  String get refundReasonOther => 'Другое';
+
+  @override
+  String get returnStatusWaitingSellerConfirmation => 'Ожидается подтверждение продавца';
+
+  @override
+  String get returnStatusAutoReceived => 'Получено автоматически';
+
+  @override
+  String get returnStatusDispute => 'Спор по возврату';
+
+  @override
+  String get waitingForSellerInspectionTitle => 'Ожидается проверка продавца';
+
+  @override
+  String waitingForSellerInspectionMessage(Object date) {
+    return 'Продавец должен проверить возвращённую посылку до $date. Если действий не будет, возврат продолжится автоматически.';
+  }
+
+  @override
+  String get inspectionDeadlineTitle => 'Срок проверки';
+
+  @override
+  String inspectionDaysRemaining(int days) {
+    return 'Осталось дней: $days';
+  }
+
+  @override
+  String get inspectionDeadlinePassed => 'Срок истёк. Ожидается автоматическое завершение.';
+
+  @override
+  String get reportReturnProblemTitle => 'Сообщить о проблеме возврата';
+
+  @override
+  String get reportProblemButton => 'Сообщить о проблеме';
+
+  @override
+  String get disputeReasonLabel => 'Причина проблемы';
+
+  @override
+  String get disputeReasonPackageNotReceived => 'Посылка не получена';
+
+  @override
+  String get disputeReasonWrongItemReturned => 'Возвращён неверный товар';
+
+  @override
+  String get disputeReasonEmptyPackage => 'Пустая посылка';
+
+  @override
+  String get disputeReasonDamagedDuringReturn => 'Повреждено при возврате';
+
+  @override
+  String get disputeReasonTrackingIssue => 'Проблема отслеживания';
+
+  @override
+  String get adminReturnDisputesTitle => 'Споры по возвратам';
+
+  @override
+  String get adminReturnDisputesSubtitle => 'Проверка спорных возвратов маркетплейса';
+
+  @override
+  String get noReturnDisputes => 'Спорных возвратов нет';
+
+  @override
   String get locationUpdatedSuccessfully => 'Местоположение успешно обновлено';
 
   @override
@@ -5124,7 +5431,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get productDetails => 'Информация о товаре';
 
   @override
-  String get servicesCouldNotBeLoaded => 'Не удалось загрузить услуги.';
+  String get servicesCouldNotBeLoaded => 'Не удалось загрузить услуги';
 
   @override
   String get veterinaryClinics => 'Ветеринарные клиники';
@@ -5631,6 +5938,2120 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get bankAccountSettingsTitle => 'Банковский счёт';
+
+  @override
+  String get bankAccountSettingsSubtitle => 'Этот счёт будет использоваться, когда PetSupo будет отправлять доход вашего бизнеса.';
+
+  @override
+  String get bankAccountInfoNotice => 'Убедитесь, что имя владельца счёта и IBAN точно совпадают с данными вашего официального банковского счёта. Неверные данные могут задержать выплаты.';
+
+  @override
+  String get bankAccountSectionTitle => 'Данные счёта';
+
+  @override
+  String get bankAccountHolderLabel => 'Владелец счёта';
+
+  @override
+  String get bankAccountBankNameLabel => 'Название банка';
+
+  @override
+  String get bankAccountIbanLabel => 'IBAN';
+
+  @override
+  String get bankAccountBillingInfoLabel => 'Платёжная информация (необязательно)';
+
+  @override
+  String get bankAccountIbanInvalid => 'IBAN должен начинаться с TR и содержать 24 цифры.';
+
+  @override
+  String get bankAccountSaveSuccess => 'Информация о банковском счёте сохранена.';
+
+  @override
+  String get diagnosticsSectionTitle => 'Диагностика';
+
+  @override
+  String get diagnosticsSectionDescription => 'Внутренние инструменты диагностики для проверки очереди и тестирования загрузки.';
+
+  @override
+  String get diagnosticsThrowButton => 'Вызвать ошибку';
+
+  @override
+  String get diagnosticsTestButton => 'Проверить';
+
+  @override
+  String get diagnosticsUploadButton => 'Загрузить';
+
+  @override
+  String get diagnosticsRefreshButton => 'Обновить';
+
+  @override
+  String get diagnosticsClearButton => 'Очистить';
+
+  @override
+  String dogCardAgeWithBreed(Object age, Object breed) {
+    return '$age г. • $breed';
+  }
+
+  @override
+  String dogCardAgeYears(Object age) {
+    return '$age г.';
+  }
+
+  @override
+  String dogCardVaccines(int count) {
+    return 'Вакцин: $count';
+  }
+
+  @override
+  String get dogParkPremiumMembersOnly => 'Этот парк доступен только участникам Premium.';
+
+  @override
+  String get favoritesExplorePlaymates => 'Найти друзей для игр 💛';
+
+  @override
+  String get vetServicesAvailableAfterLogin => 'Ветеринарные услуги доступны после входа';
+
+  @override
+  String get loadingAccount => 'Загрузка аккаунта...';
+
+  @override
+  String get noNotificationsForGuest => 'Для гостя уведомлений нет';
+
+  @override
+  String get loginForNotifications => 'Войдите, чтобы получать обновления и оповещения';
+
+  @override
+  String get offerDetailsTitle => 'Предложение';
+
+  @override
+  String get offerDiscountOffLabel => 'СКИДКА';
+
+  @override
+  String get offerUseCodeLabel => 'Используйте код:';
+
+  @override
+  String get offerUseThisOffer => 'Использовать предложение';
+
+  @override
+  String get playdateScheduledAtLabel => 'Игровая встреча будет назначена здесь:';
+
+  @override
+  String get continueToScheduling => 'Продолжить планирование';
+
+  @override
+  String get orderCancellationTitle => 'Отмена заказа';
+
+  @override
+  String get preShipmentCancellationAvailable => 'Этот заказ еще не отправлен и может быть отменен.';
+
+  @override
+  String get cancelOrderButton => 'Отменить заказ';
+
+  @override
+  String get cancelOrderTitle => 'Отменить заказ?';
+
+  @override
+  String get cancelOrderConfirmation => 'Вы уверены, что хотите отменить заказ? Заказ еще не отправлен.';
+
+  @override
+  String get cancelOrderRefundNotice => 'После отмены платеж будет возвращен.';
+
+  @override
+  String get cancellationReasonLabel => 'Причина отмены';
+
+  @override
+  String get cancelReasonOrderedByMistake => 'Заказ оформлен по ошибке';
+
+  @override
+  String get cancelReasonChangedMind => 'Я передумал(а)';
+
+  @override
+  String get cancelReasonDuplicateOrder => 'Повторный заказ';
+
+  @override
+  String get cancelReasonOther => 'Другое';
+
+  @override
+  String get cancellationReasonDetailsLabel => 'Подробности причины отмены';
+
+  @override
+  String get cancellationRefundProcessing => 'Заказ отменен. Возврат обрабатывается.';
+
+  @override
+  String get cancellationShipmentAlreadyStarted => 'Заказ больше нельзя отменить, так как отправка уже началась.';
+
+  @override
+  String get cancelOrderFailed => 'Не удалось отменить заказ. Повторите попытку.';
+
+  @override
+  String get cancellationRefundProcessingStatus => 'Запрошена отмена · Возврат обрабатывается';
+
+  @override
+  String get cancellationRefundFailedStatus => 'Возврат по отмене требует проверки';
+
+  @override
+  String get orderCancelledRefundCompleted => 'Заказ отменен · Возврат завершен';
+
+  @override
+  String get foundPetDetailsTitle => 'Сведения о найденном питомце';
+
+  @override
+  String get viewOnMap => 'Посмотреть на карте';
+
+  @override
+  String get contactReporter => 'Связаться с автором объявления';
+
+  @override
+  String get foundPetReportedSuccess => 'Найденный питомец успешно зарегистрирован!';
+
+  @override
+  String errorSubmittingReport(Object error) {
+    return 'Ошибка отправки объявления: $error';
+  }
+
+  @override
+  String get tapToSelectImage => 'Нажмите, чтобы выбрать изображение';
+
+  @override
+  String get foundPetsSubtitle => 'Помогите найденным питомцам безопасно вернуться домой';
+
+  @override
+  String get searchByNameHint => 'Поиск по имени...';
+
+  @override
+  String get noFoundPetsReportedYet => 'Объявлений о найденных питомцах пока нет';
+
+  @override
+  String get reportedFoundPetsAppearHere => 'Объявления о найденных питомцах появятся здесь';
+
+  @override
+  String get lostPetDetailsTitle => 'Сведения о потерянном питомце';
+
+  @override
+  String get havePetInformationPrompt => 'У вас есть информация об этом питомце?';
+
+  @override
+  String get callOwner => 'Позвонить владельцу';
+
+  @override
+  String get emailOwner => 'Написать владельцу';
+
+  @override
+  String get lostPetReportedSuccess => 'Потерянный питомец успешно зарегистрирован!';
+
+  @override
+  String get lostPetsSubtitle => 'Помогите потерянным питомцам вернуться домой';
+
+  @override
+  String get noLostPetsReportedYet => 'Объявлений о потерянных питомцах пока нет';
+
+  @override
+  String get reportedLostPetsAppearHere => 'Объявления о потерянных питомцах появятся здесь';
+
+  @override
+  String get searchUsersHint => 'Поиск пользователей...';
+
+  @override
+  String get noUsersFound => 'Пользователи не найдены';
+
+  @override
+  String get searchPetsAndUsers => 'Поиск питомцев и пользователей';
+
+  @override
+  String get findPetLoversNearby => 'Найдите любителей животных поблизости';
+
+  @override
+  String get selectAtLeastOnePhotoOrVideo => 'Выберите хотя бы одно фото или видео';
+
+  @override
+  String errorCreatingPost(Object error) {
+    return 'Ошибка создания публикации: $error';
+  }
+
+  @override
+  String get createPostTitle => 'Создать публикацию';
+
+  @override
+  String get share => 'Поделиться';
+
+  @override
+  String get addPhotosOrVideos => 'Добавить фото или видео';
+
+  @override
+  String get writeSomethingHint => 'Напишите что-нибудь...';
+
+  @override
+  String get replyHint => 'Ответить...';
+
+  @override
+  String get replySent => 'Ответ отправлен';
+
+  @override
+  String get close => 'Закрыть';
+
+  @override
+  String get videoStoriesComingSoon => 'Видеостори скоро появятся';
+
+  @override
+  String get petploreTitle => 'Petplore';
+
+  @override
+  String get explorePetMoments => 'Исследуйте моменты из жизни питомцев';
+
+  @override
+  String followersCount(int count) {
+    return '$count подписчиков';
+  }
+
+  @override
+  String followingCount(int count) {
+    return '$count подписок';
+  }
+
+  @override
+  String get feed => 'Лента';
+
+  @override
+  String get saved => 'Сохранённые';
+
+  @override
+  String get myPosts => 'Мои публикации';
+
+  @override
+  String get loginRequired => 'Требуется вход';
+
+  @override
+  String genericError(Object error) {
+    return 'Ошибка: $error';
+  }
+
+  @override
+  String get noPostsYet => 'Публикаций пока нет';
+
+  @override
+  String get noResults => 'Ничего не найдено';
+
+  @override
+  String get commentsTitle => 'Комментарии';
+
+  @override
+  String commentsError(Object error) {
+    return 'Ошибка комментариев: $error';
+  }
+
+  @override
+  String get noCommentsYet => 'Комментариев пока нет';
+
+  @override
+  String get writeCommentHint => 'Напишите комментарий...';
+
+  @override
+  String get postsTitle => 'Публикации';
+
+  @override
+  String get storyUploaded => 'История загружена';
+
+  @override
+  String storyUploadFailed(Object error) {
+    return 'Не удалось загрузить историю: $error';
+  }
+
+  @override
+  String get addStory => 'Добавить историю';
+
+  @override
+  String get storyDurationPrompt => 'Поделитесь моментом из жизни питомца на 24 часа';
+
+  @override
+  String get seeWhosNearby => 'Узнайте, кто рядом 👀!';
+
+  @override
+  String get telegramLab => 'Лаборатория Telegram';
+
+  @override
+  String get telegramBotApiTest => 'Тест Telegram Bot API';
+
+  @override
+  String get telegramTestInstructions => 'Нажмите кнопку ниже, чтобы отправить тестовое сообщение.';
+
+  @override
+  String get sendTelegramMessage => 'Отправить сообщение Telegram';
+
+  @override
+  String get telegramUsers => 'Пользователи Telegram';
+
+  @override
+  String get termsLastUpdated => 'Последнее обновление: 9 мая 2025 г.';
+
+  @override
+  String get termsIntroductionTitle => '1. Введение';
+
+  @override
+  String get termsIntroductionBody => 'Добро пожаловать в PetSupo! Регистрируясь, вы принимаете настоящие Условия. Приложение помогает находить друзей для собак, общаться с владельцами питомцев и пользоваться связанными услугами. Эти условия регулируют использование приложения и сервисов PetSupo.';
+
+  @override
+  String get termsResponsibilitiesTitle => '2. Обязанности пользователя';
+
+  @override
+  String get termsResponsibilitiesBody => '- Для использования приложения вам должно быть не менее 13 лет.\n- Вы отвечаете за конфиденциальность учётной записи и пароля.\n- Запрещено использовать приложение для незаконной деятельности.\n- При регистрации необходимо предоставлять точные и актуальные сведения.';
+
+  @override
+  String get termsPrivacyTitle => '3. Сбор данных и конфиденциальность';
+
+  @override
+  String get termsPrivacyBody => 'Для предоставления услуг мы собираем имя пользователя, электронную почту, местоположение и сведения о питомцах. В соответствии с турецким законом о защите персональных данных и международными нормами мы получаем явное согласие, используем данные только для заявленных целей, применяем меры безопасности и предоставляем доступ, исправление или удаление данных. Для реализации прав напишите на info@petsupo.com.';
+
+  @override
+  String get termsUserContentTitle => '4. Пользовательский контент';
+
+  @override
+  String get termsUserContentBody => '- Вы сохраняете права на загруженный контент.\n- Загружая контент, вы предоставляете PetSupo неисключительную безвозмездную лицензию на его использование и показ в приложении.\n- Запрещено загружать незаконный, оскорбительный или нарушающий чужие права контент.';
+
+  @override
+  String get termsLiabilityTitle => '5. Ограничение ответственности';
+
+  @override
+  String get termsLiabilityBody => 'PetSupo не отвечает за ущерб, возникший при использовании приложения, включая взаимодействия с другими пользователями или питомцами, и не гарантирует точность сведений других пользователей.';
+
+  @override
+  String get termsGoverningLawTitle => '6. Применимое право';
+
+  @override
+  String get termsGoverningLawBody => 'Настоящие Условия регулируются законодательством Турецкой Республики. Если международное право не требует иного, споры рассматриваются судами Стамбула.';
+
+  @override
+  String get termsChangesTitle => '7. Изменения условий';
+
+  @override
+  String get termsChangesBody => 'Мы можем периодически обновлять Условия. О значимых изменениях сообщается по электронной почте или в приложении. Продолжение использования означает принятие новых условий.';
+
+  @override
+  String get termsContactTitle => '8. Связаться с нами';
+
+  @override
+  String get termsContactBody => 'По вопросам об этих Условиях напишите на info@petsupo.com.';
+
+  @override
+  String get pendingBusinessApprovals => 'Ожидающие одобрения компаний';
+
+  @override
+  String get invalidRequest => 'Недопустимый запрос';
+
+  @override
+  String get noPendingBusinessRequests => 'Нет ожидающих запросов компаний';
+
+  @override
+  String riskCount(Object count) {
+    return 'РИСК: $count';
+  }
+
+  @override
+  String get verifiedLabel => 'ПОДТВЕРЖДЕНО';
+
+  @override
+  String get approve => 'Одобрить';
+
+  @override
+  String get suspend => 'Приостановить';
+
+  @override
+  String get restore => 'Восстановить';
+
+  @override
+  String get businessApproved => 'Компания одобрена';
+
+  @override
+  String get businessRejected => 'Компания отклонена';
+
+  @override
+  String get businessSuspended => 'Компания приостановлена';
+
+  @override
+  String get businessRestored => 'Компания восстановлена';
+
+  @override
+  String actionFailed(Object error) {
+    return 'Не удалось выполнить действие: $error';
+  }
+
+  @override
+  String get adminDashboard => 'Панель администратора';
+
+  @override
+  String dashboardError(Object error) {
+    return 'Ошибка панели:\n$error';
+  }
+
+  @override
+  String get platformOverview => 'Обзор платформы';
+
+  @override
+  String get adminActivity => 'Действия администратора';
+
+  @override
+  String get developerTools => 'Инструменты разработчика';
+
+  @override
+  String get testTelegramBotApi => 'Тестировать Telegram Bot API';
+
+  @override
+  String get diagnostics => 'Диагностика';
+
+  @override
+  String get diagnosticsDescription => 'Отчёты о сбоях и диагностика запуска';
+
+  @override
+  String get telegramUsersDescription => 'Просмотр подключённых пользователей Telegram';
+
+  @override
+  String adminActivityError(Object error) {
+    return 'Ошибка действий:\n$error';
+  }
+
+  @override
+  String get noAdminActivity => 'Действий администратора пока нет';
+
+  @override
+  String get diagnosticReport => 'Диагностический отчёт';
+
+  @override
+  String get diagnosticReportNotFound => 'Диагностический отчёт не найден';
+
+  @override
+  String get reopen => 'Открыть снова';
+
+  @override
+  String get resolve => 'Решить';
+
+  @override
+  String get ignore => 'Игнорировать';
+
+  @override
+  String get stackTrace => 'Трассировка стека';
+
+  @override
+  String get breadcrumbsLogs => 'Навигация / журналы';
+
+  @override
+  String get noLogs => 'Журналов нет';
+
+  @override
+  String get rawJson => 'Исходный JSON';
+
+  @override
+  String get diagnosticReports => 'Диагностические отчёты';
+
+  @override
+  String get filters => 'Фильтры';
+
+  @override
+  String get noDiagnosticReports => 'Диагностических отчётов нет';
+
+  @override
+  String reasonValue(Object value) {
+    return 'Причина: $value';
+  }
+
+  @override
+  String featureValue(Object value) {
+    return 'Функция: $value';
+  }
+
+  @override
+  String platformValue(Object value) {
+    return 'Платформа: $value';
+  }
+
+  @override
+  String versionValue(Object value) {
+    return 'Версия: $value';
+  }
+
+  @override
+  String receivedValue(Object value) {
+    return 'Получено: $value';
+  }
+
+  @override
+  String messageValue(Object value) {
+    return 'Сообщение: $value';
+  }
+
+  @override
+  String createdValue(Object value) {
+    return 'Создано: $value';
+  }
+
+  @override
+  String get adminActions => 'Действия администратора';
+
+  @override
+  String get moderationCase => 'Дело модерации';
+
+  @override
+  String targetValue(Object value) {
+    return 'Объект: $value';
+  }
+
+  @override
+  String reportsCount(Object count) {
+    return 'Жалобы: $count';
+  }
+
+  @override
+  String riskScoreValue(Object value) {
+    return 'Оценка риска: $value';
+  }
+
+  @override
+  String priorityValue(Object value) {
+    return 'Приоритет: $value';
+  }
+
+  @override
+  String firestoreError(Object error) {
+    return 'Ошибка Firestore: $error';
+  }
+
+  @override
+  String get refundReview => 'Проверка возврата';
+
+  @override
+  String appointmentIdValue(Object value) {
+    return 'ID записи: $value';
+  }
+
+  @override
+  String paymentStatusValue(Object value) {
+    return 'Статус оплаты: $value';
+  }
+
+  @override
+  String refundStatusValue(Object value) {
+    return 'Статус возврата: $value';
+  }
+
+  @override
+  String appointmentTimeValue(Object value) {
+    return 'Время записи: $value';
+  }
+
+  @override
+  String cancellationTimeValue(Object value) {
+    return 'Время отмены: $value';
+  }
+
+  @override
+  String hoursBeforeAppointmentValue(Object value) {
+    return 'Часов до записи: $value';
+  }
+
+  @override
+  String businessValue(Object value) {
+    return 'Компания: $value';
+  }
+
+  @override
+  String userValue(Object value) {
+    return 'Пользователь: $value';
+  }
+
+  @override
+  String petValue(Object value) {
+    return 'Питомец: $value';
+  }
+
+  @override
+  String amountPaidValue(Object value) {
+    return 'Оплачено: $value';
+  }
+
+  @override
+  String refundReasonValue(Object value) {
+    return 'Причина возврата: $value';
+  }
+
+  @override
+  String refundErrorValue(Object value) {
+    return 'Ошибка возврата: $value';
+  }
+
+  @override
+  String get approveRefund => 'Одобрить возврат';
+
+  @override
+  String get rejectRefund => 'Отклонить возврат';
+
+  @override
+  String refundReviewFailed(Object error) {
+    return 'Не удалось проверить возврат: $error';
+  }
+
+  @override
+  String get note => 'Примечание';
+
+  @override
+  String refundQueueError(Object error) {
+    return 'Ошибка очереди возвратов: $error';
+  }
+
+  @override
+  String get refundRequests => 'Запросы на возврат';
+
+  @override
+  String get noPendingRefundRequests => 'Нет ожидающих запросов на возврат';
+
+  @override
+  String get reportsTitle => 'Жалобы';
+
+  @override
+  String appointmentValue(Object value) {
+    return 'Запись: $value';
+  }
+
+  @override
+  String cancelledValue(Object value) {
+    return 'Отменено: $value';
+  }
+
+  @override
+  String amountValue(Object value) {
+    return 'Сумма: $value';
+  }
+
+  @override
+  String statusValue(Object value) {
+    return 'Статус: $value';
+  }
+
+  @override
+  String get confirmViolation => 'Подтвердить нарушение';
+
+  @override
+  String get markClean => 'Отметить как допустимое';
+
+  @override
+  String get businessMetrics => 'Показатели компаний';
+
+  @override
+  String get businessSearch => 'Поиск компаний';
+
+  @override
+  String get searchBusinessNameHint => 'Поиск по названию компании...';
+
+  @override
+  String get suspendedLabel => 'Приостановлено';
+
+  @override
+  String get filterByStatus => 'Фильтр по статусу';
+
+  @override
+  String get complaintCenter => 'Центр жалоб';
+
+  @override
+  String get noData => 'Нет данных';
+
+  @override
+  String get noComplaintsFound => 'Жалобы не найдены';
+
+  @override
+  String categoryValue(Object value) {
+    return 'Категория: $value';
+  }
+
+  @override
+  String get complaintDetail => 'Сведения о жалобе';
+
+  @override
+  String severityValue(Object value) {
+    return 'Серьёзность: $value';
+  }
+
+  @override
+  String get evidence => 'Доказательство';
+
+  @override
+  String get dismiss => 'Отклонить';
+
+  @override
+  String get fraudAnalytics => 'Аналитика мошенничества';
+
+  @override
+  String get errorLoadingAnalytics => 'Ошибка загрузки аналитики';
+
+  @override
+  String get adminMapMonitor => 'Мониторинг карты';
+
+  @override
+  String get platformMetrics => 'Показатели платформы';
+
+  @override
+  String get noMetricsData => 'Нет данных показателей';
+
+  @override
+  String lastUpdatedValue(Object value) {
+    return 'Последнее обновление: $value';
+  }
+
+  @override
+  String get revenueTitle => 'Доход';
+
+  @override
+  String get noRevenueData => 'Нет данных о доходе';
+
+  @override
+  String get auditLogs => 'Журналы аудита';
+
+  @override
+  String verifiedValue(Object value) {
+    return 'Подтверждено: $value';
+  }
+
+  @override
+  String documentNumberValue(Object value) {
+    return 'Номер документа: $value';
+  }
+
+  @override
+  String get open => 'Открыть';
+
+  @override
+  String get petTaxiDocument => 'Документ Pet Taxi';
+
+  @override
+  String get openPdf => 'Открыть PDF';
+
+  @override
+  String get suspendedBusinesses => 'Приостановленные компании';
+
+  @override
+  String get noDataReceived => 'Данные не получены';
+
+  @override
+  String get noSuspendedBusinesses => 'Нет приостановленных компаний';
+
+  @override
+  String get subscriptionDetails => 'Сведения о подписке';
+
+  @override
+  String planValue(Object value) {
+    return 'План: $value';
+  }
+
+  @override
+  String priceValue(Object value) {
+    return 'Цена: $value';
+  }
+
+  @override
+  String get cancelSubscription => 'Отменить подписку';
+
+  @override
+  String get expireNow => 'Завершить сейчас';
+
+  @override
+  String get makePremium => '⭐ Сделать Premium';
+
+  @override
+  String get upgradeToPartner => '👑 Повысить до партнёра PetSupo';
+
+  @override
+  String get downgradeToPremium => '⬇ Понизить до Premium';
+
+  @override
+  String get extendThirtyDays => 'Продлить на 30 дней';
+
+  @override
+  String get subscriptionManagement => 'Управление подписками';
+
+  @override
+  String get searchUserIdHint => 'Поиск ID пользователя...';
+
+  @override
+  String get loadingSubscription => 'Загрузка подписки...';
+
+  @override
+  String get feedbackDetail => 'Сведения об отзыве';
+
+  @override
+  String ratingValue(Object value) {
+    return 'Оценка: $value';
+  }
+
+  @override
+  String contextValue(Object value) {
+    return 'Контекст: $value';
+  }
+
+  @override
+  String get messageLabel => 'Сообщение';
+
+  @override
+  String get userFeedback => 'Отзывы пользователей';
+
+  @override
+  String get noPayoutsFound => 'Выплаты не найдены';
+
+  @override
+  String get payoutManagement => 'Управление выплатами';
+
+  @override
+  String get readyLabel => 'Готово';
+
+  @override
+  String get searchPayoutsHint => 'Поиск заказа, продавца, покупателя или ссылки...';
+
+  @override
+  String get payoutMarkedReady => 'Выплата отмечена как готовая';
+
+  @override
+  String get confirmPayout => 'Подтвердить выплату';
+
+  @override
+  String get bankTransferReference => 'Ссылка банковского перевода';
+
+  @override
+  String get bankReferenceHint => 'EFT / FAST / банковская ссылка';
+
+  @override
+  String get payoutMarkedPaid => 'Выплата отмечена как оплаченная';
+
+  @override
+  String sellerValue(Object value) {
+    return 'Продавец: $value';
+  }
+
+  @override
+  String buyerValue(Object value) {
+    return 'Покупатель: $value';
+  }
+
+  @override
+  String referenceValue(Object value) {
+    return 'Ссылка: $value';
+  }
+
+  @override
+  String get markReady => 'Отметить готовой';
+
+  @override
+  String get markPaid => 'Отметить оплаченной';
+
+  @override
+  String openEntity(Object id, Object type) {
+    return 'Открыть $type: $id';
+  }
+
+  @override
+  String get globalAdminSearchHint => 'Поиск пользователей, собак, компаний, жалоб и обращений...';
+
+  @override
+  String get globalAdminSearch => 'Глобальный поиск администратора';
+
+  @override
+  String get notAuthenticated => 'Пользователь не авторизован';
+
+  @override
+  String get adoptionRequestNotFound => 'Запрос на усыновление не найден';
+
+  @override
+  String get backToRequests => 'Назад к запросам';
+
+  @override
+  String get messageApplicant => 'Написать заявителю';
+
+  @override
+  String get unknownPet => 'Неизвестный питомец';
+
+  @override
+  String get adoptionRequest => 'Запрос на усыновление';
+
+  @override
+  String get waitingForOwnerResponse => 'Ожидание ответа владельца';
+
+  @override
+  String get doneWithIcon => '✅ Готово';
+
+  @override
+  String failedWithIcon(Object error) {
+    return '❌ Ошибка: $error';
+  }
+
+  @override
+  String get availablePets => 'Доступные питомцы';
+
+  @override
+  String get petsCouldNotBeLoaded => 'Не удалось загрузить питомцев.';
+
+  @override
+  String get noPetsAvailable => 'Нет доступных питомцев';
+
+  @override
+  String get noImages => 'Нет изображений';
+
+  @override
+  String get viewAvailablePets => 'Посмотреть доступных питомцев';
+
+  @override
+  String get signInToContinue => 'Войдите, чтобы продолжить';
+
+  @override
+  String get writeReviewFirst => 'Сначала напишите отзыв';
+
+  @override
+  String get reviewSubmitted => 'Отзыв отправлен';
+
+  @override
+  String get reviewExperienceHint => 'Расскажите другим о своём опыте';
+
+  @override
+  String get submitReview => 'Отправить отзыв';
+
+  @override
+  String get adoptionCenterDetails => 'Сведения о центре усыновления';
+
+  @override
+  String get adoptionServices => 'Услуги усыновления';
+
+  @override
+  String get petTypes => 'Виды питомцев';
+
+  @override
+  String get workingDays => 'Рабочие дни';
+
+  @override
+  String get vetCheckIncluded => 'Ветеринарный осмотр включён';
+
+  @override
+  String get homeVisitAvailable => 'Доступен выезд на дом';
+
+  @override
+  String get transportSupport => 'Транспортная поддержка';
+
+  @override
+  String get fosterSupport => 'Поддержка передержки';
+
+  @override
+  String get media => 'Медиа';
+
+  @override
+  String get logo => 'Логотип';
+
+  @override
+  String get approvedBusinesses => 'Одобренные компании';
+
+  @override
+  String get searchBusinessesHint => 'Поиск компаний...';
+
+  @override
+  String get noApprovedBusinesses => 'Нет одобренных компаний';
+
+  @override
+  String get basic => 'Базовый';
+
+  @override
+  String get disclaimerAccepted => 'Отказ от ответственности принят';
+
+  @override
+  String get mismatchDetected => '⚠ Обнаружено несоответствие';
+
+  @override
+  String get languageCodeTr => 'TR';
+
+  @override
+  String get languageCodeEn => 'EN';
+
+  @override
+  String get riskFlags => 'Флаги риска';
+
+  @override
+  String get noRiskFlags => 'Флагов риска нет';
+
+  @override
+  String get adminNotes => 'Заметки администратора';
+
+  @override
+  String get adminNotesHint => 'Добавьте внутренние заметки модерации...';
+
+  @override
+  String get saveNotes => 'Сохранить заметки';
+
+  @override
+  String get adminNotesSaved => 'Заметки администратора сохранены ✅';
+
+  @override
+  String saveFailed(Object error) {
+    return 'Не удалось сохранить: $error';
+  }
+
+  @override
+  String get noQuickRepliesFound => 'Быстрые ответы не найдены';
+
+  @override
+  String get quickReplies => 'Быстрые ответы';
+
+  @override
+  String get chatFailedToLoad => 'Не удалось загрузить чат';
+
+  @override
+  String get noMessagesYet => 'Сообщений пока нет';
+
+  @override
+  String get typeMessageHint => 'Введите сообщение...';
+
+  @override
+  String get noRequests => 'Запросов нет';
+
+  @override
+  String phoneValue(Object value) {
+    return 'Телефон: $value';
+  }
+
+  @override
+  String genderValue(Object value) {
+    return 'Пол: $value';
+  }
+
+  @override
+  String petStatusUpdated(Object name) {
+    return 'Статус $name обновлён';
+  }
+
+  @override
+  String statusUpdateFailed(Object error) {
+    return 'Не удалось обновить статус: $error';
+  }
+
+  @override
+  String get deletePetQuestion => 'Удалить питомца?';
+
+  @override
+  String deletePetConfirmation(Object name) {
+    return 'Удалить $name? Это действие нельзя отменить.';
+  }
+
+  @override
+  String petDeleted(Object name) {
+    return '$name удалён';
+  }
+
+  @override
+  String deleteFailedWithError(Object error) {
+    return 'Не удалось удалить: $error';
+  }
+
+  @override
+  String get searchPetsHint => 'Поиск питомцев';
+
+  @override
+  String get noAdoptablePetsYet => 'Питомцев для усыновления пока нет';
+
+  @override
+  String get addAdoptablePetsDescription => 'Добавьте доступных для усыновления питомцев и управляйте их статусом здесь.';
+
+  @override
+  String failedToLoadPets(Object error) {
+    return 'Не удалось загрузить питомцев:\n$error';
+  }
+
+  @override
+  String breedValue(Object value) {
+    return 'Порода: $value';
+  }
+
+  @override
+  String ageValue(Object value) {
+    return 'Возраст: $value';
+  }
+
+  @override
+  String get edit => 'Изменить';
+
+  @override
+  String get noAdoptionPetsYet => 'Питомцев для усыновления пока нет';
+
+  @override
+  String get addPetsForAdoption => 'Добавьте питомцев, доступных для усыновления.';
+
+  @override
+  String get editAdoptionCenter => 'Редактировать центр пристройства';
+
+  @override
+  String get pleaseAddCoverImage => 'Добавьте обложку';
+
+  @override
+  String get addGalleryImages => 'Добавить изображения в галерею';
+
+  @override
+  String get petNameLabel => 'Имя питомца';
+
+  @override
+  String get ageMonthsLabel => 'Возраст (месяцы)';
+
+  @override
+  String get visible => 'Видимый';
+
+  @override
+  String failedToSetCover(Object error) {
+    return 'Не удалось установить обложку: $error';
+  }
+
+  @override
+  String get uploadPetMedia => 'Загрузить медиа питомца';
+
+  @override
+  String uploadedPercent(Object percent) {
+    return 'Загружено: $percent%';
+  }
+
+  @override
+  String get noMediaYet => 'Медиа пока нет';
+
+  @override
+  String get cover => 'Обложка';
+
+  @override
+  String get adoptionCenterInfo => 'Информация о центре пристройства';
+
+  @override
+  String get centerNameLabel => 'Название центра';
+
+  @override
+  String get instagram => 'Instagram';
+
+  @override
+  String get address => 'Адрес';
+
+  @override
+  String get saveCenterInfo => 'Сохранить информацию о центре';
+
+  @override
+  String get latestAdoptionApplications => 'Последние заявки на усыновление';
+
+  @override
+  String get viewAll => 'Посмотреть все';
+
+  @override
+  String get tapForMoreDetails => 'Нажмите, чтобы узнать больше';
+
+  @override
+  String get setAvailable => 'Сделать доступным';
+
+  @override
+  String get setReserved => 'Сделать зарезервированным';
+
+  @override
+  String get setAdopted => 'Отметить усыновлённым';
+
+  @override
+  String get setPaused => 'Приостановить';
+
+  @override
+  String get clients => 'Клиенты';
+
+  @override
+  String get searchPetOrOwnerHint => 'Поиск по имени питомца или владельца';
+
+  @override
+  String get couldNotLoadClients => 'Не удалось загрузить клиентов.';
+
+  @override
+  String get addClient => 'Добавить клиента';
+
+  @override
+  String get ownerNameLabel => 'Имя владельца';
+
+  @override
+  String get notes => 'Заметки';
+
+  @override
+  String get price => 'Цена';
+
+  @override
+  String get saveClient => 'Сохранить клиента';
+
+  @override
+  String get petOwnerNamesRequired => 'Необходимо указать имена питомца и владельца';
+
+  @override
+  String get clientSaved => 'Клиент сохранён';
+
+  @override
+  String lastGrooming(Object date) {
+    return 'Последний груминг: $date';
+  }
+
+  @override
+  String get noClientsYet => 'Клиентов пока нет';
+
+  @override
+  String get addFirstGroomingClient => 'Добавьте первого клиента, чтобы отслеживать посещения.';
+
+  @override
+  String get clientProfile => 'Профиль клиента';
+
+  @override
+  String get openAppointmentBooking => 'Откройте запись на приём со страницы компании';
+
+  @override
+  String get groomingHistory => 'История груминга';
+
+  @override
+  String get ownerNotFound => 'Владелец не найден';
+
+  @override
+  String get signInRequired => 'Требуется вход';
+
+  @override
+  String get addGroomingVisit => 'Добавить посещение груминга';
+
+  @override
+  String get serviceVisitTitle => 'Название услуги / посещения';
+
+  @override
+  String get saveVisit => 'Сохранить посещение';
+
+  @override
+  String get visitSaved => 'Посещение сохранено';
+
+  @override
+  String get editClient => 'Редактировать клиента';
+
+  @override
+  String get salonSchedule => 'Расписание салона';
+
+  @override
+  String get manageGroomingAppointments => 'Управление записями на груминг';
+
+  @override
+  String amountTry(Object amount) {
+    return '$amount TRY';
+  }
+
+  @override
+  String get uploadGroomingMedia => 'Загрузить медиа груминга';
+
+  @override
+  String get add => 'Добавить';
+
+  @override
+  String get afterPlatformCommission => 'После комиссии платформы';
+
+  @override
+  String get recentAppointments => 'Недавние записи';
+
+  @override
+  String get latestGroomingRequests => 'Последние запросы и сеансы груминга';
+
+  @override
+  String appointmentError(Object error) {
+    return 'Ошибка записи: $error';
+  }
+
+  @override
+  String get noGroomingAppointmentsYet => 'Записей на груминг пока нет';
+
+  @override
+  String get deleteService => 'Удалить услугу';
+
+  @override
+  String get deleteServiceConfirmation => 'Вы уверены, что хотите удалить эту услугу?';
+
+  @override
+  String get serviceDeleted => 'Услуга удалена';
+
+  @override
+  String get deleteFailed => 'Не удалось удалить';
+
+  @override
+  String get availabilityUpdated => 'Доступность обновлена';
+
+  @override
+  String updateFailed(Object error) {
+    return 'Не удалось обновить: $error';
+  }
+
+  @override
+  String get availability => 'Доступность';
+
+  @override
+  String get capacityBookingExplanation => 'Вместимость используется для предотвращения пересекающихся проживаний сверх числа доступных номеров.';
+
+  @override
+  String get roomCapacity => 'Вместимость номеров';
+
+  @override
+  String get maximumPetsRooms => 'Максимум питомцев / номеров';
+
+  @override
+  String currentCapacity(int count) {
+    return 'Текущая вместимость: $count';
+  }
+
+  @override
+  String get saveAvailability => 'Сохранить доступность';
+
+  @override
+  String get checkIn => 'Заселить';
+
+  @override
+  String get completeStay => 'Завершить проживание';
+
+  @override
+  String alreadyStatus(Object status) {
+    return 'Уже $status';
+  }
+
+  @override
+  String bookingUpdated(Object status) {
+    return 'Бронирование обновлено: $status';
+  }
+
+  @override
+  String bookingError(Object error) {
+    return 'Ошибка бронирования: $error';
+  }
+
+  @override
+  String get hotelProfile => 'Профиль отеля';
+
+  @override
+  String get hotelOverview => 'Обзор отеля';
+
+  @override
+  String get pendingRequests => 'Ожидающие запросы';
+
+  @override
+  String get uploadHotelMedia => 'Загрузить медиа отеля';
+
+  @override
+  String get proposeFinalPrice => 'Предложить итоговую цену';
+
+  @override
+  String get editProposedPrice => 'Изменить предложенную цену';
+
+  @override
+  String get notifyCustomerConfirmation => 'Клиент получит уведомление.';
+
+  @override
+  String get finalPrice => 'Итоговая цена';
+
+  @override
+  String get customerMustPayBeforeTrip => 'Клиент должен оплатить эту сумму в приложении до начала поездки.';
+
+  @override
+  String get sendPrice => 'Отправить цену';
+
+  @override
+  String get petTaxiOverview => 'Обзор зоотакси';
+
+  @override
+  String get driverOnline => 'Водитель онлайн';
+
+  @override
+  String get serviceDetailsSaveFailed => 'Не удалось сохранить сведения об услуге.';
+
+  @override
+  String get priceDeterminedAfterExamination => 'Оставьте поле пустым, если итоговая цена определяется после осмотра.';
+
+  @override
+  String get editing => 'Редактирование';
+
+  @override
+  String get setPriceDurationDescription => 'Укажите цену и примерную длительность для владельцев питомцев.';
+
+  @override
+  String get serviceDetailsBeforeBooking => 'Эти сведения помогают владельцам понять услугу до бронирования.';
+
+  @override
+  String get addCustomService => 'Добавить свою услугу';
+
+  @override
+  String get create => 'Создать';
+
+  @override
+  String get paymentSuccessful => 'Оплата прошла успешно';
+
+  @override
+  String get paymentCancelled => 'Оплата отменена';
+
+  @override
+  String paymentFailedWithError(Object error) {
+    return 'Ошибка оплаты: $error';
+  }
+
+  @override
+  String get appointmentPayment => 'Оплата приёма';
+
+  @override
+  String get done => 'Готово';
+
+  @override
+  String get payNow => 'Оплатить сейчас';
+
+  @override
+  String get titleLabel => 'Заголовок';
+
+  @override
+  String get noQuickRepliesYet => 'Быстрых ответов пока нет';
+
+  @override
+  String get quickRepliesDescription => 'Создавайте повторно используемые ответы на частые вопросы клиентов.';
+
+  @override
+  String get inbox => 'Входящие';
+
+  @override
+  String inboxError(Object error) {
+    return 'Ошибка входящих:\n$error';
+  }
+
+  @override
+  String get emergency => 'Экстренно';
+
+  @override
+  String get noClientMessagesYet => 'Сообщений клиентов пока нет';
+
+  @override
+  String get clientMessagesDescription => 'Когда владельцы питомцев свяжутся с клиникой, переписки появятся здесь.';
+
+  @override
+  String get passportNumberFormat => 'Номер паспорта может содержать только заглавные буквы, цифры, - или /';
+
+  @override
+  String get medicalProfileUpdated => 'Медицинский профиль обновлён';
+
+  @override
+  String profileUpdateFailed(Object error) {
+    return 'Не удалось обновить профиль: $error';
+  }
+
+  @override
+  String get confirmMicrochipNumber => 'Подтвердить номер микрочипа';
+
+  @override
+  String get review => 'Проверить';
+
+  @override
+  String get saveAnyway => 'Всё равно сохранить';
+
+  @override
+  String get medicalProfile => 'Медицинский профиль';
+
+  @override
+  String get saveMedicalProfile => 'Сохранить медицинский профиль';
+
+  @override
+  String get ownerProfileUpdated => 'Профиль владельца обновлён';
+
+  @override
+  String get ownerProfile => 'Профиль владельца';
+
+  @override
+  String couldNotSaveVisit(Object error) {
+    return 'Не удалось сохранить посещение: $error';
+  }
+
+  @override
+  String get deleteVisit => 'Удалить посещение';
+
+  @override
+  String get deleteVisitConfirmation => 'Удалить это посещение из медицинской карты?';
+
+  @override
+  String couldNotDeleteVisit(Object error) {
+    return 'Не удалось удалить посещение: $error';
+  }
+
+  @override
+  String get deleteVisitTooltip => 'Удалить посещение';
+
+  @override
+  String get addVaccine => 'Добавить вакцину';
+
+  @override
+  String get vaccine => 'Вакцина';
+
+  @override
+  String get reminder => 'Напоминание';
+
+  @override
+  String get notifyBeforeNextDueDate => 'Уведомить до следующей даты вакцинации';
+
+  @override
+  String get saveVaccine => 'Сохранить вакцину';
+
+  @override
+  String get patientNotFound => 'Пациент не найден';
+
+  @override
+  String get editOwnerProfile => 'Редактировать профиль владельца';
+
+  @override
+  String get ownerEmergencyContactDetails => 'Данные владельца и экстренного контакта';
+
+  @override
+  String get editMedicalProfile => 'Редактировать медицинский профиль';
+
+  @override
+  String get clinicalVeterinaryInformation => 'Клиническая и ветеринарная информация';
+
+  @override
+  String get visits => 'Посещения';
+
+  @override
+  String get vaccines => 'Вакцины';
+
+  @override
+  String get ownerInformation => 'Информация о владельце';
+
+  @override
+  String get visitsUnavailable => 'Посещения недоступны';
+
+  @override
+  String visitsError(Object error) {
+    return 'Ошибка посещений: $error';
+  }
+
+  @override
+  String get followUp => 'Повторный приём';
+
+  @override
+  String get editVisitTooltip => 'Редактировать посещение';
+
+  @override
+  String get editMedicalNotes => 'Редактировать медицинские заметки';
+
+  @override
+  String get medicalNotes => 'Медицинские заметки';
+
+  @override
+  String get editVaccineTooltip => 'Редактировать вакцину';
+
+  @override
+  String get deleteVaccineTooltip => 'Удалить вакцину';
+
+  @override
+  String get deleteVaccine => 'Удалить вакцину';
+
+  @override
+  String get deleteVaccineConfirmation => 'Вы уверены, что хотите удалить эту запись о вакцинации?';
+
+  @override
+  String get editVaccine => 'Редактировать вакцину';
+
+  @override
+  String get vaccineName => 'Название вакцины';
+
+  @override
+  String get updateVaccine => 'Обновить вакцину';
+
+  @override
+  String get completeVaccine => 'Завершить вакцинацию';
+
+  @override
+  String get clientNote => 'Заметка клиента';
+
+  @override
+  String get businessInfo => 'Информация о компании';
+
+  @override
+  String get clinicName => 'Название клиники';
+
+  @override
+  String get emergencyServiceEnabled => 'Экстренная помощь включена';
+
+  @override
+  String get saveBusinessInfo => 'Сохранить информацию';
+
+  @override
+  String get openAppointmentsTab => 'Откройте вкладку записей сверху';
+
+  @override
+  String get viewAllAppointments => 'Посмотреть все записи';
+
+  @override
+  String get checkConnectionTryAgain => 'Проверьте подключение и повторите попытку.';
+
+  @override
+  String get editServiceTooltip => 'Редактировать услугу';
+
+  @override
+  String get deleteServiceTooltip => 'Удалить услугу';
+
+  @override
+  String get noServicesAddedYet => 'Услуги пока не добавлены';
+
+  @override
+  String get addFirstServiceDescription => 'Добавьте первую услугу, чтобы она стала доступна владельцам питомцев.';
+
+  @override
+  String get servicesPricing => 'Услуги и цены';
+
+  @override
+  String get addService => 'Добавить услугу';
+
+  @override
+  String get noServicesYet => 'Услуг пока нет.';
+
+  @override
+  String servicePriceDuration(Object price, Object currency, Object duration) {
+    return '$price $currency • $duration мин';
+  }
+
+  @override
+  String get serviceTitle => 'Название услуги';
+
+  @override
+  String get durationMinutes => 'Длительность (мин)';
+
+  @override
+  String get requireDeposit => 'Требовать предоплату';
+
+  @override
+  String get depositAmount => 'Размер предоплаты (₺)';
+
+  @override
+  String get featured => 'Рекомендуемая';
+
+  @override
+  String get active => 'Активная';
+
+  @override
+  String get photoUploadedSuccessfully => 'Фото успешно загружено';
+
+  @override
+  String get photoDeleted => 'Фото удалено';
+
+  @override
+  String get coverImageUpdated => 'Обложка обновлена';
+
+  @override
+  String get galleryManagement => 'Управление галереей';
+
+  @override
+  String get coverImage => 'Обложка';
+
+  @override
+  String get tapToChangeCover => 'Нажмите, чтобы изменить обложку';
+
+  @override
+  String get uploadCoverImage => 'Загрузить обложку';
+
+  @override
+  String get tapToUploadClinicCover => 'Нажмите, чтобы загрузить обложку клиники';
+
+  @override
+  String get galleryPhotos => 'Фотографии галереи';
+
+  @override
+  String get noGalleryPhotosYet => 'В галерее пока нет фотографий';
+
+  @override
+  String get uploadClinicPhotosDescription => 'Загрузите фотографии клиники, чтобы повысить доверие и видимость.';
+
+  @override
+  String get uploadFirstPhoto => 'Загрузить первое фото';
+
+  @override
+  String get dragToReorderGallery => 'Перетащите фотографии, чтобы изменить порядок';
+
+  @override
+  String get patients => 'Пациенты';
+
+  @override
+  String get back => 'Назад';
+
+  @override
+  String get patientRecords => 'Карты пациентов';
+
+  @override
+  String shownCount(int count) {
+    return 'Показано: $count';
+  }
+
+  @override
+  String get searchPetOwnerBreed => 'Поиск питомца, владельца или породы';
+
+  @override
+  String get clear => 'Очистить';
+
+  @override
+  String preVisitSettingsLoadFailed(Object error) {
+    return 'Не удалось загрузить настройки предварительной формы: $error';
+  }
+
+  @override
+  String get preVisitSettingsSaved => 'Настройки предварительной формы сохранены';
+
+  @override
+  String settingsSaveFailed(Object error) {
+    return 'Не удалось сохранить настройки: $error';
+  }
+
+  @override
+  String get preVisitForms => 'Предварительные формы';
+
+  @override
+  String get servicePreVisitForms => 'Предварительные формы услуг';
+
+  @override
+  String get serviceMedicalIntakeDescription => 'У каждой услуги могут быть свои вопросы для медицинского приёма.';
+
+  @override
+  String get servicesCouldNotBeLoadedPeriod => 'Не удалось загрузить услуги.';
+
+  @override
+  String get noActiveServicesForForms => 'Активных услуг пока нет. Добавьте услуги перед созданием форм.';
+
+  @override
+  String get enableForService => 'Включить для этой услуги';
+
+  @override
+  String get onlyServiceAsksQuestions => 'Эти вопросы будут задаваться только для этой услуги.';
+
+  @override
+  String get noQuestionsForService => 'Для этой услуги пока нет вопросов.';
+
+  @override
+  String get question => 'Вопрос';
+
+  @override
+  String get questionExample => 'Например: ваш питомец сегодня ел?';
+
+  @override
+  String get remove => 'Удалить';
+
+  @override
+  String get questionType => 'Тип вопроса';
+
+  @override
+  String get textType => 'Текст';
+
+  @override
+  String get longTextType => 'Длинный текст';
+
+  @override
+  String get yesNoType => 'Да / Нет';
+
+  @override
+  String get singleChoice => 'Один вариант';
+
+  @override
+  String get multipleChoice => 'Несколько вариантов';
+
+  @override
+  String get numberType => 'Число';
+
+  @override
+  String get requiredLabel => 'Обязательно';
+
+  @override
+  String get options => 'Варианты';
+
+  @override
+  String optionNumber(int number) {
+    return 'Вариант $number';
+  }
+
+  @override
+  String get addOption => 'Добавить вариант';
+
+  @override
+  String get clinicSchedule => 'Расписание клиники';
+
+  @override
+  String get appointments => 'Записи';
+
+  @override
+  String totalCount(int count) {
+    return 'Всего: $count';
+  }
+
+  @override
+  String get services => 'Услуги';
+
+  @override
+  String get addServiceFlowComingNext => 'Добавление услуг скоро появится';
+
+  @override
+  String get clinicServices => 'Услуги клиники';
+
+  @override
+  String get manageVisibleVetServices => 'Управление видимыми ветеринарными услугами';
+
+  @override
+  String get clinicSettings => 'Настройки клиники';
+
+  @override
+  String get emergencyAvailabilitySaveFailed => 'Не удалось сохранить доступность экстренной помощи';
+
+  @override
+  String managementNotAvailable(Object label) {
+    return 'Управление «$label» пока недоступно';
+  }
+
+  @override
+  String loadError(Object error) {
+    return 'Ошибка загрузки: $error';
+  }
+
+  @override
+  String get workingHoursSaved => 'Рабочие часы сохранены';
+
+  @override
+  String saveError(Object error) {
+    return 'Ошибка сохранения: $error';
+  }
+
+  @override
+  String get workingHours => 'Рабочие часы';
+
+  @override
+  String get clinicWorkingHours => 'Рабочие часы клиники';
+
+  @override
+  String get manageOpeningDays => 'Управляйте рабочими днями и доступностью записей';
+
+  @override
+  String get editGroomyProfile => 'Редактировать профиль груминга';
+
+  @override
+  String get groomyDetails => 'Сведения о груминге';
+
+  @override
+  String get homeService => 'Выезд на дом';
+
+  @override
+  String get pickupService => 'Забор питомца';
+
+  @override
+  String get photos => 'Фотографии';
+
+  @override
+  String get complete => 'Завершить';
+
+  @override
+  String get awaitingPayment => 'Ожидается оплата';
+
+  @override
+  String appointmentUpdated(Object status) {
+    return 'Запись обновлена: $status';
+  }
+
+  @override
+  String get galleryComingSoon => 'Галерея скоро появится';
+
+  @override
+  String get editHotelProfile => 'Редактировать профиль отеля';
+
+  @override
+  String pricePerNight(Object price) {
+    return '$price₺ / ночь';
+  }
+
+  @override
+  String bookStayAt(Object hotel) {
+    return 'Забронировать проживание • $hotel';
+  }
+
+  @override
+  String get hotelCareNotesHint => 'Питание, лекарства или заметки по уходу';
+
+  @override
+  String get requestBooking => 'Запросить бронирование';
+
+  @override
+  String get checkoutAfterCheckin => 'Дата выезда должна быть позже даты заезда';
+
+  @override
+  String get hotelBookingRequestSent => 'Запрос на бронирование отеля отправлен.';
+
+  @override
+  String get noGalleryImagesYet => 'Изображений в галерее пока нет';
+
+  @override
+  String get petHotelDetails => 'Сведения о зоогостинице';
+
+  @override
+  String get amenities => 'Удобства';
+
+  @override
+  String get petTaxiDetails => 'Сведения о зоотакси';
+
+  @override
+  String get petTaxiManualReviewNotice => 'Заявка на зоотакси не будет опубликована до ручной проверки и одобрения документов.';
+
+  @override
+  String get transportationLawNotice => 'Транспортное законодательство зависит от города и страны. Компания обязана соблюдать местные правила перевозки, страхования и налогообложения.';
+
+  @override
+  String get legalDocumentsPrivacyNotice => 'Юридические документы хранятся только для проверки владельцем компании и администратором. Они не показываются обычным пользователям.';
+
+  @override
+  String get savePetTaxiDetails => 'Сохранить сведения о зоотакси';
+
+  @override
+  String get driverVehicle => 'Водитель и автомобиль';
+
+  @override
+  String get vehicleType => 'Тип автомобиля';
+
+  @override
+  String get preview => 'Предпросмотр';
+
+  @override
+  String get editPetShopProfile => 'Редактировать профиль зоомагазина';
+
+  @override
+  String get petShopDetails => 'Сведения о зоомагазине';
+
+  @override
+  String get shopTypes => 'Типы магазина';
+
+  @override
+  String get priceLevel => 'Уровень цен';
+
+  @override
+  String get low => 'Низкий';
+
+  @override
+  String get mid => 'Средний';
+
+  @override
+  String get high => 'Высокий';
+
+  @override
+  String get delivery => 'Доставка';
+
+  @override
+  String get hasDelivery => 'Есть доставка';
+
+  @override
+  String get offers => 'Предложения';
+
+  @override
+  String get hasOffers => 'Есть предложения';
+
+  @override
+  String get rejectedBusinesses => 'Отклонённые компании';
+
+  @override
+  String get noRejectedBusinesses => 'Отклонённых компаний нет';
+
+  @override
+  String get inheritedFromRegistration => 'Унаследовано из основной регистрации';
+
+  @override
+  String get veterinaryDetails => 'Ветеринарные сведения';
+
+  @override
+  String get licenseReviewNotice => 'Этот номер будет проверен во время верификации.';
+
+  @override
+  String get licenseExpiryDateNumbered => '12. Дата окончания лицензии';
+
+  @override
+  String get workingDaysNumbered => '20. Рабочие дни';
+
+  @override
+  String get acceptedAnimalTypesNumbered => '24. Принимаемые виды животных';
+
+  @override
+  String get confirmInformationAccurate => '41. Я подтверждаю точность предоставленной информации';
+
+  @override
+  String get agreeDisplayInformation => '42. Я согласен на отображение моих данных в приложении';
+
+  @override
+  String get agreeDisplayReviews => '43. Я согласен на отображение отзывов пользователей';
+
+  @override
+  String get acceptPartnershipTerms => '44. Я принимаю условия партнёрства PetSupo';
+
+  @override
+  String get submitVeterinaryDetails => 'Отправить ветеринарные сведения';
+
+  @override
+  String get adoptionCenterTemporary => 'Центр пристройства (ВРЕМЕННО)';
+
+  @override
+  String reviewsCountParenthesized(Object count) {
+    return ' (отзывов: $count)';
+  }
+
+  @override
+  String get messageSendingTimedOut => 'Время отправки сообщения истекло';
+
+  @override
+  String messageFailed(Object error) {
+    return 'Не удалось отправить сообщение: $error';
+  }
+
+  @override
+  String get chatCreating => 'Чат создаётся...';
+
+  @override
+  String get startChatting => 'Начните общение 👋';
+
+  @override
+  String get writeMessageHint => 'Напишите сообщение...';
+
+  @override
+  String get noChatsYet => 'Чатов пока нет';
+
+  @override
+  String get startChattingWithPetOwners => 'Общайтесь с владельцами питомцев и находите новых друзей для своего питомца 👋';
+
+  @override
+  String get failedToLoadChats => 'Не удалось загрузить чаты';
+
+  @override
+  String get personalChatsCouldNotLoad => 'Не удалось загрузить личные чаты.';
+
+  @override
+  String get businessConversations => 'Переписки с компаниями';
+
+  @override
+  String get signInToUseChats => 'Войдите, чтобы использовать чаты';
+
+  @override
+  String get chats => 'Чаты';
+
+  @override
+  String get connectWithPetOwners => 'Общайтесь с владельцами питомцев';
+
+  @override
+  String get noChatsFound => 'Чаты не найдены';
+
+  @override
+  String get tryAnotherKeyword => 'Попробуйте другое ключевое слово или имя пользователя.';
+
+  @override
+  String get messages => 'Сообщения';
+
+  @override
+  String get failedToLoadMessages => 'Не удалось загрузить сообщения';
+
+  @override
+  String get noConversationsYet => 'Переписок пока нет';
+
+  @override
+  String get userInboxEmptyDescription => 'Когда вы свяжетесь с компанией,\nпереписка появится здесь.';
+
+  @override
+  String get medicalRecords => 'Медицинские записи';
+
+  @override
+  String get vaccinesVisitsAndTreatments => 'Вакцинации, осмотры и лечение';
+
+  @override
+  String amountInTry(Object amount) {
+    return '$amount тур. лир';
+  }
+
+  @override
   String get reportDialogTitle => 'Report';
 
   @override
@@ -5823,4 +8244,509 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get suspendedAccountSignOut => 'Sign out';
+
+  @override
+  String get payoutEligibleTab => 'Доступные';
+
+  @override
+  String get payoutBatchesTab => 'Пакеты';
+
+  @override
+  String get payoutExceptionsTab => 'Исключения';
+
+  @override
+  String get payoutSelectAllEligible => 'Выбрать всех доступных продавцов';
+
+  @override
+  String get payoutCreateBatch => 'Создать пакет выплат';
+
+  @override
+  String payoutBatchCreated(Object batchNumber) {
+    return 'Пакет $batchNumber создан';
+  }
+
+  @override
+  String payoutOperationFailed(Object details) {
+    return 'Операция выплаты не выполнена. $details';
+  }
+
+  @override
+  String get payoutLoadFailed => 'Не удалось загрузить данные выплат.';
+
+  @override
+  String get payoutNoExceptions => 'Исключений нет';
+
+  @override
+  String get payoutDateFilter => 'Период выплаты';
+
+  @override
+  String get payoutToday => 'Сегодня';
+
+  @override
+  String get payoutYesterday => 'Вчера';
+
+  @override
+  String get payoutThisWeek => 'Эта неделя';
+
+  @override
+  String get payoutLastWeek => 'Прошлая неделя';
+
+  @override
+  String get payoutThisMonth => 'Этот месяц';
+
+  @override
+  String get payoutValidBankOnly => 'Действительный банковский счёт';
+
+  @override
+  String get payoutUnknownSeller => 'Данные продавца недоступны';
+
+  @override
+  String get payoutBankMissing => 'Банк не указан';
+
+  @override
+  String get payoutIncludedOrders => 'Включённые заказы';
+
+  @override
+  String get payoutPeriod => 'Период';
+
+  @override
+  String get payoutGrossTotal => 'Сумма до комиссии';
+
+  @override
+  String get payoutCommissionTotal => 'Комиссия';
+
+  @override
+  String get payoutNetPayable => 'К выплате';
+
+  @override
+  String get payoutNoBatches => 'Пакетов выплат нет';
+
+  @override
+  String get payoutSellers => 'продавцов';
+
+  @override
+  String get payoutExportXlsx => 'Экспорт XLSX';
+
+  @override
+  String get payoutValid => 'Действительно';
+
+  @override
+  String get payoutBlocked => 'Заблокировано';
+
+  @override
+  String get payoutMissingBusiness => 'Нет данных компании';
+
+  @override
+  String get payoutMissingAccountHolder => 'Нет владельца счёта';
+
+  @override
+  String get payoutMissingIban => 'Нет IBAN';
+
+  @override
+  String get payoutInvalidIban => 'Неверный IBAN';
+
+  @override
+  String get payoutMissingBankName => 'Нет названия банка';
+
+  @override
+  String get payoutNonPositiveAmount => 'Сумма должна быть положительной';
+
+  @override
+  String get payoutSettlementIncomplete => 'Расчёт не завершён';
+
+  @override
+  String get payoutCommissionUnknown => 'Комиссия требует проверки';
+
+  @override
+  String get payoutCustomerPaid => 'Оплачено клиентом';
+
+  @override
+  String get payoutSellerNetNotCalculated => 'Нетто продавца: не рассчитано';
+
+  @override
+  String get payoutExcludedFromPayout => 'Исключено из выплаты';
+
+  @override
+  String get payoutRefundedOrCancelled => 'Возвращённый или отменённый заказ';
+
+  @override
+  String get payoutAlreadyBatched => 'Уже включено в пакет';
+
+  @override
+  String get payoutAlreadyPaid => 'Уже оплачено';
+
+  @override
+  String get payoutUnsupportedCurrency => 'Валюта не поддерживается';
+
+  @override
+  String get payoutIneligible => 'Выплата недоступна';
+
+  @override
+  String get payoutStatusFilter => 'Статус выплаты';
+
+  @override
+  String get payoutSettlementFilter => 'Статус расчёта';
+
+  @override
+  String get payoutBatchFilter => 'Платёжный пакет';
+
+  @override
+  String get payoutIncludedInBatch => 'Включено в пакет';
+
+  @override
+  String get payoutNotIncludedInBatch => 'Не включено в пакет';
+
+  @override
+  String get payoutSellerFilter => 'Продавец / компания';
+
+  @override
+  String get payoutBankFilter => 'Банк';
+
+  @override
+  String get payoutMinimumAmount => 'Минимальная выплата';
+
+  @override
+  String get payoutMaximumAmount => 'Максимальная выплата';
+
+  @override
+  String get payoutCustomRange => 'Произвольный период';
+
+  @override
+  String get financeOverviewTab => 'Обзор';
+
+  @override
+  String get financeWaitingTab => 'Ожидание';
+
+  @override
+  String get financeEligibleSellers => 'Доступные продавцы';
+
+  @override
+  String get financeEligibleRecords => 'Доступные записи';
+
+  @override
+  String get financeWaitingSellers => 'Продавцы в ожидании';
+
+  @override
+  String get financeWaitingRecords => 'Записи в ожидании';
+
+  @override
+  String get financeWaitingAmount => 'Сумма в ожидании';
+
+  @override
+  String get financeBlockedRecords => 'Заблокированные записи';
+
+  @override
+  String get financeExceptionCount => 'Исключения';
+
+  @override
+  String get financeTodaySales => 'Продажи сегодня';
+
+  @override
+  String get financeTodayCommission => 'Комиссия сегодня';
+
+  @override
+  String get financeTodayRefunds => 'Возвраты сегодня';
+
+  @override
+  String get financeTodayEligible => 'Доступно сегодня';
+
+  @override
+  String get financeTodayPaid => 'Выплачено сегодня';
+
+  @override
+  String get financeOutstandingLiability => 'Непогашенные обязательства';
+
+  @override
+  String get financeMonthlyPlatformRevenue => 'Месячный доход платформы';
+
+  @override
+  String get financeNextEligibilityDate => 'Следующая дата доступности';
+
+  @override
+  String get financeDaysRemaining => 'Осталось дней';
+
+  @override
+  String get financeOldestWaitingRecord => 'Самая старая ожидающая запись';
+
+  @override
+  String get financeAmountEligibleNext => 'Следующая доступная сумма';
+
+  @override
+  String get financeSendForReview => 'Отправить на проверку';
+
+  @override
+  String get financeApproveBatch => 'Утвердить';
+
+  @override
+  String get financeRejectBatch => 'Отклонить пакет';
+
+  @override
+  String get sellerFinanceTitle => 'Финансы и доходы';
+
+  @override
+  String get sellerFinanceDetails => 'Подробнее';
+
+  @override
+  String get sellerFinanceAvailable => 'Доступный баланс';
+
+  @override
+  String get sellerFinanceWaiting => 'Баланс в ожидании';
+
+  @override
+  String get sellerFinanceProcessing => 'В пакете / обработке';
+
+  @override
+  String get sellerFinancePaidThisMonth => 'Выплачено в этом месяце';
+
+  @override
+  String get sellerFinanceTotalEarnings => 'Общий доход';
+
+  @override
+  String get sellerFinanceBlocked => 'Заблокированная сумма';
+
+  @override
+  String get sellerFinanceBankBlocked => 'Выплата заблокирована из-за неполных банковских данных.';
+
+  @override
+  String get sellerFinanceUpdateBank => 'Обновить банковский счёт';
+
+  @override
+  String get sellerFinanceWaitingExplanation => 'Доход становится доступным через 21 день после успешной оплаты.';
+
+  @override
+  String get sellerFinanceWaitingSchedule => 'График ожидания';
+
+  @override
+  String get sellerFinanceLastPayout => 'Последняя выплата';
+
+  @override
+  String get sellerFinanceOrders => 'заказов';
+
+  @override
+  String get sellerFinanceAppointments => 'приёмов';
+
+  @override
+  String get sellerFinanceBookings => 'бронирований';
+
+  @override
+  String get sellerFinanceRides => 'поездок';
+
+  @override
+  String get sellerFinanceRequests => 'запросов';
+
+  @override
+  String get financeRecommendedAction => 'Рекомендуемое действие';
+
+  @override
+  String get financeOpenSeller => 'Открыть продавца';
+
+  @override
+  String get financeTomorrowEligible => 'Станет доступно завтра';
+
+  @override
+  String get financeNext7Days => 'Следующие 7 дней';
+
+  @override
+  String get financeNext30Days => 'Следующие 30 дней';
+
+  @override
+  String get financeEstimatedPayable => 'Расчётная выплата';
+
+  @override
+  String get financeStartProcessing => 'Начать обработку';
+
+  @override
+  String get sellerFinanceEstimatedNext => 'Расчётная следующая выплата';
+
+  @override
+  String get sellerFinanceTimeline => 'Этапы выплаты';
+
+  @override
+  String get sellerFinanceTimelineValue => 'Оплачено → Ожидание (21 день) → Доступно → В пакете → Переведено → Завершено';
+
+  @override
+  String get sellerFinanceEligibleRecords => 'Доступные записи';
+
+  @override
+  String get sellerFinancePayoutHistory => 'История выплат';
+
+  @override
+  String get sellerFinanceExceptions => 'Исключения';
+
+  @override
+  String get financeMarkFailed => 'Отметить неудачной';
+
+  @override
+  String get financeFailureReason => 'Причина сбоя';
+
+  @override
+  String get userProfileCreatorProgram => 'Программа авторов';
+
+  @override
+  String get userProfileOpenCreatorDashboard => 'Панель автора';
+
+  @override
+  String get creatorDashboardTitle => 'Панель автора';
+
+  @override
+  String get creatorWelcomeBack => 'С возвращением';
+
+  @override
+  String get creatorLevelLabel => 'Уровень автора';
+
+  @override
+  String get creatorCurrentCampaign => 'Текущая кампания';
+
+  @override
+  String get creatorReferralCodeLabel => 'Реферальный код';
+
+  @override
+  String get creatorReferralLinkLabel => 'Реферальная ссылка';
+
+  @override
+  String get creatorCopyCode => 'Копировать код';
+
+  @override
+  String get creatorCopyLink => 'Копировать ссылку';
+
+  @override
+  String get creatorReferralCodeCopied => 'Реферальный код скопирован';
+
+  @override
+  String get creatorReferralLinkCopied => 'Реферальная ссылка скопирована';
+
+  @override
+  String get creatorQualifiedUsers => 'Квалифицированные пользователи';
+
+  @override
+  String get creatorVerifiedPartners => 'Подтверждённые партнёры';
+
+  @override
+  String get creatorPendingRewards => 'Ожидающие вознаграждения';
+
+  @override
+  String get creatorPaidRewards => 'Выплаченные вознаграждения';
+
+  @override
+  String get creatorRecentActivity => 'Последние действия';
+
+  @override
+  String get creatorNoActivityYet => 'Пока нет активности';
+
+  @override
+  String get creatorNoActivityMessage => 'Как только кто-то воспользуется вашей реферальной ссылкой, активность появится здесь.';
+
+  @override
+  String get creatorUpcomingPayout => 'Ближайшая выплата';
+
+  @override
+  String get creatorEstimatedPayout => 'Ожидаемая выплата';
+
+  @override
+  String get creatorPayoutDate => 'Дата выплаты';
+
+  @override
+  String get creatorPayoutMethod => 'Способ выплаты';
+
+  @override
+  String get creatorOpenFullDashboard => 'Открыть полную панель';
+
+  @override
+  String get creatorOpenFullDashboardHint => 'Смотрите подробные графики, аналитику и отчёты в веб-версии';
+
+  @override
+  String get creatorPerformanceOverview => 'Обзор эффективности';
+
+  @override
+  String get creatorTotalClicks => 'Всего кликов';
+
+  @override
+  String get creatorRegistrations => 'Регистрации';
+
+  @override
+  String get creatorConversionRate => 'Конверсия';
+
+  @override
+  String get creatorRewardBreakdown => 'Структура вознаграждений';
+
+  @override
+  String get creatorPayoutHistory => 'История выплат';
+
+  @override
+  String get creatorAnalytics => 'Аналитика';
+
+  @override
+  String get creatorReferralsTab => 'Рефералы';
+
+  @override
+  String get creatorRewardsTab => 'Вознаграждения';
+
+  @override
+  String get creatorFilters => 'Фильтры';
+
+  @override
+  String get creatorExport => 'Экспорт';
+
+  @override
+  String get creatorTimeframe7d => '7 дней';
+
+  @override
+  String get creatorTimeframe30d => '30 дней';
+
+  @override
+  String get creatorTimeframe90d => '90 дней';
+
+  @override
+  String get creatorTimeframe12m => '12 месяцев';
+
+  @override
+  String get creatorSignInRequiredTitle => 'Требуется вход';
+
+  @override
+  String get creatorSignInRequiredMessage => 'Войдите, чтобы увидеть панель автора';
+
+  @override
+  String get creatorAccessDeniedTitle => 'Требуется доступ автора';
+
+  @override
+  String get creatorAccessDeniedMessage => 'Эта панель доступна только одобренным авторам PetSupo.';
+
+  @override
+  String get creatorGoToSignIn => 'Перейти к входу';
+
+  @override
+  String get creatorBadgesAchievements => 'Значки и достижения';
+
+  @override
+  String get creatorProgressToNextLevelPrefix => 'Прогресс до';
+
+  @override
+  String get creatorTotalEarned => 'Всего заработано';
+
+  @override
+  String get creatorShareYourLink => 'Поделитесь реферальной ссылкой';
+
+  @override
+  String get creatorStatusPaid => 'Выплачено';
+
+  @override
+  String get creatorStatusScheduled => 'Запланировано';
+
+  @override
+  String get creatorExportComingSoon => 'Экспорт скоро появится';
+
+  @override
+  String get creatorFiltersComingSoon => 'Расширенные фильтры скоро появятся';
+
+  @override
+  String get creatorStatusLabel => 'Статус';
+
+  @override
+  String get creatorStatusActive => 'Активен';
+
+  @override
+  String get creatorStatusInactive => 'Неактивен';
+
+  @override
+  String get creatorSampleData => 'Демонстрационные данные';
 }

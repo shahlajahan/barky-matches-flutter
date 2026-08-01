@@ -1,10 +1,13 @@
 // lib/ui/business/business_register_page.dart
 
+import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_places_flutter/google_places_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
@@ -25,6 +29,7 @@ import '../../data/location_cache.dart';
 
 import '../../ui/formatters/vkn_input_formatter.dart';
 import '../../config/api_keys.dart';
+import '../../services/web_google_location_service.dart';
 
 import 'sector_forms/vet_details_page.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/pet_shop_details_page.dart';
@@ -175,6 +180,9 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 
   bool _taxLocked = false;
   bool _mersisLocked = false;
+  bool _documentsVerified = false;
+  bool _verificationSyncInFlight = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _ocrSubscription;
 
   bool _sectorCompleted = false;
   BusinessDraft? _completedSectorDraft;
@@ -248,7 +256,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
         }
       }
       if (_country == "Turkey") {
-        if (!_taxLocked || !_mersisLocked) {
+        if (!_documentsVerified || !_taxLocked || !_mersisLocked) {
           errors.add(
             AppLocalizations.of(
               context,
@@ -300,7 +308,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   void initState() {
     super.initState();
     Future.microtask(() => _bootstrapLocations());
-    // _listenForOcrResults();
+    _listenForOcrResults();
   }
 
   Future<void> _bootstrapLocations() async {
@@ -462,6 +470,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     _addressFocus.dispose();
     _taxNumberController.dispose();
     _mersisNumberController.dispose();
+    _ocrSubscription?.cancel();
     super.dispose();
   }
 
@@ -529,18 +538,26 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
                                     _legalLang = i == 0 ? "TR" : "EN";
                                   });
                                 },
-                                children: const [
+                                children: [
                                   Padding(
-                                    padding: EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
                                     ),
-                                    child: Text("TR"),
+                                    child: Text(
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.languageCodeTr,
+                                    ),
                                   ),
                                   Padding(
-                                    padding: EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
                                     ),
-                                    child: Text("EN"),
+                                    child: Text(
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.languageCodeEn,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -654,48 +671,116 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
         desiredAccuracy: LocationAccuracy.low,
       );
 
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (!mounted || placemarks.isEmpty) return;
-
-      final place = placemarks.first;
-      final detectedCity = (place.administrativeArea ?? "").trim();
-      final detectedDistrict = (place.subAdministrativeArea ?? "").trim();
-
-      if (_admin1List.isEmpty || _selectedCountryCode == null) return;
-
-      // 🔎 match city
-      final cityMatch = _admin1List.firstWhere(
-        (p) => p.name.toLowerCase() == detectedCity.toLowerCase(),
-        orElse: () => _admin1List.first,
-      );
-
-      await _loadAdmin2(_selectedCountryCode!, cityMatch.id);
-
-      // 🔎 match district
-      Admin2? districtMatch;
-      if (_admin2List.isNotEmpty) {
-        try {
-          districtMatch = _admin2List.firstWhere(
-            (d) => d.name.toLowerCase() == detectedDistrict.toLowerCase(),
-          );
-        } catch (_) {}
+      String detectedCity;
+      String detectedDistrict;
+      if (kIsWeb) {
+        final location = await const WebGoogleLocationService().reverseGeocode(
+          position.latitude,
+          position.longitude,
+        );
+        if (location == null) {
+          throw StateError('Web reverse geocoding returned no location.');
+        }
+        detectedCity = location.city ?? '';
+        detectedDistrict = location.district ?? '';
+      } else {
+        final placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (placemarks.isEmpty) {
+          throw StateError('Reverse geocoding returned no placemark.');
+        }
+        final place = placemarks.first;
+        detectedCity = (place.administrativeArea ?? '').trim();
+        detectedDistrict = (place.subAdministrativeArea ?? '').trim();
       }
 
+      if (!mounted) return;
+      await _selectDetectedCity(detectedCity, detectedDistrict);
+      if (!mounted) return;
       setState(() {
-        _selectedAdmin1 = cityMatch;
-        _city.text = cityMatch.name;
-
-        if (districtMatch != null) {
-          _selectedAdmin2 = districtMatch;
-          _district.text = districtMatch.name;
-        }
+        _lat = position.latitude;
+        _lng = position.longitude;
       });
-    } catch (e) {
+    } catch (error, stackTrace) {
+      debugPrint('Detect City failed: $error\n$stackTrace');
       _snack(couldNotDetectCity);
+    }
+  }
+
+  Future<void> _selectDetectedCity(String city, String district) async {
+    final countryCode = _selectedCountryCode;
+    if (_admin1List.isEmpty || countryCode == null || city.trim().isEmpty) {
+      return;
+    }
+
+    final normalizedCity = city.trim().toLowerCase();
+    Admin1? cityMatch;
+    for (final candidate in _admin1List) {
+      final name = candidate.name.trim().toLowerCase();
+      if (name == normalizedCity ||
+          name.contains(normalizedCity) ||
+          normalizedCity.contains(name)) {
+        cityMatch = candidate;
+        break;
+      }
+    }
+    if (cityMatch == null) return;
+    final selectedCity = cityMatch;
+
+    await _loadAdmin2(countryCode, selectedCity.id);
+    if (!mounted) return;
+
+    final normalizedDistrict = district.trim().toLowerCase();
+    Admin2? districtMatch;
+    if (normalizedDistrict.isNotEmpty) {
+      for (final candidate in _admin2List) {
+        final name = candidate.name.trim().toLowerCase();
+        if (name == normalizedDistrict ||
+            name.contains(normalizedDistrict) ||
+            normalizedDistrict.contains(name)) {
+          districtMatch = candidate;
+          break;
+        }
+      }
+    }
+
+    setState(() {
+      _selectedAdmin1 = selectedCity;
+      _city.text = selectedCity.name;
+      if (districtMatch != null) {
+        _selectedAdmin2 = districtMatch;
+        _district.text = districtMatch.name;
+      }
+    });
+  }
+
+  Future<void> _pickLocationOnWeb() async {
+    final initial = LatLng(_lat ?? 41.0082, _lng ?? 28.9784);
+    final selected = await showDialog<LatLng>(
+      context: context,
+      builder: (_) => _WebLocationPickerDialog(initialLocation: initial),
+    );
+    if (!mounted || selected == null) return;
+
+    setState(() {
+      _lat = selected.latitude;
+      _lng = selected.longitude;
+    });
+
+    try {
+      final location = await const WebGoogleLocationService().reverseGeocode(
+        selected.latitude,
+        selected.longitude,
+      );
+      if (!mounted || location == null) return;
+      if (location.formattedAddress.isNotEmpty) {
+        _addressLine.text = location.formattedAddress;
+      }
+      await _selectDetectedCity(location.city ?? '', location.district ?? '');
+    } catch (error, stackTrace) {
+      debugPrint('Pick Location reverse geocoding failed: $error\n$stackTrace');
     }
   }
 
@@ -764,7 +849,11 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     }
   }
 
-  Future<String> _uploadFile(File file, String kind) async {
+  Future<String> _uploadNativeFile(
+    File file,
+    String kind,
+    String fileName,
+  ) async {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -777,29 +866,138 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
       "business_docs/$uid/${DateTime.now().millisecondsSinceEpoch}_$kind",
     );
 
-    await ref.putFile(file);
-    return await ref.getDownloadURL();
+    debugPrint(
+      '📤 Firebase upload started: kind=$kind filename=$fileName mode=putFile',
+    );
+    await ref.putFile(
+      file,
+      SettableMetadata(customMetadata: {'documentKind': kind}),
+    );
+    debugPrint('✅ Firebase upload completed: kind=$kind filename=$fileName');
+    final url = await ref.getDownloadURL();
+    debugPrint(
+      '🔗 Download URL received: kind=$kind filename=$fileName url=$url',
+    );
+    return url;
+  }
+
+  Future<String> _uploadWebFile(PlatformFile platformFile, String kind) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final bytes = platformFile.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      throw StateError(
+        'The browser returned no bytes for ${platformFile.name}',
+      );
+    }
+
+    final safeName = platformFile.name.replaceAll(
+      RegExp(r'[^a-zA-Z0-9._-]'),
+      '_',
+    );
+    final ref = FirebaseStorage.instance.ref().child(
+      'business_docs/${user.uid}/'
+      '${DateTime.now().millisecondsSinceEpoch}_${kind}_$safeName',
+    );
+
+    debugPrint(
+      '📤 Firebase upload started: kind=$kind '
+      'filename=${platformFile.name} mode=putData bytes=${bytes.length}',
+    );
+    await ref.putData(
+      bytes,
+      SettableMetadata(
+        contentType: _documentContentType(platformFile.name),
+        customMetadata: {'documentKind': kind},
+      ),
+    );
+    debugPrint(
+      '✅ Firebase upload completed: kind=$kind '
+      'filename=${platformFile.name}',
+    );
+    final url = await ref.getDownloadURL();
+    debugPrint(
+      '🔗 Download URL received: kind=$kind '
+      'filename=${platformFile.name} url=$url',
+    );
+    return url;
   }
 
   Future<void> _pickDoc(String kind) async {
-    final xf = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (xf == null) return;
+    debugPrint('🖱️ Upload button pressed: kind=$kind');
 
-    setState(() {
-      _loading = true;
-      _ocrStatus = "processing";
-    });
+    String url;
+    try {
+      if (kIsWeb) {
+        debugPrint('📂 File picker opened: kind=$kind platform=web');
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
+          allowMultiple: false,
+          withData: true,
+        );
+        if (result == null || result.files.isEmpty) {
+          debugPrint('↩️ File picker closed without selection: kind=$kind');
+          return;
+        }
 
-    setState(() {
-      _ocrStatus = "processing";
-    });
+        final platformFile = result.files.first;
+        final bytesLength = platformFile.bytes?.length;
+        debugPrint('📄 File selected: kind=$kind platform=web');
+        debugPrint('📄 filename=${platformFile.name}');
+        debugPrint('📄 size=${platformFile.size}');
+        debugPrint('📄 bytes length=${bytesLength ?? 0}');
+        if (bytesLength == null || bytesLength == 0) {
+          throw StateError(
+            'Selected Web file has no bytes: ${platformFile.name}',
+          );
+        }
+
+        if (mounted) {
+          setState(() {
+            _loading = true;
+            _ocrStatus = 'processing';
+          });
+        }
+        url = await _uploadWebFile(platformFile, kind);
+      } else {
+        debugPrint('📂 File picker opened: kind=$kind platform=native');
+        final xf = await _picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 85,
+        );
+        if (xf == null) {
+          debugPrint('↩️ File picker closed without selection: kind=$kind');
+          return;
+        }
+
+        final size = await xf.length();
+        debugPrint('📄 File selected: kind=$kind platform=native');
+        debugPrint('📄 filename=${xf.name}');
+        debugPrint('📄 size=$size');
+        debugPrint('📄 bytes length=not loaded (native putFile)');
+        if (mounted) {
+          setState(() {
+            _loading = true;
+            _ocrStatus = 'processing';
+          });
+        }
+        url = await _uploadNativeFile(File(xf.path), kind, xf.name);
+      }
+    } catch (error, stackTrace) {
+      debugPrint('❌ Document upload failed: kind=$kind error=$error');
+      debugPrint('$stackTrace');
+      if (mounted) {
+        setState(() => _loading = false);
+        _snack(AppLocalizations.of(context)!.somethingWentWrong);
+      }
+      return;
+    }
 
     try {
-      final url = await _uploadFile(File(xf.path), kind);
-
       if (!mounted) return;
 
       setState(() {
@@ -821,6 +1019,16 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  String _documentContentType(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    return switch (extension) {
+      'pdf' => 'application/pdf',
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      _ => 'application/octet-stream',
+    };
   }
 
   void _next() {
@@ -879,7 +1087,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 
     // 🔐 OCR enforcement for Turkey
     if (_country == "Turkey") {
-      if (!_taxLocked || !_mersisLocked) {
+      if (!_documentsVerified || !_taxLocked || !_mersisLocked) {
         _snack(
           AppLocalizations.of(
             context,
@@ -1673,6 +1881,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
           _AddressField(
             controller: _addressLine,
             apiKey: ApiKeys.google,
+            countryCode: _selectedCountryCode,
             onLatLng: (lat, lng) {
               setState(() {
                 _lat = double.tryParse(lat ?? "");
@@ -1710,13 +1919,15 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    _snack(
-                      AppLocalizations.of(
-                        context,
-                      )!.businessRegisterMapPickerComingSoon,
-                    );
-                  },
+                  onPressed: kIsWeb
+                      ? _pickLocationOnWeb
+                      : () {
+                          _snack(
+                            AppLocalizations.of(
+                              context,
+                            )!.businessRegisterMapPickerComingSoon,
+                          );
+                        },
                   icon: const Icon(LucideIcons.mapPin, size: 18),
                   label: Text(
                     AppLocalizations.of(context)!.businessRegisterPickLocation,
@@ -2476,6 +2687,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
                   _ocrStatus = "idle";
                   _taxLocked = false;
                   _mersisLocked = false;
+                  _documentsVerified = false;
                 });
               }
 
@@ -2496,55 +2708,116 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      debugPrint("❌ USER IS NULL");
+      debugPrint('❌ OCR listener not started: user is null');
       return;
     }
 
-    // ✅ اول تعریف
     final uid = user.uid;
-
-    // ✅ بعد استفاده
-    debugPrint("🔥 AUTH UID => $uid");
-
-    FirebaseFirestore.instance
+    debugPrint('👂 OCR verification listener started: uid=$uid');
+    _ocrSubscription?.cancel();
+    _ocrSubscription = FirebaseFirestore.instance
         .collection("businessDrafts")
         .doc(uid)
         .snapshots()
-        .listen((doc) {
-          if (!doc.exists) {
-            debugPrint("📭 NO DRAFT YET FOR UID: $uid");
-            return;
-          }
-
-          final data = doc.data();
-          if (data == null) return;
-
-          final verification = data["verification"];
-          final ocr = verification is Map ? verification["ocr"] : null;
-
-          final tax = (ocr is Map) ? ocr["extractedTaxNumber"] : null;
-          final mersis = (ocr is Map) ? ocr["extractedMersisNumber"] : null;
-
-          if (!mounted) return;
-
-          setState(() {
-            bool success = false;
-
-            if (tax != null && tax.toString().isNotEmpty) {
-              _taxNumberController.text = tax.toString();
-              _taxLocked = true;
-              success = true;
+        .listen(
+          (doc) async {
+            if (!doc.exists) {
+              debugPrint('📭 OCR draft does not exist yet: uid=$uid');
+              return;
             }
 
-            if (mersis != null && mersis.toString().isNotEmpty) {
-              _mersisNumberController.text = mersis.toString();
-              _mersisLocked = true;
-              success = true;
-            }
+            final data = doc.data();
+            if (data == null) return;
 
-            _ocrStatus = success ? "verified" : "failed";
-          });
-        });
+            final verification = data["verification"];
+            final ocr = verification is Map ? verification["ocr"] : null;
+            final tax = (ocr is Map) ? ocr["extractedTaxNumber"] : null;
+            final mersis = (ocr is Map) ? ocr["extractedMersisNumber"] : null;
+            final verificationStatus = verification is Map
+                ? verification['status']?.toString() ?? 'missing'
+                : 'missing';
+            final backendDocumentsVerified =
+                verification is Map &&
+                verification['documentsVerified'] == true;
+            final pendingVerification =
+                verification is Map &&
+                verification['pendingVerification'] == true;
+            final taxText = tax?.toString().trim() ?? '';
+            final mersisText = mersis?.toString().trim() ?? '';
+            final hasTax = RegExp(r'^\d{10}$').hasMatch(taxText);
+            final hasMersis = RegExp(r'^\d{16}$').hasMatch(mersisText);
+            final verified =
+                backendDocumentsVerified &&
+                verificationStatus == 'verified' &&
+                hasTax &&
+                hasMersis;
+
+            debugPrint(
+              '🔄 OCR STATE TRANSITION: uid=$uid '
+              'verificationStatus=$verificationStatus '
+              'documentsVerified=$backendDocumentsVerified '
+              'pendingVerification=$pendingVerification '
+              'hasVkn=$hasTax hasMersis=$hasMersis',
+            );
+
+            if (!mounted) return;
+
+            setState(() {
+              if (hasTax) {
+                _taxNumberController.text = taxText;
+              }
+              if (hasMersis) {
+                _mersisNumberController.text = mersisText;
+              }
+              _documentsVerified = verified;
+              _taxLocked = verified;
+              _mersisLocked = verified;
+              _ocrStatus = verified
+                  ? 'verified'
+                  : (verificationStatus == 'failed' ? 'failed' : 'processing');
+            });
+
+            debugPrint(
+              '➡️ CONTINUE STATE: enabled=${_documentsVerified && _taxLocked && _mersisLocked} '
+              'verificationStatus=$verificationStatus '
+              'documentsVerified=$_documentsVerified',
+            );
+
+            if (verificationStatus == 'ocr_extracted' &&
+                !backendDocumentsVerified &&
+                !_verificationSyncInFlight) {
+              await _syncExistingOcrVerification(uid);
+            }
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('❌ OCR listener failed: $error\n$stackTrace');
+          },
+        );
+  }
+
+  Future<void> _syncExistingOcrVerification(String uid) async {
+    _verificationSyncInFlight = true;
+    debugPrint(
+      '🔁 Verification synchronization requested: uid=$uid '
+      'reason=ocr_complete_status_pending',
+    );
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('syncBusinessDocumentVerification');
+      final response = await callable.call();
+      final result = response.data;
+      debugPrint(
+        '✅ Verification synchronization completed: uid=$uid result=$result',
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        '❌ Verification synchronization failed: uid=$uid '
+        'error=$error\n$stackTrace',
+      );
+    } finally {
+      _verificationSyncInFlight = false;
+    }
   }
 }
 
@@ -2552,12 +2825,14 @@ class _AddressField extends StatefulWidget {
   const _AddressField({
     required this.controller,
     required this.apiKey,
+    required this.countryCode,
     required this.onLatLng,
     required this.decoration,
   });
 
   final TextEditingController controller;
   final String apiKey;
+  final String? countryCode;
   final void Function(String? lat, String? lng) onLatLng;
   final InputDecoration decoration;
 
@@ -2567,15 +2842,24 @@ class _AddressField extends StatefulWidget {
 
 class _AddressFieldState extends State<_AddressField> {
   final FocusNode _focus = FocusNode(skipTraversal: true);
+  final WebGoogleLocationService _webLocationService =
+      const WebGoogleLocationService();
+  Timer? _debounce;
+  List<WebGooglePlacePrediction> _webPredictions = const [];
+  int _requestGeneration = 0;
+  late String _sessionToken = _newSessionToken();
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _focus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) return _buildWebField();
+
     return GooglePlaceAutoCompleteTextField(
       focusNode: _focus,
       textEditingController: widget.controller,
@@ -2595,6 +2879,164 @@ class _AddressFieldState extends State<_AddressField> {
           TextPosition(offset: widget.controller.text.length),
         );
       },
+    );
+  }
+
+  Widget _buildWebField() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: widget.controller,
+          focusNode: _focus,
+          keyboardType: TextInputType.streetAddress,
+          decoration: widget.decoration,
+          onChanged: _onWebQueryChanged,
+        ),
+        if (_webPredictions.isNotEmpty)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: Material(
+              elevation: 4,
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: _webPredictions.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final prediction = _webPredictions[index];
+                  return ListTile(
+                    leading: const Icon(LucideIcons.mapPin, size: 18),
+                    title: Text(prediction.description),
+                    onTap: () => _selectWebPrediction(prediction),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _onWebQueryChanged(String query) {
+    _debounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.length < 3) {
+      _requestGeneration++;
+      if (_webPredictions.isNotEmpty) {
+        setState(() => _webPredictions = const []);
+      }
+      return;
+    }
+
+    final generation = ++_requestGeneration;
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      try {
+        final predictions = await _webLocationService.autocomplete(
+          trimmed,
+          countryCode: widget.countryCode,
+          sessionToken: _sessionToken,
+        );
+        if (!mounted || generation != _requestGeneration) return;
+        setState(() => _webPredictions = predictions);
+      } catch (error, stackTrace) {
+        debugPrint('Web Places autocomplete failed: $error\n$stackTrace');
+        if (!mounted || generation != _requestGeneration) return;
+        setState(() => _webPredictions = const []);
+      }
+    });
+  }
+
+  Future<void> _selectWebPrediction(WebGooglePlacePrediction prediction) async {
+    _debounce?.cancel();
+    _requestGeneration++;
+    setState(() => _webPredictions = const []);
+
+    try {
+      final location = await _webLocationService.placeDetails(
+        prediction.placeId,
+        sessionToken: _sessionToken,
+      );
+      if (!mounted || location == null) return;
+
+      final address = location.formattedAddress.isNotEmpty
+          ? location.formattedAddress
+          : prediction.description;
+      widget.controller.value = TextEditingValue(
+        text: address,
+        selection: TextSelection.collapsed(offset: address.length),
+      );
+      widget.onLatLng(
+        location.latitude.toString(),
+        location.longitude.toString(),
+      );
+      _sessionToken = _newSessionToken();
+    } catch (error, stackTrace) {
+      debugPrint('Web Place details failed: $error\n$stackTrace');
+    }
+  }
+
+  String _newSessionToken() {
+    return '${DateTime.now().microsecondsSinceEpoch}-$hashCode';
+  }
+}
+
+class _WebLocationPickerDialog extends StatefulWidget {
+  const _WebLocationPickerDialog({required this.initialLocation});
+
+  final LatLng initialLocation;
+
+  @override
+  State<_WebLocationPickerDialog> createState() =>
+      _WebLocationPickerDialogState();
+}
+
+class _WebLocationPickerDialogState extends State<_WebLocationPickerDialog> {
+  late LatLng _selected = widget.initialLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final size = MediaQuery.sizeOf(context);
+
+    return AlertDialog(
+      title: Text(l10n.businessRegisterPickLocation),
+      contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      content: SizedBox(
+        width: size.width.clamp(320, 720),
+        height: size.height.clamp(320, 560),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: widget.initialLocation,
+              zoom: 14,
+            ),
+            markers: {
+              Marker(
+                markerId: const MarkerId('business-location'),
+                position: _selected,
+              ),
+            },
+            onTap: (location) => setState(() => _selected = location),
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: true,
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_selected),
+          child: Text(l10n.businessRegisterOk),
+        ),
+      ],
     );
   }
 }

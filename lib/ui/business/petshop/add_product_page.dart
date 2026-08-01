@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ✅ FIXED PATHS
@@ -2730,8 +2731,8 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                                     ),
                                   ),
                                 )
-                              : Image.file(
-                                  File(file.path),
+                              : PlatformPathImage(
+                                  path: file.path,
                                   width: 180,
                                   fit: BoxFit.cover,
                                 ),
@@ -3542,8 +3543,8 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                                                   ),
                                                 ),
                                               )
-                                            : Image.file(
-                                                File(file.path),
+                                            : PlatformPathImage(
+                                                path: file.path,
                                                 width: 100,
                                                 fit: BoxFit.cover,
                                               ),

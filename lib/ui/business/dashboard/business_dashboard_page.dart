@@ -17,6 +17,7 @@ import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_web_dashboard_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_web_dashboard_page.dart';
+import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
 
 enum BusinessSector { vet, petShop, groomy, petHotel, petTaxi, adoptionCenter }
 
@@ -220,7 +221,7 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     }
 
     if (available.length == 1) {
-      return _buildSingleDashboard(context, available.first, data);
+      return _buildDashboardWithFinance(context, available.first, data);
     }
 
     return DefaultTabController(
@@ -239,7 +240,7 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
           Expanded(
             child: TabBarView(
               children: available.map((sector) {
-                return _buildSingleDashboard(context, sector, data);
+                return _buildDashboardWithFinance(context, sector, data);
               }).toList(),
             ),
           ),
@@ -248,6 +249,36 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     );
 
     /// 🐶 VET
+  }
+
+  Widget _buildDashboardWithFinance(
+    BuildContext context,
+    BusinessSector sector,
+    Map<String, dynamic> data,
+  ) {
+    // Pet Shop and Vet own their overview placement and embed the shared
+    // finance section directly below the profile.
+    if (sector == BusinessSector.petShop || sector == BusinessSector.vet) {
+      return _buildSingleDashboard(context, sector, data);
+    }
+    final l10n = AppLocalizations.of(context)!;
+    final recordLabel = switch (sector) {
+      BusinessSector.petShop => l10n.sellerFinanceOrders,
+      BusinessSector.vet ||
+      BusinessSector.groomy => l10n.sellerFinanceAppointments,
+      BusinessSector.petHotel => l10n.sellerFinanceBookings,
+      BusinessSector.petTaxi => l10n.sellerFinanceRides,
+      BusinessSector.adoptionCenter => l10n.sellerFinanceRequests,
+    };
+    return Column(
+      children: [
+        SellerFinanceSummarySection(
+          businessId: widget.businessId,
+          recordLabel: recordLabel,
+        ),
+        Expanded(child: _buildSingleDashboard(context, sector, data)),
+      ],
+    );
   }
 
   Widget _buildSingleDashboard(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../admin/pages/business_admin_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class RejectedBusinessesPage extends StatelessWidget {
   const RejectedBusinessesPage({super.key});
@@ -10,7 +11,7 @@ class RejectedBusinessesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Rejected Businesses"),
+        title: Text(AppLocalizations.of(context)!.rejectedBusinesses),
         backgroundColor: Colors.pink,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -32,7 +33,9 @@ class RejectedBusinessesPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(child: Text("No rejected businesses"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noRejectedBusinesses),
+            );
           }
 
           return ListView.builder(

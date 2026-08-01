@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/owner_profile_snapshot.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class EditOwnerProfilePage extends StatefulWidget {
   final String businessId;
@@ -268,9 +269,11 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Owner profile updated')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.ownerProfileUpdated),
+          ),
+        );
 
         Navigator.pop(context);
         return;
@@ -326,9 +329,11 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Owner profile updated')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.ownerProfileUpdated),
+        ),
+      );
 
       Navigator.pop(context);
     } catch (e) {
@@ -455,10 +460,10 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
         elevation: 0,
         backgroundColor: const Color(0xFF9F1452),
 
-        title: const Text(
-          'Owner Profile',
+        title: Text(
+          AppLocalizations.of(context)!.ownerProfile,
 
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22),
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 22),
         ),
       ),
 

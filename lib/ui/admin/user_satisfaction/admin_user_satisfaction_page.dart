@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'widgets/feedback_item.dart';
 import 'admin_feedback_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminUserSatisfactionPage extends StatelessWidget {
   const AdminUserSatisfactionPage({super.key});
@@ -15,7 +16,9 @@ class AdminUserSatisfactionPage extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("User Feedback")),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.userFeedback),
+      ),
 
       body: StreamBuilder<QuerySnapshot>(
         stream: stream,

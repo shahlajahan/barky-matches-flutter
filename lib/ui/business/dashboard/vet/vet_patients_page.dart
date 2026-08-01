@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/vet_patient_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetPatientsPage extends StatefulWidget {
   final String businessId;
@@ -43,11 +44,11 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Patients'),
+        title: Text(AppLocalizations.of(context)!.patients),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
+          tooltip: AppLocalizations.of(context)!.back,
         ),
       ),
       body: SafeArea(
@@ -145,8 +146,14 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Patient Records', style: AppTheme.h2()),
-                    Text('${filtered.length} shown', style: AppTheme.caption()),
+                    Text(
+                      AppLocalizations.of(context)!.patientRecords,
+                      style: AppTheme.h2(),
+                    ),
+                    Text(
+                      AppLocalizations.of(context)!.shownCount(filtered.length),
+                      style: AppTheme.caption(),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -294,14 +301,14 @@ class _SearchField extends StatelessWidget {
       controller: controller,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        hintText: 'Search pet, owner, or breed',
+        hintText: AppLocalizations.of(context)!.searchPetOwnerBreed,
         prefixIcon: const Icon(LucideIcons.search),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
                 icon: const Icon(LucideIcons.x),
                 onPressed: controller.clear,
-                tooltip: 'Clear',
+                tooltip: AppLocalizations.of(context)!.clear,
               ),
       ),
     );
@@ -442,7 +449,7 @@ class _PatientCard extends StatelessWidget {
                           ),
 
                           child: Text(
-                            'Follow-up',
+                            AppLocalizations.of(context)!.followUp,
 
                             style: AppTheme.caption(
                               color: Colors.orange.shade800,

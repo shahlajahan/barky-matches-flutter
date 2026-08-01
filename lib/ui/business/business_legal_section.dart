@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../admin/admin_section.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessLegalSection extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -51,10 +52,13 @@ class BusinessLegalSection extends StatelessWidget {
 
           if (legal['disclaimerAcceptedAt'] != null)
             Row(
-              children: const [
-                Icon(Icons.check_circle, size: 16, color: Colors.green),
-                SizedBox(width: 6),
-                Text("Disclaimer accepted", style: TextStyle(fontSize: 13)),
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 6),
+                Text(
+                  AppLocalizations.of(context)!.disclaimerAccepted,
+                  style: const TextStyle(fontSize: 13),
+                ),
               ],
             ),
         ],
@@ -122,9 +126,9 @@ class _ComparisonRow extends StatelessWidget {
 
         if (hasMismatch) ...[
           const SizedBox(height: 6),
-          const Text(
-            "⚠ Mismatch detected",
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.mismatchDetected,
+            style: const TextStyle(
               fontSize: 12,
               color: Colors.red,
               fontWeight: FontWeight.w500,

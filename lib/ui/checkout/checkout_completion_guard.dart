@@ -3,22 +3,35 @@ class CheckoutCompletionGuard {
 
   bool get handled => _handled;
 
-  String? claimPaidSellerOrder(Map<String, dynamic>? paymentState) {
+  List<String> claimPaidSellerOrders(Map<String, dynamic>? paymentState) {
     if (_handled ||
         paymentState?['paid'] != true ||
         paymentState?['cartReconciled'] != true) {
-      return null;
+      return const [];
     }
 
     final rawIds = paymentState?['sellerOrderIds'];
-    if (rawIds is! Iterable) return null;
+    final values = <Object?>[
+      if (rawIds is Iterable) ...rawIds,
+      paymentState?['sellerOrderId'],
+    ];
+    final sellerOrderIds = <String>[];
+    final seen = <String>{};
 
-    for (final value in rawIds) {
+    for (final value in values) {
       final sellerOrderId = value?.toString().trim() ?? '';
-      if (sellerOrderId.isEmpty) continue;
-      _handled = true;
-      return sellerOrderId;
+      if (sellerOrderId.isEmpty || !seen.add(sellerOrderId)) continue;
+      sellerOrderIds.add(sellerOrderId);
     }
-    return null;
+
+    if (sellerOrderIds.isEmpty) return const [];
+    _handled = true;
+    return List.unmodifiable(sellerOrderIds);
+  }
+
+  /// Backwards-compatible single-order API.
+  String? claimPaidSellerOrder(Map<String, dynamic>? paymentState) {
+    final sellerOrderIds = claimPaidSellerOrders(paymentState);
+    return sellerOrderIds.isEmpty ? null : sellerOrderIds.first;
   }
 }

@@ -1,6 +1,7 @@
 {
     "firestore": {
-        "rules": "firestore.rules"
+        "rules": "firestore.rules",
+        "indexes": "firestore.indexes.json"
     },
     "storage": {
         "rules": "storage.rules"
@@ -9,10 +10,11 @@
         "source": "functions"
     },
     "hosting": {
-        "public": "public",
+        "public": "build/web",
         "ignore": [
             "firebase.json",
             "**/.*",
+            "!**/.well-known/**",
             "**/node_modules/**"
         ],
         "rewrites": [
@@ -27,6 +29,10 @@
             {
                 "source": "/isbank/3d-fail",
                 "function": "isbank3DFailReturn"
+            },
+            {
+                "source": "**",
+                "destination": "/index.html"
             }
         ],
         "cleanUrls": true,

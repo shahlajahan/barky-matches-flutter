@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class LostDogsListPage extends StatefulWidget {
   const LostDogsListPage({super.key});
@@ -283,7 +284,7 @@ Future<void> _openLostDogFromNotification(String dogId) async {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Lost Pets",
+                        AppLocalizations.of(context)!.lostPetsTitle,
                         style: AppTheme.h1().copyWith(
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
@@ -292,7 +293,7 @@ Future<void> _openLostDogFromNotification(String dogId) async {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "Help lost pets find their way home",
+                        AppLocalizations.of(context)!.lostPetsSubtitle,
                         style: AppTheme.caption().copyWith(
                           color: Colors.black54,
                         ),
@@ -331,7 +332,9 @@ Future<void> _openLostDogFromNotification(String dogId) async {
                         controller: _searchController,
                         style: AppTheme.body(),
                         decoration: InputDecoration(
-                          hintText: "Search by name...",
+                          hintText: AppLocalizations.of(
+                            context,
+                          )!.searchByNameHint,
                           hintStyle: AppTheme.body(color: Colors.grey.shade500),
                           border: InputBorder.none,
                           isCollapsed: true,
@@ -387,7 +390,7 @@ Future<void> _openLostDogFromNotification(String dogId) async {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            "No lost pets reported yet",
+                            AppLocalizations.of(context)!.noLostPetsReportedYet,
                             style: AppTheme.h2().copyWith(
                               color: const Color(0xFF9E1B4F),
                               fontWeight: FontWeight.w600,
@@ -395,7 +398,9 @@ Future<void> _openLostDogFromNotification(String dogId) async {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            "Reported lost pets will appear here",
+                            AppLocalizations.of(
+                              context,
+                            )!.reportedLostPetsAppearHere,
                             style: AppTheme.caption().copyWith(
                               color: AppTheme.muted,
                             ),

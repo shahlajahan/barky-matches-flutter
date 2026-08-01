@@ -223,6 +223,60 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutPaymentCompletedSuccessfully => 'Ödeme başarıyla tamamlandı';
 
   @override
+  String get checkoutMultiSellerInfoTitle => 'Tek ödeme, ayrı siparişler';
+
+  @override
+  String get checkoutMultiSellerInfoBody => 'Tek bir ödeme yapacaksınız. Her satıcı için ayrı bir sipariş oluşturulacak.';
+
+  @override
+  String checkoutSellerSection(Object sellerName) {
+    return '$sellerName';
+  }
+
+  @override
+  String checkoutSellerFallback(int number) {
+    return 'Satıcı $number';
+  }
+
+  @override
+  String get checkoutSellerSubtotal => 'Satıcı ara toplamı';
+
+  @override
+  String get checkoutProductsTotal => 'Ürünler toplamı';
+
+  @override
+  String get checkoutShippingMethod => 'Kargo yöntemi';
+
+  @override
+  String get checkoutShippingCost => 'Kargo ücreti';
+
+  @override
+  String get checkoutShippingTotal => 'Toplam kargo';
+
+  @override
+  String get checkoutEstimatedDelivery => 'Tahmini teslimat';
+
+  @override
+  String get checkoutSellerTotal => 'Satıcı toplamı';
+
+  @override
+  String get checkoutMultiOrderSuccessTitle => 'Ödeme başarılı';
+
+  @override
+  String get checkoutMultiOrderSuccessBody => 'Ödemeniz tamamlandı ve her satıcı için ayrı sipariş oluşturuldu.';
+
+  @override
+  String checkoutSellerOrderLabel(int number) {
+    return 'Satıcı siparişi $number';
+  }
+
+  @override
+  String get checkoutOpenOrder => 'Siparişi görüntüle';
+
+  @override
+  String get checkoutMultiOrderExit => 'Ana sayfaya dön';
+
+  @override
   String get checkoutPaymentCancelledOrIncomplete => 'Ödeme iptal edildi veya tamamlanmadı';
 
   @override
@@ -293,7 +347,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get notesOptional => 'Notlar (isteğe bağlı)';
 
   @override
-  String get selectDate => 'Tarih Seçin';
+  String get selectDate => 'Tarih Seç';
 
   @override
   String get selectTime => 'Saat Seçin';
@@ -302,7 +356,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get appointmentNoteHint => 'Klinik için bir not ekleyin...';
 
   @override
-  String get requestAppointment => 'Randevu Talep Et';
+  String get requestAppointment => 'Randevu İste';
 
   @override
   String get requestSentTitle => 'İstek Gönderildi 🐾';
@@ -383,7 +437,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get bookAppointment => 'Randevu Al';
 
   @override
-  String get noServicesAvailable => 'Mevcut hizmet yok';
+  String get noServicesAvailable => 'Kullanılabilir hizmet yok';
 
   @override
   String errorLoadingServices(Object error) {
@@ -391,7 +445,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get noServicesProvided => 'Sağlanan hizmet yok.';
+  String get noServicesProvided => 'Hizmet belirtilmedi.';
 
   @override
   String reviewsCountLabel(Object count) {
@@ -2755,7 +2809,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get trainingTitle => 'Eğitim';
 
   @override
-  String get comingSoon => 'Çok yakında';
+  String get comingSoon => 'Yakında';
 
   @override
   String get trainingComingSoonMessage => 'Eğitim özelliği yakında geliyor 🐾';
@@ -3727,6 +3781,59 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get myOrdersTitle => 'Siparişlerim';
+
+  @override
+  String get myOrdersUnknownProduct => 'Ürün';
+
+  @override
+  String get myOrdersUnknownSeller => 'Satıcı';
+
+  @override
+  String myOrdersProductAndMore(Object product, int count) {
+    return '$product + $count ürün daha';
+  }
+
+  @override
+  String get myOrdersOrderNumberUnavailable => 'Mevcut değil';
+
+  @override
+  String get myOrdersDateUnavailable => 'Tarih bilgisi yok';
+
+  @override
+  String get myOrdersSortNewest => 'Tarih: en yeni';
+
+  @override
+  String get myOrdersSortOldest => 'Tarih: en eski';
+
+  @override
+  String get myOrdersSortProductAz => 'Ürün: A–Z';
+
+  @override
+  String get myOrdersSortProductZa => 'Ürün: Z–A';
+
+  @override
+  String get myOrdersSortSellerAz => 'Satıcı: A–Z';
+
+  @override
+  String get myOrdersSortSellerZa => 'Satıcı: Z–A';
+
+  @override
+  String get myOrdersSortAmountHigh => 'Tutar: yüksekten düşüğe';
+
+  @override
+  String get myOrdersSortAmountLow => 'Tutar: düşükten yükseğe';
+
+  @override
+  String get myOrdersProcessingStatus => 'İşleniyor';
+
+  @override
+  String get myOrdersRefundedStatus => 'İade edildi';
+
+  @override
+  String get myOrdersReturnedStatus => 'Geri gönderildi';
+
+  @override
+  String get myOrdersRefundedOrReturnedStatus => 'İade / Geri gönderim';
 
   @override
   String get ordersTitle => 'Siparişler';
@@ -4967,6 +5074,41 @@ class AppLocalizationsTr extends AppLocalizations {
   String get shippingResponsibilityLabel => 'İade kargosu';
 
   @override
+  String get returnShippingTitle => 'İade Kargosu';
+
+  @override
+  String get returnShippingBuyerMessage => 'İade kargo ücretinden siz sorumlusunuz.\n\nKargo ücreti ürün iadesinden ayrıdır ve geri ödenmeyebilir.';
+
+  @override
+  String get returnShippingSellerMessage => 'İade kargo ücretinden satıcı sorumludur.';
+
+  @override
+  String get returnShippingContractedCarrierMessage => 'Satıcının anlaşmalı iade kargo firmasını kullanın.';
+
+  @override
+  String get returnShippingBuyerShipBackMessage => 'Kargo ücreti sizin sorumluluğunuzdadır ve ürün iadesinden ayrıdır.';
+
+  @override
+  String get returnShippingSellerShipBackMessage => 'İade kargo ücretini satıcı karşılar.';
+
+  @override
+  String get returnShippingAcknowledgement => 'İade kargo politikasını anlıyorum.';
+
+  @override
+  String get returnShippingPolicyLoading => 'İade kargo politikası yükleniyor…';
+
+  @override
+  String returnShippingCarrierValue(Object carrier) {
+    return 'Kargo firması: $carrier';
+  }
+
+  @override
+  String get returnShippingVerifiedCarrierHelper => 'Doğrulanmış anlaşmalı iade kargo firmasını kullanın.';
+
+  @override
+  String get returnCarrierEnterHelperText => 'Bu iade gönderisinde kullandığınız kargo firmasını girin.';
+
+  @override
   String get refundTypeLabel => 'İade türü';
 
   @override
@@ -5069,6 +5211,171 @@ class AppLocalizationsTr extends AppLocalizations {
   String get refundRejectedStatusLabel => 'İade reddedildi';
 
   @override
+  String get refundDecisionTitle => 'Geri ödeme kararı';
+
+  @override
+  String get refundDecisionFullTitle => 'Tam Geri Ödeme';
+
+  @override
+  String get refundDecisionFullDescription => 'Uygun tutarın tamamını geri ödeyin.';
+
+  @override
+  String get refundDecisionFullRecommended => 'Hasarlı veya kusurlu ürünler, yanlış ürün, satıcı hatası ya da teslim edilmeyen ürünler için önerilir.';
+
+  @override
+  String get refundDecisionPartialTitle => 'Kısmi Geri Ödeme';
+
+  @override
+  String get refundDecisionPartialDescription => 'Uygun tutarın yalnızca bir bölümünü geri ödeyin. Gerekçe zorunludur.';
+
+  @override
+  String get refundDecisionRejectTitle => 'Geri Ödemeyi Reddet';
+
+  @override
+  String get refundDecisionRejectDescription => 'Geri ödeme talebini reddedin. Açık bir açıklama zorunludur.';
+
+  @override
+  String get refundPartialAmountLabel => 'Kısmi geri ödeme tutarı';
+
+  @override
+  String refundMaximumEligible(Object amount) {
+    return 'En yüksek uygun tutar: $amount';
+  }
+
+  @override
+  String get refundAmountValidationError => 'Sıfırdan büyük ve uygun geri ödeme tutarını aşmayan bir tutar girin.';
+
+  @override
+  String get refundDecisionReasonLabel => 'Gerekçe';
+
+  @override
+  String get refundReasonNotSelected => 'Bir gerekçe seçin';
+
+  @override
+  String get refundSellerNotesLabel => 'Satıcı notları';
+
+  @override
+  String get refundNotesOptional => 'İsteğe bağlı';
+
+  @override
+  String get refundNotesRequired => 'Zorunlu';
+
+  @override
+  String get refundBuyerExplanationLabel => 'Alıcının göreceği açıklama';
+
+  @override
+  String get refundBuyerExplanationHelper => 'Geri ödemenin neden reddedildiğini açıkça belirtin.';
+
+  @override
+  String get refundOriginalOrderLabel => 'Orijinal Sipariş';
+
+  @override
+  String get refundSummaryRefundLabel => 'Geri Ödeme';
+
+  @override
+  String get refundDifferenceLabel => 'Fark';
+
+  @override
+  String get refundDecisionBuyerTitle => 'Geri ödeme kararı';
+
+  @override
+  String get refundDecisionLabel => 'Karar';
+
+  @override
+  String get refundSellerExplanationLabel => 'Satıcı açıklaması';
+
+  @override
+  String get refundReasonItemReturnedDamaged => 'Ürün hasarlı iade edildi';
+
+  @override
+  String get refundReasonMissingAccessories => 'Aksesuarlar eksik';
+
+  @override
+  String get refundReasonCustomerCausedDamage => 'Müşterinin neden olduğu hasar';
+
+  @override
+  String get refundReasonRestockingFee => 'Yeniden stoklama ücreti';
+
+  @override
+  String get refundReasonPartialReturn => 'Kısmi iade';
+
+  @override
+  String get refundReasonSellerMistake => 'Satıcı hatası';
+
+  @override
+  String get refundReasonWrongItem => 'Yanlış ürün';
+
+  @override
+  String get refundReasonDefectiveProduct => 'Kusurlu ürün';
+
+  @override
+  String get refundReasonItemNeverDelivered => 'Ürün teslim edilmedi';
+
+  @override
+  String get refundReasonOther => 'Diğer';
+
+  @override
+  String get returnStatusWaitingSellerConfirmation => 'Satıcı onayı bekleniyor';
+
+  @override
+  String get returnStatusAutoReceived => 'Otomatik teslim alındı';
+
+  @override
+  String get returnStatusDispute => 'İade anlaşmazlığı';
+
+  @override
+  String get waitingForSellerInspectionTitle => 'Satıcı incelemesi bekleniyor';
+
+  @override
+  String waitingForSellerInspectionMessage(Object date) {
+    return 'Satıcının iade paketini incelemek için $date tarihine kadar süresi var. İşlem yapılmazsa iade otomatik olarak devam eder.';
+  }
+
+  @override
+  String get inspectionDeadlineTitle => 'İnceleme son tarihi';
+
+  @override
+  String inspectionDaysRemaining(int days) {
+    return '$days gün kaldı';
+  }
+
+  @override
+  String get inspectionDeadlinePassed => 'Süre doldu. Otomatik tamamlama bekleniyor.';
+
+  @override
+  String get reportReturnProblemTitle => 'İade sorunu bildir';
+
+  @override
+  String get reportProblemButton => 'Sorun bildir';
+
+  @override
+  String get disputeReasonLabel => 'Sorun nedeni';
+
+  @override
+  String get disputeReasonPackageNotReceived => 'Paket ulaşmadı';
+
+  @override
+  String get disputeReasonWrongItemReturned => 'Yanlış ürün iade edildi';
+
+  @override
+  String get disputeReasonEmptyPackage => 'Boş paket';
+
+  @override
+  String get disputeReasonDamagedDuringReturn => 'İade sırasında hasar gördü';
+
+  @override
+  String get disputeReasonTrackingIssue => 'Takip sorunu';
+
+  @override
+  String get adminReturnDisputesTitle => 'İade anlaşmazlıkları';
+
+  @override
+  String get adminReturnDisputesSubtitle => 'Anlaşmazlığa düşen pazar yeri iadelerini inceleyin';
+
+  @override
+  String get noReturnDisputes => 'Anlaşmazlıklı iade yok';
+
+  @override
   String get locationUpdatedSuccessfully => 'Konum başarıyla güncellendi';
 
   @override
@@ -5122,7 +5429,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get productDetails => 'Ürün Detayları';
 
   @override
-  String get servicesCouldNotBeLoaded => 'Hizmetler yüklenemedi.';
+  String get servicesCouldNotBeLoaded => 'Hizmetler yüklenemedi';
 
   @override
   String get veterinaryClinics => 'Veteriner klinikleri';
@@ -5629,6 +5936,2120 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String get bankAccountSettingsTitle => 'Banka Hesabı';
+
+  @override
+  String get bankAccountSettingsSubtitle => 'Bu hesap, PetSupo işletme kazançlarınızı gönderdiğinde kullanılacaktır.';
+
+  @override
+  String get bankAccountInfoNotice => 'Lütfen hesap sahibi adının ve IBAN\'ın resmi banka hesabınızla birebir eşleştiğinden emin olun. Hatalı bilgi ödemelerinizin gecikmesine neden olabilir.';
+
+  @override
+  String get bankAccountSectionTitle => 'Hesap Bilgileri';
+
+  @override
+  String get bankAccountHolderLabel => 'Hesap Sahibi';
+
+  @override
+  String get bankAccountBankNameLabel => 'Banka Adı';
+
+  @override
+  String get bankAccountIbanLabel => 'IBAN';
+
+  @override
+  String get bankAccountBillingInfoLabel => 'Fatura Bilgileri (opsiyonel)';
+
+  @override
+  String get bankAccountIbanInvalid => 'IBAN, TR ile başlamalı ve ardından 24 rakam içermelidir.';
+
+  @override
+  String get bankAccountSaveSuccess => 'Banka hesabı bilgileri kaydedildi.';
+
+  @override
+  String get diagnosticsSectionTitle => 'Tanılama';
+
+  @override
+  String get diagnosticsSectionDescription => 'Kuyruk inceleme ve yükleme testleri için dahili tanılama araçları.';
+
+  @override
+  String get diagnosticsThrowButton => 'Hata oluştur';
+
+  @override
+  String get diagnosticsTestButton => 'Test et';
+
+  @override
+  String get diagnosticsUploadButton => 'Yükle';
+
+  @override
+  String get diagnosticsRefreshButton => 'Yenile';
+
+  @override
+  String get diagnosticsClearButton => 'Temizle';
+
+  @override
+  String dogCardAgeWithBreed(Object age, Object breed) {
+    return '$age yaş • $breed';
+  }
+
+  @override
+  String dogCardAgeYears(Object age) {
+    return '$age yaş';
+  }
+
+  @override
+  String dogCardVaccines(int count) {
+    return '$count aşı';
+  }
+
+  @override
+  String get dogParkPremiumMembersOnly => 'Bu park yalnızca Premium üyeler tarafından kullanılabilir.';
+
+  @override
+  String get favoritesExplorePlaymates => 'Oyun arkadaşlarını keşfet 💛';
+
+  @override
+  String get vetServicesAvailableAfterLogin => 'Veteriner hizmetleri giriş yaptıktan sonra kullanılabilir';
+
+  @override
+  String get loadingAccount => 'Hesap yükleniyor...';
+
+  @override
+  String get noNotificationsForGuest => 'Misafirler için bildirim yok';
+
+  @override
+  String get loginForNotifications => 'Güncellemeleri ve uyarıları almak için giriş yapın';
+
+  @override
+  String get offerDetailsTitle => 'Teklif';
+
+  @override
+  String get offerDiscountOffLabel => 'İNDİRİM';
+
+  @override
+  String get offerUseCodeLabel => 'Kodu kullan:';
+
+  @override
+  String get offerUseThisOffer => 'Bu Teklifi Kullan';
+
+  @override
+  String get playdateScheduledAtLabel => 'Oyun buluşması şurada planlanacak:';
+
+  @override
+  String get continueToScheduling => 'Planlamaya devam et';
+
+  @override
+  String get orderCancellationTitle => 'Sipariş İptali';
+
+  @override
+  String get preShipmentCancellationAvailable => 'Bu sipariş henüz kargoya verilmedi ve iptal edilebilir.';
+
+  @override
+  String get cancelOrderButton => 'Siparişi İptal Et';
+
+  @override
+  String get cancelOrderTitle => 'Sipariş İptal Edilsin mi?';
+
+  @override
+  String get cancelOrderConfirmation => 'Bu siparişi iptal etmek istediğinizden emin misiniz? Sipariş henüz kargoya verilmedi.';
+
+  @override
+  String get cancelOrderRefundNotice => 'İptalden sonra ödemeniz iade edilecektir.';
+
+  @override
+  String get cancellationReasonLabel => 'İptal nedeni';
+
+  @override
+  String get cancelReasonOrderedByMistake => 'Yanlışlıkla sipariş verdim';
+
+  @override
+  String get cancelReasonChangedMind => 'Fikrimi değiştirdim';
+
+  @override
+  String get cancelReasonDuplicateOrder => 'Mükerrer sipariş';
+
+  @override
+  String get cancelReasonOther => 'Diğer';
+
+  @override
+  String get cancellationReasonDetailsLabel => 'İptal nedeni açıklaması';
+
+  @override
+  String get cancellationRefundProcessing => 'Sipariş iptal edildi. Para iadeniz işleniyor.';
+
+  @override
+  String get cancellationShipmentAlreadyStarted => 'Kargo süreci başladığı için bu sipariş artık iptal edilemez.';
+
+  @override
+  String get cancelOrderFailed => 'Sipariş iptal edilemedi. Lütfen tekrar deneyin.';
+
+  @override
+  String get cancellationRefundProcessingStatus => 'İptal talebi alındı · Para iadesi işleniyor';
+
+  @override
+  String get cancellationRefundFailedStatus => 'İptal iadesi kontrol gerektiriyor';
+
+  @override
+  String get orderCancelledRefundCompleted => 'Sipariş iptal edildi · Para iadesi tamamlandı';
+
+  @override
+  String get foundPetDetailsTitle => 'Bulunan Evcil Hayvan Detayları';
+
+  @override
+  String get viewOnMap => 'Haritada Gör';
+
+  @override
+  String get contactReporter => 'Bildiren Kişiyle İletişime Geç';
+
+  @override
+  String get foundPetReportedSuccess => 'Bulunan evcil hayvan başarıyla bildirildi!';
+
+  @override
+  String errorSubmittingReport(Object error) {
+    return 'Bildirim gönderilirken hata oluştu: $error';
+  }
+
+  @override
+  String get tapToSelectImage => 'Görsel seçmek için dokunun';
+
+  @override
+  String get foundPetsSubtitle => 'Bulunan evcil hayvanların güvenle evlerine dönmesine yardımcı olun';
+
+  @override
+  String get searchByNameHint => 'Ada göre ara...';
+
+  @override
+  String get noFoundPetsReportedYet => 'Henüz bulunan evcil hayvan bildirilmedi';
+
+  @override
+  String get reportedFoundPetsAppearHere => 'Bildirilen bulunan evcil hayvanlar burada görünür';
+
+  @override
+  String get lostPetDetailsTitle => 'Kayıp Evcil Hayvan Detayları';
+
+  @override
+  String get havePetInformationPrompt => 'Bu evcil hayvan hakkında bilginiz var mı?';
+
+  @override
+  String get callOwner => 'Sahibini Ara';
+
+  @override
+  String get emailOwner => 'Sahibine E-posta Gönder';
+
+  @override
+  String get lostPetReportedSuccess => 'Kayıp evcil hayvan başarıyla bildirildi!';
+
+  @override
+  String get lostPetsSubtitle => 'Kayıp evcil hayvanların evlerine dönmesine yardımcı olun';
+
+  @override
+  String get noLostPetsReportedYet => 'Henüz kayıp evcil hayvan bildirilmedi';
+
+  @override
+  String get reportedLostPetsAppearHere => 'Bildirilen kayıp evcil hayvanlar burada görünür';
+
+  @override
+  String get searchUsersHint => 'Kullanıcı ara...';
+
+  @override
+  String get noUsersFound => 'Kullanıcı bulunamadı';
+
+  @override
+  String get searchPetsAndUsers => 'Evcil hayvan ve kullanıcı ara';
+
+  @override
+  String get findPetLoversNearby => 'Yakınınızdaki hayvanseverleri bulun';
+
+  @override
+  String get selectAtLeastOnePhotoOrVideo => 'Lütfen en az bir fotoğraf/video seçin';
+
+  @override
+  String errorCreatingPost(Object error) {
+    return 'Gönderi oluşturulurken hata oluştu: $error';
+  }
+
+  @override
+  String get createPostTitle => 'Gönderi Oluştur';
+
+  @override
+  String get share => 'Paylaş';
+
+  @override
+  String get addPhotosOrVideos => 'Fotoğraf/video ekle';
+
+  @override
+  String get writeSomethingHint => 'Bir şeyler yazın...';
+
+  @override
+  String get replyHint => 'Yanıtla...';
+
+  @override
+  String get replySent => 'Yanıt gönderildi';
+
+  @override
+  String get close => 'Kapat';
+
+  @override
+  String get videoStoriesComingSoon => 'Video hikâyeler yakında geliyor';
+
+  @override
+  String get petploreTitle => 'Petplore';
+
+  @override
+  String get explorePetMoments => 'Evcil hayvan anlarını keşfedin';
+
+  @override
+  String followersCount(int count) {
+    return '$count Takipçi';
+  }
+
+  @override
+  String followingCount(int count) {
+    return '$count Takip';
+  }
+
+  @override
+  String get feed => 'Akış';
+
+  @override
+  String get saved => 'Kaydedilenler';
+
+  @override
+  String get myPosts => 'Gönderilerim';
+
+  @override
+  String get loginRequired => 'Giriş gerekli';
+
+  @override
+  String genericError(Object error) {
+    return 'Hata: $error';
+  }
+
+  @override
+  String get noPostsYet => 'Henüz gönderi yok';
+
+  @override
+  String get noResults => 'Sonuç bulunamadı';
+
+  @override
+  String get commentsTitle => 'Yorumlar';
+
+  @override
+  String commentsError(Object error) {
+    return 'Yorum hatası: $error';
+  }
+
+  @override
+  String get noCommentsYet => 'Henüz yorum yok';
+
+  @override
+  String get writeCommentHint => 'Yorum yazın...';
+
+  @override
+  String get postsTitle => 'Gönderiler';
+
+  @override
+  String get storyUploaded => 'Hikâye yüklendi';
+
+  @override
+  String storyUploadFailed(Object error) {
+    return 'Hikâye yüklenemedi: $error';
+  }
+
+  @override
+  String get addStory => 'Hikâye Ekle';
+
+  @override
+  String get storyDurationPrompt => '24 saat sürecek bir evcil hayvan anı paylaşın';
+
+  @override
+  String get seeWhosNearby => 'Yakında kim var görün 👀!';
+
+  @override
+  String get telegramLab => 'Telegram Laboratuvarı';
+
+  @override
+  String get telegramBotApiTest => 'Telegram Bot API Testi';
+
+  @override
+  String get telegramTestInstructions => 'Test mesajı göndermek için aşağıdaki düğmeye basın.';
+
+  @override
+  String get sendTelegramMessage => 'Telegram Mesajı Gönder';
+
+  @override
+  String get telegramUsers => 'Telegram Kullanıcıları';
+
+  @override
+  String get termsLastUpdated => 'Son güncelleme: 09 Mayıs 2025';
+
+  @override
+  String get termsIntroductionTitle => '1. Giriş';
+
+  @override
+  String get termsIntroductionBody => 'PetSupo\'ya hoş geldiniz! Kaydolarak bu Şartlar ve Koşulları kabul edersiniz. Uygulama, köpeklerinize oyun arkadaşları bulmanıza, diğer evcil hayvan sahipleriyle bağlantı kurmanıza ve evcil hayvan hizmetlerine erişmenize yardımcı olur. Bu şartlar PetSupo uygulaması ve hizmetlerini kullanımınızı düzenler.';
+
+  @override
+  String get termsResponsibilitiesTitle => '2. Kullanıcı Sorumlulukları';
+
+  @override
+  String get termsResponsibilitiesBody => '- Bu uygulamayı kullanmak için en az 13 yaşında olmalısınız.\n- Hesabınızın ve parolanızın gizliliğinden siz sorumlusunuz.\n- Uygulamayı yasa dışı veya yasak faaliyetler için kullanmamayı kabul edersiniz.\n- Kayıt sırasında doğru ve güncel bilgiler sağlamalısınız.';
+
+  @override
+  String get termsPrivacyTitle => '3. Veri Toplama ve Gizlilik';
+
+  @override
+  String get termsPrivacyBody => 'Hizmetlerimizi sunmak için kullanıcı adı, e-posta, konum ve evcil hayvan bilgileri gibi kişisel verileri toplarız. KVKK No. 6698 ve GDPR gibi uluslararası yasalar uyarınca verilerinizi işlemeden önce açık rıza alır, yalnızca belirtilen amaçlarla kullanır, koruyucu güvenlik önlemleri uygular ve erişim, düzeltme veya silme taleplerinizi karşılarız. Haklarınız için info@petsupo.com adresine başvurun.';
+
+  @override
+  String get termsUserContentTitle => '4. Kullanıcı İçeriği';
+
+  @override
+  String get termsUserContentBody => '- Yüklediğiniz içeriğin mülkiyeti sizde kalır.\n- İçerik yükleyerek PetSupo\'ya içeriği uygulama içinde kullanma, gösterme ve dağıtma konusunda münhasır olmayan, telifsiz bir lisans verirsiniz.\n- Yasa dışı, saldırgan veya başkalarının haklarını ihlal eden içerik yükleyemezsiniz.';
+
+  @override
+  String get termsLiabilityTitle => '5. Sorumluluğun Sınırlandırılması';
+
+  @override
+  String get termsLiabilityBody => 'PetSupo, diğer kullanıcılar veya evcil hayvanlarla etkileşimler dahil uygulama kullanımınızdan doğan zararlardan sorumlu değildir. Diğer kullanıcıların sağladığı bilgilerin doğruluğunu garanti etmeyiz.';
+
+  @override
+  String get termsGoverningLawTitle => '6. Uygulanacak Hukuk';
+
+  @override
+  String get termsGoverningLawBody => 'Bu Şartlar ve Koşullar Türkiye Cumhuriyeti yasalarına tabidir. Uluslararası hukuk aksini gerektirmedikçe uyuşmazlıklar İstanbul mahkemelerinde çözümlenir.';
+
+  @override
+  String get termsChangesTitle => '7. Şartlardaki Değişiklikler';
+
+  @override
+  String get termsChangesBody => 'Bu Şartlar ve Koşullar zaman zaman güncellenebilir. Önemli değişiklikler e-posta veya uygulama içi bildirimle duyurulur. Değişikliklerden sonra uygulamayı kullanmaya devam etmeniz yeni şartları kabul ettiğiniz anlamına gelir.';
+
+  @override
+  String get termsContactTitle => '8. Bize Ulaşın';
+
+  @override
+  String get termsContactBody => 'Bu Şartlar ve Koşullar hakkında sorularınız için info@petsupo.com adresinden bize ulaşın.';
+
+  @override
+  String get pendingBusinessApprovals => 'Bekleyen İşletme Onayları';
+
+  @override
+  String get invalidRequest => 'Geçersiz istek';
+
+  @override
+  String get noPendingBusinessRequests => 'Bekleyen işletme isteği yok';
+
+  @override
+  String riskCount(Object count) {
+    return '$count RİSK';
+  }
+
+  @override
+  String get verifiedLabel => 'DOĞRULANDI';
+
+  @override
+  String get approve => 'Onayla';
+
+  @override
+  String get suspend => 'Askıya Al';
+
+  @override
+  String get restore => 'Geri Yükle';
+
+  @override
+  String get businessApproved => 'İşletme onaylandı';
+
+  @override
+  String get businessRejected => 'İşletme reddedildi';
+
+  @override
+  String get businessSuspended => 'İşletme askıya alındı';
+
+  @override
+  String get businessRestored => 'İşletme geri yüklendi';
+
+  @override
+  String actionFailed(Object error) {
+    return 'İşlem başarısız: $error';
+  }
+
+  @override
+  String get adminDashboard => 'Yönetici Paneli';
+
+  @override
+  String dashboardError(Object error) {
+    return 'Panel Hatası:\n$error';
+  }
+
+  @override
+  String get platformOverview => 'Platform Özeti';
+
+  @override
+  String get adminActivity => 'Yönetici Etkinliği';
+
+  @override
+  String get developerTools => 'Geliştirici Araçları';
+
+  @override
+  String get testTelegramBotApi => 'Telegram Bot API\'yi Test Et';
+
+  @override
+  String get diagnostics => 'Tanılama';
+
+  @override
+  String get diagnosticsDescription => 'Çökme raporları ve başlangıç tanılaması';
+
+  @override
+  String get telegramUsersDescription => 'Bağlı Telegram kullanıcılarını görüntüle';
+
+  @override
+  String adminActivityError(Object error) {
+    return 'Etkinlik hatası:\n$error';
+  }
+
+  @override
+  String get noAdminActivity => 'Henüz yönetici etkinliği yok';
+
+  @override
+  String get diagnosticReport => 'Tanılama Raporu';
+
+  @override
+  String get diagnosticReportNotFound => 'Tanılama raporu bulunamadı';
+
+  @override
+  String get reopen => 'Yeniden Aç';
+
+  @override
+  String get resolve => 'Çöz';
+
+  @override
+  String get ignore => 'Yoksay';
+
+  @override
+  String get stackTrace => 'Yığın İzleme';
+
+  @override
+  String get breadcrumbsLogs => 'Gezinme İzleri / Günlükler';
+
+  @override
+  String get noLogs => 'Günlük yok';
+
+  @override
+  String get rawJson => 'Ham JSON';
+
+  @override
+  String get diagnosticReports => 'Tanılama Raporları';
+
+  @override
+  String get filters => 'Filtreler';
+
+  @override
+  String get noDiagnosticReports => 'Tanılama raporu yok';
+
+  @override
+  String reasonValue(Object value) {
+    return 'Neden: $value';
+  }
+
+  @override
+  String featureValue(Object value) {
+    return 'Özellik: $value';
+  }
+
+  @override
+  String platformValue(Object value) {
+    return 'Platform: $value';
+  }
+
+  @override
+  String versionValue(Object value) {
+    return 'Sürüm: $value';
+  }
+
+  @override
+  String receivedValue(Object value) {
+    return 'Alındı: $value';
+  }
+
+  @override
+  String messageValue(Object value) {
+    return 'Mesaj: $value';
+  }
+
+  @override
+  String createdValue(Object value) {
+    return 'Oluşturulma: $value';
+  }
+
+  @override
+  String get adminActions => 'Yönetici İşlemleri';
+
+  @override
+  String get moderationCase => 'Moderasyon Vakası';
+
+  @override
+  String targetValue(Object value) {
+    return 'Hedef: $value';
+  }
+
+  @override
+  String reportsCount(Object count) {
+    return 'Bildirimler: $count';
+  }
+
+  @override
+  String riskScoreValue(Object value) {
+    return 'Risk Puanı: $value';
+  }
+
+  @override
+  String priorityValue(Object value) {
+    return 'Öncelik: $value';
+  }
+
+  @override
+  String firestoreError(Object error) {
+    return 'Firestore hatası: $error';
+  }
+
+  @override
+  String get refundReview => 'İade İncelemesi';
+
+  @override
+  String appointmentIdValue(Object value) {
+    return 'Randevu Kimliği: $value';
+  }
+
+  @override
+  String paymentStatusValue(Object value) {
+    return 'Ödeme Durumu: $value';
+  }
+
+  @override
+  String refundStatusValue(Object value) {
+    return 'İade Durumu: $value';
+  }
+
+  @override
+  String appointmentTimeValue(Object value) {
+    return 'Randevu Saati: $value';
+  }
+
+  @override
+  String cancellationTimeValue(Object value) {
+    return 'İptal Saati: $value';
+  }
+
+  @override
+  String hoursBeforeAppointmentValue(Object value) {
+    return 'Randevudan Önceki Saat: $value';
+  }
+
+  @override
+  String businessValue(Object value) {
+    return 'İşletme: $value';
+  }
+
+  @override
+  String userValue(Object value) {
+    return 'Kullanıcı: $value';
+  }
+
+  @override
+  String petValue(Object value) {
+    return 'Evcil Hayvan: $value';
+  }
+
+  @override
+  String amountPaidValue(Object value) {
+    return 'Ödenen Tutar: $value';
+  }
+
+  @override
+  String refundReasonValue(Object value) {
+    return 'İade Nedeni: $value';
+  }
+
+  @override
+  String refundErrorValue(Object value) {
+    return 'İade Hatası: $value';
+  }
+
+  @override
+  String get approveRefund => 'İadeyi Onayla';
+
+  @override
+  String get rejectRefund => 'İadeyi Reddet';
+
+  @override
+  String refundReviewFailed(Object error) {
+    return 'İade incelemesi başarısız: $error';
+  }
+
+  @override
+  String get note => 'Not';
+
+  @override
+  String refundQueueError(Object error) {
+    return 'İade kuyruğu hatası: $error';
+  }
+
+  @override
+  String get refundRequests => 'İade İstekleri';
+
+  @override
+  String get noPendingRefundRequests => 'Bekleyen iade isteği yok';
+
+  @override
+  String get reportsTitle => 'Bildirimler';
+
+  @override
+  String appointmentValue(Object value) {
+    return 'Randevu: $value';
+  }
+
+  @override
+  String cancelledValue(Object value) {
+    return 'İptal: $value';
+  }
+
+  @override
+  String amountValue(Object value) {
+    return 'Tutar: $value';
+  }
+
+  @override
+  String statusValue(Object value) {
+    return 'Durum: $value';
+  }
+
+  @override
+  String get confirmViolation => 'İhlali Onayla';
+
+  @override
+  String get markClean => 'Temiz Olarak İşaretle';
+
+  @override
+  String get businessMetrics => 'İşletme Metrikleri';
+
+  @override
+  String get businessSearch => 'İşletme Arama';
+
+  @override
+  String get searchBusinessNameHint => 'İşletme adı ara...';
+
+  @override
+  String get suspendedLabel => 'Askıya alındı';
+
+  @override
+  String get filterByStatus => 'Duruma göre filtrele';
+
+  @override
+  String get complaintCenter => 'Şikâyet Merkezi';
+
+  @override
+  String get noData => 'Veri yok';
+
+  @override
+  String get noComplaintsFound => 'Şikâyet bulunamadı';
+
+  @override
+  String categoryValue(Object value) {
+    return 'Kategori: $value';
+  }
+
+  @override
+  String get complaintDetail => 'Şikâyet Detayı';
+
+  @override
+  String severityValue(Object value) {
+    return 'Önem Derecesi: $value';
+  }
+
+  @override
+  String get evidence => 'Kanıt';
+
+  @override
+  String get dismiss => 'Kapat';
+
+  @override
+  String get fraudAnalytics => 'Dolandırıcılık Analizi';
+
+  @override
+  String get errorLoadingAnalytics => 'Analizler yüklenirken hata oluştu';
+
+  @override
+  String get adminMapMonitor => 'Yönetici Harita İzleme';
+
+  @override
+  String get platformMetrics => 'Platform Metrikleri';
+
+  @override
+  String get noMetricsData => 'Metrik verisi yok';
+
+  @override
+  String lastUpdatedValue(Object value) {
+    return 'Son güncelleme: $value';
+  }
+
+  @override
+  String get revenueTitle => 'Gelir';
+
+  @override
+  String get noRevenueData => 'Gelir verisi yok';
+
+  @override
+  String get auditLogs => 'Denetim Günlükleri';
+
+  @override
+  String verifiedValue(Object value) {
+    return 'Doğrulandı: $value';
+  }
+
+  @override
+  String documentNumberValue(Object value) {
+    return 'Belge no: $value';
+  }
+
+  @override
+  String get open => 'Aç';
+
+  @override
+  String get petTaxiDocument => 'Evcil Hayvan Taksi Belgesi';
+
+  @override
+  String get openPdf => 'PDF\'yi Aç';
+
+  @override
+  String get suspendedBusinesses => 'Askıya Alınan İşletmeler';
+
+  @override
+  String get noDataReceived => 'Veri alınmadı';
+
+  @override
+  String get noSuspendedBusinesses => 'Askıya alınan işletme yok';
+
+  @override
+  String get subscriptionDetails => 'Abonelik Detayları';
+
+  @override
+  String planValue(Object value) {
+    return 'Plan: $value';
+  }
+
+  @override
+  String priceValue(Object value) {
+    return 'Fiyat: $value';
+  }
+
+  @override
+  String get cancelSubscription => 'Aboneliği İptal Et';
+
+  @override
+  String get expireNow => 'Şimdi Süresi Dolmuş Yap';
+
+  @override
+  String get makePremium => '⭐ Premium Yap';
+
+  @override
+  String get upgradeToPartner => '👑 PetSupo Partner\'a Yükselt';
+
+  @override
+  String get downgradeToPremium => '⬇ Premium\'a Düşür';
+
+  @override
+  String get extendThirtyDays => '30 Gün Uzat';
+
+  @override
+  String get subscriptionManagement => 'Abonelik Yönetimi';
+
+  @override
+  String get searchUserIdHint => 'Kullanıcı kimliği ara...';
+
+  @override
+  String get loadingSubscription => 'Abonelik yükleniyor...';
+
+  @override
+  String get feedbackDetail => 'Geri Bildirim Detayı';
+
+  @override
+  String ratingValue(Object value) {
+    return 'Puan: $value';
+  }
+
+  @override
+  String contextValue(Object value) {
+    return 'Bağlam: $value';
+  }
+
+  @override
+  String get messageLabel => 'Mesaj';
+
+  @override
+  String get userFeedback => 'Kullanıcı Geri Bildirimi';
+
+  @override
+  String get noPayoutsFound => 'Ödeme bulunamadı';
+
+  @override
+  String get payoutManagement => 'Ödeme Yönetimi';
+
+  @override
+  String get readyLabel => 'Hazır';
+
+  @override
+  String get searchPayoutsHint => 'Sipariş, satıcı, alıcı veya referans ara...';
+
+  @override
+  String get payoutMarkedReady => 'Ödeme hazır olarak işaretlendi';
+
+  @override
+  String get confirmPayout => 'Ödemeyi Onayla';
+
+  @override
+  String get bankTransferReference => 'Banka Transfer Referansı';
+
+  @override
+  String get bankReferenceHint => 'EFT / FAST / Banka Referansı';
+
+  @override
+  String get payoutMarkedPaid => 'Ödeme ödendi olarak işaretlendi';
+
+  @override
+  String sellerValue(Object value) {
+    return 'Satıcı: $value';
+  }
+
+  @override
+  String buyerValue(Object value) {
+    return 'Alıcı: $value';
+  }
+
+  @override
+  String referenceValue(Object value) {
+    return 'Referans: $value';
+  }
+
+  @override
+  String get markReady => 'Hazır İşaretle';
+
+  @override
+  String get markPaid => 'Ödendi İşaretle';
+
+  @override
+  String openEntity(Object id, Object type) {
+    return '$type aç: $id';
+  }
+
+  @override
+  String get globalAdminSearchHint => 'Kullanıcı, köpek, işletme, bildirim veya şikâyet ara...';
+
+  @override
+  String get globalAdminSearch => 'Genel Yönetici Araması';
+
+  @override
+  String get notAuthenticated => 'Kimlik doğrulanmadı';
+
+  @override
+  String get adoptionRequestNotFound => 'Sahiplendirme isteği bulunamadı';
+
+  @override
+  String get backToRequests => 'İsteklere dön';
+
+  @override
+  String get messageApplicant => 'Başvuru Sahibine Mesaj Gönder';
+
+  @override
+  String get unknownPet => 'Bilinmeyen Evcil Hayvan';
+
+  @override
+  String get adoptionRequest => 'Sahiplendirme İsteği';
+
+  @override
+  String get waitingForOwnerResponse => 'Sahibin yanıtı bekleniyor';
+
+  @override
+  String get doneWithIcon => '✅ Tamamlandı';
+
+  @override
+  String failedWithIcon(Object error) {
+    return '❌ Başarısız: $error';
+  }
+
+  @override
+  String get availablePets => 'Uygun Evcil Hayvanlar';
+
+  @override
+  String get petsCouldNotBeLoaded => 'Evcil hayvanlar yüklenemedi.';
+
+  @override
+  String get noPetsAvailable => 'Uygun evcil hayvan yok';
+
+  @override
+  String get noImages => 'Görsel yok';
+
+  @override
+  String get viewAvailablePets => 'Uygun Evcil Hayvanları Gör';
+
+  @override
+  String get signInToContinue => 'Devam etmek için giriş yapın';
+
+  @override
+  String get writeReviewFirst => 'Lütfen önce bir değerlendirme yazın';
+
+  @override
+  String get reviewSubmitted => 'Değerlendirme gönderildi';
+
+  @override
+  String get reviewExperienceHint => 'Deneyiminizi başkalarıyla paylaşın';
+
+  @override
+  String get submitReview => 'Değerlendirmeyi Gönder';
+
+  @override
+  String get adoptionCenterDetails => 'Sahiplendirme Merkezi Detayları';
+
+  @override
+  String get adoptionServices => 'Sahiplendirme Hizmetleri';
+
+  @override
+  String get petTypes => 'Evcil Hayvan Türleri';
+
+  @override
+  String get workingDays => 'Çalışma Günleri';
+
+  @override
+  String get vetCheckIncluded => 'Veteriner Kontrolü Dahil';
+
+  @override
+  String get homeVisitAvailable => 'Ev Ziyareti Mevcut';
+
+  @override
+  String get transportSupport => 'Ulaşım Desteği';
+
+  @override
+  String get fosterSupport => 'Geçici Yuva Desteği';
+
+  @override
+  String get media => 'Medya';
+
+  @override
+  String get logo => 'Logo';
+
+  @override
+  String get approvedBusinesses => 'Onaylı İşletmeler';
+
+  @override
+  String get searchBusinessesHint => 'İşletme ara...';
+
+  @override
+  String get noApprovedBusinesses => 'Onaylı işletme yok';
+
+  @override
+  String get basic => 'Temel';
+
+  @override
+  String get disclaimerAccepted => 'Sorumluluk reddi kabul edildi';
+
+  @override
+  String get mismatchDetected => '⚠ Uyumsuzluk tespit edildi';
+
+  @override
+  String get languageCodeTr => 'TR';
+
+  @override
+  String get languageCodeEn => 'EN';
+
+  @override
+  String get riskFlags => 'Risk İşaretleri';
+
+  @override
+  String get noRiskFlags => 'Risk işareti yok';
+
+  @override
+  String get adminNotes => 'Yönetici Notları';
+
+  @override
+  String get adminNotesHint => 'Dahili moderasyon notları ekleyin...';
+
+  @override
+  String get saveNotes => 'Notları Kaydet';
+
+  @override
+  String get adminNotesSaved => 'Yönetici notları kaydedildi ✅';
+
+  @override
+  String saveFailed(Object error) {
+    return 'Kaydetme başarısız: $error';
+  }
+
+  @override
+  String get noQuickRepliesFound => 'Hızlı yanıt bulunamadı';
+
+  @override
+  String get quickReplies => 'Hızlı Yanıtlar';
+
+  @override
+  String get chatFailedToLoad => 'Sohbet yüklenemedi';
+
+  @override
+  String get noMessagesYet => 'Henüz mesaj yok';
+
+  @override
+  String get typeMessageHint => 'Bir mesaj yazın...';
+
+  @override
+  String get noRequests => 'İstek yok';
+
+  @override
+  String phoneValue(Object value) {
+    return 'Telefon: $value';
+  }
+
+  @override
+  String genderValue(Object value) {
+    return 'Cinsiyet: $value';
+  }
+
+  @override
+  String petStatusUpdated(Object name) {
+    return '$name durumu güncellendi';
+  }
+
+  @override
+  String statusUpdateFailed(Object error) {
+    return 'Durum güncellenemedi: $error';
+  }
+
+  @override
+  String get deletePetQuestion => 'Evcil hayvan silinsin mi?';
+
+  @override
+  String deletePetConfirmation(Object name) {
+    return '$name adlı evcil hayvanı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.';
+  }
+
+  @override
+  String petDeleted(Object name) {
+    return '$name silindi';
+  }
+
+  @override
+  String deleteFailedWithError(Object error) {
+    return 'Silme başarısız: $error';
+  }
+
+  @override
+  String get searchPetsHint => 'Evcil hayvan ara';
+
+  @override
+  String get noAdoptablePetsYet => 'Henüz sahiplendirilebilir evcil hayvan yok';
+
+  @override
+  String get addAdoptablePetsDescription => 'Sahiplendirilebilir evcil hayvanları ekleyin ve durumlarını burada yönetin.';
+
+  @override
+  String failedToLoadPets(Object error) {
+    return 'Evcil hayvanlar yüklenemedi:\n$error';
+  }
+
+  @override
+  String breedValue(Object value) {
+    return 'Irk: $value';
+  }
+
+  @override
+  String ageValue(Object value) {
+    return 'Yaş: $value';
+  }
+
+  @override
+  String get edit => 'Düzenle';
+
+  @override
+  String get noAdoptionPetsYet => 'Henüz Sahiplendirme Hayvanı Yok';
+
+  @override
+  String get addPetsForAdoption => 'Sahiplendirilebilir evcil hayvanlar ekleyin.';
+
+  @override
+  String get editAdoptionCenter => 'Sahiplendirme Merkezini Düzenle';
+
+  @override
+  String get pleaseAddCoverImage => 'Lütfen bir kapak görseli ekleyin';
+
+  @override
+  String get addGalleryImages => 'Galeri Görselleri Ekle';
+
+  @override
+  String get petNameLabel => 'Evcil Hayvan Adı';
+
+  @override
+  String get ageMonthsLabel => 'Yaş (ay)';
+
+  @override
+  String get visible => 'Görünür';
+
+  @override
+  String failedToSetCover(Object error) {
+    return 'Kapak ayarlanamadı: $error';
+  }
+
+  @override
+  String get uploadPetMedia => 'Evcil Hayvan Medyası Yükle';
+
+  @override
+  String uploadedPercent(Object percent) {
+    return '%$percent yüklendi';
+  }
+
+  @override
+  String get noMediaYet => 'Henüz medya yok';
+
+  @override
+  String get cover => 'Kapak';
+
+  @override
+  String get adoptionCenterInfo => 'Sahiplendirme Merkezi Bilgileri';
+
+  @override
+  String get centerNameLabel => 'Merkez adı';
+
+  @override
+  String get instagram => 'Instagram';
+
+  @override
+  String get address => 'Adres';
+
+  @override
+  String get saveCenterInfo => 'Merkez Bilgilerini Kaydet';
+
+  @override
+  String get latestAdoptionApplications => 'Son sahiplendirme başvuruları';
+
+  @override
+  String get viewAll => 'Tümünü Gör';
+
+  @override
+  String get tapForMoreDetails => 'Daha fazla ayrıntı için dokunun';
+
+  @override
+  String get setAvailable => 'Uygun Olarak Ayarla';
+
+  @override
+  String get setReserved => 'Rezerve Olarak Ayarla';
+
+  @override
+  String get setAdopted => 'Sahiplendirildi Olarak Ayarla';
+
+  @override
+  String get setPaused => 'Duraklatılmış Olarak Ayarla';
+
+  @override
+  String get clients => 'Müşteriler';
+
+  @override
+  String get searchPetOrOwnerHint => 'Evcil hayvan veya sahip adına göre ara';
+
+  @override
+  String get couldNotLoadClients => 'Müşteriler yüklenemedi.';
+
+  @override
+  String get addClient => 'Müşteri Ekle';
+
+  @override
+  String get ownerNameLabel => 'Sahibinin Adı';
+
+  @override
+  String get notes => 'Notlar';
+
+  @override
+  String get price => 'Fiyat';
+
+  @override
+  String get saveClient => 'Müşteriyi Kaydet';
+
+  @override
+  String get petOwnerNamesRequired => 'Evcil hayvan ve sahip adı gereklidir';
+
+  @override
+  String get clientSaved => 'Müşteri kaydedildi';
+
+  @override
+  String lastGrooming(Object date) {
+    return 'Son bakım: $date';
+  }
+
+  @override
+  String get noClientsYet => 'Henüz müşteri yok';
+
+  @override
+  String get addFirstGroomingClient => 'Ziyaretleri takip etmeye başlamak için ilk bakım müşterinizi ekleyin.';
+
+  @override
+  String get clientProfile => 'Müşteri Profili';
+
+  @override
+  String get openAppointmentBooking => 'Randevu rezervasyonunu işletme sayfasından açın';
+
+  @override
+  String get groomingHistory => 'Bakım Geçmişi';
+
+  @override
+  String get ownerNotFound => 'Sahip bulunamadı';
+
+  @override
+  String get signInRequired => 'Oturum açmanız gerekiyor';
+
+  @override
+  String get addGroomingVisit => 'Bakım Ziyareti Ekle';
+
+  @override
+  String get serviceVisitTitle => 'Hizmet / Ziyaret Başlığı';
+
+  @override
+  String get saveVisit => 'Ziyareti Kaydet';
+
+  @override
+  String get visitSaved => 'Ziyaret kaydedildi';
+
+  @override
+  String get editClient => 'Müşteriyi Düzenle';
+
+  @override
+  String get salonSchedule => 'Salon Takvimi';
+
+  @override
+  String get manageGroomingAppointments => 'Bakım randevularını yönetin';
+
+  @override
+  String amountTry(Object amount) {
+    return '$amount TRY';
+  }
+
+  @override
+  String get uploadGroomingMedia => 'Bakım Medyası Yükle';
+
+  @override
+  String get add => 'Ekle';
+
+  @override
+  String get afterPlatformCommission => 'Platform komisyonu sonrası';
+
+  @override
+  String get recentAppointments => 'Son Randevular';
+
+  @override
+  String get latestGroomingRequests => 'Son bakım talepleri ve seansları';
+
+  @override
+  String appointmentError(Object error) {
+    return 'Randevu hatası: $error';
+  }
+
+  @override
+  String get noGroomingAppointmentsYet => 'Henüz bakım randevusu yok';
+
+  @override
+  String get deleteService => 'Hizmeti Sil';
+
+  @override
+  String get deleteServiceConfirmation => 'Bu hizmeti silmek istediğinizden emin misiniz?';
+
+  @override
+  String get serviceDeleted => 'Hizmet silindi';
+
+  @override
+  String get deleteFailed => 'Silme başarısız';
+
+  @override
+  String get availabilityUpdated => 'Müsaitlik güncellendi';
+
+  @override
+  String updateFailed(Object error) {
+    return 'Güncelleme başarısız: $error';
+  }
+
+  @override
+  String get availability => 'Müsaitlik';
+
+  @override
+  String get capacityBookingExplanation => 'Kapasite, müsait oda sayısını aşan çakışan konaklamaları önlemek için kullanılır.';
+
+  @override
+  String get roomCapacity => 'Oda Kapasitesi';
+
+  @override
+  String get maximumPetsRooms => 'Azami evcil hayvan / oda';
+
+  @override
+  String currentCapacity(int count) {
+    return 'Mevcut kapasite: $count';
+  }
+
+  @override
+  String get saveAvailability => 'Müsaitliği Kaydet';
+
+  @override
+  String get checkIn => 'Giriş Yap';
+
+  @override
+  String get completeStay => 'Konaklamayı Tamamla';
+
+  @override
+  String alreadyStatus(Object status) {
+    return 'Zaten $status';
+  }
+
+  @override
+  String bookingUpdated(Object status) {
+    return 'Rezervasyon güncellendi: $status';
+  }
+
+  @override
+  String bookingError(Object error) {
+    return 'Rezervasyon hatası: $error';
+  }
+
+  @override
+  String get hotelProfile => 'Otel Profili';
+
+  @override
+  String get hotelOverview => 'Otel Genel Bakışı';
+
+  @override
+  String get pendingRequests => 'Bekleyen Talepler';
+
+  @override
+  String get uploadHotelMedia => 'Otel Medyası Yükle';
+
+  @override
+  String get proposeFinalPrice => 'Nihai Fiyat Öner';
+
+  @override
+  String get editProposedPrice => 'Önerilen Fiyatı Düzenle';
+
+  @override
+  String get notifyCustomerConfirmation => 'Bu işlem müşteriye bildirim gönderecek.';
+
+  @override
+  String get finalPrice => 'Nihai fiyat';
+
+  @override
+  String get customerMustPayBeforeTrip => 'Yolculuk başlamadan önce müşteri bu tutarı uygulamada ödemelidir.';
+
+  @override
+  String get sendPrice => 'Fiyatı Gönder';
+
+  @override
+  String get petTaxiOverview => 'Pet Taksi Genel Bakışı';
+
+  @override
+  String get driverOnline => 'Sürücü Çevrimiçi';
+
+  @override
+  String get serviceDetailsSaveFailed => 'Hizmet ayrıntıları kaydedilemedi.';
+
+  @override
+  String get priceDeterminedAfterExamination => 'Nihai fiyat muayeneden sonra belirlenecekse boş bırakın.';
+
+  @override
+  String get editing => 'Düzenleniyor';
+
+  @override
+  String get setPriceDurationDescription => 'Evcil hayvan sahiplerine gösterilecek fiyatı ve tahmini süreyi belirleyin.';
+
+  @override
+  String get serviceDetailsBeforeBooking => 'Bu ayrıntılar, evcil hayvan sahiplerinin rezervasyondan önce hizmeti anlamasına yardımcı olur.';
+
+  @override
+  String get addCustomService => 'Özel hizmet ekle';
+
+  @override
+  String get create => 'Oluştur';
+
+  @override
+  String get paymentSuccessful => 'Ödeme başarılı';
+
+  @override
+  String get paymentCancelled => 'Ödeme iptal edildi';
+
+  @override
+  String paymentFailedWithError(Object error) {
+    return 'Ödeme başarısız: $error';
+  }
+
+  @override
+  String get appointmentPayment => 'Randevu Ödemesi';
+
+  @override
+  String get done => 'Tamam';
+
+  @override
+  String get payNow => 'Şimdi Öde';
+
+  @override
+  String get titleLabel => 'Başlık';
+
+  @override
+  String get noQuickRepliesYet => 'Henüz hızlı yanıt yok';
+
+  @override
+  String get quickRepliesDescription => 'Yaygın müşteri soruları için yeniden kullanılabilir yanıtlar oluşturun.';
+
+  @override
+  String get inbox => 'Gelen Kutusu';
+
+  @override
+  String inboxError(Object error) {
+    return 'Gelen kutusu hatası:\n$error';
+  }
+
+  @override
+  String get emergency => 'Acil';
+
+  @override
+  String get noClientMessagesYet => 'Henüz müşteri mesajı yok';
+
+  @override
+  String get clientMessagesDescription => 'Evcil hayvan sahipleri kliniğinizle iletişime geçtiğinde konuşmalar burada görünür.';
+
+  @override
+  String get passportNumberFormat => 'Pasaport numarası yalnızca büyük harf, sayı, - veya / içermelidir';
+
+  @override
+  String get medicalProfileUpdated => 'Tıbbi profil güncellendi';
+
+  @override
+  String profileUpdateFailed(Object error) {
+    return 'Profil güncellenemedi: $error';
+  }
+
+  @override
+  String get confirmMicrochipNumber => 'Mikroçip Numarasını Onayla';
+
+  @override
+  String get review => 'Gözden Geçir';
+
+  @override
+  String get saveAnyway => 'Yine de Kaydet';
+
+  @override
+  String get medicalProfile => 'Tıbbi Profil';
+
+  @override
+  String get saveMedicalProfile => 'Tıbbi Profili Kaydet';
+
+  @override
+  String get ownerProfileUpdated => 'Sahip profili güncellendi';
+
+  @override
+  String get ownerProfile => 'Sahip Profili';
+
+  @override
+  String couldNotSaveVisit(Object error) {
+    return 'Ziyaret kaydedilemedi: $error';
+  }
+
+  @override
+  String get deleteVisit => 'Ziyareti Sil';
+
+  @override
+  String get deleteVisitConfirmation => 'Bu ziyaret tıbbi kayıttan silinsin mi?';
+
+  @override
+  String couldNotDeleteVisit(Object error) {
+    return 'Ziyaret silinemedi: $error';
+  }
+
+  @override
+  String get deleteVisitTooltip => 'Ziyareti sil';
+
+  @override
+  String get addVaccine => 'Aşı Ekle';
+
+  @override
+  String get vaccine => 'Aşı';
+
+  @override
+  String get reminder => 'Hatırlatıcı';
+
+  @override
+  String get notifyBeforeNextDueDate => 'Sonraki doz tarihinden önce bildir';
+
+  @override
+  String get saveVaccine => 'Aşıyı Kaydet';
+
+  @override
+  String get patientNotFound => 'Hasta bulunamadı';
+
+  @override
+  String get editOwnerProfile => 'Sahip Profilini Düzenle';
+
+  @override
+  String get ownerEmergencyContactDetails => 'Sahip ve acil durum iletişim bilgileri';
+
+  @override
+  String get editMedicalProfile => 'Tıbbi Profili Düzenle';
+
+  @override
+  String get clinicalVeterinaryInformation => 'Klinik ve veteriner bilgileri';
+
+  @override
+  String get visits => 'Ziyaretler';
+
+  @override
+  String get vaccines => 'Aşılar';
+
+  @override
+  String get ownerInformation => 'Sahip Bilgileri';
+
+  @override
+  String get visitsUnavailable => 'Ziyaretler kullanılamıyor';
+
+  @override
+  String visitsError(Object error) {
+    return 'Ziyaret hatası: $error';
+  }
+
+  @override
+  String get followUp => 'Takip';
+
+  @override
+  String get editVisitTooltip => 'Ziyareti düzenle';
+
+  @override
+  String get editMedicalNotes => 'Tıbbi Notları Düzenle';
+
+  @override
+  String get medicalNotes => 'Tıbbi notlar';
+
+  @override
+  String get editVaccineTooltip => 'Aşıyı düzenle';
+
+  @override
+  String get deleteVaccineTooltip => 'Aşıyı sil';
+
+  @override
+  String get deleteVaccine => 'Aşıyı Sil';
+
+  @override
+  String get deleteVaccineConfirmation => 'Bu aşı kaydını silmek istediğinizden emin misiniz?';
+
+  @override
+  String get editVaccine => 'Aşıyı Düzenle';
+
+  @override
+  String get vaccineName => 'Aşı adı';
+
+  @override
+  String get updateVaccine => 'Aşıyı Güncelle';
+
+  @override
+  String get completeVaccine => 'Aşıyı Tamamla';
+
+  @override
+  String get clientNote => 'Müşteri notu';
+
+  @override
+  String get businessInfo => 'İşletme Bilgileri';
+
+  @override
+  String get clinicName => 'Klinik adı';
+
+  @override
+  String get emergencyServiceEnabled => 'Acil servis etkin';
+
+  @override
+  String get saveBusinessInfo => 'İşletme Bilgilerini Kaydet';
+
+  @override
+  String get openAppointmentsTab => 'Randevular sekmesini üstten açın';
+
+  @override
+  String get viewAllAppointments => 'Tüm randevuları gör';
+
+  @override
+  String get checkConnectionTryAgain => 'Lütfen bağlantınızı kontrol edip tekrar deneyin.';
+
+  @override
+  String get editServiceTooltip => 'Hizmeti düzenle';
+
+  @override
+  String get deleteServiceTooltip => 'Hizmeti sil';
+
+  @override
+  String get noServicesAddedYet => 'Henüz hizmet eklenmedi';
+
+  @override
+  String get addFirstServiceDescription => 'Evcil hayvan sahiplerinin erişebilmesi için ilk hizmetinizi ekleyin.';
+
+  @override
+  String get servicesPricing => 'Hizmetler ve Fiyatlandırma';
+
+  @override
+  String get addService => 'Hizmet Ekle';
+
+  @override
+  String get noServicesYet => 'Henüz hizmet yok.';
+
+  @override
+  String servicePriceDuration(Object price, Object currency, Object duration) {
+    return '$price $currency • $duration dk';
+  }
+
+  @override
+  String get serviceTitle => 'Hizmet başlığı';
+
+  @override
+  String get durationMinutes => 'Süre (dk)';
+
+  @override
+  String get requireDeposit => 'Depozito iste';
+
+  @override
+  String get depositAmount => 'Depozito tutarı (₺)';
+
+  @override
+  String get featured => 'Öne çıkan';
+
+  @override
+  String get active => 'Aktif';
+
+  @override
+  String get photoUploadedSuccessfully => 'Fotoğraf başarıyla yüklendi';
+
+  @override
+  String get photoDeleted => 'Fotoğraf silindi';
+
+  @override
+  String get coverImageUpdated => 'Kapak görseli güncellendi';
+
+  @override
+  String get galleryManagement => 'Galeri Yönetimi';
+
+  @override
+  String get coverImage => 'Kapak Görseli';
+
+  @override
+  String get tapToChangeCover => 'Kapağı değiştirmek için dokunun';
+
+  @override
+  String get uploadCoverImage => 'Kapak görseli yükle';
+
+  @override
+  String get tapToUploadClinicCover => 'Klinik kapak fotoğrafı yüklemek için dokunun';
+
+  @override
+  String get galleryPhotos => 'Galeri Fotoğrafları';
+
+  @override
+  String get noGalleryPhotosYet => 'Henüz galeri fotoğrafı yok';
+
+  @override
+  String get uploadClinicPhotosDescription => 'Güveni ve görünürlüğü artırmak için klinik fotoğrafları yükleyin.';
+
+  @override
+  String get uploadFirstPhoto => 'İlk Fotoğrafı Yükle';
+
+  @override
+  String get dragToReorderGallery => 'Galeri fotoğraflarını sıralamak için sürükleyin';
+
+  @override
+  String get patients => 'Hastalar';
+
+  @override
+  String get back => 'Geri';
+
+  @override
+  String get patientRecords => 'Hasta Kayıtları';
+
+  @override
+  String shownCount(int count) {
+    return '$count gösteriliyor';
+  }
+
+  @override
+  String get searchPetOwnerBreed => 'Evcil hayvan, sahip veya ırk ara';
+
+  @override
+  String get clear => 'Temizle';
+
+  @override
+  String preVisitSettingsLoadFailed(Object error) {
+    return 'Ön ziyaret ayarları yüklenemedi: $error';
+  }
+
+  @override
+  String get preVisitSettingsSaved => 'Ön ziyaret formu ayarları kaydedildi';
+
+  @override
+  String settingsSaveFailed(Object error) {
+    return 'Ayarlar kaydedilemedi: $error';
+  }
+
+  @override
+  String get preVisitForms => 'Ön ziyaret formları';
+
+  @override
+  String get servicePreVisitForms => 'Hizmet ön ziyaret formları';
+
+  @override
+  String get serviceMedicalIntakeDescription => 'Her hizmetin kendi tıbbi kabul soruları olabilir.';
+
+  @override
+  String get servicesCouldNotBeLoadedPeriod => 'Hizmetler yüklenemedi.';
+
+  @override
+  String get noActiveServicesForForms => 'Henüz aktif hizmet yok. Form oluşturmadan önce hizmet ekleyin.';
+
+  @override
+  String get enableForService => 'Bu hizmet için etkinleştir';
+
+  @override
+  String get onlyServiceAsksQuestions => 'Bu soruları yalnızca bu hizmet soracak.';
+
+  @override
+  String get noQuestionsForService => 'Bu hizmet için henüz soru yok.';
+
+  @override
+  String get question => 'Soru';
+
+  @override
+  String get questionExample => 'örn. Evcil hayvanınız bugün yemek yedi mi?';
+
+  @override
+  String get remove => 'Kaldır';
+
+  @override
+  String get questionType => 'Soru türü';
+
+  @override
+  String get textType => 'Metin';
+
+  @override
+  String get longTextType => 'Uzun metin';
+
+  @override
+  String get yesNoType => 'Evet / Hayır';
+
+  @override
+  String get singleChoice => 'Tek seçim';
+
+  @override
+  String get multipleChoice => 'Çoklu seçim';
+
+  @override
+  String get numberType => 'Sayı';
+
+  @override
+  String get requiredLabel => 'Zorunlu';
+
+  @override
+  String get options => 'Seçenekler';
+
+  @override
+  String optionNumber(int number) {
+    return 'Seçenek $number';
+  }
+
+  @override
+  String get addOption => 'Seçenek ekle';
+
+  @override
+  String get clinicSchedule => 'Klinik Takvimi';
+
+  @override
+  String get appointments => 'Randevular';
+
+  @override
+  String totalCount(int count) {
+    return 'Toplam $count';
+  }
+
+  @override
+  String get services => 'Hizmetler';
+
+  @override
+  String get addServiceFlowComingNext => 'Hizmet ekleme akışı yakında';
+
+  @override
+  String get clinicServices => 'Klinik Hizmetleri';
+
+  @override
+  String get manageVisibleVetServices => 'Görünür veteriner hizmetlerini yönetin';
+
+  @override
+  String get clinicSettings => 'Klinik Ayarları';
+
+  @override
+  String get emergencyAvailabilitySaveFailed => 'Acil durum müsaitliği kaydedilemedi';
+
+  @override
+  String managementNotAvailable(Object label) {
+    return '$label yönetimi henüz kullanılamıyor';
+  }
+
+  @override
+  String loadError(Object error) {
+    return 'Yükleme hatası: $error';
+  }
+
+  @override
+  String get workingHoursSaved => 'Çalışma saatleri kaydedildi';
+
+  @override
+  String saveError(Object error) {
+    return 'Kaydetme hatası: $error';
+  }
+
+  @override
+  String get workingHours => 'Çalışma Saatleri';
+
+  @override
+  String get clinicWorkingHours => 'Klinik Çalışma Saatleri';
+
+  @override
+  String get manageOpeningDays => 'Açık günleri ve randevu müsaitliğini yönetin';
+
+  @override
+  String get editGroomyProfile => 'Groomy Profilini Düzenle';
+
+  @override
+  String get groomyDetails => 'Groomy Ayrıntıları';
+
+  @override
+  String get homeService => 'Evde Hizmet';
+
+  @override
+  String get pickupService => 'Alım Hizmeti';
+
+  @override
+  String get photos => 'Fotoğraflar';
+
+  @override
+  String get complete => 'Tamamla';
+
+  @override
+  String get awaitingPayment => 'Ödeme bekleniyor';
+
+  @override
+  String appointmentUpdated(Object status) {
+    return 'Randevu güncellendi: $status';
+  }
+
+  @override
+  String get galleryComingSoon => 'Galeri yakında';
+
+  @override
+  String get editHotelProfile => 'Otel Profilini Düzenle';
+
+  @override
+  String pricePerNight(Object price) {
+    return 'Gecelik $price₺';
+  }
+
+  @override
+  String bookStayAt(Object hotel) {
+    return 'Konaklama rezervasyonu • $hotel';
+  }
+
+  @override
+  String get hotelCareNotesHint => 'Beslenme, ilaç veya bakım notları';
+
+  @override
+  String get requestBooking => 'Rezervasyon İste';
+
+  @override
+  String get checkoutAfterCheckin => 'Çıkış tarihi giriş tarihinden sonra olmalıdır';
+
+  @override
+  String get hotelBookingRequestSent => 'Otel rezervasyon talebiniz gönderildi.';
+
+  @override
+  String get noGalleryImagesYet => 'Henüz galeri görseli yok';
+
+  @override
+  String get petHotelDetails => 'Evcil Hayvan Oteli Ayrıntıları';
+
+  @override
+  String get amenities => 'Olanaklar';
+
+  @override
+  String get petTaxiDetails => 'Pet Taksi Ayrıntıları';
+
+  @override
+  String get petTaxiManualReviewNotice => 'Pet Taksi başvurunuz, belgeler manuel olarak incelenip onaylanana kadar yayımlanmaz.';
+
+  @override
+  String get transportationLawNotice => 'Ulaşım yasaları şehre veya ülkeye göre değişebilir. İşletmeler yerel ulaşım, sigorta ve vergi düzenlemelerine uymakla sorumludur.';
+
+  @override
+  String get legalDocumentsPrivacyNotice => 'Yasal belgeler yalnızca işletme sahibi ve yönetici incelemesi için saklanır. Kamuya açık kullanıcılara gösterilmez.';
+
+  @override
+  String get savePetTaxiDetails => 'Pet Taksi Ayrıntılarını Kaydet';
+
+  @override
+  String get driverVehicle => 'Sürücü ve Araç';
+
+  @override
+  String get vehicleType => 'Araç türü';
+
+  @override
+  String get preview => 'Önizleme';
+
+  @override
+  String get editPetShopProfile => 'PetShop Profilini Düzenle';
+
+  @override
+  String get petShopDetails => 'PetShop Ayrıntıları';
+
+  @override
+  String get shopTypes => 'Mağaza Türleri';
+
+  @override
+  String get priceLevel => 'Fiyat Seviyesi';
+
+  @override
+  String get low => 'Düşük';
+
+  @override
+  String get mid => 'Orta';
+
+  @override
+  String get high => 'Yüksek';
+
+  @override
+  String get delivery => 'Teslimat';
+
+  @override
+  String get hasDelivery => 'Teslimat Var';
+
+  @override
+  String get offers => 'Teklifler';
+
+  @override
+  String get hasOffers => 'Teklif Var';
+
+  @override
+  String get rejectedBusinesses => 'Reddedilen İşletmeler';
+
+  @override
+  String get noRejectedBusinesses => 'Reddedilen işletme yok';
+
+  @override
+  String get inheritedFromRegistration => 'Temel kayıttan devralındı';
+
+  @override
+  String get veterinaryDetails => 'Veterinerlik Ayrıntıları';
+
+  @override
+  String get licenseReviewNotice => 'Bu numara doğrulama sırasında incelenecektir.';
+
+  @override
+  String get licenseExpiryDateNumbered => '12. Lisans Son Kullanma Tarihi';
+
+  @override
+  String get workingDaysNumbered => '20. Çalışma Günleri';
+
+  @override
+  String get acceptedAnimalTypesNumbered => '24. Kabul Edilen Hayvan Türleri';
+
+  @override
+  String get confirmInformationAccurate => '41. Verilen bilgilerin doğru olduğunu onaylıyorum';
+
+  @override
+  String get agreeDisplayInformation => '42. Bilgilerimin uygulamada gösterilmesini kabul ediyorum';
+
+  @override
+  String get agreeDisplayReviews => '43. Kullanıcı yorumlarının gösterilmesini kabul ediyorum';
+
+  @override
+  String get acceptPartnershipTerms => '44. PetSupo ortaklık koşullarını kabul ediyorum';
+
+  @override
+  String get submitVeterinaryDetails => 'Veterinerlik Ayrıntılarını Gönder';
+
+  @override
+  String get adoptionCenterTemporary => 'Sahiplendirme Merkezi (GEÇİCİ)';
+
+  @override
+  String reviewsCountParenthesized(Object count) {
+    return ' ($count yorum)';
+  }
+
+  @override
+  String get messageSendingTimedOut => 'Mesaj gönderme zaman aşımına uğradı';
+
+  @override
+  String messageFailed(Object error) {
+    return 'Mesaj başarısız: $error';
+  }
+
+  @override
+  String get chatCreating => 'Sohbet oluşturuluyor...';
+
+  @override
+  String get startChatting => 'Sohbete başlayın 👋';
+
+  @override
+  String get writeMessageHint => 'Mesaj yazın...';
+
+  @override
+  String get noChatsYet => 'Henüz sohbet yok';
+
+  @override
+  String get startChattingWithPetOwners => 'Evcil hayvan sahipleriyle sohbet edin ve evcil hayvanınıza yeni arkadaşlar bulun 👋';
+
+  @override
+  String get failedToLoadChats => 'Sohbetler yüklenemedi';
+
+  @override
+  String get personalChatsCouldNotLoad => 'Kişisel sohbetler yüklenemedi.';
+
+  @override
+  String get businessConversations => 'İşletme Konuşmaları';
+
+  @override
+  String get signInToUseChats => 'Sohbetleri kullanmak için oturum açın';
+
+  @override
+  String get chats => 'Sohbetler';
+
+  @override
+  String get connectWithPetOwners => 'Evcil hayvan sahipleriyle bağlantı kurun';
+
+  @override
+  String get noChatsFound => 'Sohbet bulunamadı';
+
+  @override
+  String get tryAnotherKeyword => 'Başka bir anahtar kelime veya kullanıcı adı deneyin.';
+
+  @override
+  String get messages => 'Mesajlar';
+
+  @override
+  String get failedToLoadMessages => 'Mesajlar yüklenemedi';
+
+  @override
+  String get noConversationsYet => 'Henüz konuşma yok';
+
+  @override
+  String get userInboxEmptyDescription => 'Bir işletmeyle iletişim kurduğunuzda,\nkonuşmalarınız burada görünür.';
+
+  @override
+  String get medicalRecords => 'Tıbbi Kayıtlar';
+
+  @override
+  String get vaccinesVisitsAndTreatments => 'Aşılar, muayeneler ve tedaviler';
+
+  @override
+  String amountInTry(Object amount) {
+    return '$amount TL';
+  }
+
+  @override
   String get reportDialogTitle => 'Report';
 
   @override
@@ -5821,4 +8242,509 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get suspendedAccountSignOut => 'Sign out';
+
+  @override
+  String get payoutEligibleTab => 'Uygun';
+
+  @override
+  String get payoutBatchesTab => 'Ödeme paketleri';
+
+  @override
+  String get payoutExceptionsTab => 'İstisnalar';
+
+  @override
+  String get payoutSelectAllEligible => 'Tüm uygun satıcıları seç';
+
+  @override
+  String get payoutCreateBatch => 'Ödeme paketi oluştur';
+
+  @override
+  String payoutBatchCreated(Object batchNumber) {
+    return '$batchNumber paketi oluşturuldu';
+  }
+
+  @override
+  String payoutOperationFailed(Object details) {
+    return 'Ödeme işlemi başarısız. $details';
+  }
+
+  @override
+  String get payoutLoadFailed => 'Ödeme verileri yüklenemedi.';
+
+  @override
+  String get payoutNoExceptions => 'Ödeme istisnası yok';
+
+  @override
+  String get payoutDateFilter => 'Ödeme dönemi';
+
+  @override
+  String get payoutToday => 'Bugün';
+
+  @override
+  String get payoutYesterday => 'Dün';
+
+  @override
+  String get payoutThisWeek => 'Bu hafta';
+
+  @override
+  String get payoutLastWeek => 'Geçen hafta';
+
+  @override
+  String get payoutThisMonth => 'Bu ay';
+
+  @override
+  String get payoutValidBankOnly => 'Geçerli banka hesabı';
+
+  @override
+  String get payoutUnknownSeller => 'Satıcı bilgisi mevcut değil';
+
+  @override
+  String get payoutBankMissing => 'Banka eksik';
+
+  @override
+  String get payoutIncludedOrders => 'Dahil edilen siparişler';
+
+  @override
+  String get payoutPeriod => 'Dönem';
+
+  @override
+  String get payoutGrossTotal => 'Brüt toplam';
+
+  @override
+  String get payoutCommissionTotal => 'Komisyon toplamı';
+
+  @override
+  String get payoutNetPayable => 'Net ödenecek';
+
+  @override
+  String get payoutNoBatches => 'Ödeme paketi yok';
+
+  @override
+  String get payoutSellers => 'satıcı';
+
+  @override
+  String get payoutExportXlsx => 'XLSX dışa aktar';
+
+  @override
+  String get payoutValid => 'Geçerli';
+
+  @override
+  String get payoutBlocked => 'Engelli';
+
+  @override
+  String get payoutMissingBusiness => 'İşletme eksik';
+
+  @override
+  String get payoutMissingAccountHolder => 'Hesap sahibi eksik';
+
+  @override
+  String get payoutMissingIban => 'IBAN eksik';
+
+  @override
+  String get payoutInvalidIban => 'Geçersiz IBAN';
+
+  @override
+  String get payoutMissingBankName => 'Banka adı eksik';
+
+  @override
+  String get payoutNonPositiveAmount => 'Net tutar pozitif olmalıdır';
+
+  @override
+  String get payoutSettlementIncomplete => 'Mutabakat tamamlanmadı';
+
+  @override
+  String get payoutCommissionUnknown => 'Komisyon inceleme bekliyor';
+
+  @override
+  String get payoutCustomerPaid => 'Müşteri ödemesi';
+
+  @override
+  String get payoutSellerNetNotCalculated => 'Satıcı neti: hesaplanmadı';
+
+  @override
+  String get payoutExcludedFromPayout => 'Ödeme dışında';
+
+  @override
+  String get payoutRefundedOrCancelled => 'İade veya iptal edilmiş sipariş';
+
+  @override
+  String get payoutAlreadyBatched => 'Zaten bir pakete atanmış';
+
+  @override
+  String get payoutAlreadyPaid => 'Zaten ödendi';
+
+  @override
+  String get payoutUnsupportedCurrency => 'Desteklenmeyen para birimi';
+
+  @override
+  String get payoutIneligible => 'Ödeme için uygun değil';
+
+  @override
+  String get payoutStatusFilter => 'Ödeme durumu';
+
+  @override
+  String get payoutSettlementFilter => 'Mutabakat durumu';
+
+  @override
+  String get payoutBatchFilter => 'Paket ataması';
+
+  @override
+  String get payoutIncludedInBatch => 'Pakete dahil';
+
+  @override
+  String get payoutNotIncludedInBatch => 'Pakete dahil değil';
+
+  @override
+  String get payoutSellerFilter => 'Satıcı / işletme';
+
+  @override
+  String get payoutBankFilter => 'Banka';
+
+  @override
+  String get payoutMinimumAmount => 'Minimum ödeme';
+
+  @override
+  String get payoutMaximumAmount => 'Maksimum ödeme';
+
+  @override
+  String get payoutCustomRange => 'Özel tarih aralığı';
+
+  @override
+  String get financeOverviewTab => 'Genel Bakış';
+
+  @override
+  String get financeWaitingTab => 'Bekleyen';
+
+  @override
+  String get financeEligibleSellers => 'Uygun satıcılar';
+
+  @override
+  String get financeEligibleRecords => 'Uygun kayıtlar';
+
+  @override
+  String get financeWaitingSellers => 'Bekleyen satıcılar';
+
+  @override
+  String get financeWaitingRecords => 'Bekleyen kayıtlar';
+
+  @override
+  String get financeWaitingAmount => 'Bekleyen tutar';
+
+  @override
+  String get financeBlockedRecords => 'Engellenen kayıtlar';
+
+  @override
+  String get financeExceptionCount => 'İstisnalar';
+
+  @override
+  String get financeTodaySales => 'Bugünkü satışlar';
+
+  @override
+  String get financeTodayCommission => 'Bugünkü komisyon';
+
+  @override
+  String get financeTodayRefunds => 'Bugünkü iadeler';
+
+  @override
+  String get financeTodayEligible => 'Bugün uygun olan';
+
+  @override
+  String get financeTodayPaid => 'Bugün ödenen';
+
+  @override
+  String get financeOutstandingLiability => 'Ödenmemiş yükümlülük';
+
+  @override
+  String get financeMonthlyPlatformRevenue => 'Aylık platform geliri';
+
+  @override
+  String get financeNextEligibilityDate => 'Sonraki uygunluk tarihi';
+
+  @override
+  String get financeDaysRemaining => 'Kalan gün';
+
+  @override
+  String get financeOldestWaitingRecord => 'En eski bekleyen kayıt';
+
+  @override
+  String get financeAmountEligibleNext => 'Sonraki uygun olacak tutar';
+
+  @override
+  String get financeSendForReview => 'İncelemeye gönder';
+
+  @override
+  String get financeApproveBatch => 'Onayla';
+
+  @override
+  String get financeRejectBatch => 'Paketi reddet';
+
+  @override
+  String get sellerFinanceTitle => 'Finans ve Kazançlar';
+
+  @override
+  String get sellerFinanceDetails => 'Detaylar';
+
+  @override
+  String get sellerFinanceAvailable => 'Kullanılabilir bakiye';
+
+  @override
+  String get sellerFinanceWaiting => 'Bekleyen bakiye';
+
+  @override
+  String get sellerFinanceProcessing => 'Paketlenmiş / işleniyor';
+
+  @override
+  String get sellerFinancePaidThisMonth => 'Bu ay ödenen';
+
+  @override
+  String get sellerFinanceTotalEarnings => 'Toplam kazanç';
+
+  @override
+  String get sellerFinanceBlocked => 'Engellenen tutar';
+
+  @override
+  String get sellerFinanceBankBlocked => 'Banka hesap bilgileriniz eksik olduğu için ödemeniz engellendi.';
+
+  @override
+  String get sellerFinanceUpdateBank => 'Banka hesabını güncelle';
+
+  @override
+  String get sellerFinanceWaitingExplanation => 'Kazançlar başarılı ödemeden 21 gün sonra uygun hale gelir.';
+
+  @override
+  String get sellerFinanceWaitingSchedule => 'Bekleme takvimi';
+
+  @override
+  String get sellerFinanceLastPayout => 'Son ödeme';
+
+  @override
+  String get sellerFinanceOrders => 'sipariş';
+
+  @override
+  String get sellerFinanceAppointments => 'randevu';
+
+  @override
+  String get sellerFinanceBookings => 'rezervasyon';
+
+  @override
+  String get sellerFinanceRides => 'yolculuk';
+
+  @override
+  String get sellerFinanceRequests => 'talep';
+
+  @override
+  String get financeRecommendedAction => 'Önerilen işlem';
+
+  @override
+  String get financeOpenSeller => 'Satıcıyı aç';
+
+  @override
+  String get financeTomorrowEligible => 'Yarın uygun olacak';
+
+  @override
+  String get financeNext7Days => 'Sonraki 7 gün';
+
+  @override
+  String get financeNext30Days => 'Sonraki 30 gün';
+
+  @override
+  String get financeEstimatedPayable => 'Tahmini ödenecek';
+
+  @override
+  String get financeStartProcessing => 'İşlemeyi başlat';
+
+  @override
+  String get sellerFinanceEstimatedNext => 'Tahmini sonraki ödeme';
+
+  @override
+  String get sellerFinanceTimeline => 'Ödeme zaman çizelgesi';
+
+  @override
+  String get sellerFinanceTimelineValue => 'Ödendi → Bekleme (21 gün) → Uygun → Pakete dahil → Aktarıldı → Tamamlandı';
+
+  @override
+  String get sellerFinanceEligibleRecords => 'Uygun kayıtlar';
+
+  @override
+  String get sellerFinancePayoutHistory => 'Ödeme geçmişi';
+
+  @override
+  String get sellerFinanceExceptions => 'İstisnalar';
+
+  @override
+  String get financeMarkFailed => 'Başarısız işaretle';
+
+  @override
+  String get financeFailureReason => 'Başarısızlık nedeni';
+
+  @override
+  String get userProfileCreatorProgram => 'Creator Programı';
+
+  @override
+  String get userProfileOpenCreatorDashboard => 'Creator Paneli';
+
+  @override
+  String get creatorDashboardTitle => 'Creator Paneli';
+
+  @override
+  String get creatorWelcomeBack => 'Tekrar hoş geldin';
+
+  @override
+  String get creatorLevelLabel => 'Creator Seviyesi';
+
+  @override
+  String get creatorCurrentCampaign => 'Güncel kampanya';
+
+  @override
+  String get creatorReferralCodeLabel => 'Referans Kodu';
+
+  @override
+  String get creatorReferralLinkLabel => 'Referans Bağlantısı';
+
+  @override
+  String get creatorCopyCode => 'Kodu Kopyala';
+
+  @override
+  String get creatorCopyLink => 'Bağlantıyı Kopyala';
+
+  @override
+  String get creatorReferralCodeCopied => 'Referans kodu kopyalandı';
+
+  @override
+  String get creatorReferralLinkCopied => 'Referans bağlantısı kopyalandı';
+
+  @override
+  String get creatorQualifiedUsers => 'Nitelikli Kullanıcılar';
+
+  @override
+  String get creatorVerifiedPartners => 'Onaylı İşletmeler';
+
+  @override
+  String get creatorPendingRewards => 'Bekleyen Ödüller';
+
+  @override
+  String get creatorPaidRewards => 'Ödenen Ödüller';
+
+  @override
+  String get creatorRecentActivity => 'Son Etkinlikler';
+
+  @override
+  String get creatorNoActivityYet => 'Henüz etkinlik yok';
+
+  @override
+  String get creatorNoActivityMessage => 'Biri referans bağlantınızı kullandığında etkinlik burada görünecek.';
+
+  @override
+  String get creatorUpcomingPayout => 'Yaklaşan Ödeme';
+
+  @override
+  String get creatorEstimatedPayout => 'Tahmini ödeme';
+
+  @override
+  String get creatorPayoutDate => 'Ödeme tarihi';
+
+  @override
+  String get creatorPayoutMethod => 'Ödeme yöntemi';
+
+  @override
+  String get creatorOpenFullDashboard => 'Tam Paneli Aç';
+
+  @override
+  String get creatorOpenFullDashboardHint => 'Web\'de ayrıntılı grafikleri, analitiği ve tam raporlamayı görün';
+
+  @override
+  String get creatorPerformanceOverview => 'Performans Özeti';
+
+  @override
+  String get creatorTotalClicks => 'Toplam Tıklama';
+
+  @override
+  String get creatorRegistrations => 'Kayıtlar';
+
+  @override
+  String get creatorConversionRate => 'Dönüşüm Oranı';
+
+  @override
+  String get creatorRewardBreakdown => 'Ödül Dağılımı';
+
+  @override
+  String get creatorPayoutHistory => 'Ödeme Geçmişi';
+
+  @override
+  String get creatorAnalytics => 'Analitik';
+
+  @override
+  String get creatorReferralsTab => 'Referanslar';
+
+  @override
+  String get creatorRewardsTab => 'Ödüller';
+
+  @override
+  String get creatorFilters => 'Filtreler';
+
+  @override
+  String get creatorExport => 'Dışa Aktar';
+
+  @override
+  String get creatorTimeframe7d => '7 gün';
+
+  @override
+  String get creatorTimeframe30d => '30 gün';
+
+  @override
+  String get creatorTimeframe90d => '90 gün';
+
+  @override
+  String get creatorTimeframe12m => '12 ay';
+
+  @override
+  String get creatorSignInRequiredTitle => 'Giriş gerekli';
+
+  @override
+  String get creatorSignInRequiredMessage => 'Creator Panelinizi görmek için giriş yapın';
+
+  @override
+  String get creatorAccessDeniedTitle => 'Creator erişimi gerekli';
+
+  @override
+  String get creatorAccessDeniedMessage => 'Bu panel yalnızca onaylı PetSupo creator\'ları için kullanılabilir.';
+
+  @override
+  String get creatorGoToSignIn => 'Girişe git';
+
+  @override
+  String get creatorBadgesAchievements => 'Rozetler ve Başarımlar';
+
+  @override
+  String get creatorProgressToNextLevelPrefix => 'Şu seviyeye ilerleme:';
+
+  @override
+  String get creatorTotalEarned => 'Toplam kazanç';
+
+  @override
+  String get creatorShareYourLink => 'Referans Bağlantınızı Paylaşın';
+
+  @override
+  String get creatorStatusPaid => 'Ödendi';
+
+  @override
+  String get creatorStatusScheduled => 'Planlandı';
+
+  @override
+  String get creatorExportComingSoon => 'Dışa aktarma yakında geliyor';
+
+  @override
+  String get creatorFiltersComingSoon => 'Gelişmiş filtreler yakında geliyor';
+
+  @override
+  String get creatorStatusLabel => 'Durum';
+
+  @override
+  String get creatorStatusActive => 'Aktif';
+
+  @override
+  String get creatorStatusInactive => 'Pasif';
+
+  @override
+  String get creatorSampleData => 'Örnek veri';
 }

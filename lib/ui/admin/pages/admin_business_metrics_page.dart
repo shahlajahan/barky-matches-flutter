@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminBusinessMetricsPage extends StatelessWidget {
   const AdminBusinessMetricsPage({super.key});
@@ -8,7 +9,7 @@ class AdminBusinessMetricsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Business Metrics"),
+        title: Text(AppLocalizations.of(context)!.businessMetrics),
         backgroundColor: Colors.pink,
       ),
       body: StreamBuilder<QuerySnapshot>(

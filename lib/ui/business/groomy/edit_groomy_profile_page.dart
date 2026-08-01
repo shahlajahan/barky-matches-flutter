@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
+import '../../../l10n/app_localizations.dart';
+import '../settings/bank_account_settings_page.dart';
+
 class EditGroomyProfilePage extends StatefulWidget {
   final String businessId;
 
@@ -111,9 +114,9 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Load error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.loadError('$e'))),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -199,16 +202,20 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.profileUpdatedSuccessfully,
+          ),
+        ),
       );
 
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Save error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.saveError('$e'))),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -261,7 +268,9 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
 
-      appBar: AppBar(title: const Text('Edit Groomy Profile')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.editGroomyProfile),
+      ),
 
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -311,7 +320,23 @@ class _EditGroomyProfilePageState extends State<EditGroomyProfilePage> {
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(AppLocalizations.of(context)!.save),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BankAccountSettingsPage(
+                            businessId: widget.businessId,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      AppLocalizations.of(context)!.bankAccountSettingsTitle,
+                    ),
                   ),
                 ],
               ),

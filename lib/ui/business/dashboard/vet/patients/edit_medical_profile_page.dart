@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/owner_profile_snapshot.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class EditMedicalProfilePage extends StatefulWidget {
   final String businessId;
@@ -367,10 +368,8 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
 
     if (!_isValidTurkeyPassportNumber(passportNumber)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Passport number must contain only uppercase letters, numbers, - or /',
-          ),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.passportNumberFormat),
         ),
       );
 
@@ -471,17 +470,23 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Medical profile updated')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.medicalProfileUpdated),
+        ),
+      );
       Navigator.pop(context, true);
     } catch (e) {
       debugPrint('❌ MEDICAL PROFILE UPDATE ERROR: $e');
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.profileUpdateFailed('$e'),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -497,7 +502,7 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Confirm Microchip Number'),
+          title: Text(AppLocalizations.of(context)!.confirmMicrochipNumber),
           content: Text(
             'ISO 11784/11785 microchip numbers are normally 15 digits. '
             '"$microchip" has ${microchip.length} digits. Save anyway?',
@@ -505,11 +510,11 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Review'),
+              child: Text(AppLocalizations.of(context)!.review),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Save Anyway'),
+              child: Text(AppLocalizations.of(context)!.saveAnyway),
             ),
           ],
         );
@@ -778,7 +783,10 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
           Expanded(
             child: Text(title, style: AppTheme.body(weight: FontWeight.w600)),
           ),
-          Text('Coming Soon', style: AppTheme.caption(color: Colors.black45)),
+          Text(
+            AppLocalizations.of(context)!.comingSoon,
+            style: AppTheme.caption(color: Colors.black45),
+          ),
         ],
       ),
     );
@@ -804,7 +812,7 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: AppTheme.card,
-        title: const Text('Medical Profile'),
+        title: Text(AppLocalizations.of(context)!.medicalProfile),
       ),
       body: SafeArea(
         child: _loading
@@ -1094,7 +1102,9 @@ class _EditMedicalProfilePageState extends State<EditMedicalProfilePage> {
                                     ),
                                   )
                                 : Text(
-                                    'Save Medical Profile',
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.saveMedicalProfile,
                                     style: AppTheme.button(color: Colors.white),
                                   ),
                           ),

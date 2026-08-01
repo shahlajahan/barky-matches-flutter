@@ -440,7 +440,10 @@ class _BusinessDetailOverlayState extends State<BusinessDetailOverlay> {
         _cta(LucideIcons.navigation, widget.onDirections),
         TextButton(
           onPressed: widget.onClose,
-          child: Text('Close', style: AppTheme.caption(color: Colors.amber)),
+          child: Text(
+            AppLocalizations.of(context)!.close,
+            style: AppTheme.caption(color: Colors.amber),
+          ),
         ),
       ],
     );

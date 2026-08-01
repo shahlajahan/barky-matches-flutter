@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'adoption_pet_model.dart';
 
@@ -111,30 +112,30 @@ class AdoptionPetCard extends StatelessWidget {
       },
       itemBuilder: (context) {
         return [
-          const PopupMenuItem(value: 'edit', child: Text('Edit')),
+          PopupMenuItem(value: 'edit', child: Text(AppLocalizations.of(context)!.edit)),
 
-          const PopupMenuItem(value: 'delete', child: Text('Delete')),
+          PopupMenuItem(value: 'delete', child: Text(AppLocalizations.of(context)!.delete)),
 
           const PopupMenuDivider(),
 
-          const PopupMenuItem(
+          PopupMenuItem(
             value: AdoptionPetStatus.available,
-            child: Text('Set Available'),
+            child: Text(AppLocalizations.of(context)!.setAvailable),
           ),
 
-          const PopupMenuItem(
+          PopupMenuItem(
             value: AdoptionPetStatus.reserved,
-            child: Text('Set Reserved'),
+            child: Text(AppLocalizations.of(context)!.setReserved),
           ),
 
-          const PopupMenuItem(
+          PopupMenuItem(
             value: AdoptionPetStatus.adopted,
-            child: Text('Set Adopted'),
+            child: Text(AppLocalizations.of(context)!.setAdopted),
           ),
 
-          const PopupMenuItem(
+          PopupMenuItem(
             value: AdoptionPetStatus.paused,
-            child: Text('Set Paused'),
+            child: Text(AppLocalizations.of(context)!.setPaused),
           ),
         ];
       },

@@ -871,7 +871,7 @@ class _DogParkPageState extends State<DogParkPage>
           const Icon(Icons.lock, size: 32),
           const SizedBox(height: 8),
           Text(
-            'This park is available for Premium members only.',
+            l10n.dogParkPremiumMembersOnly,
             style: GoogleFonts.poppins(),
             textAlign: TextAlign.center,
           ),
@@ -884,7 +884,7 @@ class _DogParkPageState extends State<DogParkPage>
               backgroundColor: const Color(0xFFFFC107),
               foregroundColor: Colors.black,
             ),
-            child: const Text('Upgrade to Premium'),
+            child: Text(l10n.upgradeToPremiumTitle),
           ),
         ],
       ),
@@ -1014,7 +1014,7 @@ class _DogParkPageState extends State<DogParkPage>
                 const SizedBox(width: 10),
 
                 Text(
-                  "Dog Parks",
+                  l10n.dogParkTitle,
                   style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,

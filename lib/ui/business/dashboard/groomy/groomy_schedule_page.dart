@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class GroomySchedulePage extends StatefulWidget {
   final String businessId;
@@ -38,7 +39,7 @@ class _GroomySchedulePageState extends State<GroomySchedulePage> {
       backgroundColor: AppTheme.bg,
 
       appBar: AppBar(
-        title: const Text('Salon Schedule'),
+        title: Text(AppLocalizations.of(context)!.salonSchedule),
 
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
@@ -170,7 +171,10 @@ class _GroomySchedulePageState extends State<GroomySchedulePage> {
 
               const SizedBox(height: 20),
 
-              Text('Select Date', style: AppTheme.h2()),
+              Text(
+                AppLocalizations.of(context)!.selectDate,
+                style: AppTheme.h2(),
+              ),
 
               const SizedBox(height: 10),
 
@@ -251,10 +255,13 @@ class _GroomySchedulePageState extends State<GroomySchedulePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
 
               children: [
-                Text('Salon Schedule', style: AppTheme.h2(color: Colors.white)),
+                Text(
+                  AppLocalizations.of(context)!.salonSchedule,
+                  style: AppTheme.h2(color: Colors.white),
+                ),
 
                 Text(
-                  'Manage grooming appointments',
+                  AppLocalizations.of(context)!.manageGroomingAppointments,
 
                   style: AppTheme.caption(color: Colors.white70),
                 ),
@@ -345,7 +352,7 @@ class _GroomySchedulePageState extends State<GroomySchedulePage> {
 
                 Text("${a.ownerName} • ${a.serviceName}"),
 
-                Text("${a.amount ?? 0} TRY"),
+                Text(AppLocalizations.of(context)!.amountTry(a.amount ?? 0)),
               ],
             ),
           ),

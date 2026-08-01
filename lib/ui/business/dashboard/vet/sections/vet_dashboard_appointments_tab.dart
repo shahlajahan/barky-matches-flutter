@@ -6,6 +6,7 @@ import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_statu
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetDashboardAppointmentsTab extends StatefulWidget {
   final String businessId;
@@ -115,7 +116,7 @@ class _VetDashboardAppointmentsTabState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
                   Icon(
                     Icons.medical_information_outlined,
@@ -124,8 +125,8 @@ class _VetDashboardAppointmentsTabState
                   ),
                   SizedBox(width: 6),
                   Text(
-                    'Pre-visit form',
-                    style: TextStyle(
+                    AppLocalizations.of(context)!.preVisitForm,
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF134E4A),
@@ -222,7 +223,7 @@ class _VetDashboardAppointmentsTabState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
                   Icon(
                     Icons.sticky_note_2_outlined,
@@ -231,8 +232,8 @@ class _VetDashboardAppointmentsTabState
                   ),
                   SizedBox(width: 6),
                   Text(
-                    'Client note',
-                    style: TextStyle(
+                    AppLocalizations.of(context)!.clientNote,
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF78350F),
@@ -334,7 +335,9 @@ class _VetDashboardAppointmentsTabState
         }
 
         if (!snap.hasData || snap.data!.docs.isEmpty) {
-          return const Center(child: Text('No appointments yet'));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.noAppointmentsYet),
+          );
         }
         _docs = snap.data!.docs;
 
@@ -417,11 +420,15 @@ class _VetDashboardAppointmentsTabState
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Breed: ${data['petBreed'] ?? '-'}",
+                            AppLocalizations.of(
+                              context,
+                            )!.breedValue(data['petBreed'] ?? '-'),
                             style: const TextStyle(color: Colors.grey),
                           ),
                           Text(
-                            "Age: ${data['petAge'] ?? '-'}",
+                            AppLocalizations.of(
+                              context,
+                            )!.ageValue(data['petAge'] ?? '-'),
                             style: const TextStyle(color: Colors.grey),
                           ),
                         ],
@@ -518,7 +525,7 @@ class _VetDashboardAppointmentsTabState
     }
 
     return Text(
-      "Already ${_statusLabel(status)}",
+      AppLocalizations.of(context)!.alreadyStatus(_statusLabel(status)),
       style: const TextStyle(color: Colors.grey),
     );
   }

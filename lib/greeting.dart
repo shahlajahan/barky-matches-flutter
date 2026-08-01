@@ -135,7 +135,7 @@ class _GreetingState extends State<Greeting> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Vet services available after login',
+                                l10n.vetServicesAvailableAfterLogin,
                               ),
                             ),
                           );

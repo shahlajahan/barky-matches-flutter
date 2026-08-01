@@ -1,6 +1,7 @@
 // lib/admin/moderation/moderation_case_detail_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -35,7 +36,7 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
   Widget _refundReviewScaffold(String appointmentId) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Moderation Case"),
+        title: Text(AppLocalizations.of(context)!.moderationCase),
         backgroundColor: Colors.pink,
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -45,7 +46,13 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text("Firestore error: ${snapshot.error}"));
+            return Center(
+              child: Text(
+                AppLocalizations.of(
+                  context,
+                )!.firestoreError('${snapshot.error}'),
+              ),
+            );
           }
 
           if (!snapshot.hasData) {
@@ -53,7 +60,9 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
           }
 
           if (!snapshot.data!.exists) {
-            return const Center(child: Text("Appointment not found"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.appointmentNotFound),
+            );
           }
 
           final data = snapshot.data!.data() ?? {};
@@ -92,37 +101,82 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Refund Review",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.refundReview,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 10),
-            Text("Appointment ID: $appointmentId"),
-            const SizedBox(height: 10),
-            Text("Payment Status: ${_text(data["paymentStatus"], "-")}"),
-            const SizedBox(height: 10),
-            Text("Refund Status: ${_text(data["refundStatus"], "-")}"),
-            const SizedBox(height: 10),
-            Text("Appointment Time: ${_formatDate(scheduledAt)}"),
-            const SizedBox(height: 10),
-            Text("Cancellation Time: ${_formatDate(cancelledAt)}"),
             const SizedBox(height: 10),
             Text(
-              "Hours Before Appointment: ${hours == null ? "-" : hours.toStringAsFixed(1)}",
+              AppLocalizations.of(context)!.appointmentIdValue(appointmentId),
             ),
             const SizedBox(height: 10),
-            Text("Business: ${_text(data["businessName"], "Unknown")}"),
+            Text(
+              AppLocalizations.of(context)!.paymentStatusValue(
+                _text(data["paymentStatus"], "-"),
+              ),
+            ),
             const SizedBox(height: 10),
-            Text("User: ${_text(data["userName"], "Unknown")}"),
+            Text(
+              AppLocalizations.of(context)!.refundStatusValue(
+                _text(data["refundStatus"], "-"),
+              ),
+            ),
             const SizedBox(height: 10),
-            Text("Pet: ${_text(data["petName"], "Unknown")}"),
+            Text(
+              AppLocalizations.of(
+                context,
+              )!.appointmentTimeValue(_formatDate(scheduledAt)),
+            ),
             const SizedBox(height: 10),
-            Text("Amount Paid: ${_amount(data)}"),
+            Text(
+              AppLocalizations.of(
+                context,
+              )!.cancellationTimeValue(_formatDate(cancelledAt)),
+            ),
             const SizedBox(height: 10),
-            Text("Refund Reason: ${_text(data["refundReason"], "-")}"),
+            Text(
+              AppLocalizations.of(context)!.hoursBeforeAppointmentValue(
+                hours == null ? "-" : hours.toStringAsFixed(1),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              AppLocalizations.of(context)!.businessValue(
+                _text(data["businessName"], "Unknown"),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              AppLocalizations.of(context)!.userValue(
+                _text(data["userName"], "Unknown"),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              AppLocalizations.of(context)!.petValue(
+                _text(data["petName"], "Unknown"),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              AppLocalizations.of(context)!.amountPaidValue(_amount(data)),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              AppLocalizations.of(context)!.refundReasonValue(
+                _text(data["refundReason"], "-"),
+              ),
+            ),
             if (_text(data["refundError"], "").isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text("Refund Error: ${_text(data["refundError"], "-")}"),
+              Text(
+                AppLocalizations.of(context)!.refundErrorValue(
+                  _text(data["refundError"], "-"),
+                ),
+              ),
             ],
           ],
         ),
@@ -139,9 +193,9 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const Text(
-              "Admin Actions",
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.adminActions,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -154,13 +208,13 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text("Approve Refund"),
+                  : Text(AppLocalizations.of(context)!.approveRefund),
             ),
             ElevatedButton(
               onPressed: !_processing && canReview
                   ? () => _reviewRefund(appointmentId, "reject")
                   : null,
-              child: const Text("Reject Refund"),
+              child: Text(AppLocalizations.of(context)!.rejectRefund),
             ),
           ],
         ),
@@ -241,7 +295,13 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Refund review failed: $e")));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.refundReviewFailed('$e'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _processing = false);
     }
@@ -253,21 +313,27 @@ class _ModerationCaseDetailPageState extends State<ModerationCaseDetailPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(action == "approve" ? "Approve Refund" : "Reject Refund"),
+          title: Text(
+            action == "approve"
+                ? AppLocalizations.of(context)!.approveRefund
+                : AppLocalizations.of(context)!.rejectRefund,
+          ),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(labelText: "Note"),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.note,
+            ),
             minLines: 2,
             maxLines: 4,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Cancel"),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, controller.text),
-              child: const Text("Submit"),
+              child: Text(AppLocalizations.of(context)!.submit),
             ),
           ],
         );

@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/home_gate.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/subscription/web_subscription_browser.dart';
 import 'package:barky_matches_fixed/subscription/web_subscription_service.dart';
 
 enum WebSubscriptionReturnState {
@@ -48,6 +50,7 @@ class _WebSubscriptionReturnPageState extends State<WebSubscriptionReturnPage> {
   WebSubscriptionReturnState _state = WebSubscriptionReturnState.verifying;
   Timer? _timer;
   int _attempts = 0;
+  bool _continuing = false;
 
   @override
   void initState() {
@@ -83,6 +86,12 @@ class _WebSubscriptionReturnPageState extends State<WebSubscriptionReturnPage> {
       if (next == WebSubscriptionReturnState.pending && _attempts < 12) {
         _attempts++;
         _timer = Timer(const Duration(seconds: 2), _verify);
+      } else {
+        // Processing has reached a stable outcome — the return link's query
+        // params (webSubscriptionReturn/oid) have done their job and must
+        // not linger (e.g. re-triggering this same verification on a
+        // manual page refresh forever).
+        clearWebSubscriptionReturnQueryParams();
       }
     } catch (_) {
       if (!mounted) return;
@@ -91,8 +100,42 @@ class _WebSubscriptionReturnPageState extends State<WebSubscriptionReturnPage> {
         _timer = Timer(const Duration(seconds: 2), _verify);
       } else {
         setState(() => _state = WebSubscriptionReturnState.failed);
+        clearWebSubscriptionReturnQueryParams();
       }
     }
+  }
+
+  // This page is a root-entry page reached by a full browser redirect — it
+  // has no previous Flutter Navigator route to pop back to (Navigator.pop /
+  // maybePop would have nothing to do). Continue must replace this page
+  // with a fresh instance of the app's real authenticated shell (HomeGate,
+  // the same widget every other login/auth path in this repo navigates to —
+  // see welcome_page.dart, auth_page.dart, greeting.dart) and clear the
+  // stack so Back can never reopen the payment result.
+  Future<void> _handleContinue() async {
+    debugPrint('🟣 CONTINUE tapped, _continuing=$_continuing');
+    if (_continuing) return; // guard against rapid repeated taps
+    setState(() => _continuing = true);
+
+    // Refresh authoritative subscription/AppState before entering the app —
+    // read-only (AppState.loadSubscriptionFromFirestore), never extends or
+    // reactivates the subscription.
+    if (mounted) {
+      await context.read<AppState>().loadSubscriptionFromFirestore();
+    }
+    debugPrint('🟣 CONTINUE after reload, mounted=$mounted');
+    if (!mounted) return;
+
+    // Idempotent — already cleared in _verify() on reaching a terminal
+    // state, repeated here defensively.
+    clearWebSubscriptionReturnQueryParams();
+
+    debugPrint('🟣 CONTINUE pushing HomeGate now');
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeGate()),
+      (route) => false,
+    );
+    debugPrint('🟣 CONTINUE pushAndRemoveUntil returned');
   }
 
   @override
@@ -166,10 +209,14 @@ class _WebSubscriptionReturnPageState extends State<WebSubscriptionReturnPage> {
                       _state != WebSubscriptionReturnState.pending) ...[
                     const SizedBox(height: 24),
                     FilledButton(
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).pushNamedAndRemoveUntil('/', (_) => false),
-                      child: Text(l10n.continueLabel),
+                      onPressed: _continuing ? null : _handleContinue,
+                      child: _continuing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(l10n.continueLabel),
                     ),
                   ],
                 ],

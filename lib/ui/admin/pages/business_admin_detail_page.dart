@@ -14,6 +14,7 @@ import '../../business/business_header.dart';
 import '../sections/business_audit_log_section.dart';
 import '../admin_section.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessAdminDetailPage extends StatelessWidget {
   final String businessId;
@@ -34,8 +35,10 @@ class BusinessAdminDetailPage extends StatelessWidget {
         }
 
         if (!businessSnap.data!.exists) {
-          return const Scaffold(
-            body: Center(child: Text("Business not found")),
+          return Scaffold(
+            body: Center(
+              child: Text(AppLocalizations.of(context)!.businessNotFound),
+            ),
           );
         }
 
@@ -157,10 +160,20 @@ class _PetTaxiDocumentsSection extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 4),
-                      Text('Status: $status'),
-                      Text('Verified: ${verified ? 'yes' : 'no'}'),
+                      Text(AppLocalizations.of(context)!.statusValue(status)),
+                      Text(
+                        AppLocalizations.of(context)!.verifiedValue(
+                          verified
+                              ? AppLocalizations.of(context)!.yes
+                              : AppLocalizations.of(context)!.no,
+                        ),
+                      ),
                       if (number != null && number.isNotEmpty)
-                        Text('Document no: $number'),
+                        Text(
+                          AppLocalizations.of(
+                            context,
+                          )!.documentNumberValue(number),
+                        ),
                       if (storagePath != null && storagePath.isNotEmpty)
                         Text(
                           storagePath,
@@ -179,7 +192,7 @@ class _PetTaxiDocumentsSection extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text('Open'),
+                  child: Text(AppLocalizations.of(context)!.open),
                 ),
               ],
             ),
@@ -201,7 +214,9 @@ class _PetTaxiDocumentPreview extends StatelessWidget {
         Uri.tryParse(url)?.path.toLowerCase().endsWith('.pdf') == true;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pet Taxi Document')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.petTaxiDocument),
+      ),
       backgroundColor: Colors.black,
       body: Center(
         child: isPdf
@@ -214,7 +229,7 @@ class _PetTaxiDocumentPreview extends StatelessWidget {
                       mode: LaunchMode.externalApplication,
                     );
                   },
-                  child: const Text('Open PDF'),
+                  child: Text(AppLocalizations.of(context)!.openPdf),
                 ),
               )
             : InteractiveViewer(child: SmartMedia(url: url)),

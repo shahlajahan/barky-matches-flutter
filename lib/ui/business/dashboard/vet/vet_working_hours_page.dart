@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetWorkingHoursPage extends StatefulWidget {
   final String businessId;
@@ -83,9 +84,9 @@ class _VetWorkingHoursPageState extends State<VetWorkingHoursPage> {
       debugPrint('❌ Load working hours error: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Load error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.loadError('$e'))),
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -130,9 +131,11 @@ class _VetWorkingHoursPageState extends State<VetWorkingHoursPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Working hours saved')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.workingHoursSaved),
+        ),
+      );
     } catch (e, st) {
       debugPrint('❌❌❌ SAVE WORKING HOURS ERROR');
       debugPrint(e.toString());
@@ -146,9 +149,9 @@ class _VetWorkingHoursPageState extends State<VetWorkingHoursPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Save error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.saveError('$e'))),
+      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -179,7 +182,7 @@ class _VetWorkingHoursPageState extends State<VetWorkingHoursPage> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Working Hours'),
+        title: Text(AppLocalizations.of(context)!.workingHours),
         actions: [
           TextButton(
             onPressed: _saving ? null : _saveWorkingHours,
@@ -200,10 +203,13 @@ class _VetWorkingHoursPageState extends State<VetWorkingHoursPage> {
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Text('Clinic Working Hours', style: AppTheme.h1()),
+                  Text(
+                    AppLocalizations.of(context)!.clinicWorkingHours,
+                    style: AppTheme.h1(),
+                  ),
                   const SizedBox(height: 10),
                   Text(
-                    'Manage opening days and appointment availability',
+                    AppLocalizations.of(context)!.manageOpeningDays,
                     style: AppTheme.body(),
                   ),
                   const SizedBox(height: 20),

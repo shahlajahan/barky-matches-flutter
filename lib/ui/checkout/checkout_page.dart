@@ -4,16 +4,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/home_gate.dart';
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
 import 'package:barky_matches_fixed/services/order_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
-import 'package:barky_matches_fixed/utils/carrier_mapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
 import 'package:barky_matches_fixed/ui/checkout/checkout_completion_guard.dart';
+import 'package:barky_matches_fixed/ui/checkout/checkout_order_summary.dart';
+import 'package:barky_matches_fixed/ui/checkout/multi_order_confirmation_page.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -55,21 +57,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool distanceSalesAccepted = false;
   bool marketingConsent = false;
 
-  String? _selectedCarrier;
-
   bool _loading = false;
   bool _pricingLoading = true;
   Object? _pricingError;
+  int _pricingRequestGeneration = 0;
 
-  double get subtotal {
-    return widget.items.fold<double>(
-      0,
-      (sum, item) => sum + item.price * item.quantity,
-    );
-  }
-
-  bool get _requiresCarrierSelection =>
-      widget.items.any((item) => item.product.requiresCarrierEstimate);
+  late final List<CheckoutSellerGroup> _sellerGroups;
+  final Map<String, String?> _selectedCarriers = {};
+  final Map<String, SellerCheckoutPricing> _pricingByShop = {};
 
   double backendSubtotal = 0;
   double backendShipping = 0;
@@ -77,9 +72,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   double backendTotal = 0;
 
   bool _addressExpanded = false;
-  bool _shippingExpanded = false;
-
-  List<String> availableCarriers = [];
 
   int _step = 0;
 
@@ -108,12 +100,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void initState() {
     super.initState();
-
-    final shopIds = widget.items.map((e) => e.shopId).toSet();
-
-    if (shopIds.length > 1) {
-      throw Exception("Multiple sellers in one checkout not supported yet");
-    }
+    _sellerGroups = groupCheckoutItemsBySeller(widget.items);
 
     final user = FirebaseAuth.instance.currentUser;
 
@@ -139,48 +126,33 @@ class _CheckoutPageState extends State<CheckoutPage> {
           SnackBar(content: Text(AppLocalizations.of(context)!.cartIsEmpty)),
         );
 
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil("/home", (route) => false);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const HomeGate()),
+          (route) => false,
+        );
       });
 
       return;
     }
 
-    final carrierSets = widget.items
-        .map(
-          (item) => item.product.allowedCarrierCodes
-              .map((carrier) => carrier.trim().toUpperCase())
-              .where((carrier) => carrier.isNotEmpty)
-              .toSet(),
-        )
-        .where((carriers) => carriers.isNotEmpty)
-        .toList();
-    availableCarriers = carrierSets.isEmpty
-        ? <String>[]
-        : carrierSets
-              .skip(1)
-              .fold<Set<String>>(
-                Set<String>.from(carrierSets.first),
-                (common, carriers) => common.intersection(carriers),
-              )
-              .toList();
-
-    if (availableCarriers.isNotEmpty) {
-      _selectedCarrier = availableCarriers.first;
+    for (final group in _sellerGroups) {
+      final carriers = group.availableCarriers;
+      _selectedCarriers[group.shopId] = carriers.isEmpty
+          ? null
+          : carriers.first;
+      debugPrint(
+        "🚚 SELLER ${group.shopId} CARRIERS: $carriers "
+        "SELECTED: ${_selectedCarriers[group.shopId]}",
+      );
     }
 
-    for (var item in widget.items) {
-      debugPrint("🚚 CART ITEM CARRIERS: ${item.product.allowedCarrierCodes}");
-    }
-
-    debugPrint("🧪 FINAL availableCarriers: $availableCarriers");
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPricing();
     });
   }
 
   Future<void> _loadPricing() async {
+    final requestGeneration = ++_pricingRequestGeneration;
     if (mounted) {
       setState(() {
         _pricingLoading = true;
@@ -188,38 +160,79 @@ class _CheckoutPageState extends State<CheckoutPage> {
       });
     }
     try {
-      debugPrint("💰 LOADING PRICING FROM BACKEND...");
-
-      final result = await _checkoutService.calculatePricing(
-        items: widget.items.map((e) => e.toJson()).toList(),
-        carrier: _selectedCarrier ?? "",
+      debugPrint("💰 LOADING SELLER PRICING FROM BACKEND...");
+      final results = await Future.wait(
+        _sellerGroups.map((group) async {
+          final carrier = _selectedCarriers[group.shopId] ?? '';
+          final result = await _checkoutService.calculatePricing(
+            items: group.items
+                .map((item) => _checkoutItemPayload(item, carrier))
+                .toList(),
+            carrier: carrier,
+          );
+          final rawPricing = result["pricing"];
+          if (rawPricing is! Map) {
+            throw StateError(
+              'Pricing response is missing pricing data for ${group.shopId}',
+            );
+          }
+          return MapEntry(
+            group.shopId,
+            SellerCheckoutPricing.fromBackend(
+              Map<String, dynamic>.from(rawPricing),
+              fallbackProductsTotal: group.productsTotal,
+            ),
+          );
+        }),
       );
 
-      final pricing = result["pricing"];
-
-      if (!mounted) return;
-      if (pricing != null) {
-        setState(() {
-          backendSubtotal = (pricing['subtotal'] ?? 0).toDouble();
-          backendShipping = (pricing['shippingTotal'] ?? 0).toDouble();
-          backendTax = (pricing['taxTotal'] ?? 0).toDouble();
-          backendTotal = (pricing['grandTotal'] ?? 0).toDouble();
-          _pricingLoading = false;
-          _pricingError = null;
-        });
-      } else {
-        throw StateError('Pricing response is missing pricing data');
-      }
-
-      debugPrint("✅ PRICING LOADED: $pricing");
+      if (!mounted || requestGeneration != _pricingRequestGeneration) return;
+      final totals = CheckoutPricingTotals.fromSellerPricing(
+        results.map((entry) => entry.value),
+      );
+      setState(() {
+        _pricingByShop
+          ..clear()
+          ..addEntries(results);
+        backendSubtotal = totals.productsTotal;
+        backendShipping = totals.shippingTotal;
+        backendTax = totals.taxTotal;
+        backendTotal = totals.grandTotal;
+        _pricingLoading = false;
+        _pricingError = null;
+      });
+      debugPrint("✅ SELLER PRICING LOADED: $_pricingByShop");
     } catch (e) {
       debugPrint("❌ PRICING ERROR: $e");
-      if (!mounted) return;
+      if (!mounted || requestGeneration != _pricingRequestGeneration) return;
       setState(() {
         _pricingLoading = false;
         _pricingError = e;
       });
     }
+  }
+
+  Map<String, dynamic> _checkoutItemPayload(CartItem item, String carrier) {
+    return {...item.toJson(), 'carrier': carrier, 'selectedCarrier': carrier};
+  }
+
+  List<Map<String, dynamic>> get _checkoutItemsPayload => [
+    for (final group in _sellerGroups)
+      for (final item in group.items)
+        _checkoutItemPayload(item, _selectedCarriers[group.shopId] ?? ''),
+  ];
+
+  String get _legacyCarrier => _sellerGroups.length == 1
+      ? (_selectedCarriers[_sellerGroups.single.shopId] ?? '')
+      : '';
+
+  void _selectSellerCarrier(String shopId, String carrier) {
+    if (_selectedCarriers[shopId] == carrier) return;
+    setState(() {
+      _selectedCarriers[shopId] = carrier;
+      _pricingByShop.remove(shopId);
+    });
+    _loadPricing();
   }
 
   @override
@@ -350,7 +363,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   bool _validate() {
     final l10n = AppLocalizations.of(context)!;
-    debugPrint("🚚 SELECTED CARRIER: $_selectedCarrier");
+    debugPrint("🚚 SELECTED SELLER CARRIERS: $_selectedCarriers");
     if (!isValidName(_fullNameController.text)) {
       _showError(l10n.checkoutEnterNameSurname);
       return false;
@@ -361,7 +374,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return false;
     }
 
-    if (_requiresCarrierSelection && _selectedCarrier == null) {
+    if (_hasMissingSellerCarrier) {
       _showError(l10n.checkoutPleaseSelectCargoCompany);
       return false;
     }
@@ -420,6 +433,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     return true;
   }
+
+  bool get _hasMissingSellerCarrier => _sellerGroups.any(
+    (group) =>
+        group.requiresCarrier &&
+        group.availableCarriers.isNotEmpty &&
+        _selectedCarriers[group.shopId] == null,
+  );
 
   /// 🔥 MAIN CHECKOUT LOGIC
   Future<void> _startCheckout() async {
@@ -560,6 +580,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
           "shippingFeeTotal": 0, // backend override می‌کنه
           "taxTotal": 0, // backend override
           "imageUrl": item.imageUrl,
+          "carrier": _selectedCarriers[item.shopId] ?? "",
+          "selectedCarrier": _selectedCarriers[item.shopId] ?? "",
         };
       }).toList();
 
@@ -590,7 +612,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           "address": orderAddress["address"],
         },
         payment: {"status": "pending", "provider": "iyzico"},
-        carrier: _selectedCarrier ?? "",
+        carrier: _legacyCarrier,
         legal: legalPayload,
         items: orderItems,
       );
@@ -619,9 +641,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       final session = await _checkoutService.createCheckoutSession(
         orderId: orderId,
 
-        items: widget.items.map((e) => e.toJson()).toList(),
+        items: _checkoutItemsPayload,
         currency: 'TRY',
-        carrier: _selectedCarrier ?? "",
+        carrier: _legacyCarrier,
 
         successUrl:
             'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
@@ -705,10 +727,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
             paymentStatus == 'failed' || orderStatus == 'payment_failed';
 
         if (paid) {
-          final sellerOrderId = _completionGuard.claimPaidSellerOrder(
+          final sellerOrderIds = _completionGuard.claimPaidSellerOrders(
             paymentState,
           );
-          if (sellerOrderId == null) {
+          if (sellerOrderIds.isEmpty) {
             _showError(AppLocalizations.of(context)!.processingLabel);
             return;
           }
@@ -716,18 +738,38 @@ class _CheckoutPageState extends State<CheckoutPage> {
           await widget.onPaymentVerified?.call();
           if (!mounted) return;
 
+          final destination = sellerOrderIds.length == 1
+              ? OrderDetailPage(sellerOrderId: sellerOrderIds.single)
+              : MultiOrderConfirmationPage(
+                  sellerOrderIds: sellerOrderIds,
+                  sellerNames: [
+                    for (var index = 0; index < sellerOrderIds.length; index++)
+                      index < _sellerGroups.length
+                          ? _sellerGroups[index].sellerName
+                          : null,
+                  ],
+                );
           await Navigator.of(context).pushReplacement(
-            MaterialPageRoute<void>(
-              builder: (_) => OrderDetailPage(sellerOrderId: sellerOrderId),
-            ),
+            MaterialPageRoute<void>(builder: (_) => destination),
           );
         } else if (failed) {
+          await _markMarketplaceCheckoutFailed(
+            orderId,
+            reason: 'isbank_verification_failed',
+          );
+          if (!mounted) return;
           _showError(
             AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
           );
         } else {
           _showError(AppLocalizations.of(context)!.processingLabel);
         }
+      } else if (checkoutResult == 'isbank_cancel') {
+        await _markMarketplaceCheckoutFailed(orderId, reason: 'isbank_cancel');
+        if (!mounted) return;
+        _showError(
+          AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
+        );
       } else {
         _showError(
           AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
@@ -739,6 +781,25 @@ class _CheckoutPageState extends State<CheckoutPage> {
       _showError(AppLocalizations.of(context)!.errorOccurred(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // Best-effort: marks the order pair from a failed/cancelled/abandoned
+  // İş Bank checkout attempt as payment_failed, so retrying checkout
+  // doesn't leave an unbounded number of indistinguishable
+  // payment_pending orders behind. Never surfaces its own errors — the
+  // existing _showError call right after each call site is the only
+  // user-facing message for this path, unchanged.
+  Future<void> _markMarketplaceCheckoutFailed(
+    String orderId, {
+    required String reason,
+  }) async {
+    try {
+      await FirebaseFunctions.instanceFor(region: 'europe-west3')
+          .httpsCallable('markMarketplaceCheckoutFailed')
+          .call({'orderId': orderId, 'reason': reason});
+    } catch (e) {
+      debugPrint('⚠️ markMarketplaceCheckoutFailed failed (non-fatal): $e');
     }
   }
 
@@ -804,61 +865,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Widget _buildOrderItemsSection() {
-    final item = widget.items.first;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F7),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          /// 🖼️ (اختیاری: اگر عکس داری)
-          if (item.imageUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                item.imageUrl!,
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
-              ),
-            ),
-
-          if (item.imageUrl != null) const SizedBox(width: 10),
-
-          /// 📦 info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "${item.quantity} × ${item.price.toStringAsFixed(2)} ₺",
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-
-          /// 💰 price
-          Text(
-            "${(item.price * item.quantity).toStringAsFixed(2)} ₺",
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-          ),
-        ],
-      ),
+    return CheckoutOrderSummary(
+      groups: _sellerGroups,
+      selectedCarriers: _selectedCarriers,
+      pricingByShop: _pricingByShop,
+      pricingLoading: _pricingLoading,
+      onCarrierChanged: _selectSellerCarrier,
     );
   }
 
@@ -1108,9 +1120,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    "Yakında",
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  child: Text(
+                    AppLocalizations.of(context)!.comingSoon,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -1218,75 +1233,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildCarrierSelection() {
-    final l10n = AppLocalizations.of(context)!;
-    final carriers = availableCarriers;
-
-    if (carriers.isEmpty) {
-      return const SizedBox();
-    }
-
-    return GestureDetector(
-      onTap: () {
-        setState(() => _shippingExpanded = !_shippingExpanded);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.checkoutDeliveryTitle,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Text(
-                  CarrierMapper.toDisplay(_selectedCarrier ?? ""),
-                  style: const TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  _shippingExpanded
-                      ? Icons.keyboard_arrow_up
-                      : Icons.keyboard_arrow_down,
-                ),
-              ],
-            ),
-
-            if (_shippingExpanded) ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCarrier ?? carriers.first,
-                items: carriers
-                    .map(
-                      (c) => DropdownMenuItem(
-                        value: c,
-                        child: Text(CarrierMapper.toDisplay(c)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) {
-                  setState(() {
-                    _selectedCarrier = v;
-                    _pricingLoading = true;
-                  });
-                  _loadPricing();
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTotalsSection() {
     final l10n = AppLocalizations.of(context)!;
     if (_pricingLoading) {
@@ -1327,9 +1273,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
           const SizedBox(height: 12),
 
-          _row(l10n.checkoutSubtotalLabel, backendSubtotal),
-          _row(l10n.checkoutVatLabel, backendTax),
-          _row(l10n.checkoutShippingLabel, backendShipping),
+          _row(l10n.checkoutProductsTotal, backendSubtotal),
+          _row(l10n.checkoutShippingTotal, backendShipping),
 
           const Divider(height: 20),
 
@@ -1365,7 +1310,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     /// STEP 0 → Address + Carrier
     if (_step == 0) {
-      if (_requiresCarrierSelection && _selectedCarrier == null) {
+      if (_hasMissingSellerCarrier) {
         _showError(l10n.checkoutPleaseSelectCargoCompany);
         return false;
       }
@@ -1455,16 +1400,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
             /// 🧾 Order (compact)
             _buildOrderItemsSection(),
 
+            if (widget.items.map((item) => item.shopId).toSet().length > 1)
+              const MultiSellerCheckoutInfoCard(),
+
             /// 🔢 Step Header
             _buildStepHeader(),
 
             const SizedBox(height: 10),
 
             /// 🟢 STEP 0 → Address + Shipping
-            if (_step == 0) ...[
-              _buildCarrierSelection(),
-              _buildAddressSection(),
-            ],
+            if (_step == 0) ...[_buildAddressSection()],
 
             /// 🟡 STEP 1 → Billing + Legal
             if (_step == 1) ...[

@@ -8,6 +8,7 @@ import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.da
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 
 import 'package:geolocator/geolocator.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetTaxiDashboardBookingsTab extends StatefulWidget {
   final String businessId;
@@ -191,7 +192,7 @@ class _PetTaxiDashboardBookingsTabState
           Expanded(
             child: ElevatedButton(
               onPressed: () => _showFinalPriceDialog(context, bookingId, data),
-              child: const Text('Propose Final Price'),
+              child: Text(AppLocalizations.of(context)!.proposeFinalPrice),
             ),
           ),
           const SizedBox(width: 10),
@@ -202,7 +203,7 @@ class _PetTaxiDashboardBookingsTabState
                 bookingId,
                 'cancelled_by_business',
               ),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ),
         ],
@@ -215,7 +216,7 @@ class _PetTaxiDashboardBookingsTabState
           Expanded(
             child: ElevatedButton(
               onPressed: () => _showFinalPriceDialog(context, bookingId, data),
-              child: const Text('Edit Proposed Price'),
+              child: Text(AppLocalizations.of(context)!.editProposedPrice),
             ),
           ),
           const SizedBox(width: 10),
@@ -226,7 +227,7 @@ class _PetTaxiDashboardBookingsTabState
                 bookingId,
                 'cancelled_by_business',
               ),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ),
         ],
@@ -260,7 +261,7 @@ class _PetTaxiDashboardBookingsTabState
                 bookingId,
                 'cancelled_by_business',
               ),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ),
         ],
@@ -268,7 +269,9 @@ class _PetTaxiDashboardBookingsTabState
     }
 
     return Text(
-      'Already ${status.replaceAll('_', ' ').toUpperCase()}',
+      AppLocalizations.of(
+        context,
+      )!.alreadyStatus(status.replaceAll('_', ' ').toUpperCase()),
       style: AppTheme.caption(color: AppTheme.muted),
     );
   }
@@ -282,15 +285,15 @@ class _PetTaxiDashboardBookingsTabState
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('${_label(status)}?'),
-        content: const Text('This will notify the customer.'),
+        content: Text(AppLocalizations.of(context)!.notifyCustomerConfirmation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('No'),
+            child: Text(AppLocalizations.of(context)!.no),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Yes'),
+            child: Text(AppLocalizations.of(context)!.yes),
           ),
         ],
       ),
@@ -326,7 +329,7 @@ class _PetTaxiDashboardBookingsTabState
     final price = await showDialog<double>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Propose final price'),
+        title: Text(AppLocalizations.of(context)!.proposeFinalPrice),
         content: Form(
           key: formKey,
           child: Column(
@@ -344,7 +347,7 @@ class _PetTaxiDashboardBookingsTabState
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Final price',
+                  labelText: AppLocalizations.of(context)!.finalPrice,
                   suffixText: currency,
                 ),
                 validator: (value) {
@@ -359,7 +362,7 @@ class _PetTaxiDashboardBookingsTabState
               ),
               const SizedBox(height: 8),
               Text(
-                'The customer must pay this amount in the app before the trip can start.',
+                AppLocalizations.of(context)!.customerMustPayBeforeTrip,
                 style: AppTheme.caption(color: AppTheme.muted),
               ),
             ],
@@ -368,7 +371,7 @@ class _PetTaxiDashboardBookingsTabState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -380,7 +383,7 @@ class _PetTaxiDashboardBookingsTabState
                 double.parse(_finalPriceController.text.replaceAll(',', '.')),
               );
             },
-            child: const Text('Send Price'),
+            child: Text(AppLocalizations.of(context)!.sendPrice),
           ),
         ],
       ),

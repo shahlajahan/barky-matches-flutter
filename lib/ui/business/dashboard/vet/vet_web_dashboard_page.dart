@@ -10,7 +10,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_services_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_detail_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/sections/vet_dashboard_appointments_tab.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/sections/vet_dashboard_overview_tab.dart';
-import 'package:barky_matches_fixed/ui/business/dashboard/vet/web/revenue/vet_revenue_section.dart';
+import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
 
 enum VetWebDashboardSection { overview, appointments, revenue }
 
@@ -48,6 +48,7 @@ class _VetWebDashboardPageState extends State<VetWebDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final selectedAppointmentId = context.select<AppState, String?>(
       (state) => state.selectedAppointmentId,
     );
@@ -105,9 +106,10 @@ class _VetWebDashboardPageState extends State<VetWebDashboardPage> {
                                 key: const ValueKey('web-vet-appointments'),
                                 businessId: widget.businessId,
                               ),
-                              VetRevenueSection(
+                              SellerFinanceSummarySection(
                                 key: const ValueKey('web-vet-revenue'),
                                 businessId: widget.businessId,
+                                recordLabel: l10n.sellerFinanceAppointments,
                               ),
                             ],
                           ),
@@ -184,9 +186,9 @@ class _Sidebar extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'PetSupo',
-                        style: TextStyle(
+                      Text(
+                        l10n.appTitle,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),

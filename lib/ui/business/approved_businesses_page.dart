@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../admin/pages/business_admin_detail_page.dart';
 import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ApprovedBusinessesPage extends StatefulWidget {
   const ApprovedBusinessesPage({super.key});
@@ -18,7 +19,7 @@ class _ApprovedBusinessesPageState extends State<ApprovedBusinessesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Approved Businesses"),
+        title: Text(AppLocalizations.of(context)!.approvedBusinesses),
         backgroundColor: Colors.pink,
       ),
       body: Column(
@@ -28,7 +29,7 @@ class _ApprovedBusinessesPageState extends State<ApprovedBusinessesPage> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               decoration: InputDecoration(
-                hintText: "Search businesses...",
+                hintText: AppLocalizations.of(context)!.searchBusinessesHint,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -90,7 +91,11 @@ class _ApprovedBusinessesPageState extends State<ApprovedBusinessesPage> {
                 final docs = snapshot.data?.docs ?? [];
 
                 if (docs.isEmpty) {
-                  return const Center(child: Text("No approved businesses"));
+                  return Center(
+                    child: Text(
+                      AppLocalizations.of(context)!.noApprovedBusinesses,
+                    ),
+                  );
                 }
 
                 // 🔎 SEARCH FILTER
@@ -107,7 +112,9 @@ class _ApprovedBusinessesPageState extends State<ApprovedBusinessesPage> {
                 debugPrint("Approved businesses: ${filtered.length}");
 
                 if (filtered.isEmpty) {
-                  return const Center(child: Text("No results"));
+                  return Center(
+                    child: Text(AppLocalizations.of(context)!.noResults),
+                  );
                 }
 
                 return ListView.builder(

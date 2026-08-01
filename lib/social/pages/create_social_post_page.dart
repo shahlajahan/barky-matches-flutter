@@ -6,10 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:uuid/uuid.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../models/social_post.dart';
 import '../services/social_post_service.dart';
@@ -32,62 +34,60 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
   double _uploadProgress = 0;
   int _previewIndex = 0;
 
-void _pickMedia() {
-  debugPrint('OPEN SHEET');
+  void _pickMedia() {
+    debugPrint('OPEN SHEET');
 
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.grey[950],
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(22),
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.grey[950],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
-    ),
-    builder: (context) {
-      debugPrint('BUILD SHEET');
+      builder: (context) {
+        debugPrint('BUILD SHEET');
 
-      return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _MediaPickOption(
-              icon: LucideIcons.image,
-              label: 'Photos',
-              onTap: () => _dismissAndSchedulePicker(
-                context,
-                _SocialMediaPickAction.photos,
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MediaPickOption(
+                icon: LucideIcons.image,
+                label: 'Photos',
+                onTap: () => _dismissAndSchedulePicker(
+                  context,
+                  _SocialMediaPickAction.photos,
+                ),
               ),
-            ),
-            _MediaPickOption(
-              icon: LucideIcons.video,
-              label: 'Video',
-              onTap: () => _dismissAndSchedulePicker(
-                context,
-                _SocialMediaPickAction.video,
+              _MediaPickOption(
+                icon: LucideIcons.video,
+                label: 'Video',
+                onTap: () => _dismissAndSchedulePicker(
+                  context,
+                  _SocialMediaPickAction.video,
+                ),
               ),
-            ),
-            _MediaPickOption(
-              icon: LucideIcons.camera,
-              label: 'Camera Photo',
-              onTap: () => _dismissAndSchedulePicker(
-                context,
-                _SocialMediaPickAction.cameraPhoto,
+              _MediaPickOption(
+                icon: LucideIcons.camera,
+                label: 'Camera Photo',
+                onTap: () => _dismissAndSchedulePicker(
+                  context,
+                  _SocialMediaPickAction.cameraPhoto,
+                ),
               ),
-            ),
-            _MediaPickOption(
-              icon: LucideIcons.video,
-              label: 'Camera Video',
-              onTap: () => _dismissAndSchedulePicker(
-                context,
-                _SocialMediaPickAction.cameraVideo,
+              _MediaPickOption(
+                icon: LucideIcons.video,
+                label: 'Camera Video',
+                onTap: () => _dismissAndSchedulePicker(
+                  context,
+                  _SocialMediaPickAction.cameraVideo,
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   void _dismissAndSchedulePicker(
     BuildContext sheetContext,
@@ -312,7 +312,11 @@ void _pickMedia() {
 
     if (_selectedMedia.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one photo/video')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.selectAtLeastOnePhotoOrVideo,
+          ),
+        ),
       );
       return;
     }
@@ -386,9 +390,11 @@ void _pickMedia() {
       debugPrint('CreateSocialPostPage error: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error creating post: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.errorCreatingPost('$e')),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -424,7 +430,7 @@ void _pickMedia() {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: const Text('Create Post'),
+        title: Text(AppLocalizations.of(context)!.createPostTitle),
         actions: [
           TextButton(
             onPressed: canShare ? _createPost : null,
@@ -434,9 +440,12 @@ void _pickMedia() {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text(
-                    'Share',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                : Text(
+                    AppLocalizations.of(context)!.share,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
           ),
         ],
@@ -462,7 +471,9 @@ void _pickMedia() {
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : _pickMedia,
                       icon: const Icon(LucideIcons.image),
-                      label: const Text('Add photos/videos'),
+                      label: Text(
+                        AppLocalizations.of(context)!.addPhotosOrVideos,
+                      ),
                     ),
                   ),
                 ],
@@ -477,7 +488,7 @@ void _pickMedia() {
                 maxLines: 5,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Write something...',
+                  hintText: AppLocalizations.of(context)!.writeSomethingHint,
                   hintStyle: TextStyle(color: Colors.grey[500]),
                   filled: true,
                   fillColor: Colors.grey[900],
@@ -532,25 +543,22 @@ class _MediaPickOption extends StatelessWidget {
   });
 
   @override
-Widget build(BuildContext context) {
-  debugPrint('BUILD OPTION: $label');
+  Widget build(BuildContext context) {
+    debugPrint('BUILD OPTION: $label');
 
-  return ListTile(
-  leading: Icon(
-    icon,
-    color: Theme.of(context).colorScheme.onSurface,
-  ),
-  title: Text(
-    label,
-    style: TextStyle(
-      color: Theme.of(context).colorScheme.onSurface,
-      fontSize: 17,
-      fontWeight: FontWeight.w500,
-    ),
-  ),
-  onTap: onTap,
-);
-}
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontSize: 17,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
 }
 
 class _ComposerPreview extends StatelessWidget {
@@ -631,7 +639,7 @@ class _SelectedMediaPreview extends StatelessWidget {
         else if (item.isVideo)
           ColoredBox(color: Colors.grey.shade900)
         else
-          Image.file(File(item.file.path), fit: BoxFit.cover),
+          PlatformPathImage(path: item.file.path, fit: BoxFit.cover),
         if (item.isVideo) ...[
           Container(color: Colors.black.withValues(alpha: 0.20)),
           const Center(
@@ -671,7 +679,10 @@ class _SelectedMediaStrip extends StatelessWidget {
                       ? Image.memory(item.thumbnailBytes!, fit: BoxFit.cover)
                       : item.isVideo
                       ? ColoredBox(color: Colors.grey.shade900)
-                      : Image.file(File(item.file.path), fit: BoxFit.cover),
+                      : PlatformPathImage(
+                          path: item.file.path,
+                          fit: BoxFit.cover,
+                        ),
                 ),
               ),
               if (item.isVideo)

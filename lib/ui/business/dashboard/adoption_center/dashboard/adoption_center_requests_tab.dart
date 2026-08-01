@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionPetsTab extends StatelessWidget {
   final String businessId;
@@ -23,7 +24,11 @@ class AdoptionPetsTab extends StatelessWidget {
 
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(
+            child: Text(
+              AppLocalizations.of(context)!.genericError('${snapshot.error}'),
+            ),
+          );
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -162,15 +167,24 @@ class AdoptionPetsTab extends StatelessWidget {
 
                           const SizedBox(height: 6),
 
-                          Text("Breed: $breed", style: AppTheme.caption()),
+                          Text(
+                            AppLocalizations.of(context)!.breedValue(breed),
+                            style: AppTheme.caption(),
+                          ),
 
                           const SizedBox(height: 4),
 
-                          Text("Age: $age", style: AppTheme.caption()),
+                          Text(
+                            AppLocalizations.of(context)!.ageValue(age),
+                            style: AppTheme.caption(),
+                          ),
 
                           const SizedBox(height: 4),
 
-                          Text("Gender: $gender", style: AppTheme.caption()),
+                          Text(
+                            AppLocalizations.of(context)!.genderValue(gender),
+                            style: AppTheme.caption(),
+                          ),
 
                           const SizedBox(height: 10),
 
@@ -208,7 +222,9 @@ class AdoptionPetsTab extends StatelessWidget {
 
                                   icon: const Icon(LucideIcons.edit3),
 
-                                  label: const Text('Edit'),
+                                  label: Text(
+                                    AppLocalizations.of(context)!.edit,
+                                  ),
                                 ),
                               ),
 
@@ -335,7 +351,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 18),
 
             Text(
-              'No Adoption Pets Yet',
+              AppLocalizations.of(context)!.noAdoptionPetsYet,
 
               style: AppTheme.h2(weight: FontWeight.w700),
             ),
@@ -343,7 +359,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
 
             Text(
-              'Add pets that are available for adoption.',
+              AppLocalizations.of(context)!.addPetsForAdoption,
 
               textAlign: TextAlign.center,
 
@@ -359,7 +375,7 @@ class _EmptyState extends StatelessWidget {
 
               icon: const Icon(LucideIcons.plus),
 
-              label: const Text('Add Pet'),
+              label: Text(AppLocalizations.of(context)!.addDogButton),
             ),
           ],
         ),

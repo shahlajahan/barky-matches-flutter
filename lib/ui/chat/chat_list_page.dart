@@ -12,6 +12,7 @@ import 'package:barky_matches_fixed/ui/chat/chat_search_delegate.dart';
 import 'package:barky_matches_fixed/ui/business/chat/business_chat_page.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ChatListPage extends StatefulWidget {
   const ChatListPage({super.key});
@@ -61,7 +62,7 @@ class _ChatListPageState extends State<ChatListPage> {
             ),
             const SizedBox(height: 22),
             Text(
-              'No chats yet',
+              AppLocalizations.of(context)!.noChatsYet,
               style: AppTheme.h2().copyWith(
                 fontWeight: FontWeight.w800,
                 color: const Color(0xFF1F1F1F),
@@ -69,7 +70,7 @@ class _ChatListPageState extends State<ChatListPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start chatting with pet owners and make new friends for your pet 👋',
+              AppLocalizations.of(context)!.startChattingWithPetOwners,
               textAlign: TextAlign.center,
               style: AppTheme.body(
                 color: AppTheme.muted,
@@ -229,9 +230,10 @@ class _ChatListPageState extends State<ChatListPage> {
 
     String lastMessage = (data['lastMessage'] ?? '').toString();
 
-if (lastMessage.startsWith('You: ')) {
-  lastMessage = lastMessage.substring(5);
-};
+    if (lastMessage.startsWith('You: ')) {
+      lastMessage = lastMessage.substring(5);
+    }
+    ;
 
     debugPrint('CHAT DATA => $data');
 
@@ -437,12 +439,12 @@ if (lastMessage.startsWith('You: ')) {
             Icon(Icons.wifi_off_rounded, size: 54, color: Colors.grey.shade400),
             const SizedBox(height: 14),
             Text(
-              'Failed to load chats',
+              AppLocalizations.of(context)!.failedToLoadChats,
               style: AppTheme.h2().copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              'Please check your connection and try again.',
+              AppLocalizations.of(context)!.checkConnectionTryAgain,
               textAlign: TextAlign.center,
               style: AppTheme.body(color: AppTheme.muted),
             ),
@@ -456,7 +458,7 @@ if (lastMessage.startsWith('You: ')) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
       child: Text(
-        'Personal chats could not be loaded.',
+        AppLocalizations.of(context)!.personalChatsCouldNotLoad,
         style: AppTheme.body(color: AppTheme.muted),
       ),
     );
@@ -549,7 +551,7 @@ if (lastMessage.startsWith('You: ')) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
       child: Text(
-        'Business Conversations',
+        AppLocalizations.of(context)!.businessConversations,
         style: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -680,7 +682,9 @@ if (lastMessage.startsWith('You: ')) {
       return Scaffold(
         backgroundColor: _background,
         appBar: _buildAppBar(),
-        body: const Center(child: Text("Sign in to use chats")),
+        body: Center(
+          child: Text(AppLocalizations.of(context)!.signInToUseChats),
+        ),
       );
     }
 
@@ -762,7 +766,7 @@ if (lastMessage.startsWith('You: ')) {
 
               children: [
                 Text(
-                  'Chats',
+                  AppLocalizations.of(context)!.chats,
 
                   style: GoogleFonts.fredoka(
                     fontSize: 28,
@@ -776,7 +780,7 @@ if (lastMessage.startsWith('You: ')) {
                 ),
 
                 Text(
-                  'Connect with pet owners',
+                  AppLocalizations.of(context)!.connectWithPetOwners,
 
                   style: GoogleFonts.poppins(
                     fontSize: 12.5,

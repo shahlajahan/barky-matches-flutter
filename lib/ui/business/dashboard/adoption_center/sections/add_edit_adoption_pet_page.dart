@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'adoption_pet_model.dart';
 
@@ -160,7 +161,9 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      ).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.uploadFailed('$e'))),
+      );
     }
   }
 
@@ -194,7 +197,11 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
     if (_coverImageUrl == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Please add cover image')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.pleaseAddCoverImage),
+        ),
+      );
 
       return;
     }
@@ -256,7 +263,9 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.saveFailed('$e'))),
+      );
     }
 
     if (!mounted) return;
@@ -311,16 +320,16 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
 
             ElevatedButton(
               onPressed: _pickGallery,
-              child: const Text('Add Gallery Images'),
+              child: Text(AppLocalizations.of(context)!.addGalleryImages),
             ),
 
             const SizedBox(height: 20),
 
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Pet Name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.petNameLabel,
+                border: const OutlineInputBorder(),
               ),
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Required' : null,
@@ -330,9 +339,9 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
 
             TextFormField(
               controller: _breed,
-              decoration: const InputDecoration(
-                labelText: 'Breed',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.breed,
+                border: const OutlineInputBorder(),
               ),
             ),
 
@@ -341,9 +350,9 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
             TextFormField(
               controller: _ageMonths,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Age (months)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.ageMonthsLabel,
+                border: const OutlineInputBorder(),
               ),
             ),
 
@@ -393,7 +402,7 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
 
             SwitchListTile(
               value: _visible,
-              title: const Text('Visible'),
+              title: Text(AppLocalizations.of(context)!.visible),
               onChanged: (v) {
                 setState(() {
                   _visible = v;
@@ -407,9 +416,9 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
               controller: _description,
               minLines: 4,
               maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.description,
+                border: const OutlineInputBorder(),
               ),
             ),
 

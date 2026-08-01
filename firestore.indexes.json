@@ -1,13 +1,78 @@
 {
   "indexes": [
     {
+      "collectionGroup": "order_returns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sellerConfirmationDeadlineAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "payoutIndex",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "payoutStatus", "order": "ASCENDING" },
+        { "fieldPath": "sourceUpdatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payoutIndex",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eligibilityStatus", "order": "ASCENDING" },
+        { "fieldPath": "eligibilityDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payoutIndex",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "eligibilityStatus", "order": "ASCENDING" },
+        { "fieldPath": "eligibilityDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payoutIndex",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sector", "order": "ASCENDING" },
+        { "fieldPath": "eligibilityStatus", "order": "ASCENDING" },
+        { "fieldPath": "eligibilityDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payoutIndex",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "payoutStatus", "order": "ASCENDING" },
+        { "fieldPath": "paidAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payoutIndex",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "settlementStatus", "order": "ASCENDING" },
+        { "fieldPath": "sourceUpdatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "reports",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "reporterId", "order": "ASCENDING" },
         { "fieldPath": "targetType", "order": "ASCENDING" },
         { "fieldPath": "targetId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {

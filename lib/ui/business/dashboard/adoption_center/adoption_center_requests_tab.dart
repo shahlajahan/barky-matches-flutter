@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdoptionCenterRequestsTab extends StatefulWidget {
   final String businessId;
@@ -122,7 +123,7 @@ class _AdoptionCenterRequestsTabState extends State<AdoptionCenterRequestsTab> {
         if (docs.isEmpty) {
           return Center(
             child: Text(
-              "No requests",
+              AppLocalizations.of(context)!.noRequests,
               style: AppTheme.body(color: AppTheme.muted),
             ),
           );
@@ -221,12 +222,16 @@ class _AdoptionCenterRequestsTabState extends State<AdoptionCenterRequestsTab> {
                       const SizedBox(height: 20),
 
                       Text(
-                        "Phone: ${personal["phone"] ?? "-"}",
+                        AppLocalizations.of(
+                          context,
+                        )!.phoneValue('${personal["phone"] ?? "-"}'),
                         style: AppTheme.body(color: Colors.white),
                       ),
 
                       Text(
-                        "Gender: ${personal["gender"] ?? "-"}",
+                        AppLocalizations.of(
+                          context,
+                        )!.genderValue('${personal["gender"] ?? "-"}'),
                         style: AppTheme.body(color: Colors.white),
                       ),
 
@@ -249,7 +254,9 @@ class _AdoptionCenterRequestsTabState extends State<AdoptionCenterRequestsTab> {
                                   backgroundColor: Colors.green,
                                 ),
 
-                                child: const Text("Approve"),
+                                child: Text(
+                                  AppLocalizations.of(context)!.approve,
+                                ),
                               ),
                             ),
 
@@ -265,7 +272,9 @@ class _AdoptionCenterRequestsTabState extends State<AdoptionCenterRequestsTab> {
                                   backgroundColor: Colors.red,
                                 ),
 
-                                child: const Text("Reject"),
+                                child: Text(
+                                  AppLocalizations.of(context)!.reject,
+                                ),
                               ),
                             ),
                           ],

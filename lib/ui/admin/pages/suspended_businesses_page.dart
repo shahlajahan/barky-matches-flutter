@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'business_admin_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class SuspendedBusinessesPage extends StatelessWidget {
   const SuspendedBusinessesPage({super.key});
@@ -9,7 +10,7 @@ class SuspendedBusinessesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Suspended Businesses"),
+        title: Text(AppLocalizations.of(context)!.suspendedBusinesses),
         backgroundColor: Colors.pink,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -27,7 +28,9 @@ class SuspendedBusinessesPage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  "Firestore error:\n${snapshot.error}",
+                  AppLocalizations.of(
+                    context,
+                  )!.firestoreError('${snapshot.error}'),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -42,7 +45,9 @@ class SuspendedBusinessesPage extends StatelessWidget {
 
           if (!snapshot.hasData) {
             debugPrint("⚠️ Suspended query returned no snapshot");
-            return const Center(child: Text("No data received"));
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noDataReceived),
+            );
           }
 
           final docs = snapshot.data!.docs;
@@ -50,7 +55,11 @@ class SuspendedBusinessesPage extends StatelessWidget {
           debugPrint("📦 Suspended businesses count → ${docs.length}");
 
           if (docs.isEmpty) {
-            return const Center(child: Text("No suspended businesses"));
+            return Center(
+              child: Text(
+                AppLocalizations.of(context)!.noSuspendedBusinesses,
+              ),
+            );
           }
 
           return ListView.builder(
@@ -64,7 +73,7 @@ class SuspendedBusinessesPage extends StatelessWidget {
               return ListTile(
                 leading: const Icon(Icons.block, color: Colors.red),
                 title: Text(name),
-                subtitle: const Text("Suspended"),
+                subtitle: Text(AppLocalizations.of(context)!.suspendedLabel),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   debugPrint("➡️ Opening suspended business → ${doc.id}");

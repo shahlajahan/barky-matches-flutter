@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'add_service_detail_page.dart';
 
 class AddServicesPage extends StatelessWidget {
@@ -242,9 +243,11 @@ class AddServicesPage extends StatelessWidget {
           children: [
             const Icon(LucideIcons.plusCircle),
             const SizedBox(width: 10),
-            const Expanded(child: Text("Add custom service")),
+            Expanded(
+              child: Text(AppLocalizations.of(context)!.addCustomService),
+            ),
             Text(
-              "Create",
+              AppLocalizations.of(context)!.create,
               style: AppTheme.body().copyWith(
                 color: const Color(0xFF9E1B4F),
                 fontWeight: FontWeight.w700,

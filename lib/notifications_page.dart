@@ -10,6 +10,7 @@ import '../../app_state.dart'; // مسیر رو اگر فرق داره اصلا�
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class NotificationsPage extends StatefulWidget {
   final String? currentUserId;
@@ -68,10 +69,11 @@ class _NotificationsPageState extends State<NotificationsPage>
   }
 
   Widget _buildNotificationsBody(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final userId = widget.currentUserId;
 
     if (userId == null || userId.isEmpty || userId == 'guest') {
-      return _buildGuestNotification();
+      return _buildGuestNotification(context);
     }
 
     return Container(
@@ -104,7 +106,7 @@ class _NotificationsPageState extends State<NotificationsPage>
           if (docs.isEmpty) {
             return Center(
               child: Text(
-                'No notifications available.',
+                l10n.noNotifications,
                 style: GoogleFonts.poppins(fontSize: 16),
               ),
             );
@@ -547,7 +549,8 @@ class _NotificationsPageState extends State<NotificationsPage>
     );
   }
 
-  Widget _buildGuestNotification() {
+  Widget _buildGuestNotification(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -558,17 +561,17 @@ class _NotificationsPageState extends State<NotificationsPage>
 
             const SizedBox(height: 20),
 
-            const Text(
-              "No notifications for Guest",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              l10n.noNotificationsForGuest,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
 
-            const Text(
-              "Login to receive updates and alerts",
+            Text(
+              l10n.loginForNotifications,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),

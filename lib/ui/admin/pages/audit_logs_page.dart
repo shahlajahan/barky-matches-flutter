@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AuditLogsPage extends StatelessWidget {
   const AuditLogsPage({super.key});
@@ -48,7 +49,7 @@ class AuditLogsPage extends StatelessWidget {
         .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Audit Logs")),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.auditLogs)),
       body: StreamBuilder<QuerySnapshot>(
         stream: stream,
         builder: (context, snapshot) {

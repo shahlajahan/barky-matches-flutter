@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'business_admin_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminBusinessSearchPage extends StatefulWidget {
   const AdminBusinessSearchPage({super.key});
@@ -19,7 +20,7 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Business Search"),
+        title: Text(AppLocalizations.of(context)!.businessSearch),
         backgroundColor: Colors.pink,
       ),
       body: Column(
@@ -29,7 +30,7 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               decoration: InputDecoration(
-                hintText: "Search business name...",
+                hintText: AppLocalizations.of(context)!.searchBusinessNameHint,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -48,18 +49,32 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: DropdownButtonFormField<String>(
               initialValue: statusFilter,
-              items: const [
-                DropdownMenuItem(value: "all", child: Text("All")),
-                DropdownMenuItem(value: "approved", child: Text("Approved")),
-                DropdownMenuItem(value: "rejected", child: Text("Rejected")),
-                DropdownMenuItem(value: "suspended", child: Text("Suspended")),
+              items: [
+                DropdownMenuItem(
+                  value: "all",
+                  child: Text(AppLocalizations.of(context)!.allFilterLabel),
+                ),
+                DropdownMenuItem(
+                  value: "approved",
+                  child: Text(AppLocalizations.of(context)!.returnStatusApproved),
+                ),
+                DropdownMenuItem(
+                  value: "rejected",
+                  child: Text(AppLocalizations.of(context)!.returnStatusRejected),
+                ),
+                DropdownMenuItem(
+                  value: "suspended",
+                  child: Text(AppLocalizations.of(context)!.suspendedLabel),
+                ),
               ],
               onChanged: (value) {
                 setState(() {
                   statusFilter = value ?? "all";
                 });
               },
-              decoration: const InputDecoration(labelText: "Filter by status"),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.filterByStatus,
+              ),
             ),
           ),
 
@@ -106,7 +121,9 @@ class _AdminBusinessSearchPageState extends State<AdminBusinessSearchPage> {
                 }).toList();
 
                 if (filtered.isEmpty) {
-                  return const Center(child: Text("No results"));
+                  return Center(
+                    child: Text(AppLocalizations.of(context)!.noResults),
+                  );
                 }
 
                 return ListView.builder(

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:barky_matches_fixed/core/debug/diagnostics_events.dart';
 
@@ -369,8 +368,8 @@ class _PetImage extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => _fallback(),
               )
-            : Image.file(
-                File(value),
+            : PlatformPathImage(
+                path: value,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => _fallback(),
               ),

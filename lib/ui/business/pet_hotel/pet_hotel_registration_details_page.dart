@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../models/business_draft.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetHotelRegistrationDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -249,7 +250,9 @@ class _PetHotelRegistrationDetailsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pet Hotel Details')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.petHotelDetails),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -261,30 +264,33 @@ class _PetHotelRegistrationDetailsPageState
             _field(_instagram, 'Instagram'),
             _field(_capacity, 'Maximum capacity'),
             const SizedBox(height: 20),
-            const Text(
-              'Services',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.services,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             _chips(_allServices, _selectedServices),
             const SizedBox(height: 20),
-            const Text(
-              'Amenities',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.amenities,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             _chips(_amenityOptions, _selectedAmenities),
             const SizedBox(height: 20),
-            const Text(
-              'Working Days',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              AppLocalizations.of(context)!.workingDays,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             _chips(_days, _selectedDays),
             const SizedBox(height: 10),
             _field(_workingHours, 'Working Hours (09:00 - 18:00)'),
             const SizedBox(height: 20),
-            const Text('Media', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              AppLocalizations.of(context)!.media,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -292,7 +298,7 @@ class _PetHotelRegistrationDetailsPageState
                   child: ElevatedButton.icon(
                     onPressed: _loading ? null : _pickLogo,
                     icon: const Icon(Icons.image),
-                    label: const Text('Logo'),
+                    label: Text(AppLocalizations.of(context)!.logo),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -300,7 +306,7 @@ class _PetHotelRegistrationDetailsPageState
                   child: ElevatedButton.icon(
                     onPressed: _loading ? null : _pickPhoto,
                     icon: const Icon(Icons.photo_library),
-                    label: const Text('Photos'),
+                    label: Text(AppLocalizations.of(context)!.photos),
                   ),
                 ),
               ],
@@ -313,7 +319,7 @@ class _PetHotelRegistrationDetailsPageState
               onPressed: _loading ? null : _submit,
               child: _loading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Continue'),
+                  : Text(AppLocalizations.of(context)!.continueLabel),
             ),
           ],
         ),

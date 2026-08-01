@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetQuickRepliesPage extends StatefulWidget {
   final String businessId;
@@ -71,7 +72,7 @@ class _VetQuickRepliesPageState extends State<VetQuickRepliesPage> {
               TextField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  hintText: 'Title',
+                  hintText: AppLocalizations.of(context)!.titleLabel,
                   filled: true,
                   fillColor: AppTheme.bg,
                   border: OutlineInputBorder(
@@ -87,7 +88,7 @@ class _VetQuickRepliesPageState extends State<VetQuickRepliesPage> {
                 controller: _messageController,
                 maxLines: 5,
                 decoration: InputDecoration(
-                  hintText: 'Message',
+                  hintText: AppLocalizations.of(context)!.messageLabel,
                   filled: true,
                   fillColor: AppTheme.bg,
                   border: OutlineInputBorder(
@@ -161,7 +162,7 @@ class _VetQuickRepliesPageState extends State<VetQuickRepliesPage> {
       backgroundColor: AppTheme.bg,
 
       appBar: AppBar(
-        title: const Text('Quick Replies'),
+        title: Text(AppLocalizations.of(context)!.quickReplies),
 
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
@@ -207,12 +208,15 @@ class _VetQuickRepliesPageState extends State<VetQuickRepliesPage> {
 
                     const SizedBox(height: 14),
 
-                    Text('No quick replies yet', style: AppTheme.h2()),
+                    Text(
+                      AppLocalizations.of(context)!.noQuickRepliesYet,
+                      style: AppTheme.h2(),
+                    ),
 
                     const SizedBox(height: 8),
 
                     Text(
-                      'Create reusable responses for common client questions.',
+                      AppLocalizations.of(context)!.quickRepliesDescription,
                       textAlign: TextAlign.center,
                       style: AppTheme.caption(),
                     ),
@@ -289,7 +293,7 @@ class _VetQuickRepliesPageState extends State<VetQuickRepliesPage> {
 
                           icon: const Icon(LucideIcons.edit2, size: 16),
 
-                          label: const Text('Edit'),
+                          label: Text(AppLocalizations.of(context)!.edit),
                         ),
 
                         const SizedBox(width: 10),
@@ -305,7 +309,7 @@ class _VetQuickRepliesPageState extends State<VetQuickRepliesPage> {
 
                           icon: const Icon(LucideIcons.trash2, size: 16),
 
-                          label: const Text('Delete'),
+                          label: Text(AppLocalizations.of(context)!.delete),
                         ),
                       ],
                     ),

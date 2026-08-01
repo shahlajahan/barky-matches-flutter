@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -12,6 +11,7 @@ import 'package:barky_matches_fixed/services/pet_taxi_pricing_service.dart';
 import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image_provider.dart';
 import 'pet_taxi_location_picker_page.dart';
 import 'pet_taxi_booking_detail_page.dart';
 
@@ -796,7 +796,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
       if (path.startsWith('http')) {
         image = NetworkImage(path);
       } else {
-        image = FileImage(File(path));
+        image = platformPathImageProvider(path);
       }
     }
 

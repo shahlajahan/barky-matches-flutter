@@ -1,0 +1,300 @@
+{
+  "schemaVersion": "1.0",
+  "tool": {
+    "name": "devaudit",
+    "version": "0.1.0-dev.2"
+  },
+  "target": ".",
+  "summary": {
+    "filesScanned": 484,
+    "issues": 312
+  },
+  "bySeverity": {
+    "info": 0,
+    "warning": 312,
+    "error": 0
+  },
+  "byRule": {
+    "flutter.localization.hardcoded-ui-string": 312
+  },
+  "byFolder": [
+    {
+      "path": "lib/ui/pet_taxi",
+      "count": 51
+    },
+    {
+      "path": "lib/ui/setting",
+      "count": 34
+    },
+    {
+      "path": "lib/ui/vet",
+      "count": 27
+    },
+    {
+      "path": "lib",
+      "count": 22
+    },
+    {
+      "path": "lib/ui/marketplace",
+      "count": 20
+    },
+    {
+      "path": "lib/ui/green_memorial",
+      "count": 19
+    },
+    {
+      "path": "lib/ui/common",
+      "count": 18
+    },
+    {
+      "path": "lib/ui/support",
+      "count": 17
+    },
+    {
+      "path": "lib/ui/feedback",
+      "count": 12
+    },
+    {
+      "path": "lib/ui/legal",
+      "count": 12
+    },
+    {
+      "path": "lib/ui/common/pages",
+      "count": 11
+    },
+    {
+      "path": "lib/ui/pet_taxi/services",
+      "count": 11
+    },
+    {
+      "path": "lib/ui/product",
+      "count": 9
+    },
+    {
+      "path": "lib/ui/profile",
+      "count": 8
+    },
+    {
+      "path": "lib/ui/petshop",
+      "count": 7
+    },
+    {
+      "path": "lib/ui/checkout",
+      "count": 6
+    },
+    {
+      "path": "lib/ui/shell",
+      "count": 6
+    },
+    {
+      "path": "lib/ui/medical_records",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/pet_taxi/widgets",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/petshop/widgets",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/help",
+      "count": 3
+    },
+    {
+      "path": "lib/ui/screens/dog_parks",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/welcome",
+      "count": 2
+    }
+  ],
+  "byFile": [
+    {
+      "path": "lib/ui/marketplace/marketplace_invoice_panel.dart",
+      "count": 20
+    },
+    {
+      "path": "lib/ui/pet_taxi/pet_taxi_booking_detail_page.dart",
+      "count": 20
+    },
+    {
+      "path": "lib/ui/pet_taxi/pet_taxi_booking_page.dart",
+      "count": 20
+    },
+    {
+      "path": "lib/ui/setting/blocked_users_page.dart",
+      "count": 14
+    },
+    {
+      "path": "lib/ui/common/report_button.dart",
+      "count": 13
+    },
+    {
+      "path": "lib/ui/green_memorial/create_memorial_page.dart",
+      "count": 13
+    },
+    {
+      "path": "lib/ui/support/report_problem_page.dart",
+      "count": 13
+    },
+    {
+      "path": "lib/ui/feedback/feedback_form_page.dart",
+      "count": 12
+    },
+    {
+      "path": "lib/ui/setting/delete_account_page.dart",
+      "count": 12
+    },
+    {
+      "path": "lib/ui/common/pages/submit_complaint_page.dart",
+      "count": 11
+    },
+    {
+      "path": "lib/ui/pet_taxi/services/pet_taxi_location_permission_service.dart",
+      "count": 11
+    },
+    {
+      "path": "lib/verify_phone_page.dart",
+      "count": 9
+    },
+    {
+      "path": "lib/ui/profile/change_password_page.dart",
+      "count": 8
+    },
+    {
+      "path": "lib/ui/setting/privacy_settings_page.dart",
+      "count": 8
+    },
+    {
+      "path": "lib/ui/legal/privacy_policy_page.dart",
+      "count": 7
+    },
+    {
+      "path": "lib/ui/pet_taxi/pet_taxi_location_picker_page.dart",
+      "count": 7
+    },
+    {
+      "path": "lib/ui/product/seller_profile_page.dart",
+      "count": 7
+    },
+    {
+      "path": "lib/ui/vet/vet_appointment_page.dart",
+      "count": 7
+    },
+    {
+      "path": "lib/user_profile_page.dart",
+      "count": 7
+    },
+    {
+      "path": "lib/ui/checkout/payment_result_pages.dart",
+      "count": 6
+    },
+    {
+      "path": "lib/ui/green_memorial/green_memorial_page.dart",
+      "count": 6
+    },
+    {
+      "path": "lib/ui/vet/vet_detail_overlay.dart",
+      "count": 6
+    },
+    {
+      "path": "lib/ui/common/report_dialog.dart",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/legal/terms_page.dart",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/pet_taxi/widgets/pet_taxi_bottom_sheet.dart",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/petshop/widgets/product_card_dashboard.dart",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/vet/edit_vet_profile_page.dart",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/vet/vaccine_notification_page.dart",
+      "count": 5
+    },
+    {
+      "path": "lib/ui/pet_taxi/pet_taxi_drivers_page.dart",
+      "count": 4
+    },
+    {
+      "path": "lib/ui/petshop/seller_offers_page.dart",
+      "count": 4
+    },
+    {
+      "path": "lib/ui/shell/barky_scaffold.dart",
+      "count": 4
+    },
+    {
+      "path": "lib/ui/vet/suggest_clinic_sheet.dart",
+      "count": 4
+    },
+    {
+      "path": "lib/welcome_page.dart",
+      "count": 4
+    },
+    {
+      "path": "lib/ui/help/help_center_page.dart",
+      "count": 3
+    },
+    {
+      "path": "lib/ui/medical_records/medical_records_page.dart",
+      "count": 3
+    },
+    {
+      "path": "lib/ui/medical_records/medical_record_flow_button.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/petshop/petshop_dashboard_page.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/product/favorite_products_page.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/screens/dog_parks/saved_parks_page.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/support/about_us_page.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/support/faq_page.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/welcome/preview_dogs_section.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/vet_page.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/ui/petshop/isbank_checkout_webview_page.dart",
+      "count": 1
+    },
+    {
+      "path": "lib/ui/shell/barky_app_bar.dart",
+      "count": 1
+    },
+    {
+      "path": "lib/ui/shell/barky_drawer.dart",
+      "count": 1
+    }
+  ]
+}

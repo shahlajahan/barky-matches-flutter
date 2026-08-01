@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class EditVisitPage extends StatefulWidget {
   final String businessId;
@@ -149,9 +150,11 @@ class _EditVisitPageState extends State<EditVisitPage> {
     } catch (e) {
       debugPrint('🩺 VISIT SAVE ERROR: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not save visit: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.couldNotSaveVisit('$e')),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -164,17 +167,17 @@ class _EditVisitPageState extends State<EditVisitPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete Visit'),
-          content: const Text('Delete this visit from the medical record?'),
+          title: Text(AppLocalizations.of(context)!.deleteVisit),
+          content: Text(AppLocalizations.of(context)!.deleteVisitConfirmation),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Delete'),
+              child: Text(AppLocalizations.of(context)!.delete),
             ),
           ],
         );
@@ -198,9 +201,13 @@ class _EditVisitPageState extends State<EditVisitPage> {
     } catch (e) {
       debugPrint('🩺 VISIT DELETE ERROR: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not delete visit: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.couldNotDeleteVisit('$e'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -321,7 +328,7 @@ class _EditVisitPageState extends State<EditVisitPage> {
         actions: [
           if (_isEditing)
             IconButton(
-              tooltip: 'Delete visit',
+              tooltip: AppLocalizations.of(context)!.deleteVisitTooltip,
               onPressed: _saving ? null : _deleteVisit,
               icon: const Icon(LucideIcons.trash2),
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessWebDashboardDestination {
   const BusinessWebDashboardDestination({
@@ -49,9 +50,9 @@ class _BusinessWebDashboardShellState extends State<BusinessWebDashboardShell> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'PetSupo',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.appTitle,
+                  style: const TextStyle(
                     color: Color(0xFF9E1B4F),
                     fontSize: 24,
                     fontWeight: FontWeight.w900,

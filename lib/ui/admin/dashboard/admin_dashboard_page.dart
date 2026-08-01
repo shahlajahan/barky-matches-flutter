@@ -10,6 +10,7 @@ import 'package:barky_matches_fixed/ui/admin/diagnostics/pages/diagnostics_repor
     as diagnostics_ui;
 import 'package:barky_matches_fixed/ui/admin/diagnostics/controllers/diagnostics_reports_controller.dart';
 import 'package:barky_matches_fixed/ui/admin/diagnostics/repositories/diagnostics_reports_repository.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -20,7 +21,7 @@ class AdminDashboardPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Admin Dashboard"),
+        title: Text(AppLocalizations.of(context)!.adminDashboard),
         backgroundColor: Colors.pink,
       ),
 
@@ -45,7 +46,9 @@ class AdminDashboardPage extends StatelessWidget {
 
             return Center(
               child: Text(
-                "Dashboard Error:\n${businessSnap.error}",
+                AppLocalizations.of(
+                  context,
+                )!.dashboardError('${businessSnap.error}'),
                 textAlign: TextAlign.center,
               ),
             );
@@ -106,9 +109,12 @@ class AdminDashboardPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Platform Overview",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  AppLocalizations.of(context)!.platformOverview,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
                 const SizedBox(height: 12),
@@ -160,9 +166,12 @@ class AdminDashboardPage extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-                const Text(
-                  "Admin Activity",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  AppLocalizations.of(context)!.adminActivity,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
                 const SizedBox(height: 10),
@@ -174,9 +183,12 @@ class AdminDashboardPage extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-                const Text(
-                  "Developer Tools",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  AppLocalizations.of(context)!.developerTools,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
                 const SizedBox(height: 10),
@@ -184,8 +196,10 @@ class AdminDashboardPage extends StatelessWidget {
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.telegram, color: Colors.blue),
-                    title: const Text("Telegram Lab"),
-                    subtitle: const Text("Test Telegram Bot API"),
+                    title: Text(AppLocalizations.of(context)!.telegramLab),
+                    subtitle: Text(
+                      AppLocalizations.of(context)!.testTelegramBotApi,
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       Navigator.push(
@@ -201,8 +215,10 @@ class AdminDashboardPage extends StatelessWidget {
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.bug_report, color: Colors.red),
-                    title: const Text("Diagnostics"),
-                    subtitle: const Text("Crash reports & startup diagnostics"),
+                    title: Text(AppLocalizations.of(context)!.diagnostics),
+                    subtitle: Text(
+                      AppLocalizations.of(context)!.diagnosticsDescription,
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       Navigator.push(
@@ -223,8 +239,10 @@ class AdminDashboardPage extends StatelessWidget {
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.people, color: Colors.green),
-                    title: const Text("Telegram Users"),
-                    subtitle: const Text("View connected Telegram users"),
+                    title: Text(AppLocalizations.of(context)!.telegramUsers),
+                    subtitle: Text(
+                      AppLocalizations.of(context)!.telegramUsersDescription,
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       Navigator.push(

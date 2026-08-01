@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../admin_section.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessAuditLogSection extends StatelessWidget {
   final String businessId;
@@ -31,9 +32,9 @@ class BusinessAuditLogSection extends StatelessWidget {
           final docs = snapshot.data?.docs ?? [];
 
           if (docs.isEmpty) {
-            return const Text(
-              "No admin activity yet",
-              style: TextStyle(color: Colors.black54),
+            return Text(
+              AppLocalizations.of(context)!.noAdminActivity,
+              style: const TextStyle(color: Colors.black54),
             );
           }
 
@@ -74,7 +75,9 @@ class BusinessAuditLogSection extends StatelessWidget {
 
                           if (reason != null)
                             Text(
-                              "Reason: $reason",
+                              AppLocalizations.of(
+                                context,
+                              )!.reasonValue(reason.toString()),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.black54,

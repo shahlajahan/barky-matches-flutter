@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../controllers/diagnostics_report_details_controller.dart';
 import '../controllers/diagnostics_reports_controller.dart';
@@ -40,9 +41,12 @@ class _DiagnosticsReportsPageState extends State<DiagnosticsReportsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Diagnostic Reports'),
+        title: Text(AppLocalizations.of(context)!.diagnosticReports),
         actions: [
-          TextButton(onPressed: _openFilters, child: const Text('Filters')),
+          TextButton(
+            onPressed: _openFilters,
+            child: Text(AppLocalizations.of(context)!.filters),
+          ),
         ],
       ),
       body: ListenableBuilder(
@@ -65,7 +69,11 @@ class _DiagnosticsReportsPageState extends State<DiagnosticsReportsPage> {
               ),
               Expanded(
                 child: widget.controller.reports.isEmpty
-                    ? const Center(child: Text('No diagnostic reports'))
+                    ? Center(
+                        child: Text(
+                          AppLocalizations.of(context)!.noDiagnosticReports,
+                        ),
+                      )
                     : DiagnosticsReportsList(
                         scrollController: _scrollController,
                         reports: widget.controller.reports,
@@ -146,7 +154,10 @@ class _DiagnosticsReportsFiltersSheetState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Filters', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              AppLocalizations.of(context)!.filters,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             _DiagnosticsFilterDropdown(
               label: 'Severity',
@@ -179,14 +190,16 @@ class _DiagnosticsReportsFiltersSheetState
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _clear,
-                    child: const Text('Clear'),
+                    child: Text(
+                      AppLocalizations.of(context)!.diagnosticsClearButton,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _apply,
-                    child: const Text('Apply'),
+                    child: Text(AppLocalizations.of(context)!.apply),
                   ),
                 ),
               ],
@@ -277,7 +290,10 @@ class _DiagnosticsFilterDropdown extends StatelessWidget {
       initialValue: value,
       decoration: InputDecoration(labelText: label),
       items: [
-        const DropdownMenuItem<String?>(value: null, child: Text('All')),
+        DropdownMenuItem<String?>(
+          value: null,
+          child: Text(AppLocalizations.of(context)!.allFilterLabel),
+        ),
         for (final option in options)
           DropdownMenuItem<String?>(value: option, child: Text(option)),
       ],

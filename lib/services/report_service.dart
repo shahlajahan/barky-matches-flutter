@@ -59,9 +59,14 @@ class ReportService {
       });
       return const ReportSubmitOutcome(ReportSubmitResult.success);
     } on FirebaseFunctionsException catch (e) {
-      return ReportSubmitOutcome(_mapSubmitError(e.code), e.message);
+      final result = _mapSubmitError(e.code);
+      // Codes without a specific mapping (e.g. 'internal') fall through to
+      // ReportSubmitResult.error, whose message is shown verbatim in the
+      // UI - never surface the raw SDK/server text (e.g. "INTERNAL") here.
+      final message = result == ReportSubmitResult.error ? null : e.message;
+      return ReportSubmitOutcome(result, message);
     } catch (e) {
-      return ReportSubmitOutcome(ReportSubmitResult.error, e.toString());
+      return const ReportSubmitOutcome(ReportSubmitResult.error);
     }
   }
 

@@ -236,7 +236,11 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
                       if (price > 0) ...[
                         const SizedBox(width: 8),
                         Text(
-                          '${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}₺ / night',
+                          AppLocalizations.of(context)!.pricePerNight(
+                            price.toStringAsFixed(
+                              price.truncateToDouble() == price ? 0 : 2,
+                            ),
+                          ),
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -280,7 +284,9 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
                   ),
                   Expanded(
                     child: Text(
-                      'Book stay • ${widget.hotel.name}',
+                      AppLocalizations.of(
+                        context,
+                      )!.bookStayAt(widget.hotel.name),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -403,9 +409,9 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
     return TextField(
       controller: _noteController,
       maxLines: 3,
-      decoration: const InputDecoration(
-        hintText: 'Feeding, medication, or care notes',
-        border: OutlineInputBorder(),
+      decoration: InputDecoration(
+        hintText: AppLocalizations.of(context)!.hotelCareNotesHint,
+        border: const OutlineInputBorder(),
       ),
     );
   }
@@ -469,9 +475,12 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Text(
-                'Request Booking',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            : Text(
+                AppLocalizations.of(context)!.requestBooking,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
       ),
     );
@@ -495,7 +504,9 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
 
     if (!range.end.isAfter(range.start)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Check-out must be after check-in')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.checkoutAfterCheckin),
+        ),
       );
       return;
     }
@@ -566,7 +577,7 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
         context: context,
         builder: (_) => AlertDialog(
           title: Text(l10n.requestSentTitle),
-          content: const Text('Your hotel booking request was sent.'),
+          content: Text(l10n.hotelBookingRequestSent),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

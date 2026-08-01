@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'package:barky_matches_fixed/core/web/local_dog_photo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
+import 'package:barky_matches_fixed/ui/common/platform_path_image_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -28,6 +31,7 @@ import 'package:barky_matches_fixed/ui/setting/privacy_settings_page.dart';
 import 'package:barky_matches_fixed/ui/support/report_problem_page.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/business_dashboard_page.dart';
+import 'package:barky_matches_fixed/ui/creator/creator_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
@@ -951,7 +955,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   ImageProvider? _getProfileHeaderImage() {
     if (_profileImageFile != null) {
-      return FileImage(_profileImageFile!);
+      return platformPathImageProvider(_profileImageFile!.path);
     }
 
     final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
@@ -1288,6 +1292,54 @@ class _UserProfilePageState extends State<UserProfilePage> {
       );
     }
 
+    if (appState.profileSubPage == ProfileSubPage.creatorDashboard) {
+      if (!appState.creatorEnabled) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          context.read<AppState>().closeProfileSubPage();
+        });
+        return const SizedBox();
+      }
+
+      return WillPopScope(
+        onWillPop: () async {
+          context.read<AppState>().closeProfileSubPage();
+          return false;
+        },
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(8, 14, 16, 10),
+                color: AppTheme.bg,
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () {
+                        context.read<AppState>().closeProfileSubPage();
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)!.creatorDashboardTitle,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Expanded(child: CreatorDashboardPage()),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_isLoading || _currentUserId.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.white),
@@ -1539,6 +1591,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     _buildRegisterBusinessButton(),
                 ],
               ),
+              // 4b. Creator Section — same visibility pattern as the
+              // Business section above: only rendered at all when the
+              // gating flag is true, exactly mirroring hasApprovedBusiness.
+              if (appState.creatorEnabled)
+                ProfileSection(
+                  title: AppLocalizations.of(
+                    context,
+                  )!.userProfileCreatorProgram,
+                  children: [_CreatorDashboardCard()],
+                ),
               // 5. Support (Feedback اضافه شد)
               ProfileSection(
                 title: AppLocalizations.of(context)!.userProfileSupport,
@@ -1842,10 +1904,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
     debugPrint('🐶 PROFILE IMAGE PATH = $imagePath');
     if (imagePath.startsWith('assets/')) return AssetImage(imagePath);
 
-    final file = File(imagePath);
-    if (await file.exists()) return FileImage(file);
-
-    return null;
+    // A locally-stored path (dart:io File) only ever refers to something
+    // real on iOS/Android/desktop. On Web, dart:io is unavailable and the
+    // path is meaningless (it was written when the photo was added on a
+    // mobile device) — loadLocalDogPhoto is a no-op there instead of
+    // throwing. See lib/core/web/local_dog_photo*.dart.
+    return loadLocalDogPhoto(imagePath);
   }
 
   void _showUpgradeRequiredSheet(BuildContext context) {
@@ -2192,6 +2256,47 @@ class _ApprovedBusinessCard extends StatelessWidget {
             Expanded(
               child: Text(
                 AppLocalizations.of(context)!.userProfileManageBusinessCenter,
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreatorDashboardCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        context.read<AppState>().openProfileSubPage(
+          ProfileSubPage.creatorDashboard,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF9E1B4F), Color(0xFFE83E8C)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.campaign, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context)!.userProfileOpenCreatorDashboard,
                 style: GoogleFonts.poppins(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -2779,8 +2884,8 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
 
     if (_selectedImageFile != null) {
       avatarChild = ClipOval(
-        child: Image.file(
-          _selectedImageFile!,
+        child: PlatformPathImage(
+          path: _selectedImageFile!.path,
           width: 110,
           height: 110,
           fit: BoxFit.cover,

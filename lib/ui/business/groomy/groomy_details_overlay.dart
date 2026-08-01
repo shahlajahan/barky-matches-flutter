@@ -1219,7 +1219,7 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
         if (snapshot.hasError) {
           return Center(
             child: Text(
-              'Services could not be loaded.',
+              AppLocalizations.of(context)!.servicesCouldNotBeLoadedPeriod,
               style: AppTheme.caption(color: Colors.black54),
             ),
           );
@@ -1445,7 +1445,7 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
         }.where((e) => e.trim().isNotEmpty).toList();
 
         if (images.isEmpty) {
-          return const Center(child: Text('No images'));
+          return Center(child: Text(AppLocalizations.of(context)!.noImages));
         }
 
         final media = images
@@ -1721,15 +1721,15 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
     if (user == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Sign in to continue')));
+      ).showSnackBar(SnackBar(content: Text(l10n.signInToContinue)));
       return;
     }
 
     final text = _reviewController.text.trim();
     if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please write a review first')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.writeReviewFirst)));
       return;
     }
 
@@ -1773,7 +1773,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Review submitted')));
+      ).showSnackBar(SnackBar(content: Text(l10n.reviewSubmitted)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1824,8 +1824,10 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                   controller: _reviewController,
                   focusNode: _reviewFocusNode,
                   maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: 'Tell others about your experience',
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(
+                      context,
+                    )!.reviewExperienceHint,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1839,7 +1841,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Submit Review'),
+                        : Text(AppLocalizations.of(context)!.submitReview),
                   ),
                 ),
               ],

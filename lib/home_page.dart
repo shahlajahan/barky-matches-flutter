@@ -25,6 +25,9 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/home/widgets/home_image_card.dart';
 import 'package:barky_matches_fixed/home/widgets/home_search_result_card.dart';
 import 'package:barky_matches_fixed/home/widgets/homepage_responsive_photo_image.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_page.dart';
+import 'package:barky_matches_fixed/utils/business_sector.dart';
+import 'package:barky_matches_fixed/widgets/overflow_marquee_text.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
@@ -700,142 +703,16 @@ class _HomePageState extends State<HomePage>
       return text.isEmpty ? <String>[] : <String>[text];
     }
 
-    String businessSector(dynamic business) {
-      final profile =
-          (business['profile'] as Map?)?.cast<String, dynamic>() ?? {};
-
-      final sectorData =
-          (business['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
-
-      final verification =
-          (business['verification'] as Map?)?.cast<String, dynamic>() ?? {};
-
-      final sectorKeys = sectorData.keys
-          .map((e) => e.toString().toLowerCase())
-          .join(' ');
-
-      final normalizedSectorData = sectorData.toString().toLowerCase();
-
-      final raw = [
-        business['sector'],
-        business['sectors'],
-        business['businessType'],
-        business['category'],
-        business['type'],
-
-        profile['categories'],
-        profile['businessType'],
-        profile['category'],
-        profile['tags'],
-        profile['displayName'],
-
-        verification['level'],
-
-        sectorKeys,
-        normalizedSectorData,
-      ].join(' ').toLowerCase();
-
-      if (sectorData.containsKey('adoption_center') ||
-          sectorData.containsKey('adoptionCenter') ||
-          raw.contains('adoption_center') ||
-          raw.contains('adoption center') ||
-          raw.contains('adoptioncenter') ||
-          raw.contains('adoption')) {
-        return 'adoption_center adoption adoption center';
-      }
-
-      if (sectorData.containsKey('pet_taxi') ||
-          raw.contains('pet_taxi') ||
-          raw.contains('pet taxi') ||
-          raw.contains('taxi')) {
-        return 'pet_taxi pet taxi';
-      }
-
-      if (raw.contains('groom') ||
-          raw.contains('groomer') ||
-          raw.contains('grooming') ||
-          raw.contains('pet kuaf') ||
-          raw.contains('kuaf')) {
-        return 'grooming groomer groomy';
-      }
-
-      if (raw.contains('pet_hotel') ||
-          raw.contains('pet hotel') ||
-          raw.contains('hotel') ||
-          raw.contains('boarding') ||
-          raw.contains('pansiyon')) {
-        return 'pet_hotel hotel boarding';
-      }
-
-      if (raw.contains('petshop') ||
-          raw.contains('pet_shop') ||
-          raw.contains('pet shop') ||
-          raw.contains('seller') ||
-          raw.contains('store')) {
-        return 'pet_shop petshop seller store';
-      }
-
-      if (raw.contains('vet') ||
-          raw.contains('veterinary') ||
-          raw.contains('clinic')) {
-        return 'vet veterinary clinic';
-      }
-
-      return 'unknown';
-    }
-
-    String businessRouteFromSector(String sector) {
-      if (sector.contains('adoption_center') ||
-          sector.contains('adoption center') ||
-          sector.contains('adoption')) {
-        return 'ADOPTION_CENTER';
-      }
-
-      if (sector.contains('pet_taxi') ||
-          sector.contains('pet taxi') ||
-          sector.contains('taxi')) {
-        return 'PET_TAXI';
-      }
-
-      if (sector.contains('groomy') ||
-          sector.contains('grooming') ||
-          sector.contains('groomer')) {
-        return 'GROOMING';
-      }
-
-      if (sector.contains('pet_hotel') ||
-          sector.contains('pet hotel') ||
-          sector.contains('hotel') ||
-          sector.contains('boarding')) {
-        return 'PET_HOTEL';
-      }
-
-      if (sector.contains('vet') ||
-          sector.contains('veterinery') ||
-          sector.contains('veterinary') ||
-          sector.contains('clinic')) {
-        return 'VET';
-      }
-
-      if (sector.contains('petshop') ||
-          sector.contains('pet_shop') ||
-          sector.contains('pet shop') ||
-          sector.contains('seller') ||
-          sector.contains('store')) {
-        return 'SELLER';
-      }
-
-      return '';
-    }
-
-    BusinessType businessTypeFromRoute(String route, String sector) {
-      if (route == 'ADOPTION_CENTER') return BusinessType.adoptionCenter;
-      if (route == 'GROOMING') return BusinessType.groomer;
-      if (route == 'SELLER') return BusinessType.petShop;
-      if (route == 'VET') return BusinessType.vet;
-      if (route == 'PET_HOTEL') return BusinessType.petHotel;
-      if (route == 'PET_TAXI') return BusinessType.petTaxi;
-      return BusinessType.petShop;
+    BusinessType businessTypeFromSector(String sector) {
+      return switch (sector) {
+        BusinessSector.adoptionCenter => BusinessType.adoptionCenter,
+        BusinessSector.groomy => BusinessType.groomer,
+        BusinessSector.petShop => BusinessType.petShop,
+        BusinessSector.vet => BusinessType.vet,
+        BusinessSector.petHotel => BusinessType.petHotel,
+        BusinessSector.petTaxi => BusinessType.petTaxi,
+        _ => BusinessType.petShop,
+      };
     }
 
     debugPrint("🏪 FIRESTORE BUSINESSES: ${firestoreBusinesses.length}");
@@ -883,7 +760,9 @@ class _HomePageState extends State<HomePage>
             description,
             categories,
             tags,
-            businessSector(business),
+            ...BusinessSector.searchAliases(
+              BusinessSector.fromBusiness(business),
+            ),
           ].join(' ');
 
           final matches =
@@ -929,10 +808,9 @@ class _HomePageState extends State<HomePage>
             business['description'],
             business['bio'],
           ]);
-          final sector = businessSector(business);
-          final route = businessRouteFromSector(sector);
-
-          final businessType = businessTypeFromRoute(route, sector);
+          final sector = BusinessSector.fromBusiness(business);
+          final rawSector = BusinessSector.rawValue(business);
+          final businessType = businessTypeFromSector(sector ?? '');
 
           final businessCardData = BusinessCardData(
             id: business['id']?.toString() ?? '',
@@ -967,8 +845,9 @@ class _HomePageState extends State<HomePage>
             'sector': tags.join(' '),
             'description': description,
             'businessData': businessCardData,
+            'businessRawData': business,
+            'rawBusinessSector': rawSector,
             'businessSector': sector,
-            'businessRoute': route,
           };
         })
         .toList();
@@ -1819,71 +1698,7 @@ class _HomePageState extends State<HomePage>
                         type: HomeSearchResultType.business,
                         title: (b['name'] ?? '').toString(),
                         subtitle: (b['description'] ?? '').toString(),
-                        onTap: () {
-                          debugPrint('🏪 SEARCH RESULT TYPE: BUSINESS');
-                          final sector = b['businessSector']?.toString() ?? '';
-                          final route = b['businessRoute']?.toString() ?? '';
-                          debugPrint('🏪 BUSINESS SECTOR: $sector');
-
-                          if (route == 'VET') {
-                            debugPrint('🏪 BUSINESS ROUTE: VET');
-                            final businessData = b['businessData'];
-                            if (businessData is BusinessCardData) {
-                              appState.openBusinessDetails(businessData);
-                            }
-                            return;
-                          }
-
-                          if (route == 'SELLER') {
-                            debugPrint('🏪 BUSINESS ROUTE: SELLER');
-
-                            final businessData = b['businessData'];
-
-                            if (businessData is BusinessCardData) {
-                              debugPrint('🏪 OPEN SELLER VIA BUSINESS DETAILS');
-
-                              appState.openBusinessDetails(businessData);
-                            }
-
-                            return;
-                          }
-
-                          if (route == 'GROOMING') {
-                            debugPrint('🏪 BUSINESS ROUTE: GROOMING');
-
-                            final businessData = b['businessData'];
-
-                            if (businessData is BusinessCardData) {
-                              debugPrint(
-                                '🏪 GROOMY BUSINESS TYPE: ${businessData.type}',
-                              );
-                              debugPrint('🏪 OPEN GROOMY BUSINESS');
-                              debugPrint(
-                                '🏪 OPEN GROOMY DETAIL VIA STANDARD ROUTE',
-                              );
-
-                              FocusScope.of(context).unfocus();
-                              appState.setCurrentTab(NavTab.groomy);
-                              appState.openBusinessDetails(businessData);
-                            }
-
-                            return;
-                          }
-
-                          if (route == 'PET_HOTEL') {
-                            debugPrint('🏪 BUSINESS ROUTE: PET_HOTEL');
-
-                            final businessData = b['businessData'];
-
-                            if (businessData is BusinessCardData) {
-                              FocusScope.of(context).unfocus();
-                              appState.setCurrentTab(NavTab.petHotel);
-                              appState.openBusinessDetails(businessData);
-                            }
-
-                            return;
-                          }
-                        },
+                        onTap: () => _openBusinessSearchResult(b, appState),
                       );
                     }),
                   ],
@@ -1997,13 +1812,92 @@ class _HomePageState extends State<HomePage>
         textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           isDense: true,
-          hintText: l.homeSearchHint,
+          hint: OverflowMarqueeText(
+            l.homeSearchHint,
+            style:
+                (Theme.of(context).textTheme.bodyLarge ??
+                        const TextStyle(fontSize: 16))
+                    .copyWith(color: Theme.of(context).hintColor),
+          ),
           border: InputBorder.none,
           prefixIcon: const Icon(Icons.search, color: Color(0xFFD94A7A)),
           contentPadding: EdgeInsets.zero,
         ),
       ),
     );
+  }
+
+  void _openBusinessSearchResult(
+    Map<String, dynamic> result,
+    app.AppState appState,
+  ) {
+    final l = AppLocalizations.of(context)!;
+    final businessId = result['id']?.toString() ?? '';
+    final rawSector = result['rawBusinessSector']?.toString() ?? '';
+    final canonicalSector = BusinessSector.normalize(result['businessSector']);
+    final businessData = result['businessData'];
+
+    debugPrint('🏪 SEARCH RESULT TYPE: BUSINESS');
+    debugPrint(
+      '🏪 BUSINESS NAVIGATION id=$businessId '
+      'rawSector="$rawSector" normalizedSector="${canonicalSector ?? 'unknown'}"',
+    );
+
+    if (businessData is! BusinessCardData ||
+        businessData.id.isEmpty ||
+        businessData.id != businessId) {
+      debugPrint(
+        '⛔ BUSINESS NAVIGATION INVALID DATA id=$businessId '
+        'rawSector="$rawSector" normalizedSector="${canonicalSector ?? 'unknown'}"',
+      );
+      _showBusinessNavigationFallback(l.somethingWentWrong);
+      return;
+    }
+
+    if (businessData.status != 'approved') {
+      debugPrint(
+        '⛔ BUSINESS NAVIGATION UNAVAILABLE id=$businessId '
+        'status="${businessData.status}" rawSector="$rawSector" '
+        'normalizedSector="${canonicalSector ?? 'unknown'}"',
+      );
+      _showBusinessNavigationFallback(l.somethingWentWrong);
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    switch (BusinessSector.destination(canonicalSector)) {
+      case BusinessSectorDestination.petTaxiBooking:
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PetTaxiBookingPage(business: businessData),
+          ),
+        );
+        return;
+      case BusinessSectorDestination.businessDetails:
+        appState.openBusinessDetails(businessData);
+        return;
+      case BusinessSectorDestination.trainingUnavailable:
+        _showBusinessNavigationFallback(l.trainingComingSoonMessage);
+        return;
+      case BusinessSectorDestination.unavailable:
+        debugPrint(
+          '⛔ BUSINESS NAVIGATION UNKNOWN SECTOR id=$businessId '
+          'rawSector="$rawSector" '
+          'normalizedSector="${canonicalSector ?? 'unknown'}"',
+        );
+        _showBusinessNavigationFallback(l.somethingWentWrong);
+        return;
+    }
+  }
+
+  void _showBusinessNavigationFallback(String message) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
   }
 
   Widget _premiumBanner() {

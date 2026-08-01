@@ -9,6 +9,8 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_services_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_pre_visit_form_settings_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/client_messages/vet_client_messages_page.dart';
+import 'package:barky_matches_fixed/ui/business/settings/bank_account_settings_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetSettingsPage extends StatefulWidget {
   final String businessId;
@@ -60,11 +62,11 @@ class _VetSettingsPageState extends State<VetSettingsPage> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Clinic Settings'),
+        title: Text(AppLocalizations.of(context)!.clinicSettings),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
+          tooltip: AppLocalizations.of(context)!.back,
         ),
       ),
       body: SafeArea(
@@ -157,9 +159,11 @@ class _VetSettingsPageState extends State<VetSettingsPage> {
 
                       if (mounted) {
                         messenger.showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                              'Failed to save emergency availability',
+                              AppLocalizations.of(
+                                context,
+                              )!.emergencyAvailabilitySaveFailed,
                             ),
                           ),
                         );
@@ -244,7 +248,16 @@ class _VetSettingsPageState extends State<VetSettingsPage> {
                   icon: LucideIcons.creditCard,
                   title: 'Payment setup',
                   subtitle: 'Review paid appointment and payout settings',
-                  onTap: () => _showComingSoon(context, 'Payments'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BankAccountSettingsPage(
+                          businessId: widget.businessId,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 _ActionTile(
                   icon: LucideIcons.receipt,
@@ -280,7 +293,11 @@ class _VetSettingsPageState extends State<VetSettingsPage> {
 
   void _showComingSoon(BuildContext context, String label) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label management is not available yet')),
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context)!.managementNotAvailable(label),
+        ),
+      ),
     );
   }
 }

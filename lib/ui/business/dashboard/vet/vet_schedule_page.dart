@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetSchedulePage extends StatefulWidget {
   final String businessId;
@@ -33,11 +34,11 @@ class _VetSchedulePageState extends State<VetSchedulePage> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text('Clinic Schedule'),
+        title: Text(AppLocalizations.of(context)!.clinicSchedule),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
+          tooltip: AppLocalizations.of(context)!.back,
         ),
       ),
       body: SafeArea(
@@ -141,7 +142,10 @@ class _VetSchedulePageState extends State<VetSchedulePage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                Text('Select Date', style: AppTheme.h2()),
+                Text(
+                  AppLocalizations.of(context)!.selectDate,
+                  style: AppTheme.h2(),
+                ),
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 76,
@@ -169,9 +173,14 @@ class _VetSchedulePageState extends State<VetSchedulePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Appointments', style: AppTheme.h2()),
                     Text(
-                      '${selectedAppointments.length} total',
+                      AppLocalizations.of(context)!.appointments,
+                      style: AppTheme.h2(),
+                    ),
+                    Text(
+                      AppLocalizations.of(
+                        context,
+                      )!.totalCount(selectedAppointments.length),
                       style: AppTheme.caption(),
                     ),
                   ],

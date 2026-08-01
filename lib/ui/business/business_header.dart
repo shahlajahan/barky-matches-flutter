@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../admin/admin_status_badge.dart';
 import '../admin/admin_risk_badge.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessHeader extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -121,9 +122,9 @@ class _VerificationBadge extends StatelessWidget {
           color: const Color(0xFFF3E5F5),
           borderRadius: BorderRadius.circular(30),
         ),
-        child: const Text(
-          "Basic",
-          style: TextStyle(
+        child: Text(
+          AppLocalizations.of(context)!.basic,
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: Color(0xFF6A1B9A),
@@ -138,9 +139,9 @@ class _VerificationBadge extends StatelessWidget {
         color: const Color(0xFFE8F5E9),
         borderRadius: BorderRadius.circular(30),
       ),
-      child: const Text(
-        "Verified",
-        style: TextStyle(
+      child: Text(
+        AppLocalizations.of(context)!.verifiedLabel,
+        style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: Color(0xFF2E7D32),

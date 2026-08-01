@@ -12,6 +12,7 @@ import 'package:barky_matches_fixed/social/models/social_post.dart';
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
 import 'package:barky_matches_fixed/social/widgets/social_post_media_viewer_overlay.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/models/report_model.dart';
 import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
@@ -728,7 +729,10 @@ class _PostsSectionHeader extends StatelessWidget {
         children: [
           const Icon(LucideIcons.grid, color: Colors.white, size: 18),
           const SizedBox(width: 8),
-          Text('Posts', style: AppTheme.h3(color: Colors.white)),
+          Text(
+            AppLocalizations.of(context)!.postsTitle,
+            style: AppTheme.h3(color: Colors.white),
+          ),
           if (isLoading) ...[
             const Spacer(),
             const SizedBox(
@@ -759,7 +763,7 @@ class _PostsGrid extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
           child: Text(
-            'No posts yet',
+            AppLocalizations.of(context)!.noPostsYet,
             style: AppTheme.body(
               color: Colors.white.withValues(alpha: 0.52),
               weight: FontWeight.w700,
@@ -897,13 +901,16 @@ class _DogsSection extends StatelessWidget {
             children: [
               const Icon(LucideIcons.dog, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Text('Dogs', style: AppTheme.h3(color: Colors.white)),
+              Text(
+                AppLocalizations.of(context)!.dogsTitle,
+                style: AppTheme.h3(color: Colors.white),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           if (dogs.isEmpty)
             Text(
-              'No dogs found for this user',
+              AppLocalizations.of(context)!.noDogsForUser,
               style: AppTheme.body(color: Colors.white.withValues(alpha: 0.52)),
             )
           else
@@ -1004,7 +1011,9 @@ class _SocialGraphPanel extends StatelessWidget {
                       if (ids.isEmpty) {
                         return Center(
                           child: Text(
-                            'No ${title.toLowerCase()} yet',
+                            AppLocalizations.of(
+                              context,
+                            )!.noItemsYet(title.toLowerCase()),
                             style: AppTheme.body(
                               color: Colors.white.withValues(alpha: 0.56),
                             ),
