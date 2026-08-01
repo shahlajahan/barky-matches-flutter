@@ -345,18 +345,28 @@ allow read: if isAdmin() || (
       }
     }
 
-    // Creator Referral Engine — Sprint 1 foundation only (see
+    // Creator Referral Engine — Sprint 2 attribution foundation (see
     // docs/architecture/creator-referral-engine.md and
     // docs/SPRINT1_REPORT.md). Only this one collection is needed this
-    // sprint; referralClicks / referralAttributions / referralCampaigns /
-    // referralDailyStats are deferred to later sprints and intentionally
-    // have no rule yet.
+    // sprint; referralClicks / referralCampaigns / referralDailyStats remain
+    // deferred to later sprints.
     match /referralCodes/{code} {
       // Public read: a future click-tracking/landing page must be able to
       // resolve a code's validity before the visitor has any account.
       allow read: if true;
       // Functions-only write (Admin SDK bypasses these rules) — assigned
       // exclusively by the assignReferralCode callable.
+      allow write: if false;
+    }
+
+    match /referralAttributions/{referredUid} {
+      // Referred users, the referring creator, and admins may inspect the
+      // immutable record. Creation and all subsequent writes are Functions-only.
+      allow read: if isSignedIn() && (
+        request.auth.uid == referredUid
+        || resource.data.creatorUid == request.auth.uid
+        || isAdmin()
+      );
       allow write: if false;
     }
 

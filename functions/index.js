@@ -29441,3 +29441,82 @@ exports.deactivateCreator = onCall(
     return { uid: targetUid, enabled: false, status: "inactive" };
   }
 );
+
+/**
+ * Creates the one immutable attribution record for a referred user.
+ * Validation and creation stay server-side so clients cannot forge creator
+ * status, creator identity, or attribution timestamps.
+ */
+exports.attributeReferral = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError("unauthenticated", "Login required.");
+    }
+
+    const referralCode = String(request.data?.referralCode || "")
+      .trim()
+      .toUpperCase();
+    if (!referralCode) {
+      throw new HttpsError("invalid-argument", "Referral code required.");
+    }
+
+    const codeRef = db.collection("referralCodes").doc(referralCode);
+    const attributionRef = db.collection("referralAttributions").doc(callerUid);
+
+    const result = await db.runTransaction(async (transaction) => {
+      const codeSnap = await transaction.get(codeRef);
+      if (!codeSnap.exists || codeSnap.data()?.active !== true) {
+        throw new HttpsError("not-found", "Invalid referral code.");
+      }
+
+      const creatorUid = normalizeCreatorUid(codeSnap.data()?.creatorUid);
+      if (!creatorUid || creatorUid === callerUid) {
+        throw new HttpsError("failed-precondition", "Referral code unavailable.");
+      }
+
+      const creatorRef = db.collection("users").doc(creatorUid);
+      const [creatorSnap, existingAttribution] = await Promise.all([
+        transaction.get(creatorRef),
+        transaction.get(attributionRef),
+      ]);
+
+      if (existingAttribution.exists) {
+        return { alreadyAttributed: true };
+      }
+
+      const creator = creatorSnap.data()?.creator;
+      if (
+        !creatorSnap.exists ||
+        creator?.enabled !== true ||
+        creator?.status !== "active" ||
+        creator?.referralCode !== referralCode
+      ) {
+        throw new HttpsError("failed-precondition", "Referral code unavailable.");
+      }
+
+      transaction.create(attributionRef, {
+        referralCode,
+        creatorUid,
+        attributedAt: admin.firestore.FieldValue.serverTimestamp(),
+        source: "code_entry",
+        kind: "user",
+        status: "pending",
+      });
+
+      return { alreadyAttributed: false };
+    });
+
+    logger.info("referral_attributed", {
+      callerUid,
+      referralCode,
+      alreadyAttributed: result.alreadyAttributed,
+    });
+
+    return {
+      attributed: !result.alreadyAttributed,
+      alreadyAttributed: result.alreadyAttributed,
+    };
+  }
+);
