@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,46 +8,74 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'creator_dashboard_browser.dart';
 import 'creator_dashboard_data.dart';
+import 'creator_dashboard_navigation.dart';
 import 'creator_placeholder_badge.dart';
 import 'creator_status_pill.dart';
+import 'package:barky_matches_fixed/services/creator_ledger_service.dart';
 
 /// The lightweight, native Flutter Creator Dashboard shown inside the
 /// Profile page (ProfileSubPage.creatorDashboard). Intentionally limited —
 /// no charts, no heavy tables — with an "Open Full Dashboard" hand-off to
-/// the richer Web experience at the same domain the rest of the app's
-/// browser-based flows already use (see web_subscription checkout / İş
-/// Bank return handling in main.dart).
-class CreatorDashboardPage extends StatelessWidget {
+/// the richer Web experience (lib/ui/creator/creator_dashboard_web_page.dart).
+class CreatorDashboardPage extends StatefulWidget {
   const CreatorDashboardPage({super.key});
 
-  static const String fullDashboardUrl =
+  static const String productionWebDashboardUrl =
       'https://app.petsupo.com/creator/dashboard';
+
+  @override
+  State<CreatorDashboardPage> createState() => _CreatorDashboardPageState();
+}
+
+class _CreatorDashboardPageState extends State<CreatorDashboardPage> {
+  late Future<CreatorLedgerSummary> _ledgerFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = context.read<AppState>().currentUserId;
+    _ledgerFuture = CreatorLedgerService.loadForCreator(uid);
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final l10n = AppLocalizations.of(context)!;
-    final stats = CreatorDashboardData.mock(appState);
-
-    return Container(
-      color: AppTheme.bg,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        children: [
-          _WelcomeCard(appState: appState, stats: stats),
-          const SizedBox(height: 16),
-          _ReferralCard(appState: appState, l10n: l10n),
-          const SizedBox(height: 16),
-          _StatsGrid(stats: stats, l10n: l10n),
-          const SizedBox(height: 16),
-          _RecentActivityCard(stats: stats, l10n: l10n),
-          const SizedBox(height: 16),
-          _UpcomingPayoutCard(stats: stats, l10n: l10n),
-          const SizedBox(height: 20),
-          _OpenFullDashboardButton(l10n: l10n),
-        ],
-      ),
+    return FutureBuilder<CreatorLedgerSummary>(
+      future: _ledgerFuture,
+      builder: (context, snapshot) {
+        final stats = CreatorDashboardData.mock(
+          appState,
+          ledgerSummary:
+              snapshot.data ??
+              const CreatorLedgerSummary(
+                qualifiedUsers: 0,
+                qualifiedPartners: 0,
+                pendingRewards: 0,
+              ),
+        );
+        return Container(
+          color: AppTheme.bg,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              _WelcomeCard(appState: appState, stats: stats),
+              const SizedBox(height: 16),
+              _ReferralCard(appState: appState, l10n: l10n),
+              const SizedBox(height: 16),
+              _StatsGrid(stats: stats, l10n: l10n),
+              const SizedBox(height: 16),
+              _RecentActivityCard(stats: stats, l10n: l10n),
+              const SizedBox(height: 16),
+              _UpcomingPayoutCard(stats: stats, l10n: l10n),
+              const SizedBox(height: 20),
+              _OpenFullDashboardButton(l10n: l10n),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -467,9 +496,49 @@ class _OpenFullDashboardButton extends StatelessWidget {
 
   final AppLocalizations l10n;
 
-  Future<void> _open() async {
-    final uri = Uri.parse(CreatorDashboardPage.fullDashboardUrl);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _open(BuildContext context) async {
+    final plan = resolveCreatorDashboardNavigation(
+      isWeb: kIsWeb,
+      webOrigin: kIsWeb ? Uri.base.origin : '',
+      productionMobileDestination:
+          CreatorDashboardPage.productionWebDashboardUrl,
+    );
+
+    debugPrint(
+      '🌐 CREATOR DASHBOARD NAV → '
+      'kIsWeb=$kIsWeb '
+      'origin=${kIsWeb ? Uri.base.origin : "n/a"} '
+      'destination=${plan.destination} '
+      'mode=${plan.mode.name}',
+    );
+
+    try {
+      switch (plan.mode) {
+        case CreatorDashboardNavigationMode.internalWeb:
+          // Same tab, same origin — see creator_dashboard_browser_web.dart
+          // for why this is deliberately not launchUrl/window.open.
+          openCreatorDashboardSameTab(plan.destination);
+          break;
+        case CreatorDashboardNavigationMode.externalMobile:
+          final launched = await launchUrl(
+            Uri.parse(plan.destination),
+            mode: LaunchMode.externalApplication,
+          );
+          if (!launched) {
+            throw StateError(
+              'launchUrl returned false for ${plan.destination}',
+            );
+          }
+          break;
+      }
+    } catch (e, stackTrace) {
+      debugPrint('⚠️ CREATOR DASHBOARD NAV FAILED → $e\n$stackTrace');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.creatorOpenDashboardFailed)),
+        );
+      }
+    }
   }
 
   @override
@@ -480,7 +549,7 @@ class _OpenFullDashboardButton extends StatelessWidget {
           width: double.infinity,
           height: 50,
           child: ElevatedButton.icon(
-            onPressed: _open,
+            onPressed: () => _open(context),
             icon: const Icon(Icons.open_in_new),
             label: Text(
               l10n.creatorOpenFullDashboard,

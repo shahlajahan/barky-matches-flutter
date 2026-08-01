@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/services/creator_ledger_service.dart';
 
 /// Shared data model for both the lightweight mobile Creator Dashboard and
 /// the full Web Creator Dashboard, so the two surfaces always agree on the
@@ -75,7 +76,10 @@ class CreatorDashboardData {
   // PetshopCheckoutService.readPaymentStatusByOrderId's pattern) once the
   // Creator Program backend exists. Kept as a single factory so swapping
   // the data source later only touches this one place.
-  factory CreatorDashboardData.mock(AppState appState) {
+  factory CreatorDashboardData.mock(
+    AppState appState, {
+    CreatorLedgerSummary? ledgerSummary,
+  }) {
     final now = DateTime.now();
     final nextPayout = DateTime(now.year, now.month + 1, 15);
 
@@ -83,9 +87,9 @@ class CreatorDashboardData {
       level: appState.creatorLevel ?? 'Pro',
       currentCampaign:
           appState.creatorCampaign ?? 'Summer Tail Wagger Challenge',
-      qualifiedUsers: 3489,
-      verifiedPartners: 42,
-      pendingRewards: 842,
+      qualifiedUsers: ledgerSummary?.qualifiedUsers ?? 3489,
+      verifiedPartners: ledgerSummary?.qualifiedPartners ?? 42,
+      pendingRewards: ledgerSummary?.pendingRewards ?? 842,
       paidRewards: 12480,
       estimatedPayout: 1842,
       payoutDate: nextPayout,

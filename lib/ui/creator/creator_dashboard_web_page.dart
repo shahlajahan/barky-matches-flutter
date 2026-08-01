@@ -8,6 +8,7 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/welcome_page.dart';
+import 'package:barky_matches_fixed/services/creator_ledger_service.dart';
 import 'creator_dashboard_data.dart';
 import 'creator_placeholder_badge.dart';
 import 'creator_status_pill.dart';
@@ -186,14 +187,39 @@ class _MessageScreen extends StatelessWidget {
   }
 }
 
-class _CreatorDashboardWebContent extends StatelessWidget {
+class _CreatorDashboardWebContent extends StatefulWidget {
   const _CreatorDashboardWebContent();
+
+  @override
+  State<_CreatorDashboardWebContent> createState() =>
+      _CreatorDashboardWebContentState();
+}
+
+class _CreatorDashboardWebContentState
+    extends State<_CreatorDashboardWebContent> {
+  CreatorLedgerSummary _ledgerSummary = const CreatorLedgerSummary(
+    qualifiedUsers: 0,
+    qualifiedPartners: 0,
+    pendingRewards: 0,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = context.read<AppState>().currentUserId;
+    CreatorLedgerService.loadForCreator(uid).then((summary) {
+      if (mounted) setState(() => _ledgerSummary = summary);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final l10n = AppLocalizations.of(context)!;
-    final stats = CreatorDashboardData.mock(appState);
+    final stats = CreatorDashboardData.mock(
+      appState,
+      ledgerSummary: _ledgerSummary,
+    );
     final width = MediaQuery.sizeOf(context).width;
     final kpiColumns = width >= 1100 ? 4 : (width >= 720 ? 2 : 1);
 
