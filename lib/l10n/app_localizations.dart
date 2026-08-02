@@ -17829,7 +17829,7 @@ abstract class AppLocalizations {
   /// No description provided for @exitAppMessage.
   ///
   /// In en, this message translates to:
-  /// **'Do you want to close Barky?'**
+  /// **'Do you want to close PetSupo?'**
   String get exitAppMessage;
 
   /// No description provided for @exitButton.

@@ -4,7 +4,10 @@
             "http://localhost:5000",
             "https://petsupo.com",
             "https://www.petsupo.com",
-            "http://localhost:5001"
+            "http://localhost:5001",
+            "https://app.petsupo.com",
+            "https://barkymatches-new.web.app",
+            "https://barkymatches-new.firebaseapp.com"
         ],
         "method": [
             "GET",

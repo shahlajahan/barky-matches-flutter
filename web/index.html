@@ -146,12 +146,12 @@
       function record(message) {
         var entry = (Date.now() - traceStart) + 'ms: ' + message;
         trace.push(entry);
-        try { console.log('[barky-startup] ' + entry); } catch (_) {}
+        try { console.log('[petsupo-startup] ' + entry); } catch (_) {}
       }
 
       function logDiagnostic(source, detail) {
         trace.push((Date.now() - traceStart) + 'ms: ERROR at ' + source);
-        try { console.error('[barky-startup] ' + source, detail); } catch (_) {}
+        try { console.error('[petsupo-startup] ' + source, detail); } catch (_) {}
       }
 
       var traceStart = Date.now();

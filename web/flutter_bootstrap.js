@@ -14,7 +14,7 @@
       if (typeof window.barkyLog === 'function') {
         window.barkyLog(message);
       } else {
-        console.log('[barky-startup] ' + message);
+        console.log('[petsupo-startup] ' + message);
       }
     } catch (_) {
       // Never let diagnostics throw.
@@ -26,7 +26,7 @@
       if (typeof window.barkyLogError === 'function') {
         window.barkyLogError(source, detail);
       } else {
-        console.error('[barky-startup] ' + source, detail);
+        console.error('[petsupo-startup] ' + source, detail);
       }
     } catch (_) {}
   }

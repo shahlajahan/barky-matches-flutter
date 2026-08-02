@@ -9924,7 +9924,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get exitAppTitle => 'Выйти из приложения?';
 
   @override
-  String get exitAppMessage => 'Вы хотите закрыть Barky?';
+  String get exitAppMessage => 'Вы хотите закрыть PetSupo?';
 
   @override
   String get exitButton => 'Выйти';

@@ -9843,7 +9843,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get exitAppTitle => 'از برنامه خارج شوید؟';
 
   @override
-  String get exitAppMessage => 'آیا می‌خواهید Barky را ببندید؟';
+  String get exitAppMessage => 'آیا می‌خواهید PetSupo را ببندید؟';
 
   @override
   String get exitButton => 'خروج';

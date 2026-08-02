@@ -9849,7 +9849,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exitAppTitle => 'Exit app?';
 
   @override
-  String get exitAppMessage => 'Do you want to close Barky?';
+  String get exitAppMessage => 'Do you want to close PetSupo?';
 
   @override
   String get exitButton => 'Exit';

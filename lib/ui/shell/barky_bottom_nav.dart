@@ -20,7 +20,7 @@ class _BarkyBottomNavState extends State<BarkyBottomNav> {
   void initState() {
     super.initState();
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyBottomNav initState hash=${identityHashCode(this)}');
+      debugPrint('WEB_DIAG PetSupoBottomNav initState hash=${identityHashCode(this)}');
     }
   }
 
@@ -28,14 +28,14 @@ class _BarkyBottomNavState extends State<BarkyBottomNav> {
   void activate() {
     super.activate();
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyBottomNav activate hash=${identityHashCode(this)}');
+      debugPrint('WEB_DIAG PetSupoBottomNav activate hash=${identityHashCode(this)}');
     }
   }
 
   @override
   void deactivate() {
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyBottomNav deactivate hash=${identityHashCode(this)}');
+      debugPrint('WEB_DIAG PetSupoBottomNav deactivate hash=${identityHashCode(this)}');
     }
     super.deactivate();
   }
@@ -43,7 +43,7 @@ class _BarkyBottomNavState extends State<BarkyBottomNav> {
   @override
   void dispose() {
     if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG BarkyBottomNav dispose hash=${identityHashCode(this)}');
+      debugPrint('WEB_DIAG PetSupoBottomNav dispose hash=${identityHashCode(this)}');
     }
     super.dispose();
   }

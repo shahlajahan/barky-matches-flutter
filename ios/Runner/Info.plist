@@ -55,9 +55,9 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses microphone for voice search</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>BarkyMatches needs permission to save photos.</string>
+	<string>PetSupo needs permission to save photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>BarkyMatches needs access to your photo library to upload profile and dog photos.</string>
+	<string>PetSupo needs access to your photo library to upload profile and dog photos.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app uses speech recognition to search dogs</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

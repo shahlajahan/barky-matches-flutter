@@ -462,7 +462,7 @@ Future<void> _firebaseMessagingForegroundHandler(RemoteMessage message) async {
   if (user != null && data.isNotEmpty) {
     try {
       await FirebaseFirestore.instance.collection('notifications').add({
-        'title': notification?.title ?? 'BarkyMatches',
+        'title': notification?.title ?? 'PetSupo',
         'body': notification?.body ?? '',
         'recipientUserId': user.uid,
         'timestamp': FieldValue.serverTimestamp(),

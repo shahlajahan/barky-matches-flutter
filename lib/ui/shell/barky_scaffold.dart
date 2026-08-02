@@ -835,7 +835,7 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                     if (!isOpen) return const SizedBox.shrink();
 
                     final appState = context.read<AppState>();
-                    debugPrint("🔥 BARKY OVERLAY BUILD");
+                    debugPrint("🔥 PETSUPO OVERLAY BUILD");
                     return Positioned.fill(
                       child: Material(
                         color: const Color(0xFF120914),
@@ -843,7 +843,7 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
                           children: [
                             UpgradePage(
                               onClose: () {
-                                debugPrint("🔥 BARKY onClose");
+                                debugPrint("🔥 PETSUPO onClose");
                                 appState.closeUpgradePage();
                               },
                             ),

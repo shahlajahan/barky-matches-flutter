@@ -19,7 +19,7 @@ class SuggestClinicSheet extends StatelessWidget {
       'Hi 👋\n\n'
       'PetSupo helps pet owners find and book veterinary appointments easily 🐶🐾\n\n'
       'We would love to see *$vetName* join PetSupo!\n\n'
-      '👉 https://barkymatches.com',
+      '👉 https://petsupo.com',
       sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
     );
   }

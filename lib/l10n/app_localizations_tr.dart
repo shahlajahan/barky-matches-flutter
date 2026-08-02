@@ -9883,7 +9883,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get exitAppTitle => 'Uygulamadan çıkılsın mı?';
 
   @override
-  String get exitAppMessage => 'Barky\'yi kapatmak istiyor musunuz?';
+  String get exitAppMessage => 'PetSupo\'yu kapatmak istiyor musunuz?';
 
   @override
   String get exitButton => 'Çıkış';
