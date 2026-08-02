@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -7,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
-import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/business/groomy/edit_groomy_profile_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_schedule_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
@@ -37,7 +35,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
     with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _appointmentsStream;
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _revenueStream;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _servicesStream;
 
   @override
@@ -68,21 +65,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
     );
   }
 
-  Map<String, dynamic>? get _workingHoursMap {
-    final raw =
-        _groomyData['workingHoursMap'] ??
-        _groomyData['workingHours'] ??
-        _rootData['workingHours'];
-
-    if (raw == null) return null;
-    if (raw is Map<String, dynamic>) return raw;
-    if (raw is Map) {
-      return raw.map((key, value) => MapEntry(key.toString(), value));
-    }
-    if (raw is String) return {'hours': raw};
-    return null;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -92,10 +74,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
         .orderBy('scheduledAt', descending: true)
         .limit(5)
         .snapshots();
-    _revenueStream = FirebaseFirestore.instance
-        .collection('groomy_appointments')
-        .where('businessId', isEqualTo: widget.businessId)
-        .snapshots(includeMetadataChanges: false);
     _servicesStream = FirebaseFirestore.instance
         .collection('businesses')
         .doc(widget.businessId)
@@ -198,147 +176,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildRevenueCard(BuildContext context) {
-    if (kDebugMode) {
-      debugPrint(
-        '💰 GROOMY REVENUE QUERY → authUid=${FirebaseAuth.instance.currentUser?.uid ?? "NULL"} '
-        'businessId=$businessId path=groomy_appointments where businessId==$businessId',
-      );
-    }
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _revenueStream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          if (kDebugMode) {
-            debugPrint(
-              '💰 GROOMY REVENUE ERROR → businessId=$businessId error=${snapshot.error}',
-            );
-          }
-          return _emptyBox('Revenue error: ${snapshot.error}');
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        final paidDocs = docs.where((doc) {
-          final data = doc.data();
-          final status = (data['status'] ?? '').toString().toLowerCase();
-          return status == 'confirmed_paid' || status == 'completed';
-        }).toList();
-
-        if (paidDocs.isEmpty) {
-          return _emptyBox('No revenue yet');
-        }
-
-        double netRevenue = 0;
-        double grossSales = 0;
-        double commissionTotal = 0;
-        double adjustmentsTotal = 0;
-
-        for (final doc in paidDocs) {
-          final data = doc.data();
-          final financial = Map<String, dynamic>.from(data['financial'] ?? {});
-          final pricing = Map<String, dynamic>.from(data['pricing'] ?? {});
-
-          final gross = _moneyValue(
-            pricing['total'] ??
-                pricing['grandTotal'] ??
-                data['paymentAmount'] ??
-                data['servicePrice'] ??
-                data['price'] ??
-                data['totalPrice'],
-          );
-          final commission = _moneyValue(
-            financial['platformCommissionAmount'] ??
-                financial['commissionAmount'] ??
-                data['platformFee'],
-          );
-          final explicitNet =
-              financial['groomyNetAmount'] ?? financial['netAmount'];
-          final net = explicitNet == null
-              ? gross - commission
-              : _moneyValue(explicitNet);
-
-          grossSales += gross;
-          commissionTotal += commission;
-          netRevenue += net;
-
-          if (kDebugMode) {
-            debugPrint(
-              '💸 GROOMY APPOINTMENT REVENUE → appointmentId=${doc.id} '
-              'gross=$gross commission=$commission net=$net',
-            );
-          }
-        }
-
-        final appointmentCount = paidDocs.length;
-        final averageTicket = appointmentCount == 0
-            ? 0.0
-            : grossSales / appointmentCount;
-
-        if (kDebugMode) {
-          debugPrint(
-            '💰 GROOMY FINAL REVENUE → businessId=$businessId '
-            'net=$netRevenue gross=$grossSales commission=$commissionTotal '
-            'appointments=$appointmentCount averageTicket=$averageTicket',
-          );
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF9E1B4F),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLocalizations.of(context)!.vetRevenueNetRevenue,
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '₺${netRevenue.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                AppLocalizations.of(context)!.afterPlatformCommission,
-                style: const TextStyle(color: Colors.white60, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              _revenueRow('Gross Sales', grossSales),
-              _revenueRow('Platform Fee', -commissionTotal),
-              _revenueRow('Adjustments', -adjustmentsTotal),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  _revenueKpi(
-                    label: 'Paid Appointments',
-                    value: appointmentCount.toString(),
-                  ),
-                  const SizedBox(width: 10),
-                  _revenueKpi(
-                    label: 'Average Ticket',
-                    value: '₺${averageTicket.toStringAsFixed(0)}',
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -803,65 +640,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
     return raw.toString();
   }
 
-  double _moneyValue(dynamic raw) {
-    if (raw == null) return 0;
-    if (raw is num) return raw.toDouble();
-    return double.tryParse(raw.toString()) ?? 0;
-  }
-
-  Widget _revenueRow(String title, double value) {
-    final isNegative = value < 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white70)),
-          Text(
-            '${isNegative ? '-' : ''}₺${value.abs().toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _revenueKpi({required String label, required String value}) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _statusPill(String status) {
     final color = _statusColor(status);
     return Container(
@@ -929,100 +707,6 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
         style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
       ),
     );
-  }
-
-  BusinessCardData _businessCardData() {
-    final profile = _profile;
-    final contact = _contact;
-    final rawData = _rootData;
-    final name =
-        (profile['displayName'] ??
-                profile['businessName'] ??
-                _groomyData['salonName'] ??
-                _groomyData['businessName'] ??
-                'Groomy Salon')
-            .toString();
-    final specialties = <String>[
-      ..._stringList(_groomyData['specialties']),
-      ..._stringList(
-        (_groomyData['services'] is Map)
-            ? (_groomyData['services'] as Map)['offeredServices']
-            : null,
-      ),
-    ];
-
-    return BusinessCardData(
-      id: businessId,
-      name: name,
-      city: (contact['city'] ?? '').toString(),
-      district: (contact['district'] ?? '').toString(),
-      address: (contact['address'] ?? '').toString(),
-      specialties: specialties,
-      services: _fallbackServices()
-          .map((service) => service['title']?.toString() ?? '')
-          .where((value) => value.trim().isNotEmpty)
-          .toList(),
-      phone: (contact['phone'] ?? _groomyData['phone'] ?? '').toString(),
-      whatsapp: (contact['whatsapp'] ?? _groomyData['whatsapp'] ?? '')
-          .toString(),
-      rating: _moneyValue(_rootData['rating']),
-      reviewsCount: (_rootData['reviewsCount'] as num?)?.toInt(),
-      workingHours: _workingHoursMap,
-      description:
-          (profile['description'] ??
-                  profile['bio'] ??
-                  _groomyData['description'] ??
-                  '')
-              .toString(),
-      isPartner: true,
-      isVerified: _rootData['isVerified'] == true,
-      is24h: _rootData['is24h'] == true,
-      isEmergency: _rootData['isEmergency'] == true,
-      type: BusinessType.groomer,
-      instagram: (profile['instagram'] ?? _groomyData['instagram'] ?? '')
-          .toString(),
-      website: (profile['website'] ?? _groomyData['website'] ?? '').toString(),
-      logoUrl: (profile['logoUrl'] ?? _groomyData['logoUrl'] ?? '').toString(),
-      rawData: rawData,
-      data: rawData,
-    );
-  }
-
-  List<String> _stringList(dynamic value) {
-    if (value is List) {
-      return value.map((item) => item?.toString() ?? '').toList();
-    }
-    final text = value?.toString() ?? '';
-    return text.trim().isEmpty ? <String>[] : <String>[text];
-  }
-
-  List<Map<String, dynamic>> _fallbackServices() {
-    final servicesData = _groomyData['services'];
-    List<String> titles = [];
-
-    if (servicesData is Map && servicesData['offeredServices'] is List) {
-      titles = List<String>.from(servicesData['offeredServices']);
-    } else if (servicesData is List) {
-      titles = servicesData.map((item) => item.toString()).toList();
-    } else if (_rootData['services'] is List) {
-      titles = List<String>.from(_rootData['services'] as List);
-    }
-
-    if (titles.isEmpty) {
-      titles = const ['Full Grooming', 'Bath & Dry', 'Nail Trimming'];
-    }
-
-    return titles
-        .where((title) => title.trim().isNotEmpty)
-        .map(
-          (title) => {
-            'id': title.toLowerCase().replaceAll(RegExp(r'\s+'), '-'),
-            'title': title,
-            'price': null,
-            'durationMin': 60,
-          },
-        )
-        .toList();
   }
 }
 

@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_header.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_card.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_grid.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_panel.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_status_pill.dart';
 
 import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_location_permission_service.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -30,7 +34,6 @@ class PetTaxiDashboardOverviewTab extends StatefulWidget {
 class _PetTaxiDashboardOverviewTabState
     extends State<PetTaxiDashboardOverviewTab> {
   bool _isAvailable = false;
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _revenueStream;
   StreamSubscription<Position>? _positionSubscription;
   double? _lastLat;
   double? _lastLng;
@@ -39,10 +42,6 @@ class _PetTaxiDashboardOverviewTabState
   @override
   void initState() {
     super.initState();
-    _revenueStream = FirebaseFirestore.instance
-        .collection('pet_taxi_bookings')
-        .where('businessId', isEqualTo: widget.businessId)
-        .snapshots(includeMetadataChanges: false);
     final sectorData = Map<String, dynamic>.from(
       widget.businessData['sectorData'] ?? {},
     );
@@ -98,48 +97,72 @@ class _PetTaxiDashboardOverviewTabState
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(
-              AppLocalizations.of(context)!.petTaxiOverview,
-              style: AppTheme.h2().copyWith(fontWeight: FontWeight.w800),
+            DashboardHeader(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppLocalizations.of(context)!.petTaxiOverview,
+                    style: AppTheme.h2().copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DashboardStatusPill(
+                    prefix: 'Driver',
+                    label: _isAvailable ? 'Online' : 'Offline',
+                    active: _isAvailable,
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: _stat('Pending', pending, Colors.orange)),
-                const SizedBox(width: 10),
-                Expanded(child: _stat('Active', active, Colors.blue)),
-                const SizedBox(width: 10),
-                Expanded(child: _stat('Done', completed, Colors.green)),
+            DashboardMetricGrid(
+              items: [
+                DashboardMetricData(
+                  label: 'Pending',
+                  value: pending.toString(),
+                  icon: LucideIcons.clock3,
+                ),
+                DashboardMetricData(
+                  label: 'Active',
+                  value: active.toString(),
+                  icon: LucideIcons.navigation,
+                ),
+                DashboardMetricData(
+                  label: 'Done',
+                  value: completed.toString(),
+                  icon: LucideIcons.checkCircle2,
+                ),
               ],
+              columns: 3,
+              compact: true,
             ),
             const SizedBox(height: 14),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: AppTheme.cardShadow(opacity: 0.05),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.local_taxi_rounded,
-                    color: Color(0xFFFF4F9B),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(context)!.driverOnline,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: DashboardPanel(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.local_taxi_rounded,
+                      color: Color(0xFFFF4F9B),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)!.driverOnline,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  Switch(value: _isAvailable, onChanged: _toggleAvailability),
-                ],
+                    Switch(value: _isAvailable, onChanged: _toggleAvailability),
+                  ],
+                ),
               ),
             ),
 
@@ -250,7 +273,11 @@ class _PetTaxiDashboardOverviewTabState
             )
             .listen(
               (position) async {
-                debugPrint("🔥 LOCATION STREAM EVENT");
+                debugPrint(
+                  'LOCATION_TRACE ${DateTime.now().toIso8601String()} '
+                  'overviewStateHash=${identityHashCode(this)} '
+                  'reason=PetTaxi_location_stream_callback businessId=${widget.businessId}',
+                );
 
                 debugPrint(
                   "📍 NEW POSITION = "
@@ -267,7 +294,9 @@ class _PetTaxiDashboardOverviewTabState
                 _lastLng = position.longitude;
 
                 debugPrint(
-                  "📍 FIRESTORE WRITE -> "
+                  "LOCATION_TRACE ${DateTime.now().toIso8601String()} "
+                  "overviewStateHash=${identityHashCode(this)} "
+                  "reason=PetTaxi_location_firestore_write_start "
                   "${position.latitude}, ${position.longitude}",
                 );
 
@@ -286,7 +315,9 @@ class _PetTaxiDashboardOverviewTabState
                     });
 
                 debugPrint(
-                  "🚕 DRIVER LOCATION UPDATED -> "
+                  "LOCATION_TRACE ${DateTime.now().toIso8601String()} "
+                  "overviewStateHash=${identityHashCode(this)} "
+                  "reason=PetTaxi_location_firestore_write_complete "
                   "${position.latitude}, ${position.longitude}",
                 );
               },
@@ -303,252 +334,45 @@ class _PetTaxiDashboardOverviewTabState
     super.dispose();
   }
 
-  Widget _buildRevenueCard() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _revenueStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-
-        final paidDocs = docs.where((doc) {
-          final status = (doc.data()['status'] ?? '').toString().toLowerCase();
-
-          return const {
-            'confirmed_paid',
-            'pet_picked_up',
-            'on_trip',
-            'completed',
-          }.contains(status);
-        }).toList();
-
-        if (paidDocs.isEmpty) {
-          return _infoCard(
-            title: 'Revenue',
-            icon: LucideIcons.wallet,
-            lines: ['No revenue yet'],
-          );
-        }
-
-        double grossSales = 0;
-        double commission = 0;
-        double netRevenue = 0;
-
-        for (final doc in paidDocs) {
-          final data = doc.data();
-          debugPrint("🚕 BOOKING ${doc.id}");
-          debugPrint(data.toString());
-          debugPrint("STATUS = ${data['status']}");
-          debugPrint("BOOKING STATUS = ${data['bookingStatus']}");
-          debugPrint("LIFECYCLE = ${data['lifecycleStatus']}");
-          final financial = Map<String, dynamic>.from(data['financial'] ?? {});
-
-          final pricing = Map<String, dynamic>.from(data['pricing'] ?? {});
-
-          final gross = _moneyValue(
-            pricing['grandTotal'] ?? pricing['subtotal'] ?? data['finalPrice'],
-          );
-
-          final fee = _moneyValue(
-            financial['platformCommissionAmount'] ??
-                financial['commissionAmount'],
-          );
-
-          final net = _moneyValue(
-            financial['businessNetAmount'] ?? gross - fee,
-          );
-
-          grossSales += gross;
-          commission += fee;
-          netRevenue += net;
-        }
-
-        final average = paidDocs.isEmpty ? 0 : grossSales / paidDocs.length;
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF9E1B4F),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLocalizations.of(context)!.vetRevenueNetRevenue,
-                style: const TextStyle(color: Colors.white70),
-              ),
-
-              const SizedBox(height: 6),
-
-              Text(
-                "₺${netRevenue.toStringAsFixed(0)}",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              _revenueRow("Gross Sales", grossSales),
-              _revenueRow("Platform Fee", -commission),
-              _revenueRow("Adjustments", 0),
-
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _miniRevenue(
-                      "Completed Trips",
-                      paidDocs.length.toString(),
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: _miniRevenue(
-                      "Average Trip",
-                      "₺${average.toStringAsFixed(0)}",
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _revenueRow(String title, double value) {
-    final negative = value < 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white70)),
-
-          Text(
-            "${negative ? "-" : ""}₺${value.abs().toStringAsFixed(0)}",
-            style: const TextStyle(color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _miniRevenue(String title, String value) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(title, style: const TextStyle(color: Colors.white60)),
-        ],
-      ),
-    );
-  }
-
-  double _moneyValue(dynamic value) {
-    if (value == null) return 0;
-
-    if (value is num) return value.toDouble();
-
-    return double.tryParse(value.toString()) ?? 0;
-  }
-
-  Widget _stat(String label, int value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _box(),
-      child: Column(
-        children: [
-          Text(
-            value.toString(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 24,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: AppTheme.caption(color: AppTheme.muted)),
-        ],
-      ),
-    );
-  }
-
   Widget _infoCard({
     required String title,
     required IconData icon,
     required List<String> lines,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: _box(),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: const Color(0xFF9E1B4F)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTheme.bodyMedium().copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...lines.map(
-                  (line) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      line,
-                      style: AppTheme.body(color: AppTheme.muted),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DashboardPanel(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: const Color(0xFF9E1B4F)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTheme.bodyMedium().copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  ...lines.map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        line,
+                        style: AppTheme.body(color: AppTheme.muted),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-
-  BoxDecoration _box() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: Colors.black12),
-      boxShadow: AppTheme.cardShadow(opacity: 0.05),
     );
   }
 }

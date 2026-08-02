@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboard.dart';
 import 'sections/pet_taxi_dashboard_bookings_tab.dart';
 import 'sections/pet_taxi_dashboard_overview_tab.dart';
 
-enum PetTaxiDashboardSection { overview, bookings }
+enum PetTaxiDashboardSection { overview, bookings, revenue }
 
 class PetTaxiDashboardPage extends StatefulWidget {
   final String businessId;
@@ -39,16 +41,24 @@ class _PetTaxiDashboardPageState extends State<PetTaxiDashboardPage> {
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
-                child: _selected == PetTaxiDashboardSection.overview
-                    ? PetTaxiDashboardOverviewTab(
-                        key: const ValueKey('overview'),
-                        businessId: widget.businessId,
-                        businessData: widget.businessData,
-                      )
-                    : PetTaxiDashboardBookingsTab(
-                        key: const ValueKey('bookings'),
-                        businessId: widget.businessId,
-                      ),
+                child: switch (_selected) {
+                  PetTaxiDashboardSection.overview =>
+                    PetTaxiDashboardOverviewTab(
+                      key: const ValueKey('overview'),
+                      businessId: widget.businessId,
+                      businessData: widget.businessData,
+                    ),
+                  PetTaxiDashboardSection.bookings =>
+                    PetTaxiDashboardBookingsTab(
+                      key: const ValueKey('bookings'),
+                      businessId: widget.businessId,
+                    ),
+                  PetTaxiDashboardSection.revenue => BusinessRevenueDashboard(
+                    key: const ValueKey('revenue'),
+                    businessId: widget.businessId,
+                    recordLabel: 'rides',
+                  ),
+                },
               ),
             ),
           ],
@@ -66,6 +76,7 @@ class _TopTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final revenueLabel = AppLocalizations.of(context)!.revenueTitle;
     final items = [
       (
         PetTaxiDashboardSection.overview,
@@ -73,6 +84,7 @@ class _TopTabs extends StatelessWidget {
         LucideIcons.layoutDashboard,
       ),
       (PetTaxiDashboardSection.bookings, 'Bookings', LucideIcons.calendarDays),
+      (PetTaxiDashboardSection.revenue, revenueLabel, LucideIcons.lineChart),
     ];
 
     return Container(
@@ -82,7 +94,7 @@ class _TopTabs extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final (section, title, icon) = items[index];
           final isSelected = selected == section;

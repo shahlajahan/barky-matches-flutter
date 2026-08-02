@@ -13,11 +13,13 @@ import 'package:barky_matches_fixed/ui/business/dashboard/pet_taxi/pet_taxi_dash
 import 'package:barky_matches_fixed/ui/business/dashboard/pet_taxi/pet_taxi_web_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/adoption_center_dashboard_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/adoption_center_web_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/petshop/petshop_web_dashboard_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_web_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_panel.dart';
 
 enum BusinessSector { vet, petShop, groomy, petHotel, petTaxi, adoptionCenter }
 
@@ -104,6 +106,11 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
   @override
   void initState() {
     super.initState();
+    debugPrint(
+      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
+      'businessDashboardStateHash=${identityHashCode(this)} '
+      'reason=BusinessDashboardPage_initState businessId=${widget.businessId}',
+    );
     //debugPrint('🏢 BusinessDashboardPage initState ${identityHashCode(this)}');
     _bindBusinessStream();
   }
@@ -124,7 +131,9 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     }
 
     debugPrint(
-      "🏢 BusinessDashboardPage didUpdateWidget "
+      "[REBUILD_TRACE] ${DateTime.now().toIso8601String()} "
+      "businessDashboardStateHash=${identityHashCode(this)} "
+      "reason=BusinessDashboardPage_didUpdateWidget "
       "oldHash=${identityHashCode(oldWidget)} "
       "newHash=${identityHashCode(widget)} "
       "sameBusiness=${oldWidget.businessId == widget.businessId}",
@@ -151,7 +160,11 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("🔥 BusinessDashboardPage BUILD");
+    debugPrint(
+      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
+      'businessDashboardStateHash=${identityHashCode(this)} '
+      'reason=BusinessDashboardPage_build businessId=${widget.businessId}',
+    );
 
     final l10n = AppLocalizations.of(context)!;
     return Container(
@@ -163,7 +176,7 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
           /// ⏳ LOADING
           /// =============================
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const _LoadingView();
           }
 
           /// =============================
@@ -228,13 +241,18 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
       length: available.length,
       child: Column(
         children: [
-          Material(
-            color: Colors.white,
-            child: TabBar(
-              isScrollable: true,
-              tabs: available.map((sector) {
-                return Tab(text: _sectorTitle(sector));
-              }).toList(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: DashboardPanel(
+              child: Material(
+                color: Colors.transparent,
+                child: TabBar(
+                  isScrollable: true,
+                  tabs: available.map((sector) {
+                    return Tab(text: _sectorTitle(sector));
+                  }).toList(),
+                ),
+              ),
             ),
           ),
           Expanded(
@@ -256,9 +274,15 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     BusinessSector sector,
     Map<String, dynamic> data,
   ) {
-    // Pet Shop and Vet own their overview placement and embed the shared
-    // finance section directly below the profile.
-    if (sector == BusinessSector.petShop || sector == BusinessSector.vet) {
+    if (sector == BusinessSector.petTaxi) {
+      return _buildSingleDashboard(context, sector, data);
+    }
+
+    // Pet Shop, Groomy, and Vet own their dashboard Revenue destinations.
+    if (sector == BusinessSector.petShop ||
+        sector == BusinessSector.groomy ||
+        sector == BusinessSector.vet ||
+        sector == BusinessSector.adoptionCenter) {
       return _buildSingleDashboard(context, sector, data);
     }
     final l10n = AppLocalizations.of(context)!;
@@ -348,6 +372,12 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
         );
 
       case BusinessSector.adoptionCenter:
+        if (isDesktopWeb) {
+          return AdoptionCenterWebDashboardPage(
+            businessId: widget.businessId,
+            businessData: data,
+          );
+        }
         return AdoptionCenterDashboardPage(
           businessId: widget.businessId,
           businessData: data,
@@ -439,21 +469,39 @@ class _BaseStateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48, color: Colors.black38),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              style: AppTheme.body(color: AppTheme.muted),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(onPressed: onPressed, child: Text(buttonText)),
-          ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: DashboardPanel(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 48, color: const Color(0xFF9E1B4F)),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: AppTheme.body(color: AppTheme.muted),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: onPressed, child: Text(buttonText)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: DashboardPanel(
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(color: Color(0xFF9E1B4F)),
         ),
       ),
     );

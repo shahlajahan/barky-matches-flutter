@@ -169,8 +169,8 @@ class _HomeGateState extends State<HomeGate> {
   Widget build(BuildContext context) {
     StartupBenchmark.markOnce('HomeGate.build');
     debugPrint(
-      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
-      'HomeGate.build hash=${identityHashCode(this)}',
+      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
+      'homeGateHash=${identityHashCode(this)} reason=HomeGate_build',
     );
     debugPrint('🧱 HomeGate build hash=${identityHashCode(this)}');
 
@@ -703,7 +703,19 @@ class _ProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selectedSubPage = context.select<AppState, ProfileSubPage>(
+      (state) => state.profileSubPage,
+    );
+    if (selectedSubPage == ProfileSubPage.businessDashboard) {
+      return const _BusinessDashboardTab();
+    }
+
     final appState = context.watch<AppState>();
+    debugPrint(
+      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
+      'profileTabHash=${identityHashCode(this)} reason=HomeGate_ProfileTab_build '
+      'subPage=${appState.profileSubPage} businessId=${appState.businessId}',
+    );
 
     final uid = appState.currentUserId;
     final myDogs = appState.myDogs;
@@ -774,14 +786,6 @@ class _ProfileTab extends StatelessWidget {
 
     // 🟢 Business Dashboard
 
-    if (subPage == ProfileSubPage.businessDashboard) {
-      final businessId = appState.businessId;
-      if (businessId == null || businessId.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      return BusinessDashboardPage(businessId: businessId);
-    }
-
     if (subPage == ProfileSubPage.helpCenter) {
       return const HelpCenterPage();
     }
@@ -796,6 +800,29 @@ class _ProfileTab extends StatelessWidget {
       favoriteDogs: favoriteDogs,
       onToggleFavorite: onToggleFavorite,
       userId: uid,
+    );
+  }
+}
+
+class _BusinessDashboardTab extends StatelessWidget {
+  const _BusinessDashboardTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final businessId = context.select<AppState, String?>(
+      (state) => state.businessId,
+    );
+    debugPrint(
+      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
+      'businessTabHash=${identityHashCode(this)} reason=HomeGate_BusinessDashboardTab_build '
+      'businessId=$businessId',
+    );
+    if (businessId == null || businessId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return BusinessDashboardPage(
+      key: ValueKey(businessId),
+      businessId: businessId,
     );
   }
 }

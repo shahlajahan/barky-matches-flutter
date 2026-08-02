@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -6,15 +8,119 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/pet_hotel/edit_pet_hotel_profile_page.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_header.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_card.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_grid.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_panel.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_section.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_status_pill.dart';
 
-class PetHotelDashboardOverviewTab extends StatelessWidget {
+class PetHotelDashboardOverviewTab extends StatefulWidget {
   final String businessId;
   final Map<String, dynamic> businessData;
 
-  const PetHotelDashboardOverviewTab({
+  PetHotelDashboardOverviewTab({
     super.key,
     required this.businessId,
     required this.businessData,
+  }) {
+    debugPrint(
+      '[HOTEL_OVERVIEW_TRACE] ${DateTime.now().toIso8601String()} '
+      'constructor widget=${identityHashCode(this)} businessId=$businessId '
+      'selectedTab=overview',
+    );
+  }
+
+  @override
+  State<PetHotelDashboardOverviewTab> createState() =>
+      _PetHotelDashboardOverviewTabState();
+}
+
+class _PetHotelDashboardOverviewTabState
+    extends State<PetHotelDashboardOverviewTab> {
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _bookingsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _bookingsStream = _createBookingsStream(widget.businessId);
+    debugPrint(
+      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+      'overview initState state=${identityHashCode(this)} '
+      'businessId=${widget.businessId} selectedTab=overview '
+      'stream=${identityHashCode(_bookingsStream)}',
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant PetHotelDashboardOverviewTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint(
+      '[HOTEL_OVERVIEW_TRACE] ${DateTime.now().toIso8601String()} '
+      'didUpdateWidget state=${identityHashCode(this)} '
+      'businessId=${widget.businessId} oldBusinessId=${oldWidget.businessId} '
+      'stream=${identityHashCode(_bookingsStream)}',
+    );
+    if (oldWidget.businessId != widget.businessId) {
+      _bookingsStream = _createBookingsStream(widget.businessId);
+    }
+  }
+
+  @override
+  void dispose() {
+    debugPrint(
+      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+      'overview dispose state=${identityHashCode(this)} '
+      'businessId=${widget.businessId} stream=${identityHashCode(_bookingsStream)}',
+    );
+    super.dispose();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _createBookingsStream(
+    String businessId,
+  ) {
+    final stream = FirebaseFirestore.instance
+        .collection('hotel_bookings')
+        .where('businessId', isEqualTo: businessId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .handleError((e) {
+          debugPrint(
+            '🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e',
+          );
+        });
+    debugPrint(
+      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+      'overview create stream businessId=$businessId '
+      'stream=${identityHashCode(stream)}',
+    );
+    return stream;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint(
+      '[HOTEL_OVERVIEW_TRACE] ${DateTime.now().toIso8601String()} '
+      'build state=${identityHashCode(this)} businessId=${widget.businessId} '
+      'stream=${identityHashCode(_bookingsStream)}',
+    );
+    return _PetHotelDashboardOverviewContent(
+      businessId: widget.businessId,
+      businessData: widget.businessData,
+      bookingsStream: _bookingsStream,
+    );
+  }
+}
+
+class _PetHotelDashboardOverviewContent extends StatelessWidget {
+  final String businessId;
+  final Map<String, dynamic> businessData;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> bookingsStream;
+
+  const _PetHotelDashboardOverviewContent({
+    required this.businessId,
+    required this.businessData,
+    required this.bookingsStream,
   });
 
   int _maxCapacity(Map<String, dynamic> data) {
@@ -80,25 +186,21 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stream = FirebaseFirestore.instance
-        .collection('hotel_bookings')
-        .where('businessId', isEqualTo: businessId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .handleError((e) {
-          debugPrint(
-            '🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e',
-          );
-        });
-
     debugPrint(
-      '🔥 LISTENING PATH => hotel_bookings where businessId == $businessId',
+      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+      'overview StreamBuilder build businessId=$businessId '
+      'stream=${identityHashCode(bookingsStream)}',
     );
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: stream,
+      stream: bookingsStream,
       builder: (context, snapshot) {
-        debugPrint('🔥 DOC COUNT => ${snapshot.data?.docs.length}');
+        debugPrint(
+          '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+          'overview builder businessId=$businessId '
+          'stream=${identityHashCode(bookingsStream)} '
+          'state=${snapshot.connectionState} docs=${snapshot.data?.docs.length}',
+        );
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -135,80 +237,186 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
             .where((doc) => doc.data()['status'] == 'pending')
             .take(3)
             .toList();
+        final upcomingDocs = docs
+            .where((doc) {
+              final status = doc.data()['status'];
+              final checkIn = _date(doc.data()['checkInDate']);
+              return checkIn != null &&
+                  checkIn.isAfter(now) &&
+                  status != 'rejected' &&
+                  status != 'cancelled' &&
+                  status != 'completed';
+            })
+            .take(3)
+            .toList();
+        final activeDocs = docs
+            .where((doc) => _isActiveStay(doc.data(), now))
+            .take(3)
+            .toList();
+        final availableCapacity = math.max(0, maxCapacity - activePets);
+        final paidDocs = docs.where((doc) => _isPaidBooking(doc.data()));
+        final recordedRevenue = paidDocs.fold<double>(
+          0,
+          (total, doc) =>
+              total + _money(doc.data()['totalPrice'] ?? doc.data()['price']),
+        );
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text(
-              AppLocalizations.of(context)!.hotelProfile,
-              style: AppTheme.h2(),
-            ),
-            const SizedBox(height: 10),
-            _profileCard(context),
-            const SizedBox(height: 20),
-            Text(
-              AppLocalizations.of(context)!.hotelOverview,
-              style: AppTheme.h2(),
-            ),
-            const SizedBox(height: 12),
-            Row(
+        final l10n = AppLocalizations.of(context)!;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 1000 ? 4 : 2;
+            final profile = _map(businessData['profile']);
+            final hotelData = _hotelData(businessData);
+            final hotelName =
+                (profile['displayName'] ??
+                        profile['businessName'] ??
+                        hotelData['hotelName'] ??
+                        hotelData['businessName'] ??
+                        'Pet Hotel')
+                    .toString();
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                _KpiCard(
-                  title: 'Bookings',
-                  value: '$totalBookings',
-                  icon: LucideIcons.calendarDays,
+                DashboardHeader(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hotelName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        l10n.hotelOverview,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      const SizedBox(height: 12),
+                      DashboardStatusPill(
+                        prefix: 'Hotel',
+                        label: availableCapacity > 0
+                            ? 'Available capacity'
+                            : 'At capacity',
+                        active: availableCapacity > 0,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 10),
-                _KpiCard(
-                  title: 'Active pets',
-                  value: '$activePets',
-                  icon: LucideIcons.dog,
+                const SizedBox(height: 18),
+                _profileCard(context),
+                const SizedBox(height: 18),
+                DashboardMetricGrid(
+                  columns: columns,
+                  compact: true,
+                  items: [
+                    DashboardMetricData(
+                      label: 'Total bookings',
+                      value: '$totalBookings',
+                      icon: LucideIcons.calendarDays,
+                    ),
+                    DashboardMetricData(
+                      label: 'Pending bookings',
+                      value: '$pendingRequests',
+                      icon: LucideIcons.clock,
+                    ),
+                    DashboardMetricData(
+                      label: 'Active stays',
+                      value: '$activePets',
+                      icon: LucideIcons.dog,
+                    ),
+                    DashboardMetricData(
+                      label: 'Completed stays',
+                      value: '$completedStays',
+                      icon: LucideIcons.checkCircle,
+                    ),
+                    DashboardMetricData(
+                      label: 'Occupancy',
+                      value: '$occupancy%',
+                      icon: LucideIcons.hotel,
+                    ),
+                    DashboardMetricData(
+                      label: 'Available capacity',
+                      value: '$availableCapacity',
+                      icon: LucideIcons.bed,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                DashboardPanel(
+                  child: DashboardSection(
+                    title: 'Revenue summary',
+                    child: Wrap(
+                      spacing: 24,
+                      runSpacing: 12,
+                      children: [
+                        _SummaryValue(
+                          label: 'Recorded revenue',
+                          value: '₺${recordedRevenue.toStringAsFixed(2)}',
+                        ),
+                        _SummaryValue(
+                          label: 'Paid bookings',
+                          value: '${paidDocs.length}',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _bookingPanel(
+                  title: 'Upcoming check-ins',
+                  emptyText: 'No upcoming check-ins',
+                  docs: upcomingDocs,
+                ),
+                const SizedBox(height: 18),
+                _bookingPanel(
+                  title: 'Current stays',
+                  emptyText: 'No active stays',
+                  docs: activeDocs,
+                ),
+                const SizedBox(height: 18),
+                DashboardPanel(
+                  child: DashboardSection(
+                    title: l10n.pendingRequests,
+                    child: pendingDocs.isEmpty
+                        ? _emptyBox('No pending hotel booking requests')
+                        : Column(
+                            children: [
+                              for (final doc in pendingDocs)
+                                _PendingBookingCard(
+                                  bookingId: doc.id,
+                                  data: doc.data(),
+                                ),
+                            ],
+                          ),
+                  ),
                 ),
               ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _KpiCard(
-                  title: 'Pending',
-                  value: '$pendingRequests',
-                  icon: LucideIcons.clock,
-                ),
-                const SizedBox(width: 10),
-                _KpiCard(
-                  title: 'Completed',
-                  value: '$completedStays',
-                  icon: LucideIcons.checkCircle,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Spacer(),
-                _KpiCard(
-                  title: 'Occupancy',
-                  value: '$occupancy%',
-                  icon: LucideIcons.hotel,
-                ),
-              ],
-            ),
-            const SizedBox(height: 22),
-            Text(
-              AppLocalizations.of(context)!.pendingRequests,
-              style: AppTheme.h2(),
-            ),
-            const SizedBox(height: 10),
-            if (pendingDocs.isEmpty)
-              _emptyBox('No pending hotel booking requests')
-            else
-              ...pendingDocs.map(
-                (doc) =>
-                    _PendingBookingCard(bookingId: doc.id, data: doc.data()),
-              ),
-          ],
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _bookingPanel({
+    required String title,
+    required String emptyText,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  }) {
+    return DashboardPanel(
+      child: DashboardSection(
+        title: title,
+        child: docs.isEmpty
+            ? _emptyBox(emptyText)
+            : Column(
+                children: [
+                  for (final doc in docs) _HotelBookingRow(data: doc.data()),
+                ],
+              ),
+      ),
     );
   }
 
@@ -284,116 +492,6 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _revenueCard(
-    BuildContext context, {
-    required double netRevenue,
-    required double grossSales,
-    required double commissionTotal,
-    required int paidBookingCount,
-    required double averageTicket,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppLocalizations.of(context)!.vetRevenueNetRevenue,
-            style: const TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '₺${netRevenue.toStringAsFixed(0)}',
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            AppLocalizations.of(context)!.afterPlatformCommission,
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          _revenueRow('Gross Sales', grossSales),
-          _revenueRow('Platform Fee', -commissionTotal),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _revenueKpi(
-                label: 'Paid Bookings',
-                value: paidBookingCount.toString(),
-              ),
-              const SizedBox(width: 10),
-              _revenueKpi(
-                label: 'Average Ticket',
-                value: '₺${averageTicket.toStringAsFixed(0)}',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _revenueRow(String title, double value) {
-    final isNegative = value < 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white70)),
-          Text(
-            '${isNegative ? '-' : ''}₺${value.abs().toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _revenueKpi({required String label, required String value}) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _emptyBox(String text) {
     return Container(
       width: double.infinity,
@@ -431,52 +529,75 @@ class PetHotelDashboardOverviewTab extends StatelessWidget {
   }
 }
 
-class _KpiCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
+class _SummaryValue extends StatelessWidget {
+  const _SummaryValue({required this.label, required this.value});
 
-  const _KpiCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
+  final String label;
+  final String value;
 
   @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppTheme.cardShadow(opacity: 0.05),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFF9E1B4F)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTheme.bodyMedium().copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(title, style: AppTheme.caption(color: AppTheme.muted)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Widget build(BuildContext context) => SizedBox(
+    width: 160,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTheme.caption(color: AppTheme.muted)),
+        const SizedBox(height: 3),
+        Text(value, style: AppTheme.h3(weight: FontWeight.w800)),
+      ],
+    ),
+  );
+}
+
+class _HotelBookingRow extends StatelessWidget {
+  const _HotelBookingRow({required this.data});
+
+  final Map<String, dynamic> data;
+
+  DateTime? _date(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
+
+  String _range() {
+    final checkIn = _date(data['checkInDate']);
+    final checkOut = _date(data['checkOutDate']);
+    if (checkIn == null || checkOut == null) return 'Dates unavailable';
+    String format(DateTime value) =>
+        '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+    return '${format(checkIn)} → ${format(checkOut)}';
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(LucideIcons.dog, color: Color(0xFF9E1B4F), size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${data['petName'] ?? data['dogName'] ?? 'Pet'} • ${data['serviceTitle'] ?? 'Stay'}',
+                style: AppTheme.body(weight: FontWeight.w700),
+              ),
+              const SizedBox(height: 3),
+              Text(_range(), style: AppTheme.caption(color: AppTheme.muted)),
+            ],
+          ),
+        ),
+        Text(
+          '${data['status'] ?? 'pending'}',
+          style: AppTheme.caption(color: const Color(0xFF9E1B4F)),
+        ),
+      ],
+    ),
+  );
 }
 
 class _PendingBookingCard extends StatelessWidget {

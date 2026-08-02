@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../web/business_web_dashboard_shell.dart';
-import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
+import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboard.dart';
 import 'pet_taxi_dashboard_page.dart';
 
 class PetTaxiWebDashboardPage extends StatelessWidget {
@@ -32,7 +32,7 @@ class PetTaxiWebDashboardPage extends StatelessWidget {
         label: 'Revenue',
         subtitle: 'Verified payments and settlement data',
         icon: LucideIcons.lineChart,
-        child: SellerFinanceSummarySection(
+        child: BusinessRevenueDashboard(
           businessId: businessId,
           recordLabel: 'rides',
         ),

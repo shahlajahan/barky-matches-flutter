@@ -8,13 +8,12 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_services_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_service_detail_page.dart';
 
-import 'dashboard/groomy_services_tab.dart';
-
 import 'sections/groomy_dashboard_overview_tab.dart';
 import 'sections/groomy_dashboard_gallery_tab.dart';
 import 'sections/groomy_dashboard_appointments_tab.dart';
+import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboard.dart';
 
-enum GroomyDashboardSection { overview, gallery, appointments }
+enum GroomyDashboardSection { overview, gallery, appointments, revenue }
 
 class GroomyDashboardPage extends StatefulWidget {
   final String businessId;
@@ -138,6 +137,11 @@ class _GroomyDashboardPageState extends State<GroomyDashboardPage> {
                         key: const ValueKey('appointments'),
                         businessId: widget.businessId,
                       ),
+                      BusinessRevenueDashboard(
+                        key: const ValueKey('revenue'),
+                        businessId: widget.businessId,
+                        recordLabel: 'appointments',
+                      ),
                     ],
                   ),
                 ),
@@ -222,6 +226,7 @@ class _TopTabs extends StatelessWidget {
         'Appointments',
         LucideIcons.calendar,
       ),
+      (GroomyDashboardSection.revenue, 'Revenue', LucideIcons.lineChart),
     ];
 
     return Container(

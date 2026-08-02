@@ -100,6 +100,15 @@ class AppState with ChangeNotifier {
   @override
   void notifyListeners() {
     if (_disposed) return;
+    final notifyStack = StackTrace.current.toString().split('\n');
+    final notifyReason = notifyStack.length > 1
+        ? notifyStack[1].trim()
+        : 'unknown_callsite';
+    debugPrint(
+      'APPSTATE_NOTIFY_TRACE ${DateTime.now().toIso8601String()} '
+      'appStateHash=${identityHashCode(this)} reason=AppState.notifyListeners '
+      'callsite=$notifyReason',
+    );
     if (kDebugMode && kIsWeb) {
       final sequence = ++_webNotifySequence;
       debugPrint(

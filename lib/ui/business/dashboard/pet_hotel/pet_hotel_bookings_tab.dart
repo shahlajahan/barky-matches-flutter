@@ -8,13 +8,63 @@ import 'package:barky_matches_fixed/ui/marketplace/marketplace_invoice_policy.da
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
-class PetHotelBookingsTab extends StatelessWidget {
+class PetHotelBookingsTab extends StatefulWidget {
   final String businessId;
 
-  const PetHotelBookingsTab({super.key, required this.businessId});
+  PetHotelBookingsTab({super.key, required this.businessId}) {
+    debugPrint(
+      '[HOTEL_BOOKINGS_TRACE] ${DateTime.now().toIso8601String()} '
+      'constructor widget=${identityHashCode(this)} businessId=$businessId '
+      'selectedTab=bookings',
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  State<PetHotelBookingsTab> createState() => _PetHotelBookingsTabState();
+}
+
+class _PetHotelBookingsTabState extends State<PetHotelBookingsTab> {
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _bookingsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _bookingsStream = _createBookingsStream(widget.businessId);
+    debugPrint(
+      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+      'bookings initState state=${identityHashCode(this)} '
+      'businessId=${widget.businessId} selectedTab=bookings '
+      'stream=${identityHashCode(_bookingsStream)}',
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant PetHotelBookingsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint(
+      '[HOTEL_BOOKINGS_TRACE] ${DateTime.now().toIso8601String()} '
+      'didUpdateWidget state=${identityHashCode(this)} '
+      'businessId=${widget.businessId} oldBusinessId=${oldWidget.businessId} '
+      'stream=${identityHashCode(_bookingsStream)}',
+    );
+    if (oldWidget.businessId != widget.businessId) {
+      _bookingsStream = _createBookingsStream(widget.businessId);
+    }
+  }
+
+  @override
+  void dispose() {
+    debugPrint(
+      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+      'bookings dispose state=${identityHashCode(this)} '
+      'businessId=${widget.businessId} stream=${identityHashCode(_bookingsStream)}',
+    );
+    super.dispose();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _createBookingsStream(
+    String businessId,
+  ) {
     final stream = FirebaseFirestore.instance
         .collection('hotel_bookings')
         .where('businessId', isEqualTo: businessId)
@@ -25,12 +75,47 @@ class PetHotelBookingsTab extends StatelessWidget {
           );
         });
     debugPrint(
-      '🔥 LISTENING PATH => hotel_bookings where businessId == $businessId',
+      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+      'bookings create stream businessId=$businessId '
+      'stream=${identityHashCode(stream)}',
     );
+    return stream;
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    debugPrint(
+      '[HOTEL_BOOKINGS_TRACE] ${DateTime.now().toIso8601String()} '
+      'build state=${identityHashCode(this)} businessId=${widget.businessId} '
+      'stream=${identityHashCode(_bookingsStream)}',
+    );
+    return _PetHotelBookingsContent(
+      businessId: widget.businessId,
+      bookingsStream: _bookingsStream,
+    );
+  }
+}
+
+class _PetHotelBookingsContent extends StatelessWidget {
+  final String businessId;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> bookingsStream;
+
+  const _PetHotelBookingsContent({
+    required this.businessId,
+    required this.bookingsStream,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: stream,
+      stream: bookingsStream,
       builder: (context, snapshot) {
+        debugPrint(
+          '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
+          'bookings builder businessId=$businessId '
+          'stream=${identityHashCode(bookingsStream)} '
+          'state=${snapshot.connectionState} docs=${snapshot.data?.docs.length}',
+        );
         if (snapshot.hasError) {
           return _centerText('Booking error: ${snapshot.error}');
         }

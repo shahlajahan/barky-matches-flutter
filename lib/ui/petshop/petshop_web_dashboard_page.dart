@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../business/dashboard/web/business_web_dashboard_shell.dart';
-import '../business/dashboard/vet/web/revenue/vet_revenue_repository.dart';
-import '../business/dashboard/vet/web/revenue/vet_revenue_section.dart';
+import '../business/finance/business_revenue_dashboard.dart';
 import 'petshop_dashboard_page.dart';
 
 class PetShopWebDashboardPage extends StatelessWidget {
@@ -24,18 +23,15 @@ class PetShopWebDashboardPage extends StatelessWidget {
         label: 'Operations',
         subtitle: 'Orders, products and returns',
         icon: LucideIcons.layoutDashboard,
-        child: PetShopDashboardPage(),
+        child: PetShopDashboardPage(showRevenueTab: false),
       ),
       BusinessWebDashboardDestination(
         label: 'Revenue',
         subtitle: 'Verified payments and payout data',
         icon: LucideIcons.lineChart,
-        child: VetRevenueSection(
+        child: BusinessRevenueDashboard(
           businessId: businessId,
-          repository: VetRevenueRepository(
-            collectionName: 'sellerOrders',
-            businessIdField: 'shopId',
-          ),
+          recordLabel: 'orders',
         ),
       ),
     ],

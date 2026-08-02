@@ -18,8 +18,15 @@ import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/sectio
 import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/adoption_center_requests_tab.dart';
 
 import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/edit_adoption_center_profile_page.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/adoption_impact_dashboard.dart';
 
-enum AdoptionCenterDashboardSection { overview, pets, gallery, requests }
+enum AdoptionCenterDashboardSection {
+  overview,
+  pets,
+  gallery,
+  requests,
+  impact,
+}
 
 class AdoptionCenterDashboardPage extends StatefulWidget {
   final String businessId;
@@ -199,6 +206,12 @@ class _AdoptionCenterDashboardPageState
 
           businessId: widget.businessId,
         );
+      case AdoptionCenterDashboardSection.impact:
+        return AdoptionImpactDashboard(
+          key: const ValueKey('impact'),
+          businessId: widget.businessId,
+          onAddAnimal: context.read<AppState>().openAddService,
+        );
     }
   }
 }
@@ -222,6 +235,11 @@ class _TopTabs extends StatelessWidget {
       ),
 
       (AdoptionCenterDashboardSection.gallery, 'Gallery', LucideIcons.image),
+      (
+        AdoptionCenterDashboardSection.impact,
+        'Impact',
+        LucideIcons.heartHandshake,
+      ),
     ];
 
     return Container(
@@ -236,7 +254,7 @@ class _TopTabs extends StatelessWidget {
 
         itemCount: items.length,
 
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
 
         itemBuilder: (context, index) {
           final (section, title, icon) = items[index];
@@ -258,7 +276,7 @@ class _TopTabs extends StatelessWidget {
 
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
 
                     blurRadius: 10,
 

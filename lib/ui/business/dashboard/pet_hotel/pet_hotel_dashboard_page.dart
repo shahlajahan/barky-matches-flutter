@@ -6,6 +6,8 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_service_detail_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_services_page.dart';
+import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboard.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'pet_hotel_availability_tab.dart';
 import 'pet_hotel_bookings_tab.dart';
@@ -17,6 +19,7 @@ import 'pet_hotel_services_tab.dart';
 enum PetHotelDashboardSection {
   overview,
   bookings,
+  revenue,
   services,
   availability,
   reviews,
@@ -27,11 +30,17 @@ class PetHotelDashboardPage extends StatefulWidget {
   final String businessId;
   final Map<String, dynamic> businessData;
 
-  const PetHotelDashboardPage({
+  PetHotelDashboardPage({
     super.key,
     required this.businessId,
     required this.businessData,
-  });
+  }) {
+    debugPrint(
+      '[HOTEL_PAGE_TRACE] ${DateTime.now().toIso8601String()} '
+      'constructor widget=${identityHashCode(this)} businessId=$businessId '
+      'selectedTab=overview',
+    );
+  }
 
   @override
   State<PetHotelDashboardPage> createState() => _PetHotelDashboardPageState();
@@ -53,9 +62,11 @@ class _PetHotelDashboardPageState extends State<PetHotelDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final businessSubPage = context.select<AppState, BusinessSubPage>(
+      (state) => state.businessSubPage,
+    );
 
-    if (appState.businessSubPage == BusinessSubPage.addService) {
+    if (businessSubPage == BusinessSubPage.addService) {
       return AddServicesPage(
         businessId: widget.businessId,
         services: _hotelServiceTemplates,
@@ -65,12 +76,21 @@ class _PetHotelDashboardPageState extends State<PetHotelDashboardPage> {
       );
     }
 
-    if (appState.businessSubPage == BusinessSubPage.addServiceDetail) {
+    if (businessSubPage == BusinessSubPage.addServiceDetail) {
+      final serviceTitle = context.select<AppState, String?>(
+        (state) => state.selectedServiceTitle,
+      );
+      final serviceId = context.select<AppState, String?>(
+        (state) => state.editingServiceId,
+      );
+      final serviceData = context.select<AppState, Map<String, dynamic>?>(
+        (state) => state.editingServiceData,
+      );
       return AddServiceDetailPage(
         businessId: widget.businessId,
-        serviceTitle: appState.selectedServiceTitle ?? '',
-        serviceId: appState.editingServiceId,
-        existingData: appState.editingServiceData,
+        serviceTitle: serviceTitle ?? '',
+        serviceId: serviceId,
+        existingData: serviceData,
       );
     }
 
@@ -111,6 +131,12 @@ class _PetHotelDashboardPageState extends State<PetHotelDashboardPage> {
           key: const ValueKey('bookings'),
           businessId: widget.businessId,
         );
+      case PetHotelDashboardSection.revenue:
+        return BusinessRevenueDashboard(
+          key: const ValueKey('revenue'),
+          businessId: widget.businessId,
+          recordLabel: 'bookings',
+        );
       case PetHotelDashboardSection.services:
         return PetHotelServicesTab(
           key: const ValueKey('services'),
@@ -144,6 +170,7 @@ class _TopTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final revenueLabel = AppLocalizations.of(context)!.revenueTitle;
     final items = [
       (
         PetHotelDashboardSection.overview,
@@ -151,6 +178,7 @@ class _TopTabs extends StatelessWidget {
         LucideIcons.layoutDashboard,
       ),
       (PetHotelDashboardSection.bookings, 'Bookings', LucideIcons.calendarDays),
+      (PetHotelDashboardSection.revenue, revenueLabel, LucideIcons.lineChart),
       (PetHotelDashboardSection.services, 'Services', LucideIcons.hotel),
       (PetHotelDashboardSection.availability, 'Availability', LucideIcons.bed),
       (PetHotelDashboardSection.reviews, 'Reviews', LucideIcons.star),

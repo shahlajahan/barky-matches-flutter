@@ -1525,11 +1525,14 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   // The full Web Creator Dashboard — reached when a signed-in, approved
   // creator taps "Open Full Dashboard" in the lightweight mobile page
-  // (lib/ui/creator/creator_dashboard_page.dart), which launches
-  // https://app.petsupo.com/creator/dashboard in an external browser.
-  // CreatorDashboardWebPage itself gates on auth + AppState.creatorEnabled,
-  // the same way user_profile_page.dart's businessDashboard branch gates
-  // on hasApprovedBusiness — see lib/ui/creator/creator_dashboard_web_page.dart.
+  // (lib/ui/creator/creator_dashboard_page.dart). On Web this is a same-tab,
+  // same-origin navigation (see resolveCreatorDashboardNavigation /
+  // openCreatorDashboardSameTab) so the Firebase Auth session survives; on
+  // iOS/Android it instead opens app.petsupo.com/creator/dashboard in an
+  // external browser. CreatorDashboardWebPage itself gates on auth +
+  // AppState.creatorEnabled, the same way user_profile_page.dart's
+  // businessDashboard branch gates on hasApprovedBusiness — see
+  // lib/ui/creator/creator_dashboard_web_page.dart.
   Widget? _webCreatorDashboardPage() {
     if (!kIsWeb) return null;
     if (Uri.base.path != '/creator/dashboard') return null;

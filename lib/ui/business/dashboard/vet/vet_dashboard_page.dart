@@ -13,8 +13,9 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_services_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/add_service_detail_page.dart';
 
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_detail_page.dart';
+import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboard.dart';
 
-enum VetDashboardSection { overview, appointments }
+enum VetDashboardSection { overview, appointments, revenue }
 
 class VetDashboardPage extends StatefulWidget {
   final String businessId;
@@ -138,6 +139,11 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
         key: const ValueKey('appointments'),
         businessId: widget.businessId,
       ),
+      BusinessRevenueDashboard(
+        key: const ValueKey('revenue'),
+        businessId: widget.businessId,
+        recordLabel: 'appointments',
+      ),
     ];
   }
 }
@@ -163,6 +169,7 @@ class _TopTabs extends StatelessWidget {
         l10n.appointmentsTab,
         LucideIcons.calendar,
       ),
+      (VetDashboardSection.revenue, l10n.revenueTitle, LucideIcons.barChart3),
     ];
 
     return Container(

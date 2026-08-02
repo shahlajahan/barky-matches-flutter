@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -17,20 +16,94 @@ import 'package:barky_matches_fixed/ui/returns/order_return_card.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/ui/business/petshop/edit_petshop_profile_page.dart';
-import 'package:flutter/foundation.dart';
-
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
-import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
+import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboard.dart';
+
+enum PetShopDashboardSection { overview, revenue }
 
 class PetShopDashboardPage extends StatefulWidget {
-  const PetShopDashboardPage({super.key});
+  const PetShopDashboardPage({super.key, this.showRevenueTab = true});
+
+  final bool showRevenueTab;
 
   @override
   State<PetShopDashboardPage> createState() => _PetShopDashboardPageState();
 }
 
+class _TopTabs extends StatelessWidget {
+  const _TopTabs({
+    required this.selected,
+    required this.showRevenueTab,
+    required this.onChange,
+  });
+
+  final PetShopDashboardSection selected;
+  final bool showRevenueTab;
+  final ValueChanged<PetShopDashboardSection> onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final revenueLabel = AppLocalizations.of(context)!.revenueTitle;
+    final items = <(PetShopDashboardSection, String, IconData)>[
+      (
+        PetShopDashboardSection.overview,
+        'Overview',
+        LucideIcons.layoutDashboard,
+      ),
+      if (showRevenueTab)
+        (PetShopDashboardSection.revenue, revenueLabel, LucideIcons.lineChart),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      height: 64,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final (section, title, icon) = items[index];
+          final isSelected = selected == section;
+          return GestureDetector(
+            onTap: () => onChange(section),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF9E1B4F) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: AppTheme.cardShadow(opacity: 0.05),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: isSelected ? Colors.white : AppTheme.muted,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : AppTheme.textDark,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
+  PetShopDashboardSection _selected = PetShopDashboardSection.overview;
+
   String? _businessId;
 
   Stream<QuerySnapshot>? _revenueStream;
@@ -59,6 +132,9 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
   }
 
   void _setupStreams(String businessId) {
+    if (_businessId == businessId && _profileStream != null) {
+      return;
+    }
     debugPrint("SETUP CALLED");
     debugPrint("_businessId=$_businessId");
     debugPrint("businessId=$businessId");
@@ -164,7 +240,37 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
 
     debugPrint("🧠 DASHBOARD BUILD → businessId=$businessId");
 
-    return _buildDashboardShell(child: _buildOverview(context, businessId));
+    return SafeArea(
+      top: false,
+      child: Container(
+        color: AppTheme.bg,
+        child: Column(
+          children: [
+            _TopTabs(
+              selected: _selected,
+              showRevenueTab: widget.showRevenueTab,
+              onChange: (section) => setState(() => _selected = section),
+            ),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _selected == PetShopDashboardSection.revenue
+                    ? BusinessRevenueDashboard(
+                        key: const ValueKey('revenue'),
+                        businessId: businessId,
+                        recordLabel: 'orders',
+                      )
+                    : _buildOverview(
+                        context,
+                        businessId,
+                        key: const ValueKey('overview'),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildDashboardShell({required Widget child}) {
@@ -174,23 +280,20 @@ class _PetShopDashboardPageState extends State<PetShopDashboardPage> {
     );
   }
 
-  Widget _buildOverview(BuildContext context, String businessId) {
+  Widget _buildOverview(BuildContext context, String businessId, {Key? key}) {
     final l10n = AppLocalizations.of(context)!;
 
     return ListView(
       padding: const EdgeInsets.all(16),
+      key: key,
       children: [
-        SellerFinanceSummarySection(
-          businessId: businessId,
-          recordLabel: l10n.sellerFinanceOrders,
-        ),
         const SizedBox(height: 10),
         Text(l10n.shopProfileTitle, style: AppTheme.h2()),
         const SizedBox(height: 10),
         _buildProfileSection(context, businessId),
         const SizedBox(height: 20),
 
-        Text("Daily Summary", style: AppTheme.h2()),
+        Text(l10n.dailySummary, style: AppTheme.h2()),
         const SizedBox(height: 10),
         _buildDailySummaryCards(context, businessId),
         const SizedBox(height: 20),
@@ -573,161 +676,6 @@ Widget _strengthBar(double value) {
   );
 }
 */
-  // =========================
-  // 💰 REVENUE
-  // =========================
-  Widget _buildRevenueCard(BuildContext context, String businessId) {
-    final l10n = AppLocalizations.of(context)!;
-    if (kDebugMode) {
-      debugPrint(
-        '💰 REVENUE QUERY → authUid=${FirebaseAuth.instance.currentUser?.uid ?? "NULL"} '
-        'businessId=$businessId path=sellerOrders where shopId==$businessId',
-      );
-    }
-    return StreamBuilder<QuerySnapshot>(
-      stream: _revenueStream,
-      builder: (context, snapshot) {
-        // ❌ ERROR
-        if (snapshot.hasError) {
-          if (kDebugMode) {
-            debugPrint(
-              '💰 REVENUE ERROR → authUid=${FirebaseAuth.instance.currentUser?.uid ?? "NULL"} '
-              'businessId=$businessId path=sellerOrders error=${snapshot.error}',
-            );
-          }
-          _logFirestoreIndexLink(snapshot.error, "REVENUE");
-          return _emptyBox(l10n.errorOccurred(snapshot.error.toString()));
-        }
-
-        // ⏳ LOADING
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          if (kDebugMode) {
-            debugPrint("⏳ REVENUE LOADING...");
-          }
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // ❌ EMPTY
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _emptyBox(l10n.noRevenueYet);
-        }
-
-        // =====================
-        // 🔢 CALCULATION
-        // =====================
-        double netRevenue = 0;
-        double grossSales = 0;
-        double commissionTotal = 0;
-        double penaltyTotal = 0;
-
-        for (final doc in snapshot.data!.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-
-          final pricing = data["pricing"] as Map<String, dynamic>?;
-          final financial = data["financial"] as Map<String, dynamic>?;
-
-          double orderNet = 0;
-          double orderGross = 0;
-          double orderCommission = 0;
-          double orderPenalty = 0;
-
-          // ✅ NET
-          if (financial != null && financial["sellerNetAmount"] != null) {
-            final raw = financial["sellerNetAmount"];
-            orderNet = raw is num
-                ? raw.toDouble()
-                : double.tryParse(raw.toString()) ?? 0;
-          } else {
-            continue; // ❌ skip old orders
-          }
-
-          // ✅ GROSS
-          if (pricing != null && pricing["grandTotal"] != null) {
-            final raw = pricing["grandTotal"];
-            orderGross = raw is num
-                ? raw.toDouble()
-                : double.tryParse(raw.toString()) ?? 0;
-          }
-
-          // ✅ COMMISSION
-          if (financial["commissionAmount"] != null) {
-            final raw = financial["commissionAmount"];
-            orderCommission = raw is num
-                ? raw.toDouble()
-                : double.tryParse(raw.toString()) ?? 0;
-          }
-
-          // 🔜 FUTURE
-          orderPenalty = 0;
-
-          // ➕ SUM
-          netRevenue += orderNet;
-          grossSales += orderGross;
-          commissionTotal += orderCommission;
-          penaltyTotal += orderPenalty;
-
-          if (kDebugMode) {
-            debugPrint("💸 ORDER ${doc.id} → net=$orderNet");
-          }
-        }
-
-        if (kDebugMode) {
-          debugPrint(
-            "💰 FINAL → NET: $netRevenue | GROSS: $grossSales | COMMISSION: $commissionTotal",
-          );
-        }
-
-        // =====================
-        // 🎨 UI
-        // =====================
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF9E1B4F),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 🧾 TITLE
-              Text(
-                l10n.netRevenueLabel,
-                style: TextStyle(color: Colors.white70),
-              ),
-
-              const SizedBox(height: 6),
-
-              // 💰 MAIN VALUE
-              Text(
-                "₺${netRevenue.toStringAsFixed(0)}",
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-
-              const SizedBox(height: 4),
-
-              // 🧠 EXPLANATION
-              Text(
-                l10n.afterPlatformCommissionLabel,
-                style: TextStyle(color: Colors.white60, fontSize: 12),
-              ),
-
-              const SizedBox(height: 12),
-
-              // 📊 BREAKDOWN
-              _row(l10n.grossSalesLabel, grossSales),
-              _row(l10n.platformFeeLabel, -commissionTotal),
-              _row(l10n.adjustmentsLabel, -penaltyTotal),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   String _buildTrackingUrl(String carrier, String code) {
     switch (carrier.toLowerCase()) {
       case "aras":
@@ -745,24 +693,6 @@ Widget _strengthBar(double value) {
       default:
         return "";
     }
-  }
-
-  Widget _row(String title, double value) {
-    final isNegative = value < 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white70)),
-          Text(
-            "${isNegative ? "-" : ""}₺${value.abs().toStringAsFixed(0)}",
-            style: const TextStyle(color: Colors.white),
-          ),
-        ],
-      ),
-    );
   }
 
   // =========================
