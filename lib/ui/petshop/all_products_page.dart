@@ -1016,47 +1016,59 @@ class _AllProductsPageState extends State<AllProductsPage> {
                           style: AppTheme.body(color: AppTheme.muted),
                         ),
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 0.52,
-                            ),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, index) {
-                          final product = filtered[index];
-
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ProductDetailPage(
-                                    product: product,
-                                    onAddToBasket: _addToBasket,
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final desktop = constraints.maxWidth >= 900;
+                          final columns = constraints.maxWidth >= 1400 ? 3 : 2;
+                          return GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                            gridDelegate: desktop
+                                ? SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: columns,
+                                    mainAxisExtent: 320,
+                                    mainAxisSpacing: 16,
+                                    crossAxisSpacing: 16,
+                                  )
+                                : const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    childAspectRatio: 0.52,
                                   ),
+                            itemCount: filtered.length,
+                            itemBuilder: (_, index) {
+                              final product = filtered[index];
+
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProductDetailPage(
+                                        product: product,
+                                        onAddToBasket: _addToBasket,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: _CompactProductCard(
+                                  product: product,
+                                  onAddToBasket: () => _addToBasket(product),
+                                  onOpenSeller: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SellerProfilePage(
+                                          sellerId: product.businessId,
+                                          sellerName: product.businessName,
+                                          onAddToBasket: _addToBasket,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               );
                             },
-                            child: _CompactProductCard(
-                              product: product,
-                              onAddToBasket: () => _addToBasket(product),
-                              onOpenSeller: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SellerProfilePage(
-                                      sellerId: product.businessId,
-                                      sellerName: product.businessName,
-                                      onAddToBasket: _addToBasket,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
                           );
                         },
                       ),
@@ -1288,7 +1300,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
         ? product.media.first.originalUrl
         : null;
 
-    return Container(
+    final mobileCard = Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -1446,7 +1458,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
           // CONTENT
           // =====================
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
             child: Column(
               mainAxisSize: MainAxisSize.max,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1653,6 +1665,277 @@ class _CompactProductCardState extends State<_CompactProductCard> {
             ),
           ),
         ],
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 900) return mobileCard;
+        return _buildDesktopCard(
+          context,
+          constraints.maxWidth,
+          l10n,
+          hasDiscount,
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopCard(
+    BuildContext context,
+    double width,
+    AppLocalizations l10n,
+    bool hasDiscount,
+  ) {
+    final favoriteService = ProductFavoriteService();
+    final firstMedia = product.media.isNotEmpty
+        ? product.media.first.originalUrl
+        : null;
+    final imageWidth = width.clamp(160.0, 220.0);
+
+    return Container(
+      height: 320,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: imageWidth,
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () => _openGallery(context),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      width: imageWidth,
+                      height: double.infinity,
+                      color: const Color(0xFFFAF7F9),
+                      child: _isUsableUrl(firstMedia)
+                          ? CachedNetworkImage(
+                              imageUrl: firstMedia!,
+                              fit: BoxFit.contain,
+                            )
+                          : const Center(
+                              child: Icon(Icons.image_not_supported_outlined),
+                            ),
+                    ),
+                  ),
+                ),
+                if (hasDiscount)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: _desktopBadge(
+                      '-${product.discountPercent}%',
+                      const Color(0xFFE53935),
+                    ),
+                  ),
+                if (product.stock <= 0)
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    child: _desktopBadge(l10n.outOfStockLabel, Colors.black87),
+                  ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      await favoriteService.toggleFavorite(
+                        productId: product.id,
+                        shopId: product.businessId,
+                        name: product.name,
+                        imageUrl: firstMedia,
+                        price: product.finalPrice,
+                      );
+                      if (mounted) setState(() {});
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: FutureBuilder<bool>(
+                        future: favoriteService.isFavorite(product.id).first,
+                        builder: (context, snapshot) => Icon(
+                          snapshot.data ?? false
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          size: 19,
+                          color: snapshot.data ?? false
+                              ? Colors.red
+                              : Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: onOpenSeller,
+                  child: Text(
+                    product.businessName?.trim().isNotEmpty == true
+                        ? product.businessName!
+                        : l10n.sellerLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.caption(
+                      color: Colors.grey.shade700,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.h3(weight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 17,
+                      color: Color(0xFFFF9800),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '4.5',
+                      style: AppTheme.caption(weight: FontWeight.w700),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '(128)',
+                      style: AppTheme.caption(color: AppTheme.muted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (hasDiscount)
+                  Text(
+                    '₺${product.price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                Row(
+                  children: [
+                    Text(
+                      '₺${product.finalPrice.toStringAsFixed(0)}',
+                      style: AppTheme.h2(
+                        color: const Color(0xFF9E1B4F),
+                        weight: FontWeight.w900,
+                      ),
+                    ),
+                    if (hasDiscount) ...[
+                      const SizedBox(width: 8),
+                      _desktopBadge(
+                        '-${product.discountPercent}%',
+                        const Color(0xFF2E7D32),
+                        foreground: Colors.white,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _buildBadges(l10n, product),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(LucideIcons.package, size: 15),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.stockLabel(product.stock),
+                      style: AppTheme.caption(),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SizedBox(
+                    width: 150,
+                    height: 34,
+                    child: ElevatedButton.icon(
+                      onPressed: product.stock > 0 && !_showAdded
+                          ? _handleAdd
+                          : null,
+                      icon: Icon(
+                        _showAdded
+                            ? Icons.check_rounded
+                            : Icons.add_shopping_cart,
+                        size: 16,
+                      ),
+                      label: Text(
+                        _showAdded ? l10n.addedToCart : l10n.addButton,
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFC107),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopBadge(
+    String text,
+    Color background, {
+    Color foreground = Colors.white,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class SuggestClinicSheet extends StatelessWidget {
   final String vetName;
@@ -16,8 +17,8 @@ class SuggestClinicSheet extends StatelessWidget {
 
     await Share.share(
       'Hi 👋\n\n'
-      'PetSopu helps pet owners find and book veterinary appointments easily 🐶🐾\n\n'
-      'We would love to see *$vetName* join PetSopu!\n\n'
+      'PetSupo helps pet owners find and book veterinary appointments easily 🐶🐾\n\n'
+      'We would love to see *$vetName* join PetSupo!\n\n'
       '👉 https://barkymatches.com',
       sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
     );
@@ -48,27 +49,20 @@ class SuggestClinicSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
           const Icon(Icons.pets, size: 40, color: Color(0xFFFFC107)),
-
           const SizedBox(height: 16),
-
-          const Text(
-            'Help us grow PetSopu',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-          ),
-
-          const SizedBox(height: 8),
-
           Text(
-            'Suggest $vetName to join PetSopu and help pet owners book appointments more easily.',
+            AppLocalizations.of(context)!.suggestClinicTitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            AppLocalizations.of(context)!.suggestClinicDescription(vetName),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
           ),
-
           const SizedBox(height: 24),
-
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -84,8 +78,6 @@ class SuggestClinicSheet extends StatelessWidget {
                 final appState = context.read<AppState>();
                 final userId = appState.currentUserId;
                 final username = appState.username ?? 'User';
-
-                // 1️⃣ Save to Firestore
                 await FirebaseFirestore.instance
                     .collection('clinic_suggestions')
                     .add({
@@ -95,26 +87,24 @@ class SuggestClinicSheet extends StatelessWidget {
                       'channel': 'share',
                       'createdAt': FieldValue.serverTimestamp(),
                     });
-
-                // 2️⃣ Share (iPad-safe)
                 await _share(context);
-
                 Navigator.pop(context);
               },
-              child: const Text(
-                'Share Invitation',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              child: Text(
+                AppLocalizations.of(context)!.shareInvitation,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-
           const SizedBox(height: 12),
-
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Maybe Later',
-              style: TextStyle(color: Colors.grey),
+            child: Text(
+              AppLocalizations.of(context)!.maybeLater,
+              style: const TextStyle(color: Colors.grey),
             ),
           ),
         ],

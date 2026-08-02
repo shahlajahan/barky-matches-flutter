@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class MedicalRecordFlowButton extends StatelessWidget {
   final VoidCallback onTap;
@@ -7,6 +8,7 @@ class MedicalRecordFlowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: onTap,
 
@@ -45,13 +47,13 @@ class MedicalRecordFlowButton extends StatelessWidget {
 
             const SizedBox(width: 14),
 
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
 
                 children: [
                   Text(
-                    'Medical Records',
+                    l10n.medicalRecords,
 
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
@@ -59,7 +61,7 @@ class MedicalRecordFlowButton extends StatelessWidget {
                   SizedBox(height: 4),
 
                   Text(
-                    'Vaccines, visits and treatments',
+                    l10n.vaccinesVisitsAndTreatments,
 
                     style: TextStyle(fontSize: 13, color: Colors.black54),
                   ),

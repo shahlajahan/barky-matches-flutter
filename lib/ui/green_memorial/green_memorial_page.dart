@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/green_memorial/create_memorial_page.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -22,6 +23,7 @@ class GreenMemorialPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final ownerId = context.select<AppState, String?>((s) => s.currentUserId);
 
     return SafeArea(
@@ -39,9 +41,9 @@ class GreenMemorialPage extends StatelessWidget {
 
                 if (!context.mounted || created != true) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Memorial created.')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(l10n.memorialCreated)));
               },
             ),
             const SizedBox(height: 16),
@@ -82,6 +84,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -106,7 +109,7 @@ class _Header extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Green Memorial',
+                  l10n.greenMemorial,
                   style: AppTheme.h1(color: Colors.white),
                 ),
               ),
@@ -114,7 +117,7 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Plant a tree in memory of your beloved pet.',
+            l10n.greenMemorialIntro,
             style: AppTheme.body(color: Colors.white.withValues(alpha: 0.86)),
           ),
           const SizedBox(height: 18),
@@ -123,7 +126,7 @@ class _Header extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add),
-              label: const Text('Create Memorial'),
+              label: Text(l10n.createMemorial),
             ),
           ),
         ],
@@ -268,6 +271,7 @@ class _MemorialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final title = (data['title'] ?? '').toString();
     final petName = (data['petName'] ?? '').toString();
     final ownerName = (data['ownerName'] ?? '').toString();
@@ -304,7 +308,7 @@ class _MemorialCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      'In memory of $petName 🌱',
+                      l10n.memorialInMemoryOf(petName),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTheme.caption(
@@ -331,7 +335,7 @@ class _MemorialCard extends StatelessWidget {
                 if (ownerName.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
-                    'By $ownerName',
+                    l10n.memorialByOwner(ownerName),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTheme.caption(size: 11),

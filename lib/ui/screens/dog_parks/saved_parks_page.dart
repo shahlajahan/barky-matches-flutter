@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class SavedParksPage extends StatelessWidget {
   const SavedParksPage({super.key});
@@ -14,6 +15,7 @@ class SavedParksPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final l10n = AppLocalizations.of(context)!;
     final savedParks = appState.favoriteParks;
     final bool isGoldOrPremium = appState.isPremium;
 
@@ -35,7 +37,7 @@ class SavedParksPage extends StatelessWidget {
                   },
                 ),
                 Text(
-                  'Saved Parks',
+                  l10n.savedParksTitle,
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -54,7 +56,7 @@ class SavedParksPage extends StatelessWidget {
             child: savedParks.isEmpty
                 ? Center(
                     child: Text(
-                      'No saved parks yet',
+                      l10n.noSavedParksYet,
                       style: GoogleFonts.poppins(
                         fontSize: 16,
                         color: Colors.black54,

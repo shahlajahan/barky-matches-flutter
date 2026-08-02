@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/core/debug/application_diagnostics.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/services/pet_taxi_pricing_service.dart';
@@ -409,13 +410,14 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   @override
   Widget build(BuildContext context) {
     final dogs = context.watch<AppState>().myDogs;
+    final l10n = AppLocalizations.of(context)!;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: AppTheme.bg,
-        appBar: AppBar(title: const Text('Book Pet Taxi')),
+        appBar: AppBar(title: Text(l10n.bookPetTaxi)),
         bottomNavigationBar: _stickyCta(),
         body: Stack(
           children: [
@@ -603,8 +605,8 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                       icon: LucideIcons.fileCheck,
                       initiallyExpanded: true,
                       children: [
-                        const Text(
-                          'PetSupo only provides booking infrastructure. Transportation responsibility belongs to the provider.',
+                        Text(
+                          l10n.transportResponsibilityDisclaimer,
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 10),
@@ -616,16 +618,14 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                               () => _transportPolicyAccepted = value ?? false,
                             );
                           },
-                          title: const Text(
-                            'I confirm my pet is safe for transportation.',
-                          ),
+                          title: Text(l10n.petSafeForTransportation),
                           controlAffinity: ListTileControlAffinity.leading,
                         ),
                         if (_submittedOnce && !_transportPolicyAccepted)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(left: 12, bottom: 4),
                             child: Text(
-                              'Required',
+                              l10n.requiredLabel,
                               style: TextStyle(color: Colors.red),
                             ),
                           ),
@@ -643,13 +643,14 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   }
 
   Widget _businessSummary() {
+    final l10n = AppLocalizations.of(context)!;
     final location = [
       widget.business.district,
       widget.business.city,
     ].where((part) => part.isNotEmpty).join(', ');
 
     return Semantics(
-      label: 'Pet taxi business summary',
+      label: l10n.petTaxiBusinessSummary,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
@@ -724,6 +725,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   }
 
   Widget _petSelector(List<Dog> dogs) {
+    final l10n = AppLocalizations.of(context)!;
     if (dogs.isEmpty) {
       return Container(
         width: double.infinity,
@@ -733,12 +735,12 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.orange.withOpacity(0.25)),
         ),
-        child: const Text('No pets found. Add a pet profile before booking.'),
+        child: Text(l10n.noPetsBeforeTaxiBooking),
       );
     }
 
     return Semantics(
-      label: 'Select pet for taxi booking',
+      label: l10n.selectPetForTaxiBooking,
       child: DropdownButtonFormField<Dog>(
         key: ValueKey(_selectedDog?.id ?? 'empty_pet'),
         initialValue: _selectedDog,
@@ -754,7 +756,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
           return dogs.map((dog) => _petOption(dog, compact: true)).toList();
         },
         onChanged: (dog) => setState(() => _selectedDog = dog),
-        decoration: const InputDecoration(labelText: 'Pet'),
+        decoration: InputDecoration(labelText: l10n.petLabel),
         validator: (value) => value == null ? 'Select a pet' : null,
       ),
     );
@@ -811,6 +813,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   }
 
   Widget _dateTimeButton() {
+    final l10n = AppLocalizations.of(context)!;
     final hasError = _submittedOnce && !_hasValidSchedule;
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -819,7 +822,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
         children: [
           Semantics(
             button: true,
-            label: 'Select pickup date and time',
+            label: l10n.selectPickupDateTime,
             child: OutlinedButton.icon(
               onPressed: _pickDateTime,
               icon: const Icon(LucideIcons.calendarClock),
@@ -831,10 +834,10 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
             ),
           ),
           if (hasError)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 6, left: 12),
               child: Text(
-                'Select a future pickup date and time',
+                l10n.futurePickupDateTimeRequired,
                 style: TextStyle(color: Colors.red),
               ),
             ),
@@ -848,6 +851,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
     required PetTaxiLocationPoint? point,
     required VoidCallback onTap,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     final hasError = _submittedOnce && point == null;
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -896,8 +900,8 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                       ],
                       if (hasError) ...[
                         const SizedBox(height: 6),
-                        const Text(
-                          'Required',
+                        Text(
+                          l10n.requiredLabel,
                           style: TextStyle(color: Colors.red),
                         ),
                       ],
@@ -915,8 +919,9 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   }
 
   Widget _bookingSummary() {
+    final l10n = AppLocalizations.of(context)!;
     return Semantics(
-      label: 'Booking summary',
+      label: l10n.bookingSummaryA11y,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
@@ -928,7 +933,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                 const Icon(LucideIcons.clipboardList, color: Color(0xFF9E1B4F)),
                 const SizedBox(width: 10),
                 Text(
-                  'Booking Summary',
+                  l10n.bookingSummaryTitle,
                   style: AppTheme.bodyMedium().copyWith(
                     fontWeight: FontWeight.w900,
                   ),
@@ -961,7 +966,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
             _summaryRow('Payment', 'In-app after provider final price'),
             const SizedBox(height: 4),
             Text(
-              'Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider.',
+              l10n.petTaxiEstimateDisclaimer,
               style: AppTheme.caption(color: AppTheme.muted),
             ),
           ],
@@ -971,9 +976,10 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   }
 
   Widget _estimatedPricingCard() {
+    final l10n = AppLocalizations.of(context)!;
     final estimate = _estimate;
     return Semantics(
-      label: 'Estimated pet taxi price range',
+      label: l10n.estimatedPetTaxiPriceRange,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
@@ -987,7 +993,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Estimated Price',
+                    l10n.estimatedPrice,
                     style: AppTheme.bodyMedium().copyWith(
                       fontWeight: FontWeight.w900,
                     ),
@@ -997,7 +1003,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                     const LinearProgressIndicator()
                   else if (estimate == null)
                     Text(
-                      'Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate.',
+                      l10n.routeEstimateNeeded,
                       style: AppTheme.body(color: AppTheme.muted),
                     )
                   else ...[
@@ -1011,7 +1017,10 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${estimate.approximateDistanceKm} km driving route • ${_routeEstimate?.durationMinutes ?? '-'} min. Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider.',
+                      l10n.routeEstimateDetail(
+                        estimate.approximateDistanceKm,
+                        _routeEstimate?.durationMinutes ?? '-',
+                      ),
                       style: AppTheme.caption(color: AppTheme.muted),
                     ),
                   ],
@@ -1046,6 +1055,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   }
 
   Widget _stickyCta() {
+    final l10n = AppLocalizations.of(context)!;
     return SafeArea(
       top: false,
       child: Container(
@@ -1063,7 +1073,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
         child: Semantics(
           button: true,
           enabled: _canSubmit,
-          label: 'Create pet taxi booking',
+          label: l10n.createPetTaxiBooking,
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: SizedBox(
@@ -1089,13 +1099,14 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   }
 
   Widget _loadingOverlay() {
+    final l10n = AppLocalizations.of(context)!;
     return Positioned.fill(
       child: AnimatedOpacity(
         opacity: _saving ? 1 : 0,
         duration: const Duration(milliseconds: 180),
         child: Container(
           color: Colors.black.withOpacity(0.18),
-          child: const Center(
+          child: Center(
             child: Card(
               child: Padding(
                 padding: EdgeInsets.all(20),
@@ -1104,7 +1115,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 12),
-                    Text('Creating booking...'),
+                    Text(l10n.creatingBooking),
                   ],
                 ),
               ),

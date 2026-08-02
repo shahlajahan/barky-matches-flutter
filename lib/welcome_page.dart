@@ -236,14 +236,14 @@ Future<void> debugFirestoreRestOffers() async {
     }
   }
 
-  Widget _buildActivationSection() {
+  Widget _buildActivationSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "How would you like to start?",
+            AppLocalizations.of(context)!.howWouldYouLikeToStart,
             style: AppTheme.h2().copyWith(color: const Color(0xFF9E1B4F)),
           ),
           const SizedBox(height: 10),
@@ -317,7 +317,9 @@ Future<void> debugFirestoreRestOffers() async {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            "Welcome to PetSupo 👋",
+                            AppLocalizations.of(
+                              context,
+                            )!.welcomeToPetSopuWithWave,
                             style: AppTheme.h1().copyWith(
                               color: const Color(0xFF9E1B4F),
                             ),
@@ -403,7 +405,9 @@ Future<void> debugFirestoreRestOffers() async {
                                                 ),
                                           const SizedBox(height: 10),
                                           Text(
-                                            "More than an app.\nA home for pets and their people.",
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.moreThanAnApp,
                                             textAlign: TextAlign.center,
                                             style: AppTheme.caption(
                                               color: Colors.white,
@@ -467,7 +471,7 @@ Future<void> debugFirestoreRestOffers() async {
 
                         const SizedBox(height: 14),
 
-                        _buildActivationSection(),
+                        _buildActivationSection(context),
 
                         const SizedBox(height: 16),
 
@@ -496,7 +500,7 @@ Future<void> debugFirestoreRestOffers() async {
                                 ),
                               ),
                               child: Text(
-                                "View Premium Plans",
+                                AppLocalizations.of(context)!.viewPremiumPlans,
                                 style: AppTheme.button().copyWith(fontSize: 16),
                               ),
                             ),

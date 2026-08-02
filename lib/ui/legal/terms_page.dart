@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class TermsPage extends StatelessWidget {
   const TermsPage({super.key});
@@ -23,9 +24,9 @@ class TermsPage extends StatelessWidget {
 
   void _copyEmail(BuildContext context) {
     Clipboard.setData(ClipboardData(text: email));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Email copied")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.termsEmailCopied)),
+    );
   }
 
   Widget _section(String title, String body) {
@@ -57,11 +58,12 @@ class TermsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
 
       appBar: AppBar(
-        title: const Text("Terms of Service"),
+        title: Text(l10n.termsOfServiceTitle),
         backgroundColor: const Color(0xFF9E1B4F),
       ),
 
@@ -72,10 +74,7 @@ class TermsPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               /// INTRO
-              Text(
-                "By using PetSupo, you agree to the following terms:",
-                style: GoogleFonts.poppins(fontSize: 14),
-              ),
+              Text(l10n.termsIntro, style: GoogleFonts.poppins(fontSize: 14)),
 
               const SizedBox(height: 20),
 
@@ -114,7 +113,7 @@ class TermsPage extends StatelessWidget {
 
               /// 🔥 CONTACT
               Text(
-                "7. Contact",
+                l10n.termsContactTitle,
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -158,7 +157,7 @@ class TermsPage extends StatelessWidget {
               const SizedBox(height: 10),
 
               Text(
-                "We aim to respond within a reasonable timeframe.",
+                l10n.termsResponseTime,
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: Colors.grey[600],

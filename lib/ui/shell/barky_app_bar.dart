@@ -5,6 +5,7 @@ import 'package:badges/badges.dart' as badges;
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/services/chat_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BarkyAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -175,7 +176,7 @@ class BarkyAppBar extends StatelessWidget implements PreferredSizeWidget {
 
                   if (isChatPage)
                     Text(
-                      'Connect with pet owners',
+                      AppLocalizations.of(context)!.connectWithPetOwners,
 
                       style: GoogleFonts.poppins(
                         fontSize: 12.5,

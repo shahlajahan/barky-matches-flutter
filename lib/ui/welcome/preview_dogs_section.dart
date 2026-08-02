@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../dog.dart';
 import '../../dog_card.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PreviewDogsSection extends StatelessWidget {
   final List<Dog> previewDogs;
@@ -10,8 +11,8 @@ class PreviewDogsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (previewDogs.isEmpty) {
-      return const Text(
-        "No dogs yet — add yours and start matching! 🐾",
+      return Text(
+        AppLocalizations.of(context)!.noDogsYetMatching,
         style: TextStyle(color: Color(0xFF9E1B4F)),
       );
     }
@@ -32,7 +33,11 @@ class PreviewDogsSection extends StatelessWidget {
             // 🔥 فقط اینو نگه دار
             onCardTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Create profile to connect 🐾")),
+                SnackBar(
+                  content: Text(
+                    AppLocalizations.of(context)!.createProfileToConnect,
+                  ),
+                ),
               );
             },
           ),

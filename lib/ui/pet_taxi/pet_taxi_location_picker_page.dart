@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/services/pet_taxi_location_service.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_location_permission_service.dart';
 
 class PetTaxiLocationPickerPage extends StatefulWidget {
@@ -69,6 +70,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
   }
 
   Future<void> _searchLocations() async {
+    final l10n = AppLocalizations.of(context)!;
     final query = _search.text.trim();
     if (query.length < 4) {
       return;
@@ -87,7 +89,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Location search failed: ${e.toString()}')),
+          SnackBar(content: Text(l10n.locationSearchFailed(e.toString()))),
         );
       }
     } finally {
@@ -110,6 +112,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
   }
 
   Future<void> _pickFromMap(LatLng latLng) async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _resolvingMapTap = true);
     try {
       final address = await _service.reverseGeocode(
@@ -129,7 +132,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Address lookup failed: ${e.toString()}')),
+          SnackBar(content: Text(l10n.addressLookupFailed(e.toString()))),
         );
       }
     } finally {
@@ -140,7 +143,10 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
   }
 
   Future<void> _centerOnUser() async {
-    final granted = await _permissionService.ensureForegroundPermission(context);
+    final l10n = AppLocalizations.of(context)!;
+    final granted = await _permissionService.ensureForegroundPermission(
+      context,
+    );
     if (!mounted || !granted) {
       return;
     }
@@ -160,9 +166,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not load current location: ${e.toString()}'),
-          ),
+          SnackBar(content: Text(l10n.currentLocationLoadFailed(e.toString()))),
         );
       }
     }
@@ -170,6 +174,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final selected = _selected;
     final initialTarget = selected == null
         ? _istanbulCenter
@@ -202,7 +207,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                 ? null
                 : () => Navigator.pop(context, selected),
             icon: const Icon(LucideIcons.check),
-            label: const Text('Use Selected Location'),
+            label: Text(l10n.useSelectedLocation),
           ),
         ),
       ),
@@ -239,8 +244,8 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                         width: 1.5,
                       ),
                     ),
-                    labelText: 'Search real address',
-                    hintText: 'Street, building, district',
+                    labelText: l10n.searchRealAddress,
+                    hintText: l10n.streetBuildingDistrict,
                     prefixIcon: const Icon(
                       LucideIcons.search,
                       size: 26,
@@ -333,7 +338,7 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
               _centerOnUser();
             },
             icon: const Icon(LucideIcons.locateFixed),
-            label: const Text('Use My Current Location'),
+            label: Text(l10n.useMyCurrentLocation),
           ),
         ],
       ),

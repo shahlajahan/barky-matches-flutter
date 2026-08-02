@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class FAQPage extends StatelessWidget {
   const FAQPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final faqItems = [
       _faq(
         "What is PetSupo?",
@@ -95,7 +97,7 @@ class FAQPage extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   Text(
-                    "Frequently Asked Questions",
+                    l10n.frequentlyAskedQuestions,
                     style: GoogleFonts.poppins(
                       color: const Color(0xFFFFC107),
                       fontSize: 24,
@@ -106,7 +108,7 @@ class FAQPage extends StatelessWidget {
                   const SizedBox(height: 12),
 
                   Text(
-                    "Find quick answers about PetSupo features, privacy, subscriptions, and safety.",
+                    l10n.faqDescription,
                     style: GoogleFonts.poppins(
                       color: Colors.white.withOpacity(.92),
                       fontSize: 14,

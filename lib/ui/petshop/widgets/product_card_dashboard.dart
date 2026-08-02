@@ -15,6 +15,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ProductCardDashboard extends StatelessWidget {
   final Product product;
@@ -46,6 +47,7 @@ class ProductCardDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = product;
+    final l10n = AppLocalizations.of(context)!;
     final strength = _calculateStrength(p);
 
     final hasDiscount = p.salePrice != null && p.salePrice! < p.price;
@@ -96,10 +98,13 @@ class ProductCardDashboard extends StatelessWidget {
                     const SizedBox(height: 4),
 
                     if (p.barcode != null && p.barcode!.isNotEmpty)
-                      Text("Barcode: ${p.barcode}", style: AppTheme.caption()),
+                      Text(
+                        l10n.barcodeLabel(p.barcode!),
+                        style: AppTheme.caption(),
+                      ),
 
                     if (p.sku != null && p.sku!.isNotEmpty)
-                      Text("SKU: ${p.sku}", style: AppTheme.caption()),
+                      Text(l10n.skuLabel(p.sku!), style: AppTheme.caption()),
                   ],
                 ),
               ),
@@ -154,7 +159,7 @@ class ProductCardDashboard extends StatelessWidget {
               if (strength >= 80) _badge("🔥 Strong", Colors.green),
 
               if (p.stock > 0 && p.stock <= 3)
-                _badge("⚡ Low Stock", Colors.red),
+                _badge(l10n.lowStockBadge, Colors.red),
 
               if (hasDiscount) _badge("💸 Deal", Colors.orange),
 
@@ -178,13 +183,13 @@ class ProductCardDashboard extends StatelessWidget {
             children: [
               const Icon(LucideIcons.package, size: 14),
               const SizedBox(width: 6),
-              Text("Stock: ${p.stock}", style: AppTheme.caption()),
+              Text(l10n.stockLabel(p.stock), style: AppTheme.caption()),
 
               if (p.stock > 0 && p.stock <= 3)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(left: 8),
                   child: Text(
-                    "⚠ Low",
+                    l10n.low,
                     style: TextStyle(color: Colors.red, fontSize: 11),
                   ),
                 ),
@@ -208,8 +213,7 @@ class ProductCardDashboard extends StatelessWidget {
               IconButton(
                 icon: const Icon(LucideIcons.pencil),
                 onPressed: () {
-                                    context.read<AppState>().openEditProduct(product);
-
+                  context.read<AppState>().openEditProduct(product);
                 },
               ),
               IconButton(
@@ -271,7 +275,11 @@ class ProductCardDashboard extends StatelessWidget {
 
               if (safeMedia.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Media not ready yet")),
+                  SnackBar(
+                    content: Text(
+                      AppLocalizations.of(context)!.mediaNotReadyYet,
+                    ),
+                  ),
                 );
                 return;
               }

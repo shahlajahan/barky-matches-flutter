@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'blocked_users_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PrivacySettingsPage extends StatefulWidget {
   const PrivacySettingsPage({super.key});
@@ -87,13 +88,16 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Privacy settings updated")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.privacySettingsUpdated),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: const Color(0xFFFDF2F5),
 
@@ -137,7 +141,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                     const SizedBox(height: 14),
 
                     Text(
-                      "Privacy & Security",
+                      l10n.privacySecurityTitle,
                       style: GoogleFonts.poppins(
                         color: const Color(0xFFFFC107),
                         fontSize: 24,
@@ -148,7 +152,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                     const SizedBox(height: 10),
 
                     Text(
-                      "Control your visibility, data sharing, and account privacy settings.",
+                      l10n.privacySecurityDescription,
                       style: GoogleFonts.poppins(
                         color: Colors.white.withOpacity(.9),
                         fontSize: 14,
@@ -261,8 +265,12 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Data export request submitted"),
+                    SnackBar(
+                      content: Text(
+                        AppLocalizations.of(
+                          context,
+                        )!.dataExportRequestSubmitted,
+                      ),
                     ),
                   );
                 },
@@ -298,6 +306,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
   }
 
   void _showDeleteDialog() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
 
@@ -336,7 +345,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                 const SizedBox(height: 18),
 
                 Text(
-                  "Delete account",
+                  l10n.deleteAccount,
                   style: GoogleFonts.poppins(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -347,7 +356,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                 const SizedBox(height: 14),
 
                 Text(
-                  "This action cannot be undone and all your data will be permanently deleted.",
+                  l10n.deleteAccountDataNotice,
                   textAlign: TextAlign.center,
 
                   style: GoogleFonts.poppins(
@@ -380,7 +389,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                         },
 
                         child: Text(
-                          "Cancel",
+                          l10n.cancel,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                           ),
@@ -411,7 +420,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                         },
 
                         child: Text(
-                          "Delete",
+                          l10n.delete,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w700,
                           ),

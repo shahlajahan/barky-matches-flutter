@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/ui/product/product_detail_page.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class FavoriteProductsPage extends StatelessWidget {
   final ValueChanged<Product> onAddToBasket;
@@ -13,6 +14,7 @@ class FavoriteProductsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final isAnonymous = FirebaseAuth.instance.currentUser?.isAnonymous == true;
 
@@ -35,7 +37,7 @@ class FavoriteProductsPage extends StatelessWidget {
       backgroundColor: AppTheme.bg,
 
       appBar: AppBar(
-        title: const Text("Favorite Products"),
+        title: Text(l10n.favoriteProductsTitle),
 
         elevation: 0,
 
@@ -96,7 +98,7 @@ class FavoriteProductsPage extends StatelessWidget {
 
                     if (found == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Product not found")),
+                        SnackBar(content: Text(l10n.productNotFound)),
                       );
 
                       return;

@@ -224,7 +224,11 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
                             const SizedBox(height: 6),
 
                             Text(
-                              "${_safeNum(service['durationMin'])} min",
+                              AppLocalizations.of(
+                                context,
+                              )!.durationMinutesShort(
+                                _safeNum(service['durationMin']),
+                              ),
 
                               style: TextStyle(color: Colors.grey.shade600),
                             ),
@@ -548,7 +552,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
           children: [
             Expanded(
               child: ChoiceChip(
-                label: const Center(child: Text('Yes')),
+                label: Center(child: Text(AppLocalizations.of(context)!.yes)),
                 selected: _preVisitAnswers[id] == true,
                 selectedColor: Colors.amber,
                 onSelected: (selected) {
@@ -561,7 +565,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
             const SizedBox(width: 10),
             Expanded(
               child: ChoiceChip(
-                label: const Center(child: Text('No')),
+                label: Center(child: Text(AppLocalizations.of(context)!.no)),
                 selected: _preVisitAnswers[id] == false,
                 selectedColor: Colors.amber,
                 onSelected: (selected) {
@@ -577,7 +581,9 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       case 'single_select':
         field = DropdownButtonFormField<String>(
           initialValue: _preVisitAnswers[id] as String?,
-          decoration: const InputDecoration(hintText: 'Select an option'),
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(context)!.selectAnOption,
+          ),
           items: options
               .map(
                 (option) =>
@@ -626,8 +632,8 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
           keyboardType: type == 'number'
               ? TextInputType.number
               : TextInputType.text,
-          decoration: const InputDecoration(
-            hintText: 'Enter details',
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(context)!.enterDetails,
             border: OutlineInputBorder(),
           ),
         );
@@ -732,8 +738,8 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a future date and time.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.futureDateRequired),
           ),
         );
 
@@ -752,8 +758,10 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       if (preVisitForm == _invalidPreVisitFormMarker) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please complete required pre-visit questions.'),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.preVisitQuestionsRequired,
+            ),
           ),
         );
         setState(() => _submitting = false);
@@ -798,10 +806,10 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       debugPrint("✅ FUNCTION SUCCESS");
 
       await AnalyticsService.vetBookingCompleted(
-  vetId: widget.vet.id,
-  appointmentType: selectedService?['title']?.toString(),
-  price: (selectedService?['price'] as num?)?.toDouble(),
-);
+        vetId: widget.vet.id,
+        appointmentType: selectedService?['title']?.toString(),
+        price: (selectedService?['price'] as num?)?.toDouble(),
+      );
 
       if (!mounted) return;
 

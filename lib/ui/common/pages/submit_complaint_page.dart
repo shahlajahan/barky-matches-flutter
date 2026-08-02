@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class SubmitComplaintPage extends StatefulWidget {
   final String targetType;
@@ -46,18 +47,17 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text("Submit Complaint"),
-          content: const Text(
-            "Are you sure you want to submit this complaint?",
-          ),
+          title: Text(l10n.submitComplaintTitle),
+          content: Text(l10n.submitComplaintConfirmation),
           actions: [
             TextButton(
-              child: const Text("Cancel"),
+              child: Text(l10n.cancel),
               onPressed: () => Navigator.pop(context, false),
             ),
             ElevatedButton(
-              child: const Text("Submit"),
+              child: Text(l10n.submit),
               onPressed: () => Navigator.pop(context, true),
             ),
           ],
@@ -87,7 +87,11 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Complaint submitted successfully")),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.complaintSubmittedSuccessfully,
+          ),
+        ),
       );
 
       Navigator.pop(context);
@@ -117,9 +121,11 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
       debugPrint("❌ Unknown complaint error: $e");
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Unexpected error")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.unexpectedError),
+          ),
+        );
       }
     }
 
@@ -139,9 +145,10 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Submit Complaint"),
+        title: Text(l10n.submitComplaintTitle),
         backgroundColor: Colors.pink,
       ),
 
@@ -156,8 +163,8 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
               /// CATEGORY
               DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: "Category",
+                decoration: InputDecoration(
+                  labelText: l10n.complaintCategory,
                   border: OutlineInputBorder(),
                 ),
                 items: _categories
@@ -177,8 +184,8 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
               /// TITLE
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: "Title",
+                decoration: InputDecoration(
+                  labelText: l10n.titleLabel,
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
@@ -198,8 +205,8 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: "Description",
+                decoration: InputDecoration(
+                  labelText: l10n.descriptionLabel,
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
@@ -236,8 +243,8 @@ class _SubmitComplaintPageState extends State<SubmitComplaintPage> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          "Submit Complaint",
+                      : Text(
+                          l10n.submitComplaintTitle,
                           style: TextStyle(fontSize: 16),
                         ),
                 ),

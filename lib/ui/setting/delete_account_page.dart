@@ -6,6 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/welcome_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key});
@@ -44,8 +45,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       debugPrint("❌ delete error: $e");
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Failed to delete account. Please try again."),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.deleteAccountFailed),
         ),
       );
     } finally {
@@ -56,6 +57,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   }
 
   void _confirmDelete() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
 
@@ -94,7 +96,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 const SizedBox(height: 20),
 
                 Text(
-                  "Delete Account",
+                  l10n.deleteAccount,
                   style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -105,7 +107,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 const SizedBox(height: 14),
 
                 Text(
-                  "This action is permanent.\n\nAll your dogs, chats, favorites, and activity will be permanently deleted.",
+                  l10n.deleteActionPermanent,
                   textAlign: TextAlign.center,
 
                   style: GoogleFonts.poppins(
@@ -138,7 +140,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         ),
 
                         child: Text(
-                          "Cancel",
+                          l10n.cancel,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                           ),
@@ -170,7 +172,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         ),
 
                         child: Text(
-                          "Delete",
+                          l10n.delete,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w700,
                           ),
@@ -194,11 +196,12 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     super.dispose();
   }
 
-  InputDecoration _inputDecoration() {
+  InputDecoration _inputDecoration(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return InputDecoration(
-      hintText: 'DELETE',
+      hintText: l10n.deleteConfirmationCode,
 
-      labelText: 'Type DELETE to confirm',
+      labelText: l10n.deleteConfirmationCodeHint,
 
       labelStyle: GoogleFonts.poppins(),
 
@@ -305,7 +308,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                     const SizedBox(height: 16),
 
                     Text(
-                      "Delete Account",
+                      AppLocalizations.of(context)!.deleteAccount,
                       style: GoogleFonts.poppins(
                         color: const Color(0xFFFFC107),
                         fontSize: 26,
@@ -316,7 +319,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                     const SizedBox(height: 12),
 
                     Text(
-                      "This action is permanent and cannot be undone.",
+                      AppLocalizations.of(
+                        context,
+                      )!.deleteAccountPermanentNotice,
                       style: GoogleFonts.poppins(
                         color: Colors.white.withOpacity(.92),
                         fontSize: 14,
@@ -364,7 +369,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                         const SizedBox(width: 10),
 
                         Text(
-                          "What will be deleted",
+                          AppLocalizations.of(context)!.whatWillBeDeleted,
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -391,7 +396,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
               // 🔐 CONFIRM INPUT
               Text(
-                "Confirmation",
+                AppLocalizations.of(context)!.confirmation,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -410,7 +415,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                   setState(() {});
                 },
 
-                decoration: _inputDecoration(),
+                decoration: _inputDecoration(context),
               ),
 
               const SizedBox(height: 40),
@@ -454,7 +459,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                             const SizedBox(width: 10),
 
                             Text(
-                              "Delete Account",
+                              AppLocalizations.of(context)!.deleteAccount,
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,

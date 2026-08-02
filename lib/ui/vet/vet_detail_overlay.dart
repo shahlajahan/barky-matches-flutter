@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/services/business_chat_service.dart';
 import 'package:barky_matches_fixed/ui/business/chat/business_chat_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VetDetailOverlay extends StatefulWidget {
   final BusinessCardData data;
@@ -101,7 +102,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
                 children: [
                   _header(),
                   const SizedBox(height: 12),
-                  _ctaRow(),
+                  _ctaRow(context),
                   /*
                 if (widget.data.rating != null) ...[
                   const SizedBox(height: 6),
@@ -125,9 +126,9 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
                 ],
 */
                   const SizedBox(height: 16),
-                  _buildTabs(),
+                  _buildTabs(context),
                   const SizedBox(height: 16),
-                  _buildTabContent(),
+                  _buildTabContent(context),
                 ],
               ),
             ),
@@ -178,7 +179,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
     );
   }
 
-  Widget _ctaRow() {
+  Widget _ctaRow(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -189,7 +190,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
         TextButton(
           onPressed: widget.onClose,
           child: Text(
-            'Close',
+            AppLocalizations.of(context)!.close,
             style: AppTheme.caption(
               color: Colors.amber,
             ).copyWith(fontWeight: FontWeight.w700),
@@ -199,7 +200,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
     );
   }
 
-  Widget _buildTabs() {
+  Widget _buildTabs(BuildContext context) {
     return Row(
       children: [
         _tabButton('Info', _VetDetailTab.info),
@@ -299,7 +300,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
     );
   }
 
-  Widget _buildTabContent() {
+  Widget _buildTabContent(BuildContext context) {
     switch (_activeTab) {
       case _VetDetailTab.info:
         return Column(
@@ -318,7 +319,9 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
                   ),
                   if (widget.data.reviewsCount != null)
                     Text(
-                      ' (${widget.data.reviewsCount} reviews)',
+                      AppLocalizations.of(
+                        context,
+                      )!.reviewsCountParenthesized(widget.data.reviewsCount!),
                       style: AppTheme.caption(color: Colors.white70),
                     ),
                 ],
@@ -339,7 +342,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
               _sectionTitle('About'),
               const SizedBox(height: 8),
               Text(
-                'No clinic description available.',
+                AppLocalizations.of(context)!.noClinicDescriptionAvailable,
                 style: AppTheme.bodyMedium(
                   color: Colors.white54,
                 ).copyWith(height: 1.5),
@@ -400,7 +403,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(
-                  'Request Appointment',
+                  AppLocalizations.of(context)!.requestAppointment,
                   textAlign: TextAlign.center,
                   style: AppTheme.bodyMedium(
                     color: Colors.black,
@@ -412,14 +415,14 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
         );
 
       case _VetDetailTab.services:
-        return _servicesStream();
+        return _servicesStream(context);
 
       case _VetDetailTab.contact:
-        return _ctaRow();
+        return _ctaRow(context);
     }
   }
 
-  Widget _servicesStream() {
+  Widget _servicesStream(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('businesses')
@@ -434,7 +437,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
 
         if (snapshot.hasError) {
           return Text(
-            'Services could not be loaded.',
+            AppLocalizations.of(context)!.servicesCouldNotBeLoadedPeriod,
             style: AppTheme.caption(color: Colors.white70),
           );
         }
@@ -443,7 +446,7 @@ class _VetDetailOverlayState extends State<VetDetailOverlay> {
 
         if (docs.isEmpty) {
           return Text(
-            'No detailed services provided.',
+            AppLocalizations.of(context)!.noDetailedServicesProvided,
             style: AppTheme.caption(color: Colors.white70),
           );
         }

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:barky_matches_fixed/services/marketplace_invoice_service.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class MarketplaceInvoicePanel extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -106,7 +107,11 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
     if (_invoiceNumberController.text.trim().isEmpty ||
         _invoiceDateController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invoice number and date are required')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.invoiceNumberDateRequired,
+          ),
+        ),
       );
       return;
     }
@@ -124,13 +129,19 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invoice uploaded successfully')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.invoiceUploadedSuccessfully,
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invoice upload failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.invoiceUploadFailed(e)),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -147,14 +158,20 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
         rejectionReason: _rejectionReasonController.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invoice $status')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.invoiceStatusMessage(status),
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invoice review failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.invoiceReviewFailed(e)),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _reviewing = false);
     }
@@ -165,9 +182,11 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
     if (uri == null) return;
     if (!await canLaunchUrl(uri)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Cannot open invoice file')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.cannotOpenInvoiceFile),
+        ),
+      );
       return;
     }
     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -175,6 +194,7 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final invoiceNumber =
         (_invoice['invoiceNumber'] ?? widget.data['invoiceNumber'] ?? '-')
             .toString();
@@ -208,7 +228,10 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Invoice', style: TextStyle(fontWeight: FontWeight.w800)),
+          Text(
+            l10n.invoiceTitle,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 8),
           _meta('Status', _label(_status)),
           if (deadline.isNotEmpty) _meta('Deadline', _formatDate(deadline)),
@@ -221,15 +244,15 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
             OutlinedButton.icon(
               onPressed: _openInvoice,
               icon: const Icon(Icons.open_in_new, size: 18),
-              label: const Text('Open invoice'),
+              label: Text(l10n.openInvoice),
             ),
           ],
           if (widget.businessActions && !_hasInvoiceFile) ...[
             const SizedBox(height: 12),
             TextField(
               controller: _invoiceNumberController,
-              decoration: const InputDecoration(
-                labelText: 'Invoice number',
+              decoration: InputDecoration(
+                labelText: l10n.invoiceNumber,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -238,21 +261,27 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
               controller: _invoiceDateController,
               readOnly: true,
               onTap: _pickDate,
-              decoration: const InputDecoration(
-                labelText: 'Invoice date',
+              decoration: InputDecoration(
+                labelText: l10n.invoiceDate,
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: _invoiceSystem,
-              decoration: const InputDecoration(
-                labelText: 'Invoice system',
+              decoration: InputDecoration(
+                labelText: l10n.invoiceSystemLabel,
                 border: OutlineInputBorder(),
               ),
-              items: const [
-                DropdownMenuItem(value: 'eArsiv', child: Text('e-Arsiv')),
-                DropdownMenuItem(value: 'eFatura', child: Text('e-Fatura')),
+              items: [
+                DropdownMenuItem(
+                  value: 'eArsiv',
+                  child: Text(l10n.eArsivLabel),
+                ),
+                DropdownMenuItem(
+                  value: 'eFatura',
+                  child: Text(l10n.eFaturaLabel),
+                ),
               ],
               onChanged: (value) {
                 if (value != null) setState(() => _invoiceSystem = value);
@@ -261,16 +290,16 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: _invoiceType,
-              decoration: const InputDecoration(
-                labelText: 'Invoice type',
+              decoration: InputDecoration(
+                labelText: l10n.invoiceType,
                 border: OutlineInputBorder(),
               ),
-              items: const [
+              items: [
                 DropdownMenuItem(
                   value: 'individual',
-                  child: Text('Individual'),
+                  child: Text(l10n.individual),
                 ),
-                DropdownMenuItem(value: 'company', child: Text('Company')),
+                DropdownMenuItem(value: 'company', child: Text(l10n.company)),
               ],
               onChanged: (value) {
                 if (value != null) setState(() => _invoiceType = value);
@@ -281,8 +310,8 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
               controller: _noteController,
               minLines: 2,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Note optional',
+              decoration: InputDecoration(
+                labelText: l10n.noteOptional,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -312,8 +341,8 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
               controller: _rejectionReasonController,
               minLines: 2,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Rejection reason optional',
+              decoration: InputDecoration(
+                labelText: l10n.rejectionReasonOptional,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -323,14 +352,14 @@ class _MarketplaceInvoicePanelState extends State<MarketplaceInvoicePanel> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _reviewing ? null : () => _review('approved'),
-                    child: const Text('Approve'),
+                    child: Text(l10n.approve),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _reviewing ? null : () => _review('rejected'),
-                    child: const Text('Reject'),
+                    child: Text(l10n.reject),
                   ),
                 ),
               ],

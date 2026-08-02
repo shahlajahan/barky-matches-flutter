@@ -26,19 +26,20 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
   final PetshopCheckoutService _paymentService = PetshopCheckoutService();
 
   Future<void> _cancel() async {
+    final l10n = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel booking?'),
-        content: const Text('The taxi business will be notified.'),
+        title: Text(l10n.cancelBookingQuestion),
+        content: Text(l10n.taxiBusinessNotified),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep'),
+            child: Text(l10n.keepBooking),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancel booking'),
+            child: Text(l10n.cancelBooking),
           ),
         ],
       ),
@@ -76,6 +77,7 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
   }
 
   Future<void> _startPayment() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_paying) return;
     setState(() => _paying = true);
 
@@ -115,7 +117,7 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Payment successful')));
+          ).showSnackBar(SnackBar(content: Text(l10n.paymentSuccessful)));
         }
       } else if (result == 'isbank_success_redirect') {
         final paymentState = await _paymentService.waitForPaymentConfirmation(
@@ -124,38 +126,43 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
         if (!mounted) return;
 
         final paymentStatus =
-            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ?? '';
+            paymentState?['paymentStatus']?.toString().trim().toLowerCase() ??
+            '';
         final orderStatus =
             paymentState?['orderStatus']?.toString().trim().toLowerCase() ?? '';
-        final paid = paymentState?['paid'] == true ||
+        final paid =
+            paymentState?['paid'] == true ||
             paymentStatus == 'paid' ||
             orderStatus == 'paid';
-        final failed = paymentStatus == 'failed' || orderStatus == 'payment_failed';
+        final failed =
+            paymentStatus == 'failed' || orderStatus == 'payment_failed';
 
         if (paid) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Payment successful')));
+          ).showSnackBar(SnackBar(content: Text(l10n.paymentSuccessful)));
         } else if (failed) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Payment cancelled')));
+          ).showSnackBar(SnackBar(content: Text(l10n.paymentCancelled)));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.processingLabel)),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.processingLabel),
+            ),
           );
         }
       } else if ((result == 'cancel' || result == 'isbank_cancel') && mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Payment cancelled')));
+        ).showSnackBar(SnackBar(content: Text(l10n.paymentCancelled)));
       }
     } catch (e) {
       debugPrint('PetTaxiBookingDetail payment error: ${e.toString()}');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.petTaxiPaymentFailed}: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _paying = false);
@@ -168,6 +175,7 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
     required String message,
     required bool priceRejected,
   }) async {
+    final l10n = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -176,11 +184,11 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
+            child: Text(l10n.no),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
+            child: Text(l10n.yes),
           ),
         ],
       ),
@@ -210,9 +218,10 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: const Text('Pet Taxi Booking')),
+      appBar: AppBar(title: Text(l10n.petTaxiBookingTitle)),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('pet_taxi_bookings')
@@ -220,13 +229,13 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Booking error: ${snapshot.error}'));
+            return Center(child: Text(l10n.bookingError(snapshot.error ?? '')));
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.data!.exists) {
-            return const Center(child: Text('Booking not found'));
+            return Center(child: Text(l10n.petTaxiBookingNotFound));
           }
 
           final data = snapshot.data!.data() ?? {};
@@ -290,8 +299,8 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
                   onPressed: _updating ? null : _cancel,
                   icon: const Icon(LucideIcons.x),
                   label: _updating
-                      ? const Text('Updating...')
-                      : const Text('Cancel booking'),
+                      ? Text(l10n.updating)
+                      : Text(l10n.cancelBooking),
                 ),
             ],
           );
@@ -360,6 +369,7 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
   }
 
   Widget _paymentActions(Map<String, dynamic> data) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _box(),
@@ -367,14 +377,17 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Pet Taxi payment',
+            l10n.petTaxiPaymentTitle,
             style: AppTheme.bodyMedium().copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
-          Text('Final price: ${_finalPriceText(data)}', style: AppTheme.body()),
+          Text(
+            '${l10n.finalPrice}: ${_finalPriceText(data)}',
+            style: AppTheme.body(),
+          ),
           const SizedBox(height: 6),
           Text(
-            'Payment is required before the trip starts. Provider payout is prepared after trip completion.',
+            l10n.paymentRequiredBeforeTrip,
             style: AppTheme.caption(color: AppTheme.muted),
           ),
           const SizedBox(height: 12),
@@ -392,7 +405,7 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
                 child: OutlinedButton.icon(
                   onPressed: _updating ? null : _rejectPrice,
                   icon: const Icon(LucideIcons.x),
-                  label: const Text('Reject'),
+                  label: Text(l10n.reject),
                 ),
               ),
             ],

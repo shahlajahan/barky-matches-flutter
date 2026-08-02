@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PaymentSuccessPage extends StatelessWidget {
   const PaymentSuccessPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text("Payment Success")),
-      body: const Center(
+      appBar: AppBar(title: Text(l10n.paymentSuccessTitle)),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 80),
             SizedBox(height: 20),
-            Text("Payment completed successfully ✅"),
+            Text(l10n.paymentSuccessMessage),
           ],
         ),
       ),
@@ -26,15 +28,16 @@ class PaymentFailedPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text("Payment Failed")),
-      body: const Center(
+      appBar: AppBar(title: Text(l10n.paymentFailedTitle)),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.error, color: Colors.red, size: 80),
             SizedBox(height: 20),
-            Text("Payment verification failed ❌"),
+            Text(l10n.paymentFailedMessage),
           ],
         ),
       ),
@@ -47,15 +50,16 @@ class PaymentCancelledPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text("Payment Cancelled")),
-      body: const Center(
+      appBar: AppBar(title: Text(l10n.paymentCancelledTitle)),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.cancel, color: Colors.orange, size: 80),
             SizedBox(height: 20),
-            Text("Payment was cancelled ⚠️"),
+            Text(l10n.paymentCancelledMessage),
           ],
         ),
       ),

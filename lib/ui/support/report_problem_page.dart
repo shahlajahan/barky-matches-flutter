@@ -8,6 +8,7 @@ import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ReportProblemPage extends StatefulWidget {
   const ReportProblemPage({super.key});
@@ -67,9 +68,11 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
 
   Future<void> submitReport() async {
     if (titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please enter a title")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.reportTitleRequired),
+        ),
+      );
       return;
     }
 
@@ -122,16 +125,22 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Report submitted successfully")),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.reportSubmittedSuccessfully,
+          ),
+        ),
       );
     } catch (e) {
       debugPrint("🔥 submitReport error: $e");
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to send report: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.reportSendFailed(e)),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -203,7 +212,7 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
               ),
               const SizedBox(height: 14),
               Text(
-                "Attach screenshot",
+                AppLocalizations.of(context)!.attachScreenshot,
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -212,7 +221,7 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
               ),
               const SizedBox(height: 6),
               Text(
-                "Optional, but helps us understand the issue faster.",
+                AppLocalizations.of(context)!.screenshotOptionalHint,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 13,
@@ -348,7 +357,7 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
                           const SizedBox(height: 16),
 
                           Text(
-                            "Report a Problem",
+                            AppLocalizations.of(context)!.reportProblemTitle,
 
                             style: GoogleFonts.poppins(
                               color: const Color(0xFFFFC107),
@@ -360,7 +369,9 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
                           const SizedBox(height: 12),
 
                           Text(
-                            "Tell us what went wrong. Your report helps us improve PetSupo.",
+                            AppLocalizations.of(
+                              context,
+                            )!.reportProblemDescription,
 
                             style: GoogleFonts.poppins(
                               color: Colors.white.withOpacity(.92),
@@ -392,28 +403,41 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
                         icon: LucideIcons.tag,
                       ),
 
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: "Bug",
-                          child: Text("Bug report"),
+                          child: Text(AppLocalizations.of(context)!.bugReport),
                         ),
 
                         DropdownMenuItem(
                           value: "Abuse",
-                          child: Text("Abuse / harassment"),
+                          child: Text(
+                            AppLocalizations.of(context)!.reportReasonAbuse,
+                          ),
                         ),
 
                         DropdownMenuItem(
                           value: "Incorrect",
-                          child: Text("Incorrect information"),
+                          child: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.reportIncorrectInformation,
+                          ),
                         ),
 
                         DropdownMenuItem(
                           value: "Payment",
-                          child: Text("Payment issue"),
+                          child: Text(
+                            AppLocalizations.of(context)!.reportPaymentIssue,
+                          ),
                         ),
 
-                        DropdownMenuItem(value: "Other", child: Text("Other")),
+                        DropdownMenuItem(
+                          value: "Other",
+                          child: Text(
+                            AppLocalizations.of(context)!.reportReasonOther,
+                          ),
+                        ),
                       ],
 
                       onChanged: (v) {
@@ -508,7 +532,7 @@ class _ReportProblemPageState extends State<ReportProblemPage> {
                                   const SizedBox(width: 10),
 
                                   Text(
-                                    "Submit Report",
+                                    AppLocalizations.of(context)!.submitReport,
 
                                     style: GoogleFonts.poppins(
                                       fontSize: 16,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -229,6 +230,7 @@ class HelpCenterPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: const Color(0xFFFDF2F5),
 
@@ -277,7 +279,7 @@ class HelpCenterPage extends StatelessWidget {
                     const SizedBox(height: 16),
 
                     Text(
-                      "Help Center",
+                      l10n.helpCenterTitle,
                       style: GoogleFonts.poppins(
                         color: const Color(0xFFFFC107),
                         fontSize: 26,
@@ -288,7 +290,7 @@ class HelpCenterPage extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     Text(
-                      "Need help with PetSupo? Find answers and contact support easily.",
+                      l10n.helpCenterIntro,
                       style: GoogleFonts.poppins(
                         color: Colors.white.withOpacity(.92),
                         fontSize: 14,
@@ -332,7 +334,7 @@ class HelpCenterPage extends StatelessWidget {
               const SizedBox(height: 12),
 
               Text(
-                "Frequently Asked Questions",
+                l10n.frequentlyAskedQuestions,
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,

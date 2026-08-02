@@ -9,6 +9,7 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/welcome_page.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/ui/support/about_us_page.dart';
 import 'package:barky_matches_fixed/ui/legal/privacy_policy_page.dart';
@@ -47,7 +48,7 @@ class BarkyDrawer extends StatelessWidget {
               child: Align(
                 alignment: Alignment.bottomLeft,
                 child: Text(
-                  'PetSupo',
+                  AppLocalizations.of(context)!.petSupoBrand,
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontSize: 26,
@@ -61,13 +62,13 @@ class BarkyDrawer extends StatelessWidget {
             _sectionTitle("Main"),
 
             _tile(
-  context,
-  LucideIcons.home,
-  "Home",
-  onTap: () {
-    context.read<AppState>().setCurrentTab(NavTab.home);
-  },
-),
+              context,
+              LucideIcons.home,
+              "Home",
+              onTap: () {
+                context.read<AppState>().setCurrentTab(NavTab.home);
+              },
+            ),
 
             const Divider(height: 32),
 

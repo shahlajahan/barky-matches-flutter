@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -68,7 +69,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password updated successfully")),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.passwordUpdatedSuccessfully,
+          ),
+        ),
       );
 
       _currentPasswordController.clear();
@@ -130,7 +135,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           const SizedBox(width: 10),
 
           Text(
-            "Password Strength:",
+            AppLocalizations.of(context)!.passwordStrengthLabel,
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w600,
               fontSize: 13,
@@ -245,7 +250,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     const SizedBox(height: 16),
 
                     Text(
-                      "Change Password",
+                      AppLocalizations.of(context)!.changePasswordTitle,
                       style: GoogleFonts.poppins(
                         color: const Color(0xFFFFC107),
                         fontSize: 24,
@@ -256,7 +261,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     const SizedBox(height: 10),
 
                     Text(
-                      "Keep your PetSupo account secure by updating your password regularly.",
+                      AppLocalizations.of(context)!.changePasswordDescription,
                       style: GoogleFonts.poppins(
                         color: Colors.white.withOpacity(.92),
                         fontSize: 14,
@@ -271,7 +276,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
               // 🔐 CURRENT PASSWORD
               Text(
-                "Current Password",
+                AppLocalizations.of(context)!.currentPasswordLabel,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -287,7 +292,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 obscureText: _obscureCurrent,
 
                 decoration: _inputDecoration(
-                  label: "Enter current password",
+                  label: AppLocalizations.of(context)!.enterCurrentPassword,
                   icon: LucideIcons.lock,
                   obscure: _obscureCurrent,
                   onToggle: () {
@@ -302,7 +307,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
               // 🆕 NEW PASSWORD
               Text(
-                "New Password",
+                AppLocalizations.of(context)!.newPasswordLabel,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -320,7 +325,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 onChanged: _checkStrength,
 
                 decoration: _inputDecoration(
-                  label: "Enter new password",
+                  label: AppLocalizations.of(context)!.enterNewPassword,
                   icon: LucideIcons.keyRound,
                   obscure: _obscureNew,
                   onToggle: () {
@@ -339,7 +344,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
               // 🔁 CONFIRM PASSWORD
               Text(
-                "Confirm Password",
+                AppLocalizations.of(context)!.confirmPasswordLabel,
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -355,7 +360,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 obscureText: _obscureConfirm,
 
                 decoration: _inputDecoration(
-                  label: "Confirm new password",
+                  label: AppLocalizations.of(context)!.enterConfirmPassword,
                   icon: LucideIcons.shieldCheck,
                   obscure: _obscureConfirm,
                   onToggle: () {
@@ -400,7 +405,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                           ),
                         )
                       : Text(
-                          "Update Password",
+                          AppLocalizations.of(context)!.updatePasswordLabel,
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

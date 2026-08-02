@@ -639,7 +639,8 @@ class _DogCardState extends State<DogCard>
   }
 
   Widget _buildExpandedDogImage(String imagePath) {
-    final isVideo = imagePath.toLowerCase().contains('.mp4');
+    final normalizedPath = imagePath.trim();
+    final isVideo = normalizedPath.toLowerCase().contains('.mp4');
 
     // 🚨 اگر ویدیو بود → اصلاً image لود نکن
     if (isVideo) {
@@ -654,12 +655,25 @@ class _DogCardState extends State<DogCard>
     }
 
     // ✅ IMAGE (فقط اگر واقعاً عکس بود)
-    if (imagePath.startsWith('http')) {
+    if (normalizedPath.startsWith('http')) {
+      // CachedNetworkImage uses an XMLHttpRequest/cache-manager path on Web.
+      // Use the browser image provider for Firebase Storage download URLs so
+      // Web does not depend on Storage CORS for a byte re-fetch.
+      if (kIsWeb) {
+        return Image.network(
+          normalizedPath,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _fallbackImage(),
+        );
+      }
+
       return CachedNetworkImage(
-        imageUrl: imagePath,
+        imageUrl: normalizedPath,
         width: double.infinity,
-        height: 180,
-        fit: BoxFit.contain,
+        height: double.infinity,
+        fit: BoxFit.cover,
         placeholder: (context, url) => Container(color: Colors.grey.shade200),
         errorWidget: (context, url, error) {
           return _fallbackImage();
@@ -668,10 +682,10 @@ class _DogCardState extends State<DogCard>
     }
 
     return PlatformPathImage(
-      path: imagePath,
+      path: normalizedPath,
       width: double.infinity,
-      height: 180,
-      fit: BoxFit.contain,
+      height: double.infinity,
+      fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => _fallbackImage(),
     );
   }
@@ -1333,281 +1347,296 @@ class _DogCardState extends State<DogCard>
   }
 
   Widget _buildProfileDogCard(BuildContext context) {
-    final imagePath = widget.dog.imagePaths.isNotEmpty
-        ? widget.dog.imagePaths.first
-        : null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // A shrink-wrapped Web list can provide an unbounded width. Establish
+        // a finite card width before AspectRatio lays out the PageView.
+        final cardWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: AppTheme.cardShadow(),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 🖼 IMAGE + BOOST
-              Stack(
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1,
-                    child: PageView.builder(
-                      // ✅ درست
-                      controller: _pageController,
-                      itemCount: widget.dog.imagePaths.length,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentIndex = index;
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        final path = widget.dog.imagePaths[index];
-                        final isVideo = path.toLowerCase().contains('.mp4');
-
-                        return GestureDetector(
-                          onTap: () => _openFullScreenViewer(index),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // 👇 مهم‌ترین بخش
-                              if (!isVideo)
-                                _buildImageWrapper(path)
-                              else
-                                Container(color: Colors.black),
-
-                              if (isVideo)
-                                const Icon(
-                                  Icons.play_circle_fill,
-                                  color: Colors.white,
-                                  size: 40,
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  // 🌙 BOTTOM GRADIENT برای اینکه dots و swipe hint دیده بشه
-                  if (widget.dog.imagePaths.length > 1)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 46,
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Colors.black.withOpacity(0.35),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // 🔥 DOT INDICATOR 👇 اینجااااا
-                  if (widget.dog.imagePaths.length > 1)
-                    Positioned(
-                      bottom: 10,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          widget.dog.imagePaths.length,
-                          (index) => Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: _currentIndex == index ? 10 : 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: _currentIndex == index
-                                  ? Colors.white
-                                  : Colors.white54,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // 🔢 MEDIA COUNT مثل 1/3
-                  if (widget.dog.imagePaths.length > 1)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.55),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          '${_currentIndex + 1}/${widget.dog.imagePaths.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  // 🔥 BOOST BUTTON
-                  Positioned(
-                    top: 46,
-                    right: 10,
-                    child: GestureDetector(
-                      onTap: () => _showBoostSheet(context, widget.dog),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9E1B4F),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              LucideIcons.zap,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              localizations.boostButton,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // ✏️ EDIT
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: GestureDetector(
-                      onTap: () => _openEditDialog(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Icon(
-                          Icons.edit,
-                          size: 16,
-                          color: Color(0xFF9E1B4F),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: SizedBox(
+            width: cardWidth,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppTheme.cardShadow(),
               ),
-
-              // 📄 INFO
-              Padding(
-                padding: const EdgeInsets.all(16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.dog.name,
-                      style: AppTheme.h1().copyWith(
-                        color: const Color(0xFF9E1B4F),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    Text(
-                      localizations.dogCardAgeWithBreed(
-                        widget.dog.age,
-                        translateBreed(widget.dog.breed),
-                      ),
-                      style: AppTheme.body(color: AppTheme.muted),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    // 🖼 IMAGE + BOOST
+                    Stack(
                       children: [
-                        _buildTag(translateGender(widget.dog.gender)),
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: PageView.builder(
+                            // ✅ درست
+                            controller: _pageController,
+                            itemCount: widget.dog.imagePaths.length,
+                            onPageChanged: (index) {
+                              setState(() {
+                                _currentIndex = index;
+                              });
+                            },
+                            itemBuilder: (context, index) {
+                              final path = widget.dog.imagePaths[index];
+                              final isVideo = path.toLowerCase().contains(
+                                '.mp4',
+                              );
 
-                        _buildTag(
-                          translateHealthStatus(widget.dog.healthStatus),
+                              return GestureDetector(
+                                onTap: () => _openFullScreenViewer(index),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // 👇 مهم‌ترین بخش
+                                    if (!isVideo)
+                                      _buildImageWrapper(path)
+                                    else
+                                      Container(color: Colors.black),
+
+                                    if (isVideo)
+                                      const Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.white,
+                                        size: 40,
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
 
-                        if (!_vaccinesLoading && _vaccineCount > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF5E8EE),
-
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-
-                              children: [
-                                const Icon(
-                                  Icons.vaccines_rounded,
-
-                                  size: 14,
-
-                                  color: Color(0xFF9E1B4F),
-                                ),
-
-                                const SizedBox(width: 5),
-
-                                Text(
-                                  localizations.dogCardVaccines(_vaccineCount),
-
-                                  style: const TextStyle(
-                                    color: Color(0xFF9E1B4F),
-
-                                    fontWeight: FontWeight.w600,
-
-                                    fontSize: 12,
+                        // 🌙 BOTTOM GRADIENT برای اینکه dots و swipe hint دیده بشه
+                        if (widget.dog.imagePaths.length > 1)
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: 46,
+                            child: IgnorePointer(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Colors.black.withOpacity(0.35),
+                                      Colors.transparent,
+                                    ],
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
                           ),
+
+                        // 🔥 DOT INDICATOR 👇 اینجااااا
+                        if (widget.dog.imagePaths.length > 1)
+                          Positioned(
+                            bottom: 10,
+                            left: 0,
+                            right: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                widget.dog.imagePaths.length,
+                                (index) => Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 3,
+                                  ),
+                                  width: _currentIndex == index ? 10 : 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: _currentIndex == index
+                                        ? Colors.white
+                                        : Colors.white54,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // 🔢 MEDIA COUNT مثل 1/3
+                        if (widget.dog.imagePaths.length > 1)
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.55),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                '${_currentIndex + 1}/${widget.dog.imagePaths.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        // 🔥 BOOST BUTTON
+                        Positioned(
+                          top: 46,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap: () => _showBoostSheet(context, widget.dog),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF9E1B4F),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    LucideIcons.zap,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    localizations.boostButton,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // ✏️ EDIT
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: GestureDetector(
+                            onTap: () => _openEditDialog(context),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Color(0xFF9E1B4F),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
+                    ),
+
+                    // 📄 INFO
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.dog.name,
+                            style: AppTheme.h1().copyWith(
+                              color: const Color(0xFF9E1B4F),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+
+                          Text(
+                            localizations.dogCardAgeWithBreed(
+                              widget.dog.age,
+                              translateBreed(widget.dog.breed),
+                            ),
+                            style: AppTheme.body(color: AppTheme.muted),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildTag(translateGender(widget.dog.gender)),
+
+                              _buildTag(
+                                translateHealthStatus(widget.dog.healthStatus),
+                              ),
+
+                              if (!_vaccinesLoading && _vaccineCount > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5E8EE),
+
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+
+                                    children: [
+                                      const Icon(
+                                        Icons.vaccines_rounded,
+
+                                        size: 14,
+
+                                        color: Color(0xFF9E1B4F),
+                                      ),
+
+                                      const SizedBox(width: 5),
+
+                                      Text(
+                                        localizations.dogCardVaccines(
+                                          _vaccineCount,
+                                        ),
+
+                                        style: const TextStyle(
+                                          color: Color(0xFF9E1B4F),
+
+                                          fontWeight: FontWeight.w600,
+
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

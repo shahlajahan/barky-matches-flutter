@@ -352,17 +352,18 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage>
   }
 
   Future<void> _showFinanceReportFiles(Map<String, dynamic> data) async {
+    final l10n = AppLocalizations.of(context)!;
     final files = (data['files'] as List? ?? [])
         .map((file) => Map<String, dynamic>.from(file as Map))
         .toList();
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Generated Finance Reports'),
+        title: Text(l10n.generatedFinanceReports),
         content: SizedBox(
           width: 640,
           child: files.isEmpty
-              ? const Text('No report files were generated.')
+              ? Text(l10n.noReportFilesGenerated)
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: files.length,
@@ -388,7 +389,7 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: Text(l10n.close),
           ),
         ],
       ),
@@ -400,10 +401,7 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage>
   ) async {
     final response = await _functions
         .httpsCallable('downloadFinancePayablesReport')
-        .call({
-          'reportId': file['reportId'],
-          'language': file['language'],
-        });
+        .call({'reportId': file['reportId'], 'language': file['language']});
     return Map<String, dynamic>.from(response.data as Map);
   }
 
@@ -455,8 +453,9 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage>
 
   Future<void> _downloadFinanceReport(Map<String, dynamic> file) async {
     final fresh = await _refreshFinanceReportUrl(file);
-    final name = (fresh['fileName'] ?? file['fileName'] ?? 'finance_report.xlsx')
-        .toString();
+    final name =
+        (fresh['fileName'] ?? file['fileName'] ?? 'finance_report.xlsx')
+            .toString();
     String? saved;
     final inlineBytes = _inlineFinanceReportBytes(fresh);
     if (inlineBytes != null) {
@@ -475,7 +474,9 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage>
       if (url.isEmpty) throw StateError('Finance report URL is missing.');
       final response = await http.get(Uri.parse(url));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw StateError('Finance report download failed (${response.statusCode}).');
+        throw StateError(
+          'Finance report download failed (${response.statusCode}).',
+        );
       }
       saved = await downloadPayoutBytes(
         bytes: response.bodyBytes,
@@ -486,14 +487,19 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage>
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(saved == null ? 'Browser download started.' : 'Saved to $saved')),
+      SnackBar(
+        content: Text(
+          saved == null ? 'Browser download started.' : 'Saved to $saved',
+        ),
+      ),
     );
   }
 
   Future<void> _shareFinanceReport(Map<String, dynamic> file) async {
     final fresh = await _refreshFinanceReportUrl(file);
-    final name = (fresh['fileName'] ?? file['fileName'] ?? 'finance_report.xlsx')
-        .toString();
+    final name =
+        (fresh['fileName'] ?? file['fileName'] ?? 'finance_report.xlsx')
+            .toString();
     final inlineBytes = _inlineFinanceReportBytes(fresh);
     final bytes = inlineBytes ?? await _downloadFinanceReportUrlBytes(fresh);
     await Share.shareXFiles([
@@ -960,6 +966,7 @@ class _EligibleEmptySummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -967,7 +974,7 @@ class _EligibleEmptySummary extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'No eligible sellers right now',
+              l10n.noEligibleSellers,
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
@@ -1002,7 +1009,7 @@ class _EligibleEmptySummary extends StatelessWidget {
             FilledButton.icon(
               onPressed: onViewWaiting,
               icon: const Icon(Icons.hourglass_top_outlined),
-              label: const Text('View Waiting Sellers'),
+              label: Text(l10n.viewWaitingSellers),
             ),
           ],
         ),
@@ -1201,7 +1208,7 @@ class _OperationsToolbarState extends State<_OperationsToolbar> {
                   suffixIcon: widget.controller.text.isEmpty
                       ? null
                       : IconButton(
-                          tooltip: 'Clear search',
+                          tooltip: l10n.clearSearch,
                           onPressed: () {
                             widget.controller.clear();
                             widget.onSearch('');
@@ -1226,7 +1233,7 @@ class _OperationsToolbarState extends State<_OperationsToolbar> {
             FilledButton.icon(
               onPressed: widget.onExport,
               icon: const Icon(Icons.description_outlined),
-              label: const Text('Export Finance Report'),
+              label: Text(l10n.exportFinanceReport),
             ),
             if (_filtersExpanded) ...[
               DropdownButton<PayoutDatePreset?>(
@@ -1807,7 +1814,11 @@ class _BatchCardState extends State<_BatchCard> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export operation failed: $error')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.exportOperationFailed(error),
+          ),
+        ),
       );
     }
   }
@@ -1816,11 +1827,12 @@ class _BatchCardState extends State<_BatchCard> {
     Map<String, dynamic> data, {
     required bool generated,
   }) async {
+    final l10n = AppLocalizations.of(context)!;
     final generatedAt = widget.data['exportedAt'] ?? data['generatedAt'];
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Generated XLSX'),
+        title: Text(l10n.generatedXlsx),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1853,11 +1865,9 @@ class _BatchCardState extends State<_BatchCard> {
                 value: (data['downloadUrl'] ?? '—').toString(),
               ),
               if (generated)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 12),
-                  child: Text(
-                    'The batch is now exported and ready for processing.',
-                  ),
+                  child: Text(l10n.batchExportedReady),
                 ),
             ],
           ),
@@ -1869,22 +1879,22 @@ class _BatchCardState extends State<_BatchCard> {
                 Navigator.pop(dialogContext);
                 _regenerateExport();
               },
-              child: const Text('Regenerate'),
+              child: Text(l10n.regenerate),
             ),
           if (!kIsWeb)
             TextButton(
               onPressed: () => _runExportAction(() => _shareExport(data)),
-              child: const Text('Share'),
+              child: Text(l10n.share),
             ),
           FilledButton.icon(
             onPressed: () =>
                 _runExportAction(() => _downloadExport(data: data)),
             icon: const Icon(Icons.download_outlined),
-            label: const Text('Download XLSX'),
+            label: Text(l10n.downloadXlsx),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: Text(l10n.close),
           ),
         ],
       ),
@@ -1892,6 +1902,7 @@ class _BatchCardState extends State<_BatchCard> {
   }
 
   Future<void> _preview() async {
+    final l10n = AppLocalizations.of(context)!;
     final snapshot = await FirebaseFirestore.instance
         .collection('payoutBatches')
         .doc(widget.batchId)
@@ -1901,7 +1912,9 @@ class _BatchCardState extends State<_BatchCard> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Preview ${widget.data['batchNumber'] ?? widget.batchId}'),
+        title: Text(
+          l10n.previewBatch(widget.data['batchNumber'] ?? widget.batchId),
+        ),
         content: SizedBox(
           width: 720,
           child: SingleChildScrollView(
@@ -1915,7 +1928,7 @@ class _BatchCardState extends State<_BatchCard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: Text(l10n.close),
           ),
         ],
       ),
@@ -1923,6 +1936,7 @@ class _BatchCardState extends State<_BatchCard> {
   }
 
   Future<void> _auditHistory() async {
+    final l10n = AppLocalizations.of(context)!;
     final snapshot = await FirebaseFirestore.instance
         .collection('financialEvents')
         .where('sourceCollection', isEqualTo: 'payoutBatches')
@@ -1933,11 +1947,11 @@ class _BatchCardState extends State<_BatchCard> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Audit History'),
+        title: Text(l10n.auditHistory),
         content: SizedBox(
           width: 620,
           child: snapshot.docs.isEmpty
-              ? const Text('No audit events found.')
+              ? Text(l10n.noAuditEvents)
               : ListView(
                   shrinkWrap: true,
                   children: snapshot.docs.map((doc) {
@@ -1957,7 +1971,7 @@ class _BatchCardState extends State<_BatchCard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: Text(l10n.close),
           ),
         ],
       ),
@@ -2040,7 +2054,7 @@ class _BatchCardState extends State<_BatchCard> {
           OutlinedButton.icon(
             onPressed: _preview,
             icon: const Icon(Icons.preview_outlined),
-            label: const Text('Preview'),
+            label: Text(l10n.preview),
           ),
           FilledButton.icon(
             onPressed: _export,
@@ -2146,12 +2160,12 @@ class _BatchCardState extends State<_BatchCard> {
                     OutlinedButton.icon(
                       onPressed: _preview,
                       icon: const Icon(Icons.preview_outlined),
-                      label: const Text('Preview'),
+                      label: Text(l10n.preview),
                     ),
                     OutlinedButton.icon(
                       onPressed: _auditHistory,
                       icon: const Icon(Icons.history),
-                      label: const Text('Audit History'),
+                      label: Text(l10n.auditHistory),
                     ),
                   ],
                 ),
@@ -2369,6 +2383,7 @@ class _ExceptionCard extends StatelessWidget {
   final PayoutOperationRecord record;
 
   Future<void> _retrySettlement(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       await FirebaseFunctions.instanceFor(
         region: 'europe-west3',
@@ -2377,9 +2392,9 @@ class _ExceptionCard extends StatelessWidget {
         'payableId': record.sourceDocumentId,
       });
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settlement retry requested.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.settlementRetryRequested)));
     } on FirebaseFunctionsException catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2389,10 +2404,11 @@ class _ExceptionCard extends StatelessWidget {
   }
 
   void _openSnapshot(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Financial Snapshot'),
+        title: Text(l10n.financialSnapshot),
         content: SelectableText(
           const JsonEncoder.withIndent('  ').convert({
             'sourceCollection': record.sourceCollection,
@@ -2410,7 +2426,7 @@ class _ExceptionCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: Text(l10n.close),
           ),
         ],
       ),
@@ -2493,7 +2509,7 @@ class _ExceptionCard extends StatelessWidget {
                         )
                       : null,
                   icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('Open Order'),
+                  label: Text(l10n.openOrder),
                 ),
                 OutlinedButton.icon(
                   onPressed: record.businessId.isEmpty
@@ -2507,12 +2523,12 @@ class _ExceptionCard extends StatelessWidget {
                           ),
                         ),
                   icon: const Icon(Icons.storefront_outlined),
-                  label: const Text('Open Seller'),
+                  label: Text(l10n.openSeller),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _openSnapshot(context),
                   icon: const Icon(Icons.account_balance_outlined),
-                  label: const Text('Open Financial Snapshot'),
+                  label: Text(l10n.openFinancialSnapshot),
                 ),
                 FilledButton.icon(
                   onPressed:
@@ -2520,7 +2536,7 @@ class _ExceptionCard extends StatelessWidget {
                       ? null
                       : () => _retrySettlement(context),
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Retry Settlement'),
+                  label: Text(l10n.retrySettlement),
                 ),
               ],
             ),
@@ -2793,8 +2809,11 @@ class _FinanceReportConfigDialogState
         end: DateTime(now.year, now.month, now.day, 23, 59, 59),
       );
     } else if (_dateRange == 'week') {
-      final start = DateTime(now.year, now.month, now.day)
-          .subtract(Duration(days: now.weekday - 1));
+      final start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: now.weekday - 1));
       range = DateTimeRange(start: start, end: now);
     } else if (_dateRange == 'month') {
       range = DateTimeRange(start: DateTime(now.year, now.month), end: now);
@@ -2813,11 +2832,16 @@ class _FinanceReportConfigDialogState
   void _submit() {
     DateTime? start;
     DateTime? end;
-    if (_dateRange == 'today' || _dateRange == 'week' || _dateRange == 'month' || _dateRange == 'custom') {
+    if (_dateRange == 'today' ||
+        _dateRange == 'week' ||
+        _dateRange == 'month' ||
+        _dateRange == 'custom') {
       if (_customRange != null) {
         start = _customRange!.start;
         end = _customRange!.end;
-      } else if (_dateRange == 'today' || _dateRange == 'week' || _dateRange == 'month') {
+      } else if (_dateRange == 'today' ||
+          _dateRange == 'week' ||
+          _dateRange == 'month') {
         _chooseDateRange();
         return;
       }
@@ -2840,8 +2864,9 @@ class _FinanceReportConfigDialogState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: const Text('Export Finance Report'),
+      title: Text(l10n.exportFinanceReport),
       content: SizedBox(
         width: 620,
         child: SingleChildScrollView(
@@ -2850,13 +2875,16 @@ class _FinanceReportConfigDialogState
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _dateRange,
-                decoration: const InputDecoration(labelText: 'Date range'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All records')),
-                  DropdownMenuItem(value: 'today', child: Text('Today')),
-                  DropdownMenuItem(value: 'week', child: Text('This week')),
-                  DropdownMenuItem(value: 'month', child: Text('This month')),
-                  DropdownMenuItem(value: 'custom', child: Text('Custom range')),
+                decoration: InputDecoration(labelText: l10n.dateRange),
+                items: [
+                  DropdownMenuItem(value: 'all', child: Text(l10n.allRecords)),
+                  DropdownMenuItem(value: 'today', child: Text(l10n.today)),
+                  DropdownMenuItem(value: 'week', child: Text(l10n.thisWeek)),
+                  DropdownMenuItem(value: 'month', child: Text(l10n.thisMonth)),
+                  DropdownMenuItem(
+                    value: 'custom',
+                    child: Text(l10n.customRange),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value == null) return;
@@ -2865,7 +2893,7 @@ class _FinanceReportConfigDialogState
                 },
               ),
               const SizedBox(height: 12),
-              const Text('Statuses'),
+              Text(l10n.statuses),
               Wrap(
                 spacing: 6,
                 children: _statusOptions
@@ -2886,62 +2914,77 @@ class _FinanceReportConfigDialogState
               ),
               DropdownButtonFormField<String>(
                 initialValue: _sector,
-                decoration: const InputDecoration(labelText: 'Sector'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All sectors')),
-                  DropdownMenuItem(value: 'petshop', child: Text('Pet Shop')),
-                  DropdownMenuItem(value: 'vet', child: Text('Vet')),
-                  DropdownMenuItem(value: 'groomy', child: Text('Groomy')),
-                  DropdownMenuItem(value: 'hotel', child: Text('Hotel')),
-                  DropdownMenuItem(value: 'taxi', child: Text('Taxi')),
+                decoration: InputDecoration(labelText: l10n.sector),
+                items: [
+                  DropdownMenuItem(value: 'all', child: Text(l10n.allSectors)),
+                  DropdownMenuItem(value: 'petshop', child: Text(l10n.petShop)),
+                  DropdownMenuItem(value: 'vet', child: Text(l10n.vet)),
+                  DropdownMenuItem(value: 'groomy', child: Text(l10n.groomy)),
+                  DropdownMenuItem(value: 'hotel', child: Text(l10n.hotel)),
+                  DropdownMenuItem(value: 'taxi', child: Text(l10n.taxi)),
                 ],
                 onChanged: (value) => setState(() => _sector = value ?? 'all'),
               ),
               TextField(
                 controller: _sellerController,
-                decoration: const InputDecoration(
-                  labelText: 'Seller business ID (optional)',
+                decoration: InputDecoration(
+                  labelText: l10n.sellerBusinessIdOptional,
                 ),
               ),
               DropdownButtonFormField<String>(
                 initialValue: _currency,
-                decoration: const InputDecoration(labelText: 'Currency'),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All currencies')),
-                  DropdownMenuItem(value: 'TRY', child: Text('TRY')),
+                decoration: InputDecoration(labelText: l10n.currency),
+                items: [
+                  DropdownMenuItem(
+                    value: 'all',
+                    child: Text(l10n.allCurrencies),
+                  ),
+                  DropdownMenuItem(value: 'TRY', child: Text(l10n.tryCurrency)),
                 ],
-                onChanged: (value) => setState(() => _currency = value ?? 'all'),
+                onChanged: (value) =>
+                    setState(() => _currency = value ?? 'all'),
               ),
               DropdownButtonFormField<String>(
                 initialValue: _language,
-                decoration: const InputDecoration(labelText: 'Report language'),
-                items: const [
-                  DropdownMenuItem(value: 'tr', child: Text('Turkish')),
-                  DropdownMenuItem(value: 'en', child: Text('English')),
-                  DropdownMenuItem(value: 'both', child: Text('Both')),
+                decoration: InputDecoration(labelText: l10n.reportLanguage),
+                items: [
+                  DropdownMenuItem(value: 'tr', child: Text(l10n.turkish)),
+                  DropdownMenuItem(value: 'en', child: Text(l10n.english)),
+                  DropdownMenuItem(value: 'both', child: Text(l10n.both)),
                 ],
-                onChanged: (value) => setState(() => _language = value ?? 'both'),
+                onChanged: (value) =>
+                    setState(() => _language = value ?? 'both'),
               ),
               DropdownButtonFormField<String>(
                 initialValue: _documentType,
-                decoration: const InputDecoration(labelText: 'Document type'),
-                items: const [
-                  DropdownMenuItem(value: 'accountant', child: Text('Accountant Copy')),
-                  DropdownMenuItem(value: 'internal', child: Text('Internal Records Copy')),
-                  DropdownMenuItem(value: 'both', child: Text('Both')),
+                decoration: InputDecoration(labelText: l10n.documentType),
+                items: [
+                  DropdownMenuItem(
+                    value: 'accountant',
+                    child: Text(l10n.accountantCopy),
+                  ),
+                  DropdownMenuItem(
+                    value: 'internal',
+                    child: Text(l10n.internalRecordsCopy),
+                  ),
+                  DropdownMenuItem(value: 'both', child: Text(l10n.both)),
                 ],
-                onChanged: (value) => setState(() => _documentType = value ?? 'both'),
+                onChanged: (value) =>
+                    setState(() => _documentType = value ?? 'both'),
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancel),
+        ),
         FilledButton.icon(
           onPressed: _submit,
           icon: const Icon(Icons.file_download_outlined),
-          label: const Text('Generate Reports'),
+          label: Text(l10n.generateReports),
         ),
       ],
     );
@@ -2987,12 +3030,12 @@ class _FinanceReportFileTile extends StatelessWidget {
         children: [
           if (onShare != null)
             IconButton(
-              tooltip: 'Share',
+              tooltip: AppLocalizations.of(context)!.share,
               onPressed: onShare,
               icon: const Icon(Icons.share_outlined),
             ),
           IconButton(
-            tooltip: 'Download',
+            tooltip: AppLocalizations.of(context)!.download,
             onPressed: onDownload,
             icon: const Icon(Icons.download_outlined),
           ),

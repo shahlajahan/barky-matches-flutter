@@ -64,7 +64,8 @@ import 'app_localizations_tr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -72,7 +73,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -84,19 +86,20 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('fa'),
     Locale('ru'),
-    Locale('tr')
+    Locale('tr'),
   ];
 
   /// Message shown when user is not logged in and is redirected to login page
@@ -2545,7 +2548,10 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{requesterDog} wants to play with {requestedDog}!'**
-  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog);
+  String playdateRequestNotificationBody(
+    Object requesterDog,
+    Object requestedDog,
+  );
 
   /// Success message for creating request
   ///
@@ -3733,7 +3739,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Play date scheduled for {day}/{month}/{year} at {time}!'**
-  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time);
+  String dogViewPlayDateScheduled(
+    Object day,
+    Object month,
+    Object year,
+    Object time,
+  );
 
   /// Success message for sending adoption request in dog view
   ///
@@ -8845,7 +8856,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} by {brand} is a useful accessory in the {subCategory} category.'**
-  String smartDescriptionAccessories(Object brand, Object name, Object subCategory);
+  String smartDescriptionAccessories(
+    Object brand,
+    Object name,
+    Object subCategory,
+  );
 
   /// No description provided for @smartDescriptionHealth.
   ///
@@ -11934,7 +11949,7 @@ abstract class AppLocalizations {
   /// No description provided for @termsContactTitle.
   ///
   /// In en, this message translates to:
-  /// **'8. Contact Us'**
+  /// **'7. Contact'**
   String get termsContactTitle;
 
   /// No description provided for @termsContactBody.
@@ -15897,6 +15912,12 @@ abstract class AppLocalizations {
   /// **'Your payout is blocked because your bank account information is incomplete.'**
   String get sellerFinanceBankBlocked;
 
+  /// No description provided for @sellerFinanceBankReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank account ready for payouts'**
+  String get sellerFinanceBankReady;
+
   /// No description provided for @sellerFinanceUpdateBank.
   ///
   /// In en, this message translates to:
@@ -16400,9 +16421,1714 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That referral code is unavailable. You can continue without it.'**
   String get referralCodeInvalid;
+
+  /// No description provided for @moderationNoHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No moderation history yet'**
+  String get moderationNoHistory;
+
+  /// No description provided for @complaintNoMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet.'**
+  String get complaintNoMessages;
+
+  /// No description provided for @generatedFinanceReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated Finance Reports'**
+  String get generatedFinanceReports;
+
+  /// No description provided for @noReportFilesGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'No report files were generated.'**
+  String get noReportFilesGenerated;
+
+  /// No description provided for @noEligibleSellers.
+  ///
+  /// In en, this message translates to:
+  /// **'No eligible sellers right now'**
+  String get noEligibleSellers;
+
+  /// No description provided for @viewWaitingSellers.
+  ///
+  /// In en, this message translates to:
+  /// **'View Waiting Sellers'**
+  String get viewWaitingSellers;
+
+  /// No description provided for @clearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get clearSearch;
+
+  /// No description provided for @exportFinanceReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Finance Report'**
+  String get exportFinanceReport;
+
+  /// No description provided for @exportOperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export operation failed: {error}'**
+  String exportOperationFailed(Object error);
+
+  /// No description provided for @generatedXlsx.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated XLSX'**
+  String get generatedXlsx;
+
+  /// No description provided for @batchExportedReady.
+  ///
+  /// In en, this message translates to:
+  /// **'The batch is now exported and ready for processing.'**
+  String get batchExportedReady;
+
+  /// No description provided for @regenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get regenerate;
+
+  /// No description provided for @downloadXlsx.
+  ///
+  /// In en, this message translates to:
+  /// **'Download XLSX'**
+  String get downloadXlsx;
+
+  /// No description provided for @previewBatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview {batch}'**
+  String previewBatch(Object batch);
+
+  /// No description provided for @auditHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Audit History'**
+  String get auditHistory;
+
+  /// No description provided for @noAuditEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'No audit events found.'**
+  String get noAuditEvents;
+
+  /// No description provided for @settlementRetryRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Settlement retry requested.'**
+  String get settlementRetryRequested;
+
+  /// No description provided for @financialSnapshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial Snapshot'**
+  String get financialSnapshot;
+
+  /// No description provided for @openOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Order'**
+  String get openOrder;
+
+  /// No description provided for @openSeller.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Seller'**
+  String get openSeller;
+
+  /// No description provided for @openFinancialSnapshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Financial Snapshot'**
+  String get openFinancialSnapshot;
+
+  /// No description provided for @retrySettlement.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Settlement'**
+  String get retrySettlement;
+
+  /// No description provided for @dateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Date range'**
+  String get dateRange;
+
+  /// No description provided for @allRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'All records'**
+  String get allRecords;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @thisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get thisWeek;
+
+  /// No description provided for @thisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get thisMonth;
+
+  /// No description provided for @customRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom range'**
+  String get customRange;
+
+  /// No description provided for @statuses.
+  ///
+  /// In en, this message translates to:
+  /// **'Statuses'**
+  String get statuses;
+
+  /// No description provided for @sector.
+  ///
+  /// In en, this message translates to:
+  /// **'Sector'**
+  String get sector;
+
+  /// No description provided for @allSectors.
+  ///
+  /// In en, this message translates to:
+  /// **'All sectors'**
+  String get allSectors;
+
+  /// No description provided for @petShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Shop'**
+  String get petShop;
+
+  /// No description provided for @vet.
+  ///
+  /// In en, this message translates to:
+  /// **'Vet'**
+  String get vet;
+
+  /// No description provided for @groomy.
+  ///
+  /// In en, this message translates to:
+  /// **'Groomy'**
+  String get groomy;
+
+  /// No description provided for @hotel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotel'**
+  String get hotel;
+
+  /// No description provided for @taxi.
+  ///
+  /// In en, this message translates to:
+  /// **'Taxi'**
+  String get taxi;
+
+  /// No description provided for @sellerBusinessIdOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Seller business ID (optional)'**
+  String get sellerBusinessIdOptional;
+
+  /// No description provided for @currency.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get currency;
+
+  /// No description provided for @allCurrencies.
+  ///
+  /// In en, this message translates to:
+  /// **'All currencies'**
+  String get allCurrencies;
+
+  /// No description provided for @tryCurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'TRY'**
+  String get tryCurrency;
+
+  /// No description provided for @reportLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Report language'**
+  String get reportLanguage;
+
+  /// No description provided for @turkish.
+  ///
+  /// In en, this message translates to:
+  /// **'Turkish'**
+  String get turkish;
+
+  /// No description provided for @english.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// No description provided for @both.
+  ///
+  /// In en, this message translates to:
+  /// **'Both'**
+  String get both;
+
+  /// No description provided for @documentType.
+  ///
+  /// In en, this message translates to:
+  /// **'Document type'**
+  String get documentType;
+
+  /// No description provided for @accountantCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Accountant Copy'**
+  String get accountantCopy;
+
+  /// No description provided for @internalRecordsCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal Records Copy'**
+  String get internalRecordsCopy;
+
+  /// No description provided for @generateReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Reports'**
+  String get generateReports;
+
+  /// No description provided for @download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get download;
+
+  /// No description provided for @adoptionImpactOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Impact Overview'**
+  String get adoptionImpactOverview;
+
+  /// No description provided for @adoptionPerformanceShelterActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Adoption performance and shelter activity'**
+  String get adoptionPerformanceShelterActivity;
+
+  /// No description provided for @noAnimalsAvailableAdoption.
+  ///
+  /// In en, this message translates to:
+  /// **'No animals are currently available for adoption.\nAdd your first animal to begin accepting applications.'**
+  String get noAnimalsAvailableAdoption;
+
+  /// No description provided for @adoptionTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Adoption Trend'**
+  String get adoptionTrend;
+
+  /// No description provided for @noAdoptionsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No adoptions yet.'**
+  String get noAdoptionsYet;
+
+  /// No description provided for @speciesBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Species Breakdown'**
+  String get speciesBreakdown;
+
+  /// No description provided for @speciesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Species unavailable'**
+  String get speciesUnavailable;
+
+  /// No description provided for @adopted.
+  ///
+  /// In en, this message translates to:
+  /// **'Adopted'**
+  String get adopted;
+
+  /// No description provided for @revenueTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue trend'**
+  String get revenueTrend;
+
+  /// No description provided for @noRevenueTrendYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No revenue trend yet'**
+  String get noRevenueTrendYet;
+
+  /// No description provided for @paymentsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} payments'**
+  String paymentsCount(Object count);
+
+  /// No description provided for @revenueBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue breakdown'**
+  String get revenueBreakdown;
+
+  /// No description provided for @noRevenueActivityYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No revenue activity yet'**
+  String get noRevenueActivityYet;
+
+  /// No description provided for @settlementTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Settlement timeline'**
+  String get settlementTimeline;
+
+  /// No description provided for @waitingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} waiting'**
+  String waitingCount(Object count);
+
+  /// No description provided for @noPayoutsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No payouts yet'**
+  String get noPayoutsYet;
+
+  /// No description provided for @turnOnLocationServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn On Location Services'**
+  String get turnOnLocationServices;
+
+  /// No description provided for @petTaxiLocationServicesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Taxi needs location services enabled to show your live position on the map.'**
+  String get petTaxiLocationServicesMessage;
+
+  /// No description provided for @notNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Now'**
+  String get notNow;
+
+  /// No description provided for @openSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get openSettings;
+
+  /// No description provided for @allowLocationAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Location Access'**
+  String get allowLocationAccess;
+
+  /// No description provided for @petTaxiLocationPermissionMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Taxi needs location permission to enable My Location and center the map on you.'**
+  String get petTaxiLocationPermissionMessage;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @locationPermissionBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Location Permission Blocked'**
+  String get locationPermissionBlocked;
+
+  /// No description provided for @petTaxiLocationBlockedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Location access is blocked for Pet Taxi. Open app settings to allow location permission.'**
+  String get petTaxiLocationBlockedMessage;
+
+  /// No description provided for @petTaxiBottomSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe & trusted transportation for your pet'**
+  String get petTaxiBottomSubtitle;
+
+  /// No description provided for @petTaxiNoPetsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No pets found'**
+  String get petTaxiNoPetsFound;
+
+  /// No description provided for @petTaxiAddPetPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a pet to request a Pet Taxi ride.'**
+  String get petTaxiAddPetPrompt;
+
+  /// No description provided for @dailySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Summary'**
+  String get dailySummary;
+
+  /// No description provided for @sellers.
+  ///
+  /// In en, this message translates to:
+  /// **'Sellers'**
+  String get sellers;
+
+  /// No description provided for @sellerQueryError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String sellerQueryError(Object error);
+
+  /// No description provided for @noSellersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No sellers found'**
+  String get noSellersFound;
+
+  /// No description provided for @medicalNotSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in'**
+  String get medicalNotSigned;
+
+  /// No description provided for @medicalNoPets.
+  ///
+  /// In en, this message translates to:
+  /// **'No pets found'**
+  String get medicalNoPets;
+
+  /// No description provided for @cancelBookingQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel booking?'**
+  String get cancelBookingQuestion;
+
+  /// No description provided for @taxiBusinessNotified.
+  ///
+  /// In en, this message translates to:
+  /// **'The taxi business will be notified.'**
+  String get taxiBusinessNotified;
+
+  /// No description provided for @keepBooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get keepBooking;
+
+  /// No description provided for @cancelBooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel booking'**
+  String get cancelBooking;
+
+  /// No description provided for @petTaxiBookingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Taxi Booking'**
+  String get petTaxiBookingTitle;
+
+  /// No description provided for @petTaxiBookingNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking not found'**
+  String get petTaxiBookingNotFound;
+
+  /// No description provided for @updating.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating...'**
+  String get updating;
+
+  /// No description provided for @petTaxiPaymentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Taxi payment'**
+  String get petTaxiPaymentTitle;
+
+  /// No description provided for @paymentRequiredBeforeTrip.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment is required before the trip starts. Provider payout is prepared after trip completion.'**
+  String get paymentRequiredBeforeTrip;
+
+  /// No description provided for @bookPetTaxi.
+  ///
+  /// In en, this message translates to:
+  /// **'Book Pet Taxi'**
+  String get bookPetTaxi;
+
+  /// No description provided for @transportResponsibilityDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'PetSupo only provides booking infrastructure. Transportation responsibility belongs to the provider.'**
+  String get transportResponsibilityDisclaimer;
+
+  /// No description provided for @petSafeForTransportation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm my pet is safe for transportation.'**
+  String get petSafeForTransportation;
+
+  /// No description provided for @petTaxiBusinessSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet taxi business summary'**
+  String get petTaxiBusinessSummary;
+
+  /// No description provided for @noPetsBeforeTaxiBooking.
+  ///
+  /// In en, this message translates to:
+  /// **'No pets found. Add a pet profile before booking.'**
+  String get noPetsBeforeTaxiBooking;
+
+  /// No description provided for @selectPetForTaxiBooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Select pet for taxi booking'**
+  String get selectPetForTaxiBooking;
+
+  /// No description provided for @selectPickupDateTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Select pickup date and time'**
+  String get selectPickupDateTime;
+
+  /// No description provided for @futurePickupDateTimeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a future pickup date and time'**
+  String get futurePickupDateTimeRequired;
+
+  /// No description provided for @bookingSummaryA11y.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking summary'**
+  String get bookingSummaryA11y;
+
+  /// No description provided for @bookingSummaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking Summary'**
+  String get bookingSummaryTitle;
+
+  /// No description provided for @estimatedPetTaxiPriceRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated pet taxi price range'**
+  String get estimatedPetTaxiPriceRange;
+
+  /// No description provided for @estimatedPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated Price'**
+  String get estimatedPrice;
+
+  /// No description provided for @routeEstimateNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate.'**
+  String get routeEstimateNeeded;
+
+  /// No description provided for @routeEstimateDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} km driving route • {duration} min. Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider.'**
+  String routeEstimateDetail(Object distance, Object duration);
+
+  /// No description provided for @createPetTaxiBooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Create pet taxi booking'**
+  String get createPetTaxiBooking;
+
+  /// No description provided for @creatingBooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating booking...'**
+  String get creatingBooking;
+
+  /// No description provided for @petTaxiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Taxi'**
+  String get petTaxiTitle;
+
+  /// No description provided for @petTaxiSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Book safe pet transportation with reviewed taxi businesses.'**
+  String get petTaxiSubtitle;
+
+  /// No description provided for @searchTaxiBusinesses.
+  ///
+  /// In en, this message translates to:
+  /// **'Search taxi businesses'**
+  String get searchTaxiBusinesses;
+
+  /// No description provided for @locationSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Location search failed: {error}'**
+  String locationSearchFailed(Object error);
+
+  /// No description provided for @addressLookupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Address lookup failed: {error}'**
+  String addressLookupFailed(Object error);
+
+  /// No description provided for @currentLocationLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load current location: {error}'**
+  String currentLocationLoadFailed(Object error);
+
+  /// No description provided for @useSelectedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Selected Location'**
+  String get useSelectedLocation;
+
+  /// No description provided for @searchRealAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Search real address'**
+  String get searchRealAddress;
+
+  /// No description provided for @streetBuildingDistrict.
+  ///
+  /// In en, this message translates to:
+  /// **'Street, building, district'**
+  String get streetBuildingDistrict;
+
+  /// No description provided for @useMyCurrentLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use My Current Location'**
+  String get useMyCurrentLocation;
+
+  /// No description provided for @helpCenterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Help Center'**
+  String get helpCenterTitle;
+
+  /// No description provided for @helpCenterIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Need help with PetSupo? Find answers and contact support easily.'**
+  String get helpCenterIntro;
+
+  /// No description provided for @frequentlyAskedQuestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequently Asked Questions'**
+  String get frequentlyAskedQuestions;
+
+  /// No description provided for @emailAppUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open email app'**
+  String get emailAppUnavailable;
+
+  /// No description provided for @emailCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Email copied'**
+  String get emailCopied;
+
+  /// No description provided for @privacyPolicyContent.
+  ///
+  /// In en, this message translates to:
+  /// **'PetSupo respects your privacy and is committed to protecting your personal data.\n\n1. Data We Collect\nWe may collect personal information, location data, pet-related information, media uploads, and device and notification data.\n\n2. How We Use Your Data\nYour data is used to provide and operate our services, enable matching and communication, improve the app, and send notifications with your permission.\n\n3. Data Sharing\nWe do NOT sell your personal data. Data may be shared only with trusted service providers or when required by law.\n\n4. Data Storage & Security\nYour data is securely stored on servers located in Europe, with appropriate technical and organizational safeguards.\n\n5. Data Retention\nWe retain data only as long as necessary. Users may request deletion at any time.\n\n6. Your Rights (KVKK & GDPR)\nYou may access, correct, delete, withdraw consent, and request portability of your data.\n\n7. Account Deletion\nContact us to request deletion of your account and associated data.\n\n8. Children\'s Privacy\nPetSupo is not intended for children under 13.\n\n9. Changes to This Policy\nWe may update this policy and notify users of significant changes.\n\n10. Contact\nIf you have questions about this policy or your data, please contact us:'**
+  String get privacyPolicyContent;
+
+  /// No description provided for @privacyContactTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'7. Contact'**
+  String get privacyContactTitle;
+
+  /// No description provided for @privacyContactPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'If you have any questions about this Privacy Policy or your data, please contact us:'**
+  String get privacyContactPrompt;
+
+  /// No description provided for @privacyResponseTime.
+  ///
+  /// In en, this message translates to:
+  /// **'We will respond as soon as possible.'**
+  String get privacyResponseTime;
+
+  /// No description provided for @termsEmailCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Email copied'**
+  String get termsEmailCopied;
+
+  /// No description provided for @termsOfServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Service'**
+  String get termsOfServiceTitle;
+
+  /// No description provided for @termsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'By using PetSupo, you agree to the following terms:'**
+  String get termsIntro;
+
+  /// No description provided for @termsResponseTime.
+  ///
+  /// In en, this message translates to:
+  /// **'We aim to respond within a reasonable timeframe.'**
+  String get termsResponseTime;
+
+  /// No description provided for @invoiceNumberDateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice number and date are required'**
+  String get invoiceNumberDateRequired;
+
+  /// No description provided for @invoiceUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice upload failed: {error}'**
+  String invoiceUploadFailed(Object error);
+
+  /// No description provided for @invoiceStatusMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice {status}'**
+  String invoiceStatusMessage(Object status);
+
+  /// No description provided for @invoiceReviewFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice review failed: {error}'**
+  String invoiceReviewFailed(Object error);
+
+  /// No description provided for @openInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Open invoice'**
+  String get openInvoice;
+
+  /// No description provided for @invoiceNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice number'**
+  String get invoiceNumber;
+
+  /// No description provided for @invoiceDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice date'**
+  String get invoiceDate;
+
+  /// No description provided for @invoiceType.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice type'**
+  String get invoiceType;
+
+  /// No description provided for @individual.
+  ///
+  /// In en, this message translates to:
+  /// **'Individual'**
+  String get individual;
+
+  /// No description provided for @company.
+  ///
+  /// In en, this message translates to:
+  /// **'Company'**
+  String get company;
+
+  /// No description provided for @noteOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Note optional'**
+  String get noteOptional;
+
+  /// No description provided for @rejectionReasonOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejection reason optional'**
+  String get rejectionReasonOptional;
+
+  /// No description provided for @paymentSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Success'**
+  String get paymentSuccessTitle;
+
+  /// No description provided for @paymentSuccessMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment completed successfully ✅'**
+  String get paymentSuccessMessage;
+
+  /// No description provided for @paymentFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Failed'**
+  String get paymentFailedTitle;
+
+  /// No description provided for @paymentFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment verification failed ❌'**
+  String get paymentFailedMessage;
+
+  /// No description provided for @paymentCancelledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Cancelled'**
+  String get paymentCancelledTitle;
+
+  /// No description provided for @paymentCancelledMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment was cancelled ⚠️'**
+  String get paymentCancelledMessage;
+
+  /// No description provided for @submitComplaintTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Complaint'**
+  String get submitComplaintTitle;
+
+  /// No description provided for @submitComplaintConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to submit this complaint?'**
+  String get submitComplaintConfirmation;
+
+  /// No description provided for @complaintSubmittedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Complaint submitted successfully'**
+  String get complaintSubmittedSuccessfully;
+
+  /// No description provided for @unexpectedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected error'**
+  String get unexpectedError;
+
+  /// No description provided for @complaintCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get complaintCategory;
+
+  /// No description provided for @pleaseSelectRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select rating'**
+  String get pleaseSelectRating;
+
+  /// No description provided for @feedbackSubmittedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback submitted successfully'**
+  String get feedbackSubmittedSuccessfully;
+
+  /// No description provided for @feedbackSubmissionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Submission failed: {error}'**
+  String feedbackSubmissionFailed(Object error);
+
+  /// No description provided for @sendFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Feedback'**
+  String get sendFeedback;
+
+  /// No description provided for @feedbackIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Help us improve PetSupo with your feedback, ideas, and suggestions.'**
+  String get feedbackIntro;
+
+  /// No description provided for @rateYourExperience.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate your experience'**
+  String get rateYourExperience;
+
+  /// No description provided for @feedbackCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback Category'**
+  String get feedbackCategory;
+
+  /// No description provided for @generalFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'General Feedback'**
+  String get generalFeedback;
+
+  /// No description provided for @bugReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Bug Report'**
+  String get bugReport;
+
+  /// No description provided for @featureRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Feature Request'**
+  String get featureRequest;
+
+  /// No description provided for @yourMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Message'**
+  String get yourMessage;
+
+  /// No description provided for @submitFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Feedback'**
+  String get submitFeedback;
+
+  /// No description provided for @memorialImageLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load this image. Please try another photo.'**
+  String get memorialImageLoadFailed;
+
+  /// No description provided for @createMemorial.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Memorial'**
+  String get createMemorial;
+
+  /// No description provided for @memorialTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Memorial title'**
+  String get memorialTitle;
+
+  /// No description provided for @storyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Story / message'**
+  String get storyMessage;
+
+  /// No description provided for @city.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get city;
+
+  /// No description provided for @country.
+  ///
+  /// In en, this message translates to:
+  /// **'Country'**
+  String get country;
+
+  /// No description provided for @memorialHeaderMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Honor your beloved pet by planting a memory through nature.'**
+  String get memorialHeaderMessage;
+
+  /// No description provided for @addPetBeforeMemorial.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a pet before creating a memorial.'**
+  String get addPetBeforeMemorial;
+
+  /// No description provided for @addPetFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Pet First'**
+  String get addPetFirst;
+
+  /// No description provided for @choosePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Photo'**
+  String get choosePhoto;
+
+  /// No description provided for @memorialPhotoPreviewMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo upload will be connected later. Preview is local for now.'**
+  String get memorialPhotoPreviewMessage;
+
+  /// No description provided for @memorialCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Memorial created.'**
+  String get memorialCreated;
+
+  /// No description provided for @greenMemorial.
+  ///
+  /// In en, this message translates to:
+  /// **'Green Memorial'**
+  String get greenMemorial;
+
+  /// No description provided for @greenMemorialIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Plant a tree in memory of your beloved pet.'**
+  String get greenMemorialIntro;
+
+  /// No description provided for @memorialInMemoryOf.
+  ///
+  /// In en, this message translates to:
+  /// **'In memory of {petName} 🌱'**
+  String memorialInMemoryOf(Object petName);
+
+  /// No description provided for @memorialByOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'By {ownerName}'**
+  String memorialByOwner(Object ownerName);
+
+  /// No description provided for @favoriteProductsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Products'**
+  String get favoriteProductsTitle;
+
+  /// No description provided for @productNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Product not found'**
+  String get productNotFound;
+
+  /// No description provided for @sellerRatingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Seller rating'**
+  String get sellerRatingLabel;
+
+  /// No description provided for @aboutSellerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About Seller'**
+  String get aboutSellerTitle;
+
+  /// No description provided for @newestFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest first'**
+  String get newestFirst;
+
+  /// No description provided for @sellerProductsLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading seller products: {error}'**
+  String sellerProductsLoadError(Object error);
+
+  /// No description provided for @sellerNoActiveProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'This seller has no active products'**
+  String get sellerNoActiveProducts;
+
+  /// No description provided for @sellerInitials.
+  ///
+  /// In en, this message translates to:
+  /// **'KP'**
+  String get sellerInitials;
+
+  /// No description provided for @passwordUpdatedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Password updated successfully'**
+  String get passwordUpdatedSuccessfully;
+
+  /// No description provided for @passwordStrengthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password Strength:'**
+  String get passwordStrengthLabel;
+
+  /// No description provided for @changePasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Password'**
+  String get changePasswordTitle;
+
+  /// No description provided for @changePasswordDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your PetSupo account secure by updating your password regularly.'**
+  String get changePasswordDescription;
+
+  /// No description provided for @currentPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Password'**
+  String get currentPasswordLabel;
+
+  /// No description provided for @enterCurrentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter current password'**
+  String get enterCurrentPassword;
+
+  /// No description provided for @newPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New Password'**
+  String get newPasswordLabel;
+
+  /// No description provided for @enterNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new password'**
+  String get enterNewPassword;
+
+  /// No description provided for @enterConfirmPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new password'**
+  String get enterConfirmPassword;
+
+  /// No description provided for @updatePasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Password'**
+  String get updatePasswordLabel;
+
+  /// No description provided for @savedParksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Parks'**
+  String get savedParksTitle;
+
+  /// No description provided for @noSavedParksYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No saved parks yet'**
+  String get noSavedParksYet;
+
+  /// No description provided for @adoptionFirstAnimal.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Your First Animal'**
+  String get adoptionFirstAnimal;
+
+  /// No description provided for @completedAdoptionsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed adoptions will appear here.'**
+  String get completedAdoptionsEmpty;
+
+  /// No description provided for @recentlyAddedAnimals.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently Added Animals'**
+  String get recentlyAddedAnimals;
+
+  /// No description provided for @noAnimalsAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'No animals added yet.'**
+  String get noAnimalsAdded;
+
+  /// No description provided for @speciesStatisticsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Species statistics will appear after your first successful adoption.'**
+  String get speciesStatisticsEmpty;
+
+  /// No description provided for @petTaxiEstimateDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider.'**
+  String get petTaxiEstimateDisclaimer;
+
+  /// No description provided for @unblockUserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock user'**
+  String get unblockUserTitle;
+
+  /// No description provided for @unblockConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to unblock {name}?'**
+  String unblockConfirmation(Object name);
+
+  /// No description provided for @unblockSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has been unblocked'**
+  String unblockSuccess(Object name);
+
+  /// No description provided for @unblockFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to unblock user'**
+  String get unblockFailed;
+
+  /// No description provided for @blockedUsersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked Users'**
+  String get blockedUsersTitle;
+
+  /// No description provided for @mustBeSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'You must be signed in'**
+  String get mustBeSignedIn;
+
+  /// No description provided for @blockedUserCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} blocked user'**
+  String blockedUserCount(Object count);
+
+  /// No description provided for @blockedUsersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} blocked users'**
+  String blockedUsersCount(Object count);
+
+  /// No description provided for @blockedUsersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage users you have blocked from interacting with you.'**
+  String get blockedUsersDescription;
+
+  /// No description provided for @noBlockedUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'No blocked users'**
+  String get noBlockedUsers;
+
+  /// No description provided for @blockedUsersEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Users you block will appear here. You can unblock them anytime.'**
+  String get blockedUsersEmptyDescription;
+
+  /// No description provided for @blockedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked on {date}'**
+  String blockedOn(Object date);
+
+  /// No description provided for @unblockButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock'**
+  String get unblockButton;
+
+  /// No description provided for @deleteAccountFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete account. Please try again.'**
+  String get deleteAccountFailed;
+
+  /// No description provided for @deleteActionPermanent.
+  ///
+  /// In en, this message translates to:
+  /// **'This action is permanent.\n\nAll your dogs, chats, favorites, and activity will be permanently deleted.'**
+  String get deleteActionPermanent;
+
+  /// No description provided for @deleteConfirmationCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type DELETE to confirm'**
+  String get deleteConfirmationCodeHint;
+
+  /// No description provided for @deleteConfirmationCode.
+  ///
+  /// In en, this message translates to:
+  /// **'DELETE'**
+  String get deleteConfirmationCode;
+
+  /// No description provided for @deleteAccountPermanentNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This action is permanent and cannot be undone.'**
+  String get deleteAccountPermanentNotice;
+
+  /// No description provided for @whatWillBeDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'What will be deleted'**
+  String get whatWillBeDeleted;
+
+  /// No description provided for @confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmation'**
+  String get confirmation;
+
+  /// No description provided for @privacySettingsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy settings updated'**
+  String get privacySettingsUpdated;
+
+  /// No description provided for @privacySecurityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Security'**
+  String get privacySecurityTitle;
+
+  /// No description provided for @privacySecurityDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Control your visibility, data sharing, and account privacy settings.'**
+  String get privacySecurityDescription;
+
+  /// No description provided for @dataExportRequestSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Data export request submitted'**
+  String get dataExportRequestSubmitted;
+
+  /// No description provided for @deleteAccountDataNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone and all your data will be permanently deleted.'**
+  String get deleteAccountDataNotice;
+
+  /// No description provided for @exitAppTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit app?'**
+  String get exitAppTitle;
+
+  /// No description provided for @exitAppMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to close Barky?'**
+  String get exitAppMessage;
+
+  /// No description provided for @exitButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get exitButton;
+
+  /// No description provided for @petSupoBrand.
+  ///
+  /// In en, this message translates to:
+  /// **'PetSupo'**
+  String get petSupoBrand;
+
+  /// No description provided for @aboutUsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About Us'**
+  String get aboutUsTitle;
+
+  /// No description provided for @aboutUsContent.
+  ///
+  /// In en, this message translates to:
+  /// **'PetSupo is a digital platform designed to connect pet owners and improve the social lives of pets.\n\nThe application enables users to find suitable playmates for their dogs, discover nearby veterinary services, and access pet-related businesses such as pet shops, groomers, and pet hotels.\n\nPetSupo does not act as a service provider but as a facilitator between users and third-party services. Users are responsible for their interactions and decisions made through the platform.\n\nOur mission is to provide a safe, efficient, and user-friendly environment for pet owners worldwide.'**
+  String get aboutUsContent;
+
+  /// No description provided for @faqDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Find quick answers about PetSupo features, privacy, subscriptions, and safety.'**
+  String get faqDescription;
+
+  /// No description provided for @reportTitleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a title'**
+  String get reportTitleRequired;
+
+  /// No description provided for @reportSubmittedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Report submitted successfully'**
+  String get reportSubmittedSuccessfully;
+
+  /// No description provided for @reportSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send report: {error}'**
+  String reportSendFailed(Object error);
+
+  /// No description provided for @attachScreenshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach screenshot'**
+  String get attachScreenshot;
+
+  /// No description provided for @screenshotOptionalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional, but helps us understand the issue faster.'**
+  String get screenshotOptionalHint;
+
+  /// No description provided for @reportProblemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a Problem'**
+  String get reportProblemTitle;
+
+  /// No description provided for @reportProblemDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us what went wrong. Your report helps us improve PetSupo.'**
+  String get reportProblemDescription;
+
+  /// No description provided for @reportIncorrectInformation.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect information'**
+  String get reportIncorrectInformation;
+
+  /// No description provided for @reportPaymentIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment issue'**
+  String get reportPaymentIssue;
+
+  /// No description provided for @submitReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Report'**
+  String get submitReport;
+
+  /// No description provided for @vetProfileLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Load error: {error}'**
+  String vetProfileLoadError(Object error);
+
+  /// No description provided for @vetProfileUpdatedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Vet profile updated successfully'**
+  String get vetProfileUpdatedSuccessfully;
+
+  /// No description provided for @vetProfileSaveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Save error: {error}'**
+  String vetProfileSaveError(Object error);
+
+  /// No description provided for @editVetProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Vet Profile'**
+  String get editVetProfileTitle;
+
+  /// No description provided for @suggestClinicTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Help us grow PetSupo'**
+  String get suggestClinicTitle;
+
+  /// No description provided for @suggestClinicDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest {vetName} to join PetSupo and help pet owners book appointments more easily.'**
+  String suggestClinicDescription(Object vetName);
+
+  /// No description provided for @shareInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Share Invitation'**
+  String get shareInvitation;
+
+  /// No description provided for @maybeLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Maybe Later'**
+  String get maybeLater;
+
+  /// No description provided for @vaccineDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vaccine Details'**
+  String get vaccineDetailsTitle;
+
+  /// No description provided for @clinicCouldNotBeLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Clinic could not be loaded'**
+  String get clinicCouldNotBeLoaded;
+
+  /// No description provided for @relatedRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Related records'**
+  String get relatedRecords;
+
+  /// No description provided for @selectAnOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an option'**
+  String get selectAnOption;
+
+  /// No description provided for @enterDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter details'**
+  String get enterDetails;
+
+  /// No description provided for @futureDateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a future date and time.'**
+  String get futureDateRequired;
+
+  /// No description provided for @preVisitQuestionsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please complete required pre-visit questions.'**
+  String get preVisitQuestionsRequired;
+
+  /// No description provided for @noDetailedServicesProvided.
+  ///
+  /// In en, this message translates to:
+  /// **'No detailed services provided.'**
+  String get noDetailedServicesProvided;
+
+  /// No description provided for @noDogsYetMatching.
+  ///
+  /// In en, this message translates to:
+  /// **'No dogs yet — add yours and start matching! 🐾'**
+  String get noDogsYetMatching;
+
+  /// No description provided for @createProfileToConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Create profile to connect 🐾'**
+  String get createProfileToConnect;
+
+  /// No description provided for @unknownBusinessType.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown business type → {sectors}'**
+  String unknownBusinessType(Object sectors);
+
+  /// No description provided for @persianLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'فارسی'**
+  String get persianLanguage;
+
+  /// No description provided for @russianLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Русский'**
+  String get russianLanguage;
+
+  /// No description provided for @phoneAuthDebugError.
+  ///
+  /// In en, this message translates to:
+  /// **'Code: {code}\n\nMessage:\n{message}\n\n{details}'**
+  String phoneAuthDebugError(Object code, Object details, Object message);
+
+  /// No description provided for @phoneVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone verification could not be completed.'**
+  String get phoneVerificationFailed;
+
+  /// No description provided for @changeNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Number'**
+  String get changeNumber;
+
+  /// No description provided for @verifyPhoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify Phone'**
+  String get verifyPhoneTitle;
+
+  /// No description provided for @enterCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter code sent to\n{phone}'**
+  String enterCodeSentTo(Object phone);
+
+  /// No description provided for @codeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Code'**
+  String get codeLabel;
+
+  /// No description provided for @newCodeSent.
+  ///
+  /// In en, this message translates to:
+  /// **'New code sent'**
+  String get newCodeSent;
+
+  /// No description provided for @resendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend Code'**
+  String get resendCode;
+
+  /// No description provided for @searchVeterinaryClinics.
+  ///
+  /// In en, this message translates to:
+  /// **'Search veterinary clinics...'**
+  String get searchVeterinaryClinics;
+
+  /// No description provided for @howWouldYouLikeToStart.
+  ///
+  /// In en, this message translates to:
+  /// **'How would you like to start?'**
+  String get howWouldYouLikeToStart;
+
+  /// No description provided for @welcomeToPetSopuWithWave.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to PetSupo 👋'**
+  String get welcomeToPetSopuWithWave;
+
+  /// No description provided for @moreThanAnApp.
+  ///
+  /// In en, this message translates to:
+  /// **'More than an app.\nA home for pets and their people.'**
+  String get moreThanAnApp;
+
+  /// No description provided for @viewPremiumPlans.
+  ///
+  /// In en, this message translates to:
+  /// **'View Premium Plans'**
+  String get viewPremiumPlans;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -16411,27 +18137,30 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'fa', 'ru', 'tr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en': return AppLocalizationsEn();
-    case 'fa': return AppLocalizationsFa();
-    case 'ru': return AppLocalizationsRu();
-    case 'tr': return AppLocalizationsTr();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'fa':
+      return AppLocalizationsFa();
+    case 'ru':
+      return AppLocalizationsRu();
+    case 'tr':
+      return AppLocalizationsTr();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BlockedUsersPage extends StatefulWidget {
   const BlockedUsersPage({super.key});
@@ -18,6 +19,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
     required String blockedUserId,
     required String blockedName,
   }) async {
+    final l10n = AppLocalizations.of(context)!;
     final uid = currentUserId;
     if (uid == null) return;
 
@@ -49,7 +51,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  "Unblock user",
+                  l10n.unblockUserTitle,
                   style: GoogleFonts.poppins(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -58,7 +60,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Are you sure you want to unblock $blockedName?",
+                  l10n.unblockConfirmation(blockedName),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
@@ -81,7 +83,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                           ),
                         ),
                         child: Text(
-                          "Cancel",
+                          l10n.cancel,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                           ),
@@ -102,7 +104,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                           ),
                         ),
                         child: Text(
-                          "Unblock",
+                          l10n.unblockButton,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w700,
                           ),
@@ -130,9 +132,9 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("$blockedName has been unblocked")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.unblockSuccess(blockedName))));
     } catch (e) {
       debugPrint("Unblock error: $e");
 
@@ -140,13 +142,14 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Failed to unblock user")));
+      ).showSnackBar(SnackBar(content: Text(l10n.unblockFailed)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final uid = currentUserId;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFDF2F5),
@@ -155,7 +158,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          "Blocked Users",
+          l10n.blockedUsersTitle,
           style: GoogleFonts.poppins(
             color: const Color(0xFFFFC107),
             fontSize: 20,
@@ -164,7 +167,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         ),
       ),
       body: uid == null
-          ? const Center(child: Text("You must be signed in"))
+          ? Center(child: Text(l10n.mustBeSignedIn))
           : StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection("users")
@@ -276,7 +279,9 @@ class _HeaderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "$count blocked user${count == 1 ? '' : 's'}",
+                  count == 1
+                      ? AppLocalizations.of(context)!.blockedUserCount(count)
+                      : AppLocalizations.of(context)!.blockedUsersCount(count),
                   style: GoogleFonts.poppins(
                     color: const Color(0xFFFFC107),
                     fontSize: 20,
@@ -285,7 +290,7 @@ class _HeaderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  "Manage users you have blocked from interacting with you.",
+                  AppLocalizations.of(context)!.blockedUsersDescription,
                   style: GoogleFonts.poppins(
                     color: Colors.white.withOpacity(.9),
                     fontSize: 13,
@@ -341,7 +346,7 @@ class _BlockedUsersEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                "No blocked users",
+                AppLocalizations.of(context)!.noBlockedUsers,
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -350,7 +355,7 @@ class _BlockedUsersEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                "Users you block will appear here. You can unblock them anytime.",
+                AppLocalizations.of(context)!.blockedUsersEmptyDescription,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
@@ -478,7 +483,9 @@ class _BlockedUserCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      "Blocked on ${_formatDate(blockedAt)}",
+                      AppLocalizations.of(
+                        context,
+                      )!.blockedOn(_formatDate(blockedAt)),
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         color: Colors.black45,
@@ -493,7 +500,7 @@ class _BlockedUserCard extends StatelessWidget {
           TextButton.icon(
             onPressed: onUnblock,
             icon: const Icon(LucideIcons.userCheck, size: 16),
-            label: const Text("Unblock"),
+            label: Text(AppLocalizations.of(context)!.unblockButton),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF9E1B4F),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:barky_matches_fixed/services/phone_credential_sign_in.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VerifyPhonePage extends StatefulWidget {
   final String phone;
@@ -70,13 +71,13 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
     _debugPhoneAuth('verifyPhoneNumber start');
     try {
       debugPrint('============= VERIFY REQUEST =============');
-debugPrint('Phone Number: ${widget.phone}');
-debugPrint('Current User: ${FirebaseAuth.instance.currentUser?.uid}');
-debugPrint('Firebase App: ${FirebaseAuth.instance.app.name}');
-debugPrint('Project: ${FirebaseAuth.instance.app.options.projectId}');
-debugPrint('AppId: ${FirebaseAuth.instance.app.options.appId}');
-debugPrint('API Key: ${FirebaseAuth.instance.app.options.apiKey}');
-debugPrint('==========================================');
+      debugPrint('Phone Number: ${widget.phone}');
+      debugPrint('Current User: ${FirebaseAuth.instance.currentUser?.uid}');
+      debugPrint('Firebase App: ${FirebaseAuth.instance.app.name}');
+      debugPrint('Project: ${FirebaseAuth.instance.app.options.projectId}');
+      debugPrint('AppId: ${FirebaseAuth.instance.app.options.appId}');
+      debugPrint('API Key: ${FirebaseAuth.instance.app.options.apiKey}');
+      debugPrint('==========================================');
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: widget.phone,
 
@@ -87,53 +88,50 @@ debugPrint('==========================================');
         },
 
         verificationFailed: (FirebaseAuthException e) {
-  _debugPhoneAuth('verificationFailed callback');
+          _debugPhoneAuth('verificationFailed callback');
 
-  debugPrint('');
-  debugPrint('================ PHONE AUTH FAILED ================');
-  debugPrint('TIME: ${DateTime.now()}');
-  debugPrint('CODE: ${e.code}');
-  debugPrint('MESSAGE: ${e.message}');
-  debugPrint('PLUGIN: ${e.plugin}');
-  debugPrint('EMAIL: ${e.email}');
-  debugPrint('PHONE: ${widget.phone}');
-  debugPrint('TENANT ID: ${e.tenantId}');
-  debugPrint('CREDENTIAL: ${e.credential}');
-  debugPrint('TOSTRING: ${e.toString()}');
-  debugPrint('STACK TRACE:');
-  debugPrint('${e.stackTrace}');
-  debugPrint('===================================================');
-  debugPrint('');
+          debugPrint('');
+          debugPrint('================ PHONE AUTH FAILED ================');
+          debugPrint('TIME: ${DateTime.now()}');
+          debugPrint('CODE: ${e.code}');
+          debugPrint('MESSAGE: ${e.message}');
+          debugPrint('PLUGIN: ${e.plugin}');
+          debugPrint('EMAIL: ${e.email}');
+          debugPrint('PHONE: ${widget.phone}');
+          debugPrint('TENANT ID: ${e.tenantId}');
+          debugPrint('CREDENTIAL: ${e.credential}');
+          debugPrint('TOSTRING: ${e.toString()}');
+          debugPrint('STACK TRACE:');
+          debugPrint('${e.stackTrace}');
+          debugPrint('===================================================');
+          debugPrint('');
 
-  FlutterError.reportError(
-    FlutterErrorDetails(
-      exception: e,
-      stack: e.stackTrace,
-      library: 'phone_auth',
-      context: ErrorDescription('verificationFailed callback'),
-    ),
-  );
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: e,
+              stack: e.stackTrace,
+              library: 'phone_auth',
+              context: ErrorDescription('verificationFailed callback'),
+            ),
+          );
 
-  if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 8),
-        content: SingleChildScrollView(
-          child: Text(
-            '''
-Code: ${e.code}
-
-Message:
-${e.message}
-
-${e.toString()}
-''',
-          ),
-        ),
-      ),
-    );
-  }
-},
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                duration: const Duration(seconds: 8),
+                content: SingleChildScrollView(
+                  child: Text(
+                    AppLocalizations.of(context)!.phoneAuthDebugError(
+                      e.code,
+                      e.message ?? '',
+                      e.toString(),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+        },
 
         codeSent: (id, resend) {
           verificationId = id;
@@ -253,8 +251,8 @@ ${e.toString()}
       _debugPhoneAuth('SMS submit failed; type=${e.runtimeType}');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Phone verification could not be completed.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.phoneVerificationFailed),
         ),
       );
     }
@@ -317,8 +315,8 @@ ${e.toString()}
                         Navigator.pop(context, false);
                       },
 
-                      child: const Text(
-                        "Change Number",
+                      child: Text(
+                        AppLocalizations.of(context)!.changeNumber,
 
                         style: TextStyle(
                           color: Colors.white,
@@ -333,7 +331,7 @@ ${e.toString()}
                 const SizedBox(height: 40),
 
                 Text(
-                  "Verify Phone",
+                  AppLocalizations.of(context)!.verifyPhoneTitle,
 
                   style: GoogleFonts.dancingScript(
                     fontSize: 42,
@@ -347,7 +345,7 @@ ${e.toString()}
                 const SizedBox(height: 20),
 
                 Text(
-                  "Enter code sent to\n${widget.phone}",
+                  AppLocalizations.of(context)!.enterCodeSentTo(widget.phone),
 
                   textAlign: TextAlign.center,
 
@@ -378,7 +376,7 @@ ${e.toString()}
 
                     fillColor: Colors.white24,
 
-                    labelText: "Code",
+                    labelText: AppLocalizations.of(context)!.codeLabel,
 
                     labelStyle: const TextStyle(color: Colors.white70),
 
@@ -424,8 +422,8 @@ ${e.toString()}
 
                     child: _loading
                         ? const CircularProgressIndicator()
-                        : const Text(
-                            "Verify",
+                        : Text(
+                            AppLocalizations.of(context)!.verifyButton,
 
                             style: TextStyle(
                               fontSize: 24,
@@ -445,12 +443,16 @@ ${e.toString()}
                     if (!mounted) return;
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("New code sent")),
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context)!.newCodeSent,
+                        ),
+                      ),
                     );
                   },
 
-                  child: const Text(
-                    "Resend Code",
+                  child: Text(
+                    AppLocalizations.of(context)!.resendCode,
 
                     style: TextStyle(
                       fontSize: 22,

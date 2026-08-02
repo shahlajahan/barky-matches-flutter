@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class EditVetProfilePage extends StatefulWidget {
   final String businessId;
@@ -89,9 +90,11 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
       _workingHoursController.text = (vetData['workingHours'] ?? '').toString();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Load error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.vetProfileLoadError(e)),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -171,14 +174,20 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vet profile updated successfully')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.vetProfileUpdatedSuccessfully,
+          ),
+        ),
       );
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Save error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.vetProfileSaveError(e)),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -228,7 +237,9 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: const Text('Edit Vet Profile')),
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.editVetProfileTitle),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
@@ -265,7 +276,7 @@ class _EditVetProfilePageState extends State<EditVetProfilePage> {
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(AppLocalizations.of(context)!.save),
                   ),
                 ],
               ),

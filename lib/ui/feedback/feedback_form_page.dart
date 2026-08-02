@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class FeedbackFormPage extends StatefulWidget {
   const FeedbackFormPage({super.key});
@@ -21,27 +22,29 @@ class _FeedbackFormPageState extends State<FeedbackFormPage> {
   bool isSubmitting = false;
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!mounted) return;
-    _scrollController.jumpTo(0);
-  });
-}
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scrollController.jumpTo(0);
+    });
+  }
 
-@override
-void dispose() {
-  _scrollController.dispose();
-  messageController.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    messageController.dispose();
+    super.dispose();
+  }
 
   Future<void> submitFeedback() async {
     if (rating == 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please select rating")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.pleaseSelectRating),
+        ),
+      );
       return;
     }
 
@@ -81,14 +84,22 @@ void dispose() {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Feedback submitted successfully")),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.feedbackSubmittedSuccessfully,
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Submission failed: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.feedbackSubmissionFailed(e),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -172,6 +183,7 @@ void dispose() {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       color: const Color(0xFFFDF2F5),
 
@@ -224,7 +236,7 @@ void dispose() {
                       const SizedBox(height: 14),
 
                       Text(
-                        "Send Feedback",
+                        l10n.sendFeedback,
                         style: GoogleFonts.poppins(
                           color: const Color(0xFFFFC107),
                           fontSize: 24,
@@ -235,7 +247,7 @@ void dispose() {
                       const SizedBox(height: 10),
 
                       Text(
-                        "Help us improve PetSupo with your feedback, ideas, and suggestions.",
+                        l10n.feedbackIntro,
                         style: GoogleFonts.poppins(
                           color: Colors.white.withOpacity(.92),
                           fontSize: 14,
@@ -268,7 +280,7 @@ void dispose() {
                   child: Column(
                     children: [
                       Text(
-                        "Rate your experience",
+                        l10n.rateYourExperience,
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -287,7 +299,7 @@ void dispose() {
 
                 // 🟣 CATEGORY
                 Text(
-                  "Feedback Category",
+                  l10n.feedbackCategory,
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -307,17 +319,17 @@ void dispose() {
 
                   dropdownColor: Colors.white,
 
-                  items: const [
+                  items: [
                     DropdownMenuItem(
                       value: "general_feedback",
-                      child: Text("General Feedback"),
+                      child: Text(l10n.generalFeedback),
                     ),
 
-                    DropdownMenuItem(value: "bug", child: Text("Bug Report")),
+                    DropdownMenuItem(value: "bug", child: Text(l10n.bugReport)),
 
                     DropdownMenuItem(
                       value: "feature_request",
-                      child: Text("Feature Request"),
+                      child: Text(l10n.featureRequest),
                     ),
                   ],
 
@@ -332,7 +344,7 @@ void dispose() {
 
                 // 🟣 MESSAGE
                 Text(
-                  "Your Message",
+                  l10n.yourMessage,
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -384,7 +396,7 @@ void dispose() {
                             ),
                           )
                         : Text(
-                            "Submit Feedback",
+                            l10n.submitFeedback,
                             style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,

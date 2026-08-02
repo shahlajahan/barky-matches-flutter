@@ -5,6 +5,7 @@ import 'package:barky_matches_fixed/ui/vet/vet_appointment_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class VaccineNotificationPage extends StatefulWidget {
   final String businessId;
@@ -44,6 +45,7 @@ class _VaccineNotificationPageState extends State<VaccineNotificationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     debugPrint(
       "💉 VaccineNotificationPage BUILD "
       "business=${widget.businessId} "
@@ -123,7 +125,7 @@ class _VaccineNotificationPageState extends State<VaccineNotificationPage> {
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 28),
                 child: Text(
-                  "Vaccine Details",
+                  l10n.vaccineDetailsTitle,
                   style: GoogleFonts.poppins(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
@@ -240,7 +242,7 @@ class _VaccineNotificationPageState extends State<VaccineNotificationPage> {
                     icon: const Icon(Icons.calendar_month),
 
                     label: Text(
-                      "Book Appointment",
+                      l10n.bookAppointment,
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
@@ -257,9 +259,7 @@ class _VaccineNotificationPageState extends State<VaccineNotificationPage> {
 
                       if (!businessSnap.exists) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Clinic could not be loaded"),
-                          ),
+                          SnackBar(content: Text(l10n.clinicCouldNotBeLoaded)),
                         );
                         return;
                       }
@@ -439,7 +439,7 @@ class _ContextSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            'Related records',
+            AppLocalizations.of(context)!.relatedRecords,
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -506,7 +506,7 @@ class _NotesCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            'Notes',
+            AppLocalizations.of(context)!.notes,
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w700,

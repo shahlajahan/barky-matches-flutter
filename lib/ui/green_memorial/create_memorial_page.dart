@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter/material.dart';
 import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -111,8 +112,8 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not load this image. Please try another photo.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.memorialImageLoadFailed),
         ),
       );
     }
@@ -388,9 +389,10 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: const Text('Create Memorial')),
+      appBar: AppBar(title: Text(l10n.createMemorial)),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -427,7 +429,7 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
               TextFormField(
                 controller: _titleController,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Memorial title'),
+                decoration: InputDecoration(labelText: l10n.memorialTitle),
                 validator: (value) {
                   if ((value ?? '').trim().isEmpty) {
                     return 'Please enter a memorial title.';
@@ -440,8 +442,8 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
                 controller: _storyController,
                 minLines: 5,
                 maxLines: 8,
-                decoration: const InputDecoration(
-                  labelText: 'Story / message',
+                decoration: InputDecoration(
+                  labelText: l10n.storyMessage,
                   alignLabelWithHint: true,
                 ),
                 validator: (value) {
@@ -580,14 +582,14 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
 
               TextFormField(
                 controller: _cityController,
-                decoration: const InputDecoration(labelText: 'City'),
+                decoration: InputDecoration(labelText: l10n.city),
               ),
 
               const SizedBox(height: 12),
 
               TextFormField(
                 controller: _countryController,
-                decoration: const InputDecoration(labelText: 'Country'),
+                decoration: InputDecoration(labelText: l10n.country),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -598,7 +600,7 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Create Memorial'),
+                    : Text(l10n.createMemorial),
               ),
             ],
           ),
@@ -611,6 +613,7 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
 class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -621,10 +624,10 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Create Memorial', style: AppTheme.h1(color: Colors.white)),
+          Text(l10n.createMemorial, style: AppTheme.h1(color: Colors.white)),
           const SizedBox(height: 8),
           Text(
-            'Honor your beloved pet by planting a memory through nature.',
+            l10n.memorialHeaderMessage,
             style: AppTheme.body(color: Colors.white.withValues(alpha: 0.86)),
           ),
         ],
@@ -654,6 +657,7 @@ class _NoPetsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _panelDecoration(),
@@ -662,7 +666,7 @@ class _NoPetsPanel extends StatelessWidget {
           const Icon(Icons.pets, color: AppTheme.primary, size: 34),
           const SizedBox(height: 10),
           Text(
-            'Add a pet before creating a memorial.',
+            l10n.addPetBeforeMemorial,
             textAlign: TextAlign.center,
             style: AppTheme.body(color: AppTheme.muted),
           ),
@@ -670,7 +674,7 @@ class _NoPetsPanel extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onAddPet,
             icon: const Icon(Icons.add),
-            label: const Text('Add Pet First'),
+            label: Text(l10n.addPetFirst),
           ),
         ],
       ),
@@ -768,6 +772,7 @@ class _PhotoPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _panelDecoration(),
@@ -801,11 +806,11 @@ class _PhotoPicker extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onPick,
             icon: const Icon(Icons.photo_library),
-            label: const Text('Choose Photo'),
+            label: Text(l10n.choosePhoto),
           ),
           const SizedBox(height: 4),
           Text(
-            'Photo upload will be connected later. Preview is local for now.',
+            l10n.memorialPhotoPreviewMessage,
             textAlign: TextAlign.center,
             style: AppTheme.caption(),
           ),

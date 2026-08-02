@@ -4,23 +4,25 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/vet_patient_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class MedicalRecordsPage extends StatelessWidget {
   const MedicalRecordsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) {
-      return const Scaffold(body: Center(child: Text('Not signed in')));
+      return Scaffold(body: Center(child: Text(l10n.medicalNotSigned)));
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6F8),
 
       appBar: AppBar(
-        title: const Text('Medical Records'),
+        title: Text(l10n.medicalRecords),
         backgroundColor: const Color(0xFFEC0B6A),
       ),
 
@@ -38,7 +40,7 @@ class MedicalRecordsPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(child: Text('No pets found'));
+            return Center(child: Text(l10n.medicalNoPets));
           }
 
           return ListView.builder(

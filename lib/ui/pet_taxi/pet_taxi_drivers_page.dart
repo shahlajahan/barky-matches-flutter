@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'pet_taxi_booking_page.dart';
 import 'repositories/pet_taxi_business_repository.dart';
@@ -163,6 +164,7 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
@@ -173,19 +175,19 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
             padding: const EdgeInsets.all(16),
             children: [
               Text(
-                'Pet Taxi',
+                l10n.petTaxiTitle,
                 style: AppTheme.h2().copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
               Text(
-                'Book safe pet transportation with reviewed taxi businesses.',
+                l10n.petTaxiSubtitle,
                 style: AppTheme.body(color: AppTheme.muted),
               ),
               const SizedBox(height: 14),
               TextField(
                 onChanged: _onSearchChanged,
                 decoration: InputDecoration(
-                  hintText: 'Search taxi businesses',
+                  hintText: l10n.searchTaxiBusinesses,
                   prefixIcon: const Icon(LucideIcons.search),
                   filled: true,
                   fillColor: Colors.white,
@@ -223,6 +225,7 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
   }
 
   Widget _businessCard(BusinessCardData business) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -274,7 +277,7 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
             width: double.infinity,
             child: ElevatedButton.icon(
               icon: const Icon(LucideIcons.calendarPlus, size: 18),
-              label: const Text('Book Pet Taxi'),
+              label: Text(l10n.bookPetTaxi),
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(

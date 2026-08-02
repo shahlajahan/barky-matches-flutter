@@ -8,6 +8,7 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/models/product.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/product/product_detail_page.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class SellerProfilePage extends StatelessWidget {
   final String sellerId;
@@ -32,6 +33,7 @@ class SellerProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.read<AppState>();
+    final l10n = AppLocalizations.of(context)!;
 
     return PopScope(
       canPop: true,
@@ -243,7 +245,7 @@ class SellerProfilePage extends StatelessWidget {
                                                           width: 8,
                                                         ),
                                                         Text(
-                                                          'Seller rating',
+                                                          l10n.sellerRatingLabel,
                                                           style:
                                                               AppTheme.caption(
                                                                 color: Colors
@@ -466,7 +468,7 @@ class SellerProfilePage extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'About Seller',
+                                      l10n.aboutSellerTitle,
                                       style: AppTheme.h3(
                                         weight: FontWeight.w900,
                                       ),
@@ -564,12 +566,12 @@ class SellerProfilePage extends StatelessWidget {
                           child: Row(
                             children: [
                               Text(
-                                'Seller Products',
+                                l10n.sellerProductsTitle,
                                 style: AppTheme.h3(weight: FontWeight.w900),
                               ),
                               const Spacer(),
                               Text(
-                                'Newest first',
+                                l10n.newestFirst,
                                 style: AppTheme.caption(color: AppTheme.muted),
                               ),
                             ],
@@ -593,7 +595,9 @@ class SellerProfilePage extends StatelessWidget {
                                   padding: const EdgeInsets.all(24),
                                   child: Center(
                                     child: Text(
-                                      'Error loading seller products: ${snapshot.error}',
+                                      l10n.sellerProductsLoadError(
+                                        snapshot.error ?? '',
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -601,7 +605,7 @@ class SellerProfilePage extends StatelessWidget {
                             }
 
                             if (!snapshot.hasData) {
-                              return const Padding(
+                              return Padding(
                                 padding: EdgeInsets.symmetric(vertical: 32),
                                 child: Center(
                                   child: CircularProgressIndicator(),
@@ -625,12 +629,10 @@ class SellerProfilePage extends StatelessWidget {
                                 });
 
                             if (products.isEmpty) {
-                              return const Padding(
+                              return Padding(
                                 padding: EdgeInsets.symmetric(vertical: 32),
                                 child: Center(
-                                  child: Text(
-                                    'This seller has no active products',
-                                  ),
+                                  child: Text(l10n.sellerNoActiveProducts),
                                 ),
                               );
                             }
@@ -745,7 +747,7 @@ class _SellerLogo extends StatelessWidget {
       color: const Color(0xFFF5F5F5),
       child: Center(
         child: Text(
-          "KP",
+          AppLocalizations.of(context)!.sellerInitials,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,

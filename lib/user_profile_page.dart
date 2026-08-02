@@ -267,17 +267,34 @@ class ProfileTile extends StatelessWidget {
 class ProfileQuickActionCard extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String? subtitle;
+  final bool premium;
   final VoidCallback onTap;
 
   const ProfileQuickActionCard({
     super.key,
     required this.icon,
     required this.title,
+    this.subtitle,
+    this.premium = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isWebDashboardWidth =
+        kIsWeb && MediaQuery.sizeOf(context).width >= 600;
+
+    if (isWebDashboardWidth) {
+      return _WebProfileQuickActionCard(
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        premium: premium,
+        onTap: onTap,
+      );
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -319,6 +336,122 @@ class ProfileQuickActionCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WebProfileQuickActionCard extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final bool premium;
+  final VoidCallback onTap;
+
+  const _WebProfileQuickActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.premium,
+    required this.onTap,
+  });
+
+  @override
+  State<_WebProfileQuickActionCard> createState() =>
+      _WebProfileQuickActionCardState();
+}
+
+class _WebProfileQuickActionCardState
+    extends State<_WebProfileQuickActionCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = const Color(0xFF9E1B4F);
+    final accent = widget.premium ? const Color(0xFFB8860B) : primary;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            color: widget.premium ? const Color(0xFFFFFCF2) : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: widget.premium
+                ? Border.all(color: const Color(0xFFD6B65D), width: 1.2)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: _hovered ? 0.18 : 0.09),
+                blurRadius: _hovered ? 14 : 8,
+                offset: Offset(0, _hovered ? 6 : 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(widget.icon, color: accent, size: 27),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (widget.subtitle != null &&
+                        widget.subtitle!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.subtitle!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          color: AppTheme.muted,
+                          fontSize: 12,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (widget.premium)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.verified_user_rounded,
+                    color: accent,
+                    size: 20,
+                  ),
+                ),
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right_rounded, color: accent, size: 22),
+            ],
+          ),
         ),
       ),
     );
@@ -367,6 +500,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   //bool _generatingFcmToken = false;
   final List<Dog> _cachedUserDogs = [];
   final List<Dog> _cachedAdoptionDogs = [];
+  String? _approvedBusinessName;
+  String? _approvedBusinessCategory;
   String _city = '';
   String _district = '';
   final GlobalKey _myPetsSectionKey = GlobalKey();
@@ -534,6 +669,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
         final sectors = List<String>.from(data['sectors'] ?? []);
 
+        _setApprovedBusinessPresentation(data, sectors);
+
         appState.setApprovedBusiness(businessId: doc.id, sectors: sectors);
 
         debugPrint("✅ business approved: ${doc.id}");
@@ -609,6 +746,32 @@ class _UserProfilePageState extends State<UserProfilePage> {
     } catch (e) {
       debugPrint("❌ Business load error: $e");
     }
+  }
+
+  void _setApprovedBusinessPresentation(
+    Map<String, dynamic> businessData,
+    List<String> sectors,
+  ) {
+    final profile = (businessData['profile'] as Map?)?.cast<String, dynamic>();
+    final name =
+        (profile?['displayName'] ??
+                profile?['businessName'] ??
+                businessData['businessName'] ??
+                businessData['name'])
+            ?.toString()
+            .trim();
+
+    final category = sectors.isNotEmpty
+        ? sectors.first
+              .replaceAll('_', ' ')
+              .split(' ')
+              .where((word) => word.isNotEmpty)
+              .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+              .join(' ')
+        : null;
+
+    _approvedBusinessName = name?.isNotEmpty == true ? name : null;
+    _approvedBusinessCategory = category;
   }
 
   Future<DocumentSnapshot?> _resolveApprovedBusinessFromRequest(
@@ -1065,6 +1228,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    debugPrint(
+      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
+      'userProfileHash=${identityHashCode(this)} reason=UserProfilePage_build '
+      'subPage=${appState.profileSubPage} businessId=${appState.businessId}',
+    );
 
     if (appState.isGuestUser) {
       return _buildGuestProfile(); // 👈 اینو می‌سازیم پایین
@@ -1234,7 +1402,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             );
           } else {
             dashboardBody = Center(
-              child: Text("Unknown business type → $sectors"),
+              child: Text(loc.unknownBusinessType(sectors)),
             );
           }
 
@@ -1372,107 +1540,149 @@ class _UserProfilePageState extends State<UserProfilePage> {
               ProfileSection(
                 title: 'Quick Actions',
                 children: [
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 2.25,
-                    children: [
-                      ProfileQuickActionCard(
-                        icon: Icons.pets,
-                        title: loc.myDogs,
-                        onTap: _scrollToMyPetsSection,
-                      ),
-                      ProfileQuickActionCard(
-                        icon: Icons.event_available,
-                        title: AppLocalizations.of(context)!.myAppointments,
-                        onTap: () {
-                          context.read<AppState>().openProfileSubPage(
-                            ProfileSubPage.appointments,
-                          );
-                        },
-                      ),
-                      ProfileQuickActionCard(
-                        icon: Icons.shopping_bag,
-                        title: AppLocalizations.of(
-                          context,
-                        )!.userProfileMyOrders,
-                        onTap: () {
-                          context.read<AppState>().openProfileSubPage(
-                            ProfileSubPage.myOrders,
-                          );
-                        },
-                      ),
-                      ProfileQuickActionCard(
-                        icon: Icons.store,
-                        title: AppLocalizations.of(
-                          context,
-                        )!.userProfileBusiness,
-                        onTap: () async {
-                          if (appState.hasApprovedBusiness) {
-                            final appState = context.read<AppState>();
-                            debugPrint(
-                              "OPEN DASHBOARD with businessId = ${appState.businessId}",
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWebDashboardWidth =
+                          kIsWeb && constraints.maxWidth >= 600;
+                      final columns =
+                          isWebDashboardWidth && constraints.maxWidth >= 1100
+                          ? 4
+                          : 2;
+                      final actions = [
+                        ProfileQuickActionCard(
+                          icon: Icons.pets,
+                          title: loc.myDogs,
+                          subtitle: 'Manage your pets',
+                          onTap: _scrollToMyPetsSection,
+                        ),
+                        ProfileQuickActionCard(
+                          icon: Icons.event_available,
+                          title: AppLocalizations.of(context)!.myAppointments,
+                          subtitle: 'Upcoming bookings',
+                          onTap: () {
+                            context.read<AppState>().openProfileSubPage(
+                              ProfileSubPage.appointments,
                             );
-                            appState.openProfileSubPage(
-                              ProfileSubPage.businessDashboard,
+                          },
+                        ),
+                        ProfileQuickActionCard(
+                          icon: Icons.shopping_bag,
+                          title: AppLocalizations.of(
+                            context,
+                          )!.userProfileMyOrders,
+                          subtitle: 'Track purchases',
+                          onTap: () {
+                            context.read<AppState>().openProfileSubPage(
+                              ProfileSubPage.myOrders,
                             );
-                          } else if (appState.hasPendingBusiness) {
-                            return;
-                          } else if (appState.businessStatus == 'rejected') {
-                            final appState = context.read<AppState>();
-
-                            if (!appState.canRegisterBusiness) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    AppLocalizations.of(
-                                      context,
-                                    )!.userProfileUpgradeToGoldToContinue,
-                                  ),
-                                ),
+                          },
+                        ),
+                        ProfileQuickActionCard(
+                          icon: Icons.store,
+                          title:
+                              appState.hasApprovedBusiness &&
+                                  _approvedBusinessName != null
+                              ? _approvedBusinessName!
+                              : AppLocalizations.of(
+                                  context,
+                                )!.userProfileBusiness,
+                          subtitle: appState.hasApprovedBusiness
+                              ? (_approvedBusinessCategory == null
+                                    ? 'Verified business partner'
+                                    : 'Verified $_approvedBusinessCategory partner')
+                              : 'Manage your business',
+                          premium: appState.hasApprovedBusiness,
+                          onTap: () async {
+                            if (appState.hasApprovedBusiness) {
+                              final appState = context.read<AppState>();
+                              debugPrint(
+                                "OPEN DASHBOARD with businessId = ${appState.businessId}",
                               );
+                              appState.openProfileSubPage(
+                                ProfileSubPage.businessDashboard,
+                              );
+                            } else if (appState.hasPendingBusiness) {
                               return;
+                            } else if (appState.businessStatus == 'rejected') {
+                              final appState = context.read<AppState>();
+
+                              if (!appState.canRegisterBusiness) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.userProfileUpgradeToGoldToContinue,
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              appState.openProfileSubPage(
+                                ProfileSubPage.businessRegister,
+                              );
+                            } else {
+                              await Future.delayed(
+                                const Duration(milliseconds: 300),
+                              );
+                              if (!context.mounted) return;
+
+                              final appState = Provider.of<AppState>(
+                                context,
+                                listen: false,
+                              );
+
+                              debugPrint('🔥 REGISTER CHECK');
+                              debugPrint('🔥 GOLD=${appState.isGold}');
+                              debugPrint(
+                                '🔥 PLAN=${appState.subscription.plan}',
+                              );
+                              debugPrint(
+                                '🔥 STATUS=${appState.subscription.status}',
+                              );
+                              debugPrint(
+                                '🔥 CAN REGISTER=${appState.canRegisterBusiness}',
+                              );
+
+                              if (!appState.canRegisterBusiness) {
+                                _showUpgradeRequiredSheet(context);
+                                return;
+                              }
+
+                              appState.openProfileSubPage(
+                                ProfileSubPage.businessRegister,
+                              );
                             }
+                          },
+                        ),
+                      ];
 
-                            appState.openProfileSubPage(
-                              ProfileSubPage.businessRegister,
-                            );
-                          } else {
-                            await Future.delayed(
-                              const Duration(milliseconds: 300),
-                            );
-                            if (!context.mounted) return;
+                      if (!isWebDashboardWidth) {
+                        return GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 2.25,
+                          children: actions,
+                        );
+                      }
 
-                            final appState = Provider.of<AppState>(
-                              context,
-                              listen: false,
-                            );
-
-                            debugPrint('🔥 REGISTER CHECK');
-                            debugPrint('🔥 GOLD=${appState.isGold}');
-                            debugPrint('🔥 PLAN=${appState.subscription.plan}');
-                            debugPrint(
-                              '🔥 STATUS=${appState.subscription.status}',
-                            );
-                            debugPrint(
-                              '🔥 CAN REGISTER=${appState.canRegisterBusiness}',
-                            );
-
-                            if (!appState.canRegisterBusiness) {
-                              _showUpgradeRequiredSheet(context);
-                              return;
-                            }
-
-                            appState.openProfileSubPage(
-                              ProfileSubPage.businessRegister,
-                            );
-                          }
-                        },
-                      ),
-                    ],
+                      return GridView.builder(
+                        itemCount: actions.length,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisExtent: 128,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                        ),
+                        itemBuilder: (context, index) => actions[index],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1792,7 +2002,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: const Text('English'),
+              title: Text(AppLocalizations.of(context)!.english),
               onTap: () {
                 context.read<AppState>().setLocale('en');
                 Navigator.pop(context);
@@ -1800,7 +2010,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             ),
 
             ListTile(
-              title: const Text('فارسی'),
+              title: Text(AppLocalizations.of(context)!.persianLanguage),
               onTap: () {
                 context.read<AppState>().setLocale('fa');
                 Navigator.pop(context);
@@ -1808,14 +2018,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
             ),
 
             ListTile(
-              title: const Text('Türkçe'),
+              title: Text(AppLocalizations.of(context)!.turkish),
               onTap: () {
                 context.read<AppState>().setLocale('tr');
                 Navigator.pop(context);
               },
             ),
             ListTile(
-              title: const Text('Русский'),
+              title: Text(AppLocalizations.of(context)!.russianLanguage),
               onTap: () {
                 context.read<AppState>().setLocale('ru');
                 Navigator.pop(context);
@@ -3111,7 +3321,7 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'City',
+                              AppLocalizations.of(context)!.cityLabel,
                               style: GoogleFonts.poppins(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -3133,7 +3343,7 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'District',
+                              AppLocalizations.of(context)!.districtLabel,
                               style: GoogleFonts.poppins(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,

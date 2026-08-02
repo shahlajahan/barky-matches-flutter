@@ -261,6 +261,7 @@ class _EvidenceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return _SectionCard(
       title: l10n.evidence,
       icon: Icons.image_rounded,
@@ -431,6 +432,7 @@ class _MessagesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return _SectionCard(
       title: 'Activity',
       icon: Icons.forum_outlined,
@@ -444,7 +446,7 @@ class _MessagesSection extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Padding(
+            return Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: SizedBox(
@@ -459,7 +461,7 @@ class _MessagesSection extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Padding(
+            return Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Row(
                 children: [
@@ -470,7 +472,7 @@ class _MessagesSection extends StatelessWidget {
                   ),
                   SizedBox(width: 8),
                   Text(
-                    'No messages yet.',
+                    l10n.complaintNoMessages,
                     style: TextStyle(fontSize: 13, color: Colors.black45),
                   ),
                 ],
@@ -576,7 +578,7 @@ class _AdminActionBarState extends State<_AdminActionBar> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: color),

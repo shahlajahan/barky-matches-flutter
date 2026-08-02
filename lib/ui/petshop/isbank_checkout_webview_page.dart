@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 enum IsbankReturnNavigation { none, success, failure }
@@ -173,8 +174,9 @@ class _IsbankCheckoutWebViewPageState extends State<IsbankCheckoutWebViewPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Secure Payment')),
+      appBar: AppBar(title: Text(l10n.securePayment)),
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),

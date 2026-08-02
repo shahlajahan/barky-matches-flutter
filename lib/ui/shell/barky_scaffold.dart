@@ -237,16 +237,16 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
     final shouldExit = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Exit app?'),
-        content: const Text('Do you want to close Barky?'),
+        title: Text(AppLocalizations.of(context)!.exitAppTitle),
+        content: Text(AppLocalizations.of(context)!.exitAppMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Exit'),
+            child: Text(AppLocalizations.of(context)!.exitButton),
           ),
         ],
       ),

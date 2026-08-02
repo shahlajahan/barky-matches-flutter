@@ -18,6 +18,7 @@ import 'package:barky_matches_fixed/ui/medical_records/medical_record_flow_butto
 import 'package:barky_matches_fixed/ui/medical_records/medical_records_page.dart';
 import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 class VetPage extends StatefulWidget {
@@ -917,6 +918,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     super.build(context);
 
     final appState = context.read<app.AppState>();
@@ -1009,7 +1011,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                             child: TextField(
                               onChanged: _onSearchChanged,
                               decoration: InputDecoration(
-                                hintText: "Search veterinary clinics...",
+                                hintText: l10n.searchVeterinaryClinics,
                                 prefixIcon: const Icon(Icons.search),
                                 filled: true,
                                 fillColor: Colors.white,
@@ -1026,9 +1028,9 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
 
                           Expanded(
                             child: _filteredVets.isEmpty
-                                ? const Center(
+                                ? Center(
                                     child: Text(
-                                      'No veterinary clinics found.',
+                                      l10n.noVeterinaryClinicsFound,
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: Colors.black54,

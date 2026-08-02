@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetTaxiLocationPermissionService {
   const PetTaxiLocationPermissionService();
@@ -41,22 +42,21 @@ class PetTaxiLocationPermissionService {
     return showDialog<void>(
       context: context,
       builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Turn On Location Services'),
-          content: const Text(
-            'Pet Taxi needs location services enabled to show your live position on the map.',
-          ),
+          title: Text(l10n.turnOnLocationServices),
+          content: Text(l10n.petTaxiLocationServicesMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Not Now'),
+              child: Text(l10n.notNow),
             ),
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 await Geolocator.openLocationSettings();
               },
-              child: const Text('Open Settings'),
+              child: Text(l10n.openSettings),
             ),
           ],
         );
@@ -68,15 +68,14 @@ class PetTaxiLocationPermissionService {
     return showDialog<void>(
       context: context,
       builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Allow Location Access'),
-          content: const Text(
-            'Pet Taxi needs location permission to enable My Location and center the map on you.',
-          ),
+          title: Text(l10n.allowLocationAccess),
+          content: Text(l10n.petTaxiLocationPermissionMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+              child: Text(l10n.ok),
             ),
           ],
         );
@@ -88,22 +87,21 @@ class PetTaxiLocationPermissionService {
     return showDialog<void>(
       context: context,
       builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Location Permission Blocked'),
-          content: const Text(
-            'Location access is blocked for Pet Taxi. Open app settings to allow location permission.',
-          ),
+          title: Text(l10n.locationPermissionBlocked),
+          content: Text(l10n.petTaxiLocationBlockedMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 await Geolocator.openAppSettings();
               },
-              child: const Text('Open Settings'),
+              child: Text(l10n.openSettings),
             ),
           ],
         );

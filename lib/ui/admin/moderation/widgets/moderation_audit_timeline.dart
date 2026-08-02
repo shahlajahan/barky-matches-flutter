@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../utils/relative_time.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Shows the admin_logs audit trail for a single target (all report
 /// approve/reject/restore actions taken against it). Reads `reason` at the
@@ -37,12 +38,13 @@ class ModerationAuditTimeline extends StatelessWidget {
         }
 
         final docs = snapshot.data!.docs;
+        final l10n = AppLocalizations.of(context)!;
 
         if (docs.isEmpty) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'No moderation history yet',
+              l10n.moderationNoHistory,
               style: TextStyle(color: Colors.grey),
             ),
           );

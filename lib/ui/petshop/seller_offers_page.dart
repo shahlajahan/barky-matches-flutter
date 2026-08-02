@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/models/product.dart';
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class SellerOffersPage extends StatelessWidget {
   final Product product;
@@ -9,6 +10,7 @@ class SellerOffersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final hasBarcode =
         product.barcode != null && product.barcode!.trim().isNotEmpty;
 
@@ -23,13 +25,15 @@ class SellerOffersPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Sellers")),
+      appBar: AppBar(title: Text(l10n.sellers)),
       body: StreamBuilder<QuerySnapshot>(
         stream: query.snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             debugPrint("🔥 SELLER QUERY ERROR: ${snapshot.error}");
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(
+              child: Text(l10n.sellerQueryError(snapshot.error ?? '')),
+            );
           }
 
           if (!snapshot.hasData) {
@@ -39,7 +43,7 @@ class SellerOffersPage extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(child: Text("No sellers found"));
+            return Center(child: Text(l10n.noSellersFound));
           }
 
           final items = docs.map((doc) {
@@ -61,7 +65,7 @@ class SellerOffersPage extends StatelessWidget {
                   title: Text(p.businessName ?? "Seller"),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [Text(p.name), Text("Stock: ${p.stock}")],
+                    children: [Text(p.name), Text(l10n.stockLabel(p.stock))],
                   ),
                   trailing: Text(
                     "${p.finalPrice} ${p.currency}",
