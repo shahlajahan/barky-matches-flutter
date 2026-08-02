@@ -1,7 +1,15 @@
 "use strict";
 
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const admin = require("firebase-admin");
+const { logger } = require("firebase-functions/v2");
+const { GoogleAuth } = require("google-auth-library");
+const storagePackageVersion = JSON.parse(fs.readFileSync(
+  path.resolve(path.dirname(require.resolve("@google-cloud/storage")), "../../../package.json"),
+  "utf8"
+)).version;
 const { buildFinancePayablesReportWorkbook } = require("./financePayablesReportWorkbook");
 
 const REPORT_VERSION = "1.0";
@@ -429,17 +437,17 @@ async function downloadFinancePayablesReport({ db, bucket, adminUid, reportId, l
     });
   }
   if (reportData.fullIban !== false && !fullIban) {
-    console.info('[FinanceAuth] finance report download denied', {
-      uid: adminUid,
-      resolvedRole: authorization.role || null,
-      isAdmin: authorization.isAdmin === true,
-      hasFinanceView: authorization.hasFinanceView === true,
-      hasFinanceOperate: authorization.hasFinanceOperate === true,
-      requestedReportId: reportId,
+    logger.info("finance_report_download_permission_denied", {
+      requestAuthUid: adminUid,
+      reportGeneratedBy: reportData.generatedBy || null,
       reportFullIban: reportData.fullIban ?? null,
-      generatedBy: reportData.generatedBy || null,
-      authorizationDecision: 'deny',
-      denialReason: 'full_iban_requires_finance_operate',
+      financeView: authorization.hasFinanceView === true,
+      financeOperate: authorization.hasFinanceOperate === true,
+      isAdmin: authorization.isAdmin === true,
+      isOwner: Boolean(
+        reportData.generatedBy &&
+        String(reportData.generatedBy) === String(adminUid)
+      ),
     });
     const error = new Error('Finance operation permission is required to download this report.');
     error.code = 'permission-denied';
@@ -452,8 +460,28 @@ async function downloadFinancePayablesReport({ db, bucket, adminUid, reportId, l
     throw error;
   }
   const storageFile = bucket.file(file.storagePath);
+  logger.info("finance_report_download_storage_target", {
+    reportId,
+    storagePath: file.storagePath,
+    bucketName: bucket.name,
+    storageFileName: storageFile.name,
+    storagePackageVersion,
+  });
   try {
-    await storageFile.getMetadata();
+    const existsResult = typeof storageFile.exists === "function"
+      ? await storageFile.exists()
+      : "UNAVAILABLE_ON_TEST_DOUBLE";
+    logger.info("finance_report_download_storage_exists", {
+      reportId,
+      storagePath: file.storagePath,
+      existsResult,
+    });
+    const metadataResult = await storageFile.getMetadata();
+    logger.info("finance_report_download_storage_metadata", {
+      reportId,
+      storagePath: file.storagePath,
+      metadataResult,
+    });
   } catch (error) {
     if (isStaleBillingClosedError(error)) {
       return buildInlineFinanceReport({ db, reportSnap, reportData, file, language, adminUid, fullIban, originalError: error });
@@ -462,8 +490,46 @@ async function downloadFinancePayablesReport({ db, bucket, adminUid, reportId, l
   }
   let url;
   try {
+    logger.info("BEFORE_SIGNED_URL", {
+      reportId,
+      storagePath: file.storagePath,
+      bucketName: bucket.name,
+      storageFileName: storageFile.name,
+    });
     [url] = await storageFile.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 15 * 60 * 1000, responseDisposition: `attachment; filename="${file.fileName}"`, responseType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    logger.info("AFTER_SIGNED_URL", {
+      reportId,
+      storagePath: file.storagePath,
+      bucketName: bucket.name,
+      storageFileName: storageFile.name,
+    });
   } catch (error) {
+    let runtimeServiceAccount = null;
+    try {
+      const authClient = await new GoogleAuth().getClient();
+      const credentials = await authClient.getCredentials();
+      runtimeServiceAccount = credentials.client_email || authClient.email || null;
+    } catch (identityError) {
+      runtimeServiceAccount = `identity_lookup_failed: ${identityError?.message || identityError}`;
+    }
+    logger.info("finance_report_download_signed_url_error", {
+      reportId,
+      storagePath: file.storagePath,
+      bucketName: bucket.name,
+      storageFileName: storageFile.name,
+      runtimeServiceAccount,
+      errorCode: error?.code ?? null,
+      errorMessage: error?.message ?? null,
+      errorStack: error?.stack ?? null,
+      errorObject: error,
+      errorObjectDetails: {
+        name: error?.name ?? null,
+        code: error?.code ?? null,
+        errors: error?.errors ?? null,
+        response: error?.response ?? null,
+        request: error?.request ?? null,
+      },
+    });
     if (isStaleBillingClosedError(error)) {
       return buildInlineFinanceReport({ db, reportSnap, reportData, file, language, adminUid, fullIban, originalError: error });
     }

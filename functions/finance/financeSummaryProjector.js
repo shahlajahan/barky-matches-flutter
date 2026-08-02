@@ -83,6 +83,7 @@ function summarizeFinanceRecords(records, { nowMillis = Date.now() } = {}) {
   let grossSalesCents = 0;
   let platformFeeCents = 0;
   let paidRecordCount = 0;
+  const revenueTrendByDate = new Map();
   const monthStart = new Date(
     new Date(nowMillis).getUTCFullYear(),
     new Date(nowMillis).getUTCMonth(),
@@ -113,6 +114,23 @@ function summarizeFinanceRecords(records, { nowMillis = Date.now() } = {}) {
       grossSalesCents += cents(record.grossAmount || 0);
       platformFeeCents += cents(record.commissionAmount || 0);
       paidRecordCount += 1;
+      const revenueDate = toDateKey(record.successfulPaymentAt);
+      if (revenueDate) {
+        const trend = revenueTrendByDate.get(revenueDate) || {
+          amountCents: 0,
+          grossRevenueCents: 0,
+          platformFeeCents: 0,
+          netRevenueCents: 0,
+          count: 0,
+        };
+        const grossRevenueCents = cents(record.grossAmount || 0);
+        trend.amountCents += grossRevenueCents;
+        trend.grossRevenueCents += grossRevenueCents;
+        trend.platformFeeCents += cents(record.commissionAmount || 0);
+        trend.netRevenueCents += cents(record.amount || 0);
+        trend.count += 1;
+        revenueTrendByDate.set(revenueDate, trend);
+      }
     }
     if (
       record.successfulPaymentAt &&
@@ -224,6 +242,18 @@ function summarizeFinanceRecords(records, { nowMillis = Date.now() } = {}) {
       ? null
       : new Date(nextEligibilityMillis).toISOString().slice(0, 10);
   const nextBucket = nextKey ? waitingSchedule.get(nextKey) : null;
+  const revenueTrend = Array.from(revenueTrendByDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-366)
+    .map(([date, trend]) => ({
+      date,
+      amount: money(trend.amountCents),
+      count: trend.count,
+      grossRevenue: money(trend.grossRevenueCents),
+      platformFee: money(trend.platformFeeCents),
+      netRevenue: money(trend.netRevenueCents),
+      paymentCount: trend.count,
+    }));
   return {
     available: present(buckets.available),
     eligibleGrossAmount: money(eligibleGrossCents),
@@ -289,6 +319,7 @@ function summarizeFinanceRecords(records, { nowMillis = Date.now() } = {}) {
       averageTicket: paidRecordCount
         ? money(Math.round(grossSalesCents / paidRecordCount))
         : 0,
+      trend: revenueTrend,
     },
   };
 }

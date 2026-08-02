@@ -163,6 +163,11 @@ test("revenue projection uses paid gross snapshots, not payout buckets", () => {
   assert.equal(summary.revenue.netRevenue, 132);
   assert.equal(summary.revenue.paidRecordCount, 2);
   assert.equal(summary.revenue.averageTicket, 75);
+  assert.equal(summary.revenue.trend.length, 1);
+  assert.equal(summary.revenue.trend[0].grossRevenue, 150);
+  assert.equal(summary.revenue.trend[0].platformFee, 18);
+  assert.equal(summary.revenue.trend[0].netRevenue, 132);
+  assert.equal(summary.revenue.trend[0].paymentCount, 2);
 });
 
 test("commission-unknown records are exception-only and excluded from forecasts", () => {

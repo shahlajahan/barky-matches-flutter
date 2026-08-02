@@ -23,6 +23,7 @@ class SellerRevenueSummary {
     required this.netRevenue,
     required this.paidRecordCount,
     required this.averageTicket,
+    this.trend = const [],
   });
 
   final double grossSales;
@@ -31,6 +32,7 @@ class SellerRevenueSummary {
   final double netRevenue;
   final int paidRecordCount;
   final double averageTicket;
+  final List<SellerRevenueTrendPoint> trend;
 
   factory SellerRevenueSummary.fromMap(Object? value) {
     final map = value is Map ? value.cast<String, dynamic>() : const {};
@@ -42,6 +44,53 @@ class SellerRevenueSummary {
       netRevenue: number('netRevenue'),
       paidRecordCount: (map['paidRecordCount'] as num?)?.toInt() ?? 0,
       averageTicket: number('averageTicket'),
+      trend: (map['trend'] as List? ?? const [])
+          .whereType<Map>()
+          .map((entry) => SellerRevenueTrendPoint.fromMap(entry))
+          .toList(),
+    );
+  }
+}
+
+class SellerRevenueTrendPoint {
+  const SellerRevenueTrendPoint({
+    required this.date,
+    required this.amount,
+    required this.count,
+    this.grossRevenue,
+    this.platformFee = 0,
+    this.netRevenue,
+    this.paymentCount,
+  });
+
+  final DateTime date;
+
+  /// Legacy alias retained for existing projected trend consumers.
+  final double amount;
+
+  /// Legacy alias retained for existing projected trend consumers.
+  final int count;
+  final double? grossRevenue;
+  final double platformFee;
+  final double? netRevenue;
+  final int? paymentCount;
+
+  double get grossValue => grossRevenue ?? amount;
+  int get paymentValue => paymentCount ?? count;
+
+  factory SellerRevenueTrendPoint.fromMap(Map value) {
+    final rawDate = value['date'];
+    final date = rawDate is Timestamp
+        ? rawDate.toDate()
+        : DateTime.tryParse(rawDate?.toString() ?? '') ?? DateTime(1970);
+    return SellerRevenueTrendPoint(
+      date: date,
+      amount: (value['amount'] as num?)?.toDouble() ?? 0,
+      count: (value['count'] as num?)?.toInt() ?? 0,
+      grossRevenue: (value['grossRevenue'] as num?)?.toDouble(),
+      platformFee: (value['platformFee'] as num?)?.toDouble() ?? 0,
+      netRevenue: (value['netRevenue'] as num?)?.toDouble(),
+      paymentCount: (value['paymentCount'] as num?)?.toInt(),
     );
   }
 }

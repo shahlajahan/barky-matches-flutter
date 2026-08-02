@@ -4,8 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
-import 'package:barky_matches_fixed/ui/business/finance/seller_finance_widgets.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -36,7 +34,6 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
     with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   late final Stream<QuerySnapshot> _appointmentsStream;
-  late final Stream<QuerySnapshot> _revenueStream;
   late final Stream<QuerySnapshot> _servicesStream;
 
   String get businessId => widget.businessId;
@@ -53,10 +50,6 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         .where('businessId', isEqualTo: widget.businessId)
         .orderBy('scheduledAt', descending: true)
         .snapshots();
-    _revenueStream = FirebaseFirestore.instance
-        .collection('vet_appointments')
-        .where('businessId', isEqualTo: widget.businessId)
-        .snapshots(includeMetadataChanges: false);
     _servicesStream = FirebaseFirestore.instance
         .collection('businesses')
         .doc(widget.businessId)
@@ -88,11 +81,6 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         _SectionTitle("Clinic Profile"),
         const SizedBox(height: 10),
         _profileCard(context, profile, contact),
-
-        SellerFinanceSummarySection(
-          businessId: businessId,
-          recordLabel: AppLocalizations.of(context)!.sellerFinanceAppointments,
-        ),
 
         const SizedBox(height: 20),
 
@@ -442,198 +430,6 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         ],
       ),
     );
-  }
-
-  Widget _buildRevenueCard(BuildContext context) {
-    if (kDebugMode) {
-      debugPrint(
-        '💰 VET REVENUE QUERY → businessId=$businessId path=vet_appointments where businessId==$businessId',
-      );
-    }
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: _revenueStream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _emptyBox('Revenue error: ${snapshot.error}');
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        final paidDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final status = (data['status'] ?? '').toString().toLowerCase();
-          return status == 'confirmed_paid' || status == 'completed';
-        }).toList();
-
-        if (paidDocs.isEmpty) {
-          return _emptyBox('No revenue yet');
-        }
-
-        double netRevenue = 0;
-        double grossSales = 0;
-        double commissionTotal = 0;
-        double adjustmentsTotal = 0;
-
-        for (final doc in paidDocs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final financial = Map<String, dynamic>.from(data['financial'] ?? {});
-          final pricing = Map<String, dynamic>.from(data['pricing'] ?? {});
-
-          final gross = _moneyValue(
-            pricing['total'] ??
-                pricing['grandTotal'] ??
-                data['paymentAmount'] ??
-                data['servicePrice'] ??
-                data['price'] ??
-                data['totalPrice'],
-          );
-          final commission = _moneyValue(
-            financial['platformCommissionAmount'] ??
-                financial['commissionAmount'],
-          );
-          final explicitNet = financial['vetNetAmount'];
-          final net = explicitNet == null
-              ? gross - commission
-              : _moneyValue(explicitNet);
-
-          grossSales += gross;
-          commissionTotal += commission;
-          netRevenue += net;
-
-          if (kDebugMode) {
-            debugPrint(
-              '💸 VET APPOINTMENT REVENUE → appointmentId=${doc.id} '
-              'gross=$gross commission=$commission net=$net',
-            );
-          }
-        }
-
-        final appointmentCount = paidDocs.length;
-        final averageTicket = appointmentCount == 0
-            ? 0.0
-            : grossSales / appointmentCount;
-
-        if (kDebugMode) {
-          debugPrint(
-            '💰 VET FINAL REVENUE → businessId=$businessId '
-            'net=$netRevenue gross=$grossSales commission=$commissionTotal '
-            'appointments=$appointmentCount averageTicket=$averageTicket',
-          );
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF9E1B4F),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLocalizations.of(context)!.vetRevenueNetRevenue,
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '₺${netRevenue.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                AppLocalizations.of(context)!.afterPlatformCommission,
-                style: const TextStyle(color: Colors.white60, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              _revenueRow('Gross Sales', grossSales),
-              _revenueRow('Platform Fee', -commissionTotal),
-              _revenueRow('Adjustments', -adjustmentsTotal),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  _revenueKpi(
-                    label: 'Paid Appointments',
-                    value: appointmentCount.toString(),
-                  ),
-                  const SizedBox(width: 10),
-                  _revenueKpi(
-                    label: 'Average Ticket',
-                    value: '₺${averageTicket.toStringAsFixed(0)}',
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _revenueRow(String title, double value) {
-    final isNegative = value < 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white70)),
-          Text(
-            '${isNegative ? "-" : ""}₺${value.abs().toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _revenueKpi({required String label, required String value}) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  double _moneyValue(dynamic raw) {
-    if (raw == null) return 0;
-    if (raw is num) return raw.toDouble();
-    return double.tryParse(raw.toString()) ?? 0;
   }
 
   Widget _serviceItem(
