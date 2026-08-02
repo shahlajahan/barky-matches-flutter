@@ -282,7 +282,7 @@ class _PetHotelReviewsTabState extends State<PetHotelReviewsTab> {
             children: [
               FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
-                    .collection('users')
+                    .collection('users_public')
                     .doc(userId)
                     .get(),
                 builder: (context, snapshot) {

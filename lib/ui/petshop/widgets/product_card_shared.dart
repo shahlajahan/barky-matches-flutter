@@ -371,7 +371,7 @@ class ProductCardShared extends StatelessWidget {
       shopId: product.businessId,
       allowedCarrierCodes: product.allowedCarrierCodes,
       name: product.name,
-      price: product.finalPrice,
+      price: product.customerPrice,
       quantity: 1,
       imageUrl: product.media.isNotEmpty
           ? product.media.first.originalUrl
@@ -394,7 +394,7 @@ class ProductCardShared extends StatelessWidget {
       product: product,
       shopId: product.businessId,
       name: product.name,
-      price: product.finalPrice,
+      price: product.customerPrice,
       quantity: 1,
       allowedCarrierCodes: product.allowedCarrierCodes,
       imageUrl: product.media.isNotEmpty
@@ -746,7 +746,7 @@ class ProductCardShared extends StatelessWidget {
         product.salePrice! > 0 &&
         product.salePrice! < product.price;
 
-    final price = product.finalPrice;
+    final price = product.customerPrice;
 
     return Container(
       decoration: BoxDecoration(

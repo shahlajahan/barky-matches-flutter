@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/social_post.dart';
+import 'social_post_share.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -57,6 +58,17 @@ class SocialPostService {
     final doc = await _postsCollection.doc(postId).get();
 
     if (!doc.exists) {
+      return null;
+    }
+
+    return SocialPost.fromFirestore(doc);
+  }
+
+  Future<SocialPost?> getPublicPost(String postId) async {
+    final doc = await _postsCollection.doc(postId).get();
+    final data = doc.data();
+
+    if (!doc.exists || data == null || !SocialPostShare.isPubliclyShareable(data)) {
       return null;
     }
 

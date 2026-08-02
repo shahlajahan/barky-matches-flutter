@@ -8,31 +8,30 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_driver_location_resolver.dart';
 
-
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
-
 
 class PetTaxiBusinessRepository {
   Future<List<BusinessCardData>> loadBusinesses() async {
     final query = FirebaseFirestore.instance
-        .collection('businesses')
+        .collection('businesses_public')
         .where('status', isEqualTo: 'approved');
     FirestoreQueryTrace.log(
       file: 'lib/ui/pet_taxi/repositories/pet_taxi_business_repository.dart',
       method: 'loadBusinesses',
       line: 17,
-      collection: 'businesses',
+      collection: 'businesses_public',
       clauses: const ["where(status, isEqualTo: approved)"],
       terminalCall: 'get()',
       query: query,
     );
     final snapshot = await query.get();
 
-    final businesses = snapshot.docs
-        .map((doc) => mapPetTaxiBusiness(doc.id, doc.data()))
-        .whereType<BusinessCardData>()
-        .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+    final businesses =
+        snapshot.docs
+            .map((doc) => mapPetTaxiBusiness(doc.id, doc.data()))
+            .whereType<BusinessCardData>()
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
 
     return businesses;
   }
@@ -40,7 +39,7 @@ class PetTaxiBusinessRepository {
   BusinessCardData? mapPetTaxiBusiness(String id, Map<String, dynamic> data) {
     final root = <String, dynamic>{...data, 'id': id};
 
-    final sectorData = map(root['sectorData']);
+    final sectorData = map(root['publicSectorData']);
     final taxi = map(
       sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
     );
@@ -108,80 +107,73 @@ class PetTaxiBusinessRepository {
     );
   }
 
- Future<BusinessCardData> findNearestBusiness({
-  required dynamic pickup,
-}) async {
-  final businesses = await loadBusinesses();
+  Future<BusinessCardData> findNearestBusiness({
+    required dynamic pickup,
+  }) async {
+    final businesses = await loadBusinesses();
 
-  if (businesses.isEmpty) {
-    throw Exception('No pet taxi business found');
-  }
-
-  BusinessCardData? nearest;
-  double nearestDistance = double.infinity;
-
-  for (final business in businesses) {
-    final data = business.data ?? {};
-
-    PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
-      businessId: business.id,
-      businessData: data,
-    );
-
-    final sectorData = map(data['sectorData']);
-    final taxi = map(
-      sectorData['pet_taxi'] ??
-          sectorData['petTaxi'] ??
-          sectorData['taxi'],
-    );
-
-    final isAvailable =
-        taxi['isAvailable'] == true ||
-        taxi['available'] == true ||
-        taxi['online'] == true;
-
-    if (!isAvailable) {
-      debugPrint('Skipped offline business -> ${business.name}');
-      continue;
+    if (businesses.isEmpty) {
+      throw Exception('No pet taxi business found');
     }
 
-    final resolvedLocation = PetTaxiBusinessLocationResolver.resolve(data);
-    final location = resolvedLocation.location;
+    BusinessCardData? nearest;
+    double nearestDistance = double.infinity;
 
-    final lat = (location['lat'] as num?)?.toDouble();
-    final lng = (location['lng'] as num?)?.toDouble();
+    for (final business in businesses) {
+      final data = business.data ?? {};
 
-    debugPrint('Driver location source = ${resolvedLocation.sourceLabel}');
-    debugPrint('Driver position = $lat, $lng');
-    debugPrint('Business = ${business.name}');
-    debugPrint('Pickup = ${pickup.lat}, ${pickup.lng}');
+      PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
+        businessId: business.id,
+        businessData: data,
+      );
 
-    if (lat == null || lng == null) {
-      debugPrint('Location missing -> skipped');
-      continue;
+      final sectorData = map(data['publicSectorData']);
+      final taxi = map(
+        sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
+      );
+
+      final isAvailable =
+          taxi['isAvailable'] == true ||
+          taxi['available'] == true ||
+          taxi['online'] == true;
+
+      if (!isAvailable) {
+        debugPrint('Skipped offline business -> ${business.name}');
+        continue;
+      }
+
+      final resolvedLocation = PetTaxiBusinessLocationResolver.resolve(data);
+      final location = resolvedLocation.location;
+
+      final lat = (location['lat'] as num?)?.toDouble();
+      final lng = (location['lng'] as num?)?.toDouble();
+
+      debugPrint('Driver location source = ${resolvedLocation.sourceLabel}');
+      debugPrint('Driver position = $lat, $lng');
+      debugPrint('Business = ${business.name}');
+      debugPrint('Pickup = ${pickup.lat}, ${pickup.lng}');
+
+      if (lat == null || lng == null) {
+        debugPrint('Location missing -> skipped');
+        continue;
+      }
+
+      final distance = _distanceKm(pickup.lat, pickup.lng, lat, lng);
+
+      debugPrint('Distance = ${distance.toStringAsFixed(2)} km');
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = business;
+      }
     }
 
-    final distance = _distanceKm(
-      pickup.lat,
-      pickup.lng,
-      lat,
-      lng,
-    );
-
-    debugPrint('Distance = ${distance.toStringAsFixed(2)} km');
-
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearest = business;
+    if (nearest == null) {
+      throw Exception('No available pet taxi business found');
     }
-  }
 
-  if (nearest == null) {
-    throw Exception('No available pet taxi business found');
+    return nearest;
   }
-
-  return nearest;
-}
 
   double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
     const earthRadius = 6371.0;
@@ -189,7 +181,8 @@ class PetTaxiBusinessRepository {
     final dLat = _degToRad(lat2 - lat1);
     final dLon = _degToRad(lon2 - lon1);
 
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(_degToRad(lat1)) *
             cos(_degToRad(lat2)) *
             sin(dLon / 2) *

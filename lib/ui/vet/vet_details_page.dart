@@ -14,6 +14,7 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 enum ReviewSortType { mostRelevant, newest }
@@ -47,7 +48,7 @@ class _VetDetailsPageState extends State<VetDetailsPage>
     final businessData = widget.vet.rawData ?? {};
 
     final sectorData =
-        (businessData['sectorData'] as Map<String, dynamic>?) ?? {};
+        (businessData['publicSectorData'] as Map<String, dynamic>?) ?? {};
 
     final vetData =
         (sectorData['vet'] as Map<String, dynamic>?) ??
@@ -229,19 +230,17 @@ class _VetDetailsPageState extends State<VetDetailsPage>
   }
 
   @override
-void initState() {
-  super.initState();
+  void initState() {
+    super.initState();
 
-  _tabController = TabController(length: _tabCount, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
 
-  debugPrint("🔥 VET ID = ${widget.vet.id}");
+    debugPrint("🔥 VET ID = ${widget.vet.id}");
 
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    await AnalyticsService.vetProfileViewed(
-      vetId: widget.vet.id,
-    );
-  });
-}
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await AnalyticsService.vetProfileViewed(vetId: widget.vet.id);
+    });
+  }
 
   @override
   void dispose() {
@@ -261,7 +260,7 @@ void initState() {
     context.read<AppState>().closeVetDetails();
   }
 
- Future<void> _openAppointmentPage([Map<String, dynamic>? service]) async {
+  Future<void> _openAppointmentPage([Map<String, dynamic>? service]) async {
     debugPrint("🔥 OPEN APPOINTMENT WITH: $service");
 
     FocusManager.instance.primaryFocus?.unfocus();
@@ -274,11 +273,11 @@ void initState() {
     } else {
       appState.closeVetDetails();
     }
-await AnalyticsService.vetBookingStarted(
-  vetId: widget.vet.id,
-  appointmentType: service?['title']?.toString(),
-  price: (service?['price'] as num?)?.toDouble(),
-);
+    await AnalyticsService.vetBookingStarted(
+      vetId: widget.vet.id,
+      appointmentType: service?['title']?.toString(),
+      price: (service?['price'] as num?)?.toDouble(),
+    );
     appState.openBusinessAppointment(widget.vet, selectedService: service);
   }
 
@@ -479,7 +478,7 @@ await AnalyticsService.vetBookingStarted(
                                   }
 
                                   final doc = snapshot.docs.first;
-                                   await _openAppointmentPage({
+                                  await _openAppointmentPage({
                                     ...doc.data(),
                                     'id': doc.id,
                                   });
@@ -557,7 +556,7 @@ await AnalyticsService.vetBookingStarted(
             children: [
               FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
-                    .collection('users')
+                    .collection('users_public')
                     .doc(userId)
                     .get(),
                 builder: (context, snapshot) {
@@ -813,7 +812,7 @@ await AnalyticsService.vetBookingStarted(
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .doc(vet.id)
           .snapshots()
           .distinct(
@@ -821,7 +820,8 @@ await AnalyticsService.vetBookingStarted(
           ),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};
-        final rawProfile = data['sectorData']?['veterinary']?['profileContent'];
+        final rawProfile =
+            data['publicSectorData']?['veterinary']?['profileContent'];
         final liveProfile = rawProfile is Map
             ? Map<String, dynamic>.from(rawProfile)
             : <String, dynamic>{};
@@ -1002,7 +1002,8 @@ await AnalyticsService.vetBookingStarted(
     final businessData = widget.vet.rawData ?? {};
 
     final vetData =
-        (businessData['sectorData']?['veterinary'] as Map<String, dynamic>?) ??
+        (businessData['publicSectorData']?['veterinary']
+            as Map<String, dynamic>?) ??
         {};
 
     final profileContent =
@@ -1055,42 +1056,86 @@ await AnalyticsService.vetBookingStarted(
     );
   }
 
+  Future<List<Map<String, dynamic>>> _loadVetServices() async {
+    debugPrint('VET_SERVICE_TRACE start businessId=${widget.vet.id}');
+    final publicSnapshot = await FirebaseFirestore.instance
+        .collection('businesses_public')
+        .doc(widget.vet.id)
+        .get();
+    debugPrint(
+      'VET_SERVICE_TRACE public exists=${publicSnapshot.exists} '
+      'data=${publicSnapshot.data()}',
+    );
+    final publicData = publicSnapshot.data() ?? <String, dynamic>{};
+    final publicSectorData = publicData['publicSectorData'];
+
+    if (publicSectorData is Map) {
+      final sector =
+          publicSectorData['vet'] ??
+          publicSectorData['veterinary'] ??
+          publicSectorData['veterinarian'];
+      if (sector is Map && sector.containsKey('services')) {
+        final rawServices = sector['services'];
+        debugPrint(
+          'VET_SERVICE_TRACE projected sector=${sector.keys.toList()} '
+          'rawServices=$rawServices',
+        );
+        final services = PublicServiceNormalizer.toMaps(rawServices);
+        debugPrint(
+          'VET_SERVICE_TRACE projected values=${services.length} '
+          'mapped=${services.length} returning projected list',
+        );
+        return services;
+      }
+    }
+
+    final canonicalQuery = FirebaseFirestore.instance
+        .collection('businesses')
+        .doc(widget.vet.id)
+        .collection('services');
+    final allCanonicalSnapshot = await canonicalQuery.get();
+    debugPrint(
+      'VET_SERVICE_TRACE canonical raw count=${allCanonicalSnapshot.docs.length}',
+    );
+    for (final doc in allCanonicalSnapshot.docs) {
+      debugPrint(
+        'VET_SERVICE_TRACE canonical doc id=${doc.id} data=${doc.data()}',
+      );
+    }
+    final activeServices = allCanonicalSnapshot.docs
+        .where((doc) => doc.data()['isActive'] == true)
+        .toList();
+    debugPrint(
+      'VET_SERVICE_TRACE canonical after isActive=true '
+      'count=${activeServices.length}',
+    );
+    return activeServices.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+  }
+
   Widget _buildServicesTab() {
     final l10n = AppLocalizations.of(context)!;
 
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(widget.vet.id)
-          .collection('services')
-          .where('isActive', isEqualTo: true)
-          .snapshots()
-          .distinct((prev, next) {
-            if (prev.docs.length != next.docs.length) {
-              return false;
-            }
-
-            return true;
-          }),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _loadVetServices(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
-  return Center(
-    child: Text(
-      AppLocalizations.of(context)!.servicesCouldNotBeLoaded,
-      style: AppTheme.caption(color: Colors.black54),
-    ),
-  );
-}
+          return Center(
+            child: Text(
+              AppLocalizations.of(context)!.servicesCouldNotBeLoaded,
+              style: AppTheme.caption(color: Colors.black54),
+            ),
+          );
+        }
 
-        final docs = snapshot.data?.docs ?? [];
+        final services = snapshot.data ?? [];
 
-        debugPrint("📦 VET PUBLIC SERVICES COUNT: ${docs.length}");
+        debugPrint("📦 VET PUBLIC SERVICES COUNT: ${services.length}");
 
-        if (docs.isEmpty) {
+        if (services.isEmpty) {
           return Center(
             child: Text(
               l10n.noServicesProvided,
@@ -1101,10 +1146,10 @@ await AnalyticsService.vetBookingStarted(
 
         return ListView.separated(
           padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
+          itemCount: services.length,
           separatorBuilder: (context, index) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            final service = {...docs[index].data(), 'id': docs[index].id};
+            final service = services[index];
 
             final title = (service['title'] ?? '').toString();
 
@@ -1116,8 +1161,8 @@ await AnalyticsService.vetBookingStarted(
 
             return GestureDetector(
               onTap: () async {
-  await _openAppointmentPage(service);
-},
+                await _openAppointmentPage(service);
+              },
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -1459,7 +1504,7 @@ await AnalyticsService.vetBookingStarted(
     final l10n = AppLocalizations.of(context)!;
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .doc(widget.vet.id)
           .snapshots(),
       builder: (context, snapshot) {
@@ -1480,7 +1525,7 @@ await AnalyticsService.vetBookingStarted(
 
         // 🔥 مهم: هم images هم videos
         final rawProfileContent =
-            data['sectorData']?['veterinary']?['profileContent'];
+            data['publicSectorData']?['veterinary']?['profileContent'];
 
         final profileContent = rawProfileContent is Map
             ? Map<String, dynamic>.from(rawProfileContent)
@@ -1691,9 +1736,9 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
       });
 
       await AnalyticsService.vetReviewAdded(
-  vetId: vetId,
-  rating: _reviewRating,
-);
+        vetId: vetId,
+        rating: _reviewRating,
+      );
 
       if (!mounted) return;
 

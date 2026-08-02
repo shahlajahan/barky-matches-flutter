@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.petsupo.app",
+      "sha256_cert_fingerprints": [
+        "8B:C6:3E:82:66:8E:FC:BC:43:21:A6:7E:17:5E:48:F8:43:01:6C:4D:C7:20:31:CD:9C:3E:64:E3:85:44:69:7B"
+      ]
+    }
+  }
+]

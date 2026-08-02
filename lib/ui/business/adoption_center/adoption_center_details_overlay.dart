@@ -9,6 +9,7 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/adoption_center/sections/adoption_pet_model.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/common/gallery_viewer_page.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 enum ReviewSortType { mostRelevant, newest }
 
@@ -50,7 +51,9 @@ class _AdoptionCenterDetailsOverlayState
 
   Map<String, dynamic> get _adoptionData {
     final rawData = widget.data.rawData ?? widget.data.data ?? {};
-    final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
+    final sectorData = Map<String, dynamic>.from(
+      rawData['publicSectorData'] ?? {},
+    );
     return Map<String, dynamic>.from(
       sectorData['adoptionCenter'] ??
           sectorData['adoption_center'] ??
@@ -69,15 +72,17 @@ class _AdoptionCenterDetailsOverlayState
 
     debugPrint('RAW adoption_center => ${rawData["adoption_center"]}');
 
-    debugPrint('RAW sectorData => ${rawData["sectorData"]}');
+    debugPrint('RAW publicSectorData => ${rawData["publicSectorData"]}');
 
     debugPrint(
-      'sectorData KEYS => ${Map<String, dynamic>.from(rawData["sectorData"] ?? {}).keys.toList()}',
+      'publicSectorData KEYS => ${Map<String, dynamic>.from(rawData["publicSectorData"] ?? {}).keys.toList()}',
     );
 
     debugPrint('========================');
 
-    final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
+    final sectorData = Map<String, dynamic>.from(
+      rawData['publicSectorData'] ?? {},
+    );
 
     final sectorAdoptionCenter = sectorData['adoptionCenter'] is Map
         ? Map<String, dynamic>.from(sectorData['adoptionCenter'])
@@ -196,15 +201,10 @@ class _AdoptionCenterDetailsOverlayState
 
   List<Map<String, dynamic>> _fallbackServices() {
     final servicesData = _adoptionData['services'];
-    List<String> titles = [];
-
-    if (servicesData is Map && servicesData['offeredServices'] is List) {
-      titles = List<String>.from(servicesData['offeredServices']);
-    } else if (servicesData is List) {
-      titles = servicesData.map((item) => item.toString()).toList();
-    } else if (widget.data.services != null) {
-      titles = widget.data.services!;
-    }
+    final normalizedTitles = PublicServiceNormalizer.toTitles(servicesData);
+    final titles = normalizedTitles.isNotEmpty
+        ? normalizedTitles
+        : (widget.data.services ?? const <String>[]);
 
     return titles
         .where((title) => title.trim().isNotEmpty)
@@ -609,7 +609,7 @@ class _AdoptionCenterDetailsOverlayState
             children: [
               FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
-                    .collection('users')
+                    .collection('users_public')
                     .doc(userId)
                     .get(),
                 builder: (context, snapshot) {
@@ -890,7 +890,7 @@ class _AdoptionCenterDetailsOverlayState
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .doc(widget.data.id)
           .snapshots()
           .distinct(
@@ -900,7 +900,9 @@ class _AdoptionCenterDetailsOverlayState
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};
 
-        final sectorData = Map<String, dynamic>.from(data['sectorData'] ?? {});
+        final sectorData = Map<String, dynamic>.from(
+          data['publicSectorData'] ?? {},
+        );
 
         final adoptionData = Map<String, dynamic>.from(
           sectorData['adoptionCenter'] ??
@@ -1160,7 +1162,9 @@ class _AdoptionCenterDetailsOverlayState
     final rawData = widget.data.rawData ?? {};
     final profile = Map<String, dynamic>.from(rawData['profile'] ?? {});
 
-    final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
+    final sectorData = Map<String, dynamic>.from(
+      rawData['publicSectorData'] ?? {},
+    );
 
     final adoptionData = Map<String, dynamic>.from(
       sectorData['adoptionCenter'] ??
@@ -1763,14 +1767,16 @@ class _AdoptionCenterDetailsOverlayState
   Widget _buildGalleryTab() {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .doc(widget.data.id)
           .snapshots(),
 
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};
 
-        final sectorData = Map<String, dynamic>.from(data['sectorData'] ?? {});
+        final sectorData = Map<String, dynamic>.from(
+          data['publicSectorData'] ?? {},
+        );
 
         final adoptionData = Map<String, dynamic>.from(
           sectorData['adoptionCenter'] ??
@@ -1798,9 +1804,7 @@ class _AdoptionCenterDetailsOverlayState
         }.where((e) => e.trim().isNotEmpty).toList();
 
         if (images.isEmpty) {
-          return Center(
-            child: Text(AppLocalizations.of(context)!.noImages),
-          );
+          return Center(child: Text(AppLocalizations.of(context)!.noImages));
         }
 
         final media = images
@@ -2007,7 +2011,9 @@ class _AdoptionCenterDetailsOverlayState
                                   ),
                                 ),
                                 child: Text(
-                                  AppLocalizations.of(context)!.viewAvailablePets,
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.viewAvailablePets,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
@@ -2078,12 +2084,8 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
     final l10n = AppLocalizations.of(context)!;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.signInToContinue),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.signInToContinue)),
       );
       return;
     }
@@ -2091,9 +2093,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
     final text = _reviewController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.writeReviewFirst),
-        ),
+        SnackBar(content: Text(AppLocalizations.of(context)!.writeReviewFirst)),
       );
       return;
     }
@@ -2136,9 +2136,7 @@ class _WriteReviewSheetState extends State<_WriteReviewSheet> {
       if (!mounted) return;
       _unfocusReviewSheet();
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.reviewSubmitted)),
       );
     } catch (e) {

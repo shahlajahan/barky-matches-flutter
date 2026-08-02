@@ -62,7 +62,7 @@ class SellerProfilePage extends StatelessWidget {
                           height: 240,
                           child: StreamBuilder<DocumentSnapshot>(
                             stream: FirebaseFirestore.instance
-                                .collection('businesses')
+                                .collection('businesses_public')
                                 .doc(sellerId)
                                 .snapshots(),
                             builder: (context, snapshot) {
@@ -371,7 +371,7 @@ class SellerProfilePage extends StatelessWidget {
                         const SizedBox(height: 14),
                         StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
-                              .collection('businesses')
+                              .collection('businesses_public')
                               .doc(sellerId)
                               .snapshots(),
                           builder: (context, snapshot) {
@@ -386,7 +386,8 @@ class SellerProfilePage extends StatelessWidget {
                                 (data['contact'] as Map<String, dynamic>?) ??
                                 {};
                             final sectorData =
-                                (data['sectorData'] as Map<String, dynamic>?) ??
+                                (data['publicSectorData']
+                                    as Map<String, dynamic>?) ??
                                 {};
 
                             final petshopData =
@@ -403,7 +404,7 @@ class SellerProfilePage extends StatelessWidget {
 
                             debugPrint("🔥 PROFILE RAW: ${data['profile']}");
                             debugPrint(
-                              "🔥 SECTOR DATA RAW: ${data['sectorData']}",
+                              "🔥 PUBLIC SECTOR DATA RAW: ${data['publicSectorData']}",
                             );
                             debugPrint(
                               "🔥 PETSHOP PROFILE RAW: $petshopProfile",
@@ -980,7 +981,7 @@ class _SellerProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      "₺${product.finalPrice.toStringAsFixed(0)}",
+                      "₺${product.customerPrice.toStringAsFixed(2)}",
                       style: AppTheme.body(
                         weight: FontWeight.w900,
                         color: const Color(0xFF9E1B4F),

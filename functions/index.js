@@ -107,9 +107,138 @@ const webSubscriptionCore = require("./subscription/webSubscriptionCore");
 const {
   calculateMarketplaceShipping,
 } = require("./shipping/marketplaceShipping");
+const {
+  buildCanonicalLines,
+  buildCheckoutResponse,
+  buildM3OrderIds,
+  checkoutFingerprint,
+  claimCheckoutAttempt,
+  coordinateCheckoutReservations,
+  initialM3LegacyPaymentState,
+  m3FeatureEnabled,
+  resumeCheckoutAttempt,
+  resumeCheckoutCompensation,
+  updateAttempt,
+  validateExistingCheckoutTree,
+} = require("./src/inventory/inventoryCheckoutCoordinator");
+const {
+  commitVerifiedMarketplaceInventory,
+  isInventoryManagedOrder,
+  markInventoryManualReview,
+  validateVerifiedPaymentAmount,
+} = require("./src/inventory/inventoryPaymentCoordinator");
+const {
+  claimPaymentCallback,
+  completePaymentCallback,
+  markPaymentCallbackCommitPending,
+  markPaymentCallbackSettlementPending,
+  markPaymentCallbackManualReview,
+} = require("./src/inventory/paymentCallbackClaims");
+const {
+  releaseMarketplaceInventory,
+  m5FeatureEnabled,
+  recordLatePaymentAfterExpiry,
+} = require("./src/inventory/inventoryReleaseCoordinator");
+const {
+  processExpiredInventoryReservations,
+  processStaleInventoryLeases,
+} = require("./src/inventory/inventoryExpiryScheduler");
 
 const { Resend } = require("resend");
 const { settlePayable } = require("./settlement/settlementFinalizer");
+
+async function settleCommittedMarketplaceSellerOrders({ db, sellerOrdersSnap, actor }) {
+  const outcomes = [];
+  for (const sellerDoc of sellerOrdersSnap.docs || []) {
+    try {
+      const result = await settlePayable({
+        db,
+        sector: "petshop",
+        recordRef: sellerDoc.ref,
+        actor,
+        operationId: `marketplace-settlement-${sellerDoc.id}`,
+      });
+      outcomes.push({ sellerOrderId: sellerDoc.id, status: result.status });
+    } catch (settlementError) {
+      logger.error("settlement_retryable_failure", {
+        sellerOrderId: sellerDoc.id,
+        message: settlementError?.message || String(settlementError),
+      });
+      outcomes.push({ sellerOrderId: sellerDoc.id, status: "failed" });
+    }
+  }
+  return {
+    completed: outcomes.length === (sellerOrdersSnap.docs || []).length &&
+      outcomes.every((outcome) => outcome.status === "completed"),
+    outcomes,
+  };
+}
+
+// M5 remains dormant until the scheduler flag and an explicit scheduler
+// canary gate are enabled. The worker is bounded and each reservation is
+// recovered independently so one malformed record cannot stop the batch.
+exports.recoverMarketplaceInventoryM5 = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    region: "europe-west3",
+    timeZone: "Europe/Istanbul",
+    retryCount: 3,
+  },
+  async () => {
+    const firestore = admin.firestore();
+    const [expiry, leases] = await Promise.all([
+      processExpiredInventoryReservations({ db: firestore, logger }),
+      processStaleInventoryLeases({ db: firestore, logger }),
+    ]);
+    logger.info("marketplace_inventory_m5_recovery_batch", { expiry, leases });
+    return { expiry, leases };
+  }
+);
+
+async function markMarketplaceSettlementPending({ db, orderId, sellerOrderIds, outcomes }) {
+  const batch = db.batch();
+  const recovery = {
+    settlementStatus: "settlement_pending",
+    financeEligibility: "blocked",
+    financeRecoveryRequired: true,
+    financeRecovery: {
+      reason: "settlement_pending",
+      outcomes,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  batch.set(db.collection("orders").doc(orderId), recovery, { merge: true });
+  for (const sellerOrderId of sellerOrderIds || []) {
+    batch.set(db.collection("sellerOrders").doc(sellerOrderId), recovery, { merge: true });
+  }
+  await batch.commit();
+}
+
+async function markMarketplaceSettlementCompleted({ db, orderId, sellerOrderIds }) {
+  const batch = db.batch();
+  const completed = {
+    settlementStatus: "completed",
+    financeEligibility: "eligible",
+    financeRecoveryRequired: false,
+    financeRecovery: null,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  batch.set(db.collection("orders").doc(orderId), completed, { merge: true });
+  for (const sellerOrderId of sellerOrderIds || []) {
+    batch.set(db.collection("sellerOrders").doc(sellerOrderId), completed, { merge: true });
+  }
+  await batch.commit();
+}
+
+function hasVerifiedProviderPayment(data = {}) {
+  return String(
+    data.providerPaymentState ||
+    data.providerPaymentStatus ||
+    data.payment?.verifiedPaymentState ||
+    ""
+  ).toLowerCase() === "verified_success";
+}
 const {
   PAYOUT_INDEX_COLLECTION,
   buildPayoutIndexId,
@@ -1248,6 +1377,8 @@ async function finalizeIsbankPaidOrder({
   mdStatus,
   callbackResponse,
   transactionResult,
+  skipMarketplaceSettlement = false,
+  deferMarketplacePaymentState = false,
 }) {
   const now = admin.firestore.FieldValue.serverTimestamp();
   const normalizedAmount = normalizeIsbankAmount(callbackAmount);
@@ -1313,7 +1444,9 @@ async function finalizeIsbankPaidOrder({
       if (
         latestProvider === "isbank" &&
         latestFinalizationStatus === "completed" &&
-        (latestPaymentStatus === "paid" || latestOrderStatus === "paid")
+        (latestPaymentStatus === "paid" ||
+          latestOrderStatus === "paid" ||
+          deferMarketplacePaymentState)
       ) {
         return { status: "alreadyProcessed", orderData: latestOrderData };
       }
@@ -1418,15 +1551,19 @@ async function finalizeIsbankPaidOrder({
         batch.set(
           doc.ref,
           {
-            status: "paid",
-            paymentStatus: "paid",
-            financialStatus: sellerFinancialStatus,
+            status: deferMarketplacePaymentState
+              ? "payment_verified_pending_inventory"
+              : "paid",
+            paymentStatus: deferMarketplacePaymentState ? "pending" : "paid",
+            financialStatus: deferMarketplacePaymentState
+              ? FINANCIAL_STATUS.REQUIRES_REPAIR
+              : sellerFinancialStatus,
             paidAt: now,
             payment: {
               ...(sellerOrder.payment || {}),
               provider: paymentProvider,
               paymentProvider,
-              status: "paid",
+              status: deferMarketplacePaymentState ? "pending" : "paid",
               oid: orderId,
               orderId,
               authCode: authCode || null,
@@ -1672,7 +1809,9 @@ async function finalizeIsbankPaidOrder({
       if (
         latestProvider === "isbank" &&
         latestFinalizationStatus === "completed" &&
-        (latestPaymentStatus === "paid" || latestOrderStatus === "paid")
+        (latestPaymentStatus === "paid" ||
+          latestOrderStatus === "paid" ||
+          deferMarketplacePaymentState)
       ) {
         return { status: "alreadyProcessed" };
       }
@@ -1687,8 +1826,10 @@ async function finalizeIsbankPaidOrder({
       transaction.set(
         orderRef,
         {
-          status: "paid",
-          paymentStatus: "paid",
+          status: deferMarketplacePaymentState
+            ? "payment_verified_pending_inventory"
+            : "paid",
+          paymentStatus: deferMarketplacePaymentState ? "pending" : "paid",
           paidAt: now,
           cartCleared: true,
           payment: {
@@ -1743,6 +1884,7 @@ async function finalizeIsbankPaidOrder({
         });
       }
       for (const target of settlementTargets) {
+        if (skipMarketplaceSettlement && target.sector === "petshop") continue;
         try {
           await settlePayable({
             db,
@@ -1817,6 +1959,44 @@ async function markIsbankPaymentFailed({
   transId,
   mdStatus,
 }) {
+  const latestOrderSnap = await orderRef.get();
+  if (latestOrderSnap.exists && hasVerifiedProviderPayment(latestOrderSnap.data() || {})) {
+    logger.warn("isbank_late_failure_ignored_after_verified_success", { orderId });
+    return { status: "ignored_verified_success" };
+  }
+  const latestOrderData = latestOrderSnap.exists ? latestOrderSnap.data() || {} : orderData || {};
+  const managedFailure = isInventoryManagedOrder(
+    { ...latestOrderData, __id: orderId },
+    (sellerOrdersSnap?.docs || []).map((doc) => doc.data() || {})
+  );
+  const failureBusinessIds = (sellerOrdersSnap?.docs || [])
+    .map((doc) => doc.data()?.businessId || doc.data()?.shopId || null)
+    .filter(Boolean);
+  if (
+    managedFailure &&
+    m5FeatureEnabled("failure_release", {
+      buyerUid: latestOrderData.buyerUid || latestOrderData.userId,
+      businessIds: failureBusinessIds,
+    })
+  ) {
+    const releaseResult = await releaseMarketplaceInventory({
+      db,
+      orderId,
+      reason: failureReason || "isbank_payment_failure",
+      paymentState: latestOrderData.providerPaymentStatus || latestOrderData.providerPaymentState || "pending",
+    });
+    if (["manual_review", "release_pending"].includes(releaseResult.status)) {
+      logger.warn("isbank_payment_failure_inventory_recovery_pending", {
+        orderId,
+        inventoryStatus: releaseResult.status,
+      });
+      return {
+        status: releaseResult.status,
+        inventoryStatus: releaseResult.status,
+        recoveryRequired: true,
+      };
+    }
+  }
   const now = admin.firestore.FieldValue.serverTimestamp();
   const normalizedAmount = normalizeIsbankAmount(callbackAmount);
   const numericAmount = Number(normalizedAmount || 0);
@@ -3030,6 +3210,14 @@ exports.isbank3DPayHostingCallback = onRequest(
     }
 
     const orderData = orderSnap.data() || {};
+    const sellerOrdersSnap = await db
+      .collection("sellerOrders")
+      .where("rootOrderId", "==", orderId)
+      .get();
+    const managedMarketplaceOrder = isInventoryManagedOrder(
+      orderData,
+      sellerOrdersSnap.docs.map((doc) => doc.data() || {})
+    );
     const existingProvider = normalizeLower(
       orderData.payment?.provider || orderData.payment?.paymentProvider || ""
     );
@@ -3162,24 +3350,31 @@ exports.isbank3DPayHostingCallback = onRequest(
         expectedAmount,
         callbackAmount,
       });
-      await markIsbankPaymentFailed({
-        orderRef,
-        sellerOrdersSnap: await db
-          .collection("sellerOrders")
-          .where("rootOrderId", "==", orderId)
-          .get(),
-        orderData,
-        orderId,
-        failureReason: "amount_mismatch",
-        callbackAmount,
-        callbackCurrency,
-        authCode: callbackAuthCode,
-        hostRefNum: callbackHostRefNum,
-        procReturnCode: callbackProcReturnCode,
-        responseText: callbackResponse,
-        transId: callbackTransId,
-        mdStatus: callbackMdStatus,
-      });
+      if (managedMarketplaceOrder) {
+        await markInventoryManualReview({
+          db,
+          rootRef: orderRef,
+          sellerRefs: sellerOrdersSnap.docs.map((doc) => doc.ref),
+          reason: "payment_amount_mismatch",
+          details: { expectedAmount, callbackAmount },
+        });
+      } else {
+        await markIsbankPaymentFailed({
+          orderRef,
+          sellerOrdersSnap,
+          orderData,
+          orderId,
+          failureReason: "amount_mismatch",
+          callbackAmount,
+          callbackCurrency,
+          authCode: callbackAuthCode,
+          hostRefNum: callbackHostRefNum,
+          procReturnCode: callbackProcReturnCode,
+          responseText: callbackResponse,
+          transId: callbackTransId,
+          mdStatus: callbackMdStatus,
+        });
+      }
       res.status(200).send(
         buildIsbankCallbackHtml({
           orderId,
@@ -3197,24 +3392,31 @@ exports.isbank3DPayHostingCallback = onRequest(
         expected: expectedCurrency || null,
         callbackCurrency: callbackCurrencyRaw || null,
       });
-      await markIsbankPaymentFailed({
-        orderRef,
-        sellerOrdersSnap: await db
-          .collection("sellerOrders")
-          .where("rootOrderId", "==", orderId)
-          .get(),
-        orderData,
-        orderId,
-        failureReason: "currency_mismatch",
-        callbackAmount,
-        callbackCurrency: callbackCurrencyRaw,
-        authCode: callbackAuthCode,
-        hostRefNum: callbackHostRefNum,
-        procReturnCode: callbackProcReturnCode,
-        responseText: callbackResponse,
-        transId: callbackTransId,
-        mdStatus: callbackMdStatus,
-      });
+      if (managedMarketplaceOrder) {
+        await markInventoryManualReview({
+          db,
+          rootRef: orderRef,
+          sellerRefs: sellerOrdersSnap.docs.map((doc) => doc.ref),
+          reason: "payment_currency_mismatch",
+          details: { expectedCurrency, callbackCurrency },
+        });
+      } else {
+        await markIsbankPaymentFailed({
+          orderRef,
+          sellerOrdersSnap,
+          orderData,
+          orderId,
+          failureReason: "currency_mismatch",
+          callbackAmount,
+          callbackCurrency: callbackCurrencyRaw,
+          authCode: callbackAuthCode,
+          hostRefNum: callbackHostRefNum,
+          procReturnCode: callbackProcReturnCode,
+          responseText: callbackResponse,
+          transId: callbackTransId,
+          mdStatus: callbackMdStatus,
+        });
+      }
       res.status(200).send(
         buildIsbankCallbackHtml({
           orderId,
@@ -3283,10 +3485,6 @@ exports.isbank3DPayHostingCallback = onRequest(
       reason: paymentDecisionReason,
     });
 
-    const sellerOrdersSnap = await db
-      .collection("sellerOrders")
-      .where("rootOrderId", "==", orderId)
-      .get();
     logger.info("ISBANK_ORDER_LOOKUP", {
       oid: orderId || null,
       orderFound: true,
@@ -3381,6 +3579,35 @@ exports.isbank3DPayHostingCallback = onRequest(
     logger.info("ISBANK_FINALIZATION_START", {
       oid: orderId || null,
     });
+    let paymentCallbackClaim = null;
+    if (managedMarketplaceOrder) {
+      paymentCallbackClaim = await claimPaymentCallback({
+        db,
+        provider: "isbank",
+        orderId,
+        paymentId: transId || authCode || orderId,
+        providerEventId: transId || authCode || null,
+        amount: callbackAmount,
+        currency: callbackCurrency,
+      });
+      if (paymentCallbackClaim.status === "already_processed") {
+        res.status(200).send(
+          buildIsbankCallbackHtml({
+            orderId,
+            success: true,
+            title: "Payment confirmed",
+            message: "Callback already processed",
+          })
+        );
+        return;
+      }
+      if (paymentCallbackClaim.status === "processing") {
+        res.status(200).send(
+          "<!doctype html><html><head><meta charset=\"utf-8\"><title>Payment processing</title></head><body><h1>Payment is being confirmed</h1></body></html>"
+        );
+        return;
+      }
+    }
     let finalizationResult;
     try {
       finalizationResult = await finalizeIsbankPaidOrder({
@@ -3398,6 +3625,8 @@ exports.isbank3DPayHostingCallback = onRequest(
         transId: callbackTransId,
         mdStatus: callbackMdStatus,
         callbackResponse,
+        skipMarketplaceSettlement: managedMarketplaceOrder,
+        deferMarketplacePaymentState: managedMarketplaceOrder,
       });
       logger.info("ISBANK_FINALIZATION_SUCCESS", {
         oid: orderId || null,
@@ -3408,18 +3637,6 @@ exports.isbank3DPayHostingCallback = onRequest(
         error: error?.message || String(error),
       });
       throw error;
-    }
-
-    if (finalizationResult?.status === "alreadyProcessed") {
-      res.status(200).send(
-        buildIsbankCallbackHtml({
-          orderId,
-          success: true,
-          title: "Payment confirmed",
-          message: "Callback already processed",
-        })
-      );
-      return;
     }
 
     if (finalizationResult?.status === "processing") {
@@ -3436,7 +3653,114 @@ exports.isbank3DPayHostingCallback = onRequest(
       return;
     }
 
-    if (finalizationResult?.status && finalizationResult.status !== "completed") {
+    if (
+      paymentCallbackClaim &&
+      ["failed", "missing"].includes(finalizationResult?.status)
+    ) {
+      await markPaymentCallbackCommitPending({
+        ref: paymentCallbackClaim.ref,
+        ownerToken: paymentCallbackClaim.ownerToken,
+        result: { status: "payment_finalization_failed", orderId },
+        errorData: { code: finalizationResult?.reason || "payment_finalization_failed" },
+      });
+    }
+
+    if (
+      paymentCallbackClaim &&
+      !["completed", "alreadyProcessed", "failed", "missing"].includes(finalizationResult?.status)
+      ) {
+      await markPaymentCallbackCommitPending({
+        ref: paymentCallbackClaim.ref,
+        ownerToken: paymentCallbackClaim.ownerToken,
+        result: { status: "payment_finalization_pending", orderId },
+        errorData: { code: finalizationResult?.reason || "payment_finalization_failed" },
+      });
+      res.status(200).send(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Payment processing</title></head><body><h1>Payment is being confirmed</h1></body></html>"
+      );
+      return;
+    }
+
+    if (paymentCallbackClaim) {
+      const commitResult = await commitVerifiedMarketplaceInventory({
+        db,
+        orderId,
+        provider: "isbank",
+        paymentId: transId || authCode || orderId,
+        amount: callbackAmount,
+        currency: callbackCurrency,
+      });
+      if (commitResult.status === "manual_review") {
+        await recordLatePaymentAfterExpiry({
+          db,
+          orderId,
+          provider: "isbank",
+          paymentId: transId || authCode || orderId,
+          amount: callbackAmount,
+          currency: callbackCurrency,
+        }).catch((error) => logger.warn("isbank_late_payment_recovery_record_failed", {
+          orderId,
+          reason: error.code || "internal_retryable",
+        }));
+        await markPaymentCallbackManualReview({
+          ref: paymentCallbackClaim.ref,
+          ownerToken: paymentCallbackClaim.ownerToken,
+          result: commitResult,
+          errorData: { code: commitResult.reason || "manual_review" },
+        });
+        res.status(200).send(
+          "<!doctype html><html><head><meta charset=\"utf-8\"><title>Payment review</title></head><body><h1>Payment requires review</h1></body></html>"
+        );
+        return;
+      }
+      if (["commit_pending", "missing"].includes(commitResult.status)) {
+        await markPaymentCallbackCommitPending({
+          ref: paymentCallbackClaim.ref,
+          ownerToken: paymentCallbackClaim.ownerToken,
+          result: commitResult,
+          errorData: { code: commitResult.reason || "commit_pending" },
+        });
+        res.status(200).send(
+          "<!doctype html><html><head><meta charset=\"utf-8\"><title>Payment processing</title></head><body><h1>Payment is being confirmed</h1></body></html>"
+        );
+        return;
+      }
+      if (managedMarketplaceOrder) {
+        const settlement = await settleCommittedMarketplaceSellerOrders({
+          db,
+          sellerOrdersSnap,
+          actor: { type: "system", id: "isbank_settlement" },
+        });
+        if (!settlement.completed) {
+          await markMarketplaceSettlementPending({
+            db,
+            orderId,
+            sellerOrderIds,
+            outcomes: settlement.outcomes,
+          });
+          await markPaymentCallbackSettlementPending({
+            ref: paymentCallbackClaim.ref,
+            ownerToken: paymentCallbackClaim.ownerToken,
+            result: { status: "settlement_pending", orderId },
+            errorData: { code: "settlement_pending" },
+          });
+          res.status(200).send(
+            "<!doctype html><html><head><meta charset=\"utf-8\"><title>Payment processing</title></head><body><h1>Payment is being confirmed</h1></body></html>"
+          );
+          return;
+        }
+      }
+      await completePaymentCallback({
+        ref: paymentCallbackClaim.ref,
+        ownerToken: paymentCallbackClaim.ownerToken,
+        result: commitResult,
+      });
+    }
+
+    if (
+      finalizationResult?.status &&
+      !["completed", "alreadyProcessed"].includes(finalizationResult.status)
+    ) {
       if (
         (finalizationResult.status === "failed" || finalizationResult.status === "missing") &&
         finalizationResult.reason !== "order_not_eligible"
@@ -4850,6 +5174,48 @@ async function firestoreSetWithRetry(ref, data, options, attempts = 3, delayMs =
   }
 
   throw lastError;
+}
+
+const CANCELLATION_REFUND_LEGACY_FIELDS = [
+  "cancellationRefund.status",
+  "cancellationRefund.amount",
+  "cancellationRefund.currency",
+  "cancellationRefund.provider",
+  "cancellationRefund.startedAt",
+  "cancellationRefund.completedAt",
+  "cancellationRefund.errorMessage",
+  "cancellationRefund.raw",
+  "cancellationRefund.payoutSyncFailed",
+  "cancellationRefund.payoutSyncError",
+  "cancellationRefund.needsManualReconciliation",
+  "cancellationRefund.gatewaySucceeded",
+];
+
+// Firestore .set({ merge: true }) treats dotted object keys as literal field
+// names. Keep the refund lifecycle as one nested object and remove any legacy
+// dotted siblings atomically with the canonical update.
+async function writeCanonicalCancellationRefund({
+  db,
+  ref,
+  fields = {},
+  refundPatch = {},
+}) {
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const current = snapshot.exists ? snapshot.data() || {} : {};
+    const currentRefund =
+      current.cancellationRefund &&
+      typeof current.cancellationRefund === "object" &&
+      !Array.isArray(current.cancellationRefund)
+        ? current.cancellationRefund
+        : {};
+    const next = { ...current, ...fields };
+    for (const legacyField of CANCELLATION_REFUND_LEGACY_FIELDS) {
+      delete next[legacyField];
+    }
+    next.cancellationRefund = { ...currentRefund, ...refundPatch };
+    transaction.set(ref, next);
+  });
 }
 
 const SUPPORTED_REFUND_PROVIDERS = ["iyzico", "isbank"];
@@ -14832,22 +15198,120 @@ exports.verifyPaymentByOrderId = onCall(
 
       const orderData = orderSnap.data() || {};
       const paymentToken = orderData?.payment?.token || null;
-
-      if (!paymentToken) {
-        throw new HttpsError("failed-precondition", "Missing payment token in order");
-      }
+      let paymentCallbackClaim = null;
 
       // idempotent
+      const durableManagedRecovery = hasVerifiedProviderPayment(orderData) &&
+        ["committed", "commit_pending", "settlement_pending"].includes(
+          normalizeLower(orderData.inventoryStatus)
+        );
       if (
         (
           normalizeLower(orderData.status) === "paid" ||
           normalizeLower(orderData?.payment?.status) === "paid" ||
-          normalizeLower(orderData?.payment?.status) === "success"
+          normalizeLower(orderData?.payment?.status) === "success" ||
+          durableManagedRecovery
         ) &&
-        ![FINANCIAL_STATUS.PENDING, FINANCIAL_STATUS.REQUIRES_REPAIR].includes(
-          normalizeLower(orderData.financialStatus)
-        )
+        (durableManagedRecovery ||
+          ![FINANCIAL_STATUS.PENDING, FINANCIAL_STATUS.REQUIRES_REPAIR].includes(
+            normalizeLower(orderData.financialStatus)
+          ))
       ) {
+        const existingSellerOrderIds = Array.isArray(orderData.sellerOrderIds)
+          ? orderData.sellerOrderIds.map(String)
+          : [];
+        const existingSellerSnaps = await Promise.all(
+          existingSellerOrderIds.map((id) => db.collection("sellerOrders").doc(id).get())
+        );
+        const managedMarketplaceOrder = isInventoryManagedOrder(
+          orderData,
+          existingSellerSnaps.map((snap) => snap.data() || {})
+        );
+        if (managedMarketplaceOrder) {
+          const paymentId = orderData?.payment?.paymentId ||
+            orderData?.payment?.paymentTransactionId || safeOrderId;
+          paymentCallbackClaim = await claimPaymentCallback({
+            db,
+            provider: "iyzico",
+            orderId: safeOrderId,
+            paymentId,
+            providerEventId: orderData?.payment?.conversationId || paymentId,
+            amount: orderData?.payment?.paidPrice ?? orderData?.pricing?.grandTotal,
+            currency: orderData?.payment?.currency || orderData?.pricing?.currency,
+          });
+          if (paymentCallbackClaim.status === "processing") {
+            return { success: false, pending: true, orderId: safeOrderId, inventoryStatus: "commit_pending" };
+          }
+          if (paymentCallbackClaim.status !== "already_processed") {
+            const commitResult = await commitVerifiedMarketplaceInventory({
+              db,
+              orderId: safeOrderId,
+              provider: "iyzico",
+              paymentId,
+              amount: orderData?.payment?.paidPrice ?? orderData?.pricing?.grandTotal,
+              currency: orderData?.payment?.currency || orderData?.pricing?.currency,
+            });
+            if (commitResult.status === "manual_review") {
+              await recordLatePaymentAfterExpiry({
+                db,
+                orderId: safeOrderId,
+                provider: "iyzico",
+                paymentId,
+                amount: orderData?.payment?.paidPrice ?? orderData?.pricing?.grandTotal,
+                currency: orderData?.payment?.currency || orderData?.pricing?.currency,
+              }).catch((error) => logger.warn("iyzico_late_payment_recovery_record_failed", {
+                orderId: safeOrderId,
+                reason: error.code || "internal_retryable",
+              }));
+              await markPaymentCallbackManualReview({
+                ref: paymentCallbackClaim.ref,
+                ownerToken: paymentCallbackClaim.ownerToken,
+                result: commitResult,
+                errorData: { code: commitResult.reason || "manual_review" },
+              });
+              return { success: false, pending: true, recoveryRequired: true, orderId: safeOrderId, inventoryStatus: "manual_review" };
+            }
+            if (["commit_pending", "missing"].includes(commitResult.status)) {
+              await markPaymentCallbackCommitPending({
+                ref: paymentCallbackClaim.ref,
+                ownerToken: paymentCallbackClaim.ownerToken,
+                result: commitResult,
+                errorData: { code: commitResult.reason || "commit_pending" },
+              });
+              return { success: false, pending: true, orderId: safeOrderId, inventoryStatus: "commit_pending" };
+            }
+            const settlement = await settleCommittedMarketplaceSellerOrders({
+              db,
+              sellerOrdersSnap: existingSellerSnaps,
+              actor: { type: "system", id: "iyzico_settlement" },
+            });
+            if (!settlement.completed) {
+              await markMarketplaceSettlementPending({
+                db,
+                orderId: safeOrderId,
+                sellerOrderIds: existingSellerOrderIds,
+                outcomes: settlement.outcomes,
+              });
+              await markPaymentCallbackSettlementPending({
+                ref: paymentCallbackClaim.ref,
+                ownerToken: paymentCallbackClaim.ownerToken,
+                result: { status: "settlement_pending", orderId: safeOrderId },
+                errorData: { code: "settlement_pending" },
+              });
+              return { success: false, pending: true, orderId: safeOrderId, inventoryStatus: "settlement_pending" };
+            }
+            await markMarketplaceSettlementCompleted({
+              db,
+              orderId: safeOrderId,
+              sellerOrderIds: existingSellerOrderIds,
+            });
+            await completePaymentCallback({
+              ref: paymentCallbackClaim.ref,
+              ownerToken: paymentCallbackClaim.ownerToken,
+              result: commitResult,
+            });
+          }
+        }
         const cartReconciliation = await reconcilePaidMarketplaceCart(
           safeOrderId
         );
@@ -14860,7 +15324,12 @@ exports.verifyPaymentByOrderId = onCall(
           sellerOrderIds: Array.isArray(orderData?.sellerOrderIds)
             ? orderData.sellerOrderIds
             : [],
+          inventoryStatus: managedMarketplaceOrder ? "committed" : "not_applicable",
         };
+      }
+
+      if (!paymentToken) {
+        throw new HttpsError("failed-precondition", "Missing payment token in order");
       }
 
       const iyzi = new Iyzipay({
@@ -14924,6 +15393,53 @@ exports.verifyPaymentByOrderId = onCall(
       // HARD FAILURE
       // -------------------------
       if (hardFailure) {
+        const latestOrderSnap = await orderRef.get();
+        if (latestOrderSnap.exists && hasVerifiedProviderPayment(latestOrderSnap.data() || {})) {
+          const latest = latestOrderSnap.data() || {};
+          return {
+            success: latest.inventoryStatus === "committed" &&
+              latest.settlementStatus !== "settlement_pending",
+            pending: latest.inventoryStatus !== "committed" ||
+              latest.settlementStatus === "settlement_pending",
+            orderId: safeOrderId,
+            sellerOrderIds,
+            inventoryStatus: latest.settlementStatus === "settlement_pending"
+              ? "settlement_pending"
+              : latest.inventoryStatus || "commit_pending",
+          };
+        }
+        const latestOrderData = latestOrderSnap.exists ? latestOrderSnap.data() || {} : orderData;
+        const managedFailure = isInventoryManagedOrder(
+          { ...latestOrderData, __id: safeOrderId },
+          sellerOrdersSnap.docs.map((doc) => doc.data() || {})
+        );
+        const failureBusinessIds = sellerOrdersSnap.docs
+          .map((doc) => doc.data()?.businessId || doc.data()?.shopId || null)
+          .filter(Boolean);
+        if (
+          managedFailure &&
+          m5FeatureEnabled("failure_release", {
+            buyerUid: latestOrderData.buyerUid || latestOrderData.userId || auth.uid,
+            businessIds: failureBusinessIds,
+          })
+        ) {
+          const releaseResult = await releaseMarketplaceInventory({
+            db,
+            orderId: safeOrderId,
+            reason: result?.errorCode || result?.errorMessage || "iyzico_payment_failure",
+            paymentState: latestOrderData.providerPaymentStatus || latestOrderData.providerPaymentState || "pending",
+          });
+          if (["manual_review", "release_pending"].includes(releaseResult.status)) {
+            return {
+              success: false,
+              pending: true,
+              recoveryRequired: true,
+              orderId: safeOrderId,
+              sellerOrderIds,
+              inventoryStatus: releaseResult.status,
+            };
+          }
+        }
         const batch = db.batch();
 
         batch.set(
@@ -14985,6 +15501,19 @@ exports.verifyPaymentByOrderId = onCall(
       // STILL PENDING
       // -------------------------
       if (!success) {
+        const latestOrderSnap = await orderRef.get();
+        const latestOrderData = latestOrderSnap.exists ? latestOrderSnap.data() || {} : {};
+        if (hasVerifiedProviderPayment(latestOrderData)) {
+          return {
+            success: latestOrderData.inventoryStatus === "committed",
+            pending: latestOrderData.inventoryStatus !== "committed",
+            orderId: safeOrderId,
+            sellerOrderIds,
+            inventoryStatus: latestOrderData.settlementStatus === "settlement_pending"
+              ? "settlement_pending"
+              : latestOrderData.inventoryStatus || "commit_pending",
+          };
+        }
         await orderRef.set(
           {
             status: "payment_pending",
@@ -15009,6 +15538,56 @@ exports.verifyPaymentByOrderId = onCall(
         };
       }
 
+      const managedMarketplaceOrder = isInventoryManagedOrder(
+        orderData,
+        sellerOrdersSnap.docs.map((doc) => doc.data() || {})
+      );
+      if (managedMarketplaceOrder) {
+        const callbackPaymentId = result?.paymentId || paymentTransactionId || safeOrderId;
+        let verifiedEvidence;
+        try {
+          verifiedEvidence = validateVerifiedPaymentAmount({
+            rootData: orderData,
+            amount: result?.paidPrice ?? result?.price,
+            currency: result?.currency,
+          });
+        } catch (paymentError) {
+          await markInventoryManualReview({
+            db,
+            rootRef: orderRef,
+            sellerRefs: sellerOrdersSnap.docs.map((doc) => doc.ref),
+            reason: paymentError.code || "payment_evidence_conflict",
+            details: paymentError.details || {},
+          });
+          throw new HttpsError(
+            "failed-precondition",
+            "Payment requires verification review"
+          );
+        }
+        paymentCallbackClaim = await claimPaymentCallback({
+          db,
+          provider: "iyzico",
+          orderId: safeOrderId,
+          paymentId: callbackPaymentId,
+          providerEventId: result?.conversationId || paymentTransactionId || callbackPaymentId,
+          amount: verifiedEvidence.amount,
+          currency: verifiedEvidence.currency,
+        });
+        if (paymentCallbackClaim.status === "already_processed") {
+          return {
+            success: true,
+            alreadyProcessed: true,
+            orderId: safeOrderId,
+            paymentId: callbackPaymentId,
+            sellerOrderIds,
+            inventoryStatus: "committed",
+          };
+        }
+        if (paymentCallbackClaim.status === "processing") {
+          return { success: false, pending: true, orderId: safeOrderId, inventoryStatus: "commit_pending" };
+        }
+      }
+
       // -------------------------
       // SUCCESS
       // -------------------------
@@ -15022,13 +15601,15 @@ exports.verifyPaymentByOrderId = onCall(
       batch.set(
         orderRef,
         {
-          status: "paid",
-          paymentStatus: "paid",
+          status: managedMarketplaceOrder
+            ? "payment_verified_pending_inventory"
+            : "paid",
+          paymentStatus: managedMarketplaceOrder ? "pending" : "paid",
           paidAt: now,
           cartCleared: true,
           payment: {
             ...(orderData.payment || {}),
-            status: "paid",
+            status: managedMarketplaceOrder ? "pending" : "paid",
             provider: "iyzico",
             paymentId: result?.paymentId || null,
             paymentTransactionId,
@@ -15068,15 +15649,19 @@ exports.verifyPaymentByOrderId = onCall(
         batch.set(
           doc.ref,
           {
-            status: "paid",
-            paymentStatus: "paid",
-            financialStatus: hasCompleteFinancial(sellerOrder.financial)
-              ? FINANCIAL_STATUS.VERIFIED
-              : FINANCIAL_STATUS.REQUIRES_REPAIR,
+            status: managedMarketplaceOrder
+              ? "payment_verified_pending_inventory"
+              : "paid",
+            paymentStatus: managedMarketplaceOrder ? "pending" : "paid",
+            financialStatus: managedMarketplaceOrder
+              ? FINANCIAL_STATUS.REQUIRES_REPAIR
+              : hasCompleteFinancial(sellerOrder.financial)
+                ? FINANCIAL_STATUS.VERIFIED
+                : FINANCIAL_STATUS.REQUIRES_REPAIR,
             paidAt: now,
             payment: {
               ...(sellerOrder.payment || {}),
-              status: "paid",
+              status: managedMarketplaceOrder ? "pending" : "paid",
               provider: "iyzico",
               paymentProvider: sellerOrder.payment?.paymentProvider || "iyzico",
               paymentId: result?.paymentId || null,
@@ -15105,6 +15690,70 @@ exports.verifyPaymentByOrderId = onCall(
       }
 
       await batch.commit();
+      if (paymentCallbackClaim) {
+        const commitResult = await commitVerifiedMarketplaceInventory({
+          db,
+          orderId: safeOrderId,
+          provider: "iyzico",
+          paymentId: result?.paymentId || paymentTransactionId || safeOrderId,
+          amount: verifiedEvidence?.amount ?? result?.paidPrice ?? result?.price,
+          currency: verifiedEvidence?.currency ?? result?.currency,
+        });
+        if (commitResult.status === "manual_review") {
+          await recordLatePaymentAfterExpiry({
+            db,
+            orderId: safeOrderId,
+            provider: "iyzico",
+            paymentId: result?.paymentId || paymentTransactionId || safeOrderId,
+            amount: verifiedEvidence?.amount ?? result?.paidPrice ?? result?.price,
+            currency: verifiedEvidence?.currency ?? result?.currency,
+          }).catch((error) => logger.warn("iyzico_late_payment_recovery_record_failed", {
+            orderId: safeOrderId,
+            reason: error.code || "internal_retryable",
+          }));
+          await markPaymentCallbackManualReview({
+            ref: paymentCallbackClaim.ref,
+            ownerToken: paymentCallbackClaim.ownerToken,
+            result: commitResult,
+            errorData: { code: commitResult.reason || "manual_review" },
+          });
+          return { success: false, pending: true, recoveryRequired: true, orderId: safeOrderId, inventoryStatus: "manual_review" };
+        }
+        if (["commit_pending", "missing"].includes(commitResult.status)) {
+          await markPaymentCallbackCommitPending({
+            ref: paymentCallbackClaim.ref,
+            ownerToken: paymentCallbackClaim.ownerToken,
+            result: commitResult,
+            errorData: { code: commitResult.reason || "commit_pending" },
+          });
+          return { success: false, pending: true, orderId: safeOrderId, inventoryStatus: "commit_pending" };
+        }
+        const settlement = await settleCommittedMarketplaceSellerOrders({
+          db,
+          sellerOrdersSnap,
+          actor: { type: "system", id: "iyzico_settlement" },
+        });
+        if (!settlement.completed) {
+          await markMarketplaceSettlementPending({
+            db,
+            orderId: safeOrderId,
+            sellerOrderIds,
+            outcomes: settlement.outcomes,
+          });
+          await markPaymentCallbackSettlementPending({
+            ref: paymentCallbackClaim.ref,
+            ownerToken: paymentCallbackClaim.ownerToken,
+            result: { status: "settlement_pending", orderId: safeOrderId },
+            errorData: { code: "settlement_pending" },
+          });
+          return { success: false, pending: true, orderId: safeOrderId, inventoryStatus: "settlement_pending" };
+        }
+        await markMarketplaceSettlementCompleted({
+          db,
+          orderId: safeOrderId,
+          sellerOrderIds,
+        });
+      }
       const cartReconciliation = await reconcilePaidMarketplaceCart(
         safeOrderId
       );
@@ -15271,12 +15920,21 @@ exports.verifyPaymentByOrderId = onCall(
         console.error("External order notification failed:", e);
       }
 
+      if (paymentCallbackClaim) {
+        await completePaymentCallback({
+          ref: paymentCallbackClaim.ref,
+          ownerToken: paymentCallbackClaim.ownerToken,
+          result: { status: "committed", orderId: safeOrderId },
+        });
+      }
+
       return {
         success: true,
         orderId: safeOrderId,
         cartReconciled: cartReconciliation.reconciled === true,
         paymentId: result?.paymentId || null,
         sellerOrderIds,
+        inventoryStatus: paymentCallbackClaim ? "committed" : "not_applicable",
       };
     } catch (error) {
       logger.error("❌ verifyPaymentByOrderId ERROR", {
@@ -17473,6 +18131,7 @@ exports.migrateServices = onRequest(async (req, res) => {
 exports.processProductVideo = onObjectFinalized(
   {
     region: "europe-west3",
+    bucket: "barkymatches-new.firebasestorage.app",
     memory: "2GiB",
     timeoutSeconds: 120,
   },
@@ -18377,6 +19036,7 @@ exports.createMarketplaceOrderV2 = onCall(
     const payment = data.payment || {};
     const legal = data.legal || {};
     const currency = data.currency || "TRY";
+    const checkoutAttemptId = String(data.checkoutAttemptId || "").trim();
     const rawItems = Array.isArray(data.items) ? data.items : [];
     const selectedCarrier = normalizeCarrier(data.carrier || "");
 
@@ -18516,18 +19176,6 @@ exports.createMarketplaceOrderV2 = onCall(
       });
     }
 
-    const counterRef = db.collection("counters").doc("orderCounter");
-    const rootOrderRef = db.collection("orders").doc();
-
-    const sequence = await db.runTransaction(async (tx) => {
-      const counterSnap = await tx.get(counterRef);
-      const current = counterSnap.exists ? asNumber(counterSnap.data().current) : 0;
-      const next = current + 1;
-      tx.set(counterRef, { current: next }, { merge: true });
-      return next;
-    });
-
-    const orderNumber = buildOrderNumber(sequence);
     const normalizeKdvRate = (value) => {
       const rate = asNumber(value);
       if (rate < 0) return 0;
@@ -18596,10 +19244,201 @@ exports.createMarketplaceOrderV2 = onCall(
 
     const groupedEntries = Array.from(grouped.entries());
 
+    const businessIds = groupedEntries.map(([shopId]) => String(shopId));
+    const m3Enabled = m3FeatureEnabled({
+      buyerUid: auth.uid,
+      businessIds,
+    });
+    const initialPaymentState = initialM3LegacyPaymentState({
+      m3Enabled,
+      paymentStatus: payment.status,
+    });
+    if (m3Enabled && !checkoutAttemptId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "checkoutAttemptId is required for inventory-enabled checkout."
+      );
+    }
+
+    const m3OrderIds = m3Enabled
+      ? buildM3OrderIds({
+          buyerUid: auth.uid,
+          checkoutAttemptId,
+          businessIds,
+        })
+      : null;
+    const m3Lines = m3Enabled
+      ? buildCanonicalLines({
+          rootOrderId: m3OrderIds.rootOrderId,
+          sellerOrderIds: m3OrderIds.sellerOrderIds,
+          items,
+        })
+      : [];
+    const m3LineByItem = new Map();
+    m3Lines.forEach((line, index) => m3LineByItem.set(items[index], line));
+
     const normalizedGroupedEntries = groupedEntries.map(([shopId, shopItems]) => {
-      const normalizedItems = shopItems.map((item) => buildTaxSnapshotItem(item));
+      const normalizedItems = shopItems.map((item) => {
+        const normalized = buildTaxSnapshotItem(item);
+        const canonicalLine = m3LineByItem.get(item);
+        return canonicalLine
+          ? {
+              ...normalized,
+              lineId: canonicalLine.lineId,
+              sellerOrderLineId: canonicalLine.lineId,
+              inventoryStatus: canonicalLine.inventoryStatus,
+              inventoryOperationVersion:
+                canonicalLine.inventoryOperationVersion,
+            }
+          : normalized;
+      });
       return [shopId, normalizedItems];
     });
+
+    let m3Claim = null;
+    let m3SellerOrderIds = null;
+    if (m3Enabled) {
+      const m3Amount = Number(
+        normalizedGroupedEntries
+          .flatMap(([, shopItems]) => shopItems)
+          .reduce(
+            (sum, item) => sum + asNumber(item.taxSnapshot?.lineGrandTotal || 0),
+            0
+          )
+          .toFixed(2)
+      );
+      m3Claim = await claimCheckoutAttempt({
+        db,
+        buyerUid: auth.uid,
+        checkoutAttemptId,
+        cartFingerprint: checkoutFingerprint({
+          items,
+          currency,
+          amount: m3Amount,
+        }),
+        amount: m3Amount,
+        currency,
+        rootOrderId: m3OrderIds.rootOrderId,
+      });
+      m3SellerOrderIds = m3OrderIds.sellerOrderIds;
+
+      if (m3Claim.status === "already_reserved") {
+        if (m3Claim.result?.ok === true && m3Claim.result.orderId) {
+          return m3Claim.result;
+        }
+        const compatibleResponse = buildCheckoutResponse({
+          rootOrderId: m3OrderIds.rootOrderId,
+          orderNumber: m3Claim.orderNumber,
+          sellerOrderIds: [...m3SellerOrderIds.values()],
+          inventoryStatus: "reserved",
+        });
+        await updateAttempt(m3Claim.ref, { result: compatibleResponse });
+        return compatibleResponse;
+      }
+      if (m3Claim.status === "in_progress") {
+        throw new HttpsError(
+          "already-exists",
+          "This checkout attempt is already being processed."
+        );
+      }
+      if (["released", "failed", "manual_review"].includes(m3Claim.status)) {
+        throw new HttpsError(
+          "aborted",
+          m3Claim.error?.message || "This checkout attempt cannot be retried."
+        );
+      }
+
+      const existingRoot = await db
+        .collection("orders")
+        .doc(m3OrderIds.rootOrderId)
+        .get();
+      if (m3Claim.status === "compensation_pending" && !existingRoot.exists) {
+        await updateAttempt(m3Claim.ref, {
+          status: "manual_review",
+          error: {
+            code: "canonical_order_tree_incomplete",
+            message: "Checkout compensation cannot be resumed without its order tree",
+          },
+        });
+        throw new HttpsError("failed-precondition", "Checkout requires recovery review before it can continue.");
+      }
+      if (existingRoot.exists) {
+        const expectedSellerOrderIds = [...m3SellerOrderIds.values()];
+        const sellerSnapshots = await Promise.all(expectedSellerOrderIds.map((sellerOrderId) =>
+          db.collection("sellerOrders").doc(sellerOrderId).get()));
+        const sellerSnapshotMap = new Map(
+          sellerSnapshots.map((snapshot) => [snapshot.id, snapshot])
+        );
+        try {
+          validateExistingCheckoutTree({
+            rootSnapshot: existingRoot,
+            sellerOrderSnapshots: sellerSnapshotMap,
+            expectedSellerOrderIds,
+            expectedLines: m3Lines,
+            buyerUid: auth.uid,
+          });
+        } catch (validationError) {
+          await updateAttempt(m3Claim.ref, {
+            status: "manual_review",
+            error: {
+              code: validationError.code || "canonical_order_tree_incomplete",
+              message: "Checkout order tree is incomplete",
+            },
+          });
+          throw new HttpsError(
+            "failed-precondition",
+            "Checkout requires recovery review before it can continue."
+          );
+        }
+        const existingSellerOrders = sellerSnapshots;
+        const existingLines = existingSellerOrders.flatMap((snapshot) => {
+          const sellerOrder = snapshot.data() || {};
+          return (Array.isArray(sellerOrder.inventoryLines)
+            ? sellerOrder.inventoryLines
+            : []
+          ).map((line) => ({ ...line, buyerUid: auth.uid }));
+        });
+        try {
+          const orderNumber = String(existingRoot.data()?.orderNumber || "");
+          if (!orderNumber) {
+            await updateAttempt(m3Claim.ref, {
+              status: "manual_review",
+              error: { code: "canonical_order_tree_incomplete", message: "Order number is missing" },
+            });
+            throw new HttpsError("failed-precondition", "Checkout requires recovery review before it can continue.");
+          }
+          return await resumeCheckoutAttempt({
+            db,
+            claim: m3Claim,
+            lines: existingLines,
+            sellerOrderIds: expectedSellerOrderIds,
+            orderNumber,
+          });
+        } catch (errorValue) {
+          throw new HttpsError(
+            ["insufficient_stock", "item_unavailable", "inventory_conflict", "compensation_pending"].includes(
+              errorValue?.code
+            )
+              ? "failed-precondition"
+              : "aborted",
+            errorValue?.message || "Checkout reservation could not be resumed."
+          );
+        }
+      }
+    }
+
+    const counterRef = db.collection("counters").doc("orderCounter");
+    const rootOrderRef = m3Enabled
+      ? db.collection("orders").doc(m3OrderIds.rootOrderId)
+      : db.collection("orders").doc();
+    const sequence = await db.runTransaction(async (tx) => {
+      const counterSnap = await tx.get(counterRef);
+      const current = counterSnap.exists ? asNumber(counterSnap.data().current) : 0;
+      const next = current + 1;
+      tx.set(counterRef, { current: next }, { merge: true });
+      return next;
+    });
+    const orderNumber = buildOrderNumber(sequence);
 
     const sellerOrderRefs = [];
     const sellerOrderPayloads = [];
@@ -18625,7 +19464,9 @@ exports.createMarketplaceOrderV2 = onCall(
           `Missing ownerUid for business ${shopId}`
         );
       }
-      const sellerOrderRef = db.collection("sellerOrders").doc();
+      const sellerOrderRef = m3Enabled
+        ? db.collection("sellerOrders").doc(m3SellerOrderIds.get(String(shopId)))
+        : db.collection("sellerOrders").doc();
       const sellerOrderId = sellerOrderRef.id;
       const sellerOrderNumber = buildSellerOrderNumber(orderNumber, i + 1);
       const subtotal = Number(
@@ -18687,10 +19528,36 @@ exports.createMarketplaceOrderV2 = onCall(
         buyerSurname: surname,
         buyerEmail: buyer.email || null,
         buyerPhone: buyer.phone || null,
-        status: payment.status === "paid" ? "paid" : "pending_payment",
-        paymentStatus: payment.status || "pending",
+        status: initialPaymentState.orderStatus,
+        paymentStatus: initialPaymentState.paymentStatus,
         currency,
         items: shopItems,
+        ...(m3Enabled
+          ? {
+              inventoryLines: shopItems.map((item) => ({
+                rootOrderId: rootOrderRef.id,
+                sellerOrderId,
+                lineId: item.lineId,
+                sellerOrderLineId: item.lineId,
+                buyerUid: auth.uid,
+                businessId: shopId,
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.taxSnapshot?.lineGrandTotal || 0,
+                currency,
+                title: item.name || null,
+                imageUrl: item.imageUrl || null,
+                inventoryStatus: "not_started",
+                inventoryOperationVersion: 1,
+              })),
+              inventoryStatus: "not_started",
+              inventorySchemaVersion: 1,
+              inventoryOperationVersion: 1,
+              financeEligibility: "ineligible",
+              providerPaymentStatus: "pending",
+            }
+          : {}),
         delivery: {
           city: delivery.city || null,
           district: delivery.district || null,
@@ -18778,7 +19645,7 @@ exports.createMarketplaceOrderV2 = onCall(
           invoiceRequired: true,
         },
         timeline: buildInitialTimeline(
-          payment.status === "paid" ? "paid" : "pending_payment"
+          initialPaymentState.orderStatus
         ),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -18806,8 +19673,8 @@ exports.createMarketplaceOrderV2 = onCall(
       buyerSurname: surname,
       buyerEmail: buyer.email || null,
       buyerPhone: buyer.phone || null,
-      status: payment.status === "paid" ? "paid" : "pending_payment",
-      paymentStatus: payment.status || "pending",
+      status: initialPaymentState.orderStatus,
+      paymentStatus: initialPaymentState.paymentStatus,
       currency,
       pricing: {
         currency,
@@ -18849,6 +19716,26 @@ exports.createMarketplaceOrderV2 = onCall(
       },
       sellerOrderIds,
       sellerCount: sellerOrderIds.length,
+      ...(m3Enabled
+        ? {
+            inventoryLineSet: m3Lines.map((line) => ({
+              rootOrderId: line.rootOrderId,
+              sellerOrderId: line.sellerOrderId,
+              lineId: line.lineId,
+              businessId: line.businessId,
+              productId: line.productId,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              totalPrice: line.totalPrice,
+              currency: line.currency,
+            })),
+            providerPaymentStatus: "pending",
+            inventoryStatus: "not_started",
+            financeEligibility: "ineligible",
+            inventorySchemaVersion: 1,
+            inventoryOperationVersion: 1,
+          }
+        : {}),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       search: {
@@ -18879,6 +19766,37 @@ exports.createMarketplaceOrderV2 = onCall(
       grandTotal,
     });
     await batch.commit();
+
+    if (m3Enabled) {
+      await updateAttempt(m3Claim.ref, {
+        status: "order_created",
+        orderNumber,
+      });
+      try {
+        const reservationResult = await coordinateCheckoutReservations({
+          db,
+          attemptRef: m3Claim.ref,
+          rootOrderId: rootOrderRef.id,
+          sellerOrderIds,
+          lines: m3Lines.map((line) => ({ ...line, buyerUid: auth.uid })),
+        });
+        const response = buildCheckoutResponse({
+          rootOrderId: rootOrderRef.id,
+          orderNumber,
+          sellerOrderIds,
+          inventoryStatus: reservationResult.status,
+        });
+        await updateAttempt(m3Claim.ref, { result: response, orderNumber });
+        return response;
+      } catch (errorValue) {
+        throw new HttpsError(
+          ["insufficient_stock", "item_unavailable"].includes(errorValue?.code)
+            ? "failed-precondition"
+            : "aborted",
+          errorValue?.message || "Items are no longer available."
+        );
+      }
+    }
 
     return {
       ok: true,
@@ -18930,6 +19848,50 @@ exports.markMarketplaceCheckoutFailed = onCall(
     });
 
     const orderRef = db.collection("orders").doc(orderId);
+
+    // M5 release is deliberately outside the legacy status transaction. The
+    // inventory primitives own reservedStock; this callable only advances
+    // legacy compatibility fields after release is durably resolved.
+    const releaseSellerOrdersSnap = await db
+      .collection("sellerOrders")
+      .where("rootOrderId", "==", orderId)
+      .get();
+    const releaseBusinessIds = releaseSellerOrdersSnap.docs
+      .map((doc) => doc.data()?.businessId || doc.data()?.shopId || null)
+      .filter(Boolean);
+    const releaseRootSnap = await orderRef.get();
+    const releaseRootData = releaseRootSnap.exists ? releaseRootSnap.data() || {} : {};
+    if (
+      releaseRootSnap.exists &&
+      m5FeatureEnabled("failure_release", {
+        buyerUid: releaseRootData.buyerUid || releaseRootData.userId || auth.uid,
+        businessIds: releaseBusinessIds,
+      })
+    ) {
+      const releaseResult = await releaseMarketplaceInventory({
+        db,
+        orderId,
+        reason,
+        buyerUid: auth.uid,
+        paymentState: releaseRootData.providerPaymentStatus || releaseRootData.providerPaymentState || releaseRootData.paymentStatus || "pending",
+      });
+      if (["manual_review", "release_pending"].includes(releaseResult.status)) {
+        return {
+          success: false,
+          orderId,
+          inventoryStatus: releaseResult.status,
+          recoveryRequired: true,
+        };
+      }
+      if (releaseResult.status === "already_committed") {
+        return {
+          success: false,
+          orderId,
+          inventoryStatus: "manual_review",
+          recoveryRequired: true,
+        };
+      }
+    }
 
     const result = await db.runTransaction(async (transaction) => {
       const orderSnap = await transaction.get(orderRef);
@@ -19293,6 +20255,61 @@ exports.updateSellerOrderStatusV2 = onCall(
         authUid: auth.uid,
         exists: rootOrderSnap.exists,
       });
+
+      if (newStatus === "cancelled") {
+        const managedSellerCancellation = isInventoryManagedOrder(
+          { ...rootOrder, __id: rootOrderId },
+          [sellerOrder]
+        );
+        const sellerPaymentState = normalizeLower(
+          rootOrder.providerPaymentStatus ||
+          rootOrder.providerPaymentState ||
+          sellerOrder.providerPaymentStatus ||
+          sellerOrder.providerPaymentState ||
+          rootOrder.paymentStatus ||
+          sellerOrder.paymentStatus ||
+          "pending"
+        );
+        if (
+          managedSellerCancellation &&
+          m5FeatureEnabled("cancellation_release", {
+            buyerUid: sellerOrder.buyerUid || rootOrder.buyerUid || rootOrder.userId,
+            businessIds: [businessId],
+          })
+        ) {
+          if (
+            sellerPaymentState === "verified_success" ||
+            normalizeLower(sellerOrder.inventoryStatus) === "committed"
+          ) {
+            await markInventoryManualReview({
+              db,
+              rootRef: rootOrderRef,
+              sellerRefs: [sellerOrderRef],
+              reason: "post_payment_seller_cancellation",
+              details: { sellerOrderId, status: "manual_review" },
+            });
+            throw new HttpsError(
+              "failed-precondition",
+              "Post-payment cancellation requires manual review."
+            );
+          }
+          const releaseResult = await releaseMarketplaceInventory({
+            db,
+            orderId: rootOrderId,
+            reason: "seller_cancellation_before_payment",
+            paymentState: sellerPaymentState,
+            targetSellerOrderIds: [sellerOrderId],
+          });
+          if (["manual_review", "release_pending"].includes(releaseResult.status)) {
+            throw new HttpsError(
+              "failed-precondition",
+              releaseResult.status === "manual_review"
+                ? "Cancellation requires manual review"
+                : "Cancellation is still processing"
+            );
+          }
+        }
+      }
 
       const existingShipping = sellerOrder.shipping || {};
       const carrier =
@@ -19832,6 +20849,50 @@ exports.cancelSellerOrderBeforeShipment = onCall(
       );
     }
 
+    const managedCancellation = isInventoryManagedOrder(
+      { ...rootOrder, __id: rootOrderId },
+      [initialOrder]
+    );
+    const paymentStateForCancellation = normalizeLower(
+      rootOrder.providerPaymentStatus ||
+      rootOrder.providerPaymentState ||
+      initialOrder.providerPaymentStatus ||
+      initialOrder.providerPaymentState ||
+      rootOrder.paymentStatus ||
+      initialOrder.paymentStatus ||
+      "pending"
+    );
+    if (
+      managedCancellation &&
+      paymentStateForCancellation !== "verified_success" &&
+      m5FeatureEnabled("cancellation_release", {
+        buyerUid: authUid,
+        businessIds: [initialOrder.businessId || initialOrder.shopId].filter(Boolean),
+      })
+    ) {
+      const releaseResult = await releaseMarketplaceInventory({
+        db,
+        orderId: rootOrderId,
+        reason: "buyer_cancellation",
+        paymentState: paymentStateForCancellation,
+        targetSellerOrderIds: [sellerOrderId],
+      });
+      if (["manual_review", "release_pending"].includes(releaseResult.status)) {
+        throw new HttpsError(
+          "failed-precondition",
+          releaseResult.status === "manual_review"
+            ? "Cancellation requires manual review"
+            : "Cancellation is still processing"
+        );
+      }
+      return {
+        success: true,
+        status: "cancelled",
+        inventoryStatus: releaseResult.status,
+        refundRequired: false,
+      };
+    }
+
     const sellerPayment = initialOrder.payment || {};
     const rootPayment = rootOrder.payment || {};
     const mergedPayment = {
@@ -20066,30 +21127,32 @@ exports.cancelSellerOrderBeforeShipment = onCall(
       gatewaySucceeded = true;
 
       const completedAt = admin.firestore.FieldValue.serverTimestamp();
-      await firestoreSetWithRetry(
-        sellerOrderRef,
-        {
+      await writeCanonicalCancellationRefund({
+        db,
+        ref: sellerOrderRef,
+        fields: {
           status: "cancelled",
           cancelledAt: completedAt,
           cancelledBy: authUid,
           cancelReason,
           cancellationType,
           updatedAt: completedAt,
-          "cancellationRefund.status": "refunded",
-          "cancellationRefund.amount": refundAmount,
-          "cancellationRefund.currency": mergedPayment.currency || "TRY",
-          "cancellationRefund.provider": refundReference.provider,
-          "cancellationRefund.completedAt": completedAt,
-          "cancellationRefund.errorMessage": null,
-          "cancellationRefund.raw": refundResult,
           timeline: admin.firestore.FieldValue.arrayUnion({
             status: "cancelled",
             at: new Date().toISOString(),
             by: "system",
           }),
         },
-        { merge: true }
-      );
+        refundPatch: {
+          status: "refunded",
+          amount: refundAmount,
+          currency: mergedPayment.currency || "TRY",
+          provider: refundReference.provider,
+          completedAt,
+          errorMessage: null,
+          raw: refundResult,
+        },
+      });
       refundPersisted = true;
 
       try {
@@ -20121,17 +21184,16 @@ exports.cancelSellerOrderBeforeShipment = onCall(
             message: payoutSyncError?.message || String(payoutSyncError),
           }
         );
-        await sellerOrderRef
-          .set(
-            {
-              "cancellationRefund.payoutSyncFailed": true,
-              "cancellationRefund.payoutSyncError":
-                payoutSyncError?.message || String(payoutSyncError),
-              "cancellationRefund.needsManualReconciliation": true,
-            },
-            { merge: true }
-          )
-          .catch(() => {});
+        await writeCanonicalCancellationRefund({
+          db,
+          ref: sellerOrderRef,
+          refundPatch: {
+            payoutSyncFailed: true,
+            payoutSyncError:
+              payoutSyncError?.message || String(payoutSyncError),
+            needsManualReconciliation: true,
+          },
+        }).catch(() => {});
       }
 
       if (rootOrderRef) {
@@ -20185,19 +21247,22 @@ exports.cancelSellerOrderBeforeShipment = onCall(
       return { success: true, status: "refunded" };
     } catch (error) {
       if (gatewaySucceeded && !refundPersisted) {
-        await sellerOrderRef
-          .set(
-            {
-              status: "cancellation_refund_pending",
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-              "cancellationRefund.gatewaySucceeded": true,
-              "cancellationRefund.needsManualReconciliation": true,
-              "cancellationRefund.errorMessage":
-                error?.message || String(error),
-            },
-            { merge: true }
-          )
-          .catch(() => {});
+        await writeCanonicalCancellationRefund({
+          db,
+          ref: sellerOrderRef,
+          fields: {
+            status: "cancellation_refund_pending",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          refundPatch: {
+            // The provider already confirmed the refund. Keep the canonical
+            // state terminal even when local persistence needs reconciliation.
+            status: "refunded",
+            gatewaySucceeded: true,
+            needsManualReconciliation: true,
+            errorMessage: error?.message || String(error),
+          },
+        }).catch(() => {});
         logger.error("ORDER_CANCELLATION_REFUND_RECONCILIATION_REQUIRED", {
           sellerOrderId,
           error: error?.message || String(error),
@@ -20207,16 +21272,18 @@ exports.cancelSellerOrderBeforeShipment = onCall(
           "Refund succeeded but could not be fully recorded. Do not retry."
         );
       }
-      await sellerOrderRef.set(
-        {
+      await writeCanonicalCancellationRefund({
+        db,
+        ref: sellerOrderRef,
+        fields: {
           status: "cancellation_refund_failed",
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          "cancellationRefund.status": "refund_failed",
-          "cancellationRefund.errorMessage":
-            error?.message || String(error),
         },
-        { merge: true }
-      );
+        refundPatch: {
+          status: "refund_failed",
+          errorMessage: error?.message || String(error),
+        },
+      });
       logger.error("ORDER_CANCELLATION_REFUND_FAILED", {
         sellerOrderId,
         error: error?.message || String(error),

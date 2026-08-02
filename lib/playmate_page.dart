@@ -274,7 +274,7 @@ class _PlaymatePageState extends State<PlaymatePage>
     final futures = ownerIds.map((id) async {
       try {
         final doc = await FirebaseFirestore.instance
-            .collection('users')
+            .collection('users_public')
             .doc(id)
             .get();
 

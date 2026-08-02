@@ -68,7 +68,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
 
     _selectedServiceLocal = widget.selectedService;
     _businessSettingsFuture = FirebaseFirestore.instance
-        .collection('businesses')
+        .collection('businesses_public')
         .doc(widget.vet.id)
         .get();
 
@@ -749,7 +749,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       }
 
       final businessSnap = await FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .doc(widget.vet.id)
           .get();
       final businessData = businessSnap.data() ?? {};
@@ -950,7 +950,7 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
     Map<String, dynamic>? businessData,
   ) {
     final data = businessData ?? {};
-    final sectorData = _asMap(data['sectorData']);
+    final sectorData = _asMap(data['publicSectorData']);
     final veterinary = _asMap(sectorData['veterinary']);
     return _asMap(veterinary['preVisitFormSettings']);
   }

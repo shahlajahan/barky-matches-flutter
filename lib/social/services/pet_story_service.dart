@@ -176,7 +176,7 @@ class PetStoryService {
         .doc(currentUser.uid)
         .get();
     final ownerDoc = await _firestore
-        .collection('users')
+        .collection('users_public')
         .doc(story.userId)
         .get();
     final userData = userDoc.data() ?? {};

@@ -41,7 +41,7 @@ class PetploreSearchDelegate extends SearchDelegate {
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('users')
+          .collection('users_public')
           .where('username', isGreaterThanOrEqualTo: query.toLowerCase())
           .where('username', isLessThan: '${query.toLowerCase()}\uf8ff')
           .limit(20)
@@ -55,9 +55,7 @@ class PetploreSearchDelegate extends SearchDelegate {
         final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return Center(
-            child: Text(AppLocalizations.of(context)!.noResults),
-          );
+          return Center(child: Text(AppLocalizations.of(context)!.noResults));
         }
 
         return ListView.builder(
@@ -95,8 +93,6 @@ class PetploreSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    return Center(
-      child: Text(AppLocalizations.of(context)!.searchUsersHint),
-    );
+    return Center(child: Text(AppLocalizations.of(context)!.searchUsersHint));
   }
 }

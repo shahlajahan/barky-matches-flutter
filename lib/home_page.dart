@@ -657,7 +657,9 @@ class _HomePageState extends State<HomePage>
     if (!mounted) return;
 
     /// 🏪 BUSINESS DATA
-    final businessesQuery = FirebaseFirestore.instance.collection('businesses');
+    final businessesQuery = FirebaseFirestore.instance.collection(
+      'businesses_public',
+    );
     final snapshot = await businessesQuery.get();
 
     if (!mounted) return;

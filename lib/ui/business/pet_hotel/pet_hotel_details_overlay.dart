@@ -6,6 +6,7 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import '../dashboard/pet_hotel/pet_hotel_reviews_tab.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 enum _PetHotelDetailsTab { overview, services, reviews, gallery }
 
@@ -36,7 +37,9 @@ class _PetHotelDetailsOverlayState extends State<PetHotelDetailsOverlay> {
 
   Map<String, dynamic> get _hotelData {
     final rawData = widget.data.rawData ?? widget.data.data ?? {};
-    final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
+    final sectorData = Map<String, dynamic>.from(
+      rawData['publicSectorData'] ?? {},
+    );
     return Map<String, dynamic>.from(
       sectorData['pet_hotel'] ??
           sectorData['hotel'] ??
@@ -47,15 +50,10 @@ class _PetHotelDetailsOverlayState extends State<PetHotelDetailsOverlay> {
 
   List<Map<String, dynamic>> _fallbackServices() {
     final servicesData = _hotelData['services'];
-    List<String> titles = [];
-
-    if (servicesData is Map && servicesData['offeredServices'] is List) {
-      titles = List<String>.from(servicesData['offeredServices']);
-    } else if (servicesData is List) {
-      titles = servicesData.map((item) => item.toString()).toList();
-    } else if (widget.data.services != null) {
-      titles = widget.data.services!;
-    }
+    final normalizedTitles = PublicServiceNormalizer.toTitles(servicesData);
+    var titles = normalizedTitles.isNotEmpty
+        ? normalizedTitles
+        : (widget.data.services ?? const <String>[]);
 
     if (titles.isEmpty) {
       titles = const ['Standard Room', 'VIP Room', 'Daily Care'];

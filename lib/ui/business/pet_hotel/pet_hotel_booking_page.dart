@@ -9,6 +9,7 @@ import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 class PetHotelBookingPage extends StatefulWidget {
   final BusinessCardData hotel;
@@ -107,7 +108,9 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
 
   List<Map<String, dynamic>> _fallbackServices() {
     final rawData = widget.hotel.rawData ?? widget.hotel.data ?? {};
-    final sectorData = Map<String, dynamic>.from(rawData['sectorData'] ?? {});
+    final sectorData = Map<String, dynamic>.from(
+      rawData['publicSectorData'] ?? {},
+    );
     final hotelData = Map<String, dynamic>.from(
       sectorData['pet_hotel'] ??
           sectorData['hotel'] ??
@@ -116,14 +119,10 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
     );
     final servicesData = hotelData['services'];
 
-    List<String> titles = [];
-    if (servicesData is Map && servicesData['offeredServices'] is List) {
-      titles = List<String>.from(servicesData['offeredServices']);
-    } else if (servicesData is List) {
-      titles = servicesData.map((item) => item.toString()).toList();
-    } else if (widget.hotel.services != null) {
-      titles = widget.hotel.services!;
-    }
+    final normalizedTitles = PublicServiceNormalizer.toTitles(servicesData);
+    var titles = normalizedTitles.isNotEmpty
+        ? normalizedTitles
+        : (widget.hotel.services ?? const <String>[]);
 
     if (titles.isEmpty) {
       titles = const ['Standard Room', 'VIP Room', 'Daily Care'];
@@ -539,7 +538,7 @@ class _PetHotelBookingPageState extends State<PetHotelBookingPage> {
 
     try {
       final businessSnap = await FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .doc(widget.hotel.id)
           .get();
       final businessData = businessSnap.data() ?? {};

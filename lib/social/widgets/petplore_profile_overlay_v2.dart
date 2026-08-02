@@ -204,7 +204,7 @@ class _PetploreProfileOverlayV2State extends State<PetploreProfileOverlayV2> {
                     child:
                         StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                           stream: FirebaseFirestore.instance
-                              .collection('users')
+                              .collection('users_public')
                               .doc(widget.userId)
                               .snapshots(),
                           builder: (context, snapshot) {
@@ -1067,7 +1067,7 @@ class _SocialGraphPanel extends StatelessWidget {
     for (var i = 0; i < ids.length; i += 10) {
       final chunk = ids.skip(i).take(10).toList();
       final snapshot = await FirebaseFirestore.instance
-          .collection('users')
+          .collection('users_public')
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
       for (final doc in snapshot.docs) {

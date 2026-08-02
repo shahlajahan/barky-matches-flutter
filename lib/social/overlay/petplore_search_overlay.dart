@@ -152,7 +152,7 @@ class _PetploreSearchOverlayState extends State<PetploreSearchOverlay> {
                   ? _buildEmptyState()
                   : StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
-                          .collection('users')
+                          .collection('users_public')
                           .where('username', isGreaterThanOrEqualTo: _query)
                           .where('username', isLessThan: '$_query\uf8ff')
                           .limit(20)

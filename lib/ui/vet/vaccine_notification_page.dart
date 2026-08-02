@@ -6,6 +6,7 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 class VaccineNotificationPage extends StatefulWidget {
   final String businessId;
@@ -283,7 +284,9 @@ class _VaccineNotificationPageState extends State<VaccineNotificationPage> {
 
                         services: data['services'] == null
                             ? null
-                            : List<String>.from(data['services']),
+                            : PublicServiceNormalizer.toTitles(
+                                data['services'],
+                              ),
 
                         phone: data['phone'],
 

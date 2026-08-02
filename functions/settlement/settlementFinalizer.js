@@ -40,6 +40,7 @@ async function recordSettlementResult({
   record,
   status,
   attempts,
+  operationId,
   failureCode = null,
   failureMessage = null,
   reason = null,
@@ -58,6 +59,7 @@ async function recordSettlementResult({
       recordRef,
       {
         settlement: settlementPatch(status, attempts, {
+          operationId: operationId || null,
           failureCode,
           failureMessage,
           reason,
@@ -92,14 +94,16 @@ async function recordSettlementResult({
         metadata: {
           failureMessage,
           attempts,
+          operationId: operationId || null,
         },
       })
     );
   });
 }
 
-async function settlePayable({ db, sector, recordRef, actor }) {
+async function settlePayable({ db, sector, recordRef, actor, operationId = null }) {
   const adapter = getPayoutSectorAdapter(sector);
+  const settlementOperationId = operationId || `settlement-${sector}-${recordRef.id}`;
   let record;
   let attempts;
 
@@ -141,6 +145,7 @@ async function settlePayable({ db, sector, recordRef, actor }) {
         recordRef,
         {
           settlement: settlementPatch(SETTLEMENT_STATUS.PROCESSING, nextAttempts, {
+            operationId: settlementOperationId,
             failureCode: null,
             failureMessage: null,
             reason: null,
@@ -163,6 +168,7 @@ async function settlePayable({ db, sector, recordRef, actor }) {
         record: claim.record,
         status: SETTLEMENT_STATUS.BLOCKED,
         attempts: claim.attempts,
+        operationId: settlementOperationId,
         failureCode: "FINANCIAL_REPAIR_REQUIRED",
         reason: FINANCIAL_STATUS.REQUIRES_REPAIR,
         failureMessage:
@@ -188,6 +194,7 @@ async function settlePayable({ db, sector, recordRef, actor }) {
         record,
         status: SETTLEMENT_STATUS.FAILED,
         attempts,
+        operationId: settlementOperationId,
         failureCode: "MISSING_FINANCIAL_SNAPSHOT",
         failureMessage: "A frozen financial snapshot is required for settlement.",
         actor,
@@ -203,6 +210,7 @@ async function settlePayable({ db, sector, recordRef, actor }) {
         record,
         status: SETTLEMENT_STATUS.BLOCKED,
         attempts,
+        operationId: settlementOperationId,
         failureCode: "NEGATIVE_PAYABLE",
         reason: "NEGATIVE_PAYABLE",
         failureMessage: "The financial snapshot has a negative business payable.",
@@ -227,6 +235,7 @@ async function settlePayable({ db, sector, recordRef, actor }) {
       record,
       status: SETTLEMENT_STATUS.COMPLETED,
       attempts,
+      operationId: settlementOperationId,
       payout,
       actor,
     });
@@ -240,6 +249,7 @@ async function settlePayable({ db, sector, recordRef, actor }) {
       record,
       status: SETTLEMENT_STATUS.FAILED,
       attempts,
+      operationId: settlementOperationId,
       failureCode: "SETTLEMENT_ERROR",
       failureMessage: error?.message || String(error),
       actor,

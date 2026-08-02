@@ -54,6 +54,8 @@ import 'core/debug/diagnostics_navigation_tracker.dart';
 import 'core/debug/diagnostics_uploader.dart';
 import 'core/debug/web_startup_status.dart';
 import 'developer_tools/developer_tools_page.dart';
+import 'social/pages/social_post_route_page.dart';
+import 'social/services/social_post_share.dart';
 
 import 'ui/appointments/my_appointments_page.dart';
 import 'ui/business/dashboard/vet/appointment_payment_page.dart';
@@ -1362,6 +1364,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _sub;
   Uri? _lastHandledLink;
+  Uri? _pendingPostLink;
   final DiagnosticsUploader _diagnosticsUploader = DiagnosticsUploader();
   final DiagnosticsNavigationTracker _navigationTracker =
       DiagnosticsNavigationTracker();
@@ -1385,6 +1388,10 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _handleDeepLinkOnce(uri, "DEEP LINK RECEIVED");
     });
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _flushPendingPostLink();
+    });
+
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _triggerDiagnosticsUpload();
@@ -1402,6 +1409,34 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _lastHandledLink = uri;
     debugPrint("$label: $uri");
     handleDeepLink(uri);
+  }
+
+  void _flushPendingPostLink() {
+    final uri = _pendingPostLink;
+    if (uri == null) return;
+    _pendingPostLink = null;
+    _openPostDeepLink(uri);
+  }
+
+  void _openPostDeepLink(Uri uri) {
+    final postId = SocialPostShare.postIdFromDeepLink(uri);
+    if (postId == null) return;
+
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) {
+      _pendingPostLink = uri;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _flushPendingPostLink();
+      });
+      return;
+    }
+
+    navigator.push(
+      MaterialPageRoute(
+        settings: RouteSettings(name: '/post/$postId'),
+        builder: (_) => SocialPostRoutePage(postId: postId),
+      ),
+    );
   }
 
   @override
@@ -1484,6 +1519,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
         home:
             _webPaymentReturnPage() ??
             _webCreatorDashboardPage() ??
+            _webPostPage() ??
             const AppEntry(),
       ),
     );
@@ -1539,9 +1575,22 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return const CreatorDashboardWebPage();
   }
 
+  Widget? _webPostPage() {
+    if (!kIsWeb) return null;
+    final postId = SocialPostShare.postIdFromUri(Uri.base);
+    if (postId == null) return null;
+    return SocialPostRoutePage(postId: postId);
+  }
+
   void handleDeepLink(Uri uri) async {
     if (kDebugMode) {
       debugPrint("🔗 DEEP LINK RECEIVED: ${uri.scheme}://${uri.host}");
+    }
+
+    final postId = SocialPostShare.postIdFromDeepLink(uri);
+    if (postId != null) {
+      _openPostDeepLink(uri);
+      return;
     }
 
     /// فقط payment success

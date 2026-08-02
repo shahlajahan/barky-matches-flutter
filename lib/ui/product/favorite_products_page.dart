@@ -187,7 +187,7 @@ class FavoriteProductsPage extends StatelessWidget {
                               const SizedBox(height: 8),
 
                               Text(
-                                "₺${data["price"]}",
+                                "₺${_customerPrice(data).toStringAsFixed(2)}",
 
                                 style: AppTheme.h3(
                                   color: AppTheme.primary,
@@ -257,4 +257,10 @@ class FavoriteProductsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+double _customerPrice(Map<String, dynamic> data) {
+  final base = ((data['salePrice'] ?? data['price']) as num?)?.toDouble() ?? 0;
+  final rate = (data['kdvRate'] as num?)?.toDouble() ?? 0;
+  return double.parse((base * (1 + rate / 100)).toStringAsFixed(2));
 }

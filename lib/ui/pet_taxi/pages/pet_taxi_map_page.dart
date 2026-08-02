@@ -43,13 +43,13 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _driversStream() {
     final query = FirebaseFirestore.instance
-        .collection('businesses')
+        .collection('businesses_public')
         .where('status', isEqualTo: 'approved');
     FirestoreQueryTrace.log(
       file: 'lib/ui/pet_taxi/pages/pet_taxi_map_page.dart',
       method: '_driversStream',
       line: 45,
-      collection: 'businesses',
+      collection: 'businesses_public',
       clauses: const ["where(status, isEqualTo: approved)"],
       terminalCall: 'snapshots()',
       query: query,
@@ -62,61 +62,53 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
     super.initState();
     startGoogleMapHealthTimer(
       feature: 'pet_taxi_map',
-      data: <String, dynamic>{
-        'page': 'PetTaxiMapPage',
-      },
+      data: <String, dynamic>{'page': 'PetTaxiMapPage'},
     );
     _initializePage();
   }
 
- Future<void> _initializePage() async {
-  try {
-    await _initializeMyLocation();
+  Future<void> _initializePage() async {
+    try {
+      await _initializeMyLocation();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    await _loadDriverMarker();
+      await _loadDriverMarker();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    _driversSubscription =
-        _driversStream().listen(_handleDriversSnapshot);
-  } catch (e, stackTrace) {
-    debugPrint('PetTaxi initialization failed: $e');
-    debugPrintStack(stackTrace: stackTrace);
-  } finally {
-    if (!mounted) return;
+      _driversSubscription = _driversStream().listen(_handleDriversSnapshot);
+    } catch (e, stackTrace) {
+      debugPrint('PetTaxi initialization failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      if (!mounted) return;
 
-    setState(() {
-      _pageReady = true;
-    });
+      setState(() {
+        _pageReady = true;
+      });
+    }
   }
-}
 
   Future<void> _initializeMyLocation() async {
+    if (!mounted) {
+      debugPrint("❌ Widget not mounted");
+      return;
+    }
 
+    final granted = await _permissionService.ensureForegroundPermission(
+      context,
+    );
 
-  if (!mounted) {
-    debugPrint("❌ Widget not mounted");
-    return;
+    if (!mounted) {
+      debugPrint("❌ Widget unmounted after permission");
+      return;
+    }
+
+    setState(() {
+      _myLocationEnabled = granted;
+    });
   }
-
-  final granted =
-      await _permissionService.ensureForegroundPermission(context);
-
-  
-
-  if (!mounted) {
-    debugPrint("❌ Widget unmounted after permission");
-    return;
-  }
-
-  setState(() {
-    _myLocationEnabled = granted;
-  });
-
- 
-}
 
   @override
   void dispose() {
@@ -126,28 +118,30 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
     super.dispose();
   }
 
- Future<void> _loadDriverMarker() async {
-  try {
-    _driverMarker = await BitmapDescriptor.asset(
-      const ImageConfiguration(size: Size(56, 56)),
-      'assets/taxi_marker.png',
-    );
-  } catch (e, stackTrace) {
-    debugPrint("❌ TAXI MARKER LOAD FAILED = $e");
-    debugPrintStack(stackTrace: stackTrace);
+  Future<void> _loadDriverMarker() async {
+    try {
+      _driverMarker = await BitmapDescriptor.asset(
+        const ImageConfiguration(size: Size(56, 56)),
+        'assets/taxi_marker.png',
+      );
+    } catch (e, stackTrace) {
+      debugPrint("❌ TAXI MARKER LOAD FAILED = $e");
+      debugPrintStack(stackTrace: stackTrace);
 
-    _driverMarker = BitmapDescriptor.defaultMarkerWithHue(
-      BitmapDescriptor.hueRose,
-    );
-  }
+      _driverMarker = BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueRose,
+      );
+    }
 
-  if (mounted) {
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
-}
 
   Future<void> _moveCameraToUser() async {
-    final granted = await _permissionService.ensureForegroundPermission(context);
+    final granted = await _permissionService.ensureForegroundPermission(
+      context,
+    );
     if (!mounted || !granted) {
       return;
     }
@@ -182,7 +176,8 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
       await reportMapInitializationFailure(
         error: e,
         stackTrace: stackTrace,
-        message: 'Pet Taxi map initialization failed while focusing user location',
+        message:
+            'Pet Taxi map initialization failed while focusing user location',
         data: <String, dynamic>{
           'page': 'PetTaxiMapPage',
           'stage': 'focusUserLocation',
@@ -192,92 +187,82 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
   }
 
   void _handleDriversSnapshot(QuerySnapshot<Map<String, dynamic>> snapshot) {
-  debugPrint(
-    'PET_TAXI_DRIVERS_SNAPSHOT fromCache=${snapshot.metadata.isFromCache} '
-    'docs=${snapshot.docs.length}',
-  );
-  final markers = <Marker>{};
-
-  for (final doc in snapshot.docs) {
-    final data = {...doc.data(), 'id': doc.id};
-
-    PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
-      businessId: doc.id,
-      businessData: data,
-    );
-
-    final sectorData = _map(data['sectorData']);
-    final taxi = _map(
-      sectorData['pet_taxi'] ??
-          sectorData['petTaxi'] ??
-          sectorData['taxi'],
-    );
-
-    if (taxi['isAvailable'] != true) {
-      continue;
-    }
-
-    final contact = _map(data['contact']);
-
-    final location = PetTaxiDriverLocationResolver.resolveDisplayLocation(
-      taxi: taxi,
-      contact: contact,
-    );
-
-    debugPrint("🚕 DRIVER = ${_businessName(data, taxi)}");
-    debugPrint("🚕 AVAILABLE = ${taxi['isAvailable']}");
     debugPrint(
-      "🚕 LOCATION = ${location?.lat},${location?.lng}",
+      'PET_TAXI_DRIVERS_SNAPSHOT fromCache=${snapshot.metadata.isFromCache} '
+      'docs=${snapshot.docs.length}',
     );
-    debugPrint(
-      "🚕 LOCATION SOURCE = ${location?.source.name}",
-    );
+    final markers = <Marker>{};
 
-    if (location == null) {
-      continue;
-    }
+    for (final doc in snapshot.docs) {
+      final data = {...doc.data(), 'id': doc.id};
 
-    final position = location.latLng;
+      PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
+        businessId: doc.id,
+        businessData: data,
+      );
 
-    _firstDriverPosition ??= position;
+      final sectorData = _map(data['publicSectorData']);
+      final taxi = _map(
+        sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
+      );
 
-    markers.add(
-      Marker(
-        markerId: MarkerId(doc.id),
-        icon: _driverMarker ??
-            BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueRose,
-            ),
-        position: position,
-        infoWindow: InfoWindow(
-          title: _businessName(data, taxi),
-          snippet: 'Available Pet Taxi',
+      if (taxi['isAvailable'] != true) {
+        continue;
+      }
+
+      final contact = _map(data['contact']);
+
+      final location = PetTaxiDriverLocationResolver.resolveDisplayLocation(
+        taxi: taxi,
+        contact: contact,
+      );
+
+      debugPrint("🚕 DRIVER = ${_businessName(data, taxi)}");
+      debugPrint("🚕 AVAILABLE = ${taxi['isAvailable']}");
+      debugPrint("🚕 LOCATION = ${location?.lat},${location?.lng}");
+      debugPrint("🚕 LOCATION SOURCE = ${location?.source.name}");
+
+      if (location == null) {
+        continue;
+      }
+
+      final position = location.latLng;
+
+      _firstDriverPosition ??= position;
+
+      markers.add(
+        Marker(
+          markerId: MarkerId(doc.id),
+          icon:
+              _driverMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
+          position: position,
+          infoWindow: InfoWindow(
+            title: _businessName(data, taxi),
+            snippet: 'Available Pet Taxi',
+          ),
         ),
-      ),
-    );
+      );
 
-    _initialCameraPosition ??=
-        CameraPosition(target: position, zoom: 16);
+      _initialCameraPosition ??= CameraPosition(target: position, zoom: 16);
 
-    _moveCameraToDriverIfNeeded(position);
+      _moveCameraToDriverIfNeeded(position);
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _markers = markers;
+    });
   }
-
-  if (!mounted) {
-    return;
-  }
-
-  setState(() {
-    _markers = markers;
-  });
-}
 
   @override
   Widget build(BuildContext context) {
     if (!_pageReady) {
-  return const Center(
-    child: CircularProgressIndicator(),
-  );
-}
+      return const Center(child: CircularProgressIndicator());
+    }
     return Stack(
       children: [
         Positioned.fill(

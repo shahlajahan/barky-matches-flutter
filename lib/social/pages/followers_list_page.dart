@@ -211,19 +211,19 @@ class FollowUsersListPage extends StatelessWidget {
                   final ids = docs.map((doc) => doc.id).toList();
 
                   if (ids.isEmpty) {
-  final l10n = AppLocalizations.of(context)!;
+                    final l10n = AppLocalizations.of(context)!;
 
-  return Center(
-  child: Text(
-    l10n.noItemsYet(title),
-    style: TextStyle(
-      color: Colors.white.withValues(alpha: 0.56),
-      fontSize: 15,
-      fontWeight: FontWeight.w700,
-    ),
-  ),
-);
-}
+                    return Center(
+                      child: Text(
+                        l10n.noItemsYet(title),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.56),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    );
+                  }
 
                   return FutureBuilder<Map<String, FollowUserProfile>>(
                     future: _loadUsers(ids),
@@ -284,7 +284,7 @@ class FollowUsersListPage extends StatelessWidget {
     for (var i = 0; i < ids.length; i += 10) {
       final chunk = ids.skip(i).take(10).toList();
       final snapshot = await firestore
-          .collection('users')
+          .collection('users_public')
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
 

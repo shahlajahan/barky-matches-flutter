@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import '../models/social_post.dart';
 import '../services/social_post_service.dart';
+import '../services/social_post_share.dart';
 import '../widgets/comments_bottom_sheet.dart';
 
 import '../services/post_save_service.dart';
@@ -513,7 +514,7 @@ void initState() {
 
 ${post.caption}
 
-https://petsupo.com/post/${post.id}
+${SocialPostShare.canonicalUrl(post.id)}
 ''', sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size);
 
       await _postService.incrementShareCount(post.id);

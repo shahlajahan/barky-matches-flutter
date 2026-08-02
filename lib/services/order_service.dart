@@ -20,6 +20,7 @@ class OrderService {
     required List<Map<String, dynamic>> items,
     required String carrier,
     required Map<String, dynamic> legal,
+    String? checkoutAttemptId,
   }) async {
     debugPrint("🔥 CALLING CLOUD FUNCTION V2...");
 
@@ -34,6 +35,8 @@ class OrderService {
       "items": items,
       "carrier": carrier,
       "legal": legal,
+      if (checkoutAttemptId != null && checkoutAttemptId.trim().isNotEmpty)
+        "checkoutAttemptId": checkoutAttemptId.trim(),
     });
 
     debugPrint("✅ FUNCTION RESPONSE: ${res.data}");

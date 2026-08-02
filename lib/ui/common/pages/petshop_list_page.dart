@@ -59,7 +59,7 @@ class _PetShopListPageState extends State<PetShopListPage>
     try {
       _position ??= await _resolveLocation();
       final snapshot = await FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .where('status', isEqualTo: 'approved')
           .get();
       if (!mounted) return;

@@ -65,7 +65,7 @@ class SellerCheckoutPricing {
   final double taxTotal;
   final double grandTotal;
 
-  double get sellerTotal => productsTotal + shippingTotal;
+  double get sellerTotal => grandTotal;
 
   factory SellerCheckoutPricing.fromBackend(
     Map<String, dynamic> pricing, {
@@ -82,7 +82,8 @@ class SellerCheckoutPricing {
       taxTotal: _asDouble(pricing['taxTotal']),
       grandTotal: _asDouble(
         pricing['grandTotal'],
-        fallback: productsTotal + shippingTotal,
+        fallback:
+            productsTotal + shippingTotal + _asDouble(pricing['taxTotal']),
       ),
     );
   }
@@ -96,13 +97,13 @@ class CheckoutPricingTotals {
     required this.productsTotal,
     required this.shippingTotal,
     required this.taxTotal,
+    required this.grandTotal,
   });
 
   final double productsTotal;
   final double shippingTotal;
   final double taxTotal;
-
-  double get grandTotal => productsTotal + shippingTotal;
+  final double grandTotal;
 
   factory CheckoutPricingTotals.fromSellerPricing(
     Iterable<SellerCheckoutPricing> sellerPricing,
@@ -119,6 +120,10 @@ class CheckoutPricingTotals {
       taxTotal: sellerPricing.fold(
         0,
         (total, pricing) => total + pricing.taxTotal,
+      ),
+      grandTotal: sellerPricing.fold(
+        0,
+        (total, pricing) => total + pricing.grandTotal,
       ),
     );
   }
@@ -268,6 +273,12 @@ class SellerCheckoutSection extends StatelessWidget {
             amount: shippingTotal,
             loading: pricingLoading && pricing == null,
           ),
+          _AmountRow(
+            key: Key('seller-tax-${group.shopId}'),
+            label: l10n.checkoutVatLabel,
+            amount: pricing?.taxTotal ?? 0,
+            loading: pricingLoading && pricing == null,
+          ),
           if (group.estimatedDeliveryDays case final days?) ...[
             const SizedBox(height: 10),
             Row(
@@ -287,7 +298,7 @@ class SellerCheckoutSection extends StatelessWidget {
           _AmountRow(
             key: Key('seller-total-${group.shopId}'),
             label: l10n.checkoutSellerTotal,
-            amount: productsTotal + shippingTotal,
+            amount: pricing?.grandTotal ?? productsTotal + shippingTotal,
             emphasize: true,
             loading: pricingLoading && pricing == null,
           ),

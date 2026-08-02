@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 import 'app_state.dart' as app;
 import 'l10n/app_localizations.dart';
@@ -45,13 +46,13 @@ class _GroomyPageState extends State<GroomyPage>
   Future<void> _loadGroomersFromFirestore() async {
     try {
       final query = FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       FirestoreQueryTrace.log(
         file: 'lib/groomy_page.dart',
         method: '_loadGroomersFromFirestore',
         line: 47,
-        collection: 'businesses',
+        collection: 'businesses_public',
         clauses: const ["where(status, isEqualTo: approved)"],
         terminalCall: 'get()',
         query: query,
@@ -89,7 +90,7 @@ class _GroomyPageState extends State<GroomyPage>
 
     final profile = _map(root['profile']);
     final contact = _map(root['contact']);
-    final sectorData = _map(root['sectorData']);
+    final sectorData = _map(root['publicSectorData']);
     final grooming = _map(
       sectorData['grooming'] ?? sectorData['groomer'] ?? sectorData['groomy'],
     );
@@ -97,7 +98,6 @@ class _GroomyPageState extends State<GroomyPage>
       grooming['profileContent'] ?? grooming['content'],
     );
     final socialMedia = _map(profileContent['socialMedia']);
-    final services = _map(grooming['services']);
     final workingHours = _map(grooming['workingHours']);
 
     final name = _firstText([
@@ -132,8 +132,7 @@ class _GroomyPageState extends State<GroomyPage>
     ]);
 
     final serviceTitles = _serviceTitles([
-      services['offeredServices'],
-      services['services'],
+      ...PublicServiceNormalizer.toTitles(grooming['services']),
       grooming['offeredServices'],
       profile['tags'],
       root['tags'],
@@ -197,7 +196,7 @@ class _GroomyPageState extends State<GroomyPage>
 
   bool _isGroomingBusiness(Map<String, dynamic> data) {
     final profile = _map(data['profile']);
-    final sectorData = _map(data['sectorData']);
+    final sectorData = _map(data['publicSectorData']);
     final raw = [
       data['sector'],
       data['sectors'],
@@ -339,8 +338,7 @@ class _GroomyPageState extends State<GroomyPage>
             child: TextField(
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText:
-    '${l10n.search} ${l10n.groomyTitle.toLowerCase()}...',
+                hintText: '${l10n.search} ${l10n.groomyTitle.toLowerCase()}...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,

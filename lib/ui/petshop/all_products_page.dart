@@ -14,6 +14,7 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/common/gallery_viewer_page.dart';
 import 'package:barky_matches_fixed/ui/common/smart_video_preview.dart';
 import 'package:barky_matches_fixed/ui/checkout/checkout_page.dart';
+import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
 
 import 'package:barky_matches_fixed/ui/product/product_detail_page.dart';
 import 'package:barky_matches_fixed/ui/product/seller_profile_page.dart';
@@ -119,7 +120,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
             product: product,
             shopId: product.businessId,
             name: product.name,
-            price: product.finalPrice,
+            price: product.customerPrice,
             quantity: 1,
           ),
         );
@@ -157,13 +158,6 @@ class _AllProductsPageState extends State<AllProductsPage> {
         );
       }
     });
-  }
-
-  double get _cartSubtotal {
-    return _cart.fold<double>(
-      0,
-      (sum, item) => sum + (item.price * item.quantity),
-    );
   }
 
   int get _cartCount {
@@ -244,7 +238,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
           product: product,
           shopId: shopId,
           name: data['name']?.toString() ?? product.name,
-          price: price,
+          price: productData != null ? product.customerPrice : price,
           quantity: (data['quantity'] as num?)?.toInt() ?? 1,
           allowedCarrierCodes: product.allowedCarrierCodes,
         );
@@ -261,6 +255,15 @@ class _AllProductsPageState extends State<AllProductsPage> {
 
   void _openBasket() {
     final l10n = AppLocalizations.of(context)!;
+    Future<Map<String, dynamic>?> pricingFuture = _loadBasketPricing(
+      List<CartItem>.from(_cart),
+    );
+
+    Future<Map<String, dynamic>?> refreshBasketPricing() {
+      pricingFuture = _loadBasketPricing(List<CartItem>.from(_cart));
+      return pricingFuture;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -369,7 +372,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
-                                              "₺${(item.price * item.quantity).toStringAsFixed(0)}",
+                                              "₺${(item.product.customerPrice * item.quantity).toStringAsFixed(2)}",
                                               style: AppTheme.h3(
                                                 color: const Color(0xFF9E1B4F),
                                                 weight: FontWeight.w800,
@@ -386,6 +389,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                                             onPressed: () {
                                               setModalState(() {
                                                 _changeQuantity(item, -1);
+                                                refreshBasketPricing();
                                                 _syncCartToFirestore();
                                               });
                                             },
@@ -421,6 +425,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                                             onPressed: () {
                                               setModalState(() {
                                                 _changeQuantity(item, 1);
+                                                refreshBasketPricing();
                                                 _syncCartToFirestore();
                                               });
                                             },
@@ -451,24 +456,44 @@ class _AllProductsPageState extends State<AllProductsPage> {
                         ),
                         child: Column(
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  l10n.subtotalLabel,
-                                  style: AppTheme.body(
-                                    color: AppTheme.textDark,
-                                    weight: FontWeight.w700,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  "₺${_cartSubtotal.toStringAsFixed(0)}",
-                                  style: AppTheme.h3(
-                                    color: const Color(0xFF9E1B4F),
-                                    weight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
+                            FutureBuilder<Map<String, dynamic>?>(
+                              future: pricingFuture,
+                              builder: (context, snapshot) {
+                                final rawTotal = snapshot.data?['grandTotal'];
+                                final total = rawTotal is num
+                                    ? rawTotal.toDouble()
+                                    : null;
+                                return Row(
+                                  children: [
+                                    Text(
+                                      l10n.totalLabel,
+                                      style: AppTheme.body(
+                                        color: AppTheme.textDark,
+                                        weight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (snapshot.connectionState ==
+                                            ConnectionState.waiting ||
+                                        total == null)
+                                      const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        "₺${total.toStringAsFixed(2)}",
+                                        style: AppTheme.h3(
+                                          color: const Color(0xFF9E1B4F),
+                                          weight: FontWeight.w900,
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
                             ),
                             const SizedBox(height: 12),
 
@@ -506,6 +531,30 @@ class _AllProductsPageState extends State<AllProductsPage> {
         );
       },
     );
+  }
+
+  Future<Map<String, dynamic>?> _loadBasketPricing(List<CartItem> items) async {
+    if (items.isEmpty) return null;
+    try {
+      final result = await PetshopCheckoutService().calculatePricing(
+        items: items
+            .map(
+              (item) => {
+                ...item.toJson(),
+                'carrier': '',
+                'selectedCarrier': '',
+              },
+            )
+            .toList(),
+        carrier: '',
+      );
+      final pricing = result['pricing'];
+      return pricing is Map ? Map<String, dynamic>.from(pricing) : null;
+    } catch (error, stackTrace) {
+      debugPrint('Unable to load basket pricing: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return null;
+    }
   }
 
   Future<void> _syncCartToFirestore() async {
@@ -1423,7 +1472,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
                         imageUrl: product.media.isNotEmpty
                             ? product.media.first.originalUrl
                             : null,
-                        price: product.finalPrice,
+                        price: product.customerPrice,
                       );
 
                       (context as Element).markNeedsBuild();
@@ -1545,7 +1594,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
                         children: [
                           if (hasDiscount)
                             Text(
-                              "₺${product.price.toStringAsFixed(0)}",
+                              "₺${product.customerReferencePrice.toStringAsFixed(2)}",
                               style: const TextStyle(
                                 fontSize: 9,
                                 color: Colors.grey,
@@ -1553,7 +1602,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
                               ),
                             ),
                           Text(
-                            "₺${product.finalPrice.toStringAsFixed(0)}",
+                            "₺${product.customerPrice.toStringAsFixed(2)}",
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w900,
@@ -1760,7 +1809,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
                         shopId: product.businessId,
                         name: product.name,
                         imageUrl: firstMedia,
-                        price: product.finalPrice,
+                        price: product.customerPrice,
                       );
                       if (mounted) setState(() {});
                     },
@@ -1839,7 +1888,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
                 const SizedBox(height: 12),
                 if (hasDiscount)
                   Text(
-                    '₺${product.price.toStringAsFixed(0)}',
+                    '₺${product.customerReferencePrice.toStringAsFixed(2)}',
                     style: const TextStyle(
                       color: Colors.grey,
                       decoration: TextDecoration.lineThrough,
@@ -1848,7 +1897,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
                 Row(
                   children: [
                     Text(
-                      '₺${product.finalPrice.toStringAsFixed(0)}',
+                      '₺${product.customerPrice.toStringAsFixed(2)}',
                       style: AppTheme.h2(
                         color: const Color(0xFF9E1B4F),
                         weight: FontWeight.w900,

@@ -21,6 +21,9 @@ class UserPostsGrid extends StatelessWidget {
     final query = FirebaseFirestore.instance
         .collection('social_posts')
         .where('userId', isEqualTo: userId)
+        .where('visibility', isEqualTo: 'public')
+        .where('moderationStatus', isEqualTo: 'active')
+        .where('isHidden', isEqualTo: false)
         .orderBy('createdAt', descending: true);
 
     debugPrint("🔥 QUERY READY");

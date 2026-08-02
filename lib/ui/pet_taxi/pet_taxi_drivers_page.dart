@@ -63,7 +63,7 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
 
   BusinessCardData? _mapPetTaxiBusiness(String id, Map<String, dynamic> data) {
     final root = <String, dynamic>{...data, 'id': id};
-    final sectorData = _map(root['sectorData']);
+    final sectorData = _map(root['publicSectorData']);
     final taxi = _map(
       sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
     );

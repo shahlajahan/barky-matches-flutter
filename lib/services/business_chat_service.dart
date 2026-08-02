@@ -190,7 +190,7 @@ class BusinessChatService {
   Future<_ClientIdentity> _clientIdentity(String clientUserId) async {
     final user = FirebaseAuth.instance.currentUser;
     final userDoc = await _firestore
-        .collection('users')
+        .collection('users_public')
         .doc(clientUserId)
         .get();
     final userData = userDoc.data() ?? {};

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -46,13 +47,13 @@ class _PetHotelPageState extends State<PetHotelPage>
   Future<void> _loadHotelsFromFirestore() async {
     try {
       final query = FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       FirestoreQueryTrace.log(
         file: 'lib/pet_hotel_page.dart',
         method: '_loadHotelsFromFirestore',
         line: 47,
-        collection: 'businesses',
+        collection: 'businesses_public',
         clauses: const ["where(status, isEqualTo: approved)"],
         terminalCall: 'get()',
         query: query,
@@ -88,14 +89,12 @@ class _PetHotelPageState extends State<PetHotelPage>
 
     final profile = _map(root['profile']);
     final contact = _map(root['contact']);
-    final sectorData = _map(root['sectorData']);
+    final sectorData = _map(root['publicSectorData']);
     final hotel = _map(
       sectorData['pet_hotel'] ?? sectorData['hotel'] ?? sectorData['petHotel'],
     );
     final profileContent = _map(hotel['profileContent'] ?? hotel['content']);
     final socialMedia = _map(profileContent['socialMedia']);
-    final services = _map(hotel['services']);
-
     final name = _firstText([
       profile['displayName'],
       profile['businessName'],
@@ -123,8 +122,7 @@ class _PetHotelPageState extends State<PetHotelPage>
     ]);
 
     final serviceTitles = _serviceTitles([
-      services['offeredServices'],
-      services['services'],
+      ...PublicServiceNormalizer.toTitles(hotel['services']),
       hotel['offeredServices'],
       hotel['amenities'],
       profile['tags'],
@@ -198,7 +196,7 @@ class _PetHotelPageState extends State<PetHotelPage>
 
   bool _isHotelBusiness(Map<String, dynamic> data) {
     final profile = _map(data['profile']);
-    final sectorData = _map(data['sectorData']);
+    final sectorData = _map(data['publicSectorData']);
     final raw = [
       data['sector'],
       data['sectors'],
@@ -347,9 +345,7 @@ class _PetHotelPageState extends State<PetHotelPage>
             child: TextField(
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: l10n.searchService(
-  l10n.petHotels,
-),
+                hintText: l10n.searchService(l10n.petHotels),
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,

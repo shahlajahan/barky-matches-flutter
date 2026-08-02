@@ -10,6 +10,7 @@ import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
 import 'package:barky_matches_fixed/services/order_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
@@ -27,6 +28,22 @@ class CheckoutPage extends StatefulWidget {
 
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
+}
+
+String _checkoutAttemptKey(String uid, List<CartItem> items) {
+  final canonical =
+      items
+          .map(
+            (item) =>
+                '${item.shopId}|${item.productId}|${item.quantity}|${item.price}',
+          )
+          .toList()
+        ..sort();
+  var hash = 2166136261;
+  for (final codeUnit in '$uid|${canonical.join(';')}'.codeUnits) {
+    hash = ((hash ^ codeUnit) * 16777619) & 0xFFFFFFFF;
+  }
+  return 'marketplace_checkout_attempt_v1_${hash.toRadixString(16)}';
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
@@ -58,6 +75,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool marketingConsent = false;
 
   bool _loading = false;
+  String? _checkoutAttemptId;
+  String? _checkoutAttemptStorageKey;
+  bool _checkoutAttemptLoaded = false;
   bool _pricingLoading = true;
   Object? _pricingError;
   int _pricingRequestGeneration = 0;
@@ -101,6 +121,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   void initState() {
     super.initState();
     _sellerGroups = groupCheckoutItemsBySeller(widget.items);
+
+    _restoreCheckoutAttemptId();
 
     final user = FirebaseAuth.instance.currentUser;
 
@@ -149,6 +171,44 @@ class _CheckoutPageState extends State<CheckoutPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPricing();
     });
+  }
+
+  Future<void> _restoreCheckoutAttemptId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final key = _checkoutAttemptKey(user.uid, widget.items);
+    final preferences = await SharedPreferences.getInstance();
+    final stored = preferences.getString(key);
+    if (!mounted) return;
+    setState(() {
+      _checkoutAttemptStorageKey = key;
+      _checkoutAttemptId = stored?.trim().isNotEmpty == true
+          ? stored!.trim()
+          : 'checkout_${DateTime.now().microsecondsSinceEpoch}_${user.uid}';
+      _checkoutAttemptLoaded = true;
+    });
+    await preferences.setString(key, _checkoutAttemptId!);
+  }
+
+  Future<String> _ensureCheckoutAttemptId() async {
+    if (!_checkoutAttemptLoaded || _checkoutAttemptId == null) {
+      await _restoreCheckoutAttemptId();
+    }
+    final id = _checkoutAttemptId;
+    if (id == null || id.isEmpty) {
+      throw StateError('Checkout attempt identity is unavailable');
+    }
+    return id;
+  }
+
+  Future<void> _clearCheckoutAttemptId() async {
+    final key = _checkoutAttemptStorageKey;
+    if (key != null) {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.remove(key);
+    }
+    _checkoutAttemptId = null;
+    _checkoutAttemptLoaded = false;
   }
 
   Future<void> _loadPricing() async {
@@ -228,6 +288,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   void _selectSellerCarrier(String shopId, String carrier) {
     if (_selectedCarriers[shopId] == carrier) return;
+    // Carrier selection changes the server-side cart fingerprint. Treat it as
+    // a checkout mutation so a later attempt cannot reuse an incompatible
+    // reservation claim.
+    _clearCheckoutAttemptId();
     setState(() {
       _selectedCarriers[shopId] = carrier;
       _pricingByShop.remove(shopId);
@@ -450,6 +514,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     setState(() => _loading = true);
 
     try {
+      final checkoutAttemptId = await _ensureCheckoutAttemptId();
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception("User not logged in");
@@ -615,6 +680,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         carrier: _legacyCarrier,
         legal: legalPayload,
         items: orderItems,
+        checkoutAttemptId: checkoutAttemptId,
       );
 
       final orderId = orderResult["orderId"];
@@ -699,6 +765,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         if (!mounted) return;
 
         if (verified) {
+          await _clearCheckoutAttemptId();
           await widget.onPaymentVerified?.call();
           if (!mounted) return;
           _showError(
@@ -727,6 +794,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             paymentStatus == 'failed' || orderStatus == 'payment_failed';
 
         if (paid) {
+          await _clearCheckoutAttemptId();
           final sellerOrderIds = _completionGuard.claimPaidSellerOrders(
             paymentState,
           );
@@ -757,6 +825,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             orderId,
             reason: 'isbank_verification_failed',
           );
+          await _clearCheckoutAttemptId();
           if (!mounted) return;
           _showError(
             AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
@@ -766,11 +835,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
         }
       } else if (checkoutResult == 'isbank_cancel') {
         await _markMarketplaceCheckoutFailed(orderId, reason: 'isbank_cancel');
+        await _clearCheckoutAttemptId();
         if (!mounted) return;
         _showError(
           AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
         );
       } else {
+        await _clearCheckoutAttemptId();
         _showError(
           AppLocalizations.of(context)!.checkoutPaymentCancelledOrIncomplete,
         );
@@ -798,6 +869,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       await FirebaseFunctions.instanceFor(region: 'europe-west3')
           .httpsCallable('markMarketplaceCheckoutFailed')
           .call({'orderId': orderId, 'reason': reason});
+      await _clearCheckoutAttemptId();
     } catch (e) {
       debugPrint('⚠️ markMarketplaceCheckoutFailed failed (non-fatal): $e');
     }
@@ -1275,6 +1347,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
           _row(l10n.checkoutProductsTotal, backendSubtotal),
           _row(l10n.checkoutShippingTotal, backendShipping),
+          _row(l10n.checkoutVatLabel, backendTax),
 
           const Divider(height: 20),
 

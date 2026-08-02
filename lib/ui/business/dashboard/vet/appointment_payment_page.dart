@@ -12,6 +12,7 @@ import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dar
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
 
 class AppointmentPaymentPage extends StatefulWidget {
@@ -163,13 +164,9 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
 
           final sector = Map<String, dynamic>.from(sectorData[sectorKey] ?? {});
 
-          final services = Map<String, dynamic>.from(sector['services'] ?? {});
-
-          final offeredServices = services['offeredServices'];
-
-          final serviceCount = offeredServices is List
-              ? offeredServices.length
-              : 0;
+          final serviceCount = PublicServiceNormalizer.toMaps(
+            sector['services'],
+          ).length;
 
           debugPrint(
             '🩺 BUSINESS MAP → '

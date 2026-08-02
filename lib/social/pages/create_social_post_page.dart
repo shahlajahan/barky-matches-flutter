@@ -228,7 +228,10 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
 
       final uploadTask = ref.putFile(
         file,
-        SettableMetadata(contentType: _contentTypeFor(ext, item.type)),
+        SettableMetadata(
+          contentType: _contentTypeFor(ext, item.type),
+          customMetadata: const {'visibility': 'public'},
+        ),
       );
 
       uploadTask.snapshotEvents.listen((snapshot) {
@@ -252,7 +255,10 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
 
         await thumbRef.putData(
           item.thumbnailBytes!,
-          SettableMetadata(contentType: 'image/jpeg'),
+          SettableMetadata(
+            contentType: 'image/jpeg',
+            customMetadata: const {'visibility': 'public'},
+          ),
         );
 
         thumbnailUrl = await thumbRef.getDownloadURL();

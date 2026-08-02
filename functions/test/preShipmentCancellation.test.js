@@ -84,6 +84,21 @@ test("completed cancellation refunds buyer gross and reconciles payout", () => {
     callable,
     /claimResult\.status === "alreadyRefunded"[\s\S]*?applyRefundToSellerPayout/
   );
+  assert.match(callable, /writeCanonicalCancellationRefund\(\{/);
+  assert.doesNotMatch(callable, /"cancellationRefund\.status"\s*:/);
+  assert.doesNotMatch(callable, /"cancellationRefund\.amount"\s*:/);
+  assert.doesNotMatch(callable, /"cancellationRefund\.completedAt"\s*:/);
+});
+
+test("all cancellation refund lifecycle updates use one nested canonical state", () => {
+  const callable = cancellationSource();
+  assert.match(callable, /refundPatch:\s*\{[\s\S]*status:\s*"refunded"/);
+  assert.match(callable, /refundPatch:\s*\{[\s\S]*status:\s*"refund_failed"/);
+  assert.match(
+    callable,
+    /gatewaySucceeded && !refundPersisted[\s\S]*?refundPatch:\s*\{[\s\S]*status:\s*"refunded"/
+  );
+  assert.doesNotMatch(callable, /"cancellationRefund\.[^"]+"\s*:/);
 });
 
 test("existing return workflow remains separate", () => {

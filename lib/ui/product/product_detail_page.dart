@@ -191,7 +191,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     children: [
                       if (hasDiscount)
                         Text(
-                          "₺${product.price.toStringAsFixed(0)}",
+                          "₺${product.customerReferencePrice.toStringAsFixed(2)}",
                           style: const TextStyle(
                             fontSize: 15,
                             color: Colors.grey,
@@ -199,7 +199,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           ),
                         ),
                       Text(
-                        "₺${product.finalPrice.toStringAsFixed(0)}",
+                        "₺${product.customerPrice.toStringAsFixed(2)}",
                         style: AppTheme.h1(
                           color: const Color(0xFF9E1B4F),
                           weight: FontWeight.w900,
@@ -223,9 +223,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   if (product.description.trim().isNotEmpty) ...[
                     const SizedBox(height: 26),
                     Text(
-    AppLocalizations.of(context)!.productDetails,
-    style: AppTheme.h3(weight: FontWeight.w900),
-  ),
+                      AppLocalizations.of(context)!.productDetails,
+                      style: AppTheme.h3(weight: FontWeight.w900),
+                    ),
                     const SizedBox(height: 10),
                     Text(
                       product.description,
@@ -452,7 +452,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   Text(
                     _showAdded
                         ? l10n.addedToCart
-                        : '${l10n.addToCartButton} • ₺${product.finalPrice.toStringAsFixed(0)}',
+                        : '${l10n.addToCartButton} • ₺${product.customerPrice.toStringAsFixed(2)}',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ],

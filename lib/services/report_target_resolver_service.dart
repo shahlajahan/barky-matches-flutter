@@ -74,15 +74,14 @@ class ReportTargetResolverService {
   static Future<ReportUserInfo> resolveUser(String userId) async {
     if (userId.isEmpty) return ReportUserInfo.unknown();
 
-    final doc = await _firestore.collection('users').doc(userId).get();
+    final doc = await _firestore.collection('users_public').doc(userId).get();
     if (!doc.exists) return ReportUserInfo.unknown();
 
     final data = doc.data() ?? <String, dynamic>{};
     final name =
         (data['username'] ?? data['name'] ?? data['displayName']) as String? ??
         'User';
-    final photoUrl =
-        (data['photoUrl'] ?? data['profileImageUrl']) as String?;
+    final photoUrl = (data['photoUrl'] ?? data['profileImageUrl']) as String?;
 
     return ReportUserInfo(name: name, photoUrl: photoUrl);
   }

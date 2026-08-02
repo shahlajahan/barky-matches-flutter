@@ -949,8 +949,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
       }
 
       // 2) Firestore
+      final userCollection =
+          FirebaseAuth.instance.currentUser?.uid == widget.userId
+          ? 'users'
+          : 'users_public';
       final userDoc = await FirebaseFirestore.instance
-          .collection('users')
+          .collection(userCollection)
           .doc(widget.userId)
           .get();
 

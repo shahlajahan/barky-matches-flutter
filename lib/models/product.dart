@@ -101,6 +101,17 @@ class Product {
 
   double get finalPrice => salePrice ?? price;
 
+  /// Customer-facing unit price matching the marketplace checkout model.
+  double get customerPrice {
+    final rate = kdvRate ?? 0;
+    return double.parse((finalPrice * (1 + rate / 100)).toStringAsFixed(2));
+  }
+
+  double get customerReferencePrice {
+    final rate = kdvRate ?? 0;
+    return double.parse((price * (1 + rate / 100)).toStringAsFixed(2));
+  }
+
   Product({
     required this.id,
     required this.businessId,

@@ -17,6 +17,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn()
+        && 'role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -68,6 +69,60 @@ service cloud.firestore {
 
     function isOwnUserDoc(userId) {
       return isSignedIn() && userId is string && request.auth.uid == userId;
+    }
+
+    function isBusinessDocumentOwner(data) {
+      return isSignedIn() && data.ownerUid == request.auth.uid;
+    }
+
+    function isCanonicalBusinessOwner(businessId) {
+      return isSignedIn()
+        && get(
+          /databases/$(database)/documents/businesses/$(businessId)
+        ).data.ownerUid == request.auth.uid;
+    }
+
+    function isPublicBusiness(businessId) {
+      return get(
+        /databases/$(database)/documents/businesses_public/$(businessId)
+      ).data.status == 'approved'
+        && get(
+          /databases/$(database)/documents/businesses_public/$(businessId)
+        ).data.published == true
+        && get(
+          /databases/$(database)/documents/businesses/$(businessId)
+        ).data.status == 'approved'
+        && get(
+          /databases/$(database)/documents/businesses/$(businessId)
+        ).data.published == true;
+    }
+
+    function isChatParticipant(data) {
+      return isRegisteredUser()
+        && 'participants' in data
+        && data.participants is list
+        && request.auth.uid in data.participants;
+    }
+
+    function isBusinessChatParticipant(data) {
+      return isRegisteredUser() && (
+        ('participants' in data && data.participants is list
+          && request.auth.uid in data.participants) ||
+        ('clientUserId' in data && data.clientUserId == request.auth.uid) ||
+        ('businessId' in data && data.businessId is string
+          && isCanonicalBusinessOwner(data.businessId))
+      );
+    }
+
+    function isVetChatParticipant(data) {
+      return isRegisteredUser() && (
+        ('participants' in data && data.participants is list
+          && request.auth.uid in data.participants) ||
+        ('clientUserId' in data && data.clientUserId == request.auth.uid) ||
+        ('vetUserId' in data && data.vetUserId == request.auth.uid) ||
+        ('businessId' in data && data.businessId is string
+          && isCanonicalBusinessOwner(data.businessId))
+      );
     }
 
     function isAppointmentOwner(data) {
@@ -309,7 +364,7 @@ allow read: if isAdmin() || (
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if isOwnUserDoc(userId) || isAdmin();
 
       // SEC-1 fix (docs/architecture/creator-referral-engine.md, Finding
       // SEC-1 / Design Invariants): the `creator` map is server-authoritative
@@ -343,6 +398,11 @@ allow read: if isAdmin() || (
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creator']);
         allow delete: if isOwnUserDoc(userId) || isAdmin();
       }
+    }
+
+    match /users_public/{userId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // Creator Referral Engine — Sprint 3 attribution and qualification
@@ -494,11 +554,7 @@ match /dogs/{dogId}/visits/{visitId} {
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
    }
    match /businesses/{businessId} {
-  allow read: if isSignedIn() || (
-    resource.data.status == 'approved' &&
-    resource.data.sectors is list &&
-    resource.data.sectors.hasAny(['adoption_center'])
-  );
+  allow read: if isBusinessDocumentOwner(resource.data) || isAdmin();
   allow create: if isAdmin() || (
     isSignedIn() &&
     request.resource.data.ownerUid == request.auth.uid
@@ -510,16 +566,27 @@ if isAdmin()
 
 ||
 
-isBusinessOwner(businessId);
+isCanonicalBusinessOwner(businessId);
 
   
   match /{document=**} {
-    allow read: if isSignedIn();
+    allow read: if isCanonicalBusinessOwner(businessId) || isAdmin();
     allow create, update, delete:
       if isAdmin() ||
-      isBusinessOwner(businessId);
+      isCanonicalBusinessOwner(businessId);
   }
 }
+
+    match /businesses_public/{businessId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /businesses/{businessId}/services/{serviceId} {
+      allow read: if isPublicBusiness(businessId);
+      allow create, update, delete:
+        if isAdmin() || isCanonicalBusinessOwner(businessId);
+    }
 
     match /offers/{offerId} {
       allow read: if isSignedIn();
@@ -893,15 +960,16 @@ isBusinessOwner(businessId);
 // ===============================
 match /chats/{chatId} {
 
-  allow get: if isRegisteredUser();
+  allow get: if isAdmin() || isChatParticipant(resource.data);
 
   allow list: if isRegisteredUser()
     && request.auth.uid in resource.data.participants;
 
-  allow create: if isRegisteredUser();
+  allow create: if isAdmin()
+    || (isChatParticipant(request.resource.data)
+      && request.auth.uid in request.resource.data.participants);
 
-  allow update: if isRegisteredUser()
-    && request.auth.uid in resource.data.participants;
+  allow update: if isAdmin() || isChatParticipant(resource.data);
 
   allow delete: if false;
 
@@ -910,37 +978,53 @@ match /chats/{chatId} {
   // ===============================
   match /messages/{messageId} {
 
-    allow read: if isRegisteredUser()
-      && request.auth.uid in get(
-        /databases/$(database)/documents/chats/$(chatId)
-      ).data.participants;
-
-    allow create: if isRegisteredUser()
+    allow read: if isAdmin() || (
+      isRegisteredUser()
       && request.auth.uid in get(
         /databases/$(database)/documents/chats/$(chatId)
       ).data.participants
-      && request.resource.data.senderId == request.auth.uid;
+    );
 
-    allow update: if isRegisteredUser()
+    allow create: if isAdmin() || (isRegisteredUser()
       && request.auth.uid in get(
         /databases/$(database)/documents/chats/$(chatId)
-      ).data.participants;
+      ).data.participants
+      && request.resource.data.senderId == request.auth.uid);
+
+    allow update: if isAdmin() || (isRegisteredUser()
+      && request.auth.uid in get(
+        /databases/$(database)/documents/chats/$(chatId)
+      ).data.participants);
 
     allow delete: if false;
   }
 }
 match /business_chats/{chatId} {
 
-  allow read, create, update:
-      if isRegisteredUser();
+  allow read, update:
+      if isAdmin() || isBusinessChatParticipant(resource.data);
+
+  allow create:
+      if isAdmin() || isBusinessChatParticipant(request.resource.data);
 
   allow delete:
       if false;
 }
 match /business_chats/{chatId}/messages/{messageId} {
 
-  allow read, create, update:
-      if isRegisteredUser();
+  allow read, update:
+      if isAdmin() || isBusinessChatParticipant(
+        get(/databases/$(database)/documents/business_chats/$(chatId)).data
+      );
+
+  allow create:
+      if isAdmin()
+      || (
+        isBusinessChatParticipant(
+          get(/databases/$(database)/documents/business_chats/$(chatId)).data
+        )
+        && request.resource.data.senderId == request.auth.uid
+      );
 
   allow delete:
       if false;
@@ -948,11 +1032,11 @@ match /business_chats/{chatId}/messages/{messageId} {
 
 match /vet_chats/{chatId} {
 
-  allow read: if isRegisteredUser();
+  allow read: if isAdmin() || isVetChatParticipant(resource.data);
 
-  allow create: if isRegisteredUser();
+  allow create: if isAdmin() || isVetChatParticipant(request.resource.data);
 
-  allow update: if isRegisteredUser();
+  allow update: if isAdmin() || isVetChatParticipant(resource.data);
 
   allow delete: if false;
 }
@@ -1043,12 +1127,23 @@ match /vet_chats/{chatId} {
 
 match /social_posts/{postId} {
 
-  allow read: if true;
+  allow read: if (
+      resource.data.visibility == 'public'
+      && (!('published' in resource.data) || resource.data.published == true)
+      && (!('moderationStatus' in resource.data)
+        || resource.data.moderationStatus == 'active')
+      && (!('isHidden' in resource.data)
+        || resource.data.isHidden == false)
+    )
+    || isAdmin()
+    || (isRegisteredUser() && resource.data.userId == request.auth.uid);
 
   allow create: if isRegisteredUser()
     && request.resource.data.userId == request.auth.uid;
 
-  allow update: if isRegisteredUser();
+  allow update: if isAdmin() || (
+    isRegisteredUser() && resource.data.userId == request.auth.uid
+  );
 
   allow delete: if isRegisteredUser()
     && (

@@ -51,7 +51,7 @@ class SellerOffersPage extends StatelessWidget {
             return Product.fromJson(doc.id, data);
           }).toList();
 
-          items.sort((a, b) => a.finalPrice.compareTo(b.finalPrice));
+          items.sort((a, b) => a.customerPrice.compareTo(b.customerPrice));
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -68,7 +68,7 @@ class SellerOffersPage extends StatelessWidget {
                     children: [Text(p.name), Text(l10n.stockLabel(p.stock))],
                   ),
                   trailing: Text(
-                    "${p.finalPrice} ${p.currency}",
+                    "${p.customerPrice.toStringAsFixed(2)} ${p.currency}",
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

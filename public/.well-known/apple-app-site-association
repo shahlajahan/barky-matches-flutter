@@ -8,7 +8,8 @@
         "paths": [
           "/payment-success*",
           "/payment-cancel*",
-          "/payment-callback*"
+          "/payment-callback*",
+          "/post/*"
         ]
       }
     ]

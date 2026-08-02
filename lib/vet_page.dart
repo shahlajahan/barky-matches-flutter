@@ -20,6 +20,7 @@ import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
@@ -482,13 +483,13 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
     List<VetCardData> vets = [];
     try {
       final query = FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       FirestoreQueryTrace.log(
         file: 'lib/vet_page.dart',
         method: '_loadVetsFromFirestore',
         line: 483,
-        collection: 'businesses',
+        collection: 'businesses_public',
         clauses: const ["where(status, isEqualTo: approved)"],
         terminalCall: 'get()',
         query: query,
@@ -508,7 +509,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
             final profile = Map<String, dynamic>.from(data['profile'] ?? {});
 
             final sectorData = Map<String, dynamic>.from(
-              data['sectorData'] ?? {},
+              data['publicSectorData'] ?? {},
             );
 
             final veterinary = Map<String, dynamic>.from(
@@ -572,9 +573,12 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                 rawWorkingHours.isNotEmpty) {
               workingHoursMap = {'hours': rawWorkingHours};
             }
-            final services = Map<String, dynamic>.from(
-              veterinary['services'] ?? {},
+            final offeredServices = PublicServiceNormalizer.toTitles(
+              veterinary['services'],
             );
+            final normalizedServices = offeredServices.isEmpty
+                ? const ['Check-up']
+                : offeredServices;
 
             final city = (contact['city'] ?? '').toString().trim();
             final district = (contact['district'] ?? '').toString().trim();
@@ -595,10 +599,6 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                       .where((e) => e.isNotEmpty)
                       .toList()
                 : <String>['Veterinary'];
-
-            final offeredServices = (services['offeredServices'] is List)
-                ? List<String>.from(services['offeredServices'])
-                : <String>['Check-up'];
 
             final lat = _extractLat(data, veterinary, contact);
             final lng = _extractLng(data, veterinary, contact);
@@ -646,7 +646,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                     true;
             debugPrint(
               '🩺 VET BUSINESS MAP → source=VetPage businessId=${doc.id} '
-              'displayName=$displayName serviceCount=${offeredServices.length} '
+              'displayName=$displayName serviceCount=${normalizedServices.length} '
               'selectedPricingSource=businesses/${doc.id}/sectorData.veterinary.services '
               'hasInstagram=${instagram != null && instagram.trim().isNotEmpty} '
               'descriptionLength=${description.length}',
@@ -666,7 +666,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
                   contact['phone']?.toString(),
 
               specialties: specialties,
-              services: offeredServices,
+              services: normalizedServices,
 
               distanceKm: distanceKm,
               rating: rating,

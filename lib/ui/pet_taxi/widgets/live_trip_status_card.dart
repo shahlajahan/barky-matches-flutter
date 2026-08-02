@@ -9,7 +9,6 @@ import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_driver_location_resolve
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
-
 class LiveTripStatusCard extends StatelessWidget {
   final String businessId;
   final String bookingStatus;
@@ -30,145 +29,142 @@ class LiveTripStatusCard extends StatelessWidget {
   ];
 
   @override
-Widget build(BuildContext context) {
-  if (!_visibleStatuses.contains(bookingStatus)) {
-    return const SizedBox.shrink();
-  }
+  Widget build(BuildContext context) {
+    if (!_visibleStatuses.contains(bookingStatus)) {
+      return const SizedBox.shrink();
+    }
 
-  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    stream: FirebaseFirestore.instance
-        .collection('businesses')
-        .doc(businessId)
-        .snapshots(),
-    builder: (context, snapshot) {
-      if (!snapshot.hasData || !snapshot.data!.exists) {
-        return const SizedBox.shrink();
-      }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('businesses_public')
+          .doc(businessId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const SizedBox.shrink();
+        }
 
-      final data = snapshot.data!.data() ?? {};
+        final data = snapshot.data!.data() ?? {};
 
-      PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
-        businessId: businessId,
-        businessData: data,
-      );
+        PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
+          businessId: businessId,
+          businessData: data,
+        );
 
-      final sectorData = _map(data['sectorData']);
+        final sectorData = _map(data['publicSectorData']);
 
-      final taxi = _map(
-        sectorData['pet_taxi'] ??
-            sectorData['petTaxi'] ??
-            sectorData['taxi'],
-      );
+        final taxi = _map(
+          sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
+        );
 
-      final driver = _map(taxi['driver']);
-      final vehicle = _map(taxi['vehicle']);
+        final driver = _map(taxi['driver']);
+        final vehicle = _map(taxi['vehicle']);
 
-      final resolvedLocation = PetTaxiBusinessLocationResolver.resolve(data);
-      final currentLocation = resolvedLocation.location;
+        final resolvedLocation = PetTaxiBusinessLocationResolver.resolve(data);
+        final currentLocation = resolvedLocation.location;
 
-      final lat = (currentLocation['lat'] as num?)?.toDouble();
-      final lng = (currentLocation['lng'] as num?)?.toDouble();
-      final updatedAt = currentLocation['updatedAt'];
+        final lat = (currentLocation['lat'] as num?)?.toDouble();
+        final lng = (currentLocation['lng'] as num?)?.toDouble();
+        final updatedAt = currentLocation['updatedAt'];
 
-      debugPrint('🚕 LIVE TRIP STREAM -> $businessId');
-      debugPrint('📍 LIVE DRIVER POSITION -> $lat, $lng');
-      debugPrint(
-        '📍 LIVE DRIVER LOCATION SOURCE -> ${resolvedLocation.sourceLabel}',
-      );
-      debugPrint('👤 LIVE DRIVER NAME -> ${driver['fullName']}');
+        debugPrint('🚕 LIVE TRIP STREAM -> $businessId');
+        debugPrint('📍 LIVE DRIVER POSITION -> $lat, $lng');
+        debugPrint(
+          '📍 LIVE DRIVER LOCATION SOURCE -> ${resolvedLocation.sourceLabel}',
+        );
+        debugPrint('👤 LIVE DRIVER NAME -> ${driver['fullName']}');
 
-      return Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: const Color(0xFFFF4F9B).withOpacity(.15),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFFF4F9B).withOpacity(.15)),
+            boxShadow: AppTheme.cardShadow(opacity: 0.05),
           ),
-          boxShadow: AppTheme.cardShadow(opacity: 0.05),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF4F9B).withOpacity(.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    LucideIcons.car,
-                    color: Color(0xFFFF4F9B),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        AppLocalizations.of(context)!.liveDriver,
-        style: AppTheme.bodyMedium().copyWith(
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        driver['fullName']?.toString() ??
-            AppLocalizations.of(context)!.driver,
-        style: AppTheme.body(color: AppTheme.muted),
-      ),
-    ],
-  ),
-),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(.10),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    bookingStatus.replaceAll('_', ' ').toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF4F9B).withOpacity(.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      LucideIcons.car,
+                      color: Color(0xFFFF4F9B),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _item(LucideIcons.user, 'Driver', driver['fullName']),
-            _item(LucideIcons.badge, 'Plate', vehicle['plateNumber']),
-            _item(
-              LucideIcons.mapPin,
-              'Latitude',
-              lat?.toStringAsFixed(6) ?? '-',
-            ),
-            _item(
-              LucideIcons.navigation,
-              'Longitude',
-              lng?.toStringAsFixed(6) ?? '-',
-            ),
-            _item(
-              LucideIcons.clock3,
-              'Last Update',
-              _formatUpdatedAt(updatedAt),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!.liveDriver,
+                          style: AppTheme.bodyMedium().copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          driver['fullName']?.toString() ??
+                              AppLocalizations.of(context)!.driver,
+                          style: AppTheme.body(color: AppTheme.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(.10),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      bookingStatus.replaceAll('_', ' ').toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _item(LucideIcons.user, 'Driver', driver['fullName']),
+              _item(LucideIcons.badge, 'Plate', vehicle['plateNumber']),
+              _item(
+                LucideIcons.mapPin,
+                'Latitude',
+                lat?.toStringAsFixed(6) ?? '-',
+              ),
+              _item(
+                LucideIcons.navigation,
+                'Longitude',
+                lng?.toStringAsFixed(6) ?? '-',
+              ),
+              _item(
+                LucideIcons.clock3,
+                'Last Update',
+                _formatUpdatedAt(updatedAt),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _item(IconData icon, String title, dynamic value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

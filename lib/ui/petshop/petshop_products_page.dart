@@ -41,7 +41,7 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
             productId: product.id,
             shopId: product.businessId,
             name: product.name,
-            price: product.price,
+            price: product.customerPrice,
             quantity: 1,
             imageUrl: product.media.isNotEmpty
                 ? getMediaUrl(product.media.first)
@@ -143,7 +143,9 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  Text("${product.price} ₺"),
+                                  Text(
+                                    "${product.customerPrice.toStringAsFixed(2)} ₺",
+                                  ),
                                 ],
                               ),
                             ),

@@ -53,7 +53,7 @@ void main() {
 
     expect(totals.productsTotal, 35);
     expect(totals.shippingTotal, 11);
-    expect(totals.grandTotal, 46);
+    expect(totals.grandTotal, 49.5);
   });
 
   testWidgets('grouped checkout renders all products and seller totals', (

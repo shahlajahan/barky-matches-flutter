@@ -434,7 +434,13 @@ class _ProductsTab extends StatelessWidget {
             }
             final data = docs[index].data();
             final name = (data['name'] ?? '').toString();
-            final price = data['salePrice'] ?? data['price'];
+            final base = (data['salePrice'] ?? data['price']) as num?;
+            final rate = (data['kdvRate'] as num?)?.toDouble() ?? 0;
+            final price = base == null
+                ? null
+                : double.parse(
+                    (base.toDouble() * (1 + rate / 100)).toStringAsFixed(2),
+                  );
             return _Section(
               title: name,
               child: Text(

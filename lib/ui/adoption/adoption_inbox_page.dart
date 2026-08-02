@@ -484,7 +484,7 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                       String requesterName = "User";
 
                       final userSnap = await FirebaseFirestore.instance
-                          .collection('users')
+                          .collection('users_public')
                           .doc(requesterId)
                           .get();
 
@@ -589,9 +589,7 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                     },
                     icon: const Icon(Icons.message),
 
-                    label: Text(
-                      AppLocalizations.of(context)!.messageApplicant,
-                    ),
+                    label: Text(AppLocalizations.of(context)!.messageApplicant),
 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -840,16 +838,12 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
     try {
       await fn();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.doneWithIcon)),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.failedWithIcon('$e')),
         ),

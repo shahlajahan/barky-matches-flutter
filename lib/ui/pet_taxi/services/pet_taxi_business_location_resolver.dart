@@ -27,7 +27,7 @@ class PetTaxiBusinessLocationResolver {
   static PetTaxiResolvedBusinessLocation resolve(
     Map<String, dynamic> businessData,
   ) {
-    final sectorData = _map(businessData['sectorData']);
+    final sectorData = _map(businessData['publicSectorData']);
     final taxi = _map(
       sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
     );
@@ -99,10 +99,12 @@ class PetTaxiBusinessLocationResolver {
     }
 
     _pendingMigrationDocIds.add(businessId);
-    unawaited(_requestBackendMigration(
-      businessId: businessId,
-      migrationReason: resolved.migrationReason,
-    ));
+    unawaited(
+      _requestBackendMigration(
+        businessId: businessId,
+        migrationReason: resolved.migrationReason,
+      ),
+    );
   }
 
   static Future<void> _requestBackendMigration({

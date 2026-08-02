@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 import 'package:barky_matches_fixed/social/models/social_post.dart';
 import 'package:barky_matches_fixed/social/services/post_save_service.dart';
 import 'package:barky_matches_fixed/social/services/social_post_service.dart';
+import 'package:barky_matches_fixed/social/services/social_post_share.dart';
 import 'package:barky_matches_fixed/social/widgets/comments_bottom_sheet.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 
@@ -208,7 +209,7 @@ class _SocialPostMediaViewerOverlayState
 
 ${post.caption}
 
-https://petsupo.com/post/${post.id}
+${SocialPostShare.canonicalUrl(post.id)}
 ''',
         sharePositionOrigin: box == null
             ? null

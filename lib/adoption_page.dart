@@ -18,6 +18,7 @@ import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
+import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 enum AdoptionViewType { centers, dogs }
 
@@ -67,7 +68,7 @@ class _AdoptionPageState extends State<AdoptionPage> {
   Future<void> _logAdoptionCentersQueryOnce() async {
     try {
       final query = FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .where('sectors', arrayContains: 'adoption_center')
           .where('status', isEqualTo: 'approved')
           .orderBy('updatedAt', descending: true);
@@ -75,7 +76,7 @@ class _AdoptionPageState extends State<AdoptionPage> {
         file: 'lib/adoption_page.dart',
         method: '_logAdoptionCentersQueryOnce',
         line: 69,
-        collection: 'businesses',
+        collection: 'businesses_public',
         clauses: const [
           "where(sectors, arrayContains: adoption_center)",
           "where(status, isEqualTo: approved)",
@@ -189,12 +190,12 @@ class _AdoptionPageState extends State<AdoptionPage> {
         .catchError((_) {
           debugPrint('ADOPTION_CENTERS_DIAG token_present=false');
         });
-    debugPrint('ADOPTION_CENTERS_QUERY collection=businesses');
+    debugPrint('ADOPTION_CENTERS_QUERY collection=businesses_public');
     debugPrint('ADOPTION_CENTERS_QUERY sectors=adoption_center');
     debugPrint('ADOPTION_CENTERS_QUERY status=approved');
     debugPrint('ADOPTION_CENTERS_QUERY orderBy=updatedAt desc');
     final query = FirebaseFirestore.instance
-        .collection('businesses')
+        .collection('businesses_public')
         .where('sectors', arrayContains: 'adoption_center')
         .where('status', isEqualTo: 'approved')
         .orderBy('updatedAt', descending: true);
@@ -202,7 +203,7 @@ class _AdoptionPageState extends State<AdoptionPage> {
       file: 'lib/adoption_page.dart',
       method: '_buildCentersSection',
       line: 186,
-      collection: 'businesses',
+      collection: 'businesses_public',
       clauses: const [
         "where(sectors, arrayContains: adoption_center)",
         "where(status, isEqualTo: approved)",
@@ -249,21 +250,21 @@ class _AdoptionPageState extends State<AdoptionPage> {
           final verification =
               (data['verification'] as Map?)?.cast<String, dynamic>() ?? {};
           final sectorData =
-              (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
+              (data['publicSectorData'] as Map?)?.cast<String, dynamic>() ?? {};
           final adoptionData =
               (sectorData['adoptionCenter'] as Map?)?.cast<String, dynamic>() ??
               (sectorData['adoption_center'] as Map?)
                   ?.cast<String, dynamic>() ??
               {};
           final servicesData = adoptionData['services'];
+          final normalizedServiceTitles = PublicServiceNormalizer.toTitles(
+            servicesData,
+          );
           final specialties = <String>[
             ...((profile['specialties'] as List?) ?? const []).map(
               (item) => item.toString(),
             ),
-            if (servicesData is Map && servicesData['offeredServices'] is List)
-              ...(servicesData['offeredServices'] as List).map(
-                (item) => item.toString(),
-              ),
+            ...normalizedServiceTitles,
           ].where((item) => item.trim().isNotEmpty).toSet().toList();
           final sectorAdoptionCenter =
               (sectorData['adoptionCenter'] as Map?)?.cast<String, dynamic>() ??
