@@ -46,3 +46,7 @@ app.*.map.json
 node_modules/
 .flutter-pluginsai_exports/
 functions/.env*
+
+# Generated local artifacts
+.firebase/hosting.YnVpbGQvd2Vi.cache
+outputs/
