@@ -12,8 +12,10 @@ import 'creator_dashboard_browser.dart';
 import 'creator_dashboard_data.dart';
 import 'creator_dashboard_navigation.dart';
 import 'creator_placeholder_badge.dart';
-import 'creator_status_pill.dart';
 import 'package:barky_matches_fixed/services/creator_ledger_service.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_card.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_grid.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_status_pill.dart';
 
 /// The lightweight, native Flutter Creator Dashboard shown inside the
 /// Profile page (ProfileSubPage.creatorDashboard). Intentionally limited —
@@ -65,7 +67,33 @@ class _CreatorDashboardPageState extends State<CreatorDashboardPage> {
               const SizedBox(height: 16),
               _ReferralCard(appState: appState, l10n: l10n),
               const SizedBox(height: 16),
-              _StatsGrid(stats: stats, l10n: l10n),
+              DashboardMetricGrid(
+                columns: 2,
+                compact: true,
+                trailing: const CreatorPlaceholderBadge(),
+                items: [
+                  DashboardMetricData(
+                    label: l10n.creatorQualifiedUsers,
+                    value: '${stats.qualifiedUsers}',
+                    icon: Icons.groups,
+                  ),
+                  DashboardMetricData(
+                    label: l10n.creatorVerifiedPartners,
+                    value: '${stats.verifiedPartners}',
+                    icon: Icons.verified,
+                  ),
+                  DashboardMetricData(
+                    label: l10n.creatorPendingRewards,
+                    value: stats.formattedPendingRewards,
+                    icon: Icons.hourglass_top,
+                  ),
+                  DashboardMetricData(
+                    label: l10n.creatorPaidRewards,
+                    value: stats.formattedPaidRewards,
+                    icon: Icons.payments,
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               _RecentActivityCard(stats: stats, l10n: l10n),
               const SizedBox(height: 16),
@@ -90,6 +118,10 @@ class _WelcomeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final name = appState.username?.trim();
+    final isActive = appState.creatorStatus == 'active';
+    final statusLabel = isActive
+        ? l10n.creatorStatusActive
+        : (appState.creatorStatus ?? l10n.creatorStatusInactive);
 
     return Container(
       width: double.infinity,
@@ -147,7 +179,11 @@ class _WelcomeCard extends StatelessWidget {
             style: AppTheme.body(color: Colors.white.withOpacity(0.85)),
           ),
           const SizedBox(height: 10),
-          CreatorStatusPill(status: appState.creatorStatus),
+          DashboardStatusPill(
+            prefix: l10n.creatorStatusLabel,
+            label: statusLabel,
+            active: isActive,
+          ),
         ],
       ),
     );
@@ -250,75 +286,6 @@ class _CopyRow extends StatelessWidget {
             side: const BorderSide(color: AppTheme.card),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.stats, required this.l10n});
-
-  final CreatorDashboardData stats;
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (l10n.creatorQualifiedUsers, '${stats.qualifiedUsers}', Icons.groups),
-      (
-        l10n.creatorVerifiedPartners,
-        '${stats.verifiedPartners}',
-        Icons.verified,
-      ),
-      (
-        l10n.creatorPendingRewards,
-        stats.formattedPendingRewards,
-        Icons.hourglass_top,
-      ),
-      (l10n.creatorPaidRewards, stats.formattedPaidRewards, Icons.payments),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 8),
-          child: CreatorPlaceholderBadge(),
-        ),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
-          children: [
-            for (final item in items)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  boxShadow: AppTheme.cardShadow(),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(item.$3, size: 18, color: AppTheme.card),
-                    const Spacer(),
-                    Text(item.$2, style: AppTheme.h2(weight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.$1,
-                      style: AppTheme.caption(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-          ],
         ),
       ],
     );

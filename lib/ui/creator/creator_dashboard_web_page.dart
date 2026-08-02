@@ -11,9 +11,17 @@ import 'package:barky_matches_fixed/welcome_page.dart';
 import 'package:barky_matches_fixed/services/creator_ledger_service.dart';
 import 'creator_dashboard_data.dart';
 import 'creator_placeholder_badge.dart';
-import 'creator_status_pill.dart';
 import 'web/creator_performance_chart.dart';
 import 'web/creator_reward_donut.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_chart_card.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_donut_card.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_header.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_history.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_card.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_metric_grid.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_panel.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_status_pill.dart';
+import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_timeline.dart';
 
 /// Full Web Creator Dashboard — reached at https://app.petsupo.com/creator/dashboard
 /// (see main.dart's `_webPaymentReturnPage`-style top-level routing). This
@@ -237,8 +245,10 @@ class _CreatorDashboardWebContentState
               LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;
-                  final performance = _Panel(child: CreatorPerformanceChart());
-                  final donut = _Panel(
+                  final performance = DashboardChartCard(
+                    child: CreatorPerformanceChart(),
+                  );
+                  final donut = DashboardDonutCard(
                     child: CreatorRewardDonut(slices: stats.rewardBreakdown),
                   );
                   if (!isWide) {
@@ -266,13 +276,13 @@ class _CreatorDashboardWebContentState
               LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;
-                  final referral = _Panel(
+                  final referral = DashboardPanel(
                     child: _ReferralShareSection(
                       appState: appState,
                       l10n: l10n,
                     ),
                   );
-                  final progress = _Panel(
+                  final progress = DashboardPanel(
                     child: _CreatorProgressSection(stats: stats, l10n: l10n),
                   );
                   if (!isWide) {
@@ -300,10 +310,10 @@ class _CreatorDashboardWebContentState
               LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;
-                  final timeline = _Panel(
+                  final timeline = DashboardPanel(
                     child: _TimelineSection(stats: stats, l10n: l10n),
                   );
-                  final payouts = _Panel(
+                  final payouts = DashboardPanel(
                     child: _PayoutHistorySection(stats: stats, l10n: l10n),
                   );
                   if (!isWide) {
@@ -331,26 +341,6 @@ class _CreatorDashboardWebContentState
   }
 }
 
-class _Panel extends StatelessWidget {
-  const _Panel({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-        boxShadow: AppTheme.cardShadow(),
-      ),
-      child: child,
-    );
-  }
-}
-
 class _Header extends StatelessWidget {
   const _Header({
     required this.appState,
@@ -366,18 +356,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = appState.username?.trim();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF9E1B4F), Color(0xFFE83E8C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-        boxShadow: AppTheme.cardShadow(opacity: 0.18),
-      ),
+    return DashboardHeader(
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
@@ -423,7 +402,13 @@ class _Header extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              CreatorStatusPill(status: appState.creatorStatus),
+              DashboardStatusPill(
+                prefix: l10n.creatorStatusLabel,
+                label: appState.creatorStatus == 'active'
+                    ? l10n.creatorStatusActive
+                    : (appState.creatorStatus ?? l10n.creatorStatusInactive),
+                active: appState.creatorStatus == 'active',
+              ),
             ],
           ),
           Wrap(
@@ -484,82 +469,44 @@ class _KpiGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      (l10n.creatorTotalClicks, '${stats.totalClicks}', Icons.mouse),
-      (
-        l10n.creatorRegistrations,
-        '${stats.registrations}',
-        Icons.person_add_alt,
-      ),
-      (l10n.creatorQualifiedUsers, '${stats.qualifiedUsers}', Icons.groups),
-      (
-        l10n.creatorVerifiedPartners,
-        '${stats.verifiedPartners}',
-        Icons.verified,
-      ),
-      (
-        l10n.creatorPendingRewards,
-        stats.formattedPendingRewards,
-        Icons.hourglass_top,
-      ),
-      (l10n.creatorPaidRewards, stats.formattedPaidRewards, Icons.payments),
-      (
-        l10n.creatorConversionRate,
-        '${stats.conversionRate.toStringAsFixed(1)}%',
-        Icons.trending_up,
-      ),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 10),
-          child: CreatorPlaceholderBadge(),
+    return DashboardMetricGrid(
+      columns: columns,
+      trailing: const CreatorPlaceholderBadge(),
+      items: [
+        DashboardMetricData(
+          label: l10n.creatorTotalClicks,
+          value: '${stats.totalClicks}',
+          icon: Icons.mouse,
         ),
-        GridView.count(
-          crossAxisCount: columns,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 2.1,
-          children: [
-            for (final item in items)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  boxShadow: AppTheme.cardShadow(),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(item.$3, size: 16, color: AppTheme.card),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            item.$1,
-                            style: AppTheme.caption(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item.$2,
-                      style: AppTheme.h1(weight: FontWeight.w800, size: 24),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+        DashboardMetricData(
+          label: l10n.creatorRegistrations,
+          value: '${stats.registrations}',
+          icon: Icons.person_add_alt,
+        ),
+        DashboardMetricData(
+          label: l10n.creatorQualifiedUsers,
+          value: '${stats.qualifiedUsers}',
+          icon: Icons.groups,
+        ),
+        DashboardMetricData(
+          label: l10n.creatorVerifiedPartners,
+          value: '${stats.verifiedPartners}',
+          icon: Icons.verified,
+        ),
+        DashboardMetricData(
+          label: l10n.creatorPendingRewards,
+          value: stats.formattedPendingRewards,
+          icon: Icons.hourglass_top,
+        ),
+        DashboardMetricData(
+          label: l10n.creatorPaidRewards,
+          value: stats.formattedPaidRewards,
+          icon: Icons.payments,
+        ),
+        DashboardMetricData(
+          label: l10n.creatorConversionRate,
+          value: '${stats.conversionRate.toStringAsFixed(1)}%',
+          icon: Icons.trending_up,
         ),
       ],
     );
@@ -782,58 +729,18 @@ class _TimelineSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(l10n.creatorRecentActivity, style: AppTheme.h3()),
-            ),
-            const CreatorPlaceholderBadge(),
-          ],
-        ),
-        const SizedBox(height: 12),
-        for (var i = 0; i < stats.recentActivity.length; i++) ...[
-          if (i > 0) const Divider(height: 20),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: stats.recentActivity[i].color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  stats.recentActivity[i].icon,
-                  size: 16,
-                  color: stats.recentActivity[i].color,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      stats.recentActivity[i].title,
-                      style: AppTheme.body(weight: FontWeight.w600),
-                    ),
-                    Text(
-                      stats.recentActivity[i].subtitle,
-                      style: AppTheme.caption(),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                stats.recentActivity[i].relativeTime,
-                style: AppTheme.caption(),
-              ),
-            ],
+    return DashboardTimeline(
+      title: l10n.creatorRecentActivity,
+      trailing: const CreatorPlaceholderBadge(),
+      items: [
+        for (final item in stats.recentActivity)
+          DashboardTimelineItem(
+            title: item.title,
+            subtitle: item.subtitle,
+            trailing: item.relativeTime,
+            icon: item.icon,
+            color: item.color,
           ),
-        ],
       ],
     );
   }
@@ -854,56 +761,21 @@ class _PayoutHistorySection extends StatelessWidget {
       (stats.payoutDate, stats.estimatedPayout, l10n.creatorStatusScheduled),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(l10n.creatorPayoutHistory, style: AppTheme.h3()),
-            ),
-            const CreatorPlaceholderBadge(),
-          ],
-        ),
-        const SizedBox(height: 12),
+    return DashboardHistory(
+      title: l10n.creatorPayoutHistory,
+      trailing: const CreatorPlaceholderBadge(),
+      items: [
         for (final entry in history)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${entry.$1.month}/${entry.$1.day}/${entry.$1.year}',
-                    style: AppTheme.body(),
-                  ),
-                ),
-                Text(
-                  '\$${entry.$2.toStringAsFixed(0)}',
-                  style: AppTheme.body(weight: FontWeight.w700),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: entry.$3 == l10n.creatorStatusPaid
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : AppTheme.bg,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    entry.$3,
-                    style: AppTheme.caption(
-                      color: entry.$3 == l10n.creatorStatusPaid
-                          ? Colors.green[700]
-                          : AppTheme.muted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          DashboardHistoryItem(
+            date: '${entry.$1.month}/${entry.$1.day}/${entry.$1.year}',
+            amount: '\$${entry.$2.toStringAsFixed(0)}',
+            status: entry.$3,
+            statusColor: entry.$3 == l10n.creatorStatusPaid
+                ? Colors.green[700]
+                : null,
+            statusBackgroundColor: entry.$3 == l10n.creatorStatusPaid
+                ? Colors.green
+                : null,
           ),
       ],
     );
