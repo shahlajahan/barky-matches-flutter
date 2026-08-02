@@ -52,6 +52,7 @@ class DogCard extends StatefulWidget {
   final bool disableTap;
 
   final VoidCallback? onCardTap; // ✅ اینجا
+  final VoidCallback? onScheduleTap;
 
   const DogCard({
     super.key,
@@ -74,6 +75,7 @@ class DogCard extends StatefulWidget {
     this.enablePlaydate = true,
     this.mode = DogCardMode.normal,
     this.onCardTap,
+    this.onScheduleTap,
     this.disableTap = false,
   });
 
@@ -179,6 +181,7 @@ class _DogCardState extends State<DogCard>
             icon: const Icon(Icons.calendar_today),
             color: color,
             onPressed: () {
+              widget.onScheduleTap?.call();
               context.read<AppState>().openPlaydateScheduling(
                 selectedRequesterDogId: widget.dog.id,
               );
