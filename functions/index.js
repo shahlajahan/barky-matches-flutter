@@ -168,6 +168,10 @@ const {
   isVerifiedFinancial,
   financialStatusFor,
 } = require("./finance/paymentIntegrity");
+const {
+  synchronizeUserPublicProjection,
+  synchronizeBusinessPublicProjection,
+} = require("./src/publicProjections");
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const ORDER_EXTERNAL_NOTIFICATIONS_ENABLED = defineSecret(
@@ -181,6 +185,21 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
+
+exports.syncUserPublicProjectionTrigger = onDocumentWritten(
+  "users/{userId}",
+  (event) => synchronizeUserPublicProjection(event, db)
+);
+
+exports.syncBusinessPublicProjectionTrigger = onDocumentWritten(
+  "businesses/{businessId}",
+  (event) => synchronizeBusinessPublicProjection(event, db)
+);
+
+exports.syncBusinessPublicProjectionServiceTrigger = onDocumentWritten(
+  "businesses/{businessId}/services/{serviceId}",
+  (event) => synchronizeBusinessPublicProjection(event, db)
+);
 
 async function projectPayoutIndexFromSource(event, sourceCollection) {
   const sourceDocumentId = event.params?.sourceDocumentId || event.params?.sellerOrderId || event.params?.appointmentId || event.params?.bookingId;
