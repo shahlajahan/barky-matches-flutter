@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart'; // ✅ خیلی مهم
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class AdsManager {
@@ -7,7 +8,9 @@ class AdsManager {
 
   static void initializeAd() {
     _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test ID
+      adUnitId: kDebugMode
+          ? 'ca-app-pub-3940256099942544/6300978111'
+          : 'ca-app-pub-8741190851877191/2113195813',
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(

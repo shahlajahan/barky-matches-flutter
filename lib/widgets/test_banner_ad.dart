@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -17,9 +18,13 @@ class _TestBannerAdState extends State<TestBannerAd> {
     super.initState();
 
     _bannerAd = BannerAd(
-      adUnitId: Platform.isIOS
-          ? 'ca-app-pub-3940256099942544/2934735716'
-          : 'ca-app-pub-3940256099942544/6300978111',
+      adUnitId: kDebugMode
+          ? (Platform.isIOS
+                ? 'ca-app-pub-3940256099942544/2934735716'
+                : 'ca-app-pub-3940256099942544/6300978111')
+          : (Platform.isIOS
+                ? 'ca-app-pub-8741190851877191/6193026376'
+                : 'ca-app-pub-8741190851877191/2113195813'),
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(

@@ -10,7 +10,7 @@ import 'package:barky_matches_fixed/app_state.dart' as app;
 class BannerAdWidget extends StatefulWidget {
   final bool useTestAds;
 
-  const BannerAdWidget({super.key, this.useTestAds = true});
+  const BannerAdWidget({super.key, this.useTestAds = kDebugMode});
 
   @override
   State<BannerAdWidget> createState() => _BannerAdWidgetState();
@@ -21,15 +21,15 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   bool _isLoaded = false;
 
   String get _adUnitId {
-    if (widget.useTestAds) {
+    if (kDebugMode && widget.useTestAds) {
       return Platform.isIOS
           ? 'ca-app-pub-3940256099942544/2934735716'
           : 'ca-app-pub-3940256099942544/6300978111';
     }
 
     return Platform.isIOS
-        ? 'YOUR_REAL_IOS_BANNER_ID'
-        : 'YOUR_REAL_ANDROID_BANNER_ID';
+        ? 'ca-app-pub-8741190851877191/6193026376'
+        : 'ca-app-pub-8741190851877191/2113195813';
   }
 
   @override

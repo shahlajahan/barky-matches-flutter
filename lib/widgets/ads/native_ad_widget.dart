@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
 import 'package:barky_matches_fixed/app_state.dart' as app;
@@ -8,7 +9,7 @@ import 'package:provider/provider.dart';
 class NativeAdWidget extends StatefulWidget {
   final bool useTestAds;
 
-  const NativeAdWidget({super.key, this.useTestAds = true});
+  const NativeAdWidget({super.key, this.useTestAds = kDebugMode});
 
   @override
   State<NativeAdWidget> createState() => _NativeAdWidgetState();
@@ -19,15 +20,15 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
   bool _isLoaded = false;
 
   String get _adUnitId {
-    if (widget.useTestAds) {
+    if (kDebugMode && widget.useTestAds) {
       return Platform.isIOS
           ? 'ca-app-pub-3940256099942544/3986624511'
           : 'ca-app-pub-3940256099942544/2247696110';
     }
 
     return Platform.isIOS
-        ? 'YOUR_REAL_IOS_NATIVE_ID'
-        : 'YOUR_REAL_ANDROID_NATIVE_ID';
+        ? 'ca-app-pub-8741190851877191/7147015390'
+        : 'ca-app-pub-8741190851877191/9560558142';
   }
 
   @override
