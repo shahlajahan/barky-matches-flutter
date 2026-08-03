@@ -175,10 +175,13 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
     setState(() => _estimating = true);
 
     try {
+      final pickup = _pickupLocation;
+      final dropoff = _dropoffLocation;
+      if (pickup == null || dropoff == null) return;
       debugPrint('[PetTaxiBooking] route request calling service');
       final route = await _routeService.estimateDrivingRoute(
-        pickup: _pickupLocation!,
-        dropoff: _dropoffLocation!,
+        pickup: pickup,
+        dropoff: dropoff,
       );
       debugPrint(
         '[PetTaxiBooking] route success distanceKm=${route.distanceKm} durationMinutes=${route.durationMinutes} polyline=${route.encodedPolyline == null ? 'none' : 'present'}',
@@ -339,6 +342,21 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
       _snack(_submitBlockReason());
       return;
     }
+    final pickup = _pickupLocation;
+    final dropoff = _dropoffLocation;
+    final scheduledAt = _scheduledAt;
+    final dog = _selectedDog;
+    final estimate = _estimate;
+    final routeEstimate = _routeEstimate;
+    if (pickup == null ||
+        dropoff == null ||
+        scheduledAt == null ||
+        dog == null ||
+        estimate == null ||
+        routeEstimate == null) {
+      _snack(_submitBlockReason());
+      return;
+    }
 
     setState(() => _saving = true);
     try {
@@ -348,33 +366,33 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
       final result = await callable.call({
         'businessId': widget.business.id,
         'businessName': widget.business.name,
-        'petId': _selectedDog!.id,
-        'petName': _selectedDog!.name,
-        'petType': _selectedDog!.petType,
-        'petBreed': _selectedDog!.breed,
-        'pickupAddress': _pickupLocation!.formattedAddress,
-        'pickupLat': _pickupLocation!.lat,
-        'pickupLng': _pickupLocation!.lng,
-        'pickupLocation': _pickupLocation!.toMap(),
-        'dropoffAddress': _dropoffLocation!.formattedAddress,
-        'dropoffLat': _dropoffLocation!.lat,
-        'dropoffLng': _dropoffLocation!.lng,
-        'dropoffLocation': _dropoffLocation!.toMap(),
-        'scheduledAt': _scheduledAt!.toIso8601String(),
+        'petId': dog.id,
+        'petName': dog.name,
+        'petType': dog.petType,
+        'petBreed': dog.breed,
+        'pickupAddress': pickup.formattedAddress,
+        'pickupLat': pickup.lat,
+        'pickupLng': pickup.lng,
+        'pickupLocation': pickup.toMap(),
+        'dropoffAddress': dropoff.formattedAddress,
+        'dropoffLat': dropoff.lat,
+        'dropoffLng': dropoff.lng,
+        'dropoffLocation': dropoff.toMap(),
+        'scheduledAt': scheduledAt.toIso8601String(),
         'tripType': _tripType,
         'serviceReason': _serviceReason,
         'petSize': _petSize,
         'specialNotes': _notes.text.trim(),
         'userPhone': _phone.text.trim(),
         'paymentMethod': 'in_app',
-        'estimatedMinPrice': _estimate!.minPrice,
-        'estimatedMaxPrice': _estimate!.maxPrice,
-        'estimateCurrency': _estimate!.currency,
-        'estimatedDistanceKm': _estimate!.approximateDistanceKm,
-        'routeDistanceKm': _routeEstimate!.distanceKm,
-        'routeDurationMinutes': _routeEstimate!.durationMinutes,
-        'routeEstimate': _routeEstimate!.toMap(),
-        'pricingRulesSnapshot': _estimate!.rulesSnapshot,
+        'estimatedMinPrice': estimate.minPrice,
+        'estimatedMaxPrice': estimate.maxPrice,
+        'estimateCurrency': estimate.currency,
+        'estimatedDistanceKm': estimate.approximateDistanceKm,
+        'routeDistanceKm': routeEstimate.distanceKm,
+        'routeDurationMinutes': routeEstimate.durationMinutes,
+        'routeEstimate': routeEstimate.toMap(),
+        'pricingRulesSnapshot': estimate.rulesSnapshot,
         'petMicrochipId': _microchip.text.trim(),
         'vaccinationCardInfo': _vaccination.text.trim(),
         'medicalConditionNotes': _medical.text.trim(),

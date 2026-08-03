@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -217,22 +218,20 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
 
     for (var i = 0; i < _selectedMedia.length; i++) {
       final item = _selectedMedia[i];
-      final file = File(item.file.path);
-
-      final ext = _extensionForFile(file, item);
+      final ext = _extensionForFile(item.file, item);
       final fileName =
           '${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}.$ext';
       final ref = FirebaseStorage.instance.ref().child(
         'social_posts/$uid/$postId/$fileName',
       );
 
-      final uploadTask = ref.putFile(
-        file,
-        SettableMetadata(
-          contentType: _contentTypeFor(ext, item.type),
-          customMetadata: const {'visibility': 'public'},
-        ),
+      final metadata = SettableMetadata(
+        contentType: _contentTypeFor(ext, item.type),
+        customMetadata: const {'visibility': 'public'},
       );
+      final uploadTask = kIsWeb
+          ? ref.putData(await item.file.readAsBytes(), metadata)
+          : ref.putFile(File(item.file.path), metadata);
 
       uploadTask.snapshotEvents.listen((snapshot) {
         if (!mounted || snapshot.totalBytes <= 0) return;
@@ -276,7 +275,7 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
     return media;
   }
 
-  String _extensionForFile(File file, _SelectedSocialMedia item) {
+  String _extensionForFile(XFile file, _SelectedSocialMedia item) {
     final path = file.path;
     final dot = path.lastIndexOf('.');
     if (dot != -1 && dot < path.length - 1) {

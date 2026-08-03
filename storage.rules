@@ -59,6 +59,16 @@ service firebase.storage {
         && request.auth.uid == userId;
     }
 
+    match /users/{userId}/profile/{allPaths=**} {
+      allow read: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin())
+        && hasAllowedMedia();
+      allow delete: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin());
+    }
+
     match /social_posts/{userId}/{postId}/{allPaths=**} {
       allow read: if resource.metadata.visibility == 'public'
         || (request.auth != null && request.auth.uid == userId)

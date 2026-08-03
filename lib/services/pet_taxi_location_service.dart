@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:http/http.dart' as http;
+import 'web_google_location_service.dart';
 
 class PetTaxiLocationPoint {
   final String formattedAddress;
@@ -54,6 +55,10 @@ class PetTaxiLocationSearchService {
     final trimmed = query.trim();
     if (trimmed.length < 4) return const [];
 
+    if (kIsWeb) {
+      return _searchWebLocations(trimmed);
+    }
+
     // TODO: Replace geocoding search with Google Places Autocomplete filtered
     // by configured country/admin region.
     final locations = await geocoding.locationFromAddress(
@@ -77,7 +82,58 @@ class PetTaxiLocationSearchService {
     return results;
   }
 
+  Future<List<PetTaxiLocationPoint>> _searchWebLocations(String query) async {
+    const service = WebGoogleLocationService();
+    final sessionToken = 'pet_taxi_${DateTime.now().microsecondsSinceEpoch}';
+    final predictions = await service.autocomplete(
+      query,
+      countryCode: 'TR',
+      sessionToken: sessionToken,
+    );
+    final results = <PetTaxiLocationPoint>[];
+    for (final prediction in predictions.take(5)) {
+      try {
+        final location = await service.placeDetails(
+          prediction.placeId,
+          sessionToken: sessionToken,
+        );
+        if (location == null ||
+            !location.latitude.isFinite ||
+            !location.longitude.isFinite) {
+          continue;
+        }
+        final address = location.formattedAddress.trim().isNotEmpty
+            ? location.formattedAddress.trim()
+            : prediction.description;
+        if (address.trim().isEmpty) continue;
+        results.add(
+          PetTaxiLocationPoint(
+            formattedAddress: address,
+            lat: location.latitude,
+            lng: location.longitude,
+          ),
+        );
+      } catch (_) {
+        // A single malformed Places result must not discard the search.
+      }
+    }
+    return results;
+  }
+
   Future<String> reverseGeocode(double lat, double lng) async {
+    if (kIsWeb) {
+      try {
+        final result = await const WebGoogleLocationService().reverseGeocode(
+          lat,
+          lng,
+        );
+        final address = result?.formattedAddress.trim() ?? '';
+        if (address.isNotEmpty) return address;
+      } catch (_) {
+        // Fall back to coordinates when the web geocoder has no result.
+      }
+      return '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
+    }
     final placemarks = await geocoding.placemarkFromCoordinates(lat, lng);
     if (placemarks.isEmpty) {
       return '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';

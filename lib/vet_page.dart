@@ -501,8 +501,7 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
           .map((doc) {
             final data = doc.data();
 
-            final sectors = List<String>.from(data['sectors'] ?? []);
-            if (!sectors.contains('veterinary')) return null;
+            if (!_isVeterinaryBusiness(data)) return null;
 
             final contact = Map<String, dynamic>.from(data['contact'] ?? {});
 
@@ -717,6 +716,23 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
         _filteredVets = vets;
       });
     }
+  }
+
+  bool _isVeterinaryBusiness(Map<String, dynamic> data) {
+    final sectorData = data['publicSectorData'];
+    final values = <dynamic>[
+      data['sector'],
+      data['sectors'],
+      data['businessType'],
+      data['category'],
+      data['type'],
+      sectorData is Map ? sectorData.keys : null,
+    ];
+    final text = values.join(' ').toLowerCase();
+    return text.contains('veterinary') ||
+        text.contains('veterinarian') ||
+        RegExp(r'(^|[^a-z])vet([^a-z]|$)').hasMatch(text) ||
+        text.contains('animal_health');
   }
 
   double? _extractLat(

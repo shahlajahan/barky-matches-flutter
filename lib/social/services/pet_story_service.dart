@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/pet_story.dart';
 
@@ -36,7 +37,7 @@ class PetStoryService {
   }
 
   Future<void> createStory({
-    required File file,
+    required XFile file,
     required String mediaType,
   }) async {
     final user = _auth.currentUser;
@@ -69,9 +70,14 @@ class PetStoryService {
 
       final metadata = SettableMetadata(contentType: 'image/jpeg');
 
-      debugPrint('📦 STORY FILE SIZE = ${await file.length()}');
+      final bytes = await file.readAsBytes();
+      debugPrint('📦 STORY FILE SIZE = ${bytes.length}');
 
-      await ref.putFile(file, metadata);
+      if (kIsWeb) {
+        await ref.putData(bytes, metadata);
+      } else {
+        await ref.putFile(File(file.path), metadata);
+      }
 
       final downloadUrl = await ref.getDownloadURL();
       final expiresAt = DateTime.now().add(const Duration(hours: 24));

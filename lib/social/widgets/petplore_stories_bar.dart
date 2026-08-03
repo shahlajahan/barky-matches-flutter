@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,28 +41,19 @@ class _PetploreStoriesBarState extends State<PetploreStoriesBar> {
     });
 
     try {
-      await _storyService.createStory(
-        file: File(image.path),
-        mediaType: 'image',
-      );
+      await _storyService.createStory(file: image, mediaType: 'image');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.storyUploaded)),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.storyUploadFailed('$e'),
-          ),
+          content: Text(AppLocalizations.of(context)!.storyUploadFailed('$e')),
         ),
       );
     } finally {

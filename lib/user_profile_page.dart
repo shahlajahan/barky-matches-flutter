@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:barky_matches_fixed/core/web/local_dog_photo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -2653,6 +2654,8 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
   bool _isUploadingImage = false;
 
   File? _selectedImageFile;
+  XFile? _selectedImage;
+  Uint8List? _selectedImageBytes;
   String? _photoUrl;
 
   String? _usernameError;
@@ -2739,6 +2742,7 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
                 onTap: () => Navigator.pop(ctx, 'gallery'),
               ),
               if (_selectedImageFile != null ||
+                  _selectedImage != null ||
                   (_photoUrl?.isNotEmpty ?? false))
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Colors.red),
@@ -2767,6 +2771,8 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
 
       setState(() {
         _selectedImageFile = null;
+        _selectedImage = null;
+        _selectedImageBytes = null;
         _photoUrl = '';
       });
     }
@@ -2784,8 +2790,12 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
 
       if (file == null || !mounted) return;
 
+      final imageBytes = kIsWeb ? await file.readAsBytes() : null;
+
       setState(() {
-        _selectedImageFile = File(file.path);
+        _selectedImage = file;
+        _selectedImageBytes = imageBytes;
+        _selectedImageFile = kIsWeb ? null : File(file.path);
       });
     } catch (e) {
       debugPrint('EditProfileOverlay - pick image error: $e');
@@ -2794,7 +2804,7 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
     }
   }
 
-  Future<String> _uploadProfileImage(File file) async {
+  Future<String> _uploadProfileImage(XFile file) async {
     final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
     final ref = FirebaseStorage.instance
@@ -2804,7 +2814,10 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
         .child('profile')
         .child(fileName);
 
-    final task = await ref.putFile(file);
+    final metadata = SettableMetadata(contentType: 'image/jpeg');
+    final task = kIsWeb
+        ? await ref.putData(await file.readAsBytes(), metadata)
+        : await ref.putFile(File(file.path), metadata);
     return task.ref.getDownloadURL();
   }
 
@@ -2904,12 +2917,12 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
       String finalPhotoUrl = _photoUrl?.trim() ?? '';
 
       // ✅ upload image
-      if (_selectedImageFile != null) {
+      if (_selectedImage != null) {
         setState(() {
           _isUploadingImage = true;
         });
 
-        finalPhotoUrl = await _uploadProfileImage(_selectedImageFile!);
+        finalPhotoUrl = await _uploadProfileImage(_selectedImage!);
 
         if (!mounted) return;
 
@@ -3096,7 +3109,16 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
   Widget _buildAvatar() {
     Widget avatarChild;
 
-    if (_selectedImageFile != null) {
+    if (kIsWeb && _selectedImageBytes != null) {
+      avatarChild = ClipOval(
+        child: Image.memory(
+          _selectedImageBytes!,
+          width: 110,
+          height: 110,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else if (_selectedImageFile != null) {
       avatarChild = ClipOval(
         child: PlatformPathImage(
           path: _selectedImageFile!.path,

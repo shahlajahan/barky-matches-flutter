@@ -60,6 +60,20 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
     );
   }
 
+  Map<String, dynamic> _groomyDataFromPublicDocument(
+    Map<String, dynamic> rawData,
+  ) {
+    final sectorData = rawData['publicSectorData'];
+    final sectors = sectorData is Map
+        ? Map<String, dynamic>.from(sectorData)
+        : <String, dynamic>{};
+    final value =
+        sectors['groomy'] ?? sectors['groomer'] ?? sectors['grooming'] ?? {};
+    return value is Map
+        ? Map<String, dynamic>.from(value)
+        : <String, dynamic>{};
+  }
+
   Map<String, dynamic>? get _workingHoursMap {
     final raw =
         _groomyData['workingHoursMap'] ??
@@ -359,23 +373,23 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
     final messenger = ScaffoldMessenger.of(context);
 
     final snapshot = await FirebaseFirestore.instance
-        .collection('businesses')
+        .collection('businesses_public')
         .doc(widget.data.id)
-        .collection('services')
-        .where('isActive', isEqualTo: true)
-        .orderBy('sortOrder')
-        .limit(1)
         .get();
 
     if (!mounted) return;
 
-    if (snapshot.docs.isEmpty) {
+    final groomyData = snapshot.data() == null
+        ? <String, dynamic>{}
+        : _groomyDataFromPublicDocument(snapshot.data()!);
+    final services = PublicServiceNormalizer.toMaps(
+      groomyData['services'],
+    ).where((service) => service['isActive'] != false).toList();
+    if (services.isEmpty) {
       messenger.showSnackBar(SnackBar(content: Text(l10n.noServicesAvailable)));
       return;
     }
-
-    final doc = snapshot.docs.first;
-    _openAppointmentPage({...doc.data(), 'id': doc.id});
+    _openAppointmentPage(services.first);
   }
 
   Widget _sectionCard({required String title, required Widget child}) {
@@ -1209,13 +1223,10 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
   Widget _buildServicesTab() {
     final l10n = AppLocalizations.of(context)!;
 
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-          .collection('businesses')
+          .collection('businesses_public')
           .doc(widget.data.id)
-          .collection('services')
-          .where('isActive', isEqualTo: true)
-          .orderBy('sortOrder')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -1231,18 +1242,11 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final docs = snapshot.data?.docs ?? [];
-        final services = <Map<String, dynamic>>[];
-
-        if (docs.isNotEmpty) {
-          services.addAll(
-            docs
-                .map((doc) => {...doc.data(), 'id': doc.id})
-                .where((service) => service['isActive'] != false),
-          );
-        } else {
-          services.addAll([]);
-        }
+        final publicData = snapshot.data?.data() ?? <String, dynamic>{};
+        final groomyData = _groomyDataFromPublicDocument(publicData);
+        final services = PublicServiceNormalizer.toMaps(
+          groomyData['services'],
+        ).where((service) => service['isActive'] != false).toList();
 
         if (services.isEmpty) {
           return Center(
