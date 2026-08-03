@@ -909,7 +909,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get contactInfoLabel => 'Контактная информация *';
 
   @override
-  String get editDog => 'Редактировать собаку';
+  String get editDog => 'Редактировать профиль питомца';
 
   @override
   String get photosLabel => 'Фото';
@@ -956,7 +956,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dogDetailsAddTitle => 'Добавить собаку';
 
   @override
-  String get dogDetailsEditTitle => 'Редактировать собаку';
+  String get dogDetailsEditTitle => 'Редактировать профиль питомца';
 
   @override
   String get dogDetailsNameLabel => 'Имя';

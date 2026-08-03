@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:barky_matches_fixed/ui/common/platform_path_image.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +16,6 @@ import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 
 import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import 'dart:typed_data';
 
 class EditDogOverlay extends StatefulWidget {
   final Dog dog;
@@ -114,9 +114,7 @@ class _EditDogOverlayState extends State<EditDogOverlay>
 
       if (file == null) return;
 
-      final localFile = File(file.path);
-
-      final downloadUrl = await _uploadImageToStorage(localFile);
+      final downloadUrl = await _uploadImageToStorage(file);
 
       debugPrint("🔥 DOWNLOAD URL: $downloadUrl");
 
@@ -140,13 +138,13 @@ class _EditDogOverlayState extends State<EditDogOverlay>
     }
   }
 
-  Future<String> _uploadImageToStorage(File file) async {
+  Future<String> _uploadImageToStorage(XFile file) async {
     final userId = widget.dog.ownerId;
     if (userId == null) {
       throw Exception("Owner ID is null");
     }
 
-    final ext = file.path.split('.').last; // 👈 گرفتن پسوند واقعی
+    final ext = file.name.split('.').last; // 👈 گرفتن پسوند واقعی
 
     final fileName = "${DateTime.now().millisecondsSinceEpoch}.$ext";
 
@@ -156,9 +154,27 @@ class _EditDogOverlayState extends State<EditDogOverlay>
         .child(userId)
         .child(fileName);
 
-    final uploadTask = await ref.putFile(file);
+    final contentType = switch (ext.toLowerCase()) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      'heic' => 'image/heic',
+      'mp4' => 'video/mp4',
+      'mov' => 'video/quicktime',
+      'webm' => 'video/webm',
+      _ => 'image/jpeg',
+    };
+    final metadata = SettableMetadata(contentType: contentType);
 
-    final downloadUrl = await uploadTask.ref.getDownloadURL();
+    final UploadTask uploadTask;
+    if (kIsWeb) {
+      uploadTask = ref.putData(await file.readAsBytes(), metadata);
+    } else {
+      uploadTask = ref.putFile(File(file.path));
+    }
+
+    final taskSnapshot = await uploadTask;
+    final downloadUrl = await taskSnapshot.ref.getDownloadURL();
 
     return downloadUrl;
   }
@@ -664,11 +680,7 @@ class _EditDogOverlayState extends State<EditDogOverlay>
 
       if (file == null) return;
 
-      final localFile = File(file.path);
-
-      final downloadUrl = await _uploadImageToStorage(
-        localFile,
-      ); // همونو استفاده کن
+      final downloadUrl = await _uploadImageToStorage(file); // همونو استفاده کن
 
       if (!mounted) return;
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:barky_matches_fixed/utils/business_sector.dart';
 
 class PetTaxiResolvedBusinessLocation {
   final Map<String, dynamic> location;
@@ -27,6 +28,17 @@ class PetTaxiBusinessLocationResolver {
   static PetTaxiResolvedBusinessLocation resolve(
     Map<String, dynamic> businessData,
   ) {
+    if (!BusinessSector.hasCanonicalSector(
+      businessData,
+      BusinessSector.petTaxi,
+    )) {
+      return const PetTaxiResolvedBusinessLocation(
+        location: <String, dynamic>{},
+        shouldBackfillCurrentLocation: false,
+        sourceLabel: 'not_pet_taxi',
+      );
+    }
+
     final sectorData = _map(businessData['publicSectorData']);
     final taxi = _map(
       sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],

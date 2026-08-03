@@ -66,6 +66,17 @@ abstract final class BusinessSector {
     return null;
   }
 
+  /// Returns true only when the canonical `sectors` field declares the sector.
+  /// Other fields, including sectorData, are intentionally ignored.
+  static bool hasCanonicalSector(
+    Map<String, dynamic> business,
+    String canonical,
+  ) {
+    return _values(
+      business['sectors'],
+    ).any((value) => normalize(value) == canonical);
+  }
+
   static String rawValue(Map<String, dynamic> business) {
     final sectorData = _map(business['sectorData']);
     return [

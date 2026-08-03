@@ -42,6 +42,11 @@ const {
   REWARD_RULE_VERSION,
   rewardForLead,
 } = require("./src/creator/rewardRules");
+const {
+  filterSectorDataByCanonicalSectors,
+  isPetTaxiBusiness,
+  resolvePetTaxiCurrentLocationForMigration,
+} = require("./src/businessSectorMembership");
 const { approvalPublicationPatch } = require("./src/businessPublication");
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -10332,7 +10337,10 @@ exports.registerBusiness = onCall(
       const profile = draft.profile || {};
       const contact = draft.contact || {};
       const legal = draft.legal || {};
-      const sectorData = draft.sectorData || {};
+      const sectorData = filterSectorDataByCanonicalSectors(
+        draft.sectorData || {},
+        sectors
+      );
       const veterinaryData = sectorData.veterinary || {};
       const veterinaryProfile = veterinaryData.profileContent || {};
       const veterinarySocial = veterinaryProfile.socialMedia || {};
@@ -10544,7 +10552,7 @@ exports.registerBusiness = onCall(
 
       console.log("🔥 SECTORS:", sectors);
       console.log("🔥 SECTOR DATA:", draft.sectorData);
-      const hasPetTaxiSector = sectors.includes("pet_taxi");
+      const hasPetTaxiSector = isPetTaxiBusiness({ sectors });
       const publicSectorData = hasPetTaxiSector
         ? {
           ...sectorData,
@@ -28834,52 +28842,6 @@ function hasLatLng(value) {
   );
 }
 
-function resolvePetTaxiCurrentLocationForMigration(businessData = {}) {
-  const sectorData = asMap(businessData.sectorData);
-  const taxi = asMap(sectorData.pet_taxi || sectorData.petTaxi || sectorData.taxi);
-  const contact = asMap(businessData.contact);
-  const currentLocation = asMap(taxi.currentLocation);
-  const contactLocation = asMap(contact.location);
-
-  const currentHasCoordinates = hasLatLng(currentLocation);
-  const contactHasCoordinates = hasLatLng(contactLocation);
-  const source = normalizeLower(currentLocation.source);
-  const hasRuntimeTimestamp = Boolean(currentLocation.updatedAt);
-
-  const currentLooksRuntime =
-    currentHasCoordinates && (source === "gps_runtime" || hasRuntimeTimestamp);
-
-  const currentLooksSeededAddress =
-    currentHasCoordinates &&
-    (source === "registered_address_seed" ||
-      source === "migrated_from_contact_location");
-
-  if (currentLooksRuntime || currentLooksSeededAddress) {
-    return {
-      shouldBackfill: false,
-      location: currentLocation,
-      reason: null,
-    };
-  }
-
-  if (contactHasCoordinates) {
-    return {
-      shouldBackfill: true,
-      location: contactLocation,
-      reason: currentHasCoordinates
-        ? "legacy_current_location_without_runtime_timestamp"
-        : "missing_current_location",
-      previousCurrentLocation: currentHasCoordinates ? currentLocation : null,
-    };
-  }
-
-  return {
-    shouldBackfill: false,
-    location: currentHasCoordinates ? currentLocation : null,
-    reason: null,
-  };
-}
-
 exports.repairPetTaxiBusinessLocation = onCall(
   { region: "europe-west3" },
   async (request) => {
@@ -28901,6 +28863,13 @@ exports.repairPetTaxiBusinessLocation = onCall(
       }
 
       const businessData = businessSnap.data() || {};
+      if (!isPetTaxiBusiness(businessData)) {
+        return {
+          success: true,
+          migrated: false,
+          reason: "not_pet_taxi",
+        };
+      }
       const resolved = resolvePetTaxiCurrentLocationForMigration(businessData);
 
       if (!resolved.shouldBackfill || !hasLatLng(resolved.location)) {
@@ -28995,10 +28964,7 @@ exports.createPetTaxiBooking = onCall(
       const sectors = Array.isArray(businessData.sectors)
         ? businessData.sectors.map((sector) => String(sector).toLowerCase())
         : [];
-      const sectorData = businessData.sectorData || {};
-      const isPetTaxi =
-        sectors.includes("pet_taxi") ||
-        Boolean(sectorData.pet_taxi || sectorData.petTaxi || sectorData.taxi);
+      const isPetTaxi = isPetTaxiBusiness(businessData);
 
       if (!isPetTaxi) {
         throw new HttpsError("failed-precondition", "Business is not a pet taxi.");

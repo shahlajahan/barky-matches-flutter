@@ -142,6 +142,7 @@ test("public builders exclude private fields at every nested level", () => {
     ownerUid: "private-owner",
     status: "approved",
     published: true,
+    sectors: ["groomy"],
     contact: { phone: "123", email: "private@example.test" },
     sectorData: {
       groomy: {
@@ -162,6 +163,7 @@ test("Groomy public listing/detail contract preserves curated profile and servic
   const projection = buildBusinessPublicProjection("g1", {
     status: "approved",
     published: true,
+    sectors: ["groomy"],
     profile: { displayName: "Public Groomy" },
     sectorData: {
       grooming: {
@@ -180,6 +182,7 @@ test("Adoption public listing/detail contract preserves curated profile and hour
   const projection = buildBusinessPublicProjection("a1", {
     status: "approved",
     published: true,
+    sectors: ["adoption_center"],
     profile: { displayName: "Public Center" },
     sectorData: {
       adoptionCenter: {
@@ -264,6 +267,7 @@ test("business projection prefers canonical service subcollection and refreshes 
     businessId: "b1",
     status: "approved",
     published: true,
+    sectors: ["veterinary"],
     sectorData: {
       veterinary: { services: [{ id: "stale", title: "Stale embedded" }] },
     },
@@ -344,6 +348,7 @@ test("legacy embedded services remain available without canonical authority", as
     businessId: "legacy",
     status: "approved",
     published: true,
+    sectors: ["veterinary"],
     sectorData: {
       veterinary: { services: [{ id: "legacy-service", title: "Legacy service" }] },
     },
@@ -366,6 +371,7 @@ test("business backfill loads canonical service documents and is idempotent", as
     businessId: "backfill-business",
     status: "approved",
     published: true,
+    sectors: ["veterinary"],
     sectorData: {
       veterinary: { services: [{ id: "stale", title: "Stale embedded" }] },
     },

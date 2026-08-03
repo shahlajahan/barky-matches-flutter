@@ -69,6 +69,16 @@ service firebase.storage {
         && (request.auth.uid == userId || isAdmin());
     }
 
+    match /dogs/{ownerUid}/{allPaths=**} {
+      allow read: if isSignedIn()
+        && (request.auth.uid == ownerUid || isAdmin());
+      allow create, update: if isSignedIn()
+        && (request.auth.uid == ownerUid || isAdmin())
+        && hasAllowedMedia();
+      allow delete: if isSignedIn()
+        && (request.auth.uid == ownerUid || isAdmin());
+    }
+
     match /social_posts/{userId}/{postId}/{allPaths=**} {
       allow read: if resource.metadata.visibility == 'public'
         || (request.auth != null && request.auth.uid == userId)

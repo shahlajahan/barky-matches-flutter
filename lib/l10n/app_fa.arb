@@ -550,7 +550,7 @@
   "contactInfoLabel": "اطلاعات تماس *",
   "@contactInfoLabel": { "description": "برچسب برای ورودی اطلاعات تماس" },
 
-  "editDog": "ویرایش سگ",
+  "editDog": "ویرایش پروفایل حیوان خانگی",
   "@editDog": { "description": "برچسب دکمه برای ویرایش سگ" },
 
   "photosLabel": "عکس‌ها",
@@ -582,7 +582,7 @@
   "dogDetailsAddTitle": "افزودن سگ",
   "@dogDetailsAddTitle": { "description": "عنوان صفحه افزودن سگ" },
 
-  "dogDetailsEditTitle": "ویرایش سگ",
+  "dogDetailsEditTitle": "ویرایش پروفایل حیوان خانگی",
   "@dogDetailsEditTitle": { "description": "عنوان صفحه ویرایش سگ" },
 
   "dogDetailsNameLabel": "نام",

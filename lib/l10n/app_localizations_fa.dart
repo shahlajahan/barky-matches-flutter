@@ -897,7 +897,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get contactInfoLabel => 'اطلاعات تماس *';
 
   @override
-  String get editDog => 'ویرایش سگ';
+  String get editDog => 'ویرایش پروفایل حیوان خانگی';
 
   @override
   String get photosLabel => 'عکس‌ها';
@@ -943,7 +943,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get dogDetailsAddTitle => 'افزودن سگ';
 
   @override
-  String get dogDetailsEditTitle => 'ویرایش سگ';
+  String get dogDetailsEditTitle => 'ویرایش پروفایل حیوان خانگی';
 
   @override
   String get dogDetailsNameLabel => 'نام';

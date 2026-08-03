@@ -3,14 +3,32 @@ import 'package:flutter/material.dart';
 import '../models/social_post.dart';
 import 'petplore_page.dart';
 import 'social_feed_page.dart';
+import '../../welcome_page.dart';
 
 class SocialPostDetailPage extends StatelessWidget {
   final SocialPost post;
+  final bool openedFromExternalShare;
 
-  const SocialPostDetailPage({super.key, required this.post});
+  const SocialPostDetailPage({
+    super.key,
+    required this.post,
+    this.openedFromExternalShare = false,
+  });
 
   void _goBack(BuildContext context) {
     final navigator = Navigator.of(context);
+
+    if (openedFromExternalShare) {
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(
+          settings: const RouteSettings(name: '/welcome'),
+          builder: (_) => const WelcomePage(),
+        ),
+        (route) => false,
+      );
+      return;
+    }
+
     if (navigator.canPop()) {
       navigator.pop();
       return;
@@ -27,7 +45,7 @@ class SocialPostDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: Navigator.of(context).canPop(),
+      canPop: !openedFromExternalShare && Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _goBack(context);
       },

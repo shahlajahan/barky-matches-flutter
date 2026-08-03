@@ -1761,7 +1761,7 @@ abstract class AppLocalizations {
   /// Button label for editing dog
   ///
   /// In en, this message translates to:
-  /// **'Edit Dog'**
+  /// **'Edit Pet Profile'**
   String get editDog;
 
   /// No description provided for @photosLabel.
@@ -1839,7 +1839,7 @@ abstract class AppLocalizations {
   /// Title for edit dog page
   ///
   /// In en, this message translates to:
-  /// **'Edit Dog'**
+  /// **'Edit Pet Profile'**
   String get dogDetailsEditTitle;
 
   /// Label for dog name in details view

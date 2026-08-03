@@ -6,9 +6,8 @@ import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
-import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_driver_location_resolver.dart';
-
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
+import 'package:barky_matches_fixed/utils/business_sector.dart';
 
 class PetTaxiBusinessRepository {
   Future<List<BusinessCardData>> loadBusinesses() async {
@@ -39,25 +38,14 @@ class PetTaxiBusinessRepository {
   BusinessCardData? mapPetTaxiBusiness(String id, Map<String, dynamic> data) {
     final root = <String, dynamic>{...data, 'id': id};
 
+    if (!BusinessSector.hasCanonicalSector(root, BusinessSector.petTaxi)) {
+      return null;
+    }
+
     final sectorData = map(root['publicSectorData']);
     final taxi = map(
       sectorData['pet_taxi'] ?? sectorData['petTaxi'] ?? sectorData['taxi'],
     );
-
-    final raw = [
-      root['sector'],
-      root['sectors'],
-      root['businessType'],
-      root['category'],
-      sectorData.keys.join(' '),
-      sectorData.toString(),
-    ].join(' ').toLowerCase();
-
-    if (!raw.contains('pet_taxi') &&
-        !raw.contains('pet taxi') &&
-        !raw.contains('taxi')) {
-      return null;
-    }
 
     final profile = map(root['profile']);
     final contact = map(root['contact']);

@@ -550,7 +550,7 @@
   "contactInfoLabel": "İletişim Bilgileri *",
   "@contactInfoLabel": { "description": "İletişim bilgileri girişi için etiket" },
 
-  "editDog": "Köpeği Düzenle",
+  "editDog": "Evcil Hayvan Profilini Düzenle",
   "@editDog": { "description": "Köpek düzenleme için düğme etiketi" },
 
   "photosLabel": "Fotoğraflar",
@@ -582,7 +582,7 @@
   "dogDetailsAddTitle": "Köpek Ekle",
   "@dogDetailsAddTitle": { "description": "Köpek ekleme sayfası başlığı" },
 
-  "dogDetailsEditTitle": "Köpeği Düzenle",
+  "dogDetailsEditTitle": "Evcil Hayvan Profilini Düzenle",
   "@dogDetailsEditTitle": { "description": "Köpek düzenleme sayfası başlığı" },
 
   "dogDetailsNameLabel": "İsim",

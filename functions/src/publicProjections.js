@@ -1,4 +1,7 @@
 const admin = require("firebase-admin");
+const {
+  filterSectorDataByCanonicalSectors,
+} = require("./businessSectorMembership");
 
 const PUBLIC_USER_KEYS = [
   "uid",
@@ -442,7 +445,10 @@ function buildBusinessPublicProjection(businessId, source = {}, serviceProjectio
     PUBLIC_VERIFICATION_KEYS,
     { allowUnknownMapKeys: false }
   );
-  const rawSectorData = sourceWithServices.sectorData || {};
+  const rawSectorData = filterSectorDataByCanonicalSectors(
+    sourceWithServices.sectorData || {},
+    sourceWithServices.sectors
+  );
   const publicSectorData = {};
   if (rawSectorData && typeof rawSectorData === "object") {
     for (const [sector, value] of Object.entries(rawSectorData)) {

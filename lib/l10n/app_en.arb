@@ -554,7 +554,7 @@
   "contactInfoLabel": "Contact Info *",
   "@contactInfoLabel": { "description": "Label for contact info input" },
 
-  "editDog": "Edit Dog",
+  "editDog": "Edit Pet Profile",
   "@editDog": { "description": "Button label for editing dog" },
 
   "photosLabel": "Photos",
@@ -586,7 +586,7 @@
   "dogDetailsAddTitle": "Add Dog",
   "@dogDetailsAddTitle": { "description": "Title for add dog page" },
 
-  "dogDetailsEditTitle": "Edit Dog",
+  "dogDetailsEditTitle": "Edit Pet Profile",
   "@dogDetailsEditTitle": { "description": "Title for edit dog page" },
 
   "dogDetailsNameLabel": "Name",

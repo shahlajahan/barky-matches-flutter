@@ -13,6 +13,56 @@ import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 enum ReviewSortType { mostRelevant, newest }
 
+double groomyServicePrice(Map<String, dynamic> service) {
+  final raw = service['price'];
+  if (raw is num) return raw.toDouble();
+  return double.tryParse(raw?.toString() ?? '') ?? 0;
+}
+
+int groomyServiceDuration(Map<String, dynamic> service) {
+  final raw = service['durationMin'] ?? service['duration'];
+  if (raw is num) return raw.toInt();
+  return int.tryParse(raw?.toString() ?? '') ?? 60;
+}
+
+/// Owns the single public business document listener used by the overlay.
+/// Keeping the stream in a late final prevents rebuilds from creating new
+/// Firestore listener instances for the same document.
+class GroomyPublicBusinessDocumentStream {
+  GroomyPublicBusinessDocumentStream({
+    required FirebaseFirestore firestore,
+    required this.businessId,
+  }) : _stream = firestore
+           .collection('businesses_public')
+           .doc(businessId)
+           .snapshots();
+
+  final String businessId;
+  final Stream<DocumentSnapshot<Map<String, dynamic>>> _stream;
+  late final Stream<DocumentSnapshot<Map<String, dynamic>>> distinctStream =
+      _stream.distinct(
+        (previous, next) =>
+            previous.data().toString() == next.data().toString(),
+      );
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> get stream => _stream;
+}
+
+class GroomyServicesStream {
+  GroomyServicesStream({
+    required FirebaseFirestore firestore,
+    required this.businessId,
+  }) : stream = firestore
+           .collection('businesses')
+           .doc(businessId)
+           .collection('services')
+           .where('isActive', isEqualTo: true)
+           .snapshots();
+
+  final String businessId;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> stream;
+}
+
 class GroomyDetailsOverlay extends StatefulWidget {
   final BusinessCardData data;
   final VoidCallback onClose;
@@ -46,6 +96,8 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
 
   final ValueNotifier<double?> _liveRating = ValueNotifier<double?>(null);
   final ValueNotifier<int> _liveReviewCount = ValueNotifier<int>(0);
+  late GroomyPublicBusinessDocumentStream _publicBusinessDocument;
+  late GroomyServicesStream _servicesDocumentStream;
 
   Map<String, dynamic> get _groomyData {
     final rawData = widget.data.rawData ?? widget.data.data ?? {};
@@ -144,18 +196,6 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
           },
         )
         .toList();
-  }
-
-  double _servicePrice(Map<String, dynamic> service) {
-    final raw = service['price'];
-    if (raw is num) return raw.toDouble();
-    return double.tryParse(raw?.toString() ?? '') ?? 0;
-  }
-
-  int _serviceDuration(Map<String, dynamic> service) {
-    final raw = service['durationMin'] ?? service['duration'];
-    if (raw is num) return raw.toInt();
-    return int.tryParse(raw?.toString() ?? '') ?? 60;
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _getReviewsStream() {
@@ -302,6 +342,29 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
     _tabController = TabController(length: 4, vsync: this);
     _liveRating.value = widget.data.rating;
     _liveReviewCount.value = widget.data.reviewsCount ?? 0;
+    _publicBusinessDocument = GroomyPublicBusinessDocumentStream(
+      firestore: FirebaseFirestore.instance,
+      businessId: widget.data.id,
+    );
+    _servicesDocumentStream = GroomyServicesStream(
+      firestore: FirebaseFirestore.instance,
+      businessId: widget.data.id,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant GroomyDetailsOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data.id == widget.data.id) return;
+
+    _publicBusinessDocument = GroomyPublicBusinessDocumentStream(
+      firestore: FirebaseFirestore.instance,
+      businessId: widget.data.id,
+    );
+    _servicesDocumentStream = GroomyServicesStream(
+      firestore: FirebaseFirestore.instance,
+      businessId: widget.data.id,
+    );
   }
 
   @override
@@ -802,13 +865,7 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
         : '';
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses_public')
-          .doc(widget.data.id)
-          .snapshots()
-          .distinct(
-            (prev, next) => prev.data().toString() == next.data().toString(),
-          ),
+      stream: _publicBusinessDocument.distinctStream,
 
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};
@@ -1223,11 +1280,8 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
   Widget _buildServicesTab() {
     final l10n = AppLocalizations.of(context)!;
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses_public')
-          .doc(widget.data.id)
-          .snapshots(),
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _servicesDocumentStream.stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -1242,11 +1296,10 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final publicData = snapshot.data?.data() ?? <String, dynamic>{};
-        final groomyData = _groomyDataFromPublicDocument(publicData);
-        final services = PublicServiceNormalizer.toMaps(
-          groomyData['services'],
-        ).where((service) => service['isActive'] != false).toList();
+        final services = (snapshot.data?.docs ?? const [])
+            .map((doc) => doc.data())
+            .where((service) => service['isActive'] != false)
+            .toList();
 
         if (services.isEmpty) {
           return Center(
@@ -1264,8 +1317,8 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
           itemBuilder: (context, index) {
             final service = services[index];
             final title = (service['title'] ?? '').toString();
-            final price = _servicePrice(service);
-            final duration = _serviceDuration(service);
+            final price = groomyServicePrice(service);
+            final duration = groomyServiceDuration(service);
             final description = (service['description'] ?? '')
                 .toString()
                 .trim();
@@ -1415,10 +1468,7 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
 
   Widget _buildGalleryTab() {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('businesses_public')
-          .doc(widget.data.id)
-          .snapshots(),
+      stream: _publicBusinessDocument.stream,
 
       builder: (context, snapshot) {
         final data = snapshot.data?.data() ?? {};

@@ -6,8 +6,13 @@ import 'social_post_detail_page.dart';
 
 class SocialPostRoutePage extends StatefulWidget {
   final String postId;
+  final bool openedFromExternalShare;
 
-  const SocialPostRoutePage({super.key, required this.postId});
+  const SocialPostRoutePage({
+    super.key,
+    required this.postId,
+    this.openedFromExternalShare = false,
+  });
 
   @override
   State<SocialPostRoutePage> createState() => _SocialPostRoutePageState();
@@ -40,7 +45,10 @@ class _SocialPostRoutePageState extends State<SocialPostRoutePage> {
           );
         }
 
-        return SocialPostDetailPage(post: post);
+        return SocialPostDetailPage(
+          post: post,
+          openedFromExternalShare: widget.openedFromExternalShare,
+        );
       },
     );
   }

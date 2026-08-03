@@ -898,7 +898,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactInfoLabel => 'Contact Info *';
 
   @override
-  String get editDog => 'Edit Dog';
+  String get editDog => 'Edit Pet Profile';
 
   @override
   String get photosLabel => 'Photos';
@@ -944,7 +944,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dogDetailsAddTitle => 'Add Dog';
 
   @override
-  String get dogDetailsEditTitle => 'Edit Dog';
+  String get dogDetailsEditTitle => 'Edit Pet Profile';
 
   @override
   String get dogDetailsNameLabel => 'Name';

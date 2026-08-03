@@ -1434,7 +1434,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     navigator.push(
       MaterialPageRoute(
         settings: RouteSettings(name: '/post/$postId'),
-        builder: (_) => SocialPostRoutePage(postId: postId),
+        builder: (_) =>
+            SocialPostRoutePage(postId: postId, openedFromExternalShare: true),
       ),
     );
   }
@@ -1579,7 +1580,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (!kIsWeb) return null;
     final postId = SocialPostShare.postIdFromUri(Uri.base);
     if (postId == null) return null;
-    return SocialPostRoutePage(postId: postId);
+    return SocialPostRoutePage(postId: postId, openedFromExternalShare: true);
   }
 
   void handleDeepLink(Uri uri) async {
