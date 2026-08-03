@@ -711,9 +711,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         currency: 'TRY',
         carrier: _legacyCarrier,
 
-        successUrl:
-            'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
-        cancelUrl: 'barkymatches://payment-cancel?orderId=$orderId',
+        successUrl: 'https://app.petsupo.com/payment-callback?orderId=$orderId',
+        cancelUrl: 'https://app.petsupo.com/payment-cancel?orderId=$orderId',
 
         note: orderId,
         buyer: buyer,
@@ -750,9 +749,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         context: context,
         session: session,
         orderId: orderId,
-        successUrlPrefix:
-            'barkymatches://payment-success?orderId=$orderId&orderNumber=$orderNumber',
-        cancelUrlPrefix: 'barkymatches://payment-cancel?orderId=$orderId',
+        successUrlPrefix: 'https://app.petsupo.com/payment-callback',
+        cancelUrlPrefix: 'https://app.petsupo.com/payment-cancel',
       );
 
       debugPrint("✅ STEP 4 - Checkout closed");
