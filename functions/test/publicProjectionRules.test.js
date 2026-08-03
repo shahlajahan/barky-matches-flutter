@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const admin = require("firebase-admin");
 
-const projectId = "demo-petsupo";
+const projectId = process.env.FIREBASE_PROJECT_ID || "demo-petsupo";
 const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9099";
 const firestoreBase = `http://${firestoreHost}/v1/projects/${projectId}/databases/(default)/documents`;
@@ -43,12 +43,47 @@ async function readDocument(path, idToken) {
 }
 
 async function updateDocument(path, fields, idToken) {
-  return fetch(`${firestoreBase}/${path}`, {
+  const updateMask = Object.keys(fields)
+    .map((field) => `updateMask.fieldPaths=${encodeURIComponent(field)}`)
+    .join("&");
+  return fetch(`${firestoreBase}/${path}?${updateMask}`, {
     method: "PATCH",
     headers: { "content-type": "application/json", ...authHeaders(idToken) },
     body: JSON.stringify({
       fields: Object.fromEntries(
         Object.entries(fields).map(([key, value]) => [key, { stringValue: value }])
+      ),
+    }),
+  });
+}
+
+function toFirestoreValue(value) {
+  if (value === null) return { nullValue: null };
+  if (typeof value === "boolean") return { booleanValue: value };
+  if (typeof value === "number") return { doubleValue: value };
+  if (typeof value === "string") return { stringValue: value };
+  if (Array.isArray(value)) {
+    return { arrayValue: { values: value.map(toFirestoreValue) } };
+  }
+  return {
+    mapValue: {
+      fields: Object.fromEntries(
+        Object.entries(value).map(([key, child]) => [key, toFirestoreValue(child)])
+      ),
+    },
+  };
+}
+
+async function updateDocumentValues(path, fields, idToken) {
+  const updateMask = Object.keys(fields)
+    .map((field) => `updateMask.fieldPaths=${encodeURIComponent(field)}`)
+    .join("&");
+  return fetch(`${firestoreBase}/${path}?${updateMask}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", ...authHeaders(idToken) },
+    body: JSON.stringify({
+      fields: Object.fromEntries(
+        Object.entries(fields).map(([key, value]) => [key, toFirestoreValue(value)])
       ),
     }),
   });
@@ -61,6 +96,18 @@ async function createDocument(path, fields, idToken) {
     body: JSON.stringify({
       fields: Object.fromEntries(
         Object.entries(fields).map(([key, value]) => [key, { stringValue: value }])
+      ),
+    }),
+  });
+}
+
+async function createDocumentValues(path, fields, idToken) {
+  return fetch(`${firestoreBase}/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders(idToken) },
+    body: JSON.stringify({
+      fields: Object.fromEntries(
+        Object.entries(fields).map(([key, value]) => [key, toFirestoreValue(value)])
       ),
     }),
   });
@@ -107,6 +154,11 @@ async function seed() {
     status: "approved",
     published: true,
     payment: { iban: "PRIVATE" },
+  });
+  await db.collection("businesses").doc("business-guard").set({
+    ownerUid: owner.localId,
+    status: "pending",
+    published: false,
   });
   await db.collection("businesses_public").doc("business-1").set({
     businessId: "business-1",
@@ -227,6 +279,44 @@ async function main() {
   );
   assert.equal(anonymousBusinessUpdate.status, 403, "business anonymous write denied");
 
+  const ownerCreateProtectedValues = {
+    status: "approved",
+    published: "true",
+    verification: { isVerified: true },
+    trust: { score: 100 },
+    riskFlags: ["trusted"],
+    ownerUid: other.localId,
+    createdAt: "2026-08-03T00:00:00Z",
+  };
+  for (const [field, value] of Object.entries(ownerCreateProtectedValues)) {
+    const ownerCreate = await createDocumentValues(
+      `businesses?documentId=owner-create-${field}`,
+      {
+        ownerUid: owner.localId,
+        status: "pending",
+        published: "false",
+        [field]: value,
+      },
+      ownerToken
+    );
+    assert.equal(ownerCreate.status, 403, `owner cannot create protected ${field}`);
+  }
+
+  const adminCreate = await createDocumentValues(
+    "businesses?documentId=admin-create",
+    {
+      ownerUid: owner.localId,
+      status: "approved",
+      published: "true",
+      verification: "admin-verified",
+      trust: "admin-trusted",
+      riskFlags: "admin-reviewed",
+      createdAt: "admin-created",
+    },
+    adminToken
+  );
+  assert.equal(adminCreate.status, 200, "admin can create protected business state");
+
   const otherBusinessUpdate = await updateDocument(
     "businesses/business-1",
     { status: "blocked" },
@@ -235,10 +325,46 @@ async function main() {
   assert.equal(otherBusinessUpdate.status, 403, "business other write denied");
   const ownerBusinessUpdate = await updateDocument(
     "businesses/business-1",
-    { status: "approved", ownerUid: owner.localId },
+    { status: "rejected" },
     ownerToken
   );
-  assert.equal(ownerBusinessUpdate.status, 200, "business owner write");
+  assert.equal(ownerBusinessUpdate.status, 403, "owner cannot change status");
+  const ownerSelfApproval = await updateDocument(
+    "businesses/business-guard",
+    { status: "approved" },
+    ownerToken
+  );
+  assert.equal(ownerSelfApproval.status, 403, "owner cannot self-approve");
+  const ownerPublishedUpdate = await updateDocument(
+    "businesses/business-1",
+    { published: "true" },
+    ownerToken
+  );
+  assert.equal(ownerPublishedUpdate.status, 403, "owner cannot change published");
+  const ownerProtectedUpdates = {
+    verification: "changed",
+    trust: "changed",
+    riskFlags: "changed",
+    ownerUid: other.localId,
+    createdAt: "changed",
+  };
+  for (const [field, value] of Object.entries(ownerProtectedUpdates)) {
+    const ownerProtectedUpdate = await updateDocument(
+      "businesses/business-1",
+      { [field]: value },
+      ownerToken
+    );
+    assert.equal(ownerProtectedUpdate.status, 403, `owner cannot change ${field}`);
+  }
+  const ownerEditableUpdate = await updateDocumentValues(
+    "businesses/business-1",
+    {
+      profile: { displayName: "Owner Edited" },
+      contact: { city: "Istanbul" },
+    },
+    ownerToken
+  );
+  assert.equal(ownerEditableUpdate.status, 200, "owner can edit profile/contact");
   const adminBusinessUpdate = await updateDocument(
     "businesses/business-1",
     { ownerUid: owner.localId, status: "approved", published: "true" },

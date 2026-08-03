@@ -42,6 +42,7 @@ const {
   REWARD_RULE_VERSION,
   rewardForLead,
 } = require("./src/creator/rewardRules");
+const { approvalPublicationPatch } = require("./src/businessPublication");
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 const storage = new Storage();
@@ -11094,6 +11095,7 @@ exports.resolveBusinessRequest = onCall(
           // ✅ update existing business (NOT create new)
           tx.update(bizRef, {
             status: "approved",
+            ...approvalPublicationPatch(bizData),
             ownerUid: repairedAdoptionOwnerUid || ownerUid,
 
             "verification.isVerified": true,
