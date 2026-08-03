@@ -317,17 +317,20 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 exports.syncUserPublicProjectionTrigger = onDocumentWritten(
-  "users/{userId}",
+  { document: "users/{userId}", region: "europe-west1" },
   (event) => synchronizeUserPublicProjection(event, db)
 );
 
 exports.syncBusinessPublicProjectionTrigger = onDocumentWritten(
-  "businesses/{businessId}",
+  { document: "businesses/{businessId}", region: "europe-west1" },
   (event) => synchronizeBusinessPublicProjection(event, db)
 );
 
 exports.syncBusinessPublicProjectionServiceTrigger = onDocumentWritten(
-  "businesses/{businessId}/services/{serviceId}",
+  {
+    document: "businesses/{businessId}/services/{serviceId}",
+    region: "europe-west1",
+  },
   (event) => synchronizeBusinessPublicProjection(event, db)
 );
 
@@ -370,28 +373,28 @@ async function projectPayoutIndexFromSource(event, sourceCollection) {
 }
 
 exports.projectSellerOrderPayoutIndex = onDocumentWritten(
-  "sellerOrders/{sourceDocumentId}",
+  { document: "sellerOrders/{sourceDocumentId}", region: "europe-west1" },
   (event) => projectPayoutIndexFromSource(event, "sellerOrders")
 );
 exports.projectVetPayoutIndex = onDocumentWritten(
-  "vet_appointments/{sourceDocumentId}",
+  { document: "vet_appointments/{sourceDocumentId}", region: "europe-west1" },
   (event) => projectPayoutIndexFromSource(event, "vet_appointments")
 );
 exports.projectGroomyPayoutIndex = onDocumentWritten(
-  "groomy_appointments/{sourceDocumentId}",
+  { document: "groomy_appointments/{sourceDocumentId}", region: "europe-west1" },
   (event) => projectPayoutIndexFromSource(event, "groomy_appointments")
 );
 exports.projectHotelPayoutIndex = onDocumentWritten(
-  "hotel_bookings/{sourceDocumentId}",
+  { document: "hotel_bookings/{sourceDocumentId}", region: "europe-west1" },
   (event) => projectPayoutIndexFromSource(event, "hotel_bookings")
 );
 exports.projectTaxiPayoutIndex = onDocumentWritten(
-  "pet_taxi_bookings/{sourceDocumentId}",
+  { document: "pet_taxi_bookings/{sourceDocumentId}", region: "europe-west1" },
   (event) => projectPayoutIndexFromSource(event, "pet_taxi_bookings")
 );
 
 exports.refreshBusinessPayoutIndex = onDocumentWritten(
-  "businesses/{businessId}",
+  { document: "businesses/{businessId}", region: "europe-west1" },
   async (event) => {
     const businessId = event.params.businessId;
     const indexSnap = await db
@@ -424,7 +427,7 @@ exports.refreshBusinessPayoutIndex = onDocumentWritten(
 );
 
 exports.invalidateFinanceBatchesOnBankChange = onDocumentUpdated(
-  "businesses/{businessId}",
+  { document: "businesses/{businessId}", region: "europe-west1" },
   async (event) => {
     const beforePayment = event.data.before.data()?.payment || {};
     const afterPayment = event.data.after.data()?.payment || {};
@@ -572,7 +575,7 @@ exports.promoteFinanceEligibility = onSchedule(
 );
 
 exports.projectSellerFinanceSummary = onDocumentWritten(
-  "payoutIndex/{payoutIndexId}",
+  { document: "payoutIndex/{payoutIndexId}", region: "europe-west1" },
   async (event) => {
     const businessIds = new Set();
     const beforeId = event.data?.before?.data()?.businessId;
@@ -30748,7 +30751,7 @@ async function qualifyPartnerReferralForBusiness({ businessId, ownerUid }) {
 }
 
 exports.qualifyPartnerReferralOnBusinessUpdate = onDocumentUpdated(
-  "businesses/{businessId}",
+  { document: "businesses/{businessId}", region: "europe-west1" },
   async (event) => {
     const business = event.data?.after?.data() || {};
     const ownerUid = firstNonEmptyString(
