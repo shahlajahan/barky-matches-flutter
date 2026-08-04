@@ -78,8 +78,8 @@ class _CheckoutButtonState extends State<CheckoutButton> {
             orderId: orderId,
             items: widget.items.map((e) => e.toJson()).toList(),
             currency: 'TRY',
-            successUrl: 'https://barkymatches.app/payment-success',
-            cancelUrl: 'https://barkymatches.app/payment-cancel',
+            successUrl: 'https://app.petsupo.com/payment-callback',
+            cancelUrl: 'https://app.petsupo.com/payment-cancel',
             note: 'Order: $orderId',
             billingAddress: widget.billing ?? widget.address ?? {},
             shippingAddress: widget.address ?? widget.billing ?? {},
@@ -100,8 +100,8 @@ class _CheckoutButtonState extends State<CheckoutButton> {
         context: context,
         session: session,
         orderId: orderId,
-        successUrlPrefix: 'https://barkymatches.app/payment-success',
-        cancelUrlPrefix: 'https://barkymatches.app/payment-cancel',
+        successUrlPrefix: 'https://app.petsupo.com/payment-callback',
+        cancelUrlPrefix: 'https://app.petsupo.com/payment-cancel',
       );
 
       if (!mounted) return;

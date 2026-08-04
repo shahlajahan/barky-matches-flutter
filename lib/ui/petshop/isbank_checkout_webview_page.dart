@@ -14,14 +14,7 @@ IsbankReturnNavigation classifyIsbankReturnNavigation(
   }
 
   final host = uri.host.toLowerCase();
-  final isConfiguredHost =
-      host == 'app.petsupo.com' ||
-      host == 'barkymatches-new.web.app' ||
-      host == 'barkymatches-new.firebaseapp.com' ||
-      (host.endsWith('.a.run.app') &&
-          (host.startsWith('isbank3dsuccessreturn-') ||
-              host.startsWith('isbank3dfailreturn-'))) ||
-      (host == 'europe-west3-barkymatches-new.cloudfunctions.net');
+  final isConfiguredHost = host == 'app.petsupo.com';
   if (!isConfiguredHost) {
     return IsbankReturnNavigation.none;
   }

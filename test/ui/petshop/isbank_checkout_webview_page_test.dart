@@ -9,9 +9,6 @@ void main() {
     for (final url in [
       'https://app.petsupo.com/isbank/3d-success?oid=$orderId',
       'https://app.petsupo.com/isbank/3d-success/?oid=$orderId',
-      'https://barkymatches-new.firebaseapp.com/isbank/3d-success?oid=$orderId',
-      'https://isbank3dsuccessreturn-tj6s667gfq-ey.a.run.app/isbank/3d-success?oid=$orderId',
-      'https://europe-west3-barkymatches-new.cloudfunctions.net/isbank3DSuccessReturn?oid=$orderId',
       'https://app.petsupo.com/redirect/isbank/3D-SUCCESS?oid=$orderId',
       'https://app.petsupo.com/?webSubscriptionReturn=success&oid=$orderId',
     ]) {
@@ -26,7 +23,6 @@ void main() {
   test('matches configured failure URLs using parsed URI components', () {
     for (final url in [
       'https://app.petsupo.com/isbank/3d-fail?oid=$orderId',
-      'https://isbank3dfailreturn-tj6s667gfq-ey.a.run.app/isbank/3d-fail/?oid=$orderId',
       'https://app.petsupo.com/?webSubscriptionReturn=fail&oid=$orderId',
     ]) {
       expect(
@@ -38,13 +34,18 @@ void main() {
   });
 
   test('rejects untrusted hosts', () {
-    expect(
-      classifyIsbankReturnNavigation(
-        'https://example.com/isbank/3d-success?oid=$orderId',
-        expectedOrderId: orderId,
-      ),
-      IsbankReturnNavigation.none,
-    );
+    for (final host in [
+      'https://example.com/isbank/3d-success?oid=$orderId',
+      'https://barkymatches-new.web.app/isbank/3d-success?oid=$orderId',
+      'https://barkymatches-new.firebaseapp.com/isbank/3d-success?oid=$orderId',
+      'https://europe-west3-barkymatches-new.cloudfunctions.net/isbank3DSuccessReturn?oid=$orderId',
+    ]) {
+      expect(
+        classifyIsbankReturnNavigation(host, expectedOrderId: orderId),
+        IsbankReturnNavigation.none,
+        reason: host,
+      );
+    }
   });
 
   test('return oid never becomes local proof of payment', () {
