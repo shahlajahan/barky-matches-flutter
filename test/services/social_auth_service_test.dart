@@ -82,5 +82,34 @@ void main() {
       supportsAppleOnPlatform(isWeb: false, platform: TargetPlatform.android),
       isFalse,
     );
+    expect(shouldShowAppleSignIn(enabled: true, supported: true), isTrue);
+    expect(shouldShowAppleSignIn(enabled: true, supported: false), isFalse);
+    expect(shouldShowAppleSignIn(enabled: false, supported: true), isFalse);
+  });
+
+  test('Apple profile creation is idempotent at the document boundary', () {
+    final first = buildSocialProfileCreationData(
+      uid: 'apple-user',
+      providerId: 'apple.com',
+      email: 'first@example.com',
+      displayName: 'Apple User',
+      photoUrl: '',
+      serverTimestamp: 'server-time',
+    );
+    final returning = buildSocialProfileLoginMetadata(
+      providerId: 'apple.com',
+      serverTimestamp: 'later-time',
+      providerArrayValue: const ['apple.com'],
+    );
+
+    expect(first['uid'], 'apple-user');
+    expect(first['email'], 'first@example.com');
+    expect(first['username'], 'Apple User');
+    expect(returning, isNot(contains('email')));
+    expect(returning, isNot(contains('username')));
+  });
+
+  test('Apple cancellation remains a non-writing authentication outcome', () {
+    expect(const SocialAuthCancelled(), isA<SocialAuthCancelled>());
   });
 }

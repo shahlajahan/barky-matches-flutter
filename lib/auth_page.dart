@@ -462,8 +462,7 @@ class SimpleTestPage extends StatelessWidget {
 }
 
 class AuthPage extends StatefulWidget implements DiagnosticsScreenDescriptor {
-  // TODO: Re-enable after Apple Developer organization migration completes and the provisioning profile includes Sign in with Apple.
-  static const bool appleSignInEnabled = false;
+  static const bool appleSignInEnabled = true;
 
   final bool isLogin;
 
@@ -2166,8 +2165,10 @@ class _AuthPageState extends State<AuthPage> {
                             icon: const _GoogleMark(),
                           ),
 
-                          if (AuthPage.appleSignInEnabled &&
-                              SocialAuthService.supportsApple) ...[
+                          if (shouldShowAppleSignIn(
+                            enabled: AuthPage.appleSignInEnabled,
+                            supported: SocialAuthService.supportsApple,
+                          )) ...[
                             const SizedBox(height: 10),
                             _socialButton(
                               provider: SocialAuthProvider.apple,

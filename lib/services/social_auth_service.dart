@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -137,7 +138,7 @@ class SocialAuthService {
         credential = await _auth.signInWithPopup(AppleAuthProvider());
       } else {
         final rawNonce = _generateNonce();
-        final hashedNonce = sha256.convert(rawNonce.codeUnits).toString();
+        final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
         final appleCredential = await SignInWithApple.getAppleIDCredential(
           scopes: const [
             AppleIDAuthorizationScopes.email,
@@ -260,4 +261,8 @@ bool supportsAppleOnPlatform({
   return isWeb ||
       platform == TargetPlatform.iOS ||
       platform == TargetPlatform.macOS;
+}
+
+bool shouldShowAppleSignIn({required bool enabled, required bool supported}) {
+  return enabled && supported;
 }
