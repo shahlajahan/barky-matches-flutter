@@ -70,8 +70,7 @@ class _AdoptionPageState extends State<AdoptionPage> {
       final query = FirebaseFirestore.instance
           .collection('businesses_public')
           .where('sectors', arrayContains: 'adoption_center')
-          .where('status', isEqualTo: 'approved')
-          .orderBy('updatedAt', descending: true);
+          .where('status', isEqualTo: 'approved');
       FirestoreQueryTrace.log(
         file: 'lib/adoption_page.dart',
         method: '_logAdoptionCentersQueryOnce',
@@ -80,7 +79,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
         clauses: const [
           "where(sectors, arrayContains: adoption_center)",
           "where(status, isEqualTo: approved)",
-          "orderBy(updatedAt, descending: true)",
         ],
         terminalCall: 'get()',
         query: query,
@@ -193,12 +191,10 @@ class _AdoptionPageState extends State<AdoptionPage> {
     debugPrint('ADOPTION_CENTERS_QUERY collection=businesses_public');
     debugPrint('ADOPTION_CENTERS_QUERY sectors=adoption_center');
     debugPrint('ADOPTION_CENTERS_QUERY status=approved');
-    debugPrint('ADOPTION_CENTERS_QUERY orderBy=updatedAt desc');
     final query = FirebaseFirestore.instance
         .collection('businesses_public')
         .where('sectors', arrayContains: 'adoption_center')
-        .where('status', isEqualTo: 'approved')
-        .orderBy('updatedAt', descending: true);
+        .where('status', isEqualTo: 'approved');
     FirestoreQueryTrace.log(
       file: 'lib/adoption_page.dart',
       method: '_buildCentersSection',
@@ -207,7 +203,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
       clauses: const [
         "where(sectors, arrayContains: adoption_center)",
         "where(status, isEqualTo: approved)",
-        "orderBy(updatedAt, descending: true)",
       ],
       terminalCall: 'snapshots()',
       query: query,
@@ -535,56 +530,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
         );
       },
     );
-  }
-
-  Future<void> _seedCentersIfEmpty() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('adoption_centers')
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isNotEmpty) return;
-
-    final centers = [
-      {
-        "name": "Kurtaran Ev",
-        "description": "Büyük yaşam alanı, yüz yüze görüşme şart.",
-        "city": "Istanbul",
-        "district": "Hadımköy",
-        "instagram": "kurtaranev",
-        "website": "https://kurtaranev.org",
-        "phone": "5466577827", // ✅ اضافه شد
-        "whatsapp": "5466577827", // ✅ اضافه شد
-        "isFeatured": true,
-        "centerType": "ngo",
-      },
-      {
-        "name": "SemtPati Vakfı",
-        "description": "Barınaklardan sahiplendirme.",
-        "city": "Istanbul",
-        "district": "Kadıköy", // بهتره district هم داشته باشه
-        "instagram": "semtpati",
-        "website": "https://semtpati.org",
-        "phone": "5466577827", // ✅ اضافه شد
-        "whatsapp": "5466577827", // ✅ اضافه شد
-        "isFeatured": true,
-        "centerType": "ngo",
-      },
-      {
-        "name": "hayvansahiplendirme2025",
-        "instagram": "hayvansahiplendirme2025",
-        "whatsapp": "05326596173",
-        "phone": "05326596173", // ✅ اینم کامل کن
-        "isFeatured": false,
-        "centerType": "instagram",
-      },
-    ];
-
-    for (var center in centers) {
-      await FirebaseFirestore.instance
-          .collection('adoption_centers')
-          .add(center);
-    }
   }
 
   // ================================
