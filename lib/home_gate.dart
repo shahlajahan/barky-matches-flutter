@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
@@ -53,7 +52,6 @@ import 'package:barky_matches_fixed/social/pages/petplore_page.dart';
 
 import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
 import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
-import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
 import 'package:barky_matches_fixed/screens/suspended_account_page.dart';
 
 // ─────────────────────────────────────────────
@@ -71,7 +69,6 @@ class _HomeGateState extends State<HomeGate> {
   @override
   void initState() {
     super.initState();
-    StartupBenchmark.markOnce('HomeGate.initState');
     _handleInitialNotification();
     debugPrint('🧩 HomeGate initState hash=${identityHashCode(this)}');
   }
@@ -79,24 +76,15 @@ class _HomeGateState extends State<HomeGate> {
   @override
   void activate() {
     super.activate();
-    if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG HomeGate activate hash=${identityHashCode(this)}');
-    }
   }
 
   @override
   void deactivate() {
-    if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG HomeGate deactivate hash=${identityHashCode(this)}');
-    }
     super.deactivate();
   }
 
   @override
   void dispose() {
-    if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG HomeGate dispose hash=${identityHashCode(this)}');
-    }
     super.dispose();
   }
 
@@ -167,11 +155,6 @@ class _HomeGateState extends State<HomeGate> {
 
   @override
   Widget build(BuildContext context) {
-    StartupBenchmark.markOnce('HomeGate.build');
-    debugPrint(
-      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
-      'homeGateHash=${identityHashCode(this)} reason=HomeGate_build',
-    );
     debugPrint('🧱 HomeGate build hash=${identityHashCode(this)}');
 
     final isAccountSuspended = context.select<AppState, bool>(
@@ -201,34 +184,6 @@ class _HomeBodyState extends State<_HomeBody> {
   bool _isTransitioning = false;
   final bool _firstLoad = true;
   NavTab? _lastTab;
-  final Map<String, Object?> _previousSelectorValues = <String, Object?>{};
-
-  void _debugSelectorValue(String name, Object? value) {
-    final hadPrevious = _previousSelectorValues.containsKey(name);
-    final previous = _previousSelectorValues[name];
-    final equal = hadPrevious ? previous == value : null;
-
-    debugPrint(
-      'SELECTOR_PROBE ${DateTime.now().microsecondsSinceEpoch} $name\n'
-      'old=${hadPrevious ? _debugValue(previous) : '<unset>'}\n'
-      'new=${_debugValue(value)}\n'
-      'equal=$equal',
-    );
-
-    _previousSelectorValues[name] = value;
-  }
-
-  String _debugValue(Object? value) {
-    if (value == null) return 'null';
-    if (value is List) {
-      return 'List#${identityHashCode(value)}(length=${value.length})';
-    }
-    if (value is Map) {
-      return 'Map#${identityHashCode(value)}(length=${value.length})';
-    }
-    return '$value#${identityHashCode(value)}';
-  }
-
   @override
   void initState() {
     super.initState();
@@ -364,26 +319,15 @@ class _HomeBodyState extends State<_HomeBody> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    StartupBenchmark.markOnce('Home Ready');
-    debugPrint(
-      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
-      '_HomeBody.build hash=${identityHashCode(this)}',
-    );
     final selectedAppointmentId = context.select<AppState, String?>(
       (s) => s.selectedAppointmentId,
     );
-    _debugSelectorValue('selectedAppointmentId', selectedAppointmentId);
 
     final selectedAppointmentCollection = context.select<AppState, String?>(
       (s) => s.selectedAppointmentCollection,
     );
-    _debugSelectorValue(
-      'selectedAppointmentCollection',
-      selectedAppointmentCollection,
-    );
 
     final currentTab = context.select<AppState, NavTab>((s) => s.currentTab);
-    _debugSelectorValue('currentTab', currentTab);
 
     final appState = context.read<AppState>();
 
@@ -464,20 +408,16 @@ if (appState.isGuest) {
     final currentUserId = context.select<AppState, String?>(
       (s) => s.currentUserId,
     );
-    _debugSelectorValue('currentUserId', currentUserId);
 
     final unreadNotifications = context.select<AppState, int>(
       (s) => s.unreadNotificationsCount,
     );
-    _debugSelectorValue('unreadNotificationsCount', unreadNotifications);
 
     final allDogs = context.select<AppState, List<Dog>>((s) => s.allDogs);
-    _debugSelectorValue('allDogs', allDogs);
 
     final favoriteDogs = context.select<AppState, List<Dog>>(
       (s) => s.favoriteDogs,
     );
-    _debugSelectorValue('favoriteDogs', favoriteDogs);
 
     final onToggleFavorite = context.read<AppState>().onToggleFavorite;
 
@@ -711,11 +651,6 @@ class _ProfileTab extends StatelessWidget {
     }
 
     final appState = context.watch<AppState>();
-    debugPrint(
-      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
-      'profileTabHash=${identityHashCode(this)} reason=HomeGate_ProfileTab_build '
-      'subPage=${appState.profileSubPage} businessId=${appState.businessId}',
-    );
 
     final uid = appState.currentUserId;
     final myDogs = appState.myDogs;
@@ -811,11 +746,6 @@ class _BusinessDashboardTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final businessId = context.select<AppState, String?>(
       (state) => state.businessId,
-    );
-    debugPrint(
-      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
-      'businessTabHash=${identityHashCode(this)} reason=HomeGate_BusinessDashboardTab_build '
-      'businessId=$businessId',
     );
     if (businessId == null || businessId.isEmpty) {
       return const Center(child: CircularProgressIndicator());

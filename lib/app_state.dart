@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
 import 'dog.dart';
@@ -125,7 +125,6 @@ class AppState with ChangeNotifier {
   static const DogSyncService _dogSyncService = DogSyncService();
 
   bool _disposed = false;
-  int _webNotifySequence = 0;
 
   @visibleForTesting
   bool get isDisposed => _disposed;
@@ -133,27 +132,6 @@ class AppState with ChangeNotifier {
   @override
   void notifyListeners() {
     if (_disposed) return;
-    final notifyStack = StackTrace.current.toString().split('\n');
-    final notifyReason = notifyStack.length > 1
-        ? notifyStack[1].trim()
-        : 'unknown_callsite';
-    debugPrint(
-      'APPSTATE_NOTIFY_TRACE ${DateTime.now().toIso8601String()} '
-      'appStateHash=${identityHashCode(this)} reason=AppState.notifyListeners '
-      'callsite=$notifyReason',
-    );
-    if (kDebugMode && kIsWeb) {
-      final sequence = ++_webNotifySequence;
-      debugPrint(
-        'WEB_DIAG APPSTATE_NOTIFY #$sequence '
-        'at=${DateTime.now().toIso8601String()} '
-        'authUid=${FirebaseAuth.instance.currentUser?.uid ?? '<null>'} '
-        'appUid=${_currentUserId ?? '<null>'} route=$diagnosticCurrentRoute',
-      );
-      debugPrint(
-        'WEB_DIAG APPSTATE_NOTIFY_STACK #$sequence\n${StackTrace.current}',
-      );
-    }
     super.notifyListeners();
   }
 

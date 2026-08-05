@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 import 'app_state.dart' as app;
@@ -48,15 +47,6 @@ class _GroomyPageState extends State<GroomyPage>
       final query = FirebaseFirestore.instance
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
-      FirestoreQueryTrace.log(
-        file: 'lib/groomy_page.dart',
-        method: '_loadGroomersFromFirestore',
-        line: 47,
-        collection: 'businesses_public',
-        clauses: const ["where(status, isEqualTo: approved)"],
-        terminalCall: 'get()',
-        query: query,
-      );
       final snapshot = await query.get();
 
       if (!mounted) return;

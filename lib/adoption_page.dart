@@ -16,8 +16,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 
 enum AdoptionViewType { centers, dogs }
@@ -49,8 +47,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
   void initState() {
     super.initState();
 
-    _logAdoptionCentersQueryOnce();
-
     Future.microtask(() async {
       _loadCurrentUserId();
 
@@ -63,31 +59,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
         _isFirstLoad = false;
       });
     });
-  }
-
-  Future<void> _logAdoptionCentersQueryOnce() async {
-    try {
-      final query = FirebaseFirestore.instance
-          .collection('businesses_public')
-          .where('sectors', arrayContains: 'adoption_center')
-          .where('status', isEqualTo: 'approved');
-      FirestoreQueryTrace.log(
-        file: 'lib/adoption_page.dart',
-        method: '_logAdoptionCentersQueryOnce',
-        line: 69,
-        collection: 'businesses_public',
-        clauses: const [
-          "where(sectors, arrayContains: adoption_center)",
-          "where(status, isEqualTo: approved)",
-        ],
-        terminalCall: 'get()',
-        query: query,
-      );
-      final snapshot = await query.get();
-      debugPrint('ADOPTION_GET SUCCESS count=${snapshot.docs.length}');
-    } catch (e) {
-      debugPrint('ADOPTION_GET ERROR $e');
-    }
   }
 
   void _loadCurrentUserId() {
@@ -167,63 +138,19 @@ class _AdoptionPageState extends State<AdoptionPage> {
   // ================================
 
   Widget _buildCentersSection() {
-    debugPrint("🔥 CENTERS STREAM BUILDER");
     final l10n = AppLocalizations.of(context)!;
-    final authUser = FirebaseAuth.instance.currentUser;
-    debugPrint(
-      'ADOPTION_CENTERS_DIAG projectId=${Firebase.app().options.projectId}',
-    );
-    debugPrint('ADOPTION_CENTERS_DIAG currentUserUid=${authUser?.uid}');
-    debugPrint(
-      'ADOPTION_CENTERS_DIAG currentUserIsAnonymous=${authUser?.isAnonymous}',
-    );
-    debugPrint('ADOPTION_CENTERS_DIAG currentUserIsNull=${authUser == null}');
-    authUser
-        ?.getIdToken()
-        .then((token) {
-          debugPrint(
-            'ADOPTION_CENTERS_DIAG token_present=${token?.isNotEmpty == true}',
-          );
-        })
-        .catchError((_) {
-          debugPrint('ADOPTION_CENTERS_DIAG token_present=false');
-        });
-    debugPrint('ADOPTION_CENTERS_QUERY collection=businesses_public');
-    debugPrint('ADOPTION_CENTERS_QUERY sectors=adoption_center');
-    debugPrint('ADOPTION_CENTERS_QUERY status=approved');
     final query = FirebaseFirestore.instance
         .collection('businesses_public')
         .where('sectors', arrayContains: 'adoption_center')
         .where('status', isEqualTo: 'approved');
-    FirestoreQueryTrace.log(
-      file: 'lib/adoption_page.dart',
-      method: '_buildCentersSection',
-      line: 186,
-      collection: 'businesses_public',
-      clauses: const [
-        "where(sectors, arrayContains: adoption_center)",
-        "where(status, isEqualTo: approved)",
-      ],
-      terminalCall: 'snapshots()',
-      query: query,
-    );
     return FutureBuilder<QuerySnapshot>(
       future: query.get(),
       builder: (context, snapshot) {
-        debugPrint(
-          'ADOPTION_FUTURE_BUILDER queryHash=${query.hashCode} '
-          'hasData=${snapshot.hasData} hasError=${snapshot.hasError} '
-          'state=${snapshot.connectionState}',
-        );
-        debugPrint("🐶 ADOPTION FUTURE ERROR = ${snapshot.error}");
-        debugPrint("🐶 DOC COUNT = ${snapshot.data?.docs.length}");
-
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
-          debugPrint("❌ CENTERS GET ERROR = ${snapshot.error}");
           return Center(
             child: Text(AppLocalizations.of(context)!.centersLoadError),
           );
@@ -276,24 +203,11 @@ class _AdoptionPageState extends State<AdoptionPage> {
               data['workingHoursMap'] ??
               data['workingHours'] ??
               sectorAdoptionCenter['workingHours'];
-          debugPrint(
-            '🔥 ADOPTION_PAGE workingHoursRaw TYPE = ${workingHoursRaw.runtimeType}',
-          );
-
-          debugPrint(
-            '🔥 ADOPTION_PAGE workingHoursRaw VALUE = $workingHoursRaw',
-          );
           final workingHours = workingHoursRaw is Map
               ? workingHoursRaw.map(
                   (key, value) => MapEntry(key.toString(), value),
                 )
               : null;
-          debugPrint(
-            '🔥 ADOPTION_PAGE workingHours TYPE = ${workingHours.runtimeType}',
-          );
-
-          debugPrint('🔥 ADOPTION_PAGE workingHours VALUE = $workingHours');
-
           final status = (data['status'] ?? 'approved') as String;
 
           final isVerified = verification['isVerified'] == true;
@@ -339,8 +253,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
             data: data,
           );
         }).toList();
-
-        debugPrint("✅ CENTERS STREAM SUCCESS");
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -538,12 +450,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
-      'AdoptionPage.build hash=${identityHashCode(this)}',
-    );
-    debugPrint("🔥 ADOPTION PAGE BUILD");
-    final sw = Stopwatch()..start();
     final adoptionDogOverlayId = context.select<AppState, String?>(
       (s) => s.adoptionDogOverlayId,
     );
@@ -589,7 +495,6 @@ class _AdoptionPageState extends State<AdoptionPage> {
     if (centerDogsId != null) {
       return _CenterDogsSubPage(centerId: centerDogsId);
     }
-    debugPrint("BUILD TIME = ${sw.elapsedMilliseconds} ms");
     // 🧱 MAIN PAGE
     return SafeArea(
       top: false,

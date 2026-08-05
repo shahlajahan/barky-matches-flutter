@@ -7,7 +7,6 @@ import 'auth_page.dart';
 import 'offers_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
 // برای دسترسی به MyApp
 import 'package:barky_matches_fixed/ui/welcome/preview_dogs_section.dart';
 import 'theme/app_theme.dart';
@@ -39,7 +38,6 @@ class _WelcomePageState extends State<WelcomePage>
   @override
   void initState() {
     super.initState();
-    StartupBenchmark.markOnce('WelcomePage.initState');
 
     _initPage();
 

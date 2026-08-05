@@ -167,75 +167,14 @@ class _BankAccountSettingsPageState extends State<BankAccountSettingsPage> {
     try {
       final firestore = widget.firestore ?? FirebaseFirestore.instance;
 
-      // ------------------------------------------------------------------
-      // DIAGNOSTIC INSTRUMENTATION — loading path only. Does not touch the
-      // dropdown or normalizeBankName(). Traces exactly which document is
-      // read and exactly what Firestore returns for it, so a mismatch
-      // between businessId / ownerUid / the actual document id — or a
-      // missing/misshapen payment map — shows up directly in the log
-      // instead of being inferred.
-      // ------------------------------------------------------------------
-      debugPrint('[BankAccountSettingsPage] --- LOAD START ---');
-      debugPrint('[BankAccountSettingsPage] widget.businessId = "${widget.businessId}"');
-      debugPrint('[BankAccountSettingsPage] collection = "businesses"');
-      debugPrint('[BankAccountSettingsPage] document id (path) = "${widget.businessId}"');
-
       final docRef = firestore.collection('businesses').doc(widget.businessId);
       final snap = await docRef.get();
 
-      debugPrint('[BankAccountSettingsPage] snap.id (actual doc id read) = "${snap.id}"');
-      debugPrint('[BankAccountSettingsPage] snapshot.exists = ${snap.exists}');
-
       final rawData = snap.data();
-      debugPrint('[BankAccountSettingsPage] snapshot.data() = $rawData');
-      debugPrint(
-        '[BankAccountSettingsPage] snapshot.data() top-level keys = '
-        '${rawData?.keys.toList()}',
-      );
-
       final rawPayment = rawData?['payment'];
-      debugPrint(
-        "[BankAccountSettingsPage] snapshot.data()['payment'] = $rawPayment "
-        '(runtimeType=${rawPayment.runtimeType})',
-      );
-
-      if (rawData != null && rawData.containsKey('payment')) {
-        final paymentMap = rawPayment is Map ? rawPayment : null;
-        debugPrint(
-          "[BankAccountSettingsPage] snapshot.data()['payment']['bankName'] = "
-          '${paymentMap?['bankName']}',
-        );
-      } else {
-        debugPrint(
-          "[BankAccountSettingsPage] snapshot.data()['payment'] does not "
-          'exist on this document — skipping bankName read',
-        );
-      }
-
-      // businessId vs ownerUid vs actual document id — these are not
-      // guaranteed to be the same concept. registerBusiness() creates the
-      // business document at businesses/{ownerUid}, so for a correctly
-      // wired page they SHOULD all three be equal — but nothing enforces
-      // that at this call site, so we check rather than assume.
-      final loadedOwnerUid = rawData?['ownerUid']?.toString();
-      debugPrint(
-        '[BankAccountSettingsPage] compare -> widget.businessId='
-        '"${widget.businessId}" vs snap.id="${snap.id}" vs '
-        'loaded ownerUid="$loadedOwnerUid"',
-      );
-      if (loadedOwnerUid != null && loadedOwnerUid != widget.businessId) {
-        debugPrint(
-          '[BankAccountSettingsPage] ⚠️ MISMATCH: the document at '
-          'businesses/${widget.businessId} has ownerUid="$loadedOwnerUid", '
-          'which is DIFFERENT from the businessId used to look it up. '
-          'This page may be reading the wrong document.',
-        );
-      }
-      debugPrint('[BankAccountSettingsPage] --- LOAD DATA READ END ---');
 
       final data = snap.data() ?? <String, dynamic>{};
-      final payment =
-          (data['payment'] as Map?)?.cast<String, dynamic>() ?? {};
+      final payment = (data['payment'] as Map?)?.cast<String, dynamic>() ?? {};
 
       // Read the canonical fields first. A missing/null value simply stays
       // an empty string here — nothing is ever written back during load.
@@ -255,8 +194,7 @@ class _BankAccountSettingsPageState extends State<BankAccountSettingsPage> {
         final sectorData =
             (data['sectorData'] as Map?)?.cast<String, dynamic>() ?? {};
         final veterinary =
-            (sectorData['veterinary'] as Map?)?.cast<String, dynamic>() ??
-            {};
+            (sectorData['veterinary'] as Map?)?.cast<String, dynamic>() ?? {};
         final partnershipPayment =
             (veterinary['partnershipPayment'] as Map?)
                 ?.cast<String, dynamic>() ??
@@ -292,7 +230,9 @@ class _BankAccountSettingsPageState extends State<BankAccountSettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      _showErrorSnackBar(AppLocalizations.of(context)!.errorOccurred(e.toString()));
+      _showErrorSnackBar(
+        AppLocalizations.of(context)!.errorOccurred(e.toString()),
+      );
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -584,9 +524,7 @@ class _BankAccountSettingsPageState extends State<BankAccountSettingsPage> {
                                   )
                                 : const Icon(LucideIcons.checkCircle2),
                             label: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Text(l10n.save, style: AppTheme.button()),
                             ),
                           ),
@@ -620,9 +558,10 @@ class _IbanInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final clean = newValue.text
-        .toUpperCase()
-        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final clean = newValue.text.toUpperCase().replaceAll(
+      RegExp(r'[^A-Z0-9]'),
+      '',
+    );
 
     final capped = clean.length > _BankAccountSettingsPageState._ibanMaxLength
         ? clean.substring(0, _BankAccountSettingsPageState._ibanMaxLength)
@@ -806,8 +745,8 @@ class _ShimmerBoxState extends State<_ShimmerBox>
         width: widget.width ?? double.infinity,
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.08),
-          borderRadius: widget.borderRadius ??
-              BorderRadius.circular(AppTheme.radius),
+          borderRadius:
+              widget.borderRadius ?? BorderRadius.circular(AppTheme.radius),
         ),
       ),
     );

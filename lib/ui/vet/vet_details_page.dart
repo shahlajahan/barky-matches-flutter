@@ -1057,15 +1057,10 @@ class _VetDetailsPageState extends State<VetDetailsPage>
   }
 
   Future<List<Map<String, dynamic>>> _loadVetServices() async {
-    debugPrint('VET_SERVICE_TRACE start businessId=${widget.vet.id}');
     final publicSnapshot = await FirebaseFirestore.instance
         .collection('businesses_public')
         .doc(widget.vet.id)
         .get();
-    debugPrint(
-      'VET_SERVICE_TRACE public exists=${publicSnapshot.exists} '
-      'data=${publicSnapshot.data()}',
-    );
     final publicData = publicSnapshot.data() ?? <String, dynamic>{};
     final publicSectorData = publicData['publicSectorData'];
 
@@ -1076,15 +1071,7 @@ class _VetDetailsPageState extends State<VetDetailsPage>
           publicSectorData['veterinarian'];
       if (sector is Map && sector.containsKey('services')) {
         final rawServices = sector['services'];
-        debugPrint(
-          'VET_SERVICE_TRACE projected sector=${sector.keys.toList()} '
-          'rawServices=$rawServices',
-        );
         final services = PublicServiceNormalizer.toMaps(rawServices);
-        debugPrint(
-          'VET_SERVICE_TRACE projected values=${services.length} '
-          'mapped=${services.length} returning projected list',
-        );
         return services;
       }
     }
@@ -1094,21 +1081,9 @@ class _VetDetailsPageState extends State<VetDetailsPage>
         .doc(widget.vet.id)
         .collection('services');
     final allCanonicalSnapshot = await canonicalQuery.get();
-    debugPrint(
-      'VET_SERVICE_TRACE canonical raw count=${allCanonicalSnapshot.docs.length}',
-    );
-    for (final doc in allCanonicalSnapshot.docs) {
-      debugPrint(
-        'VET_SERVICE_TRACE canonical doc id=${doc.id} data=${doc.data()}',
-      );
-    }
     final activeServices = allCanonicalSnapshot.docs
         .where((doc) => doc.data()['isActive'] == true)
         .toList();
-    debugPrint(
-      'VET_SERVICE_TRACE canonical after isActive=true '
-      'count=${activeServices.length}',
-    );
     return activeServices.map((doc) => {...doc.data(), 'id': doc.id}).toList();
   }
 

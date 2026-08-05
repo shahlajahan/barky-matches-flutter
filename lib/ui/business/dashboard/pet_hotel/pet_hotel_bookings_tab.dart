@@ -11,13 +11,7 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 class PetHotelBookingsTab extends StatefulWidget {
   final String businessId;
 
-  PetHotelBookingsTab({super.key, required this.businessId}) {
-    debugPrint(
-      '[HOTEL_BOOKINGS_TRACE] ${DateTime.now().toIso8601String()} '
-      'constructor widget=${identityHashCode(this)} businessId=$businessId '
-      'selectedTab=bookings',
-    );
-  }
+  PetHotelBookingsTab({super.key, required this.businessId});
 
   @override
   State<PetHotelBookingsTab> createState() => _PetHotelBookingsTabState();
@@ -30,23 +24,11 @@ class _PetHotelBookingsTabState extends State<PetHotelBookingsTab> {
   void initState() {
     super.initState();
     _bookingsStream = _createBookingsStream(widget.businessId);
-    debugPrint(
-      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-      'bookings initState state=${identityHashCode(this)} '
-      'businessId=${widget.businessId} selectedTab=bookings '
-      'stream=${identityHashCode(_bookingsStream)}',
-    );
   }
 
   @override
   void didUpdateWidget(covariant PetHotelBookingsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    debugPrint(
-      '[HOTEL_BOOKINGS_TRACE] ${DateTime.now().toIso8601String()} '
-      'didUpdateWidget state=${identityHashCode(this)} '
-      'businessId=${widget.businessId} oldBusinessId=${oldWidget.businessId} '
-      'stream=${identityHashCode(_bookingsStream)}',
-    );
     if (oldWidget.businessId != widget.businessId) {
       _bookingsStream = _createBookingsStream(widget.businessId);
     }
@@ -54,11 +36,6 @@ class _PetHotelBookingsTabState extends State<PetHotelBookingsTab> {
 
   @override
   void dispose() {
-    debugPrint(
-      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-      'bookings dispose state=${identityHashCode(this)} '
-      'businessId=${widget.businessId} stream=${identityHashCode(_bookingsStream)}',
-    );
     super.dispose();
   }
 
@@ -74,21 +51,11 @@ class _PetHotelBookingsTabState extends State<PetHotelBookingsTab> {
             '🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e',
           );
         });
-    debugPrint(
-      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-      'bookings create stream businessId=$businessId '
-      'stream=${identityHashCode(stream)}',
-    );
     return stream;
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      '[HOTEL_BOOKINGS_TRACE] ${DateTime.now().toIso8601String()} '
-      'build state=${identityHashCode(this)} businessId=${widget.businessId} '
-      'stream=${identityHashCode(_bookingsStream)}',
-    );
     return _PetHotelBookingsContent(
       businessId: widget.businessId,
       bookingsStream: _bookingsStream,
@@ -110,12 +77,6 @@ class _PetHotelBookingsContent extends StatelessWidget {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: bookingsStream,
       builder: (context, snapshot) {
-        debugPrint(
-          '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-          'bookings builder businessId=$businessId '
-          'stream=${identityHashCode(bookingsStream)} '
-          'state=${snapshot.connectionState} docs=${snapshot.data?.docs.length}',
-        );
         if (snapshot.hasError) {
           return _centerText('Booking error: ${snapshot.error}');
         }

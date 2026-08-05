@@ -228,30 +228,9 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
         contentType: _contentTypeFor(ext, item.type),
         customMetadata: const {'visibility': 'public'},
       );
-      final objectPath = ref.fullPath;
-      int? byteLength;
       Uint8List? webBytes;
       if (kIsWeb) {
         webBytes = await item.file.readAsBytes();
-        byteLength = webBytes.length;
-      } else if (kDebugMode) {
-        byteLength = await File(item.file.path).length();
-      }
-
-      if (kDebugMode) {
-        debugPrint(
-          '[PETPLORE_UPLOAD_TRACE] main upload '
-          'authUid=${FirebaseAuth.instance.currentUser?.uid} '
-          'expectedOwnerUid=$uid '
-          'path=$objectPath '
-          'fileName=${item.file.name} '
-          'extension=$ext '
-          'byteLength=$byteLength '
-          'mediaType=${item.type} '
-          'contentType=${metadata.contentType} '
-          'kIsWeb=$kIsWeb '
-          'method=${kIsWeb ? 'putData' : 'putFile'}',
-        );
       }
 
       final UploadTask uploadTask;
@@ -271,18 +250,12 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
         });
       });
 
-      try {
-        await uploadTask;
-      } catch (error, stackTrace) {
-        _traceUploadError('main put', objectPath, error, stackTrace);
-        rethrow;
-      }
+      await uploadTask;
 
       final String url;
       try {
         url = await ref.getDownloadURL();
       } catch (error, stackTrace) {
-        _traceUploadError('main getDownloadURL', objectPath, error, stackTrace);
         rethrow;
       }
       String? thumbnailUrl;
@@ -295,43 +268,15 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
           contentType: 'image/jpeg',
           customMetadata: const {'visibility': 'public'},
         );
-        if (kDebugMode) {
-          debugPrint(
-            '[PETPLORE_UPLOAD_TRACE] video thumbnail upload '
-            'authUid=${FirebaseAuth.instance.currentUser?.uid} '
-            'expectedOwnerUid=$uid '
-            'path=${thumbRef.fullPath} '
-            'fileName=${fileName}_thumb.jpg '
-            'extension=jpg '
-            'byteLength=${item.thumbnailBytes!.length} '
-            'mediaType=video-thumbnail '
-            'contentType=${thumbnailMetadata.contentType} '
-            'kIsWeb=$kIsWeb '
-            'method=putData',
-          );
-        }
-
         try {
           await thumbRef.putData(item.thumbnailBytes!, thumbnailMetadata);
         } catch (error, stackTrace) {
-          _traceUploadError(
-            'video thumbnail put',
-            thumbRef.fullPath,
-            error,
-            stackTrace,
-          );
           rethrow;
         }
 
         try {
           thumbnailUrl = await thumbRef.getDownloadURL();
         } catch (error, stackTrace) {
-          _traceUploadError(
-            'video thumbnail getDownloadURL',
-            thumbRef.fullPath,
-            error,
-            stackTrace,
-          );
           rethrow;
         }
       }
@@ -346,35 +291,6 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
     }
 
     return media;
-  }
-
-  void _traceUploadError(
-    String operation,
-    String path,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    if (!kDebugMode) return;
-
-    if (error is FirebaseException) {
-      debugPrint(
-        '[PETPLORE_UPLOAD_TRACE] ERROR operation=$operation '
-        'path=$path '
-        'code=${error.code} '
-        'message=${error.message} '
-        'plugin=${error.plugin}',
-      );
-    } else {
-      debugPrint(
-        '[PETPLORE_UPLOAD_TRACE] ERROR operation=$operation '
-        'path=$path '
-        'type=${error.runtimeType} '
-        'message=$error',
-      );
-    }
-    debugPrint(
-      '[PETPLORE_UPLOAD_TRACE] STACK operation=$operation\n$stackTrace',
-    );
   }
 
   String _extensionForFile(XFile file, _SelectedSocialMedia item) {

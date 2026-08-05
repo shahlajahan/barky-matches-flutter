@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -19,41 +19,25 @@ class _BarkyBottomNavState extends State<BarkyBottomNav> {
   @override
   void initState() {
     super.initState();
-    if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG PetSupoBottomNav initState hash=${identityHashCode(this)}');
-    }
   }
 
   @override
   void activate() {
     super.activate();
-    if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG PetSupoBottomNav activate hash=${identityHashCode(this)}');
-    }
   }
 
   @override
   void deactivate() {
-    if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG PetSupoBottomNav deactivate hash=${identityHashCode(this)}');
-    }
     super.deactivate();
   }
 
   @override
   void dispose() {
-    if (kDebugMode && kIsWeb) {
-      debugPrint('WEB_DIAG PetSupoBottomNav dispose hash=${identityHashCode(this)}');
-    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
-      'BarkyBottomNav.build currentTab=${widget.currentTab}',
-    );
     final showBottomNav = kIsWeb
         ? context.select<AppState, bool>((state) => state.showBottomNav)
         : context.watch<AppState>().showBottomNav;

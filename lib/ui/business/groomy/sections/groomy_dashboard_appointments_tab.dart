@@ -26,8 +26,6 @@ class GroomyDashboardAppointmentsTab extends StatelessWidget {
           .orderBy('scheduledAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        debugPrint("✂️ GROOMY APPOINTMENTS TAB ${identityHashCode(this)}");
-
         if (snapshot.hasError) {
           return _centerText("Appointment error: ${snapshot.error}");
         }

@@ -9,8 +9,6 @@ import 'dart:io'
         HttpClient;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'
-    show debugPrintMarkNeedsLayoutStacks, debugPrintMarkNeedsPaintStacks;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -35,7 +33,6 @@ import 'ui/shell/nav_tab.dart';
 import 'home_gate.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
-import 'package:barky_matches_fixed/debug/startup_benchmark.dart';
 import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'package:barky_matches_fixed/subscription/iap_service.dart';
 import 'package:barky_matches_fixed/subscription/web_subscription_return_page.dart';
@@ -50,7 +47,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:app_links/app_links.dart';
 import 'core/debug/diagnostics_bootstrap.dart';
 import 'core/debug/diagnostics_queue.dart';
-import 'core/debug/diagnostics_navigation_tracker.dart';
 import 'core/debug/diagnostics_uploader.dart';
 import 'core/debug/web_startup_status.dart';
 import 'developer_tools/developer_tools_page.dart';
@@ -73,43 +69,6 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-// TEMP WEB LIFECYCLE DIAGNOSTICS: remove after the first trigger is captured.
-String diagnosticCurrentRoute = '<none>';
-
-class WebLifecycleNavigatorObserver extends NavigatorObserver {
-  void _log(String event, Route<dynamic>? route, Route<dynamic>? previous) {
-    if (!kDebugMode || !kIsWeb) return;
-    diagnosticCurrentRoute = route == null
-        ? '<none>'
-        : '${route.settings.name ?? '<unnamed>'}:${route.runtimeType}';
-    debugPrint(
-      'WEB_DIAG NAV $event route=$diagnosticCurrentRoute '
-      'previous=${previous?.settings.name ?? '<unnamed>'}:'
-      '${previous?.runtimeType} at=${DateTime.now().toIso8601String()}',
-    );
-  }
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _log('didPush', route, previousRoute);
-  }
-
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _log('didPop', previousRoute, route);
-  }
-
-  @override
-  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _log('didRemove', previousRoute, route);
-  }
-
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    _log('didReplace', newRoute, oldRoute);
-  }
-}
 
 class _DeveloperToolsAccessDeniedPage extends StatefulWidget {
   const _DeveloperToolsAccessDeniedPage();
@@ -256,71 +215,26 @@ Future<FirebaseApp> _initializeDefaultFirebaseApp(
     return await Firebase.initializeApp(options: options);
   } on FirebaseException catch (e, stackTrace) {
     if (e.code == 'duplicate-app') {
-      debugPrint(
-        '🌐 STARTUP TRACE: Firebase.initializeApp() duplicate-app → '
-        'using existing default app',
-      );
       return Firebase.app();
     }
     debugPrint(
-      '🌐 STARTUP TRACE: Firebase.initializeApp() FAILED → '
+      'Firebase.initializeApp() failed: '
       '${e.code}\n$stackTrace',
     );
     rethrow;
   } catch (e, stackTrace) {
-    debugPrint(
-      '🌐 STARTUP TRACE: Firebase.initializeApp() FAILED → $e\n$stackTrace',
-    );
+    debugPrint('Firebase.initializeApp() failed: $e\n$stackTrace');
     rethrow;
   }
 }
 
 Future<void> ensureFirebaseInitialized() async {
-  debugPrint('🌐 FIREBASE INIT START');
-
-  debugPrint('🌐 STARTUP TRACE: Firebase options resolution starting');
   final FirebaseOptions options = DefaultFirebaseOptions.currentPlatform;
-  debugPrint('🌐 STARTUP TRACE: Firebase options resolution completed');
-
-  StartupBenchmark.mark('Before Firebase.initializeApp');
-  debugPrint('🌐 STARTUP TRACE: Firebase.initializeApp() starting');
-  final FirebaseApp app = await _initializeDefaultFirebaseApp(options);
-  StartupBenchmark.mark('After Firebase.initializeApp');
-  debugPrint('🌐 STARTUP TRACE: Firebase.initializeApp() completed');
-
-  debugPrint("======== FIREBASE ========");
-  debugPrint('ProjectId present : ${app.options.projectId.isNotEmpty}');
-  debugPrint('AppId present     : ${app.options.appId.isNotEmpty}');
-  debugPrint('ApiKey present    : ${app.options.apiKey.isNotEmpty}');
-  debugPrint("==========================");
-
-  debugPrint('🌐 STARTUP TRACE: FirebaseAuth access starting');
-  try {
-    final user = FirebaseAuth.instance.currentUser;
-    debugPrint("LoggedIn = ${user != null}");
-    debugPrint("Anonymous = ${user?.isAnonymous}");
-  } catch (e, stackTrace) {
-    // Non-fatal: this is a diagnostic read only. Real auth state is driven
-    // by authStateChanges()/idTokenChanges() listeners elsewhere in the
-    // app, which are unaffected by this probe failing.
-    debugPrint(
-      '🌐 STARTUP TRACE: FirebaseAuth.instance.currentUser FAILED → '
-      '$e\n$stackTrace',
-    );
-  }
-  debugPrint('🌐 STARTUP TRACE: FirebaseAuth access completed');
-
-  debugPrint('🌐 STARTUP TRACE: App Check starting');
+  await _initializeDefaultFirebaseApp(options);
   await _activateAppCheck();
-  debugPrint('🌐 STARTUP TRACE: App Check completed');
-  StartupBenchmark.mark('AppCheck');
-
-  debugPrint('🌐 STARTUP TRACE: Firestore settings starting');
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
-  debugPrint('🌐 STARTUP TRACE: Firestore settings completed');
-  StartupBenchmark.mark('Firestore.settings');
 
   unawaited(
     FirebaseFirestore.instance
@@ -333,47 +247,10 @@ Future<void> ensureFirebaseInitialized() async {
           debugPrint('🌐 FIRESTORE NETWORK ENABLE FAILED → $e');
         }),
   );
-  StartupBenchmark.mark('Firestore.enableNetwork scheduled');
-  debugPrint('🌐 FIRESTORE INSTANCE CREATED → settings configured');
   FirestoreReadinessGate.instance.markFirebaseInitialized();
-  StartupBenchmark.mark('FirestoreReadinessGate.markFirebaseInitialized');
-
-  debugPrint("🔥 Firebase initialized");
-
-  debugPrint('🌐 FIREBASE INIT COMPLETE');
-  debugPrint('🔥 Firebase ready');
-  StartupBenchmark.mark('ensureFirebaseInitialized complete');
 }
 
-Future<void> _activateAppCheck() async {
-  debugPrint('🌐 APP CHECK TEMP DISABLED');
-}
-
-void logStartupEnvironmentDiagnostics() {
-  if (kDebugMode) {
-    debugPrint('🌐 DEBUG MODE DETECTED');
-  } else if (kProfileMode) {
-    debugPrint('🌐 PROFILE MODE DETECTED');
-  } else if (kReleaseMode) {
-    debugPrint('🌐 RELEASE MODE DETECTED');
-  }
-
-  if (!kIsWeb && Platform.isIOS) {
-    debugPrint('🌐 IOS RUNTIME DETECTED');
-    if (kDebugMode) {
-      debugPrint('🌐 WIRELESS DEBUG DETECTED → iOS debug runtime');
-    }
-  }
-
-  debugPrint(
-    '🌐 PROFILE/RELEASE FIRESTORE STATUS → '
-    '${kReleaseMode
-        ? "release"
-        : kProfileMode
-        ? "profile"
-        : "debug"}',
-  );
-}
+Future<void> _activateAppCheck() async {}
 
 Future<void> ensureFirestoreReady() async {
   await FirestoreReadinessGate.instance.waitUntilReady(
@@ -1032,45 +909,25 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
 }
 
 void main() async {
-  // Unconditional (not kDebugMode-gated, unlike the line below) so this
-  // exact ordered startup trace is visible in a production Safari user's
-  // console too — see web/index.html's matching JS-side trace.
-  debugPrint('🌐 STARTUP TRACE: Dart main() entered');
   if (kDebugMode) {
     debugPrint('Main - Starting main function...');
   }
 
-  StartupBenchmark.start();
   WidgetsFlutterBinding.ensureInitialized();
-  StartupBenchmark.mark('WidgetsFlutterBinding');
 
-  debugPrint('🌐 STARTUP TRACE: Hive.initFlutter() starting');
   try {
     await Hive.initFlutter();
   } catch (e, stackTrace) {
-    debugPrint('🌐 STARTUP TRACE: Hive.initFlutter() FAILED → $e\n$stackTrace');
+    debugPrint('Hive.initFlutter() failed: $e\n$stackTrace');
     rethrow;
   }
-  debugPrint('🌐 STARTUP TRACE: Hive.initFlutter() completed');
-  StartupBenchmark.mark('Hive.initFlutter');
 
   DiagnosticsQueue().enablePersistence();
-  if (kDebugMode && kIsWeb) {
-    // TEMP WEB LIFECYCLE DIAGNOSTICS: preserve framework timing/assertions.
-    //debugPrintRebuildDirtyWidgets = true;
-    //debugPrintScheduleBuildForStacks = true;
-    //debugPrintMarkNeedsLayoutStacks = true;
-    //debugPrintMarkNeedsPaintStacks = true;
-  }
   await DiagnosticsBootstrap.initialize();
-  StartupBenchmark.mark('DiagnosticsBootstrap');
   GoogleFonts.config.allowRuntimeFetching = true;
-  StartupBenchmark.mark('GoogleFonts.config');
   //await waitForInternet();
   await ensureFirebaseInitialized();
-  StartupBenchmark.mark('After ensureFirebaseInitialized');
   FcmTokenService.attachRefreshListener();
-  StartupBenchmark.mark('FcmTokenService.attachRefreshListener');
   _authFcmSub ??= FirebaseAuth.instance.authStateChanges().listen((user) {
     if (user == null || user.isAnonymous) {
       debugPrint('🔥 FCM AUTH LISTENER: signed out');
@@ -1086,15 +943,10 @@ void main() async {
       }),
     );
   });
-  StartupBenchmark.mark('FirebaseAuth.authStateChanges listener attached');
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  StartupBenchmark.mark('FirebaseMessaging.onBackgroundMessage');
   _fcmForegroundSub ??= FirebaseMessaging.onMessage.listen(
     _firebaseMessagingForegroundHandler,
   );
-  StartupBenchmark.mark('FirebaseMessaging.onMessage listener attached');
-  logStartupEnvironmentDiagnostics();
-  StartupBenchmark.mark('logStartupEnvironmentDiagnostics');
   //await FirebaseAuth.instance.signOut();
   //await AuthTrap.signOut(reason: 'manual_logout');
 
@@ -1115,21 +967,18 @@ void main() async {
   debugPrint('🌐 NOTIFICATION INIT DELAYED → startup auth gate not ready');
 
   Hive.registerAdapter(DogAdapter());
-  StartupBenchmark.mark('Hive.registerAdapter(DogAdapter)');
 
   final dogsBoxFuture = Hive.openBox<Dog>('dogsBox');
   final favoritesBoxFuture = Hive.openBox<Dog>('favoritesBox');
   final currentUserBoxFuture = Hive.openBox<String>('currentUserBox');
   final userBoxFuture = Hive.openBox<String>('userBox');
   final userDataBoxFuture = Hive.openBox<Map<dynamic, dynamic>>('userDataBox');
-  StartupBenchmark.mark('Hive.openBox futures created');
 
   unawaited(
     dogsBoxFuture
         .then((box) {
           dogsBox = box;
           DogsBoxManager.instance.attach(dogsBox);
-          StartupBenchmark.mark('Hive.openBox dogsBox');
 
           if (kDebugMode) {
             debugPrint(
@@ -1144,13 +993,9 @@ void main() async {
   );
 
   favoritesBox = await favoritesBoxFuture;
-  StartupBenchmark.mark('Hive.openBox favoritesBox');
   currentUserBox = await currentUserBoxFuture;
-  StartupBenchmark.mark('Hive.openBox currentUserBox');
   userBox = await userBoxFuture;
-  StartupBenchmark.mark('Hive.openBox userBox');
   userDataBox = await userDataBoxFuture;
-  StartupBenchmark.mark('Hive.openBox userDataBox');
 
   List<Dog> firestoreDogs = [];
   final favoriteDogs = favoritesBox.isOpen
@@ -1259,9 +1104,7 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     // Flutter's first frame has now painted — hide the web startup safety
     // net overlay (web/index.html). No-op on non-web platforms.
-    debugPrint('🌐 STARTUP TRACE: first Flutter frame rendered');
     hideWebStartupStatus();
-    debugPrint('🌐 STARTUP TRACE: startup overlay dismissed');
     unawaited(initializeAsync());
   });
 
@@ -1269,12 +1112,9 @@ void main() async {
     AuthTrap.signOut(reason: 'session_expired');
   } // 👈 فقط برای تست
 
-  StartupBenchmark.mark('Before runApp');
-  debugPrint('🌐 STARTUP TRACE: runApp() about to be called');
   runApp(
     ChangeNotifierProvider(
       create: (context) {
-        StartupBenchmark.markOnce('Provider.create AppState');
         final appState = AppState(
           favoriteDogs: favoriteDogs,
 
@@ -1305,7 +1145,6 @@ void main() async {
         }
 
         appState.markFirebaseInitialized();
-        StartupBenchmark.markOnce('AppState.markFirebaseInitialized');
 
         // ❗️ خیلی مهم: فقط این
         if (kIsWeb) {
@@ -1313,7 +1152,6 @@ void main() async {
         } else {
           appState.startAuthListener();
         }
-        StartupBenchmark.markOnce('AppState.startAuthListener');
         // AuthTrap.start();
         // AuthTrap.scheduleTokenDiagnostics();
         if (!kIsWeb) {
@@ -1328,10 +1166,6 @@ void main() async {
       child: const MyApp(),
     ),
   );
-  StartupBenchmark.mark('After runApp');
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    StartupBenchmark.finish('First frame');
-  });
   debugPrint('🧨 startAuthListener fired');
 }
 
@@ -1340,7 +1174,6 @@ class AppEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    StartupBenchmark.markOnce('AppEntry.build');
     // طبق خواسته‌ات: همیشه اول Welcome (Greeting)
     return const WelcomePage();
   }
@@ -1366,10 +1199,6 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Uri? _lastHandledLink;
   Uri? _pendingPostLink;
   final DiagnosticsUploader _diagnosticsUploader = DiagnosticsUploader();
-  final DiagnosticsNavigationTracker _navigationTracker =
-      DiagnosticsNavigationTracker();
-  final WebLifecycleNavigatorObserver _webLifecycleNavigatorObserver =
-      WebLifecycleNavigatorObserver();
   AppState? _appState;
 
   //Locale _locale = const Locale('en');
@@ -1487,10 +1316,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
-        navigatorObservers: <NavigatorObserver>[
-          _navigationTracker,
-          _webLifecycleNavigatorObserver,
-        ],
+        navigatorObservers: <NavigatorObserver>[],
         theme: AppTheme.theme(locale: locale),
         locale: locale,
         localizationsDelegates: const [

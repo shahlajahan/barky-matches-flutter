@@ -274,12 +274,6 @@ class _PetTaxiDashboardOverviewTabState
             .listen(
               (position) async {
                 debugPrint(
-                  'LOCATION_TRACE ${DateTime.now().toIso8601String()} '
-                  'overviewStateHash=${identityHashCode(this)} '
-                  'reason=PetTaxi_location_stream_callback businessId=${widget.businessId}',
-                );
-
-                debugPrint(
                   "📍 NEW POSITION = "
                   "${position.latitude}, ${position.longitude}",
                 );
@@ -292,13 +286,6 @@ class _PetTaxiDashboardOverviewTabState
 
                 _lastLat = position.latitude;
                 _lastLng = position.longitude;
-
-                debugPrint(
-                  "LOCATION_TRACE ${DateTime.now().toIso8601String()} "
-                  "overviewStateHash=${identityHashCode(this)} "
-                  "reason=PetTaxi_location_firestore_write_start "
-                  "${position.latitude}, ${position.longitude}",
-                );
 
                 await FirebaseFirestore.instance
                     .collection("businesses")
@@ -313,13 +300,6 @@ class _PetTaxiDashboardOverviewTabState
                       "sectorData.pet_taxi.currentLocation.updatedAt":
                           FieldValue.serverTimestamp(),
                     });
-
-                debugPrint(
-                  "LOCATION_TRACE ${DateTime.now().toIso8601String()} "
-                  "overviewStateHash=${identityHashCode(this)} "
-                  "reason=PetTaxi_location_firestore_write_complete "
-                  "${position.latitude}, ${position.longitude}",
-                );
               },
               onError: (error) {
                 debugPrint("❌ POSITION STREAM ERROR = $error");

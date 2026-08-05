@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'web_auth_browser_info.dart';
 
 enum SocialAuthProvider { google, apple }
 
@@ -87,6 +90,8 @@ Map<String, dynamic> buildSocialProfileLoginMetadata({
 }
 
 class SocialAuthService {
+  static bool _redirectResultRead = false;
+
   SocialAuthService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
@@ -102,9 +107,12 @@ class SocialAuthService {
   static bool get supportsApple =>
       supportsAppleOnPlatform(isWeb: kIsWeb, platform: defaultTargetPlatform);
 
-  Future<SocialProfileResult> signInWithGoogle() async {
+  Future<SocialProfileResult?> signInWithGoogle({bool? isLoginMode}) async {
     try {
-      final credential = await _signInGoogleCredential();
+      final credential = await _signInGoogleCredential(
+        isLoginMode: isLoginMode,
+      );
+      if (credential == null || credential.user == null) return null;
       return _finalize(credential, SocialAuthProvider.google);
     } on FirebaseAuthException catch (error) {
       if (error.code == 'popup-closed-by-user' ||
@@ -115,8 +123,14 @@ class SocialAuthService {
     }
   }
 
-  Future<User> authenticateGoogleForAccountRecovery() async {
-    final credential = await _signInGoogleCredential();
+  Future<User> authenticateGoogleForAccountRecovery({bool? isLoginMode}) async {
+    final credential = await _signInGoogleCredential(isLoginMode: isLoginMode);
+    if (credential == null) {
+      throw FirebaseAuthException(
+        code: 'redirect-pending',
+        message: 'Google authentication is continuing in the browser.',
+      );
+    }
     final user = credential.user;
     if (user == null) {
       throw FirebaseAuthException(
@@ -134,10 +148,10 @@ class SocialAuthService {
     return user;
   }
 
-  Future<UserCredential> _signInGoogleCredential() async {
+  Future<UserCredential?> _signInGoogleCredential({bool? isLoginMode}) async {
     try {
       if (kIsWeb) {
-        return _auth.signInWithPopup(GoogleAuthProvider());
+        return _webSignIn(GoogleAuthProvider(), isLoginMode: isLoginMode);
       }
       final account = await _googleSignIn.signIn();
       if (account == null) throw const SocialAuthCancelled();
@@ -156,14 +170,14 @@ class SocialAuthService {
     }
   }
 
-  Future<SocialProfileResult> signInWithApple() async {
+  Future<SocialProfileResult?> signInWithApple({bool? isLoginMode}) async {
     if (!supportsApple) throw UnsupportedError('Apple sign-in unsupported');
 
-    UserCredential credential;
+    UserCredential? credential;
     try {
       final provider = AppleAuthProvider();
       credential = kIsWeb
-          ? await _auth.signInWithPopup(provider)
+          ? await _webSignIn(provider, isLoginMode: isLoginMode)
           : await _auth.signInWithProvider(provider);
     } on FirebaseAuthException catch (error) {
       if (error.code == 'popup-closed-by-user' ||
@@ -174,6 +188,8 @@ class SocialAuthService {
       }
       rethrow;
     }
+
+    if (credential == null) return null;
 
     final user = credential.user;
     if (user == null) {
@@ -196,6 +212,58 @@ class SocialAuthService {
     }
 
     return _finalizeUser(user, SocialAuthProvider.apple);
+  }
+
+  Future<SocialProfileResult?> consumeWebRedirectResult() async {
+    if (!kIsWeb || !isMobileSafariWeb) return null;
+    if (_redirectResultRead) return null;
+
+    final preferences = await SharedPreferences.getInstance();
+    final providerName = preferences.getString(_pendingProviderKey);
+    if (providerName == null) return null;
+
+    _redirectResultRead = true;
+    late final UserCredential credential;
+    try {
+      credential = await _auth.getRedirectResult();
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'popup-closed-by-user' ||
+          error.code == 'cancelled-popup-request' ||
+          error.code == 'canceled' ||
+          error.code == 'cancelled') {
+        await _clearPendingRedirect(preferences);
+        throw const SocialAuthCancelled();
+      }
+      rethrow;
+    }
+    if (credential.user == null) return null;
+
+    await _clearPendingRedirect(preferences);
+    final provider = providerName == 'apple'
+        ? SocialAuthProvider.apple
+        : SocialAuthProvider.google;
+    if (provider == SocialAuthProvider.apple) {
+      final user = credential.user!;
+      if (shouldHoldNewAppleSession(
+        isNewUser: credential.additionalUserInfo?.isNewUser == true,
+      )) {
+        return SocialProfileResult(
+          user: user,
+          provider: provider,
+          isNewProfile: true,
+          profile: const <String, dynamic>{},
+          isTemporaryAppleAccount: true,
+        );
+      }
+      return _finalizeUser(user, provider);
+    }
+    return _finalize(credential, provider);
+  }
+
+  Future<bool?> pendingWebRedirectLoginMode() async {
+    if (!kIsWeb || !isMobileSafariWeb) return null;
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(_pendingLoginModeKey);
   }
 
   Future<SocialProfileResult> linkAppleAccount({
@@ -360,7 +428,38 @@ class SocialAuthService {
       (provider) => provider.providerId == providerId,
     );
   }
+
+  Future<UserCredential?> _webSignIn(
+    AuthProvider provider, {
+    bool? isLoginMode,
+  }) async {
+    if (!shouldUseWebRedirect(
+      isWeb: kIsWeb,
+      isMobileSafari: isMobileSafariWeb,
+    )) {
+      return _auth.signInWithPopup(provider);
+    }
+
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(
+      _pendingProviderKey,
+      provider.providerId == 'apple.com' ? 'apple' : 'google',
+    );
+    if (isLoginMode != null) {
+      await preferences.setBool(_pendingLoginModeKey, isLoginMode);
+    }
+    await _auth.signInWithRedirect(provider);
+    return null;
+  }
+
+  Future<void> _clearPendingRedirect(SharedPreferences preferences) async {
+    await preferences.remove(_pendingProviderKey);
+    await preferences.remove(_pendingLoginModeKey);
+  }
 }
+
+const _pendingProviderKey = 'social_auth.pending_redirect_provider';
+const _pendingLoginModeKey = 'social_auth.pending_redirect_login_mode';
 
 bool supportsAppleOnPlatform({
   required bool isWeb,
@@ -384,3 +483,7 @@ bool appleLinkPreservesUid({
 }
 
 bool shouldHoldNewAppleSession({required bool isNewUser}) => isNewUser;
+
+bool shouldUseWebRedirect({required bool isWeb, required bool isMobileSafari}) {
+  return isWeb && isMobileSafari;
+}

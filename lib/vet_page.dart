@@ -19,7 +19,6 @@ import 'package:barky_matches_fixed/ui/medical_records/medical_records_page.dart
 import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
@@ -486,15 +485,6 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
       final query = FirebaseFirestore.instance
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
-      FirestoreQueryTrace.log(
-        file: 'lib/vet_page.dart',
-        method: '_loadVetsFromFirestore',
-        line: 483,
-        collection: 'businesses_public',
-        clauses: const ["where(status, isEqualTo: approved)"],
-        terminalCall: 'get()',
-        query: query,
-      );
       final snapshot = await query.get();
       if (!mounted) return;
 

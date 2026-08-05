@@ -793,15 +793,6 @@ class _OffersContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode && kIsWeb) {
-      debugPrint(
-        'WEB_DIAG OffersContent build '
-        '(offers uses ValueListenableBuilder; no StreamBuilder exists here) '
-        'hash=${identityHashCode(this)} at=${DateTime.now().toIso8601String()}',
-      );
-    }
-    debugPrint("🔥 PROJECT CHECK: ${FirebaseFirestore.instance.app.name}");
-
     /// 🛑 اگر هیچ آفر نداریم
     if (OffersManager._offers.isEmpty) {
       debugPrint("❌ NO OFFERS LOADED");

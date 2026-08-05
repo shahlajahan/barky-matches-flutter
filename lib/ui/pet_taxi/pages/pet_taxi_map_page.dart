@@ -13,7 +13,6 @@ import '../services/pet_taxi_location_permission_service.dart';
 import '../widgets/current_location_button.dart';
 import '../widgets/pet_taxi_bottom_sheet.dart';
 import '../pet_taxi_driver_location_resolver.dart';
-import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 class PetTaxiMapPage extends StatefulWidget {
   const PetTaxiMapPage({super.key});
@@ -45,15 +44,6 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
     final query = FirebaseFirestore.instance
         .collection('businesses_public')
         .where('status', isEqualTo: 'approved');
-    FirestoreQueryTrace.log(
-      file: 'lib/ui/pet_taxi/pages/pet_taxi_map_page.dart',
-      method: '_driversStream',
-      line: 45,
-      collection: 'businesses_public',
-      clauses: const ["where(status, isEqualTo: approved)"],
-      terminalCall: 'snapshots()',
-      query: query,
-    );
     return query.snapshots();
   }
 

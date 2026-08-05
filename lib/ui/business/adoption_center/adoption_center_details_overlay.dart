@@ -63,22 +63,7 @@ class _AdoptionCenterDetailsOverlayState
   }
 
   Map<String, dynamic>? get _workingHoursMap {
-    debugPrint('🔥 NEW WORKING HOURS GETTER LOADED 🔥');
-
     final rawData = widget.data.rawData ?? {};
-
-    debugPrint('========================');
-    debugPrint('RAW DATA KEYS => ${rawData.keys.toList()}');
-
-    debugPrint('RAW adoption_center => ${rawData["adoption_center"]}');
-
-    debugPrint('RAW publicSectorData => ${rawData["publicSectorData"]}');
-
-    debugPrint(
-      'publicSectorData KEYS => ${Map<String, dynamic>.from(rawData["publicSectorData"] ?? {}).keys.toList()}',
-    );
-
-    debugPrint('========================');
 
     final sectorData = Map<String, dynamic>.from(
       rawData['publicSectorData'] ?? {},
@@ -103,25 +88,15 @@ class _AdoptionCenterDetailsOverlayState
 
     if (rawAdoptionCenter['workingHours'] != null) {
       raw = rawAdoptionCenter['workingHours'];
-      debugPrint('ADOPTION HOURS SOURCE = adoption_center.workingHours');
     } else if (widget.data.workingHours != null) {
       raw = widget.data.workingHours;
-      debugPrint('ADOPTION HOURS SOURCE = widget.data.workingHours');
     } else if (_adoptionData['workingHoursMap'] != null) {
       raw = _adoptionData['workingHoursMap'];
-      debugPrint('ADOPTION HOURS SOURCE = _adoptionData.workingHoursMap');
     } else if (rawData['workingHoursMap'] != null) {
       raw = rawData['workingHoursMap'];
-      debugPrint('ADOPTION HOURS SOURCE = rawData.workingHoursMap');
     } else {
       raw = sectorAdoptionCenter['workingHours'];
-      debugPrint(
-        'ADOPTION HOURS SOURCE = sectorData.adoptionCenter.workingHours (LEGACY)',
-      );
     }
-
-    debugPrint('ADOPTION HOURS RAW = $raw');
-    debugPrint('RAW CLASS = ${raw.runtimeType}');
 
     if (raw == null) {
       return null;
@@ -257,22 +232,11 @@ class _AdoptionCenterDetailsOverlayState
   String _todayHoursText() {
     final l10n = AppLocalizations.of(context)!;
     final hours = _workingHoursMap;
-    debugPrint('TODAY HOURS INPUT => $hours');
-
     if (hours == null || hours.isEmpty) {
-      debugPrint(
-        'RETURN PATH TODAY HOURS A => ${l10n.workingHoursNotAvailable}',
-      );
       return l10n.workingHoursNotAvailable;
     }
-    debugPrint('ADOPTION TODAY HOURS MAP = $hours');
 
     if (hours.containsKey('workingHours') && hours.containsKey('workingDays')) {
-      debugPrint(
-        'ADOPTION HOURS DETECTED SIMPLE SCHEDULE = ${hours['workingHours']}',
-      );
-      debugPrint('ADOPTION HOURS RETURNING = ${hours['workingHours']}');
-      debugPrint('RETURN PATH TODAY HOURS B => ${hours['workingHours']}');
       return hours['workingHours'].toString();
     }
 
@@ -289,9 +253,6 @@ class _AdoptionCenterDetailsOverlayState
 
     final key = keys[weekday];
     if (key == null) {
-      debugPrint(
-        'RETURN PATH TODAY HOURS C => ${l10n.workingHoursNotAvailable}',
-      );
       return l10n.workingHoursNotAvailable;
     }
 
@@ -299,20 +260,16 @@ class _AdoptionCenterDetailsOverlayState
     if (raw is Map<String, dynamic>) {
       final isOpen = raw['open'] == true;
       if (!isOpen) {
-        debugPrint('RETURN PATH TODAY HOURS D => Closed');
         return 'Closed';
       }
       final value = (raw['hours'] ?? '09:00 - 18:00').toString();
-      debugPrint('RETURN PATH TODAY HOURS E => $value');
       return value;
     }
 
     if (raw is String) {
-      debugPrint('RETURN PATH TODAY HOURS F => $raw');
       return raw;
     }
 
-    debugPrint('RETURN PATH TODAY HOURS G => ${l10n.workingHoursNotAvailable}');
     return l10n.workingHoursNotAvailable;
   }
 
@@ -1207,9 +1164,6 @@ class _AdoptionCenterDetailsOverlayState
           const MapEntry('none', 'No adoption center description available.'),
     );
 
-    debugPrint('ADOPTION ABOUT SOURCE = ${selectedAbout.key}');
-    debugPrint('ADOPTION ABOUT VALUE = ${selectedAbout.value}');
-
     final about = selectedAbout.value;
 
     final socialMedia =
@@ -1370,8 +1324,6 @@ class _AdoptionCenterDetailsOverlayState
 
         final docs = snapshot.data?.docs ?? [];
 
-        debugPrint('🔥 DETAILS DOC COUNT = ${docs.length}');
-
         for (final doc in docs) {
           debugPrint(
             '🔥 PET '
@@ -1487,9 +1439,6 @@ class _AdoptionCenterDetailsOverlayState
   }
 
   Widget _buildAvailablePetsTab() {
-    debugPrint('🔥 DETAILS OVERLAY AVAILABLE TAB BUILD');
-    debugPrint('🔥🔥🔥 DETAILS OVERLAY AVAILABLE TAB V2');
-
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('adoption_pets')
@@ -1535,8 +1484,6 @@ class _AdoptionCenterDetailsOverlayState
             .map((doc) => AdoptionPetModel.fromFirestore(doc))
             .toList();
 
-        debugPrint('🔥 MODEL COUNT = ${pets.length}');
-
         for (final pet in pets) {
           debugPrint(
             '🔥 MODEL '
@@ -1552,8 +1499,6 @@ class _AdoptionCenterDetailsOverlayState
                   pet.status == AdoptionPetStatus.available && pet.isVisible,
             )
             .toList();
-
-        debugPrint('🔥 AVAILABLE COUNT = ${availablePets.length}');
 
         for (final pet in availablePets) {
           debugPrint('🔥 AVAILABLE PET ${pet.name} status=${pet.status}');
@@ -1582,9 +1527,6 @@ class _AdoptionCenterDetailsOverlayState
               onTap: widget.onOpenPet == null
                   ? null
                   : () {
-                      debugPrint('PET TAP MODEL TYPE = ${pet.runtimeType}');
-                      debugPrint('PET TAP ID = ${pet.id}');
-                      debugPrint('PET TAP NAME = ${pet.name}');
                       widget.onOpenPet!(pet);
                     },
               child: Container(
@@ -1926,11 +1868,6 @@ class _AdoptionCenterDetailsOverlayState
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
-      'AdoptionCenterDetailsOverlay.build '
-      'hash=${identityHashCode(this)} businessId=${widget.data.id}',
-    );
     return Stack(
       children: [
         Positioned.fill(

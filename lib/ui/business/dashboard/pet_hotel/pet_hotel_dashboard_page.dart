@@ -30,17 +30,11 @@ class PetHotelDashboardPage extends StatefulWidget {
   final String businessId;
   final Map<String, dynamic> businessData;
 
-  PetHotelDashboardPage({
+  const PetHotelDashboardPage({
     super.key,
     required this.businessId,
     required this.businessData,
-  }) {
-    debugPrint(
-      '[HOTEL_PAGE_TRACE] ${DateTime.now().toIso8601String()} '
-      'constructor widget=${identityHashCode(this)} businessId=$businessId '
-      'selectedTab=overview',
-    );
-  }
+  });
 
   @override
   State<PetHotelDashboardPage> createState() => _PetHotelDashboardPageState();

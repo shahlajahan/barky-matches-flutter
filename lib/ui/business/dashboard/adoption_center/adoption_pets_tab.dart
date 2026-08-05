@@ -24,16 +24,12 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       FirebaseFirestore.instance.collection('adoption_pets');
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _petsStream() {
-    debugPrint('🔥 STREAM FILTER = $_statusFilter');
-
     Query<Map<String, dynamic>> query = _collection.where(
       'businessId',
       isEqualTo: widget.businessId,
     );
 
     if (_statusFilter != 'all') {
-      debugPrint('🔥 QUERY status=$_statusFilter');
-
       query = query.where('status', isEqualTo: _statusFilter);
     }
 
@@ -43,14 +39,10 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
   @override
   void initState() {
     super.initState();
-
-    debugPrint('🟢 AdoptionPetsTab INIT ${identityHashCode(this)}');
   }
 
   @override
   void dispose() {
-    debugPrint('🔴 AdoptionPetsTab DISPOSE ${identityHashCode(this)}');
-
     super.dispose();
   }
 
@@ -115,9 +107,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       await _collection.doc(pet.id).set(update, SetOptions(merge: true));
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             AppLocalizations.of(context)!.petStatusUpdated(pet.name),
@@ -128,9 +118,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       debugPrint('ADOPTION PET STATUS ERROR: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.statusUpdateFailed('$e')),
         ),
@@ -168,9 +156,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       await _collection.doc(pet.id).delete();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.petDeleted(pet.name)),
         ),
@@ -179,11 +165,11 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
       debugPrint('ADOPTION PET DELETE ERROR: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.deleteFailedWithError('$e')),
+          content: Text(
+            AppLocalizations.of(context)!.deleteFailedWithError('$e'),
+          ),
         ),
       );
     }
@@ -273,10 +259,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
             const SizedBox(height: 14),
             Text(
               AppLocalizations.of(context)!.noAdoptablePetsYet,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
@@ -311,8 +294,6 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🟡 BUILD ${identityHashCode(this)} filter=$_statusFilter');
-
     return Stack(
       children: [
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -328,16 +309,6 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
 
             final docs = snapshot.data?.docs ?? [];
 
-            for (final doc in docs) {
-              debugPrint(
-                '🐾 PET '
-                'id=${doc.id} '
-                'status=${doc.data()['status']} '
-                'visible=${doc.data()['isVisible']} '
-                'name=${doc.data()['name']}',
-              );
-            }
-
             final pets =
                 docs.map((doc) => AdoptionPetModel.fromFirestore(doc)).toList()
                   ..sort((a, b) {
@@ -346,17 +317,7 @@ class _AdoptionPetsTabState extends State<AdoptionPetsTab> {
                     return bDate.compareTo(aDate);
                   });
 
-            debugPrint('🐾 FILTER = $_statusFilter docs=${docs.length}');
-
             final filteredPets = _applyFilters(pets);
-
-            debugPrint('========== FINAL LIST ==========');
-
-            for (final pet in filteredPets) {
-              debugPrint('${pet.name} | ${pet.status} | ${pet.id}');
-            }
-
-            debugPrint('FINAL COUNT = ${filteredPets.length}');
 
             return Column(
               children: [

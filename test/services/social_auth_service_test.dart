@@ -88,6 +88,19 @@ void main() {
     expect(shouldShowAppleSignIn(enabled: false, supported: true), isFalse);
   });
 
+  test('desktop Web authentication stays on popup flow', () {
+    expect(shouldUseWebRedirect(isWeb: true, isMobileSafari: false), isFalse);
+  });
+
+  test('mobile Safari Web authentication uses redirect flow', () {
+    expect(shouldUseWebRedirect(isWeb: true, isMobileSafari: true), isTrue);
+  });
+
+  test('native platforms never use Web redirect flow', () {
+    expect(shouldUseWebRedirect(isWeb: false, isMobileSafari: true), isFalse);
+    expect(shouldUseWebRedirect(isWeb: false, isMobileSafari: false), isFalse);
+  });
+
   test('Apple profile creation is idempotent at the document boundary', () {
     final first = buildSocialProfileCreationData(
       uid: 'apple-user',

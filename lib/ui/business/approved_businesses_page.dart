@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../admin/pages/business_admin_detail_page.dart';
-import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class ApprovedBusinessesPage extends StatefulWidget {
@@ -51,18 +50,6 @@ class _ApprovedBusinessesPageState extends State<ApprovedBusinessesPage> {
                     .collection("businesses")
                     .where("status", isEqualTo: "approved")
                     .orderBy("createdAt", descending: true);
-                FirestoreQueryTrace.log(
-                  file: 'lib/ui/business/approved_businesses_page.dart',
-                  method: 'build',
-                  line: 46,
-                  collection: 'businesses',
-                  clauses: const [
-                    "where(status, isEqualTo: approved)",
-                    "orderBy(createdAt, descending: true)",
-                  ],
-                  terminalCall: 'snapshots()',
-                  query: query,
-                );
                 return query.snapshots();
               })(),
               builder: (context, snapshot) {

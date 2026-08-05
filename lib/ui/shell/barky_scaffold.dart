@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -84,12 +83,6 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
   void initState() {
     super.initState();
 
-    if (kDebugMode && kIsWeb) {
-      debugPrint(
-        'WEB_DIAG BarkyScaffold initState hash=${identityHashCode(this)}',
-      );
-    }
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -100,30 +93,15 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
   @override
   void activate() {
     super.activate();
-    if (kDebugMode && kIsWeb) {
-      debugPrint(
-        'WEB_DIAG BarkyScaffold activate hash=${identityHashCode(this)}',
-      );
-    }
   }
 
   @override
   void deactivate() {
-    if (kDebugMode && kIsWeb) {
-      debugPrint(
-        'WEB_DIAG BarkyScaffold deactivate hash=${identityHashCode(this)}',
-      );
-    }
     super.deactivate();
   }
 
   @override
   void dispose() {
-    if (kDebugMode && kIsWeb) {
-      debugPrint(
-        'WEB_DIAG BarkyScaffold dispose hash=${identityHashCode(this)}',
-      );
-    }
     super.dispose();
   }
 
@@ -261,11 +239,6 @@ class _BarkyScaffoldState extends State<BarkyScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      'REBUILD_PROBE ${DateTime.now().microsecondsSinceEpoch} '
-      'BarkyScaffold.build hash=${identityHashCode(this)} '
-      'currentTab=${widget.currentTab}',
-    );
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {

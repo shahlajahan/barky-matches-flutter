@@ -68,7 +68,9 @@ class SocialPostService {
     final doc = await _postsCollection.doc(postId).get();
     final data = doc.data();
 
-    if (!doc.exists || data == null || !SocialPostShare.isPubliclyShareable(data)) {
+    if (!doc.exists ||
+        data == null ||
+        !SocialPostShare.isPubliclyShareable(data)) {
       return null;
     }
 
@@ -146,16 +148,15 @@ class SocialPostService {
   }
 
   Stream<bool> likedStream(String postId) {
-  final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
-  if (user == null) {
-    return Stream.value(false);
+    if (user == null) {
+      return Stream.value(false);
+    }
+
+    return _likesCollection
+        .doc(_likeDocId(postId, user.uid))
+        .snapshots()
+        .map((doc) => doc.exists);
   }
-
-  return _likesCollection
-      .doc(_likeDocId(postId, user.uid))
-      .snapshots()
-      .map((doc) => doc.exists);
-}
-
 }

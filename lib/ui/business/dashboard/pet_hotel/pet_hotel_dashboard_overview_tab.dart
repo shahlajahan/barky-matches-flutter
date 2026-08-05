@@ -23,13 +23,7 @@ class PetHotelDashboardOverviewTab extends StatefulWidget {
     super.key,
     required this.businessId,
     required this.businessData,
-  }) {
-    debugPrint(
-      '[HOTEL_OVERVIEW_TRACE] ${DateTime.now().toIso8601String()} '
-      'constructor widget=${identityHashCode(this)} businessId=$businessId '
-      'selectedTab=overview',
-    );
-  }
+  });
 
   @override
   State<PetHotelDashboardOverviewTab> createState() =>
@@ -44,23 +38,11 @@ class _PetHotelDashboardOverviewTabState
   void initState() {
     super.initState();
     _bookingsStream = _createBookingsStream(widget.businessId);
-    debugPrint(
-      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-      'overview initState state=${identityHashCode(this)} '
-      'businessId=${widget.businessId} selectedTab=overview '
-      'stream=${identityHashCode(_bookingsStream)}',
-    );
   }
 
   @override
   void didUpdateWidget(covariant PetHotelDashboardOverviewTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    debugPrint(
-      '[HOTEL_OVERVIEW_TRACE] ${DateTime.now().toIso8601String()} '
-      'didUpdateWidget state=${identityHashCode(this)} '
-      'businessId=${widget.businessId} oldBusinessId=${oldWidget.businessId} '
-      'stream=${identityHashCode(_bookingsStream)}',
-    );
     if (oldWidget.businessId != widget.businessId) {
       _bookingsStream = _createBookingsStream(widget.businessId);
     }
@@ -68,11 +50,6 @@ class _PetHotelDashboardOverviewTabState
 
   @override
   void dispose() {
-    debugPrint(
-      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-      'overview dispose state=${identityHashCode(this)} '
-      'businessId=${widget.businessId} stream=${identityHashCode(_bookingsStream)}',
-    );
     super.dispose();
   }
 
@@ -89,21 +66,11 @@ class _PetHotelDashboardOverviewTabState
             '🔥 FIRESTORE STREAM ERROR => hotel_bookings?businessId=$businessId :: $e',
           );
         });
-    debugPrint(
-      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-      'overview create stream businessId=$businessId '
-      'stream=${identityHashCode(stream)}',
-    );
     return stream;
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      '[HOTEL_OVERVIEW_TRACE] ${DateTime.now().toIso8601String()} '
-      'build state=${identityHashCode(this)} businessId=${widget.businessId} '
-      'stream=${identityHashCode(_bookingsStream)}',
-    );
     return _PetHotelDashboardOverviewContent(
       businessId: widget.businessId,
       businessData: widget.businessData,
@@ -186,21 +153,9 @@ class _PetHotelDashboardOverviewContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-      'overview StreamBuilder build businessId=$businessId '
-      'stream=${identityHashCode(bookingsStream)}',
-    );
-
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: bookingsStream,
       builder: (context, snapshot) {
-        debugPrint(
-          '[HOTEL_STREAM_TRACE] ${DateTime.now().toIso8601String()} '
-          'overview builder businessId=$businessId '
-          'stream=${identityHashCode(bookingsStream)} '
-          'state=${snapshot.connectionState} docs=${snapshot.data?.docs.length}',
-        );
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }

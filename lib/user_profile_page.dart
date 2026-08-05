@@ -1278,11 +1278,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    debugPrint(
-      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
-      'userProfileHash=${identityHashCode(this)} reason=UserProfilePage_build '
-      'subPage=${appState.profileSubPage} businessId=${appState.businessId}',
-    );
 
     if (appState.isGuestUser) {
       return _buildGuestProfile(); // 👈 اینو می‌سازیم پایین

@@ -106,11 +106,6 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
   @override
   void initState() {
     super.initState();
-    debugPrint(
-      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
-      'businessDashboardStateHash=${identityHashCode(this)} '
-      'reason=BusinessDashboardPage_initState businessId=${widget.businessId}',
-    );
     //debugPrint('🏢 BusinessDashboardPage initState ${identityHashCode(this)}');
     _bindBusinessStream();
   }
@@ -129,43 +124,25 @@ class _BusinessDashboardPageState extends State<BusinessDashboardPage> {
     if (oldWidget.businessId != widget.businessId) {
       _bindBusinessStream();
     }
-
-    debugPrint(
-      "[REBUILD_TRACE] ${DateTime.now().toIso8601String()} "
-      "businessDashboardStateHash=${identityHashCode(this)} "
-      "reason=BusinessDashboardPage_didUpdateWidget "
-      "oldHash=${identityHashCode(oldWidget)} "
-      "newHash=${identityHashCode(widget)} "
-      "sameBusiness=${oldWidget.businessId == widget.businessId}",
-    );
   }
 
   @override
   void deactivate() {
-    debugPrint('🏢 BusinessDashboardPage deactivate ${identityHashCode(this)}');
     super.deactivate();
   }
 
   @override
   void activate() {
     super.activate();
-    debugPrint('🏢 BusinessDashboardPage activate ${identityHashCode(this)}');
   }
 
   @override
   void dispose() {
-    debugPrint('🏢 BusinessDashboardPage dispose ${identityHashCode(this)}');
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-      '[REBUILD_TRACE] ${DateTime.now().toIso8601String()} '
-      'businessDashboardStateHash=${identityHashCode(this)} '
-      'reason=BusinessDashboardPage_build businessId=${widget.businessId}',
-    );
-
     final l10n = AppLocalizations.of(context)!;
     return Container(
       color: AppTheme.bg,

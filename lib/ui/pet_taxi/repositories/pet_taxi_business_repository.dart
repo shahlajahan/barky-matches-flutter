@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
@@ -14,15 +13,6 @@ class PetTaxiBusinessRepository {
     final query = FirebaseFirestore.instance
         .collection('businesses_public')
         .where('status', isEqualTo: 'approved');
-    FirestoreQueryTrace.log(
-      file: 'lib/ui/pet_taxi/repositories/pet_taxi_business_repository.dart',
-      method: 'loadBusinesses',
-      line: 17,
-      collection: 'businesses_public',
-      clauses: const ["where(status, isEqualTo: approved)"],
-      terminalCall: 'get()',
-      query: query,
-    );
     final snapshot = await query.get();
 
     final businesses =

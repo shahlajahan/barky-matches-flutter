@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -49,15 +48,6 @@ class _PetHotelPageState extends State<PetHotelPage>
       final query = FirebaseFirestore.instance
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
-      FirestoreQueryTrace.log(
-        file: 'lib/pet_hotel_page.dart',
-        method: '_loadHotelsFromFirestore',
-        line: 47,
-        collection: 'businesses_public',
-        clauses: const ["where(status, isEqualTo: approved)"],
-        terminalCall: 'get()',
-        query: query,
-      );
       final snapshot = await query.get();
 
       if (!mounted) return;
