@@ -247,6 +247,144 @@ Future<void> ensureFirebase() async {
   debugPrint('AuthPage - Firebase already initialized');
 }
 
+String _normalizeSocialLocationText(String value) {
+  return value.trim().replaceAll(RegExp(r'\s+'), ' ');
+}
+
+Future<void> completeSocialAuthentication({
+  required BuildContext context,
+  required SocialProfileResult initialResult,
+  required SocialAuthService service,
+  required AppLocalizations l10n,
+  required bool isLogin,
+  String username = '',
+  String city = '',
+  String district = '',
+  String referralCode = '',
+  bool agreeToTerms = false,
+  bool receiveNews = false,
+}) async {
+  var result = initialResult;
+  if (result.provider == SocialAuthProvider.apple &&
+      result.isTemporaryAppleAccount) {
+    final choice = await Navigator.of(context).push<AppleRecoveryChoice>(
+      MaterialPageRoute(builder: (_) => const AppleAccountRecoveryChoicePage()),
+    );
+    if (choice == null) {
+      await service.deleteTemporaryAppleAccount(result.user);
+      return;
+    }
+
+    if (choice == AppleRecoveryChoice.createNewAccount) {
+      result = await service.finalizeNewAppleAccount(result.user);
+    } else {
+      await service.deleteTemporaryAppleAccount(result.user);
+      if (!context.mounted) return;
+      final authenticated = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => const AppleAccountRecoveryProviderPage(),
+        ),
+      );
+      if (authenticated != true) return;
+      result = await service.linkAppleAccount(isAccountRecovery: true);
+    }
+  }
+
+  final profile = Map<String, dynamic>.from(result.profile);
+  final missingProfileFields = socialProfileMissingFields(
+    profile,
+    requireTerms: result.isNewProfile,
+  );
+  final profileCompletionRequired =
+      !result.isAccountRecovery && missingProfileFields.isNotEmpty;
+  if (result.isNewProfile && !isLogin) {
+    final additions = <String, dynamic>{
+      if (username.trim().isNotEmpty) 'username': username.trim(),
+      if (city.trim().isNotEmpty) 'city': _normalizeSocialLocationText(city),
+      if (district.trim().isNotEmpty)
+        'district': _normalizeSocialLocationText(district),
+      if (agreeToTerms) ...{
+        'termsAccepted': true,
+        'termsAcceptedAt': FieldValue.serverTimestamp(),
+      },
+      'receiveNews': receiveNews,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(result.user.uid)
+        .set(additions, SetOptions(merge: true));
+    profile.addAll(additions);
+
+    if (referralCode.trim().isNotEmpty) {
+      final accepted = await ReferralAttributionService.attributeCode(
+        referralCode,
+      );
+      if (!accepted && context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.referralCodeInvalid)));
+      }
+    }
+  }
+
+  if (profileCompletionRequired) {
+    if (!context.mounted) return;
+    final completed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => SocialProfileCompletionPage(profile: profile),
+      ),
+    );
+    if (completed != true) {
+      await FirebaseAuth.instance.signOut();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.authenticationCancelled)));
+      return;
+    }
+  }
+
+  await Hive.box<String>(
+    'currentUserBox',
+  ).put('currentUserId', result.user.uid);
+  if (result.isNewProfile) {
+    await AnalyticsService.userSignup();
+  } else {
+    await AnalyticsService.userLogin();
+  }
+  if (!context.mounted) return;
+  final appState = context.read<AppState>();
+  await appState.initializeAuthenticatedUser(result.user);
+  await ReferralAttributionService.qualifyUserReferralOnLogin();
+  await appState.loadUsernameFromFirebase();
+  await _askSocialNotificationPermissionAfterLogin();
+  if (!context.mounted) return;
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const HomeGate()),
+    (route) => false,
+  );
+}
+
+Future<void> _askSocialNotificationPermissionAfterLogin() async {
+  try {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.getNotificationSettings();
+    if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+      final result = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      debugPrint(
+        '🔔 Notification permission result: ${result.authorizationStatus}',
+      );
+    }
+  } catch (e) {
+    debugPrint('Permission request error: $e');
+  }
+}
+
 class VerifyEmailPage extends StatefulWidget {
   final String email;
 
@@ -1612,109 +1750,18 @@ class _AuthPageState extends State<AuthPage> {
     SocialAuthService service,
     AppLocalizations l10n,
   ) async {
-    var result = initialResult;
-    if (result.provider == SocialAuthProvider.apple &&
-        result.isTemporaryAppleAccount) {
-      final choice = await Navigator.of(context).push<AppleRecoveryChoice>(
-        MaterialPageRoute(
-          builder: (_) => const AppleAccountRecoveryChoicePage(),
-        ),
-      );
-      if (choice == null) {
-        await service.deleteTemporaryAppleAccount(result.user);
-        return;
-      }
-
-      if (choice == AppleRecoveryChoice.createNewAccount) {
-        result = await service.finalizeNewAppleAccount(result.user);
-      } else {
-        await service.deleteTemporaryAppleAccount(result.user);
-        if (!mounted) return;
-        final authenticated = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(
-            builder: (_) => const AppleAccountRecoveryProviderPage(),
-          ),
-        );
-        if (authenticated != true) return;
-        result = await service.linkAppleAccount(isAccountRecovery: true);
-      }
-    }
-
-    final profile = Map<String, dynamic>.from(result.profile);
-    final missingProfileFields = socialProfileMissingFields(
-      profile,
-      requireTerms: result.isNewProfile,
-    );
-    final profileCompletionRequired =
-        !result.isAccountRecovery && missingProfileFields.isNotEmpty;
-    if (result.isNewProfile && !_isLogin) {
-      final additions = <String, dynamic>{
-        if (_usernameController.text.trim().isNotEmpty)
-          'username': _usernameController.text.trim(),
-        if (_cityController.text.trim().isNotEmpty)
-          'city': _normalizeLocationText(_cityController.text),
-        if (_districtController.text.trim().isNotEmpty)
-          'district': _normalizeLocationText(_districtController.text),
-        if (_agreeToTerms) ...{
-          'termsAccepted': true,
-          'termsAcceptedAt': FieldValue.serverTimestamp(),
-        },
-        'receiveNews': _receiveNews,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(result.user.uid)
-          .set(additions, SetOptions(merge: true));
-      profile.addAll(additions);
-
-      if (_referralCodeController.text.trim().isNotEmpty) {
-        final accepted = await ReferralAttributionService.attributeCode(
-          _referralCodeController.text,
-        );
-        if (!accepted && mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.referralCodeInvalid)));
-        }
-      }
-    }
-
-    if (profileCompletionRequired) {
-      if (!mounted) return;
-      final completed = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) => SocialProfileCompletionPage(profile: profile),
-        ),
-      );
-      if (completed != true) {
-        await FirebaseAuth.instance.signOut();
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.authenticationCancelled)));
-        return;
-      }
-    }
-
-    await Hive.box<String>(
-      'currentUserBox',
-    ).put('currentUserId', result.user.uid);
-    if (result.isNewProfile) {
-      await AnalyticsService.userSignup();
-    } else {
-      await AnalyticsService.userLogin();
-    }
-    if (!mounted) return;
-    final appState = context.read<AppState>();
-    await appState.initializeAuthenticatedUser(result.user);
-    await ReferralAttributionService.qualifyUserReferralOnLogin();
-    await appState.loadUsernameFromFirebase();
-    await _askNotificationPermissionAfterLogin();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeGate()),
-      (route) => false,
+    await completeSocialAuthentication(
+      context: context,
+      initialResult: initialResult,
+      service: service,
+      l10n: l10n,
+      isLogin: _isLogin,
+      username: _usernameController.text,
+      city: _cityController.text,
+      district: _districtController.text,
+      referralCode: _referralCodeController.text,
+      agreeToTerms: _agreeToTerms,
+      receiveNews: _receiveNews,
     );
   }
 

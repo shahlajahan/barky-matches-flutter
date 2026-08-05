@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dog.dart';
 import 'auth_page.dart';
@@ -16,6 +17,8 @@ import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:barky_matches_fixed/home_gate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
+import 'package:barky_matches_fixed/services/social_auth_service.dart';
+import 'package:barky_matches_fixed/core/debug/authentication_diagnostics.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';
 import 'onboarding_page.dart';
 
@@ -24,6 +27,91 @@ class WelcomePage extends StatefulWidget {
 
   @override
   _WelcomePageState createState() => _WelcomePageState();
+}
+
+class WebAuthStartupGate extends StatefulWidget {
+  const WebAuthStartupGate({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  State<WebAuthStartupGate> createState() => _WebAuthStartupGateState();
+}
+
+class _WebAuthStartupGateState extends State<WebAuthStartupGate> {
+  bool _ready = !kIsWeb;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) unawaited(_resumePendingRedirect());
+  }
+
+  Future<void> _resumePendingRedirect() async {
+    final service = SocialAuthService();
+    try {
+      await ensureFirebase();
+      final hasPendingRedirect = await service.hasPendingWebRedirect();
+      if (!hasPendingRedirect) {
+        if (mounted) setState(() => _ready = true);
+        return;
+      }
+
+      final loginMode = await service.pendingWebRedirectLoginMode() ?? false;
+      final result = await service.consumeWebRedirectResult();
+      if (result != null && mounted) {
+        await completeSocialAuthentication(
+          context: context,
+          initialResult: result,
+          service: service,
+          l10n: AppLocalizations.of(context)!,
+          isLogin: loginMode,
+        );
+      }
+      if (mounted) setState(() => _ready = true);
+    } on SocialAuthCancelled {
+      if (!mounted) return;
+      setState(() => _ready = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.authenticationCancelled,
+            ),
+          ),
+        );
+      });
+    } on FirebaseAuthException catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+          'Web startup redirect authentication failed: '
+          'code=${error.code} message=${error.message}\n$stackTrace',
+        );
+      }
+      AuthenticationDiagnostics.captureFailure(
+        operation: 'web_startup_redirect_auth',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      setState(() => _ready = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.unableToSignIn)),
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    return widget.child;
+  }
 }
 
 class _WelcomePageState extends State<WelcomePage>

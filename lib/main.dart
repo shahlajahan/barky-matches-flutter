@@ -1347,7 +1347,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
             _webPaymentReturnPage() ??
             _webCreatorDashboardPage() ??
             _webPostPage() ??
-            const AppEntry(),
+            const WebAuthStartupGate(child: AppEntry()),
       ),
     );
   }

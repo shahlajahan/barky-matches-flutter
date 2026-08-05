@@ -101,6 +101,41 @@ void main() {
     expect(shouldUseWebRedirect(isWeb: false, isMobileSafari: false), isFalse);
   });
 
+  test('startup redirect gate requires Web Safari and pending state', () {
+    expect(
+      shouldResumeWebRedirectAtStartup(
+        isWeb: true,
+        isMobileSafari: true,
+        hasPendingState: true,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldResumeWebRedirectAtStartup(
+        isWeb: true,
+        isMobileSafari: true,
+        hasPendingState: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldResumeWebRedirectAtStartup(
+        isWeb: true,
+        isMobileSafari: false,
+        hasPendingState: true,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldResumeWebRedirectAtStartup(
+        isWeb: false,
+        isMobileSafari: true,
+        hasPendingState: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('Apple profile creation is idempotent at the document boundary', () {
     final first = buildSocialProfileCreationData(
       uid: 'apple-user',

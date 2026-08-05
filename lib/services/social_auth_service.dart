@@ -91,6 +91,7 @@ Map<String, dynamic> buildSocialProfileLoginMetadata({
 
 class SocialAuthService {
   static bool _redirectResultRead = false;
+  static bool _redirectResultReadInProgress = false;
 
   SocialAuthService({
     FirebaseAuth? auth,
@@ -216,48 +217,66 @@ class SocialAuthService {
 
   Future<SocialProfileResult?> consumeWebRedirectResult() async {
     if (!kIsWeb || !isMobileSafariWeb) return null;
-    if (_redirectResultRead) return null;
+    if (_redirectResultRead || _redirectResultReadInProgress) return null;
 
-    final preferences = await SharedPreferences.getInstance();
-    final providerName = preferences.getString(_pendingProviderKey);
-    if (providerName == null) return null;
-
-    _redirectResultRead = true;
-    late final UserCredential credential;
+    _redirectResultReadInProgress = true;
     try {
-      credential = await _auth.getRedirectResult();
-    } on FirebaseAuthException catch (error) {
-      if (error.code == 'popup-closed-by-user' ||
-          error.code == 'cancelled-popup-request' ||
-          error.code == 'canceled' ||
-          error.code == 'cancelled') {
-        await _clearPendingRedirect(preferences);
-        throw const SocialAuthCancelled();
-      }
-      rethrow;
-    }
-    if (credential.user == null) return null;
+      final preferences = await SharedPreferences.getInstance();
+      final providerName = preferences.getString(_pendingProviderKey);
+      if (providerName == null) return null;
 
-    await _clearPendingRedirect(preferences);
-    final provider = providerName == 'apple'
-        ? SocialAuthProvider.apple
-        : SocialAuthProvider.google;
-    if (provider == SocialAuthProvider.apple) {
-      final user = credential.user!;
-      if (shouldHoldNewAppleSession(
-        isNewUser: credential.additionalUserInfo?.isNewUser == true,
-      )) {
-        return SocialProfileResult(
-          user: user,
-          provider: provider,
-          isNewProfile: true,
-          profile: const <String, dynamic>{},
-          isTemporaryAppleAccount: true,
-        );
+      _redirectResultRead = true;
+      late final UserCredential credential;
+      try {
+        credential = await _auth.getRedirectResult();
+      } on FirebaseAuthException catch (error) {
+        if (error.code == 'popup-closed-by-user' ||
+            error.code == 'cancelled-popup-request' ||
+            error.code == 'canceled' ||
+            error.code == 'cancelled') {
+          await _clearPendingRedirect(preferences);
+          throw const SocialAuthCancelled();
+        }
+        rethrow;
       }
-      return _finalizeUser(user, provider);
+      if (credential.user == null) {
+        await _clearPendingRedirect(preferences);
+        return null;
+      }
+
+      await _clearPendingRedirect(preferences);
+      final provider = providerName == 'apple'
+          ? SocialAuthProvider.apple
+          : SocialAuthProvider.google;
+      if (provider == SocialAuthProvider.apple) {
+        final user = credential.user!;
+        if (shouldHoldNewAppleSession(
+          isNewUser: credential.additionalUserInfo?.isNewUser == true,
+        )) {
+          return SocialProfileResult(
+            user: user,
+            provider: provider,
+            isNewProfile: true,
+            profile: const <String, dynamic>{},
+            isTemporaryAppleAccount: true,
+          );
+        }
+        return _finalizeUser(user, provider);
+      }
+      return _finalize(credential, provider);
+    } finally {
+      _redirectResultReadInProgress = false;
     }
-    return _finalize(credential, provider);
+  }
+
+  Future<bool> hasPendingWebRedirect() async {
+    if (!kIsWeb || !isMobileSafariWeb) return false;
+    final preferences = await SharedPreferences.getInstance();
+    return shouldResumeWebRedirectAtStartup(
+      isWeb: kIsWeb,
+      isMobileSafari: isMobileSafariWeb,
+      hasPendingState: preferences.containsKey(_pendingProviderKey),
+    );
   }
 
   Future<bool?> pendingWebRedirectLoginMode() async {
@@ -486,4 +505,12 @@ bool shouldHoldNewAppleSession({required bool isNewUser}) => isNewUser;
 
 bool shouldUseWebRedirect({required bool isWeb, required bool isMobileSafari}) {
   return isWeb && isMobileSafari;
+}
+
+bool shouldResumeWebRedirectAtStartup({
+  required bool isWeb,
+  required bool isMobileSafari,
+  required bool hasPendingState,
+}) {
+  return isWeb && isMobileSafari && hasPendingState;
 }
