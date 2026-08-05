@@ -22,6 +22,7 @@ import 'package:barky_matches_fixed/subscription/models/user_subscription.dart';
 import 'package:barky_matches_fixed/subscription/helpers/subscription_access.dart';
 import 'package:barky_matches_fixed/subscription/models/subscription_plan.dart';
 import 'package:barky_matches_fixed/utils/location_utils.dart';
+
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
@@ -35,6 +36,38 @@ import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_status.dart';
+
+/// Selects a single canonical approved business owned by [ownerUid].
+/// Published businesses are preferred when that field is present. A caller
+/// must handle null as either no match or an ambiguous match.
+String? selectCanonicalOwnedBusinessId(
+  String ownerUid,
+  Iterable<Map<String, dynamic>> businesses,
+) {
+  final owned = businesses.where(
+    (business) => business['ownerUid']?.toString() == ownerUid,
+  );
+  final approved = owned
+      .where((business) => business['status']?.toString() == 'approved')
+      .toList();
+  if (approved.isEmpty) return null;
+
+  final published = approved
+      .where((business) => business['published'] == true)
+      .toList();
+  final preferred = published.isNotEmpty ? published : approved;
+  if (preferred.length != 1) return null;
+  return preferred.single['__documentId']?.toString();
+}
+
+bool isValidStoredBusinessReference(
+  String ownerUid,
+  String storedBusinessId,
+  Map<String, dynamic> business,
+) {
+  return storedBusinessId.isNotEmpty &&
+      business['ownerUid']?.toString() == ownerUid;
+}
 
 enum BusinessSubPage {
   none,
@@ -476,6 +509,9 @@ class AppState with ChangeNotifier {
 
   String? _businessStatus; // none / pending / approved / rejected
   String? _businessId;
+  Future<String?>? _businessIdentityResolution;
+  String? _businessIdentityResolutionUid;
+  String? _businessIdentityResolutionStoredId;
   bool _isBusinessVerified = false;
   List<String> _businessSectors = [];
   // 🔔 BUSINESS RESOLUTION (one-shot from notification)
@@ -531,6 +567,99 @@ class AppState with ChangeNotifier {
   bool get hasApprovedBusiness =>
       _businessStatus == 'approved' && _businessId != null;
   bool get hasPendingBusiness => _businessStatus == 'pending';
+
+  Future<String?> _resolveCanonicalBusinessId({
+    required String uid,
+    required String? storedBusinessId,
+  }) {
+    if (_businessIdentityResolution != null &&
+        _businessIdentityResolutionUid == uid &&
+        _businessIdentityResolutionStoredId == storedBusinessId) {
+      return _businessIdentityResolution!;
+    }
+
+    final resolution = _resolveCanonicalBusinessIdFromFirestore(
+      uid: uid,
+      storedBusinessId: storedBusinessId,
+    );
+    _businessIdentityResolutionUid = uid;
+    _businessIdentityResolutionStoredId = storedBusinessId;
+    _businessIdentityResolution = resolution;
+    return resolution;
+  }
+
+  Future<String?> _resolveCanonicalBusinessIdFromFirestore({
+    required String uid,
+    required String? storedBusinessId,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+
+    if (storedBusinessId != null && storedBusinessId.trim().isNotEmpty) {
+      try {
+        final storedSnapshot = await firestore
+            .collection('businesses')
+            .doc(storedBusinessId)
+            .get();
+        final storedData = storedSnapshot.data() ?? <String, dynamic>{};
+        if (storedSnapshot.exists &&
+            isValidStoredBusinessReference(uid, storedBusinessId, storedData)) {
+          return storedBusinessId;
+        }
+      } on FirebaseException catch (error) {
+        debugPrint(
+          'BUSINESS ID VALIDATION FALLBACK uid=$uid '
+          'storedBusinessId=$storedBusinessId code=${error.code}',
+        );
+      }
+    }
+
+    try {
+      final ownedSnapshot = await firestore
+          .collection('businesses')
+          .where('ownerUid', isEqualTo: uid)
+          .get();
+      final candidates = ownedSnapshot.docs
+          .map(
+            (doc) => <String, dynamic>{...doc.data(), '__documentId': doc.id},
+          )
+          .toList();
+      final resolvedId = selectCanonicalOwnedBusinessId(uid, candidates);
+
+      if (resolvedId == null) {
+        if (candidates.isNotEmpty) {
+          debugPrint(
+            'BUSINESS ID UNRESOLVED uid=$uid '
+            'candidateIds=${candidates.map((item) => item['__documentId']).toList()}',
+          );
+        }
+        return null;
+      }
+
+      if (resolvedId != storedBusinessId) {
+        try {
+          await firestore.collection('users').doc(uid).update({
+            'business.businessId': resolvedId,
+          });
+          debugPrint(
+            'BUSINESS ID SELF-HEALED uid=$uid '
+            'from=$storedBusinessId to=$resolvedId',
+          );
+        } catch (error) {
+          debugPrint(
+            'BUSINESS ID SELF-HEAL WRITE FAILED uid=$uid '
+            'resolvedId=$resolvedId error=$error',
+          );
+        }
+      }
+      return resolvedId;
+    } on FirebaseException catch (error) {
+      debugPrint(
+        'BUSINESS ID OWNER QUERY FAILED uid=$uid '
+        'code=${error.code} message=${error.message}',
+      );
+      return null;
+    }
+  }
 
   BusinessSubPage _businessSubPage = BusinessSubPage.none;
   BusinessCardData? _activeBusiness;
@@ -1572,6 +1701,9 @@ class AppState with ChangeNotifier {
 
     _businessStatus = null;
     _businessId = null;
+    _businessIdentityResolution = null;
+    _businessIdentityResolutionUid = null;
+    _businessIdentityResolutionStoredId = null;
     _isBusinessVerified = false;
     _businessSectors = [];
     _isAccountSuspended = false;
@@ -2636,7 +2768,7 @@ class AppState with ChangeNotifier {
               }
               final business = doc.data()?['business'];
               final newStatus = business?['status'];
-              final newId = business?['businessId'];
+              final newBusinessId = business?['businessId']?.toString();
               final newVerified = business?['isVerified'] == true;
 
               final creator = doc.data()?['creator'];
@@ -2654,7 +2786,6 @@ class AppState with ChangeNotifier {
               final newReason = doc.data()?['moderationReason'] as String?;
 
               if (_businessStatus != newStatus ||
-                  _businessId != newId ||
                   _isBusinessVerified != newVerified ||
                   _isAccountSuspended != newSuspended ||
                   _accountModerationReason != newReason ||
@@ -2664,7 +2795,6 @@ class AppState with ChangeNotifier {
                   _creatorReferralCode != newCreatorReferralCode ||
                   _creatorCampaign != newCreatorCampaign) {
                 _businessStatus = newStatus;
-                _businessId = newId;
                 _isBusinessVerified = newVerified;
                 _isAccountSuspended = newSuspended;
                 _accountModerationReason = newReason;
@@ -2674,6 +2804,18 @@ class AppState with ChangeNotifier {
                 _creatorReferralCode = newCreatorReferralCode;
                 _creatorCampaign = newCreatorCampaign;
                 notifyListeners();
+              }
+
+              if (newBusinessId == null || newBusinessId.isEmpty) {
+                if (_businessId != null) {
+                  _businessId = null;
+                  notifyListeners();
+                }
+              } else {
+                if (_businessId != newBusinessId) {
+                  _businessId = newBusinessId;
+                  notifyListeners();
+                }
               }
             },
             onError: (error) {
@@ -3210,7 +3352,37 @@ class AppState with ChangeNotifier {
 
         final business = data['business'];
         _businessStatus = business?['status'];
-        _businessId = business?['businessId'];
+        final storedBusinessId = business?['businessId']?.toString();
+        if (storedBusinessId == null || storedBusinessId.isEmpty) {
+          _businessId = await _resolveCanonicalBusinessId(
+            uid: uid,
+            storedBusinessId: null,
+          );
+        } else {
+          try {
+            final storedBusiness = await FirebaseFirestore.instance
+                .collection('businesses')
+                .doc(storedBusinessId)
+                .get();
+            if (storedBusiness.exists) {
+              _businessId = storedBusinessId;
+            } else {
+              _businessId = await _resolveCanonicalBusinessId(
+                uid: uid,
+                storedBusinessId: null,
+              );
+            }
+          } catch (error) {
+            // Preserve the previous startup behavior when the reference
+            // cannot be read: do not reject an existing business solely
+            // because ownership validation is unavailable at login.
+            debugPrint(
+              'BUSINESS ID STARTUP READ FAILED; preserving stored ID '
+              'uid=$uid businessId=$storedBusinessId error=$error',
+            );
+            _businessId = storedBusinessId;
+          }
+        }
         _isBusinessVerified = business?['isVerified'] == true;
         _businessSectors =
             (business?['sectors'] as List?)

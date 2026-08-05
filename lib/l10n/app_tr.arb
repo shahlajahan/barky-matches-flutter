@@ -3086,6 +3086,8 @@
 ,"viewAllProducts": "Tüm ürünleri görüntüle"
 ,"continueWithGoogle": "Google ile devam et"
 ,"continueWithApple": "Apple ile devam et"
+,"connectAppleAccount": "Apple hesabını bağla"
+,"appleAccountConnected": "Apple hesabı bağlandı"
 ,"orContinueWith": "veya şununla devam et"
 ,"authenticationCancelled": "Kimlik doğrulama iptal edildi"
 ,"unableToSignIn": "Giriş yapılamadı"

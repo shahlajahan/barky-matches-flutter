@@ -3067,6 +3067,8 @@
 ,"viewAllProducts": "View all products"
 ,"continueWithGoogle": "Continue with Google"
 ,"continueWithApple": "Continue with Apple"
+,"connectAppleAccount": "Connect Apple account"
+,"appleAccountConnected": "Apple account connected"
 ,"orContinueWith": "or continue with"
 ,"authenticationCancelled": "Authentication cancelled"
 ,"unableToSignIn": "Unable to sign in"

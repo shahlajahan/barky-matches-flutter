@@ -1893,6 +1893,8 @@
 ,"viewAllProducts": "Посмотреть все товары"
 ,"continueWithGoogle": "Продолжить с Google"
 ,"continueWithApple": "Продолжить с Apple"
+,"connectAppleAccount": "Подключить аккаунт Apple"
+,"appleAccountConnected": "Аккаунт Apple подключён"
 ,"orContinueWith": "или продолжить с"
 ,"authenticationCancelled": "Аутентификация отменена"
 ,"unableToSignIn": "Не удалось войти"

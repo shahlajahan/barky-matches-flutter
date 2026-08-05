@@ -17,6 +17,7 @@ import 'package:barky_matches_fixed/core/debug/google_map_health_monitor.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 class DogParkPage extends StatefulWidget {
   final String? initialParkName;
@@ -144,9 +145,7 @@ class _DogParkPageState extends State<DogParkPage>
   @override
   void initState() {
     super.initState();
-    startGoogleMapHealthTimer(
-      feature: 'dog_park_map',
-    );
+    startGoogleMapHealthTimer(feature: 'dog_park_map');
     _mapCreationStopwatch.start();
     _animationController = AnimationController(
       vsync: this,
@@ -225,51 +224,12 @@ class _DogParkPageState extends State<DogParkPage>
     );
 
     try {
-      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      AppLog.location(
-        serviceEnabled
-            ? 'Location service enabled'
-            : 'Location service disabled',
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Find nearby dog parks',
+        message: 'We use your location to show nearby dog parks.',
       );
-      if (!serviceEnabled) {
-        if (!mounted) return;
-        final l10n = AppLocalizations.of(context)!; // ✅ بعد از mounted
-        _useFallback(l10n.dogParkLocationServicesDisabled);
-        return;
-      }
-
-      AppLog.location('Checking location permission');
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (!mounted) return;
-
-      if (permission == LocationPermission.denied) {
-        final Stopwatch permissionStopwatch = Stopwatch()..start();
-        permission = await Geolocator.requestPermission();
-        permissionStopwatch.stop();
-        AppLog.performance(
-          'Permission request completed',
-          data: <String, dynamic>{
-            'durationMs': permissionStopwatch.elapsedMilliseconds,
-          },
-        );
-        if (!mounted) return;
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        AppLog.location('Permission permanently denied');
-        if (!mounted) return;
-        final l10n = AppLocalizations.of(context)!;
-        _useFallback(l10n.dogParkPermissionDenied);
-        return;
-      }
-
-      if (permission == LocationPermission.denied) {
-        AppLog.location('Permission denied');
-        if (!mounted) return;
-        final l10n = AppLocalizations.of(context)!;
-        _useFallback(l10n.dogParkPermissionDenied);
-        return;
-      }
+      if (!allowed || !mounted) return;
 
       AppLog.location('Permission granted');
       AppLog.location('Getting current location');
@@ -292,7 +252,8 @@ class _DogParkPageState extends State<DogParkPage>
           'longitude': pos.longitude,
           'accuracy': pos.accuracy,
           'provider': null,
-          'isMock': (defaultTargetPlatform == TargetPlatform.android ||
+          'isMock':
+              (defaultTargetPlatform == TargetPlatform.android ||
                   defaultTargetPlatform == TargetPlatform.iOS)
               ? pos.isMocked
               : null,
@@ -444,13 +405,13 @@ class _DogParkPageState extends State<DogParkPage>
             completeGoogleMapHealthCheck();
           })
           .catchError((Object error, StackTrace stackTrace) {
-        _reportMapInitializationFailureOnce(
-          message: 'DogPark map initialization failed',
-          exception: error,
-          stackTrace: stackTrace,
-          data: <String, dynamic>{'stage': 'fitAllMarkers'},
-        );
-      });
+            _reportMapInitializationFailureOnce(
+              message: 'DogPark map initialization failed',
+              exception: error,
+              stackTrace: stackTrace,
+              data: <String, dynamic>{'stage': 'fitAllMarkers'},
+            );
+          });
     } catch (e, stackTrace) {
       _reportMapInitializationFailureOnce(
         message: 'DogPark map initialization failed',
@@ -1067,30 +1028,7 @@ class _DogParkPageState extends State<DogParkPage>
               child: ElevatedButton.icon(
                 icon: Icon(Icons.my_location),
                 label: Text(l10n.dogParkFindNearbyParks),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: Text(l10n.dogParkLocationNeededTitle),
-                      content: Text(
-                        l10n.dogParkUseYourLocationToShowNearbyDogParks,
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text(l10n.cancel),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            await requestLocationFromUser();
-                          },
-                          child: Text(l10n.allowButton),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                onPressed: requestLocationFromUser,
               ),
             ),
           ),

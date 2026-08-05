@@ -13,6 +13,7 @@ import 'package:barky_matches_fixed/core/debug/diagnostics_events.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -121,34 +122,12 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
 
   Future<bool> _ensureLocationPermission({bool showMessages = true}) async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (showMessages) {
-          _showMessage('Please enable location services to use your location.');
-        }
-        return false;
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        if (showMessages) {
-          _showMessage(
-            'Location permission is permanently denied. Enable it in settings.',
-          );
-        }
-        return false;
-      }
-
-      if (permission == LocationPermission.denied) {
-        if (showMessages) {
-          _showMessage('Location permission is required to use your location.');
-        }
-        return false;
-      }
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Use your location for Green Memorial',
+        message: 'We use your location to place the memorial on the map.',
+      );
+      if (!allowed) return false;
 
       if (mounted) {
         setState(() {

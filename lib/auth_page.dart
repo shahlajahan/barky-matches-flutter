@@ -29,6 +29,7 @@ import 'package:barky_matches_fixed/core/debug/diagnostics_navigation_tracker.da
 import 'package:barky_matches_fixed/services/social_auth_service.dart';
 import 'package:barky_matches_fixed/services/referral_attribution_service.dart';
 import 'package:barky_matches_fixed/social_profile_completion_page.dart';
+import 'package:barky_matches_fixed/apple_account_recovery_page.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -1520,11 +1521,44 @@ class _AuthPageState extends State<AuthPage> {
     setState(() => _socialProviderLoading = provider);
     try {
       final service = SocialAuthService();
-      final result = provider == SocialAuthProvider.google
+      var result = provider == SocialAuthProvider.google
           ? await service.signInWithGoogle()
           : await service.signInWithApple();
-      final profile = Map<String, dynamic>.from(result.profile);
 
+      if (provider == SocialAuthProvider.apple &&
+          result.isTemporaryAppleAccount) {
+        final choice = await Navigator.of(context).push<AppleRecoveryChoice>(
+          MaterialPageRoute(
+            builder: (_) => const AppleAccountRecoveryChoicePage(),
+          ),
+        );
+        if (choice == null) {
+          await service.deleteTemporaryAppleAccount(result.user);
+          return;
+        }
+
+        if (choice == AppleRecoveryChoice.createNewAccount) {
+          result = await service.finalizeNewAppleAccount(result.user);
+        } else {
+          await service.deleteTemporaryAppleAccount(result.user);
+          if (!mounted) return;
+          final authenticated = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => const AppleAccountRecoveryProviderPage(),
+            ),
+          );
+          if (authenticated != true) return;
+          result = await service.linkAppleAccount(isAccountRecovery: true);
+        }
+      }
+
+      final profile = Map<String, dynamic>.from(result.profile);
+      final missingProfileFields = socialProfileMissingFields(
+        profile,
+        requireTerms: result.isNewProfile,
+      );
+      final profileCompletionRequired =
+          !result.isAccountRecovery && missingProfileFields.isNotEmpty;
       if (result.isNewProfile && !_isLogin) {
         final additions = <String, dynamic>{
           if (_usernameController.text.trim().isNotEmpty)
@@ -1558,10 +1592,7 @@ class _AuthPageState extends State<AuthPage> {
         }
       }
 
-      if (socialProfileMissingFields(
-        profile,
-        requireTerms: result.isNewProfile,
-      ).isNotEmpty) {
+      if (profileCompletionRequired) {
         if (!mounted) return;
         final completed = await Navigator.of(context).push<bool>(
           MaterialPageRoute(

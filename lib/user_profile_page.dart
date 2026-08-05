@@ -47,6 +47,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/pet_hotel/pet_hotel_da
 import 'package:barky_matches_fixed/ui/profile/change_password_page.dart';
 
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
+import 'package:barky_matches_fixed/services/social_auth_service.dart';
 
 // ────────────────────────────────────────────────
 //  جدید — کامپوننت‌های استاندارد TYPE A
@@ -220,13 +221,15 @@ class ProfileSection extends StatelessWidget {
 class ProfileTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final Widget? trailing;
 
   const ProfileTile({
     super.key,
     required this.icon,
     required this.title,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -257,7 +260,7 @@ class ProfileTile extends StatelessWidget {
                 style: GoogleFonts.poppins(color: Colors.white, fontSize: 16),
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white),
+            trailing ?? const Icon(Icons.chevron_right, color: Colors.white),
           ],
         ),
       ),
@@ -1153,6 +1156,48 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
+  Future<void> _connectAppleAccount() async {
+    try {
+      await SocialAuthService().linkAppleAccount();
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.appleAccountConnected),
+        ),
+      );
+    } on SocialAuthCancelled {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.authenticationCancelled),
+        ),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      final collision =
+          error.code == 'credential-already-in-use' ||
+          error.code == 'account-exists-with-different-credential';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            collision
+                ? AppLocalizations.of(
+                    context,
+                  )!.emailRegisteredWithAnotherProvider
+                : AppLocalizations.of(context)!.unableToSignIn,
+          ),
+        ),
+      );
+    } catch (error) {
+      debugPrint('UserProfilePage - Apple linking error: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.unableToSignIn)),
+      );
+    }
+  }
+
   /*
   Future<void> _generateFcmTokenDebug() async {
     if (_generatingFcmToken) return;
@@ -1246,6 +1291,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final userDogs = context.watch<AppState>().myDogs;
     final loc = AppLocalizations.of(context)!;
     final isOwnProfile = _currentUserId == widget.userId;
+    final authUser = FirebaseAuth.instance.currentUser;
+    final linkedProviderIds =
+        authUser?.providerData.map((provider) => provider.providerId).toSet() ??
+        <String>{};
     debugPrint(
       '🧪 ADMIN TILE VISIBILITY '
       'kDebugMode=$kDebugMode '
@@ -1382,8 +1431,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
           final sectors = List<String>.from(data['sectors'] ?? []);
           final sector = _resolveBusinessSector(sectors, data);
-
-          debugPrint("🏪 REAL SECTORS => $sectors");
 
           Widget dashboardBody;
 
@@ -1930,6 +1977,47 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           ProfileSubPage.deleteAccount,
                         );
                       },
+                    ),
+                  ],
+                ),
+
+              if (isOwnProfile && authUser != null && !authUser.isAnonymous)
+                ProfileSection(
+                  title: 'Linked Accounts',
+                  children: [
+                    ProfileTile(
+                      icon: Icons.email,
+                      title: 'Email / Password',
+                      onTap: () {},
+                      trailing: Text(
+                        linkedProviderIds.contains('password')
+                            ? 'Connected'
+                            : 'Not connected',
+                      ),
+                    ),
+                    ProfileTile(
+                      icon: Icons.login,
+                      title: AppLocalizations.of(context)!.continueWithGoogle,
+                      onTap: () {},
+                      trailing: Text(
+                        linkedProviderIds.contains('google.com')
+                            ? 'Connected'
+                            : 'Not connected',
+                      ),
+                    ),
+                    ProfileTile(
+                      icon: Icons.apple,
+                      title: linkedProviderIds.contains('apple.com')
+                          ? AppLocalizations.of(context)!.appleAccountConnected
+                          : AppLocalizations.of(context)!.connectAppleAccount,
+                      onTap: linkedProviderIds.contains('apple.com')
+                          ? null
+                          : _connectAppleAccount,
+                      trailing: Text(
+                        linkedProviderIds.contains('apple.com')
+                            ? 'Connected'
+                            : 'Not connected',
+                      ),
                     ),
                   ],
                 ),

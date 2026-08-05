@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -660,9 +661,12 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     )!.businessRegisterCouldNotDetectCity;
 
     try {
-      final permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Detect your business location',
+        message: 'We use your location to detect your city and district.',
+      );
+      if (!allowed) {
         _snack(locationPermissionDenied);
         return;
       }

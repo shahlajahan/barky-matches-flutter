@@ -1,12 +1,7 @@
-import 'dart:convert';
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 enum SocialAuthProvider { google, apple }
 
@@ -20,12 +15,16 @@ class SocialProfileResult {
     required this.provider,
     required this.isNewProfile,
     required this.profile,
+    this.isTemporaryAppleAccount = false,
+    this.isAccountRecovery = false,
   });
 
   final User user;
   final SocialAuthProvider provider;
   final bool isNewProfile;
   final Map<String, dynamic> profile;
+  final bool isTemporaryAppleAccount;
+  final bool isAccountRecovery;
 
   bool get needsCompletion => socialProfileMissingFields(profile).isNotEmpty;
 }
@@ -105,20 +104,49 @@ class SocialAuthService {
 
   Future<SocialProfileResult> signInWithGoogle() async {
     try {
-      UserCredential credential;
-      if (kIsWeb) {
-        credential = await _auth.signInWithPopup(GoogleAuthProvider());
-      } else {
-        final account = await _googleSignIn.signIn();
-        if (account == null) throw const SocialAuthCancelled();
-        final authentication = await account.authentication;
-        final oauthCredential = GoogleAuthProvider.credential(
-          accessToken: authentication.accessToken,
-          idToken: authentication.idToken,
-        );
-        credential = await _auth.signInWithCredential(oauthCredential);
-      }
+      final credential = await _signInGoogleCredential();
       return _finalize(credential, SocialAuthProvider.google);
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'popup-closed-by-user' ||
+          error.code == 'cancelled-popup-request') {
+        throw const SocialAuthCancelled();
+      }
+      rethrow;
+    }
+  }
+
+  Future<User> authenticateGoogleForAccountRecovery() async {
+    final credential = await _signInGoogleCredential();
+    final user = credential.user;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'missing-user',
+        message: 'Authentication completed without a Firebase user.',
+      );
+    }
+    if (credential.additionalUserInfo?.isNewUser == true) {
+      await _auth.signOut();
+      throw FirebaseAuthException(
+        code: 'recovery-account-not-found',
+        message: 'The selected Google account has no existing PetSupo account.',
+      );
+    }
+    return user;
+  }
+
+  Future<UserCredential> _signInGoogleCredential() async {
+    try {
+      if (kIsWeb) {
+        return _auth.signInWithPopup(GoogleAuthProvider());
+      }
+      final account = await _googleSignIn.signIn();
+      if (account == null) throw const SocialAuthCancelled();
+      final authentication = await account.authentication;
+      final oauthCredential = GoogleAuthProvider.credential(
+        accessToken: authentication.accessToken,
+        idToken: authentication.idToken,
+      );
+      return _auth.signInWithCredential(oauthCredential);
     } on FirebaseAuthException catch (error) {
       if (error.code == 'popup-closed-by-user' ||
           error.code == 'cancelled-popup-request') {
@@ -132,64 +160,21 @@ class SocialAuthService {
     if (!supportsApple) throw UnsupportedError('Apple sign-in unsupported');
 
     UserCredential credential;
-    String appleDisplayName = '';
     try {
-      if (kIsWeb) {
-        credential = await _auth.signInWithPopup(AppleAuthProvider());
-      } else {
-        final rawNonce = _generateNonce();
-        final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
-        final appleCredential = await SignInWithApple.getAppleIDCredential(
-          scopes: const [
-            AppleIDAuthorizationScopes.email,
-            AppleIDAuthorizationScopes.fullName,
-          ],
-          nonce: hashedNonce,
-        );
-        final identityToken = appleCredential.identityToken;
-        if (identityToken == null || identityToken.isEmpty) {
-          throw FirebaseAuthException(
-            code: 'missing-apple-identity-token',
-            message: 'Apple did not return an identity token.',
-          );
-        }
-        appleDisplayName = [
-          appleCredential.givenName,
-          appleCredential.familyName,
-        ].whereType<String>().where((part) => part.trim().isNotEmpty).join(' ');
-        final oauthCredential = OAuthProvider(
-          'apple.com',
-        ).credential(idToken: identityToken, rawNonce: rawNonce);
-        credential = await _auth.signInWithCredential(oauthCredential);
-        if (appleDisplayName.isNotEmpty &&
-            (credential.user?.displayName ?? '').trim().isEmpty) {
-          await credential.user?.updateDisplayName(appleDisplayName);
-        }
-      }
-    } on SignInWithAppleAuthorizationException catch (error) {
-      if (error.code == AuthorizationErrorCode.canceled) {
-        throw const SocialAuthCancelled();
-      }
-      rethrow;
+      final provider = AppleAuthProvider();
+      credential = kIsWeb
+          ? await _auth.signInWithPopup(provider)
+          : await _auth.signInWithProvider(provider);
     } on FirebaseAuthException catch (error) {
       if (error.code == 'popup-closed-by-user' ||
-          error.code == 'cancelled-popup-request') {
+          error.code == 'cancelled-popup-request' ||
+          error.code == 'canceled' ||
+          error.code == 'cancelled') {
         throw const SocialAuthCancelled();
       }
       rethrow;
     }
-    return _finalize(
-      credential,
-      SocialAuthProvider.apple,
-      providerDisplayName: appleDisplayName,
-    );
-  }
 
-  Future<SocialProfileResult> _finalize(
-    UserCredential credential,
-    SocialAuthProvider provider, {
-    String providerDisplayName = '',
-  }) async {
     final user = credential.user;
     if (user == null) {
       throw FirebaseAuthException(
@@ -197,6 +182,135 @@ class SocialAuthService {
         message: 'Authentication completed without a Firebase user.',
       );
     }
+
+    if (shouldHoldNewAppleSession(
+      isNewUser: credential.additionalUserInfo?.isNewUser == true,
+    )) {
+      return SocialProfileResult(
+        user: user,
+        provider: SocialAuthProvider.apple,
+        isNewProfile: true,
+        profile: const <String, dynamic>{},
+        isTemporaryAppleAccount: true,
+      );
+    }
+
+    return _finalizeUser(user, SocialAuthProvider.apple);
+  }
+
+  Future<SocialProfileResult> linkAppleAccount({
+    bool isAccountRecovery = false,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.isAnonymous) {
+      throw FirebaseAuthException(
+        code: 'requires-authentication',
+        message: 'An authenticated user is required to link Apple.',
+      );
+    }
+    if (_hasProvider(currentUser, 'apple.com')) {
+      return _linkedUserResult(
+        currentUser,
+        isAccountRecovery: isAccountRecovery,
+      );
+    }
+
+    final provider = AppleAuthProvider();
+    final uidBefore = currentUser.uid;
+    try {
+      final credential = kIsWeb
+          ? await currentUser.linkWithPopup(provider)
+          : await currentUser.linkWithProvider(provider);
+      final linkedUser = credential.user;
+      if (!appleLinkPreservesUid(
+        uidBefore: uidBefore,
+        uidAfter: linkedUser?.uid,
+        providerIds:
+            linkedUser?.providerData.map((p) => p.providerId) ??
+            const <String>[],
+      )) {
+        throw FirebaseAuthException(
+          code: 'apple-link-verification-failed',
+          message: 'Apple linking did not preserve the authenticated user.',
+        );
+      }
+      return _linkedUserResult(
+        linkedUser!,
+        isAccountRecovery: isAccountRecovery,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'popup-closed-by-user' ||
+          error.code == 'cancelled-popup-request' ||
+          error.code == 'canceled' ||
+          error.code == 'cancelled') {
+        throw const SocialAuthCancelled();
+      }
+      rethrow;
+    }
+  }
+
+  Future<SocialProfileResult> finalizeNewAppleAccount(User user) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.uid != user.uid) {
+      throw FirebaseAuthException(
+        code: 'apple-session-changed',
+        message: 'The temporary Apple session is no longer active.',
+      );
+    }
+    return _finalizeUser(user, SocialAuthProvider.apple);
+  }
+
+  Future<void> deleteTemporaryAppleAccount(User user) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null ||
+        currentUser.uid != user.uid ||
+        !_hasProvider(currentUser, 'apple.com')) {
+      throw FirebaseAuthException(
+        code: 'apple-session-changed',
+        message: 'The temporary Apple session is no longer active.',
+      );
+    }
+    await currentUser.delete();
+    if (_auth.currentUser != null) {
+      throw FirebaseAuthException(
+        code: 'apple-session-delete-failed',
+        message: 'The temporary Apple account could not be removed.',
+      );
+    }
+  }
+
+  Future<SocialProfileResult> _linkedUserResult(
+    User user, {
+    required bool isAccountRecovery,
+  }) async {
+    final snapshot = await _firestore.collection('users').doc(user.uid).get();
+    return SocialProfileResult(
+      user: user,
+      provider: SocialAuthProvider.apple,
+      isNewProfile: false,
+      profile: Map<String, dynamic>.from(snapshot.data() ?? const {}),
+      isAccountRecovery: isAccountRecovery,
+    );
+  }
+
+  Future<SocialProfileResult> _finalize(
+    UserCredential credential,
+    SocialAuthProvider provider,
+  ) async {
+    final user = credential.user;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'missing-user',
+        message: 'Authentication completed without a Firebase user.',
+      );
+    }
+    return _finalizeUser(user, provider);
+  }
+
+  Future<SocialProfileResult> _finalizeUser(
+    User user,
+    SocialAuthProvider provider,
+  ) async {
     final providerId = provider == SocialAuthProvider.google
         ? 'google.com'
         : 'apple.com';
@@ -225,9 +339,7 @@ class SocialAuthService {
           uid: user.uid,
           providerId: providerId,
           email: user.email ?? '',
-          displayName: providerDisplayName.isNotEmpty
-              ? providerDisplayName
-              : user.displayName ?? '',
+          displayName: user.displayName ?? '',
           photoUrl: user.photoURL ?? '',
           serverTimestamp: now,
         );
@@ -243,14 +355,10 @@ class SocialAuthService {
     );
   }
 
-  String _generateNonce([int length = 32]) {
-    const charset =
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    final random = Random.secure();
-    return List.generate(
-      length,
-      (_) => charset[random.nextInt(charset.length)],
-    ).join();
+  bool _hasProvider(User user, String providerId) {
+    return user.providerData.any(
+      (provider) => provider.providerId == providerId,
+    );
   }
 }
 
@@ -266,3 +374,13 @@ bool supportsAppleOnPlatform({
 bool shouldShowAppleSignIn({required bool enabled, required bool supported}) {
   return enabled && supported;
 }
+
+bool appleLinkPreservesUid({
+  required String uidBefore,
+  required String? uidAfter,
+  required Iterable<String> providerIds,
+}) {
+  return uidAfter == uidBefore && providerIds.contains('apple.com');
+}
+
+bool shouldHoldNewAppleSession({required bool isNewUser}) => isNewUser;

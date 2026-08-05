@@ -22,6 +22,7 @@ import 'dart:async';
 
 import 'package:barky_matches_fixed/ui/petshop/all_products_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 import 'package:barky_matches_fixed/home/widgets/home_image_card.dart';
 import 'package:barky_matches_fixed/home/widgets/home_search_result_card.dart';
 import 'package:barky_matches_fixed/home/widgets/homepage_responsive_photo_image.dart';
@@ -513,20 +514,12 @@ class _HomePageState extends State<HomePage>
     _locationPermissionInProgress = true;
 
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _useFallbackLocation();
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      final permission = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Nearby services need your location',
+        message: 'We use your location to show nearby services and pets.',
+      );
+      if (!permission) {
         _useFallbackLocation();
         return;
       }
@@ -1208,34 +1201,11 @@ class _HomePageState extends State<HomePage>
             subtitle: l.expertCareForYourPet,
             imagePath: "assets/home/heroes/vet_hero.png",
             onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: Text(
-                    AppLocalizations.of(context)!.homeLocationNeededTitle,
-                  ),
-                  content: Text(
-                    AppLocalizations.of(context)!.homeLocationNeededMessage,
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(AppLocalizations.of(context)!.cancel),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await requestLocationFromUser();
-                        if (!mounted) return;
-                        context.read<app.AppState>().setCurrentTab(NavTab.vet);
-                      },
-                      child: Text(
-                        AppLocalizations.of(context)!.homeAllowButton,
-                      ),
-                    ),
-                  ],
-                ),
-              );
+              requestLocationFromUser().then((_) {
+                if (mounted) {
+                  context.read<app.AppState>().setCurrentTab(NavTab.vet);
+                }
+              });
             },
           ),
         ),
@@ -1270,30 +1240,13 @@ class _HomePageState extends State<HomePage>
                   imageAlignment: Alignment.centerRight,
                   textAlignment: Alignment.topLeft,
                   onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: Text(l.homeLocationNeededTitle),
-                        content: Text(l.petShopLocationNeededMessage),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: Text(l.cancel),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              await requestLocationFromUser();
-                              if (!mounted) return;
-                              context.read<app.AppState>().setCurrentTab(
-                                NavTab.petShop,
-                              );
-                            },
-                            child: Text(l.homeAllowButton),
-                          ),
-                        ],
-                      ),
-                    );
+                    requestLocationFromUser().then((_) {
+                      if (mounted) {
+                        context.read<app.AppState>().setCurrentTab(
+                          NavTab.petShop,
+                        );
+                      }
+                    });
                   },
                 ),
               ),

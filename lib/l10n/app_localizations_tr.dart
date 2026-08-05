@@ -9,8 +9,7 @@ class AppLocalizationsTr extends AppLocalizations {
   AppLocalizationsTr([String locale = 'tr']) : super(locale);
 
   @override
-  String get userNotLoggedIn =>
-      'Kullanıcı giriş yapmadı. Giriş sayfasına yönlendiriliyor...';
+  String get userNotLoggedIn => 'Kullanıcı giriş yapmadı. Giriş sayfasına yönlendiriliyor...';
 
   @override
   String errorLoadingUserInfo(Object error) {
@@ -128,8 +127,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutCargoUpdatesTitle => 'Fatura ve Kargo Güncellemeleri';
 
   @override
-  String get checkoutCargoUpdatesQuestion =>
-      'Fatura ve kargo takip güncellemelerini nasıl gönderelim?';
+  String get checkoutCargoUpdatesQuestion => 'Fatura ve kargo takip güncellemelerini nasıl gönderelim?';
 
   @override
   String get checkoutSmsOption => 'Kısa mesaj (SMS)';
@@ -153,12 +151,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutPreInfoForm => 'Ön bilgilendirme formunu kabul ediyorum';
 
   @override
-  String get checkoutDistanceSalesAgreement =>
-      'Mesafeli satış sözleşmesini kabul ediyorum';
+  String get checkoutDistanceSalesAgreement => 'Mesafeli satış sözleşmesini kabul ediyorum';
 
   @override
-  String get checkoutMarketingOptional =>
-      'Pazarlama mesajları almak istiyorum (isteğe bağlı)';
+  String get checkoutMarketingOptional => 'Pazarlama mesajları almak istiyorum (isteğe bağlı)';
 
   @override
   String get checkoutDeliveryTitle => 'Teslimat';
@@ -176,8 +172,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutShippingLabel => 'Kargo';
 
   @override
-  String get checkoutPleaseSelectCargoCompany =>
-      'Lütfen bir kargo şirketi seçin';
+  String get checkoutPleaseSelectCargoCompany => 'Lütfen bir kargo şirketi seçin';
 
   @override
   String get checkoutEnterNameSurname => 'Ad ve soyad girin';
@@ -198,8 +193,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutEnterFullAddress => 'Tam adres girin';
 
   @override
-  String get checkoutEnterValidIdentityNumber =>
-      'Geçerli kimlik numarası girin';
+  String get checkoutEnterValidIdentityNumber => 'Geçerli kimlik numarası girin';
 
   @override
   String get checkoutEnterCompanyName => 'Şirket adı girin';
@@ -211,12 +205,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutEnterTaxOffice => 'Vergi dairesi girin';
 
   @override
-  String get checkoutAcceptRequiredAgreements =>
-      'Gerekli sözleşmeleri kabul edin';
+  String get checkoutAcceptRequiredAgreements => 'Gerekli sözleşmeleri kabul edin';
 
   @override
-  String get checkoutPaymentPageOpenedMessage =>
-      'Ödeme sayfası açıldı. Ödemeyi tamamlayıp uygulamaya geri dönün.';
+  String get checkoutPaymentPageOpenedMessage => 'Ödeme sayfası açıldı. Ödemeyi tamamlayıp uygulamaya geri dönün.';
 
   @override
   String get checkoutBackButton => 'Geri';
@@ -228,15 +220,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutContinueButton => 'Devam';
 
   @override
-  String get checkoutPaymentCompletedSuccessfully =>
-      'Ödeme başarıyla tamamlandı';
+  String get checkoutPaymentCompletedSuccessfully => 'Ödeme başarıyla tamamlandı';
 
   @override
   String get checkoutMultiSellerInfoTitle => 'Tek ödeme, ayrı siparişler';
 
   @override
-  String get checkoutMultiSellerInfoBody =>
-      'Tek bir ödeme yapacaksınız. Her satıcı için ayrı bir sipariş oluşturulacak.';
+  String get checkoutMultiSellerInfoBody => 'Tek bir ödeme yapacaksınız. Her satıcı için ayrı bir sipariş oluşturulacak.';
 
   @override
   String checkoutSellerSection(Object sellerName) {
@@ -273,8 +263,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutMultiOrderSuccessTitle => 'Ödeme başarılı';
 
   @override
-  String get checkoutMultiOrderSuccessBody =>
-      'Ödemeniz tamamlandı ve her satıcı için ayrı sipariş oluşturuldu.';
+  String get checkoutMultiOrderSuccessBody => 'Ödemeniz tamamlandı ve her satıcı için ayrı sipariş oluşturuldu.';
 
   @override
   String checkoutSellerOrderLabel(int number) {
@@ -288,8 +277,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutMultiOrderExit => 'Ana sayfaya dön';
 
   @override
-  String get checkoutPaymentCancelledOrIncomplete =>
-      'Ödeme iptal edildi veya tamamlanmadı';
+  String get checkoutPaymentCancelledOrIncomplete => 'Ödeme iptal edildi veya tamamlanmadı';
 
   @override
   String checkoutFailed(Object error) {
@@ -332,8 +320,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cancelAppointmentTitle => 'Randevu iptal edilsin mi?';
 
   @override
-  String get cancelAppointmentConfirmation =>
-      'Bu randevuyu iptal etmek istediğinizden emin misiniz?';
+  String get cancelAppointmentConfirmation => 'Bu randevuyu iptal etmek istediğinizden emin misiniz?';
 
   @override
   String get keepAppointmentButton => 'Randevuyu Koru';
@@ -345,8 +332,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cancellationNotAllowed => 'Bu randevu için iptal yapılamaz.';
 
   @override
-  String get cancelAppointmentFailed =>
-      'Randevu iptal edilemedi. Lütfen tekrar deneyin.';
+  String get cancelAppointmentFailed => 'Randevu iptal edilemedi. Lütfen tekrar deneyin.';
 
   @override
   String get selectService => 'Hizmet Seçin';
@@ -385,12 +371,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get somethingWentWrong => 'Bir şeyler ters gitti';
 
   @override
-  String get alreadyBookedAtThisTime =>
-      'Bu saatte zaten bir rezervasyonunuz var. Lütfen başka bir saat seçin.';
+  String get alreadyBookedAtThisTime => 'Bu saatte zaten bir rezervasyonunuz var. Lütfen başka bir saat seçin.';
 
   @override
-  String get invalidBookingData =>
-      'Geçersiz rezervasyon verisi. Lütfen tekrar deneyin.';
+  String get invalidBookingData => 'Geçersiz rezervasyon verisi. Lütfen tekrar deneyin.';
 
   @override
   String get serviceDefaultLabel => 'Hizmet';
@@ -554,15 +538,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get phoneLabel => 'Telefon Numarası';
 
   @override
-  String get enterPhoneNumberOptional =>
-      'Telefon numarasını girin (isteğe bağlı)';
+  String get enterPhoneNumberOptional => 'Telefon numarasını girin (isteğe bağlı)';
 
   @override
   String get deleteAccount => 'Hesabı Sil';
 
   @override
-  String get deleteAccountConfirmation =>
-      'Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.';
+  String get deleteAccountConfirmation => 'Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.';
 
   @override
   String get updateProfile => 'Profili Güncelle';
@@ -674,8 +656,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get passwordRequired => 'Lütfen şifrenizi girin';
 
   @override
-  String get passwordValidation =>
-      'En az 8 karakter; bir harf ve bir rakam kullanın.';
+  String get passwordValidation => 'En az 8 karakter; bir harf ve bir rakam kullanın.';
 
   @override
   String get passwordMismatch => 'Şifreler eşleşmiyor';
@@ -690,8 +671,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get forgotPasswordDialogTitle => 'Şifremi Unuttum';
 
   @override
-  String get forgotPasswordDialogMessage =>
-      'Şifrenizi sıfırlamak için lütfen e-postanızı girin.';
+  String get forgotPasswordDialogMessage => 'Şifrenizi sıfırlamak için lütfen e-postanızı girin.';
 
   @override
   String get sendButton => 'Gönder';
@@ -705,8 +685,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get emailAddressHint => 'E-posta adresi';
 
   @override
-  String get passwordResetEmailSent =>
-      'Şifre sıfırlama e-postası gönderildi 📩';
+  String get passwordResetEmailSent => 'Şifre sıfırlama e-postası gönderildi 📩';
 
   @override
   String get noAccountSignUp => 'Hesabınız yok mu? Kayıt Ol';
@@ -715,30 +694,25 @@ class AppLocalizationsTr extends AppLocalizations {
   String get haveAccountSignIn => 'Zaten hesabınız var mı? Giriş Yap';
 
   @override
-  String get userNotFound =>
-      'Bu e-posta ile kullanıcı bulunamadı. Lütfen kayıt olun.';
+  String get userNotFound => 'Bu e-posta ile kullanıcı bulunamadı. Lütfen kayıt olun.';
 
   @override
   String get authUserNotFound => 'Kullanıcı bulunamadı';
 
   @override
-  String get pleaseVerifyEmailBeforeSigningIn =>
-      'Giriş yapmadan önce lütfen e-postanızı doğrulayın.';
+  String get pleaseVerifyEmailBeforeSigningIn => 'Giriş yapmadan önce lütfen e-postanızı doğrulayın.';
 
   @override
   String get userCreationFailed => 'Kullanıcı oluşturulamadı';
 
   @override
-  String get verificationEmailCouldNotBeSent =>
-      'Doğrulama e-postası gönderilemedi';
+  String get verificationEmailCouldNotBeSent => 'Doğrulama e-postası gönderilemedi';
 
   @override
-  String get verificationSessionCouldNotBeCreated =>
-      'Doğrulama oturumu oluşturulamadı';
+  String get verificationSessionCouldNotBeCreated => 'Doğrulama oturumu oluşturulamadı';
 
   @override
-  String get emailAlreadyRegisteredTryLoggingIn =>
-      'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.';
+  String get emailAlreadyRegisteredTryLoggingIn => 'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.';
 
   @override
   String get incorrectPassword => 'Yanlış şifre. Lütfen tekrar deneyin.';
@@ -755,8 +729,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get verifyEmailTitle => 'E-postanızı Doğrulayın';
 
   @override
-  String get enterVerificationCodeSentToEmail =>
-      'E-postanıza gönderilen doğrulama kodunu girin';
+  String get enterVerificationCodeSentToEmail => 'E-postanıza gönderilen doğrulama kodunu girin';
 
   @override
   String get pleaseEnterSixDigitCode => 'Lütfen 6 haneli kodu girin';
@@ -785,12 +758,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get authCreateAccountSubtitle => 'PetSupo hesabınızı oluşturun';
 
   @override
-  String get sessionExpiredPleaseSignInAgain =>
-      'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.';
+  String get sessionExpiredPleaseSignInAgain => 'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.';
 
   @override
-  String get signInToAccessPlaymate =>
-      'Playmate\'e erişmek için lütfen giriş yapın';
+  String get signInToAccessPlaymate => 'Playmate\'e erişmek için lütfen giriş yapın';
 
   @override
   String get findPlaymates => 'Arkadaş Bul';
@@ -850,8 +821,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get no => 'Hayır';
 
   @override
-  String get pleaseSpecifyNeutered =>
-      'Lütfen köpeğin kısırlaştırılıp kısırlaştırılmadığını belirtin';
+  String get pleaseSpecifyNeutered => 'Lütfen köpeğin kısırlaştırılıp kısırlaştırılmadığını belirtin';
 
   @override
   String get traitsLabel => 'Özellikler *';
@@ -941,8 +911,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get pleaseFillRequiredFields =>
-      'Lütfen tüm gerekli alanları doğru şekilde doldurun';
+  String get pleaseFillRequiredFields => 'Lütfen tüm gerekli alanları doğru şekilde doldurun';
 
   @override
   String get addDogButton => 'Evcil Hayvan Ekle';
@@ -1032,8 +1001,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noDogsMatchFilters => 'Filtrelerinize uyan köpek bulunamadı.';
 
   @override
-  String get adjustFiltersSuggestion =>
-      'Filtrelerinizi ayarlamayı veya mesafeyi artırmayı deneyin.';
+  String get adjustFiltersSuggestion => 'Filtrelerinizi ayarlamayı veya mesafeyi artırmayı deneyin.';
 
   @override
   String get anyGender => 'Herhangi';
@@ -1237,15 +1205,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get filterByHealthStatus => 'Sağlık Durumuna Göre Filtrele';
 
   @override
-  String get upgradeToPremiumForMoreFilters =>
-      'Daha fazla filtre için Premium\'a yükseltin!';
+  String get upgradeToPremiumForMoreFilters => 'Daha fazla filtre için Premium\'a yükseltin!';
 
   @override
   String get upgradeToPremiumTitle => 'Premium\'a Yükseltin';
 
   @override
-  String get upgradeToPremiumSubtitle =>
-      'Gelişmiş özellikler ve işletme araçlarının kilidini açın';
+  String get upgradeToPremiumSubtitle => 'Gelişmiş özellikler ve işletme araçlarının kilidini açın';
 
   @override
   String get apply => 'Uygula';
@@ -1257,8 +1223,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noFavoriteDogsYet => 'Henüz favori köpek yok!';
 
   @override
-  String get addFavoriteSuggestion =>
-      'Ana sayfaya dönün ve bazı köpekleri favorilerinize ekleyin.';
+  String get addFavoriteSuggestion => 'Ana sayfaya dönün ve bazı köpekleri favorilerinize ekleyin.';
 
   @override
   String get removeFavoriteTooltip => 'Favoriden Kaldır';
@@ -1288,15 +1253,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get selectFriendsDog => 'Arkadaşın Köpeğini Seçin';
 
   @override
-  String get pleaseLoginToSchedulePlaydate =>
-      'Oyun randevusu planlamak için lütfen giriş yapın';
+  String get pleaseLoginToSchedulePlaydate => 'Oyun randevusu planlamak için lütfen giriş yapın';
 
   @override
   String get selectLocation => 'Konum Seç';
 
   @override
-  String get enterLocation =>
-      'Konum girin (örneğin: Enlem: 41.0103, Boylam: 28.6724 veya adres)';
+  String get enterLocation => 'Konum girin (örneğin: Enlem: 41.0103, Boylam: 28.6724 veya adres)';
 
   @override
   String get pickOnMap => 'Haritadan Seç';
@@ -1320,8 +1283,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get pleaseSelectBothDogs => 'Lütfen her iki köpeği de seçin';
 
   @override
-  String get pleaseLoginToCreateRequest =>
-      'Talep oluşturmak için lütfen giriş yapın';
+  String get pleaseLoginToCreateRequest => 'Talep oluşturmak için lütfen giriş yapın';
 
   @override
   String get playdateRequestTitle => 'Oyun Randevusu Talebi';
@@ -1332,10 +1294,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String playdateRequestNotificationBody(
-    Object requesterDog,
-    Object requestedDog,
-  ) {
+  String playdateRequestNotificationBody(Object requesterDog, Object requestedDog) {
     return '$requesterDog, $requestedDog ile oynamak istiyor!';
   }
 
@@ -1606,8 +1565,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get pleaseLoginToRespond =>
-      'Taleplere yanıt vermek için lütfen giriş yapın';
+  String get pleaseLoginToRespond => 'Taleplere yanıt vermek için lütfen giriş yapın';
 
   @override
   String requestStatusUpdated(Object status) {
@@ -1625,12 +1583,10 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get pleaseLoginToAccept =>
-      'Talepleri kabul etmek için lütfen giriş yapın';
+  String get pleaseLoginToAccept => 'Talepleri kabul etmek için lütfen giriş yapın';
 
   @override
-  String get requestAcceptedSuccess =>
-      'Talep kabul edildi ve oyun randevuları listesine eklendi.';
+  String get requestAcceptedSuccess => 'Talep kabul edildi ve oyun randevuları listesine eklendi.';
 
   @override
   String errorAcceptingRequest(Object error) {
@@ -1643,8 +1599,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get pleaseLoginToReject =>
-      'Talepleri reddetmek için lütfen giriş yapın';
+  String get pleaseLoginToReject => 'Talepleri reddetmek için lütfen giriş yapın';
 
   @override
   String get requestRejectedSuccess => 'Talep reddedildi';
@@ -1660,19 +1615,16 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get failedToScheduleReminder =>
-      'Hatırlatıcı planlama başarısız. İzinleri kontrol edin.';
+  String get failedToScheduleReminder => 'Hatırlatıcı planlama başarısız. İzinleri kontrol edin.';
 
   @override
   String get scheduledLabel => 'Planlandı:';
 
   @override
-  String get pleaseLoginToViewPlaydateRequests =>
-      'Oyun randevusu taleplerini görmek için giriş yapın';
+  String get pleaseLoginToViewPlaydateRequests => 'Oyun randevusu taleplerini görmek için giriş yapın';
 
   @override
-  String get pleaseLoginToSetReminders =>
-      'Hatırlatıcı ayarlamak için lütfen giriş yapın.';
+  String get pleaseLoginToSetReminders => 'Hatırlatıcı ayarlamak için lütfen giriş yapın.';
 
   @override
   String reminderSetForMinutesBefore(Object minutesBefore) {
@@ -1705,8 +1657,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get reminderTab => 'Hatırlatıcı';
 
   @override
-  String get playdateTimeNotScheduledYet =>
-      '⏳ Oyun randevusu saati henüz planlanmadı';
+  String get playdateTimeNotScheduledYet => '⏳ Oyun randevusu saati henüz planlanmadı';
 
   @override
   String get thirtyMinutesBefore => '30 dakika önce';
@@ -1776,8 +1727,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get playmateLocationNeededTitle => 'Konum gerekli';
 
   @override
-  String get playmateLocationNeededMessage =>
-      'Yakındaki köpekleri göstermek için konumunuzu kullanıyoruz';
+  String get playmateLocationNeededMessage => 'Yakındaki köpekleri göstermek için konumunuzu kullanıyoruz';
 
   @override
   String get playmateFiltersTitle => 'Filtreler';
@@ -1911,27 +1861,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get dogParkMoveToMarkers => 'İşaretlere Git';
 
   @override
-  String get dogParkPermissionDenied =>
-      'Konum izni reddedildi. Lütfen ayarlarınızda etkinleştirin.';
+  String get dogParkPermissionDenied => 'Konum izni reddedildi. Lütfen ayarlarınızda etkinleştirin.';
 
   @override
-  String get dogParkBackgroundPermissionDenied =>
-      'Arka plan konum izni reddedildi. Bazı özellikler sınırlı olabilir.';
+  String get dogParkBackgroundPermissionDenied => 'Arka plan konum izni reddedildi. Bazı özellikler sınırlı olabilir.';
 
   @override
   String get dogParkLocationServicesDisabled => 'Konum hizmetleri devre dışı.';
 
   @override
-  String get dogParkEnableLocationServices =>
-      'Devam etmek için lütfen konum hizmetlerini etkinleştirin.';
+  String get dogParkEnableLocationServices => 'Devam etmek için lütfen konum hizmetlerini etkinleştirin.';
 
   @override
-  String get dogParkPermissionDeniedPermanent =>
-      'Konum izni kalıcı olarak reddedildi.';
+  String get dogParkPermissionDeniedPermanent => 'Konum izni kalıcı olarak reddedildi.';
 
   @override
-  String get dogParkPermissionsDenied =>
-      'Konum izinleri kalıcı olarak reddedildi. Lütfen ayarlarınızda etkinleştirin.';
+  String get dogParkPermissionsDenied => 'Konum izinleri kalıcı olarak reddedildi. Lütfen ayarlarınızda etkinleştirin.';
 
   @override
   String dogParkLocationError(Object error) {
@@ -1939,8 +1884,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get dogParkPermissionRequired =>
-      'Yakındaki köpek parklarını göstermek için konum izni gerekli.';
+  String get dogParkPermissionRequired => 'Yakındaki köpek parklarını göstermek için konum izni gerekli.';
 
   @override
   String get dogParkRecommendedBadge => '⭐ Önerilen';
@@ -1964,8 +1908,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get dogParkGetDirections => 'Yol tarifi al';
 
   @override
-  String get dogParkUserNotReadyYet =>
-      'Kullanıcı henüz hazır değil. Lütfen tekrar deneyin.';
+  String get dogParkUserNotReadyYet => 'Kullanıcı henüz hazır değil. Lütfen tekrar deneyin.';
 
   @override
   String get dogParkNeedToAddDogFirst => 'Önce bir köpek eklemeniz gerekiyor';
@@ -1986,15 +1929,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get dogParkLocationNeededTitle => 'Konum gerekli';
 
   @override
-  String get dogParkUseYourLocationToShowNearbyDogParks =>
-      'Yakındaki köpek parklarını göstermek için konumunuzu kullanıyoruz';
+  String get dogParkUseYourLocationToShowNearbyDogParks => 'Yakındaki köpek parklarını göstermek için konumunuzu kullanıyoruz';
 
   @override
   String get allowButton => 'İzin Ver';
 
   @override
-  String get dogParkBackgroundRecommended =>
-      'Arka plan konum izni önerilir. Lütfen ayarlarınızda etkinleştirin.';
+  String get dogParkBackgroundRecommended => 'Arka plan konum izni önerilir. Lütfen ayarlarınızda etkinleştirin.';
 
   @override
   String get dogParkSettingsAction => 'Ayarlar';
@@ -2065,12 +2006,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get dogViewChatStarted => 'Sohbet başlatıldı!';
 
   @override
-  String dogViewPlayDateScheduled(
-    Object day,
-    Object month,
-    Object year,
-    Object time,
-  ) {
+  String dogViewPlayDateScheduled(Object day, Object month, Object year, Object time) {
     return '$day/$month/$year tarihinde $time saatinde oyun randevusu planlandı!';
   }
 
@@ -2086,8 +2022,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get boostVisibilityDescription =>
-      'Playmates keşfinde daha fazla görünürlük elde edin.';
+  String get boostVisibilityDescription => 'Playmates keşfinde daha fazla görünürlük elde edin.';
 
   @override
   String get boost24HoursTitle => '24 Saatlik Boost';
@@ -2102,8 +2037,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get boost3DaysTitle => '3 Günlük Boost';
 
   @override
-  String get boostBetterExposureSubtitle =>
-      'Aktif keşif için daha iyi görünürlük';
+  String get boostBetterExposureSubtitle => 'Aktif keşif için daha iyi görünürlük';
 
   @override
   String get boostPrice69 => '69 ₺';
@@ -2248,16 +2182,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get playDateStatus_rejected => 'Reddedildi';
 
   @override
-  String get locationServicesDisabled =>
-      'Konum hizmetleri devre dışı. Varsayılan konum kullanılıyor.';
+  String get locationServicesDisabled => 'Konum hizmetleri devre dışı. Varsayılan konum kullanılıyor.';
 
   @override
-  String get locationPermissionRequired =>
-      'Konum izni gerekli. Varsayılan konum kullanılıyor.';
+  String get locationPermissionRequired => 'Konum izni gerekli. Varsayılan konum kullanılıyor.';
 
   @override
-  String get locationPermissionPermanentlyDenied =>
-      'Konum izni kalıcı olarak reddedildi. Varsayılan konum kullanılıyor.';
+  String get locationPermissionPermanentlyDenied => 'Konum izni kalıcı olarak reddedildi. Varsayılan konum kullanılıyor.';
 
   @override
   String errorGettingLocation(Object error) {
@@ -2283,8 +2214,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get notificationChannelName => 'Yüksek Önemli Bildirimler';
 
   @override
-  String get notificationChannelDescription =>
-      'Bu kanal önemli bildirimler için kullanılır.';
+  String get notificationChannelDescription => 'Bu kanal önemli bildirimler için kullanılır.';
 
   @override
   String get openAppAction => 'Uygulamayı Aç';
@@ -2401,8 +2331,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get breedCaneCorso => 'İtalyan Cane Corso';
 
   @override
-  String get breedCavalierKingCharlesSpaniel =>
-      'Cavalier King Charles Spanyeli';
+  String get breedCavalierKingCharlesSpaniel => 'Cavalier King Charles Spanyeli';
 
   @override
   String get breedChihuahua => 'Şivava';
@@ -2549,19 +2478,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get editDogHealthUnderTreatment => 'Tedavi Altında';
 
   @override
-  String get noDogFoundForAccount =>
-      'Hesabınız için köpek bulunamadı. Lütfen önce bir köpek ekleyin.';
+  String get noDogFoundForAccount => 'Hesabınız için köpek bulunamadı. Lütfen önce bir köpek ekleyin.';
 
   @override
   String get pleaseSelectYourDog => 'Lütfen köpeklerinizden birini seçin';
 
   @override
-  String get cannotScheduleWithOwnDog =>
-      'Kendi köpeğinizle oyun randevusu planlayamazsınız.';
+  String get cannotScheduleWithOwnDog => 'Kendi köpeğinizle oyun randevusu planlayamazsınız.';
 
   @override
-  String get cannotScheduleWithTempUser =>
-      'Geçici bir kullanıcıyla oyun randevusu planlanamaz.';
+  String get cannotScheduleWithTempUser => 'Geçici bir kullanıcıyla oyun randevusu planlanamaz.';
 
   @override
   String playdateRequestFor(Object dogName) {
@@ -2578,8 +2504,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get notNeutered => 'Kısırlaştırılmamış';
 
   @override
-  String get pleaseSelectDogForPlaydate =>
-      'Lütfen oyun randevusu için köpeklerinizden birini seçin';
+  String get pleaseSelectDogForPlaydate => 'Lütfen oyun randevusu için köpeklerinizden birini seçin';
 
   @override
   String get years => 'yıl';
@@ -2637,23 +2562,19 @@ class AppLocalizationsTr extends AppLocalizations {
   String get schedulePlayDate => 'Oyun Randevusu Planla';
 
   @override
-  String get playdateSchedulingSubtitle =>
-      'Oyun randevusu için tarih, saat, konum ve köpekleri seçin.';
+  String get playdateSchedulingSubtitle => 'Oyun randevusu için tarih, saat, konum ve köpekleri seçin.';
 
   @override
   String get errorSelectDateAndTime => 'Lütfen tarih ve saat seçin.';
 
   @override
-  String get errorMissingLocationCoordinates =>
-      'Park konumu koordinatları eksik.';
+  String get errorMissingLocationCoordinates => 'Park konumu koordinatları eksik.';
 
   @override
-  String get errorPlaydateLeadTime =>
-      'Oyun randevusu en az 15 dakika önceden planlanmalıdır.';
+  String get errorPlaydateLeadTime => 'Oyun randevusu en az 15 dakika önceden planlanmalıdır.';
 
   @override
-  String get playdateTimeConflict =>
-      'Bu köpeğin bu saate yakın bir oyun randevusu zaten var 🐾';
+  String get playdateTimeConflict => 'Bu köpeğin bu saate yakın bir oyun randevusu zaten var 🐾';
 
   @override
   String coordinatesLatLng(Object lat, Object lng) {
@@ -2775,8 +2696,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get offerPremiumRequiredTitle => 'Premium Gerekli';
 
   @override
-  String get offerPremiumRequiredMessage =>
-      'Bu teklif yalnızca premium üyeler içindir.';
+  String get offerPremiumRequiredMessage => 'Bu teklif yalnızca premium üyeler içindir.';
 
   @override
   String get offerCancel => 'İptal';
@@ -2791,8 +2711,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get offerChooseContinueTitle => 'Nasıl devam etmek istersiniz?';
 
   @override
-  String get offerChooseContinueSubtitle =>
-      'Bu teklif için tercih ettiğiniz iletişim seçeneğini seçin.';
+  String get offerChooseContinueSubtitle => 'Bu teklif için tercih ettiğiniz iletişim seçeneğini seçin.';
 
   @override
   String get offerOpenWebsite => 'Web Sitesini Aç';
@@ -2872,8 +2791,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get reportFoundTitle => 'Bulundu Bildir';
 
   @override
-  String get reconnectFamilies =>
-      'Evcil dostları ailelerine kavuşturmaya yardım et';
+  String get reconnectFamilies => 'Evcil dostları ailelerine kavuşturmaya yardım et';
 
   @override
   String get lostPetsTitle => 'Kayıp Dostlar';
@@ -2962,8 +2880,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get homeLocationNeededTitle => 'Konum gerekli';
 
   @override
-  String get homeLocationNeededMessage =>
-      'Yakındaki veterinerleri göstermek için konumunuzu kullanıyoruz';
+  String get homeLocationNeededMessage => 'Yakındaki veterinerleri göstermek için konumunuzu kullanıyoruz';
 
   @override
   String get homeAllowButton => 'İzin ver';
@@ -3013,23 +2930,19 @@ class AppLocalizationsTr extends AppLocalizations {
   String get offerOpenError => 'Teklif açılırken hata oluştu';
 
   @override
-  String get businessRegisterLegalCompanyNameRequired =>
-      '• Yasal şirket adı gereklidir.';
+  String get businessRegisterLegalCompanyNameRequired => '• Yasal şirket adı gereklidir.';
 
   @override
-  String get businessRegisterPublicDisplayNameRequired =>
-      '• Görünen işletme adı gereklidir.';
+  String get businessRegisterPublicDisplayNameRequired => '• Görünen işletme adı gereklidir.';
 
   @override
   String get businessRegisterSelectCountry => '• Lütfen bir ülke seçin.';
 
   @override
-  String get businessRegisterSelectBusinessCategory =>
-      '• Lütfen en az bir işletme kategorisi seçin.';
+  String get businessRegisterSelectBusinessCategory => '• Lütfen en az bir işletme kategorisi seçin.';
 
   @override
-  String get businessRegisterEnterValidEmail =>
-      '• Geçerli bir e-posta adresi girin (örnek: name@example.com).';
+  String get businessRegisterEnterValidEmail => '• Geçerli bir e-posta adresi girin (örnek: name@example.com).';
 
   @override
   String get businessRegisterPhoneIncomplete => '• Telefon numarası eksik.';
@@ -3041,28 +2954,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterSelectDistrict => '• Lütfen ilçe seçin.';
 
   @override
-  String get businessRegisterBusinessAddressRequired =>
-      '• İşletme adresi gereklidir.';
+  String get businessRegisterBusinessAddressRequired => '• İşletme adresi gereklidir.';
 
   @override
-  String get businessRegisterAllLegalDocumentsRequired =>
-      '• Gerekli tüm yasal belgeler yüklenmelidir.';
+  String get businessRegisterAllLegalDocumentsRequired => '• Gerekli tüm yasal belgeler yüklenmelidir.';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeContinuing =>
-      '• Devam etmeden önce belgeler doğrulanmalıdır.';
+  String get businessRegisterDocumentsVerifiedBeforeContinuing => '• Devam etmeden önce belgeler doğrulanmalıdır.';
 
   @override
-  String get businessRegisterAcceptPlatformTerms =>
-      '• Platform şartlarını kabul etmelisiniz.';
+  String get businessRegisterAcceptPlatformTerms => '• Platform şartlarını kabul etmelisiniz.';
 
   @override
-  String get businessRegisterAcceptLegalResponsibility =>
-      '• Yasal sorumluluk beyanını kabul etmelisiniz.';
+  String get businessRegisterAcceptLegalResponsibility => '• Yasal sorumluluk beyanını kabul etmelisiniz.';
 
   @override
-  String get businessRegisterFixHighlightedFields =>
-      'Lütfen vurgulanan alanları düzeltin';
+  String get businessRegisterFixHighlightedFields => 'Lütfen vurgulanan alanları düzeltin';
 
   @override
   String get businessRegisterOk => 'Tamam';
@@ -3077,15 +2984,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterFailedToLoadDistricts => 'İlçeler yüklenemedi';
 
   @override
-  String get businessRegisterPlatformLegalAgreement =>
-      'Platform Yasal Sözleşmesi';
+  String get businessRegisterPlatformLegalAgreement => 'Platform Yasal Sözleşmesi';
 
   @override
   String get businessRegisterReadAndAccept => 'Okudum ve kabul ediyorum';
 
   @override
-  String get businessRegisterLocationPermissionDenied =>
-      'Konum izni reddedildi';
+  String get businessRegisterLocationPermissionDenied => 'Konum izni reddedildi';
 
   @override
   String get businessRegisterCouldNotDetectCity => 'Şehir tespit edilemedi';
@@ -3121,38 +3026,31 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterCouldNotOpenLegalText => 'Yasal metin açılamadı';
 
   @override
-  String get businessRegisterSelectAtLeastOneBusinessCategory =>
-      'Lütfen en az bir işletme kategorisi seçin';
+  String get businessRegisterSelectAtLeastOneBusinessCategory => 'Lütfen en az bir işletme kategorisi seçin';
 
   @override
-  String get businessRegisterPleaseEnterBusinessAddress =>
-      'Lütfen işletme adresini girin';
+  String get businessRegisterPleaseEnterBusinessAddress => 'Lütfen işletme adresini girin';
 
   @override
-  String get businessRegisterMustAcceptAllAgreements =>
-      'Tüm sözleşmeleri kabul etmelisiniz';
+  String get businessRegisterMustAcceptAllAgreements => 'Tüm sözleşmeleri kabul etmelisiniz';
 
   @override
-  String get businessRegisterDocumentsVerifiedBeforeSubmission =>
-      'Göndermeden önce belgeler doğrulanmalıdır';
+  String get businessRegisterDocumentsVerifiedBeforeSubmission => 'Göndermeden önce belgeler doğrulanmalıdır';
 
   @override
-  String get businessRegisterApplicationSubmittedSuccessfully =>
-      'Başvuru başarıyla gönderildi';
+  String get businessRegisterApplicationSubmittedSuccessfully => 'Başvuru başarıyla gönderildi';
 
   @override
   String get businessRegisterSubmissionFailed => 'Gönderim başarısız oldu';
 
   @override
-  String get businessRegisterUnexpectedErrorOccurred =>
-      'Beklenmeyen bir hata oluştu';
+  String get businessRegisterUnexpectedErrorOccurred => 'Beklenmeyen bir hata oluştu';
 
   @override
   String get businessRegisterTitle => 'İşletme Kaydı';
 
   @override
-  String get businessRegisterStepIdentityCategories =>
-      'İşletme kimliği ve kategoriler';
+  String get businessRegisterStepIdentityCategories => 'İşletme kimliği ve kategoriler';
 
   @override
   String get businessRegisterStepContactLocation => 'İletişim ve konum';
@@ -3173,15 +3071,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterSubmitApplication => 'Başvuruyu Gönder';
 
   @override
-  String get businessRegisterCompleteSectorDetails =>
-      'Sektör Detaylarını Tamamla';
+  String get businessRegisterCompleteSectorDetails => 'Sektör Detaylarını Tamamla';
 
   @override
   String get businessRegisterBusinessIdentity => 'İşletme kimliği';
 
   @override
-  String get businessRegisterBusinessIdentitySubtitle =>
-      'İşletmenizin PetSupo\'da nasıl görüneceğini belirtin.';
+  String get businessRegisterBusinessIdentitySubtitle => 'İşletmenizin PetSupo\'da nasıl görüneceğini belirtin.';
 
   @override
   String get businessRegisterLegalCompanyName => 'Yasal Şirket Adı';
@@ -3199,15 +3095,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterBusinessCategories => 'İşletme kategorileri';
 
   @override
-  String get businessRegisterBusinessCategoriesSubtitle =>
-      'Bu işletmenin faaliyet gösterdiği tüm sektörleri seçin.';
+  String get businessRegisterBusinessCategoriesSubtitle => 'Bu işletmenin faaliyet gösterdiği tüm sektörleri seçin.';
 
   @override
   String get businessRegisterContactLocation => 'İletişim ve konum';
 
   @override
-  String get businessRegisterContactLocationSubtitle =>
-      'Bu bilgiler müşterilerin sizi bulmasına ve sizinle iletişim kurmasına yardımcı olur.';
+  String get businessRegisterContactLocationSubtitle => 'Bu bilgiler müşterilerin sizi bulmasına ve sizinle iletişim kurmasına yardımcı olur.';
 
   @override
   String get businessRegisterPhone => 'Telefon';
@@ -3234,8 +3128,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterDetectCity => 'Şehri Algıla';
 
   @override
-  String get businessRegisterMapPickerComingSoon =>
-      'Harita seçici yakında eklenecek';
+  String get businessRegisterMapPickerComingSoon => 'Harita seçici yakında eklenecek';
 
   @override
   String get businessRegisterPickLocation => 'Konum Seç';
@@ -3250,41 +3143,34 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterTradeRegistryGazette => 'Ticaret Sicili Gazetesi';
 
   @override
-  String get businessRegisterAuthorizedSignatureDocument =>
-      'Yetkili İmza Evrakı';
+  String get businessRegisterAuthorizedSignatureDocument => 'Yetkili İmza Evrakı';
 
   @override
   String get businessRegisterTaxNumberVkn => 'Vergi Numarası (VKN)';
 
   @override
-  String get businessRegisterAutoFilledFromDocument =>
-      'Belgeden otomatik dolduruldu';
+  String get businessRegisterAutoFilledFromDocument => 'Belgeden otomatik dolduruldu';
 
   @override
-  String get businessRegisterDocumentVerificationInconsistencies =>
-      'Belge doğrulamasında tutarsızlıklar var. Yönetici incelemesi gerekiyor.';
+  String get businessRegisterDocumentVerificationInconsistencies => 'Belge doğrulamasında tutarsızlıklar var. Yönetici incelemesi gerekiyor.';
 
   @override
   String get businessRegisterMersisNumber => 'MERSİS Numarası';
 
   @override
-  String get businessRegisterDocumentsSecurelyEncrypted =>
-      'Belgeleriniz güvenli şekilde şifrelenir ve otomatik olarak doğrulanır';
+  String get businessRegisterDocumentsSecurelyEncrypted => 'Belgeleriniz güvenli şekilde şifrelenir ve otomatik olarak doğrulanır';
 
   @override
   String get businessRegisterVerifiedFromDocument => 'Belgeden doğrulandı';
 
   @override
-  String get businessRegisterAutoFilledAfterVerification =>
-      'Belge doğrulamasından sonra otomatik doldurulur';
+  String get businessRegisterAutoFilledAfterVerification => 'Belge doğrulamasından sonra otomatik doldurulur';
 
   @override
-  String get businessRegisterUploadTradeRegistryFirst =>
-      'Önce Ticaret Sicil belgesini yükleyin';
+  String get businessRegisterUploadTradeRegistryFirst => 'Önce Ticaret Sicil belgesini yükleyin';
 
   @override
-  String get businessRegisterWaitingForDocumentVerification =>
-      'Belge doğrulaması bekleniyor...';
+  String get businessRegisterWaitingForDocumentVerification => 'Belge doğrulaması bekleniyor...';
 
   @override
   String get businessRegisterSteuernummer => 'Vergi Numarası';
@@ -3314,12 +3200,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterProcessingDocument => 'Belge işleniyor...';
 
   @override
-  String get businessRegisterDocumentVerifiedSuccessfully =>
-      'Belge başarıyla doğrulandı';
+  String get businessRegisterDocumentVerifiedSuccessfully => 'Belge başarıyla doğrulandı';
 
   @override
-  String get businessRegisterCouldNotReadDocument =>
-      'Belge okunamadı, lütfen tekrar yükleyin';
+  String get businessRegisterCouldNotReadDocument => 'Belge okunamadı, lütfen tekrar yükleyin';
 
   @override
   String get businessRegisterVeterinary => 'Veteriner';
@@ -3336,8 +3220,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterLegalConfirmation => 'Yasal Onay';
 
   @override
-  String get businessRegisterAcceptTermsKvkk =>
-      'Platform Şartları\'nı ve KVKK Aydınlatma Metni\'ni kabul ediyorum.';
+  String get businessRegisterAcceptTermsKvkk => 'Platform Şartları\'nı ve KVKK Aydınlatma Metni\'ni kabul ediyorum.';
 
   @override
   String get businessRegisterReadInsideApp => 'Uygulama içinde oku';
@@ -3346,16 +3229,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterOpenOfficialLegalPage => 'Resmi yasal sayfayı aç';
 
   @override
-  String get businessRegisterLegalVersion =>
-      'Sürüm v1.0 • Son güncelleme Mayıs 2026';
+  String get businessRegisterLegalVersion => 'Sürüm v1.0 • Son güncelleme Mayıs 2026';
 
   @override
-  String get businessRegisterAgreementSecurelyStored =>
-      'Onayınız güvenli şekilde saklanır ve yasal olarak bağlayıcıdır';
+  String get businessRegisterAgreementSecurelyStored => 'Onayınız güvenli şekilde saklanır ve yasal olarak bağlayıcıdır';
 
   @override
-  String get businessRegisterLegalResponsibilityDeclaration =>
-      'Gönderilen tüm belgelerin doğru olduğunu beyan eder ve Türk Ticaret Kanunu kapsamında tüm yasal sorumluluğu kabul ederim.';
+  String get businessRegisterLegalResponsibilityDeclaration => 'Gönderilen tüm belgelerin doğru olduğunu beyan eder ve Türk Ticaret Kanunu kapsamında tüm yasal sorumluluğu kabul ederim.';
 
   @override
   String get businessRegisterUploaded => 'Yüklendi';
@@ -3364,8 +3244,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterReplaceDocument => 'Belgeyi değiştir';
 
   @override
-  String get businessRegisterReplaceDocumentConfirmation =>
-      'Bu dosyayı değiştirmek istediğinizden emin misiniz?';
+  String get businessRegisterReplaceDocumentConfirmation => 'Bu dosyayı değiştirmek istediğinizden emin misiniz?';
 
   @override
   String get businessRegisterReplace => 'Değiştir';
@@ -3405,8 +3284,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get myAppointments => 'Randevularım';
 
   @override
-  String get myAppointmentsLoginRequired =>
-      'Randevularınızı görmek için lütfen giriş yapın';
+  String get myAppointmentsLoginRequired => 'Randevularınızı görmek için lütfen giriş yapın';
 
   @override
   String get appointmentHistory => 'Randevu Geçmişi';
@@ -3523,8 +3401,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get userProfileGuestTitle => 'Misafir olarak geziniyorsunuz';
 
   @override
-  String get userProfileGuestSubtitle =>
-      'Tüm özelliklerin kilidini açmak için giriş yapın';
+  String get userProfileGuestSubtitle => 'Tüm özelliklerin kilidini açmak için giriş yapın';
 
   @override
   String get userProfileLoginSignUp => 'Giriş Yap / Kayıt Ol';
@@ -3542,8 +3419,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get userProfileUnlockBusinessFeatures => 'İşletme Özelliklerini Aç 🚀';
 
   @override
-  String get userProfileUpgradeBusinessDescription =>
-      'İşletmenizi kaydetmek ve müşteri almaya başlamak için PetSupo Partner\'a yükseltin.';
+  String get userProfileUpgradeBusinessDescription => 'İşletmenizi kaydetmek ve müşteri almaya başlamak için PetSupo Partner\'a yükseltin.';
 
   @override
   String get userProfileUpgradeToGold => 'PetSupo Partner\'a Yükselt';
@@ -3576,8 +3452,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get userProfileApplicationUnderReview => 'Başvuru İnceleniyor';
 
   @override
-  String get userProfileApplicationUnderReviewDescription =>
-      'İşletme başvurunuz başarıyla gönderildi ve şu anda inceleniyor.';
+  String get userProfileApplicationUnderReviewDescription => 'İşletme başvurunuz başarıyla gönderildi ve şu anda inceleniyor.';
 
   @override
   String get userProfileAdminPanel => 'Admin Paneli';
@@ -3594,8 +3469,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get userProfileUpgradeToGoldToContinue =>
-      'Devam etmek için PetSupo Partner\'a yükseltin';
+  String get userProfileUpgradeToGoldToContinue => 'Devam etmek için PetSupo Partner\'a yükseltin';
 
   @override
   String get userProfileReApply => 'Yeniden Başvur';
@@ -3616,19 +3490,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get userProfileImageSelectionFailed => 'Fotoğraf seçilemedi.';
 
   @override
-  String get userProfileUsernameMinLength =>
-      'Kullanıcı adı en az 3 karakter olmalı';
+  String get userProfileUsernameMinLength => 'Kullanıcı adı en az 3 karakter olmalı';
 
   @override
-  String get userProfileUsernameMaxLength =>
-      'Kullanıcı adı en fazla 20 karakter olmalı';
+  String get userProfileUsernameMaxLength => 'Kullanıcı adı en fazla 20 karakter olmalı';
 
   @override
   String get userProfileUsernameNoSpaces => 'Kullanıcı adı boşluk içeremez';
 
   @override
-  String get userProfilePhoneInvalidCharacters =>
-      'Telefon geçersiz karakterler içeriyor';
+  String get userProfilePhoneInvalidCharacters => 'Telefon geçersiz karakterler içeriyor';
 
   @override
   String get userProfileBioMaxLength => 'Biyografi 150 karakterden kısa olmalı';
@@ -3725,8 +3596,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessNotFound => 'İşletme bulunamadı';
 
   @override
-  String get sectorDashboardNotImplementedYet =>
-      'Bu sektör paneli henüz uygulanmadı';
+  String get sectorDashboardNotImplementedYet => 'Bu sektör paneli henüz uygulanmadı';
 
   @override
   String get goBackButton => 'Geri Dön';
@@ -3865,26 +3735,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get catalogStrengthWeakLabel => 'Zayıf';
 
   @override
-  String get catalogStrengthAddItemsMessage =>
-      'Kataloğunuzu güçlendirmek için ürün, açıklama, medya ve stok ekleyin.';
+  String get catalogStrengthAddItemsMessage => 'Kataloğunuzu güçlendirmek için ürün, açıklama, medya ve stok ekleyin.';
 
   @override
-  String get catalogStrengthWeakDetailsMessage =>
-      'Ürün detaylarınız hâlâ zayıf. Daha fazla medya, açıklama ve stok bilgisi ekleyin.';
+  String get catalogStrengthWeakDetailsMessage => 'Ürün detaylarınız hâlâ zayıf. Daha fazla medya, açıklama ve stok bilgisi ekleyin.';
 
   @override
   String get catalogStrengthMediumLabel => 'Orta';
 
   @override
-  String get catalogStrengthMediumMessage =>
-      'İyi başlangıç. Görünürlüğü artırmak için daha zengin açıklamalar ve daha fazla ürün medyası ekleyin.';
+  String get catalogStrengthMediumMessage => 'İyi başlangıç. Görünürlüğü artırmak için daha zengin açıklamalar ve daha fazla ürün medyası ekleyin.';
 
   @override
   String get catalogStrengthStrongLabel => 'Güçlü';
 
   @override
-  String get catalogStrengthStrongMessage =>
-      'Harika katalog kalitesi. Ürünleriniz güçlü ve eksiksiz görünüyor.';
+  String get catalogStrengthStrongMessage => 'Harika katalog kalitesi. Ürünleriniz güçlü ve eksiksiz görünüyor.';
 
   @override
   String get shippingCalculatedLabel => 'Kargo hesaplanıyor';
@@ -3911,8 +3777,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get myOrdersLoginRequired =>
-      'Siparişlerinizi görmek için lütfen giriş yapın';
+  String get myOrdersLoginRequired => 'Siparişlerinizi görmek için lütfen giriş yapın';
 
   @override
   String get myOrdersTitle => 'Siparişlerim';
@@ -3974,8 +3839,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get ordersTitle => 'Siparişler';
 
   @override
-  String get searchByOrderIdOrProductNameHint =>
-      'Sipariş numarası veya ürün adıyla ara';
+  String get searchByOrderIdOrProductNameHint => 'Sipariş numarası veya ürün adıyla ara';
 
   @override
   String get allFilterLabel => 'Tümü';
@@ -4052,8 +3916,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get simulateUploadInvoiceButton => 'Fatura Yüklemeyi Simüle Et';
 
   @override
-  String get invoiceSimulatedAsUploaded =>
-      'Fatura yüklendi olarak simüle edildi';
+  String get invoiceSimulatedAsUploaded => 'Fatura yüklendi olarak simüle edildi';
 
   @override
   String invoiceError(Object error) {
@@ -4167,8 +4030,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get paymentWillBeTransferredByPetsupo =>
-      'Ödeme Petsupo tarafından aktarılacak';
+  String get paymentWillBeTransferredByPetsupo => 'Ödeme Petsupo tarafından aktarılacak';
 
   @override
   String get pendingPayoutLabel => 'Ödeme beklemede';
@@ -4198,12 +4060,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get returnTrackingNumberLabel => 'İade Takip Numarası';
 
   @override
-  String get returnTrackingNumberHelperText =>
-      'İade gönderisi için verilen takip numarasını girin.';
+  String get returnTrackingNumberHelperText => 'İade gönderisi için verilen takip numarasını girin.';
 
   @override
-  String get returnCarrierHelperText =>
-      'Orijinal teslimatta kullanılan kargo firmasını kullanın.';
+  String get returnCarrierHelperText => 'Orijinal teslimatta kullanılan kargo firmasını kullanın.';
 
   @override
   String get originalShipmentTrackingLabel => 'Orijinal Gönderi Takibi';
@@ -4295,8 +4155,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get upgradeHeroTitle => 'Daha iyi eşleşmeleri daha hızlı bulun 🐾';
 
   @override
-  String get upgradeHeroSubtitle =>
-      'Premium özelliklerin, daha iyi görünürlüğün, özel tekliflerin ve işletme araçlarının kilidini açın.';
+  String get upgradeHeroSubtitle => 'Premium özelliklerin, daha iyi görünürlüğün, özel tekliflerin ve işletme araçlarının kilidini açın.';
 
   @override
   String get premiumPlanSubtitle => 'Aktif evcil hayvan sahipleri için';
@@ -4305,20 +4164,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get premiumPlanFeatureUnlimitedChat => 'Sınırsız sohbet';
 
   @override
-  String get premiumPlanFeatureAdvancedMatchingFilters =>
-      'Gelişmiş eşleşme filtreleri';
+  String get premiumPlanFeatureAdvancedMatchingFilters => 'Gelişmiş eşleşme filtreleri';
 
   @override
-  String get premiumPlanFeatureExclusivePetOffers =>
-      'Özel evcil hayvan teklifleri';
+  String get premiumPlanFeatureExclusivePetOffers => 'Özel evcil hayvan teklifleri';
 
   @override
-  String get premiumPlanFeatureBetterProfileExperience =>
-      'Daha iyi profil deneyimi';
+  String get premiumPlanFeatureBetterProfileExperience => 'Daha iyi profil deneyimi';
 
   @override
-  String get goldPlanSubtitle =>
-      'Evcil hayvan bakım uzmanları ve işletmeleri için';
+  String get goldPlanSubtitle => 'Evcil hayvan bakım uzmanları ve işletmeleri için';
 
   @override
   String get mostPopularLabel => 'EN POPÜLER';
@@ -4327,8 +4182,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get goldPlanFeatureEverythingInPremium => 'Premium\'daki her şey';
 
   @override
-  String get goldPlanFeatureBusinessRegistrationAccess =>
-      'İşletme kaydı erişimi';
+  String get goldPlanFeatureBusinessRegistrationAccess => 'İşletme kaydı erişimi';
 
   @override
   String get goldPlanFeatureBoostedVisibility => 'Artırılmış görünürlük';
@@ -4337,8 +4191,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get goldPlanFeatureBusinessDashboardAccess => 'İşletme paneli erişimi';
 
   @override
-  String get goldPlanFeaturePremiumChatAndOffers =>
-      'Premium sohbet ve teklifler';
+  String get goldPlanFeaturePremiumChatAndOffers => 'Premium sohbet ve teklifler';
 
   @override
   String get storeNotReadyTryAgain => 'Mağaza hazır değil. Tekrar deneyin.';
@@ -4353,16 +4206,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get restorePurchases => 'Satın Alımları Geri Yükle';
 
   @override
-  String get upgradePaymentTerms =>
-      'Ödemeniz onaylandığında App Store hesabınızdan tahsil edilir. Geçerli dönem bitmeden en az 24 saat önce iptal edilmediği sürece abonelikler otomatik yenilenir.';
+  String get upgradePaymentTerms => 'Ödemeniz onaylandığında App Store hesabınızdan tahsil edilir. Geçerli dönem bitmeden en az 24 saat önce iptal edilmediği sürece abonelikler otomatik yenilenir.';
 
   @override
-  String get autoRenewableMonthlySubscription =>
-      'Otomatik yenilenen aylık abonelik';
+  String get autoRenewableMonthlySubscription => 'Otomatik yenilenen aylık abonelik';
 
   @override
-  String get securePaymentNotice =>
-      'Güvenli ödeme • İstediğiniz zaman iptal edin • Planlar App Store tarafından yönetilir';
+  String get securePaymentNotice => 'Güvenli ödeme • İstediğiniz zaman iptal edin • Planlar App Store tarafından yönetilir';
 
   @override
   String continueWithPlan(Object plan) {
@@ -4477,12 +4327,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adoptionEnterYearsOfExperience => '0..60 girin';
 
   @override
-  String get adoptionPreviousDogQuestion =>
-      'Daha önce köpeğiniz oldu mu? (Evet/Hayır)';
+  String get adoptionPreviousDogQuestion => 'Daha önce köpeğiniz oldu mu? (Evet/Hayır)';
 
   @override
-  String get adoptionPreviousDogReasonLabel =>
-      'Önceki köpeğiniz artık neden sizinle değil?';
+  String get adoptionPreviousDogReasonLabel => 'Önceki köpeğiniz artık neden sizinle değil?';
 
   @override
   String get adoptionPreviousDogReasonHint => 'Kısaca açıklayın';
@@ -4494,8 +4342,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adoptionOtherPetsAtHome => 'Evde başka evcil hayvanlar var';
 
   @override
-  String get adoptionDescribeOtherPetsLabel =>
-      'Diğer evcil hayvanlarınızı anlatın';
+  String get adoptionDescribeOtherPetsLabel => 'Diğer evcil hayvanlarınızı anlatın';
 
   @override
   String get adoptionDescribeOtherPetsHint => 'örn. 2 kedi, aşılı';
@@ -4504,22 +4351,19 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adoptionRequiredShort => 'Gerekli';
 
   @override
-  String get adoptionDescribeOtherPetsRequired =>
-      'Lütfen diğer evcil hayvanlarınızı anlatın';
+  String get adoptionDescribeOtherPetsRequired => 'Lütfen diğer evcil hayvanlarınızı anlatın';
 
   @override
   String get adoptionMotivationMessageLabel => 'Motivasyon mesajı';
 
   @override
-  String get adoptionMotivationMinLength =>
-      'Motivasyon en az 20 karakter olmalıdır';
+  String get adoptionMotivationMinLength => 'Motivasyon en az 20 karakter olmalıdır';
 
   @override
   String get adoptionStepFinancialCommitmentTitle => '4️⃣ Finansal ve Taahhüt';
 
   @override
-  String get adoptionCanAffordVetExpenses =>
-      'Veteriner masraflarını karşılayabilir mi?';
+  String get adoptionCanAffordVetExpenses => 'Veteriner masraflarını karşılayabilir mi?';
 
   @override
   String get adoptionEmergencySavingsAvailable => 'Acil durum birikimi var mı?';
@@ -4560,19 +4404,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adoptionRemoveButton => 'Kaldır';
 
   @override
-  String get adoptionProofOfIncomeOptionalTitle =>
-      'Gelir belgesi (isteğe bağlı)';
+  String get adoptionProofOfIncomeOptionalTitle => 'Gelir belgesi (isteğe bağlı)';
 
   @override
   String get adoptionOptionalLabel => 'İsteğe bağlı';
 
   @override
-  String get adoptionAgreeContractRequiredLabel =>
-      'Sahiplenme sözleşmesini imzalamayı kabul ediyorum (gerekli)';
+  String get adoptionAgreeContractRequiredLabel => 'Sahiplenme sözleşmesini imzalamayı kabul ediyorum (gerekli)';
 
   @override
-  String get adoptionAgreeContractRequired =>
-      'Sahiplenme sözleşmesini kabul etmelisiniz';
+  String get adoptionAgreeContractRequired => 'Sahiplenme sözleşmesini kabul etmelisiniz';
 
   @override
   String get adoptionUploadIdPhoto => 'Lütfen bir kimlik fotoğrafı yükleyin';
@@ -4581,11 +4422,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adoptionNextButton => 'İleri';
 
   @override
-  String smartPriceSuggestedRangeLabel(
-    Object currency,
-    Object max,
-    Object min,
-  ) {
+  String smartPriceSuggestedRangeLabel(Object currency, Object max, Object min) {
     return 'Önerilen aralık: $min - $max $currency';
   }
 
@@ -4724,15 +4561,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get productAlreadyExistsTitle => 'Ürün zaten mevcut';
 
   @override
-  String get productAlreadyExistsDescription =>
-      'Bu ürün zaten mevcut. Ürün düzenleyici açılıyor.';
+  String get productAlreadyExistsDescription => 'Bu ürün zaten mevcut. Ürün düzenleyici açılıyor.';
 
   @override
   String get continueButton => 'Devam';
 
   @override
-  String get productNameMustBeAtLeast4Chars =>
-      'Ürün adı en az 4 karakter olmalıdır';
+  String get productNameMustBeAtLeast4Chars => 'Ürün adı en az 4 karakter olmalıdır';
 
   @override
   String get invalidBarcode => 'Geçersiz barkod';
@@ -4744,8 +4579,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get invalidWholesalePrice => 'Geçersiz toptan fiyat';
 
   @override
-  String get wholesaleMinQuantityMustBeAtLeast2 =>
-      'Toptan minimum adet en az 2 olmalıdır';
+  String get wholesaleMinQuantityMustBeAtLeast2 => 'Toptan minimum adet en az 2 olmalıdır';
 
   @override
   String get kdvRateIsRequired => 'Bir KDV oranı seçin';
@@ -4757,19 +4591,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get invalidDiscountPrice => 'Geçersiz indirimli fiyat';
 
   @override
-  String get discountMustBeLowerThanOriginalPrice =>
-      'İndirimli fiyat orijinal fiyattan düşük olmalıdır';
+  String get discountMustBeLowerThanOriginalPrice => 'İndirimli fiyat orijinal fiyattan düşük olmalıdır';
 
   @override
-  String get wholesalePriceMustBeLowerThanRetailPrice =>
-      'Toptan fiyat perakende fiyattan düşük olmalıdır';
+  String get wholesalePriceMustBeLowerThanRetailPrice => 'Toptan fiyat perakende fiyattan düşük olmalıdır';
 
   @override
   String get invalidStock => 'Geçersiz stok';
 
   @override
-  String get stockMustBeAtLeastWholesaleMinQuantity =>
-      'Stok, toptan minimum adetten az olamaz';
+  String get stockMustBeAtLeastWholesaleMinQuantity => 'Stok, toptan minimum adetten az olamaz';
 
   @override
   String get inventoryStockFieldLabel => 'Stok';
@@ -4781,8 +4612,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get addAtLeast1Media => 'En az 1 medya öğesi ekleyin';
 
   @override
-  String get descriptionMustBeAtLeast10Characters =>
-      'Açıklama en az 10 karakter olmalıdır';
+  String get descriptionMustBeAtLeast10Characters => 'Açıklama en az 10 karakter olmalıdır';
 
   @override
   String get selectCategory => 'Bir kategori seçin';
@@ -4821,8 +4651,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get selectAtLeast1CargoCarrier => 'En az 1 kargo firması seçin';
 
   @override
-  String get returnWindowCannotBeLessThan14Days =>
-      'İade süresi 14 günden az olamaz';
+  String get returnWindowCannotBeLessThan14Days => 'İade süresi 14 günden az olamaz';
 
   @override
   String get returnCarrierIsRequired => 'İade taşıyıcısı gerekli';
@@ -4887,11 +4716,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String smartDescriptionAccessories(
-    Object brand,
-    Object name,
-    Object subCategory,
-  ) {
+  String smartDescriptionAccessories(Object brand, Object name, Object subCategory) {
     return '$name markalı $brand, $subCategory kategorisinde kullanışlı bir aksesuardır.';
   }
 
@@ -4966,8 +4791,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get searchingProductStatus => 'Ürün aranıyor...';
 
   @override
-  String get productAlreadyExistsOpeningEditStatus =>
-      'Ürün mevcut, düzenleyici açılıyor...';
+  String get productAlreadyExistsOpeningEditStatus => 'Ürün mevcut, düzenleyici açılıyor...';
 
   @override
   String get fetchingProductDataStatus => 'Ürün verileri alınıyor...';
@@ -5005,8 +4829,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get addProductTitle => 'Ürün Ekle';
 
   @override
-  String get tapToReplaceOrAddMedia =>
-      'Medya değiştirmek veya eklemek için dokun';
+  String get tapToReplaceOrAddMedia => 'Medya değiştirmek veya eklemek için dokun';
 
   @override
   String get tapToAddMedia => 'Medya eklemek için dokun';
@@ -5027,8 +4850,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get enterBarcodeHint => 'Barkodu girin veya tarayın';
 
   @override
-  String get noBarcodeSkuHint =>
-      'Barkod isteğe bağlıdır. Boşsa SKU otomatik oluşturulur.';
+  String get noBarcodeSkuHint => 'Barkod isteğe bağlıdır. Boşsa SKU otomatik oluşturulur.';
 
   @override
   String get scanButtonLabel => 'Tara';
@@ -5082,16 +4904,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get minimumQuantityForWholesaleLabel => 'Toptan için minimum adet';
 
   @override
-  String get wholesaleAppliesHint =>
-      'Toptan indirimi bu adetten itibaren geçerlidir';
+  String get wholesaleAppliesHint => 'Toptan indirimi bu adetten itibaren geçerlidir';
 
   @override
-  String get visibleOnlyToBusinessAccountsHint =>
-      'Sadece işletme hesaplarına görünür';
+  String get visibleOnlyToBusinessAccountsHint => 'Sadece işletme hesaplarına görünür';
 
   @override
-  String get usersWillSeeDiscountHint =>
-      'Kullanıcılar indirim rozetini görecek';
+  String get usersWillSeeDiscountHint => 'Kullanıcılar indirim rozetini görecek';
 
   @override
   String get discountPriceLabel => 'İndirimli fiyat';
@@ -5129,8 +4948,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get sellerPaysShippingLabel => 'Kargoyu satıcı öder';
 
   @override
-  String get enableFreeShippingCampaignLabel =>
-      'Ücretsiz kargo kampanyasını etkinleştir';
+  String get enableFreeShippingCampaignLabel => 'Ücretsiz kargo kampanyasını etkinleştir';
 
   @override
   String get freeShippingThresholdLabel => 'Ücretsiz kargo eşiği';
@@ -5160,8 +4978,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get buyerOptionLabel => 'Alıcı';
 
   @override
-  String get sellerContractedCarrierOnlyLabel =>
-      'Sadece anlaşmalı taşıyıcı varsa satıcı';
+  String get sellerContractedCarrierOnlyLabel => 'Sadece anlaşmalı taşıyıcı varsa satıcı';
 
   @override
   String get inventoryTitle => 'Envanter';
@@ -5219,8 +5036,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get returnRequestsTitle => 'İade Talepleri';
 
   @override
-  String get returnAvailableAfterDeliveryMessage =>
-      'İade talebi teslimattan sonra kullanılabilir.';
+  String get returnAvailableAfterDeliveryMessage => 'İade talebi teslimattan sonra kullanılabilir.';
 
   @override
   String get noReturnsYet => 'Henüz iade talebi yok';
@@ -5261,28 +5077,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get returnShippingTitle => 'İade Kargosu';
 
   @override
-  String get returnShippingBuyerMessage =>
-      'İade kargo ücretinden siz sorumlusunuz.\n\nKargo ücreti ürün iadesinden ayrıdır ve geri ödenmeyebilir.';
+  String get returnShippingBuyerMessage => 'İade kargo ücretinden siz sorumlusunuz.\n\nKargo ücreti ürün iadesinden ayrıdır ve geri ödenmeyebilir.';
 
   @override
-  String get returnShippingSellerMessage =>
-      'İade kargo ücretinden satıcı sorumludur.';
+  String get returnShippingSellerMessage => 'İade kargo ücretinden satıcı sorumludur.';
 
   @override
-  String get returnShippingContractedCarrierMessage =>
-      'Satıcının anlaşmalı iade kargo firmasını kullanın.';
+  String get returnShippingContractedCarrierMessage => 'Satıcının anlaşmalı iade kargo firmasını kullanın.';
 
   @override
-  String get returnShippingBuyerShipBackMessage =>
-      'Kargo ücreti sizin sorumluluğunuzdadır ve ürün iadesinden ayrıdır.';
+  String get returnShippingBuyerShipBackMessage => 'Kargo ücreti sizin sorumluluğunuzdadır ve ürün iadesinden ayrıdır.';
 
   @override
-  String get returnShippingSellerShipBackMessage =>
-      'İade kargo ücretini satıcı karşılar.';
+  String get returnShippingSellerShipBackMessage => 'İade kargo ücretini satıcı karşılar.';
 
   @override
-  String get returnShippingAcknowledgement =>
-      'İade kargo politikasını anlıyorum.';
+  String get returnShippingAcknowledgement => 'İade kargo politikasını anlıyorum.';
 
   @override
   String get returnShippingPolicyLoading => 'İade kargo politikası yükleniyor…';
@@ -5293,12 +5103,10 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get returnShippingVerifiedCarrierHelper =>
-      'Doğrulanmış anlaşmalı iade kargo firmasını kullanın.';
+  String get returnShippingVerifiedCarrierHelper => 'Doğrulanmış anlaşmalı iade kargo firmasını kullanın.';
 
   @override
-  String get returnCarrierEnterHelperText =>
-      'Bu iade gönderisinde kullandığınız kargo firmasını girin.';
+  String get returnCarrierEnterHelperText => 'Bu iade gönderisinde kullandığınız kargo firmasını girin.';
 
   @override
   String get refundTypeLabel => 'İade türü';
@@ -5391,8 +5199,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get shippingResponsibilityBuyerLabel => 'Alıcı';
 
   @override
-  String get shippingResponsibilityContractCarrierLabel =>
-      'Sadece anlaşmalı taşıyıcı varsa satıcı';
+  String get shippingResponsibilityContractCarrierLabel => 'Sadece anlaşmalı taşıyıcı varsa satıcı';
 
   @override
   String get returnCarrierLabel => 'İade Taşıyıcısı';
@@ -5410,26 +5217,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get refundDecisionFullTitle => 'Tam Geri Ödeme';
 
   @override
-  String get refundDecisionFullDescription =>
-      'Uygun tutarın tamamını geri ödeyin.';
+  String get refundDecisionFullDescription => 'Uygun tutarın tamamını geri ödeyin.';
 
   @override
-  String get refundDecisionFullRecommended =>
-      'Hasarlı veya kusurlu ürünler, yanlış ürün, satıcı hatası ya da teslim edilmeyen ürünler için önerilir.';
+  String get refundDecisionFullRecommended => 'Hasarlı veya kusurlu ürünler, yanlış ürün, satıcı hatası ya da teslim edilmeyen ürünler için önerilir.';
 
   @override
   String get refundDecisionPartialTitle => 'Kısmi Geri Ödeme';
 
   @override
-  String get refundDecisionPartialDescription =>
-      'Uygun tutarın yalnızca bir bölümünü geri ödeyin. Gerekçe zorunludur.';
+  String get refundDecisionPartialDescription => 'Uygun tutarın yalnızca bir bölümünü geri ödeyin. Gerekçe zorunludur.';
 
   @override
   String get refundDecisionRejectTitle => 'Geri Ödemeyi Reddet';
 
   @override
-  String get refundDecisionRejectDescription =>
-      'Geri ödeme talebini reddedin. Açık bir açıklama zorunludur.';
+  String get refundDecisionRejectDescription => 'Geri ödeme talebini reddedin. Açık bir açıklama zorunludur.';
 
   @override
   String get refundPartialAmountLabel => 'Kısmi geri ödeme tutarı';
@@ -5440,8 +5243,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get refundAmountValidationError =>
-      'Sıfırdan büyük ve uygun geri ödeme tutarını aşmayan bir tutar girin.';
+  String get refundAmountValidationError => 'Sıfırdan büyük ve uygun geri ödeme tutarını aşmayan bir tutar girin.';
 
   @override
   String get refundDecisionReasonLabel => 'Gerekçe';
@@ -5462,8 +5264,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get refundBuyerExplanationLabel => 'Alıcının göreceği açıklama';
 
   @override
-  String get refundBuyerExplanationHelper =>
-      'Geri ödemenin neden reddedildiğini açıkça belirtin.';
+  String get refundBuyerExplanationHelper => 'Geri ödemenin neden reddedildiğini açıkça belirtin.';
 
   @override
   String get refundOriginalOrderLabel => 'Orijinal Sipariş';
@@ -5490,8 +5291,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get refundReasonMissingAccessories => 'Aksesuarlar eksik';
 
   @override
-  String get refundReasonCustomerCausedDamage =>
-      'Müşterinin neden olduğu hasar';
+  String get refundReasonCustomerCausedDamage => 'Müşterinin neden olduğu hasar';
 
   @override
   String get refundReasonRestockingFee => 'Yeniden stoklama ücreti';
@@ -5540,8 +5340,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get inspectionDeadlinePassed =>
-      'Süre doldu. Otomatik tamamlama bekleniyor.';
+  String get inspectionDeadlinePassed => 'Süre doldu. Otomatik tamamlama bekleniyor.';
 
   @override
   String get reportReturnProblemTitle => 'İade sorunu bildir';
@@ -5571,8 +5370,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adminReturnDisputesTitle => 'İade anlaşmazlıkları';
 
   @override
-  String get adminReturnDisputesSubtitle =>
-      'Anlaşmazlığa düşen pazar yeri iadelerini inceleyin';
+  String get adminReturnDisputesSubtitle => 'Anlaşmazlığa düşen pazar yeri iadelerini inceleyin';
 
   @override
   String get noReturnDisputes => 'Anlaşmazlıklı iade yok';
@@ -5661,8 +5459,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get vetRevenueTitle => 'Gelir';
 
   @override
-  String get vetRevenueDescription =>
-      'Tamamlanan veteriner işlemlerine ait doğrulanmış ödeme ve mutabakat verileri.';
+  String get vetRevenueDescription => 'Tamamlanan veteriner işlemlerine ait doğrulanmış ödeme ve mutabakat verileri.';
 
   @override
   String get vetRevenueRange7Days => '7 gün';
@@ -5712,29 +5509,25 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get vetRevenueMixedCurrencyWarning =>
-      'Birden fazla para birimi mevcut. Tutarlar ayrı gösterilir; dönüştürülmez veya birleştirilmez.';
+  String get vetRevenueMixedCurrencyWarning => 'Birden fazla para birimi mevcut. Tutarlar ayrı gösterilir; dönüştürülmez veya birleştirilmez.';
 
   @override
   String get vetRevenueNoAppointmentsTitle => 'Henüz randevu yok';
 
   @override
-  String get vetRevenueNoAppointmentsMessage =>
-      'Veteriner randevuları oluşturulduğunda gelir analizi burada görünür.';
+  String get vetRevenueNoAppointmentsMessage => 'Veteriner randevuları oluşturulduğunda gelir analizi burada görünür.';
 
   @override
   String get vetRevenueNoRangeTitle => 'Bu dönemde kayıt yok';
 
   @override
-  String get vetRevenueNoRangeMessage =>
-      'Daha eski işlemler için daha geniş bir tarih aralığı seçin.';
+  String get vetRevenueNoRangeMessage => 'Daha eski işlemler için daha geniş bir tarih aralığı seçin.';
 
   @override
   String get vetRevenueLoadErrorTitle => 'Gelir verisi kullanılamıyor';
 
   @override
-  String get vetRevenueLoadErrorMessage =>
-      'Bağlantıyı kontrol edip tekrar deneyin. Mevcut ödeme kayıtları değiştirilmedi.';
+  String get vetRevenueLoadErrorMessage => 'Bağlantıyı kontrol edip tekrar deneyin. Mevcut ödeme kayıtları değiştirilmedi.';
 
   @override
   String get vetRevenueRetry => 'Tekrar dene';
@@ -5743,12 +5536,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get vetRevenueTrendTitle => 'Gelir Eğilimi';
 
   @override
-  String get vetRevenueMixedCurrencyChartHidden =>
-      'Seçilen dönemde birden fazla para birimi olduğundan birleşik grafik gizlendi.';
+  String get vetRevenueMixedCurrencyChartHidden => 'Seçilen dönemde birden fazla para birimi olduğundan birleşik grafik gizlendi.';
 
   @override
-  String get vetRevenueNoRecognizedRevenue =>
-      'Bu dönemde doğrulanmış ödenmiş gelir yok.';
+  String get vetRevenueNoRecognizedRevenue => 'Bu dönemde doğrulanmış ödenmiş gelir yok.';
 
   @override
   String get vetRevenueTopServices => 'Brüt Gelire Göre En İyi Hizmetler';
@@ -5760,8 +5551,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get vetRevenueUncategorized => 'Kategorisiz';
 
   @override
-  String get vetRevenueSearchHint =>
-      'Müşteri, evcil hayvan, hizmet veya işlem ara';
+  String get vetRevenueSearchHint => 'Müşteri, evcil hayvan, hizmet veya işlem ara';
 
   @override
   String get vetRevenueAllPayments => 'Tüm ödemeler';
@@ -5818,8 +5608,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get vetRevenueTransactionReference => 'İşlem referansı';
 
   @override
-  String get vetRevenueNoMatchingTransactions =>
-      'Arama ve filtreyle eşleşen işlem yok.';
+  String get vetRevenueNoMatchingTransactions => 'Arama ve filtreyle eşleşen işlem yok.';
 
   @override
   String vetRevenuePageOf(int page, int total) {
@@ -5830,12 +5619,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get vetWebOverviewSubtitle => 'Klinik performansı ve operasyon özeti';
 
   @override
-  String get vetWebAppointmentsSubtitle =>
-      'Veteriner randevularını inceleyin ve yönetin';
+  String get vetWebAppointmentsSubtitle => 'Veteriner randevularını inceleyin ve yönetin';
 
   @override
-  String get vetWebRevenueSubtitle =>
-      'Doğrulanmış ödeme, komisyon ve mutabakat analizi';
+  String get vetWebRevenueSubtitle => 'Doğrulanmış ödeme, komisyon ve mutabakat analizi';
 
   @override
   String get vetWebVeterinaryLabel => 'Veteriner';
@@ -5850,15 +5637,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noPetShopsFound => 'Evcil hayvan mağazası bulunamadı';
 
   @override
-  String get noPetShopsFoundDescription =>
-      'Başka bir arama deneyin veya daha sonra tekrar kontrol edin.';
+  String get noPetShopsFoundDescription => 'Başka bir arama deneyin veya daha sonra tekrar kontrol edin.';
 
   @override
   String get loadingPetShops => 'Yakınınızdaki mağazalar bulunuyor…';
 
   @override
-  String get petShopsLoadError =>
-      'Mağazalar yüklenemedi. Lütfen tekrar deneyin.';
+  String get petShopsLoadError => 'Mağazalar yüklenemedi. Lütfen tekrar deneyin.';
 
   @override
   String get retryButton => 'Tekrar dene';
@@ -5888,26 +5673,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get websiteLabel => 'Web sitesi';
 
   @override
-  String get signInToContactShop =>
-      'Bu mağazayla iletişim kurmak için giriş yapın.';
+  String get signInToContactShop => 'Bu mağazayla iletişim kurmak için giriş yapın.';
 
   @override
   String get petShopUnavailable => 'Mağaza kullanılamıyor';
 
   @override
-  String get petShopUnavailableDescription =>
-      'Bu evcil hayvan mağazası artık kullanılamıyor.';
+  String get petShopUnavailableDescription => 'Bu evcil hayvan mağazası artık kullanılamıyor.';
 
   @override
   String get reviewsCouldNotBeLoaded => 'Yorumlar yüklenemedi.';
 
   @override
-  String get noProductsAvailableFromShop =>
-      'Bu mağazada kullanılabilir ürün yok';
+  String get noProductsAvailableFromShop => 'Bu mağazada kullanılabilir ürün yok';
 
   @override
-  String get petShopLocationNeededMessage =>
-      'Yakındaki evcil hayvan mağazalarını göstermek için konumunuzu kullanıyoruz';
+  String get petShopLocationNeededMessage => 'Yakındaki evcil hayvan mağazalarını göstermek için konumunuzu kullanıyoruz';
 
   @override
   String get infoTitle => 'Bilgi';
@@ -5928,8 +5709,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noShopCategoriesAvailable => 'Mağaza kategorisi bulunmuyor.';
 
   @override
-  String get browseShopProductsDescription =>
-      'Bu evcil hayvan mağazasındaki ürünlere göz atın.';
+  String get browseShopProductsDescription => 'Bu evcil hayvan mağazasındaki ürünlere göz atın.';
 
   @override
   String get viewAllProducts => 'Tüm ürünleri görüntüle';
@@ -5941,6 +5721,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get continueWithApple => 'Apple ile devam et';
 
   @override
+  String get connectAppleAccount => 'Apple hesabını bağla';
+
+  @override
+  String get appleAccountConnected => 'Apple hesabı bağlandı';
+
+  @override
   String get orContinueWith => 'veya şununla devam et';
 
   @override
@@ -5950,8 +5736,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get unableToSignIn => 'Giriş yapılamadı';
 
   @override
-  String get emailRegisteredWithAnotherProvider =>
-      'Bu e-posta başka bir giriş yöntemiyle kayıtlı';
+  String get emailRegisteredWithAnotherProvider => 'Bu e-posta başka bir giriş yöntemiyle kayıtlı';
 
   @override
   String get completeYourProfile => 'Profilini tamamla';
@@ -5975,8 +5760,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiRequestRideTab => 'Yolculuk İste';
 
   @override
-  String get petTaxiRidesSubtitle =>
-      'Yaklaşan ve geçmiş Pet Taxi yolculuklarınız';
+  String get petTaxiRidesSubtitle => 'Yaklaşan ve geçmiş Pet Taxi yolculuklarınız';
 
   @override
   String get petTaxiFilterActive => 'Aktif ve Yaklaşan';
@@ -5991,15 +5775,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiNoRidesTitle => 'Henüz Pet Taxi yolculuğunuz yok';
 
   @override
-  String get petTaxiNoRidesDescription =>
-      'Yolculuk istediğinizde Pet Taxi rezervasyonlarınız burada görünecek.';
+  String get petTaxiNoRidesDescription => 'Yolculuk istediğinizde Pet Taxi rezervasyonlarınız burada görünecek.';
 
   @override
   String get petTaxiNoRidesInFilter => 'Bu kategoride yolculuk yok';
 
   @override
-  String get petTaxiTryAnotherFilter =>
-      'Diğer yolculuklarınızı görmek için başka bir kategori seçin.';
+  String get petTaxiTryAnotherFilter => 'Diğer yolculuklarınızı görmek için başka bir kategori seçin.';
 
   @override
   String get petTaxiRidesLoading => 'Pet Taxi yolculuklarınız yükleniyor';
@@ -6008,16 +5790,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiRidesLoadErrorTitle => 'Yolculuklarınız yüklenemedi';
 
   @override
-  String get petTaxiRidesLoadErrorDescription =>
-      'Bağlantınızı kontrol edip yeniden deneyin. Rezervasyonlarınızda değişiklik yapılmadı.';
+  String get petTaxiRidesLoadErrorDescription => 'Bağlantınızı kontrol edip yeniden deneyin. Rezervasyonlarınızda değişiklik yapılmadı.';
 
   @override
-  String get petTaxiSignInRequiredTitle =>
-      'Yolculuklarınızı görmek için giriş yapın';
+  String get petTaxiSignInRequiredTitle => 'Yolculuklarınızı görmek için giriş yapın';
 
   @override
-  String get petTaxiSignInRequiredDescription =>
-      'Pet Taxi rezervasyonlarınıza giriş yaptıktan sonra ulaşabilirsiniz.';
+  String get petTaxiSignInRequiredDescription => 'Pet Taxi rezervasyonlarınıza giriş yaptıktan sonra ulaşabilirsiniz.';
 
   @override
   String get petTaxiProviderLabel => 'Hizmet sağlayıcı';
@@ -6071,8 +5850,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiStatusCancelledByUser => 'Sizin tarafınızdan iptal edildi';
 
   @override
-  String get petTaxiStatusCancelledByProvider =>
-      'Hizmet sağlayıcı tarafından iptal edildi';
+  String get petTaxiStatusCancelledByProvider => 'Hizmet sağlayıcı tarafından iptal edildi';
 
   @override
   String get petTaxiStatusUnknown => 'Durum bilgisi yok';
@@ -6093,32 +5871,25 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiPaymentUnpaid => 'Ödenmedi';
 
   @override
-  String get webSubscriptionPaymentUnavailable =>
-      'Ödeme geçici olarak kullanılamıyor';
+  String get webSubscriptionPaymentUnavailable => 'Ödeme geçici olarak kullanılamıyor';
 
   @override
-  String get webSubscriptionCatalogLoadFailed =>
-      'Güvenli ödeme fiyatları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.';
+  String get webSubscriptionCatalogLoadFailed => 'Güvenli ödeme fiyatları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.';
 
   @override
-  String get webSubscriptionCatalogUnauthenticated =>
-      'Abonelik fiyatlarını yüklemek ve güvenle devam etmek için giriş yapın.';
+  String get webSubscriptionCatalogUnauthenticated => 'Abonelik fiyatlarını yüklemek ve güvenle devam etmek için giriş yapın.';
 
   @override
-  String get webSubscriptionCatalogFunctionNotFound =>
-      'Güvenli ödeme hizmeti bu uygulama sürümünde kullanılamıyor. Sayfayı yenileyip tekrar deneyin.';
+  String get webSubscriptionCatalogFunctionNotFound => 'Güvenli ödeme hizmeti bu uygulama sürümünde kullanılamıyor. Sayfayı yenileyip tekrar deneyin.';
 
   @override
-  String get webSubscriptionCatalogConfigurationMissing =>
-      'Güvenli ödeme yapılandırması geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.';
+  String get webSubscriptionCatalogConfigurationMissing => 'Güvenli ödeme yapılandırması geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.';
 
   @override
-  String get webSubscriptionCatalogNetworkFailed =>
-      'Güvenli ödeme hizmetine ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.';
+  String get webSubscriptionCatalogNetworkFailed => 'Güvenli ödeme hizmetine ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.';
 
   @override
-  String get webSubscriptionCatalogMalformed =>
-      'Güvenli ödeme hizmeti geçersiz bir yanıt verdi. Lütfen tekrar deneyin.';
+  String get webSubscriptionCatalogMalformed => 'Güvenli ödeme hizmeti geçersiz bir yanıt verdi. Lütfen tekrar deneyin.';
 
   @override
   String get webSubscriptionThirtyDayAccess => '30 günlük abonelik erişimi';
@@ -6127,51 +5898,43 @@ class AppLocalizationsTr extends AppLocalizations {
   String get webSubscriptionContinueSecurePayment => 'Güvenli ödemeye devam et';
 
   @override
-  String get webSubscriptionPaymentTerms =>
-      '30 günlük erişim için tek seferlik ödeme. Otomatik kart yenilemesi yoktur.';
+  String get webSubscriptionPaymentTerms => '30 günlük erişim için tek seferlik ödeme. Otomatik kart yenilemesi yoktur.';
 
   @override
-  String get webSubscriptionIsbankSecurePayment =>
-      'İş Bankası ile güvenli ödeme • 30 günlük erişim • Otomatik yenileme yok';
+  String get webSubscriptionIsbankSecurePayment => 'İş Bankası ile güvenli ödeme • 30 günlük erişim • Otomatik yenileme yok';
 
   @override
-  String get webSubscriptionCheckoutFailed =>
-      'Güvenli ödeme başlatılamadı. Lütfen tekrar deneyin.';
+  String get webSubscriptionCheckoutFailed => 'Güvenli ödeme başlatılamadı. Lütfen tekrar deneyin.';
 
   @override
   String get webSubscriptionVerifyingTitle => 'Ödemeniz doğrulanıyor';
 
   @override
-  String get webSubscriptionVerifyingMessage =>
-      'Banka ödemesi güvenli şekilde doğrulanırken lütfen bekleyin.';
+  String get webSubscriptionVerifyingMessage => 'Banka ödemesi güvenli şekilde doğrulanırken lütfen bekleyin.';
 
   @override
   String get webSubscriptionSuccessTitle => 'Abonelik etkinleştirildi';
 
   @override
-  String get webSubscriptionSuccessMessage =>
-      'Ödemeniz doğrulandı ve 30 günlük abonelik erişiminiz etkin.';
+  String get webSubscriptionSuccessMessage => 'Ödemeniz doğrulandı ve 30 günlük abonelik erişiminiz etkin.';
 
   @override
   String get webSubscriptionFailedTitle => 'Ödeme doğrulanamadı';
 
   @override
-  String get webSubscriptionFailedMessage =>
-      'Aboneliğiniz etkinleştirilmedi. Doğrulanmamış ödemeler erişim sağlamaz.';
+  String get webSubscriptionFailedMessage => 'Aboneliğiniz etkinleştirilmedi. Doğrulanmamış ödemeler erişim sağlamaz.';
 
   @override
   String get webSubscriptionCancelledTitle => 'Ödeme iptal edildi';
 
   @override
-  String get webSubscriptionCancelledMessage =>
-      'Ödeme iptal edildi ve aboneliğiniz değiştirilmedi.';
+  String get webSubscriptionCancelledMessage => 'Ödeme iptal edildi ve aboneliğiniz değiştirilmedi.';
 
   @override
   String get webSubscriptionPendingTitle => 'Ödeme hâlâ işleniyor';
 
   @override
-  String get webSubscriptionPendingMessage =>
-      'Banka doğrulamayı henüz tamamlamadı. Bu sayfa otomatik olarak yeniden kontrol edecek.';
+  String get webSubscriptionPendingMessage => 'Banka doğrulamayı henüz tamamlamadı. Bu sayfa otomatik olarak yeniden kontrol edecek.';
 
   @override
   String chatError(Object error) {
@@ -6182,12 +5945,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get bankAccountSettingsTitle => 'Banka Hesabı';
 
   @override
-  String get bankAccountSettingsSubtitle =>
-      'Bu hesap, PetSupo işletme kazançlarınızı gönderdiğinde kullanılacaktır.';
+  String get bankAccountSettingsSubtitle => 'Bu hesap, PetSupo işletme kazançlarınızı gönderdiğinde kullanılacaktır.';
 
   @override
-  String get bankAccountInfoNotice =>
-      'Lütfen hesap sahibi adının ve IBAN\'ın resmi banka hesabınızla birebir eşleştiğinden emin olun. Hatalı bilgi ödemelerinizin gecikmesine neden olabilir.';
+  String get bankAccountInfoNotice => 'Lütfen hesap sahibi adının ve IBAN\'ın resmi banka hesabınızla birebir eşleştiğinden emin olun. Hatalı bilgi ödemelerinizin gecikmesine neden olabilir.';
 
   @override
   String get bankAccountSectionTitle => 'Hesap Bilgileri';
@@ -6205,8 +5966,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get bankAccountBillingInfoLabel => 'Fatura Bilgileri (opsiyonel)';
 
   @override
-  String get bankAccountIbanInvalid =>
-      'IBAN, TR ile başlamalı ve ardından 24 rakam içermelidir.';
+  String get bankAccountIbanInvalid => 'IBAN, TR ile başlamalı ve ardından 24 rakam içermelidir.';
 
   @override
   String get bankAccountSaveSuccess => 'Banka hesabı bilgileri kaydedildi.';
@@ -6215,8 +5975,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get diagnosticsSectionTitle => 'Tanılama';
 
   @override
-  String get diagnosticsSectionDescription =>
-      'Kuyruk inceleme ve yükleme testleri için dahili tanılama araçları.';
+  String get diagnosticsSectionDescription => 'Kuyruk inceleme ve yükleme testleri için dahili tanılama araçları.';
 
   @override
   String get diagnosticsThrowButton => 'Hata oluştur';
@@ -6249,15 +6008,13 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get dogParkPremiumMembersOnly =>
-      'Bu park yalnızca Premium üyeler tarafından kullanılabilir.';
+  String get dogParkPremiumMembersOnly => 'Bu park yalnızca Premium üyeler tarafından kullanılabilir.';
 
   @override
   String get favoritesExplorePlaymates => 'Oyun arkadaşlarını keşfet 💛';
 
   @override
-  String get vetServicesAvailableAfterLogin =>
-      'Veteriner hizmetleri giriş yaptıktan sonra kullanılabilir';
+  String get vetServicesAvailableAfterLogin => 'Veteriner hizmetleri giriş yaptıktan sonra kullanılabilir';
 
   @override
   String get loadingAccount => 'Hesap yükleniyor...';
@@ -6266,8 +6023,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noNotificationsForGuest => 'Misafirler için bildirim yok';
 
   @override
-  String get loginForNotifications =>
-      'Güncellemeleri ve uyarıları almak için giriş yapın';
+  String get loginForNotifications => 'Güncellemeleri ve uyarıları almak için giriş yapın';
 
   @override
   String get offerDetailsTitle => 'Teklif';
@@ -6291,8 +6047,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get orderCancellationTitle => 'Sipariş İptali';
 
   @override
-  String get preShipmentCancellationAvailable =>
-      'Bu sipariş henüz kargoya verilmedi ve iptal edilebilir.';
+  String get preShipmentCancellationAvailable => 'Bu sipariş henüz kargoya verilmedi ve iptal edilebilir.';
 
   @override
   String get cancelOrderButton => 'Siparişi İptal Et';
@@ -6301,12 +6056,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cancelOrderTitle => 'Sipariş İptal Edilsin mi?';
 
   @override
-  String get cancelOrderConfirmation =>
-      'Bu siparişi iptal etmek istediğinizden emin misiniz? Sipariş henüz kargoya verilmedi.';
+  String get cancelOrderConfirmation => 'Bu siparişi iptal etmek istediğinizden emin misiniz? Sipariş henüz kargoya verilmedi.';
 
   @override
-  String get cancelOrderRefundNotice =>
-      'İptalden sonra ödemeniz iade edilecektir.';
+  String get cancelOrderRefundNotice => 'İptalden sonra ödemeniz iade edilecektir.';
 
   @override
   String get cancellationReasonLabel => 'İptal nedeni';
@@ -6327,28 +6080,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cancellationReasonDetailsLabel => 'İptal nedeni açıklaması';
 
   @override
-  String get cancellationRefundProcessing =>
-      'Sipariş iptal edildi. Para iadeniz işleniyor.';
+  String get cancellationRefundProcessing => 'Sipariş iptal edildi. Para iadeniz işleniyor.';
 
   @override
-  String get cancellationShipmentAlreadyStarted =>
-      'Kargo süreci başladığı için bu sipariş artık iptal edilemez.';
+  String get cancellationShipmentAlreadyStarted => 'Kargo süreci başladığı için bu sipariş artık iptal edilemez.';
 
   @override
-  String get cancelOrderFailed =>
-      'Sipariş iptal edilemedi. Lütfen tekrar deneyin.';
+  String get cancelOrderFailed => 'Sipariş iptal edilemedi. Lütfen tekrar deneyin.';
 
   @override
-  String get cancellationRefundProcessingStatus =>
-      'İptal talebi alındı · Para iadesi işleniyor';
+  String get cancellationRefundProcessingStatus => 'İptal talebi alındı · Para iadesi işleniyor';
 
   @override
-  String get cancellationRefundFailedStatus =>
-      'İptal iadesi kontrol gerektiriyor';
+  String get cancellationRefundFailedStatus => 'İptal iadesi kontrol gerektiriyor';
 
   @override
-  String get orderCancelledRefundCompleted =>
-      'Sipariş iptal edildi · Para iadesi tamamlandı';
+  String get orderCancelledRefundCompleted => 'Sipariş iptal edildi · Para iadesi tamamlandı';
 
   @override
   String get foundPetDetailsTitle => 'Bulunan Evcil Hayvan Detayları';
@@ -6360,8 +6107,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get contactReporter => 'Bildiren Kişiyle İletişime Geç';
 
   @override
-  String get foundPetReportedSuccess =>
-      'Bulunan evcil hayvan başarıyla bildirildi!';
+  String get foundPetReportedSuccess => 'Bulunan evcil hayvan başarıyla bildirildi!';
 
   @override
   String errorSubmittingReport(Object error) {
@@ -6372,26 +6118,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get tapToSelectImage => 'Görsel seçmek için dokunun';
 
   @override
-  String get foundPetsSubtitle =>
-      'Bulunan evcil hayvanların güvenle evlerine dönmesine yardımcı olun';
+  String get foundPetsSubtitle => 'Bulunan evcil hayvanların güvenle evlerine dönmesine yardımcı olun';
 
   @override
   String get searchByNameHint => 'Ada göre ara...';
 
   @override
-  String get noFoundPetsReportedYet =>
-      'Henüz bulunan evcil hayvan bildirilmedi';
+  String get noFoundPetsReportedYet => 'Henüz bulunan evcil hayvan bildirilmedi';
 
   @override
-  String get reportedFoundPetsAppearHere =>
-      'Bildirilen bulunan evcil hayvanlar burada görünür';
+  String get reportedFoundPetsAppearHere => 'Bildirilen bulunan evcil hayvanlar burada görünür';
 
   @override
   String get lostPetDetailsTitle => 'Kayıp Evcil Hayvan Detayları';
 
   @override
-  String get havePetInformationPrompt =>
-      'Bu evcil hayvan hakkında bilginiz var mı?';
+  String get havePetInformationPrompt => 'Bu evcil hayvan hakkında bilginiz var mı?';
 
   @override
   String get callOwner => 'Sahibini Ara';
@@ -6400,19 +6142,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get emailOwner => 'Sahibine E-posta Gönder';
 
   @override
-  String get lostPetReportedSuccess =>
-      'Kayıp evcil hayvan başarıyla bildirildi!';
+  String get lostPetReportedSuccess => 'Kayıp evcil hayvan başarıyla bildirildi!';
 
   @override
-  String get lostPetsSubtitle =>
-      'Kayıp evcil hayvanların evlerine dönmesine yardımcı olun';
+  String get lostPetsSubtitle => 'Kayıp evcil hayvanların evlerine dönmesine yardımcı olun';
 
   @override
   String get noLostPetsReportedYet => 'Henüz kayıp evcil hayvan bildirilmedi';
 
   @override
-  String get reportedLostPetsAppearHere =>
-      'Bildirilen kayıp evcil hayvanlar burada görünür';
+  String get reportedLostPetsAppearHere => 'Bildirilen kayıp evcil hayvanlar burada görünür';
 
   @override
   String get searchUsersHint => 'Kullanıcı ara...';
@@ -6427,8 +6166,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get findPetLoversNearby => 'Yakınınızdaki hayvanseverleri bulun';
 
   @override
-  String get selectAtLeastOnePhotoOrVideo =>
-      'Lütfen en az bir fotoğraf/video seçin';
+  String get selectAtLeastOnePhotoOrVideo => 'Lütfen en az bir fotoğraf/video seçin';
 
   @override
   String errorCreatingPost(Object error) {
@@ -6527,8 +6265,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get addStory => 'Hikâye Ekle';
 
   @override
-  String get storyDurationPrompt =>
-      '24 saat sürecek bir evcil hayvan anı paylaşın';
+  String get storyDurationPrompt => '24 saat sürecek bir evcil hayvan anı paylaşın';
 
   @override
   String get seeWhosNearby => 'Yakında kim var görün 👀!';
@@ -6540,8 +6277,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get telegramBotApiTest => 'Telegram Bot API Testi';
 
   @override
-  String get telegramTestInstructions =>
-      'Test mesajı göndermek için aşağıdaki düğmeye basın.';
+  String get telegramTestInstructions => 'Test mesajı göndermek için aşağıdaki düğmeye basın.';
 
   @override
   String get sendTelegramMessage => 'Telegram Mesajı Gönder';
@@ -6556,57 +6292,49 @@ class AppLocalizationsTr extends AppLocalizations {
   String get termsIntroductionTitle => '1. Giriş';
 
   @override
-  String get termsIntroductionBody =>
-      'PetSupo\'ya hoş geldiniz! Kaydolarak bu Şartlar ve Koşulları kabul edersiniz. Uygulama, köpeklerinize oyun arkadaşları bulmanıza, diğer evcil hayvan sahipleriyle bağlantı kurmanıza ve evcil hayvan hizmetlerine erişmenize yardımcı olur. Bu şartlar PetSupo uygulaması ve hizmetlerini kullanımınızı düzenler.';
+  String get termsIntroductionBody => 'PetSupo\'ya hoş geldiniz! Kaydolarak bu Şartlar ve Koşulları kabul edersiniz. Uygulama, köpeklerinize oyun arkadaşları bulmanıza, diğer evcil hayvan sahipleriyle bağlantı kurmanıza ve evcil hayvan hizmetlerine erişmenize yardımcı olur. Bu şartlar PetSupo uygulaması ve hizmetlerini kullanımınızı düzenler.';
 
   @override
   String get termsResponsibilitiesTitle => '2. Kullanıcı Sorumlulukları';
 
   @override
-  String get termsResponsibilitiesBody =>
-      '- Bu uygulamayı kullanmak için en az 13 yaşında olmalısınız.\n- Hesabınızın ve parolanızın gizliliğinden siz sorumlusunuz.\n- Uygulamayı yasa dışı veya yasak faaliyetler için kullanmamayı kabul edersiniz.\n- Kayıt sırasında doğru ve güncel bilgiler sağlamalısınız.';
+  String get termsResponsibilitiesBody => '- Bu uygulamayı kullanmak için en az 13 yaşında olmalısınız.\n- Hesabınızın ve parolanızın gizliliğinden siz sorumlusunuz.\n- Uygulamayı yasa dışı veya yasak faaliyetler için kullanmamayı kabul edersiniz.\n- Kayıt sırasında doğru ve güncel bilgiler sağlamalısınız.';
 
   @override
   String get termsPrivacyTitle => '3. Veri Toplama ve Gizlilik';
 
   @override
-  String get termsPrivacyBody =>
-      'Hizmetlerimizi sunmak için kullanıcı adı, e-posta, konum ve evcil hayvan bilgileri gibi kişisel verileri toplarız. KVKK No. 6698 ve GDPR gibi uluslararası yasalar uyarınca verilerinizi işlemeden önce açık rıza alır, yalnızca belirtilen amaçlarla kullanır, koruyucu güvenlik önlemleri uygular ve erişim, düzeltme veya silme taleplerinizi karşılarız. Haklarınız için info@petsupo.com adresine başvurun.';
+  String get termsPrivacyBody => 'Hizmetlerimizi sunmak için kullanıcı adı, e-posta, konum ve evcil hayvan bilgileri gibi kişisel verileri toplarız. KVKK No. 6698 ve GDPR gibi uluslararası yasalar uyarınca verilerinizi işlemeden önce açık rıza alır, yalnızca belirtilen amaçlarla kullanır, koruyucu güvenlik önlemleri uygular ve erişim, düzeltme veya silme taleplerinizi karşılarız. Haklarınız için info@petsupo.com adresine başvurun.';
 
   @override
   String get termsUserContentTitle => '4. Kullanıcı İçeriği';
 
   @override
-  String get termsUserContentBody =>
-      '- Yüklediğiniz içeriğin mülkiyeti sizde kalır.\n- İçerik yükleyerek PetSupo\'ya içeriği uygulama içinde kullanma, gösterme ve dağıtma konusunda münhasır olmayan, telifsiz bir lisans verirsiniz.\n- Yasa dışı, saldırgan veya başkalarının haklarını ihlal eden içerik yükleyemezsiniz.';
+  String get termsUserContentBody => '- Yüklediğiniz içeriğin mülkiyeti sizde kalır.\n- İçerik yükleyerek PetSupo\'ya içeriği uygulama içinde kullanma, gösterme ve dağıtma konusunda münhasır olmayan, telifsiz bir lisans verirsiniz.\n- Yasa dışı, saldırgan veya başkalarının haklarını ihlal eden içerik yükleyemezsiniz.';
 
   @override
   String get termsLiabilityTitle => '5. Sorumluluğun Sınırlandırılması';
 
   @override
-  String get termsLiabilityBody =>
-      'PetSupo, diğer kullanıcılar veya evcil hayvanlarla etkileşimler dahil uygulama kullanımınızdan doğan zararlardan sorumlu değildir. Diğer kullanıcıların sağladığı bilgilerin doğruluğunu garanti etmeyiz.';
+  String get termsLiabilityBody => 'PetSupo, diğer kullanıcılar veya evcil hayvanlarla etkileşimler dahil uygulama kullanımınızdan doğan zararlardan sorumlu değildir. Diğer kullanıcıların sağladığı bilgilerin doğruluğunu garanti etmeyiz.';
 
   @override
   String get termsGoverningLawTitle => '6. Uygulanacak Hukuk';
 
   @override
-  String get termsGoverningLawBody =>
-      'Bu Şartlar ve Koşullar Türkiye Cumhuriyeti yasalarına tabidir. Uluslararası hukuk aksini gerektirmedikçe uyuşmazlıklar İstanbul mahkemelerinde çözümlenir.';
+  String get termsGoverningLawBody => 'Bu Şartlar ve Koşullar Türkiye Cumhuriyeti yasalarına tabidir. Uluslararası hukuk aksini gerektirmedikçe uyuşmazlıklar İstanbul mahkemelerinde çözümlenir.';
 
   @override
   String get termsChangesTitle => '7. Şartlardaki Değişiklikler';
 
   @override
-  String get termsChangesBody =>
-      'Bu Şartlar ve Koşullar zaman zaman güncellenebilir. Önemli değişiklikler e-posta veya uygulama içi bildirimle duyurulur. Değişikliklerden sonra uygulamayı kullanmaya devam etmeniz yeni şartları kabul ettiğiniz anlamına gelir.';
+  String get termsChangesBody => 'Bu Şartlar ve Koşullar zaman zaman güncellenebilir. Önemli değişiklikler e-posta veya uygulama içi bildirimle duyurulur. Değişikliklerden sonra uygulamayı kullanmaya devam etmeniz yeni şartları kabul ettiğiniz anlamına gelir.';
 
   @override
   String get termsContactTitle => '7. İletişim';
 
   @override
-  String get termsContactBody =>
-      'Bu Şartlar ve Koşullar hakkında sorularınız için info@petsupo.com adresinden bize ulaşın.';
+  String get termsContactBody => 'Bu Şartlar ve Koşullar hakkında sorularınız için info@petsupo.com adresinden bize ulaşın.';
 
   @override
   String get pendingBusinessApprovals => 'Bekleyen İşletme Onayları';
@@ -6675,12 +6403,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get diagnostics => 'Tanılama';
 
   @override
-  String get diagnosticsDescription =>
-      'Çökme raporları ve başlangıç tanılaması';
+  String get diagnosticsDescription => 'Çökme raporları ve başlangıç tanılaması';
 
   @override
-  String get telegramUsersDescription =>
-      'Bağlı Telegram kullanıcılarını görüntüle';
+  String get telegramUsersDescription => 'Bağlı Telegram kullanıcılarını görüntüle';
 
   @override
   String adminActivityError(Object error) {
@@ -7122,8 +6848,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get globalAdminSearchHint =>
-      'Kullanıcı, köpek, işletme, bildirim veya şikâyet ara...';
+  String get globalAdminSearchHint => 'Kullanıcı, köpek, işletme, bildirim veya şikâyet ara...';
 
   @override
   String get globalAdminSearch => 'Genel Yönetici Araması';
@@ -7327,8 +7052,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noAdoptablePetsYet => 'Henüz sahiplendirilebilir evcil hayvan yok';
 
   @override
-  String get addAdoptablePetsDescription =>
-      'Sahiplendirilebilir evcil hayvanları ekleyin ve durumlarını burada yönetin.';
+  String get addAdoptablePetsDescription => 'Sahiplendirilebilir evcil hayvanları ekleyin ve durumlarını burada yönetin.';
 
   @override
   String failedToLoadPets(Object error) {
@@ -7352,8 +7076,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noAdoptionPetsYet => 'Henüz Sahiplendirme Hayvanı Yok';
 
   @override
-  String get addPetsForAdoption =>
-      'Sahiplendirilebilir evcil hayvanlar ekleyin.';
+  String get addPetsForAdoption => 'Sahiplendirilebilir evcil hayvanlar ekleyin.';
 
   @override
   String get editAdoptionCenter => 'Sahiplendirme Merkezini Düzenle';
@@ -7467,15 +7190,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noClientsYet => 'Henüz müşteri yok';
 
   @override
-  String get addFirstGroomingClient =>
-      'Ziyaretleri takip etmeye başlamak için ilk bakım müşterinizi ekleyin.';
+  String get addFirstGroomingClient => 'Ziyaretleri takip etmeye başlamak için ilk bakım müşterinizi ekleyin.';
 
   @override
   String get clientProfile => 'Müşteri Profili';
 
   @override
-  String get openAppointmentBooking =>
-      'Randevu rezervasyonunu işletme sayfasından açın';
+  String get openAppointmentBooking => 'Randevu rezervasyonunu işletme sayfasından açın';
 
   @override
   String get groomingHistory => 'Bakım Geçmişi';
@@ -7539,8 +7260,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get deleteService => 'Hizmeti Sil';
 
   @override
-  String get deleteServiceConfirmation =>
-      'Bu hizmeti silmek istediğinizden emin misiniz?';
+  String get deleteServiceConfirmation => 'Bu hizmeti silmek istediğinizden emin misiniz?';
 
   @override
   String get serviceDeleted => 'Hizmet silindi';
@@ -7560,8 +7280,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get availability => 'Müsaitlik';
 
   @override
-  String get capacityBookingExplanation =>
-      'Kapasite, müsait oda sayısını aşan çakışan konaklamaları önlemek için kullanılır.';
+  String get capacityBookingExplanation => 'Kapasite, müsait oda sayısını aşan çakışan konaklamaları önlemek için kullanılır.';
 
   @override
   String get roomCapacity => 'Oda Kapasitesi';
@@ -7617,15 +7336,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get editProposedPrice => 'Önerilen Fiyatı Düzenle';
 
   @override
-  String get notifyCustomerConfirmation =>
-      'Bu işlem müşteriye bildirim gönderecek.';
+  String get notifyCustomerConfirmation => 'Bu işlem müşteriye bildirim gönderecek.';
 
   @override
   String get finalPrice => 'Nihai fiyat';
 
   @override
-  String get customerMustPayBeforeTrip =>
-      'Yolculuk başlamadan önce müşteri bu tutarı uygulamada ödemelidir.';
+  String get customerMustPayBeforeTrip => 'Yolculuk başlamadan önce müşteri bu tutarı uygulamada ödemelidir.';
 
   @override
   String get sendPrice => 'Fiyatı Gönder';
@@ -7640,19 +7357,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get serviceDetailsSaveFailed => 'Hizmet ayrıntıları kaydedilemedi.';
 
   @override
-  String get priceDeterminedAfterExamination =>
-      'Nihai fiyat muayeneden sonra belirlenecekse boş bırakın.';
+  String get priceDeterminedAfterExamination => 'Nihai fiyat muayeneden sonra belirlenecekse boş bırakın.';
 
   @override
   String get editing => 'Düzenleniyor';
 
   @override
-  String get setPriceDurationDescription =>
-      'Evcil hayvan sahiplerine gösterilecek fiyatı ve tahmini süreyi belirleyin.';
+  String get setPriceDurationDescription => 'Evcil hayvan sahiplerine gösterilecek fiyatı ve tahmini süreyi belirleyin.';
 
   @override
-  String get serviceDetailsBeforeBooking =>
-      'Bu ayrıntılar, evcil hayvan sahiplerinin rezervasyondan önce hizmeti anlamasına yardımcı olur.';
+  String get serviceDetailsBeforeBooking => 'Bu ayrıntılar, evcil hayvan sahiplerinin rezervasyondan önce hizmeti anlamasına yardımcı olur.';
 
   @override
   String get addCustomService => 'Özel hizmet ekle';
@@ -7687,8 +7401,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noQuickRepliesYet => 'Henüz hızlı yanıt yok';
 
   @override
-  String get quickRepliesDescription =>
-      'Yaygın müşteri soruları için yeniden kullanılabilir yanıtlar oluşturun.';
+  String get quickRepliesDescription => 'Yaygın müşteri soruları için yeniden kullanılabilir yanıtlar oluşturun.';
 
   @override
   String get inbox => 'Gelen Kutusu';
@@ -7705,12 +7418,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noClientMessagesYet => 'Henüz müşteri mesajı yok';
 
   @override
-  String get clientMessagesDescription =>
-      'Evcil hayvan sahipleri kliniğinizle iletişime geçtiğinde konuşmalar burada görünür.';
+  String get clientMessagesDescription => 'Evcil hayvan sahipleri kliniğinizle iletişime geçtiğinde konuşmalar burada görünür.';
 
   @override
-  String get passportNumberFormat =>
-      'Pasaport numarası yalnızca büyük harf, sayı, - veya / içermelidir';
+  String get passportNumberFormat => 'Pasaport numarası yalnızca büyük harf, sayı, - veya / içermelidir';
 
   @override
   String get medicalProfileUpdated => 'Tıbbi profil güncellendi';
@@ -7750,8 +7461,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get deleteVisit => 'Ziyareti Sil';
 
   @override
-  String get deleteVisitConfirmation =>
-      'Bu ziyaret tıbbi kayıttan silinsin mi?';
+  String get deleteVisitConfirmation => 'Bu ziyaret tıbbi kayıttan silinsin mi?';
 
   @override
   String couldNotDeleteVisit(Object error) {
@@ -7783,8 +7493,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get editOwnerProfile => 'Sahip Profilini Düzenle';
 
   @override
-  String get ownerEmergencyContactDetails =>
-      'Sahip ve acil durum iletişim bilgileri';
+  String get ownerEmergencyContactDetails => 'Sahip ve acil durum iletişim bilgileri';
 
   @override
   String get editMedicalProfile => 'Tıbbi Profili Düzenle';
@@ -7831,8 +7540,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get deleteVaccine => 'Aşıyı Sil';
 
   @override
-  String get deleteVaccineConfirmation =>
-      'Bu aşı kaydını silmek istediğinizden emin misiniz?';
+  String get deleteVaccineConfirmation => 'Bu aşı kaydını silmek istediğinizden emin misiniz?';
 
   @override
   String get editVaccine => 'Aşıyı Düzenle';
@@ -7868,8 +7576,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get viewAllAppointments => 'Tüm randevuları gör';
 
   @override
-  String get checkConnectionTryAgain =>
-      'Lütfen bağlantınızı kontrol edip tekrar deneyin.';
+  String get checkConnectionTryAgain => 'Lütfen bağlantınızı kontrol edip tekrar deneyin.';
 
   @override
   String get editServiceTooltip => 'Hizmeti düzenle';
@@ -7881,8 +7588,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noServicesAddedYet => 'Henüz hizmet eklenmedi';
 
   @override
-  String get addFirstServiceDescription =>
-      'Evcil hayvan sahiplerinin erişebilmesi için ilk hizmetinizi ekleyin.';
+  String get addFirstServiceDescription => 'Evcil hayvan sahiplerinin erişebilmesi için ilk hizmetinizi ekleyin.';
 
   @override
   String get servicesPricing => 'Hizmetler ve Fiyatlandırma';
@@ -7938,8 +7644,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get uploadCoverImage => 'Kapak görseli yükle';
 
   @override
-  String get tapToUploadClinicCover =>
-      'Klinik kapak fotoğrafı yüklemek için dokunun';
+  String get tapToUploadClinicCover => 'Klinik kapak fotoğrafı yüklemek için dokunun';
 
   @override
   String get galleryPhotos => 'Galeri Fotoğrafları';
@@ -7948,15 +7653,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noGalleryPhotosYet => 'Henüz galeri fotoğrafı yok';
 
   @override
-  String get uploadClinicPhotosDescription =>
-      'Güveni ve görünürlüğü artırmak için klinik fotoğrafları yükleyin.';
+  String get uploadClinicPhotosDescription => 'Güveni ve görünürlüğü artırmak için klinik fotoğrafları yükleyin.';
 
   @override
   String get uploadFirstPhoto => 'İlk Fotoğrafı Yükle';
 
   @override
-  String get dragToReorderGallery =>
-      'Galeri fotoğraflarını sıralamak için sürükleyin';
+  String get dragToReorderGallery => 'Galeri fotoğraflarını sıralamak için sürükleyin';
 
   @override
   String get patients => 'Hastalar';
@@ -7998,22 +7701,19 @@ class AppLocalizationsTr extends AppLocalizations {
   String get servicePreVisitForms => 'Hizmet ön ziyaret formları';
 
   @override
-  String get serviceMedicalIntakeDescription =>
-      'Her hizmetin kendi tıbbi kabul soruları olabilir.';
+  String get serviceMedicalIntakeDescription => 'Her hizmetin kendi tıbbi kabul soruları olabilir.';
 
   @override
   String get servicesCouldNotBeLoadedPeriod => 'Hizmetler yüklenemedi.';
 
   @override
-  String get noActiveServicesForForms =>
-      'Henüz aktif hizmet yok. Form oluşturmadan önce hizmet ekleyin.';
+  String get noActiveServicesForForms => 'Henüz aktif hizmet yok. Form oluşturmadan önce hizmet ekleyin.';
 
   @override
   String get enableForService => 'Bu hizmet için etkinleştir';
 
   @override
-  String get onlyServiceAsksQuestions =>
-      'Bu soruları yalnızca bu hizmet soracak.';
+  String get onlyServiceAsksQuestions => 'Bu soruları yalnızca bu hizmet soracak.';
 
   @override
   String get noQuestionsForService => 'Bu hizmet için henüz soru yok.';
@@ -8083,15 +7783,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get clinicServices => 'Klinik Hizmetleri';
 
   @override
-  String get manageVisibleVetServices =>
-      'Görünür veteriner hizmetlerini yönetin';
+  String get manageVisibleVetServices => 'Görünür veteriner hizmetlerini yönetin';
 
   @override
   String get clinicSettings => 'Klinik Ayarları';
 
   @override
-  String get emergencyAvailabilitySaveFailed =>
-      'Acil durum müsaitliği kaydedilemedi';
+  String get emergencyAvailabilitySaveFailed => 'Acil durum müsaitliği kaydedilemedi';
 
   @override
   String managementNotAvailable(Object label) {
@@ -8118,8 +7816,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get clinicWorkingHours => 'Klinik Çalışma Saatleri';
 
   @override
-  String get manageOpeningDays =>
-      'Açık günleri ve randevu müsaitliğini yönetin';
+  String get manageOpeningDays => 'Açık günleri ve randevu müsaitliğini yönetin';
 
   @override
   String get editGroomyProfile => 'Groomy Profilini Düzenle';
@@ -8170,12 +7867,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get requestBooking => 'Rezervasyon İste';
 
   @override
-  String get checkoutAfterCheckin =>
-      'Çıkış tarihi giriş tarihinden sonra olmalıdır';
+  String get checkoutAfterCheckin => 'Çıkış tarihi giriş tarihinden sonra olmalıdır';
 
   @override
-  String get hotelBookingRequestSent =>
-      'Otel rezervasyon talebiniz gönderildi.';
+  String get hotelBookingRequestSent => 'Otel rezervasyon talebiniz gönderildi.';
 
   @override
   String get noGalleryImagesYet => 'Henüz galeri görseli yok';
@@ -8190,16 +7885,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiDetails => 'Pet Taksi Ayrıntıları';
 
   @override
-  String get petTaxiManualReviewNotice =>
-      'Pet Taksi başvurunuz, belgeler manuel olarak incelenip onaylanana kadar yayımlanmaz.';
+  String get petTaxiManualReviewNotice => 'Pet Taksi başvurunuz, belgeler manuel olarak incelenip onaylanana kadar yayımlanmaz.';
 
   @override
-  String get transportationLawNotice =>
-      'Ulaşım yasaları şehre veya ülkeye göre değişebilir. İşletmeler yerel ulaşım, sigorta ve vergi düzenlemelerine uymakla sorumludur.';
+  String get transportationLawNotice => 'Ulaşım yasaları şehre veya ülkeye göre değişebilir. İşletmeler yerel ulaşım, sigorta ve vergi düzenlemelerine uymakla sorumludur.';
 
   @override
-  String get legalDocumentsPrivacyNotice =>
-      'Yasal belgeler yalnızca işletme sahibi ve yönetici incelemesi için saklanır. Kamuya açık kullanıcılara gösterilmez.';
+  String get legalDocumentsPrivacyNotice => 'Yasal belgeler yalnızca işletme sahibi ve yönetici incelemesi için saklanır. Kamuya açık kullanıcılara gösterilmez.';
 
   @override
   String get savePetTaxiDetails => 'Pet Taksi Ayrıntılarını Kaydet';
@@ -8259,8 +7951,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get veterinaryDetails => 'Veterinerlik Ayrıntıları';
 
   @override
-  String get licenseReviewNotice =>
-      'Bu numara doğrulama sırasında incelenecektir.';
+  String get licenseReviewNotice => 'Bu numara doğrulama sırasında incelenecektir.';
 
   @override
   String get licenseExpiryDateNumbered => '12. Lisans Son Kullanma Tarihi';
@@ -8272,20 +7963,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get acceptedAnimalTypesNumbered => '24. Kabul Edilen Hayvan Türleri';
 
   @override
-  String get confirmInformationAccurate =>
-      '41. Verilen bilgilerin doğru olduğunu onaylıyorum';
+  String get confirmInformationAccurate => '41. Verilen bilgilerin doğru olduğunu onaylıyorum';
 
   @override
-  String get agreeDisplayInformation =>
-      '42. Bilgilerimin uygulamada gösterilmesini kabul ediyorum';
+  String get agreeDisplayInformation => '42. Bilgilerimin uygulamada gösterilmesini kabul ediyorum';
 
   @override
-  String get agreeDisplayReviews =>
-      '43. Kullanıcı yorumlarının gösterilmesini kabul ediyorum';
+  String get agreeDisplayReviews => '43. Kullanıcı yorumlarının gösterilmesini kabul ediyorum';
 
   @override
-  String get acceptPartnershipTerms =>
-      '44. PetSupo ortaklık koşullarını kabul ediyorum';
+  String get acceptPartnershipTerms => '44. PetSupo ortaklık koşullarını kabul ediyorum';
 
   @override
   String get submitVeterinaryDetails => 'Veterinerlik Ayrıntılarını Gönder';
@@ -8319,8 +8006,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noChatsYet => 'Henüz sohbet yok';
 
   @override
-  String get startChattingWithPetOwners =>
-      'Evcil hayvan sahipleriyle sohbet edin ve evcil hayvanınıza yeni arkadaşlar bulun 👋';
+  String get startChattingWithPetOwners => 'Evcil hayvan sahipleriyle sohbet edin ve evcil hayvanınıza yeni arkadaşlar bulun 👋';
 
   @override
   String get failedToLoadChats => 'Sohbetler yüklenemedi';
@@ -8344,8 +8030,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noChatsFound => 'Sohbet bulunamadı';
 
   @override
-  String get tryAnotherKeyword =>
-      'Başka bir anahtar kelime veya kullanıcı adı deneyin.';
+  String get tryAnotherKeyword => 'Başka bir anahtar kelime veya kullanıcı adı deneyin.';
 
   @override
   String get messages => 'Mesajlar';
@@ -8357,8 +8042,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noConversationsYet => 'Henüz konuşma yok';
 
   @override
-  String get userInboxEmptyDescription =>
-      'Bir işletmeyle iletişim kurduğunuzda,\nkonuşmalarınız burada görünür.';
+  String get userInboxEmptyDescription => 'Bir işletmeyle iletişim kurduğunuzda,\nkonuşmalarınız burada görünür.';
 
   @override
   String get medicalRecords => 'Tıbbi Kayıtlar';
@@ -8408,16 +8092,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get reportSubmitButton => 'Submit report';
 
   @override
-  String get reportSubmittedSuccess =>
-      'Report submitted. Thank you for helping keep the community safe.';
+  String get reportSubmittedSuccess => 'Report submitted. Thank you for helping keep the community safe.';
 
   @override
-  String get reportAlreadyReported =>
-      'You\'ve already reported this - it\'s pending review.';
+  String get reportAlreadyReported => 'You\'ve already reported this - it\'s pending review.';
 
   @override
-  String get reportRateLimited =>
-      'Too many reports submitted recently. Please try again later.';
+  String get reportRateLimited => 'Too many reports submitted recently. Please try again later.';
 
   @override
   String get reportTargetGone => 'This item no longer exists.';
@@ -8426,8 +8107,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get reportUnauthenticated => 'Please sign in to submit a report.';
 
   @override
-  String get reportNetworkError =>
-      'Couldn\'t reach the server. Check your connection and try again.';
+  String get reportNetworkError => 'Couldn\'t reach the server. Check your connection and try again.';
 
   @override
   String get reportGenericSuccess => 'Report submitted.';
@@ -8470,15 +8150,13 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get moderationPermissionDenied =>
-      'You don\'t have permission to do this.';
+  String get moderationPermissionDenied => 'You don\'t have permission to do this.';
 
   @override
   String get moderationNotFound => 'This report or target could not be found.';
 
   @override
-  String get moderationAlreadyReviewed =>
-      'This report has already been reviewed.';
+  String get moderationAlreadyReviewed => 'This report has already been reviewed.';
 
   @override
   String get moderationNetworkError => 'Network error. Please try again.';
@@ -8493,15 +8171,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get moderationConfirm => 'Confirm';
 
   @override
-  String get moderationUnknownTargetType =>
-      'Unknown target type - cannot moderate.';
+  String get moderationUnknownTargetType => 'Unknown target type - cannot moderate.';
 
   @override
   String get moderationReportApproved => 'Report approved.';
 
   @override
-  String get moderationReportApprovedNoTarget =>
-      'Report approved (target no longer exists - no action taken).';
+  String get moderationReportApprovedNoTarget => 'Report approved (target no longer exists - no action taken).';
 
   @override
   String get moderationRejectReportTitle => 'Reject report';
@@ -8562,15 +8238,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get moderationNoOtherReports => 'No other reports on this target';
 
   @override
-  String get moderationHistorySectionTitle =>
-      'Report history & moderation timeline';
+  String get moderationHistorySectionTitle => 'Report history & moderation timeline';
 
   @override
   String get suspendedAccountTitle => 'Your account has been suspended';
 
   @override
-  String get suspendedAccountDefaultReason =>
-      'This account was suspended for violating our community guidelines. If you believe this is a mistake, please contact support.';
+  String get suspendedAccountDefaultReason => 'This account was suspended for violating our community guidelines. If you believe this is a mistake, please contact support.';
 
   @override
   String get suspendedAccountSignOut => 'Sign out';
@@ -8835,8 +8509,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get sellerFinanceBlocked => 'Engellenen tutar';
 
   @override
-  String get sellerFinanceBankBlocked =>
-      'Banka hesap bilgileriniz eksik olduğu için ödemeniz engellendi.';
+  String get sellerFinanceBankBlocked => 'Banka hesap bilgileriniz eksik olduğu için ödemeniz engellendi.';
 
   @override
   String get sellerFinanceBankReady => 'Banka hesabı ödemeler için hazır';
@@ -8845,8 +8518,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get sellerFinanceUpdateBank => 'Banka hesabını güncelle';
 
   @override
-  String get sellerFinanceWaitingExplanation =>
-      'Kazançlar başarılı ödemeden 21 gün sonra uygun hale gelir.';
+  String get sellerFinanceWaitingExplanation => 'Kazançlar başarılı ödemeden 21 gün sonra uygun hale gelir.';
 
   @override
   String get sellerFinanceWaitingSchedule => 'Bekleme takvimi';
@@ -8897,8 +8569,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get sellerFinanceTimeline => 'Ödeme zaman çizelgesi';
 
   @override
-  String get sellerFinanceTimelineValue =>
-      'Ödendi → Bekleme (21 gün) → Uygun → Pakete dahil → Aktarıldı → Tamamlandı';
+  String get sellerFinanceTimelineValue => 'Ödendi → Bekleme (21 gün) → Uygun → Pakete dahil → Aktarıldı → Tamamlandı';
 
   @override
   String get sellerFinanceEligibleRecords => 'Uygun kayıtlar';
@@ -8970,8 +8641,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get creatorNoActivityYet => 'Henüz etkinlik yok';
 
   @override
-  String get creatorNoActivityMessage =>
-      'Biri referans bağlantınızı kullandığında etkinlik burada görünecek.';
+  String get creatorNoActivityMessage => 'Biri referans bağlantınızı kullandığında etkinlik burada görünecek.';
 
   @override
   String get creatorUpcomingPayout => 'Yaklaşan Ödeme';
@@ -8989,8 +8659,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get creatorOpenFullDashboard => 'Tam Paneli Aç';
 
   @override
-  String get creatorOpenFullDashboardHint =>
-      'Web\'de ayrıntılı grafikleri, analitiği ve tam raporlamayı görün';
+  String get creatorOpenFullDashboardHint => 'Web\'de ayrıntılı grafikleri, analitiği ve tam raporlamayı görün';
 
   @override
   String get creatorPerformanceOverview => 'Performans Özeti';
@@ -9041,15 +8710,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get creatorSignInRequiredTitle => 'Giriş gerekli';
 
   @override
-  String get creatorSignInRequiredMessage =>
-      'Creator Panelinizi görmek için giriş yapın';
+  String get creatorSignInRequiredMessage => 'Creator Panelinizi görmek için giriş yapın';
 
   @override
   String get creatorAccessDeniedTitle => 'Creator erişimi gerekli';
 
   @override
-  String get creatorAccessDeniedMessage =>
-      'Bu panel yalnızca onaylı PetSupo creator\'ları için kullanılabilir.';
+  String get creatorAccessDeniedMessage => 'Bu panel yalnızca onaylı PetSupo creator\'ları için kullanılabilir.';
 
   @override
   String get creatorGoToSignIn => 'Girişe git';
@@ -9091,15 +8758,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get creatorSampleData => 'Örnek veri';
 
   @override
-  String get creatorOpenDashboardFailed =>
-      'Panel açılamadı. Lütfen tekrar deneyin.';
+  String get creatorOpenDashboardFailed => 'Panel açılamadı. Lütfen tekrar deneyin.';
 
   @override
   String get referralCodeOptionalLabel => 'Referans kodu (isteğe bağlı)';
 
   @override
-  String get referralCodeInvalid =>
-      'Bu referans kodu kullanılamıyor. Onsuz devam edebilirsiniz.';
+  String get referralCodeInvalid => 'Bu referans kodu kullanılamıyor. Onsuz devam edebilirsiniz.';
 
   @override
   String get moderationNoHistory => 'Henüz moderasyon geçmişi yok';
@@ -9134,8 +8799,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get generatedXlsx => 'Oluşturulan XLSX';
 
   @override
-  String get batchExportedReady =>
-      'Toplu işlem dışa aktarıldı ve işleme hazır.';
+  String get batchExportedReady => 'Toplu işlem dışa aktarıldı ve işleme hazır.';
 
   @override
   String get regenerate => 'Yeniden oluştur';
@@ -9257,12 +8921,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adoptionImpactOverview => 'Etki Özeti';
 
   @override
-  String get adoptionPerformanceShelterActivity =>
-      'Sahiplendirme performansı ve barınak etkinliği';
+  String get adoptionPerformanceShelterActivity => 'Sahiplendirme performansı ve barınak etkinliği';
 
   @override
-  String get noAnimalsAvailableAdoption =>
-      'Şu anda sahiplendirilebilecek hayvan yok.\nBaşvuruları kabul etmeye başlamak için ilk hayvanınızı ekleyin.';
+  String get noAnimalsAvailableAdoption => 'Şu anda sahiplendirilebilecek hayvan yok.\nBaşvuruları kabul etmeye başlamak için ilk hayvanınızı ekleyin.';
 
   @override
   String get adoptionTrend => 'Sahiplendirme Trendi';
@@ -9311,8 +8973,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get turnOnLocationServices => 'Turn On Location Services';
 
   @override
-  String get petTaxiLocationServicesMessage =>
-      'Pet Taxi needs location services enabled to show your live position on the map.';
+  String get petTaxiLocationServicesMessage => 'Pet Taxi needs location services enabled to show your live position on the map.';
 
   @override
   String get notNow => 'Not Now';
@@ -9324,8 +8985,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get allowLocationAccess => 'Allow Location Access';
 
   @override
-  String get petTaxiLocationPermissionMessage =>
-      'Pet Taxi needs location permission to enable My Location and center the map on you.';
+  String get petTaxiLocationPermissionMessage => 'Pet Taxi needs location permission to enable My Location and center the map on you.';
 
   @override
   String get ok => 'OK';
@@ -9334,12 +8994,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get locationPermissionBlocked => 'Location Permission Blocked';
 
   @override
-  String get petTaxiLocationBlockedMessage =>
-      'Location access is blocked for Pet Taxi. Open app settings to allow location permission.';
+  String get petTaxiLocationBlockedMessage => 'Location access is blocked for Pet Taxi. Open app settings to allow location permission.';
 
   @override
-  String get petTaxiBottomSubtitle =>
-      'Safe & trusted transportation for your pet';
+  String get petTaxiBottomSubtitle => 'Safe & trusted transportation for your pet';
 
   @override
   String get petTaxiNoPetsFound => 'No pets found';
@@ -9392,26 +9050,22 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiPaymentTitle => 'Pet Taxi payment';
 
   @override
-  String get paymentRequiredBeforeTrip =>
-      'Payment is required before the trip starts. Provider payout is prepared after trip completion.';
+  String get paymentRequiredBeforeTrip => 'Payment is required before the trip starts. Provider payout is prepared after trip completion.';
 
   @override
   String get bookPetTaxi => 'Book Pet Taxi';
 
   @override
-  String get transportResponsibilityDisclaimer =>
-      'PetSupo only provides booking infrastructure. Transportation responsibility belongs to the provider.';
+  String get transportResponsibilityDisclaimer => 'PetSupo only provides booking infrastructure. Transportation responsibility belongs to the provider.';
 
   @override
-  String get petSafeForTransportation =>
-      'I confirm my pet is safe for transportation.';
+  String get petSafeForTransportation => 'I confirm my pet is safe for transportation.';
 
   @override
   String get petTaxiBusinessSummary => 'Pet taxi business summary';
 
   @override
-  String get noPetsBeforeTaxiBooking =>
-      'No pets found. Add a pet profile before booking.';
+  String get noPetsBeforeTaxiBooking => 'No pets found. Add a pet profile before booking.';
 
   @override
   String get selectPetForTaxiBooking => 'Select pet for taxi booking';
@@ -9420,8 +9074,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get selectPickupDateTime => 'Select pickup date and time';
 
   @override
-  String get futurePickupDateTimeRequired =>
-      'Select a future pickup date and time';
+  String get futurePickupDateTimeRequired => 'Select a future pickup date and time';
 
   @override
   String get bookingSummaryA11y => 'Booking summary';
@@ -9436,8 +9089,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get estimatedPrice => 'Estimated Price';
 
   @override
-  String get routeEstimateNeeded =>
-      'Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate.';
+  String get routeEstimateNeeded => 'Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate.';
 
   @override
   String routeEstimateDetail(Object distance, Object duration) {
@@ -9454,8 +9106,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get petTaxiTitle => 'Pet Taxi';
 
   @override
-  String get petTaxiSubtitle =>
-      'Book safe pet transportation with reviewed taxi businesses.';
+  String get petTaxiSubtitle => 'Book safe pet transportation with reviewed taxi businesses.';
 
   @override
   String get searchTaxiBusinesses => 'Search taxi businesses';
@@ -9491,8 +9142,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get helpCenterTitle => 'Yardım Merkezi';
 
   @override
-  String get helpCenterIntro =>
-      'PetSupo hakkında yardıma mı ihtiyacınız var? Yanıtları bulun ve desteğe kolayca ulaşın.';
+  String get helpCenterIntro => 'PetSupo hakkında yardıma mı ihtiyacınız var? Yanıtları bulun ve desteğe kolayca ulaşın.';
 
   @override
   String get frequentlyAskedQuestions => 'Sıkça Sorulan Sorular';
@@ -9504,15 +9154,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get emailCopied => 'E-posta kopyalandı';
 
   @override
-  String get privacyPolicyContent =>
-      'PetSupo gizliliğinize saygı duyar ve kişisel verilerinizi korumaya kararlıdır.\n\n1. Topladığımız Veriler\nKişisel bilgiler, konum, evcil hayvan bilgileri, medya ve cihaz bildirim verilerini toplayabiliriz.\n\n2. Verilerin Kullanımı\nVerileriniz hizmetlerimizi sunmak, eşleşmeyi sağlamak, uygulamayı geliştirmek ve izninizle bildirim göndermek için kullanılır.\n\n3. Veri Paylaşımı\nKişisel verilerinizi satmayız. Veriler yalnızca güvenilir hizmet sağlayıcılarla veya yasal zorunluluk halinde paylaşılabilir.\n\n4. Saklama ve Güvenlik\nVerileriniz Avrupa\'daki sunucularda güvenli şekilde saklanır.\n\n5. Saklama Süresi\nVerileri yalnızca gerekli olduğu sürece saklarız.\n\n6. Haklarınız\nVerilerinize erişebilir, düzeltilmesini veya silinmesini isteyebilir ve onayınızı geri çekebilirsiniz.\n\n7. Hesap Silme\nHesabınızı silmek için bizimle iletişime geçin.\n\n8. Çocukların Gizliliği\nPetSupo 13 yaş altı çocuklara yönelik değildir.\n\n9. Değişiklikler\nBu politikayı güncelleyebiliriz.\n\n10. İletişim\nSorularınız için bizimle iletişime geçin:';
+  String get privacyPolicyContent => 'PetSupo gizliliğinize saygı duyar ve kişisel verilerinizi korumaya kararlıdır.\n\n1. Topladığımız Veriler\nKişisel bilgiler, konum, evcil hayvan bilgileri, medya ve cihaz bildirim verilerini toplayabiliriz.\n\n2. Verilerin Kullanımı\nVerileriniz hizmetlerimizi sunmak, eşleşmeyi sağlamak, uygulamayı geliştirmek ve izninizle bildirim göndermek için kullanılır.\n\n3. Veri Paylaşımı\nKişisel verilerinizi satmayız. Veriler yalnızca güvenilir hizmet sağlayıcılarla veya yasal zorunluluk halinde paylaşılabilir.\n\n4. Saklama ve Güvenlik\nVerileriniz Avrupa\'daki sunucularda güvenli şekilde saklanır.\n\n5. Saklama Süresi\nVerileri yalnızca gerekli olduğu sürece saklarız.\n\n6. Haklarınız\nVerilerinize erişebilir, düzeltilmesini veya silinmesini isteyebilir ve onayınızı geri çekebilirsiniz.\n\n7. Hesap Silme\nHesabınızı silmek için bizimle iletişime geçin.\n\n8. Çocukların Gizliliği\nPetSupo 13 yaş altı çocuklara yönelik değildir.\n\n9. Değişiklikler\nBu politikayı güncelleyebiliriz.\n\n10. İletişim\nSorularınız için bizimle iletişime geçin:';
 
   @override
   String get privacyContactTitle => '7. İletişim';
 
   @override
-  String get privacyContactPrompt =>
-      'Bu Gizlilik Politikası veya verileriniz hakkında sorularınız varsa bizimle iletişime geçin:';
+  String get privacyContactPrompt => 'Bu Gizlilik Politikası veya verileriniz hakkında sorularınız varsa bizimle iletişime geçin:';
 
   @override
   String get privacyResponseTime => 'En kısa sürede yanıt vereceğiz.';
@@ -9524,12 +9172,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get termsOfServiceTitle => 'Hizmet Şartları';
 
   @override
-  String get termsIntro =>
-      'PetSupo\'yu kullanarak aşağıdaki şartları kabul etmiş olursunuz:';
+  String get termsIntro => 'PetSupo\'yu kullanarak aşağıdaki şartları kabul etmiş olursunuz:';
 
   @override
-  String get termsResponseTime =>
-      'Makul bir süre içinde yanıt vermeyi hedefliyoruz.';
+  String get termsResponseTime => 'Makul bir süre içinde yanıt vermeyi hedefliyoruz.';
 
   @override
   String get invoiceNumberDateRequired => 'Fatura numarası ve tarihi gerekli';
@@ -9595,8 +9241,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get submitComplaintTitle => 'Şikayet Gönder';
 
   @override
-  String get submitComplaintConfirmation =>
-      'Bu şikayeti göndermek istediğinizden emin misiniz?';
+  String get submitComplaintConfirmation => 'Bu şikayeti göndermek istediğinizden emin misiniz?';
 
   @override
   String get complaintSubmittedSuccessfully => 'Şikayet başarıyla gönderildi';
@@ -9611,8 +9256,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get pleaseSelectRating => 'Lütfen puan seçin';
 
   @override
-  String get feedbackSubmittedSuccessfully =>
-      'Geri bildirim başarıyla gönderildi';
+  String get feedbackSubmittedSuccessfully => 'Geri bildirim başarıyla gönderildi';
 
   @override
   String feedbackSubmissionFailed(Object error) {
@@ -9623,8 +9267,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get sendFeedback => 'Geri Bildirim Gönder';
 
   @override
-  String get feedbackIntro =>
-      'Geri bildirimleriniz, fikirleriniz ve önerilerinizle PetSupo\'yu geliştirmemize yardımcı olun.';
+  String get feedbackIntro => 'Geri bildirimleriniz, fikirleriniz ve önerilerinizle PetSupo\'yu geliştirmemize yardımcı olun.';
 
   @override
   String get rateYourExperience => 'Deneyiminizi puanlayın';
@@ -9648,8 +9291,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get submitFeedback => 'Geri Bildirimi Gönder';
 
   @override
-  String get memorialImageLoadFailed =>
-      'Bu resim yüklenemedi. Lütfen başka bir fotoğraf deneyin.';
+  String get memorialImageLoadFailed => 'Bu resim yüklenemedi. Lütfen başka bir fotoğraf deneyin.';
 
   @override
   String get createMemorial => 'Anı Oluştur';
@@ -9667,12 +9309,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get country => 'Ülke';
 
   @override
-  String get memorialHeaderMessage =>
-      'Doğayla bir anı oluşturarak sevgili dostunuzu onurlandırın.';
+  String get memorialHeaderMessage => 'Doğayla bir anı oluşturarak sevgili dostunuzu onurlandırın.';
 
   @override
-  String get addPetBeforeMemorial =>
-      'Anı oluşturmadan önce bir evcil hayvan ekleyin.';
+  String get addPetBeforeMemorial => 'Anı oluşturmadan önce bir evcil hayvan ekleyin.';
 
   @override
   String get addPetFirst => 'Önce Evcil Hayvan Ekle';
@@ -9681,8 +9321,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get choosePhoto => 'Fotoğraf Seç';
 
   @override
-  String get memorialPhotoPreviewMessage =>
-      'Fotoğraf yükleme daha sonra bağlanacak. Önizleme şimdilik yereldir.';
+  String get memorialPhotoPreviewMessage => 'Fotoğraf yükleme daha sonra bağlanacak. Önizleme şimdilik yereldir.';
 
   @override
   String get memorialCreated => 'Anı oluşturuldu.';
@@ -9739,8 +9378,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get changePasswordTitle => 'Şifreyi Değiştir';
 
   @override
-  String get changePasswordDescription =>
-      'Şifrenizi düzenli olarak güncelleyerek PetSupo hesabınızı güvende tutun.';
+  String get changePasswordDescription => 'Şifrenizi düzenli olarak güncelleyerek PetSupo hesabınızı güvende tutun.';
 
   @override
   String get currentPasswordLabel => 'Mevcut Şifre';
@@ -9770,8 +9408,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adoptionFirstAnimal => 'İlk Hayvanınızı Ekleyin';
 
   @override
-  String get completedAdoptionsEmpty =>
-      'Tamamlanan sahiplendirmeler burada görünecek.';
+  String get completedAdoptionsEmpty => 'Tamamlanan sahiplendirmeler burada görünecek.';
 
   @override
   String get recentlyAddedAnimals => 'Yeni Eklenen Hayvanlar';
@@ -9780,12 +9417,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noAnimalsAdded => 'Henüz hayvan eklenmedi.';
 
   @override
-  String get speciesStatisticsEmpty =>
-      'Tür istatistikleri, ilk başarılı sahiplendirmeden sonra görünecek.';
+  String get speciesStatisticsEmpty => 'Tür istatistikleri, ilk başarılı sahiplendirmeden sonra görünecek.';
 
   @override
-  String get petTaxiEstimateDisclaimer =>
-      'Tahmin, İstanbul taksi tarifesi ve evcil hayvan taşıma hizmet bedeline göre hesaplanmıştır. Köprü, otoyol, bekleme ve sağlayıcıya özel ücretler eklenebilir. Kesin fiyat sağlayıcı tarafından onaylanacaktır.';
+  String get petTaxiEstimateDisclaimer => 'Tahmin, İstanbul taksi tarifesi ve evcil hayvan taşıma hizmet bedeline göre hesaplanmıştır. Köprü, otoyol, bekleme ve sağlayıcıya özel ücretler eklenebilir. Kesin fiyat sağlayıcı tarafından onaylanacaktır.';
 
   @override
   String get unblockUserTitle => 'Kullanıcı engelini kaldır';
@@ -9820,15 +9455,13 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get blockedUsersDescription =>
-      'Etkileşim kurmasını engellediğiniz kullanıcıları yönetin.';
+  String get blockedUsersDescription => 'Etkileşim kurmasını engellediğiniz kullanıcıları yönetin.';
 
   @override
   String get noBlockedUsers => 'Engellenen kullanıcı yok';
 
   @override
-  String get blockedUsersEmptyDescription =>
-      'Engellediğiniz kullanıcılar burada görünür. İstediğiniz zaman engellerini kaldırabilirsiniz.';
+  String get blockedUsersEmptyDescription => 'Engellediğiniz kullanıcılar burada görünür. İstediğiniz zaman engellerini kaldırabilirsiniz.';
 
   @override
   String blockedOn(Object date) {
@@ -9842,8 +9475,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get deleteAccountFailed => 'Hesap silinemedi. Lütfen tekrar deneyin.';
 
   @override
-  String get deleteActionPermanent =>
-      'Bu işlem kalıcıdır.\n\nTüm köpekleriniz, sohbetleriniz, favorileriniz ve etkinlikleriniz kalıcı olarak silinecektir.';
+  String get deleteActionPermanent => 'Bu işlem kalıcıdır.\n\nTüm köpekleriniz, sohbetleriniz, favorileriniz ve etkinlikleriniz kalıcı olarak silinecektir.';
 
   @override
   String get deleteConfirmationCodeHint => 'Onaylamak için DELETE yazın';
@@ -9852,8 +9484,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get deleteConfirmationCode => 'DELETE';
 
   @override
-  String get deleteAccountPermanentNotice =>
-      'Bu işlem kalıcıdır ve geri alınamaz.';
+  String get deleteAccountPermanentNotice => 'Bu işlem kalıcıdır ve geri alınamaz.';
 
   @override
   String get whatWillBeDeleted => 'Neler silinecek';
@@ -9868,16 +9499,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get privacySecurityTitle => 'Gizlilik ve Güvenlik';
 
   @override
-  String get privacySecurityDescription =>
-      'Görünürlüğünüzü, veri paylaşımını ve hesap gizliliği ayarlarınızı yönetin.';
+  String get privacySecurityDescription => 'Görünürlüğünüzü, veri paylaşımını ve hesap gizliliği ayarlarınızı yönetin.';
 
   @override
-  String get dataExportRequestSubmitted =>
-      'Veri dışa aktarma isteği gönderildi';
+  String get dataExportRequestSubmitted => 'Veri dışa aktarma isteği gönderildi';
 
   @override
-  String get deleteAccountDataNotice =>
-      'Bu işlem geri alınamaz ve tüm verileriniz kalıcı olarak silinir.';
+  String get deleteAccountDataNotice => 'Bu işlem geri alınamaz ve tüm verileriniz kalıcı olarak silinir.';
 
   @override
   String get exitAppTitle => 'Uygulamadan çıkılsın mı?';
@@ -9895,12 +9523,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get aboutUsTitle => 'Hakkımızda';
 
   @override
-  String get aboutUsContent =>
-      'PetSupo, evcil hayvan sahiplerini birbirine bağlamak ve hayvanların sosyal yaşamını geliştirmek için tasarlanmış dijital bir platformdur.\n\nUygulama, kullanıcıların köpekleri için uygun oyun arkadaşları bulmasını, yakındaki veteriner hizmetlerini keşfetmesini ve petshop, kuaför ve pet oteli gibi evcil hayvan işletmelerine erişmesini sağlar.\n\nPetSupo bir hizmet sağlayıcı olarak hareket etmez; kullanıcılar ile üçüncü taraf hizmetler arasında kolaylaştırıcıdır. Kullanıcılar platform üzerinden gerçekleştirdikleri etkileşimlerden ve kararlardan sorumludur.\n\nMisyonumuz, dünyanın dört bir yanındaki evcil hayvan sahipleri için güvenli, verimli ve kullanıcı dostu bir ortam sunmaktır.';
+  String get aboutUsContent => 'PetSupo, evcil hayvan sahiplerini birbirine bağlamak ve hayvanların sosyal yaşamını geliştirmek için tasarlanmış dijital bir platformdur.\n\nUygulama, kullanıcıların köpekleri için uygun oyun arkadaşları bulmasını, yakındaki veteriner hizmetlerini keşfetmesini ve petshop, kuaför ve pet oteli gibi evcil hayvan işletmelerine erişmesini sağlar.\n\nPetSupo bir hizmet sağlayıcı olarak hareket etmez; kullanıcılar ile üçüncü taraf hizmetler arasında kolaylaştırıcıdır. Kullanıcılar platform üzerinden gerçekleştirdikleri etkileşimlerden ve kararlardan sorumludur.\n\nMisyonumuz, dünyanın dört bir yanındaki evcil hayvan sahipleri için güvenli, verimli ve kullanıcı dostu bir ortam sunmaktır.';
 
   @override
-  String get faqDescription =>
-      'PetSupo özellikleri, gizlilik, abonelikler ve güvenlik hakkında hızlı yanıtlar bulun.';
+  String get faqDescription => 'PetSupo özellikleri, gizlilik, abonelikler ve güvenlik hakkında hızlı yanıtlar bulun.';
 
   @override
   String get reportTitleRequired => 'Lütfen bir başlık girin';
@@ -9917,15 +9543,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get attachScreenshot => 'Ekran görüntüsü ekle';
 
   @override
-  String get screenshotOptionalHint =>
-      'İsteğe bağlıdır; sorunu daha hızlı anlamamıza yardımcı olur.';
+  String get screenshotOptionalHint => 'İsteğe bağlıdır; sorunu daha hızlı anlamamıza yardımcı olur.';
 
   @override
   String get reportProblemTitle => 'Sorun Bildir';
 
   @override
-  String get reportProblemDescription =>
-      'Neyin yanlış gittiğini anlatın. Bildiriminiz PetSupo\'yu geliştirmemize yardımcı olur.';
+  String get reportProblemDescription => 'Neyin yanlış gittiğini anlatın. Bildiriminiz PetSupo\'yu geliştirmemize yardımcı olur.';
 
   @override
   String get reportIncorrectInformation => 'Yanlış bilgi';
@@ -9942,8 +9566,7 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get vetProfileUpdatedSuccessfully =>
-      'Veteriner profili başarıyla güncellendi';
+  String get vetProfileUpdatedSuccessfully => 'Veteriner profili başarıyla güncellendi';
 
   @override
   String vetProfileSaveError(Object error) {
@@ -9986,15 +9609,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get futureDateRequired => 'Lütfen gelecekte bir tarih ve saat seçin.';
 
   @override
-  String get preVisitQuestionsRequired =>
-      'Lütfen zorunlu ziyaret öncesi soruları tamamlayın.';
+  String get preVisitQuestionsRequired => 'Lütfen zorunlu ziyaret öncesi soruları tamamlayın.';
 
   @override
   String get noDetailedServicesProvided => 'Ayrıntılı hizmet sunulmadı.';
 
   @override
-  String get noDogsYetMatching =>
-      'Henüz köpek yok — kendi köpeğinizi ekleyip eşleşmeye başlayın! 🐾';
+  String get noDogsYetMatching => 'Henüz köpek yok — kendi köpeğinizi ekleyip eşleşmeye başlayın! 🐾';
 
   @override
   String get createProfileToConnect => 'Bağlanmak için profil oluşturun 🐾';
@@ -10048,8 +9669,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get welcomeToPetSopuWithWave => 'PetSupo\'ya hoş geldiniz 👋';
 
   @override
-  String get moreThanAnApp =>
-      'Bir uygulamadan fazlası.\nEvcil hayvanlar ve sahipleri için bir yuva.';
+  String get moreThanAnApp => 'Bir uygulamadan fazlası.\nEvcil hayvanlar ve sahipleri için bir yuva.';
 
   @override
   String get viewPremiumPlans => 'Premium Planları Görüntüle';

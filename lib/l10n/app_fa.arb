@@ -3087,6 +3087,8 @@
 ,"viewAllProducts": "مشاهده همه محصولات"
 ,"continueWithGoogle": "ادامه با گوگل"
 ,"continueWithApple": "ادامه با اپل"
+,"connectAppleAccount": "اتصال حساب اپل"
+,"appleAccountConnected": "حساب اپل متصل شد"
 ,"orContinueWith": "یا ادامه با"
 ,"authenticationCancelled": "احراز هویت لغو شد"
 ,"unableToSignIn": "ورود امکان‌پذیر نیست"

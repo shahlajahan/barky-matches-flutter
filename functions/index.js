@@ -10786,6 +10786,7 @@ exports.registerBusiness = onCall(
       await db.collection("users").doc(uid).set(
         {
           business: {
+            businessId: businessRef.id,
             requestId: requestRef.id,
             status: hasPetTaxiSector ? "pending_review" : "pending",
             sectors,

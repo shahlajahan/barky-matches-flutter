@@ -39,6 +39,7 @@ async function resolve({ sectors, published, action = "approved" }) {
 
   return {
     businessRef: db.collection("businesses").doc(businessId),
+    userRef: db.collection("users").doc(ownerUid),
     requestRef: db.collection("business_requests").doc(requestId),
   };
 }
@@ -51,10 +52,11 @@ test("resolveBusinessRequest approves legacy public sectors with published true"
     ["pet_shop"],
     ["adoption_center"],
   ]) {
-    const { businessRef } = await resolve({ sectors });
+    const { businessRef, userRef } = await resolve({ sectors });
     const data = (await businessRef.get()).data();
     assert.equal(data.status, "approved");
     assert.equal(data.published, true);
+    assert.equal((await userRef.get()).data().business.businessId, businessRef.id);
   }
 });
 

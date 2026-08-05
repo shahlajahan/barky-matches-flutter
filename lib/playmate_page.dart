@@ -15,6 +15,7 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/utils/localization_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -824,6 +825,12 @@ class _PlaymatePageState extends State<PlaymatePage>
     }
 
     try {
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Find nearby playmates',
+        message: 'We use your location to show nearby playmates.',
+      );
+      if (!allowed) return;
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -1414,28 +1421,7 @@ class _PlaymatePageState extends State<PlaymatePage>
 
             IconButton(
               icon: Icon(Icons.my_location),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: Text(localizations.playmateLocationNeededTitle),
-                    content: Text(localizations.playmateLocationNeededMessage),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(localizations.cancel),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          await requestLocationFromUser();
-                        },
-                        child: Text(localizations.homeAllowButton),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              onPressed: requestLocationFromUser,
             ),
 
             // 🐶 LIST

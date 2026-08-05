@@ -16,6 +16,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:barky_matches_fixed/ui/guest/guest_feature_gate.dart';
@@ -79,60 +80,12 @@ class _FoundDogReportPageState extends State<FoundDogReportPage> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) {
-          setState(() {
-            _currentPosition = Position(
-              latitude: 41.0103,
-              longitude: 28.6724,
-              timestamp: DateTime.now(),
-              accuracy: 0,
-              altitude: 0,
-              heading: 0,
-              speed: 0,
-              speedAccuracy: 0,
-              altitudeAccuracy: 0,
-              headingAccuracy: 0,
-            );
-          });
-        }
-        if (kDebugMode)
-          debugPrint(
-            'FoundDogReportPage - Using default position due to disabled location services',
-          );
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied ||
-            permission == LocationPermission.deniedForever) {
-          if (mounted) {
-            setState(() {
-              _currentPosition = Position(
-                latitude: 41.0103,
-                longitude: 28.6724,
-                timestamp: DateTime.now(),
-                accuracy: 0,
-                altitude: 0,
-                heading: 0,
-                speed: 0,
-                speedAccuracy: 0,
-                altitudeAccuracy: 0,
-                headingAccuracy: 0,
-              );
-            });
-          }
-          if (kDebugMode)
-            debugPrint(
-              'FoundDogReportPage - Using default position due to permission denied',
-            );
-          return;
-        }
-      }
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Add the found pet location',
+        message: 'We use your location to help report a found pet nearby.',
+      );
+      if (!allowed || !mounted) return;
 
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.medium,

@@ -15,6 +15,7 @@ import '../constants/pet_breeds.dart';
 import '../../theme/app_theme.dart';
 import '../models/lost_dog.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
@@ -232,15 +233,12 @@ class _LostDogReportPageState extends State<LostDogReportPage> {
     Duration timeout = const Duration(seconds: 8),
   }) async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return null;
-
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Add the lost pet location',
+        message: 'We use your location to help report a lost pet nearby.',
+      );
+      if (!allowed || !mounted) {
         return null;
       }
 

@@ -87,6 +87,86 @@ void main() {
 
     expect(notifications, 0);
   });
+
+  test('a valid stored business reference is accepted directly', () {
+    expect(
+      isValidStoredBusinessReference('owner-1', 'business-1', {
+        'ownerUid': 'owner-1',
+        'status': 'approved',
+      }),
+      isTrue,
+    );
+  });
+
+  test('a stale businessId equal to the user UID is rejected', () {
+    expect(
+      isValidStoredBusinessReference('owner-1', 'owner-1', {
+        'ownerUid': 'owner-2',
+        'status': 'approved',
+      }),
+      isFalse,
+    );
+  });
+
+  test('one approved owned business is selected by its document ID', () {
+    expect(
+      selectCanonicalOwnedBusinessId('owner-1', [
+        {
+          '__documentId': 'business-1',
+          'ownerUid': 'owner-1',
+          'status': 'approved',
+          'published': true,
+        },
+      ]),
+      'business-1',
+    );
+  });
+
+  test('no owned approved business preserves no-business behavior', () {
+    expect(
+      selectCanonicalOwnedBusinessId('owner-1', [
+        {
+          '__documentId': 'business-1',
+          'ownerUid': 'owner-2',
+          'status': 'approved',
+        },
+        {
+          '__documentId': 'business-2',
+          'ownerUid': 'owner-1',
+          'status': 'pending',
+        },
+      ]),
+      isNull,
+    );
+  });
+
+  test('a stored business belonging to another owner is rejected', () {
+    expect(
+      isValidStoredBusinessReference('owner-1', 'business-1', {
+        'ownerUid': 'owner-2',
+        'status': 'approved',
+      }),
+      isFalse,
+    );
+  });
+
+  test('ambiguous approved businesses are not selected silently', () {
+    expect(
+      selectCanonicalOwnedBusinessId('owner-1', [
+        {
+          '__documentId': 'business-1',
+          'ownerUid': 'owner-1',
+          'status': 'approved',
+        },
+        {
+          '__documentId': 'business-2',
+          'ownerUid': 'owner-1',
+          'status': 'approved',
+        },
+      ]),
+      isNull,
+    );
+  });
 }
 
 AppState _buildAppState({

@@ -1,4 +1,5 @@
 import 'package:barky_matches_fixed/services/social_auth_service.dart';
+import 'package:barky_matches_fixed/apple_account_recovery_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -112,4 +113,46 @@ void main() {
   test('Apple cancellation remains a non-writing authentication outcome', () {
     expect(const SocialAuthCancelled(), isA<SocialAuthCancelled>());
   });
+
+  test('new Apple users are held before profile creation', () {
+    expect(shouldHoldNewAppleSession(isNewUser: true), isTrue);
+    expect(shouldHoldNewAppleSession(isNewUser: false), isFalse);
+  });
+
+  test('Apple recovery choices keep creation and linking explicit', () {
+    expect(
+      AppleRecoveryChoice.createNewAccount,
+      isNot(AppleRecoveryChoice.existingAccount),
+    );
+  });
+
+  test(
+    'successful Apple linking must preserve UID and provider membership',
+    () {
+      expect(
+        appleLinkPreservesUid(
+          uidBefore: 'canonical-uid',
+          uidAfter: 'canonical-uid',
+          providerIds: const ['google.com', 'apple.com'],
+        ),
+        isTrue,
+      );
+      expect(
+        appleLinkPreservesUid(
+          uidBefore: 'canonical-uid',
+          uidAfter: 'new-uid',
+          providerIds: const ['apple.com'],
+        ),
+        isFalse,
+      );
+      expect(
+        appleLinkPreservesUid(
+          uidBefore: 'canonical-uid',
+          uidAfter: 'canonical-uid',
+          providerIds: const ['google.com'],
+        ),
+        isFalse,
+      );
+    },
+  );
 }

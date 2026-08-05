@@ -21,6 +21,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/debug/firestore_query_trace.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 class VetPage extends StatefulWidget {
   const VetPage({super.key});
@@ -839,19 +840,12 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
 
   Future<Position?> _resolveLocationSmart() async {
     try {
-      final enabled = await Geolocator.isLocationServiceEnabled();
-      if (!mounted) return null;
-      if (!enabled) return null;
-
-      var permission = await Geolocator.checkPermission();
-      if (!mounted) return null;
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (!mounted) return null;
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Find nearby veterinary clinics',
+        message: 'We use your location to show nearby veterinary clinics.',
+      );
+      if (!allowed || !mounted) {
         return null;
       }
 

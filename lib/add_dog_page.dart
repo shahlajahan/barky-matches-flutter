@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 import 'package:barky_matches_fixed/app_state.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 enum AddDogMode { ownerPet, adoptionCenter }
 
@@ -326,67 +327,12 @@ class _AddDogPageState extends State<AddDogPage> {
     final l10n = AppLocalizations.of(context)!;
     debugPrint('AddDogPage - Attempting to get current location');
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        debugPrint('AddDogPage - Location services are disabled');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                l10n.locationServicesDisabled,
-                style: GoogleFonts.poppins(),
-              ),
-            ),
-          );
-        }
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          debugPrint('AddDogPage - Location permission denied');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  l10n.locationPermissionRequired,
-                  style: GoogleFonts.poppins(),
-                ),
-                action: SnackBarAction(
-                  label: l10n.settings,
-                  onPressed: () async {
-                    await openAppSettings();
-                  },
-                ),
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        debugPrint('AddDogPage - Location permission permanently denied');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                l10n.locationPermissionPermanentlyDenied,
-                style: GoogleFonts.poppins(),
-              ),
-              action: SnackBarAction(
-                label: l10n.settings,
-                onPressed: () async {
-                  await openAppSettings();
-                },
-              ),
-            ),
-          );
-        }
-        return;
-      }
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Add your pet location',
+        message: 'We use your location to help you add your pet profile.',
+      );
+      if (!allowed) return;
 
       LocationSettings locationSettings = LocationSettings(
         accuracy: LocationAccuracy.high,

@@ -19,6 +19,7 @@ import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 class PlayDateSchedulingPage extends StatefulWidget {
   final Dog? selectedDog; // 👈 nullable
@@ -218,6 +219,12 @@ class _PlayDateSchedulingPageState extends State<PlayDateSchedulingPage> {
     LatLng fallback = const LatLng(41.0103, 28.6724); // Istanbul
 
     try {
+      final allowed = await LocationPermissionService.ensurePermission(
+        context,
+        title: 'Choose a meeting location',
+        message: 'We use your location to help choose a nearby meeting place.',
+      );
+      if (!allowed) return;
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.low,
         timeLimit: const Duration(seconds: 6),
