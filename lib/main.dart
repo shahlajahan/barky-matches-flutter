@@ -41,6 +41,7 @@ import 'package:barky_matches_fixed/ui/checkout/marketplace_checkout_return_rout
 import 'package:barky_matches_fixed/ui/creator/creator_dashboard_web_page.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
+import 'package:barky_matches_fixed/services/web_auth_debug_overlay.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -914,6 +915,8 @@ void main() async {
   }
 
   WidgetsFlutterBinding.ensureInitialized();
+  initWebAuthDebugOverlay();
+  webAuthTrace('app startup');
 
   try {
     await Hive.initFlutter();
@@ -927,8 +930,17 @@ void main() async {
   GoogleFonts.config.allowRuntimeFetching = true;
   //await waitForInternet();
   await ensureFirebaseInitialized();
+  webAuthTrace('Firebase.initializeApp finished');
   FcmTokenService.attachRefreshListener();
   _authFcmSub ??= FirebaseAuth.instance.authStateChanges().listen((user) {
+    webAuthTrace('AUTH STATE EVENT', {
+      'uid': user?.uid ?? 'null',
+      'anonymous': user?.isAnonymous ?? 'null',
+      'providerIds':
+          user?.providerData.map((provider) => provider.providerId).toList() ??
+          const <String>[],
+      'source': 'main.fcm_listener',
+    });
     if (user == null || user.isAnonymous) {
       debugPrint('🔥 FCM AUTH LISTENER: signed out');
       return;
@@ -1315,6 +1327,8 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
+        builder: (context, child) =>
+            WebAuthDebugOverlay(child: child ?? const SizedBox.shrink()),
         navigatorKey: navigatorKey,
         navigatorObservers: <NavigatorObserver>[],
         theme: AppTheme.theme(locale: locale),

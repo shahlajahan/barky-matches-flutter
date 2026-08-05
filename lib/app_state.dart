@@ -22,6 +22,7 @@ import 'package:barky_matches_fixed/subscription/models/user_subscription.dart';
 import 'package:barky_matches_fixed/subscription/helpers/subscription_access.dart';
 import 'package:barky_matches_fixed/subscription/models/subscription_plan.dart';
 import 'package:barky_matches_fixed/utils/location_utils.dart';
+import 'package:barky_matches_fixed/services/web_auth_debug_overlay.dart';
 
 import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
@@ -2211,6 +2212,20 @@ class AppState with ChangeNotifier {
 
     _authSub = authEvents.listen(
       (user) {
+        webAuthTrace(
+          AuthTrap.authProbeMinimalMode
+              ? 'authStateChanges event'
+              : 'idTokenChanges event',
+          {
+            'uid': user?.uid ?? 'null',
+            'anonymous': user?.isAnonymous ?? 'null',
+            'providerIds':
+                user?.providerData
+                    .map((provider) => provider.providerId)
+                    .toList() ??
+                const <String>[],
+          },
+        );
         debugPrint(
           'AUTH STATE CHANGED → user=${user?.uid ?? "NULL"} source=${AuthTrap.authProbeMinimalMode ? "authStateChanges" : "idTokenChanges"}',
         );

@@ -1,5 +1,27 @@
 import 'dart:html' as html;
 
+Map<String, Object?> webRedirectDiagnosticSnapshot() {
+  bool containsRedirectState(Iterable<String> keys) {
+    return keys.any((key) => key.contains('social_auth.pending_redirect'));
+  }
+
+  return {
+    'href': html.window.location.href,
+    'origin': html.window.location.origin,
+    'pathname': html.window.location.pathname,
+    'search': html.window.location.search,
+    'hash': html.window.location.hash,
+    'referrer': html.document.referrer,
+    'userAgent': html.window.navigator.userAgent,
+    'sessionStorageHasRedirectState': containsRedirectState(
+      html.window.sessionStorage.keys,
+    ),
+    'localStorageHasRedirectState': containsRedirectState(
+      html.window.localStorage.keys,
+    ),
+  };
+}
+
 bool get isMobileSafariWeb {
   final navigator = html.window.navigator;
   final userAgent = navigator.userAgent.toLowerCase();

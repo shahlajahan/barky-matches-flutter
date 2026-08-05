@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'web_auth_browser_info.dart';
+import 'web_auth_debug_overlay.dart';
 
 enum SocialAuthProvider { google, apple }
 
@@ -228,8 +229,32 @@ class SocialAuthService {
       _redirectResultRead = true;
       late final UserCredential credential;
       try {
+        webAuthTrace('ENTER consumeWebRedirectResult', {
+          'currentUserBefore': _auth.currentUser?.uid ?? 'null',
+        });
+        webAuthTrace('CALL getRedirectResult');
         credential = await _auth.getRedirectResult();
-      } on FirebaseAuthException catch (error) {
+        final currentUserAfterRedirect = FirebaseAuth.instance.currentUser;
+        webAuthTrace('RETURN getRedirectResult', {
+          'currentUser': currentUserAfterRedirect?.toString() ?? 'null',
+          'uid': currentUserAfterRedirect?.uid ?? 'null',
+          'providerData':
+              currentUserAfterRedirect?.providerData
+                  .map((provider) => provider.toString())
+                  .toList() ??
+              const <String>[],
+          'getRedirectResultEntered': true,
+          'getRedirectResult': credential.toString(),
+          'credentialIsNull': false,
+          'returnedType': credential.runtimeType.toString(),
+        });
+      } on FirebaseAuthException catch (error, stackTrace) {
+        webAuthTrace('getRedirectResult exception', {
+          'code': error.code,
+          'message': error.message ?? 'null',
+          'currentUserAfter': _auth.currentUser?.uid ?? 'null',
+          'stackTrace': stackTrace.toString(),
+        });
         if (error.code == 'popup-closed-by-user' ||
             error.code == 'cancelled-popup-request' ||
             error.code == 'canceled' ||
@@ -240,9 +265,19 @@ class SocialAuthService {
         rethrow;
       }
       if (credential.user == null) {
+        webAuthTrace('RETURN getRedirectResult', {
+          'credentialIsNull': true,
+          'credentialRuntimeType': 'null',
+          'currentUserAfter': _auth.currentUser?.uid ?? 'null',
+        });
         await _clearPendingRedirect(preferences);
         return null;
       }
+
+      webAuthTrace('RETURN getRedirectResult', {
+        'credentialUid': credential.user?.uid ?? 'null',
+        'currentUserAfter': _auth.currentUser?.uid ?? 'null',
+      });
 
       await _clearPendingRedirect(preferences);
       final provider = providerName == 'apple'
@@ -283,6 +318,12 @@ class SocialAuthService {
     if (!kIsWeb || !isMobileSafariWeb) return null;
     final preferences = await SharedPreferences.getInstance();
     return preferences.getBool(_pendingLoginModeKey);
+  }
+
+  Future<String?> pendingWebRedirectProvider() async {
+    if (!kIsWeb || !isMobileSafariWeb) return null;
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getString(_pendingProviderKey);
   }
 
   Future<SocialProfileResult> linkAppleAccount({
@@ -467,6 +508,10 @@ class SocialAuthService {
     if (isLoginMode != null) {
       await preferences.setBool(_pendingLoginModeKey, isLoginMode);
     }
+    webAuthTrace('signInWithRedirect called', {
+      'provider': provider.providerId,
+      'currentUserBefore': _auth.currentUser?.uid ?? 'null',
+    });
     await _auth.signInWithRedirect(provider);
     return null;
   }

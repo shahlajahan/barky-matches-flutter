@@ -17,6 +17,7 @@ import 'package:barky_matches_fixed/dog_park_page.dart';
 import 'package:barky_matches_fixed/park_playdate_entry_page.dart';
 import 'package:barky_matches_fixed/playmate_page.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/web_auth_debug_overlay.dart';
 
 import 'package:barky_matches_fixed/ui/shell/barky_scaffold.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
@@ -155,6 +156,7 @@ class _HomeGateState extends State<HomeGate> {
 
   @override
   Widget build(BuildContext context) {
+    webAuthTrace('HOME_GATE_BUILD', {'identity': identityHashCode(this)});
     debugPrint('🧱 HomeGate build hash=${identityHashCode(this)}');
 
     final isAccountSuspended = context.select<AppState, bool>(

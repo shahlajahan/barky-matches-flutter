@@ -28,6 +28,7 @@ import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/core/debug/authentication_diagnostics.dart';
 import 'package:barky_matches_fixed/core/debug/diagnostics_navigation_tracker.dart';
 import 'package:barky_matches_fixed/services/social_auth_service.dart';
+import 'package:barky_matches_fixed/services/web_auth_debug_overlay.dart';
 import 'package:barky_matches_fixed/services/referral_attribution_service.dart';
 import 'package:barky_matches_fixed/social_profile_completion_page.dart';
 import 'package:barky_matches_fixed/apple_account_recovery_page.dart';
@@ -360,6 +361,7 @@ Future<void> completeSocialAuthentication({
   await appState.loadUsernameFromFirebase();
   await _askSocialNotificationPermissionAfterLogin();
   if (!context.mounted) return;
+  webAuthTrace('NAVIGATE -> HomeGate');
   Navigator.of(context).pushAndRemoveUntil(
     MaterialPageRoute(builder: (_) => const HomeGate()),
     (route) => false,
@@ -485,6 +487,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
   @override
   Widget build(BuildContext context) {
+    webAuthTrace('AUTH_PAGE_BUILD', {'identity': identityHashCode(this)});
     final l10n = AppLocalizations.of(context)!;
     debugPrint('VerifyEmailPage - Building UI for email: ${widget.email}');
     return Scaffold(
@@ -1560,6 +1563,7 @@ class _AuthPageState extends State<AuthPage> {
 
           if (!mounted) return;
 
+          webAuthTrace('NAVIGATE -> HomeGate');
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const HomeGate()),
             (route) => false,
@@ -1666,6 +1670,7 @@ class _AuthPageState extends State<AuthPage> {
               ).updateUserId(emailUserId);
 
               if (!context.mounted) return;
+              webAuthTrace('NAVIGATE -> HomeGate');
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const HomeGate()),
                 (route) => false,
@@ -2355,6 +2360,7 @@ class _AuthPageState extends State<AuthPage> {
                           if (!mounted) return;
                           await AnalyticsService.guestModeEntered();
 
+                          webAuthTrace('NAVIGATE -> HomeGate');
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(builder: (_) => const HomeGate()),
                             (route) => false,
