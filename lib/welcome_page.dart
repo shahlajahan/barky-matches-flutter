@@ -59,6 +59,9 @@ class _WebAuthStartupGateState extends State<WebAuthStartupGate> {
     try {
       await ensureFirebase();
       webAuthTrace('STARTUP_GATE_FIREBASE_READY');
+      webAuthTrace('currentUser immediately after app startup', {
+        'uid': FirebaseAuth.instance.currentUser?.uid ?? 'null',
+      });
       final hasPendingRedirect = await service.hasPendingWebRedirect();
       webAuthTrace(
         hasPendingRedirect
@@ -81,6 +84,9 @@ class _WebAuthStartupGateState extends State<WebAuthStartupGate> {
         'CALL consumeWebRedirectResult',
         webRedirectDiagnosticSnapshot(),
       );
+      webAuthTrace('currentUser immediately before getRedirectResult', {
+        'uid': FirebaseAuth.instance.currentUser?.uid ?? 'null',
+      });
       final result = await service.consumeWebRedirectResult();
       webAuthTrace(
         result == null

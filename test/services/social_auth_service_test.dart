@@ -92,6 +92,10 @@ void main() {
     expect(shouldUseWebRedirect(isWeb: true, isMobileSafari: false), isFalse);
   });
 
+  test('Web Google authentication requests account selection', () {
+    expect(googleWebCustomParameters(), {'prompt': 'select_account'});
+  });
+
   test('mobile Safari Web authentication uses redirect flow', () {
     expect(shouldUseWebRedirect(isWeb: true, isMobileSafari: true), isTrue);
   });
@@ -135,6 +139,52 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'null redirect user is accepted only after a verified session change',
+    () {
+      expect(
+        canAcceptNullRedirectUser(
+          signedOutBeforeRedirect: true,
+          redirectAttemptId: 'attempt-google',
+          redirectStartedAt: 1,
+          currentUserUid: 'new-user',
+          preRedirectUid: 'old-user',
+        ),
+        isTrue,
+      );
+      expect(
+        canAcceptNullRedirectUser(
+          signedOutBeforeRedirect: true,
+          redirectAttemptId: 'attempt-google',
+          redirectStartedAt: 1,
+          currentUserUid: 'old-user',
+          preRedirectUid: 'old-user',
+        ),
+        isFalse,
+      );
+      expect(
+        canAcceptNullRedirectUser(
+          signedOutBeforeRedirect: false,
+          redirectAttemptId: 'attempt-google',
+          redirectStartedAt: 1,
+          currentUserUid: 'new-user',
+          preRedirectUid: 'old-user',
+        ),
+        isFalse,
+      );
+      expect(
+        canAcceptNullRedirectUser(
+          signedOutBeforeRedirect: true,
+          redirectAttemptId: null,
+          redirectStartedAt: 1,
+          currentUserUid: 'new-user',
+          preRedirectUid: 'old-user',
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test('Apple profile creation is idempotent at the document boundary', () {
     final first = buildSocialProfileCreationData(

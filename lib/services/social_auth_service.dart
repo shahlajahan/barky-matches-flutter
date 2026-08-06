@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -153,7 +155,9 @@ class SocialAuthService {
   Future<UserCredential?> _signInGoogleCredential({bool? isLoginMode}) async {
     try {
       if (kIsWeb) {
-        return _webSignIn(GoogleAuthProvider(), isLoginMode: isLoginMode);
+        final provider = GoogleAuthProvider()
+          ..setCustomParameters(googleWebCustomParameters());
+        return _webSignIn(provider, isLoginMode: isLoginMode);
       }
       final account = await _googleSignIn.signIn();
       if (account == null) throw const SocialAuthCancelled();
@@ -234,6 +238,12 @@ class SocialAuthService {
         });
         webAuthTrace('CALL getRedirectResult');
         credential = await _auth.getRedirectResult();
+        webAuthTrace('credential.user', {
+          'uid': credential.user?.uid ?? 'null',
+        });
+        webAuthTrace('FirebaseAuth.currentUser after getRedirectResult', {
+          'uid': FirebaseAuth.instance.currentUser?.uid ?? 'null',
+        });
         final currentUserAfterRedirect = FirebaseAuth.instance.currentUser;
         webAuthTrace('RETURN getRedirectResult', {
           'currentUser': currentUserAfterRedirect?.toString() ?? 'null',
@@ -264,18 +274,56 @@ class SocialAuthService {
         }
         rethrow;
       }
-      if (credential.user == null) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final credentialUser = credential.user;
+      var acceptedPostRedirectUser = false;
+      if (credentialUser == null) {
         webAuthTrace('RETURN getRedirectResult', {
           'credentialIsNull': true,
-          'credentialRuntimeType': 'null',
+          'credentialRuntimeType': credential.runtimeType.toString(),
           'currentUserAfter': _auth.currentUser?.uid ?? 'null',
         });
-        await _clearPendingRedirect(preferences);
-        return null;
+
+        final preRedirectUid = preferences.getString(_preRedirectUidKey);
+        final attemptId = preferences.getString(_redirectAttemptIdKey);
+        final redirectStartedAt = preferences.getInt(_redirectStartedAtKey);
+        final signedOutBeforeRedirect =
+            preferences.getBool(_preRedirectSignedOutKey) == true;
+        acceptedPostRedirectUser = canAcceptNullRedirectUser(
+          signedOutBeforeRedirect: signedOutBeforeRedirect,
+          redirectAttemptId: attemptId,
+          redirectStartedAt: redirectStartedAt,
+          currentUserUid: currentUser?.uid,
+          preRedirectUid: preRedirectUid,
+        );
+        if (acceptedPostRedirectUser) {
+          webAuthTrace('REDIRECT_NULL_USER_ACCEPTED_NEW_CURRENT_USER', {
+            'attemptId': attemptId,
+            'preRedirectUid': preRedirectUid ?? 'null',
+            'currentUser': currentUser?.uid ?? 'null',
+          });
+        } else {
+          await _clearPendingRedirect(preferences);
+          throw FirebaseAuthException(
+            code: 'redirect-user-unresolved',
+            message:
+                'The Web redirect completed without a verifiable Firebase user.',
+          );
+        }
+      }
+
+      late final User user;
+      if (credentialUser != null) {
+        user = credentialUser;
+      } else if (acceptedPostRedirectUser) {
+        user = currentUser!;
+      } else {
+        throw StateError('Unreachable unresolved redirect user state');
       }
 
       webAuthTrace('RETURN getRedirectResult', {
         'credentialUid': credential.user?.uid ?? 'null',
+        'finalizationUid': user.uid,
         'currentUserAfter': _auth.currentUser?.uid ?? 'null',
       });
 
@@ -284,9 +332,10 @@ class SocialAuthService {
           ? SocialAuthProvider.apple
           : SocialAuthProvider.google;
       if (provider == SocialAuthProvider.apple) {
-        final user = credential.user!;
         if (shouldHoldNewAppleSession(
-          isNewUser: credential.additionalUserInfo?.isNewUser == true,
+          isNewUser:
+              credentialUser != null &&
+              credential.additionalUserInfo?.isNewUser == true,
         )) {
           return SocialProfileResult(
             user: user,
@@ -298,7 +347,9 @@ class SocialAuthService {
         }
         return _finalizeUser(user, provider);
       }
-      return _finalize(credential, provider);
+      return credentialUser == null
+          ? _finalizeUser(user, provider)
+          : _finalize(credential, provider);
     } finally {
       _redirectResultReadInProgress = false;
     }
@@ -501,6 +552,9 @@ class SocialAuthService {
     }
 
     final preferences = await SharedPreferences.getInstance();
+    final preRedirectUid = _auth.currentUser?.uid;
+    final redirectAttemptId =
+        '${DateTime.now().microsecondsSinceEpoch}-${provider.providerId}';
     await preferences.setString(
       _pendingProviderKey,
       provider.providerId == 'apple.com' ? 'apple' : 'google',
@@ -508,9 +562,46 @@ class SocialAuthService {
     if (isLoginMode != null) {
       await preferences.setBool(_pendingLoginModeKey, isLoginMode);
     }
+    if (preRedirectUid == null) {
+      await preferences.remove(_preRedirectUidKey);
+    } else {
+      await preferences.setString(_preRedirectUidKey, preRedirectUid);
+    }
+    await preferences.setString(_redirectAttemptIdKey, redirectAttemptId);
+    await preferences.setInt(
+      _redirectStartedAtKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    await preferences.setBool(_preRedirectSignedOutKey, false);
+
+    webAuthTrace('currentUser before signOut', {
+      'uid': _auth.currentUser?.uid ?? 'null',
+    });
+    final authStateAfterSignOut = _auth.authStateChanges().firstWhere((user) {
+      if (user == null) webAuthTrace('authStateChanges emitted null');
+      return user == null;
+    });
+    try {
+      webAuthTrace('await signOut entered');
+      await _auth.signOut();
+      await authStateAfterSignOut.timeout(const Duration(seconds: 10));
+      webAuthTrace('currentUser immediately after signOut', {
+        'uid': _auth.currentUser?.uid ?? 'null',
+      });
+    } catch (_) {
+      await _clearPendingRedirect(preferences);
+      rethrow;
+    }
+    await preferences.setBool(_preRedirectSignedOutKey, true);
+
     webAuthTrace('signInWithRedirect called', {
       'provider': provider.providerId,
       'currentUserBefore': _auth.currentUser?.uid ?? 'null',
+      'preRedirectUid': preRedirectUid ?? 'null',
+      'redirectAttemptId': redirectAttemptId,
+    });
+    webAuthTrace('currentUser immediately before signInWithRedirect', {
+      'uid': _auth.currentUser?.uid ?? 'null',
     });
     await _auth.signInWithRedirect(provider);
     return null;
@@ -519,11 +610,19 @@ class SocialAuthService {
   Future<void> _clearPendingRedirect(SharedPreferences preferences) async {
     await preferences.remove(_pendingProviderKey);
     await preferences.remove(_pendingLoginModeKey);
+    await preferences.remove(_preRedirectUidKey);
+    await preferences.remove(_redirectAttemptIdKey);
+    await preferences.remove(_redirectStartedAtKey);
+    await preferences.remove(_preRedirectSignedOutKey);
   }
 }
 
 const _pendingProviderKey = 'social_auth.pending_redirect_provider';
 const _pendingLoginModeKey = 'social_auth.pending_redirect_login_mode';
+const _preRedirectUidKey = 'social_auth.pending_redirect_pre_uid';
+const _redirectAttemptIdKey = 'social_auth.pending_redirect_attempt_id';
+const _redirectStartedAtKey = 'social_auth.pending_redirect_started_at';
+const _preRedirectSignedOutKey = 'social_auth.pending_redirect_signed_out';
 
 bool supportsAppleOnPlatform({
   required bool isWeb,
@@ -552,10 +651,30 @@ bool shouldUseWebRedirect({required bool isWeb, required bool isMobileSafari}) {
   return isWeb && isMobileSafari;
 }
 
+Map<String, String> googleWebCustomParameters() {
+  return const {'prompt': 'select_account'};
+}
+
 bool shouldResumeWebRedirectAtStartup({
   required bool isWeb,
   required bool isMobileSafari,
   required bool hasPendingState,
 }) {
   return isWeb && isMobileSafari && hasPendingState;
+}
+
+bool canAcceptNullRedirectUser({
+  required bool signedOutBeforeRedirect,
+  required String? redirectAttemptId,
+  required int? redirectStartedAt,
+  required String? currentUserUid,
+  required String? preRedirectUid,
+}) {
+  return signedOutBeforeRedirect &&
+      redirectAttemptId != null &&
+      redirectAttemptId.isNotEmpty &&
+      redirectStartedAt != null &&
+      redirectStartedAt > 0 &&
+      currentUserUid != null &&
+      currentUserUid != preRedirectUid;
 }
