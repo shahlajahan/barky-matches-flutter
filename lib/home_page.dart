@@ -29,6 +29,7 @@ import 'package:barky_matches_fixed/home/widgets/homepage_responsive_photo_image
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_page.dart';
 import 'package:barky_matches_fixed/utils/business_sector.dart';
 import 'package:barky_matches_fixed/widgets/overflow_marquee_text.dart';
+import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
@@ -650,10 +651,29 @@ class _HomePageState extends State<HomePage>
     if (!mounted) return;
 
     /// 🏪 BUSINESS DATA
+    BusinessQueryDiagnostics.start(
+      'HomePage._applyFiltersAsync',
+      'businesses_public',
+      'none',
+    );
     final businessesQuery = FirebaseFirestore.instance.collection(
       'businesses_public',
     );
-    final snapshot = await businessesQuery.get();
+    late final QuerySnapshot<Map<String, dynamic>> snapshot;
+    try {
+      snapshot = await businessesQuery.get();
+      BusinessQueryDiagnostics.result(
+        'HomePage._applyFiltersAsync',
+        snapshot.docs.length,
+      );
+    } catch (error, stack) {
+      BusinessQueryDiagnostics.error(
+        'HomePage._applyFiltersAsync',
+        error,
+        stack,
+      );
+      rethrow;
+    }
 
     if (!mounted) return;
 
@@ -846,6 +866,11 @@ class _HomePageState extends State<HomePage>
           };
         })
         .toList();
+
+    BusinessQueryDiagnostics.filtered(
+      'HomePage._applyFiltersAsync',
+      filteredBusinesses.length,
+    );
 
     /// ✅ UPDATE UI
     if (!mounted) return;

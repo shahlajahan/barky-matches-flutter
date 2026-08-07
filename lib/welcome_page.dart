@@ -18,8 +18,6 @@ import 'package:barky_matches_fixed/home_gate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'package:barky_matches_fixed/services/social_auth_service.dart';
-import 'package:barky_matches_fixed/services/web_auth_browser_info.dart';
-import 'package:barky_matches_fixed/services/web_auth_debug_overlay.dart';
 import 'package:barky_matches_fixed/core/debug/authentication_diagnostics.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';
 import 'onboarding_page.dart';
@@ -46,58 +44,21 @@ class _WebAuthStartupGateState extends State<WebAuthStartupGate> {
   @override
   void initState() {
     super.initState();
-    webAuthTrace(
-      'ENTER WebAuthStartupGate.initState',
-      webRedirectDiagnosticSnapshot(),
-    );
     if (kIsWeb) unawaited(_resumePendingRedirect());
   }
 
   Future<void> _resumePendingRedirect() async {
     final service = SocialAuthService();
-    webAuthTrace('STARTUP_GATE_RESUME_STARTED', {'web': kIsWeb});
     try {
       await ensureFirebase();
-      webAuthTrace('STARTUP_GATE_FIREBASE_READY');
-      webAuthTrace('currentUser immediately after app startup', {
-        'uid': FirebaseAuth.instance.currentUser?.uid ?? 'null',
-      });
       final hasPendingRedirect = await service.hasPendingWebRedirect();
-      webAuthTrace(
-        hasPendingRedirect
-            ? 'STARTUP_GATE_PENDING_STATE_FOUND'
-            : 'STARTUP_GATE_FINISHED',
-        webRedirectDiagnosticSnapshot(),
-      );
       if (!hasPendingRedirect) {
         if (mounted) setState(() => _ready = true);
         return;
       }
 
       final loginMode = await service.pendingWebRedirectLoginMode() ?? false;
-      final pendingProvider = await service.pendingWebRedirectProvider();
-      webAuthTrace('STARTUP_GATE_PENDING_PROVIDER', {
-        'provider': pendingProvider ?? 'null',
-      });
-      webAuthTrace('STARTUP_GATE_PENDING_MODE', {'isLogin': loginMode});
-      webAuthTrace(
-        'CALL consumeWebRedirectResult',
-        webRedirectDiagnosticSnapshot(),
-      );
-      webAuthTrace('currentUser immediately before getRedirectResult', {
-        'uid': FirebaseAuth.instance.currentUser?.uid ?? 'null',
-      });
       final result = await service.consumeWebRedirectResult();
-      webAuthTrace(
-        result == null
-            ? 'STARTUP_GATE_GET_REDIRECT_RESULT_NULL'
-            : 'STARTUP_GATE_GET_REDIRECT_RESULT_SUCCESS',
-        {
-          'resultType': result?.runtimeType.toString() ?? 'null',
-          'resultIsNull': result == null,
-          'currentUser': FirebaseAuth.instance.currentUser?.uid ?? 'null',
-        },
-      );
       if (result != null && mounted) {
         await completeSocialAuthentication(
           context: context,
@@ -107,13 +68,8 @@ class _WebAuthStartupGateState extends State<WebAuthStartupGate> {
           isLogin: loginMode,
         );
       }
-      webAuthTrace('STARTUP_GATE_FINISHED');
       if (mounted) setState(() => _ready = true);
     } on SocialAuthCancelled {
-      webAuthTrace('STARTUP_GATE_GET_REDIRECT_RESULT_EXCEPTION', {
-        'type': 'SocialAuthCancelled',
-      });
-      webAuthTrace('STARTUP_GATE_FINISHED');
       if (!mounted) return;
       setState(() => _ready = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,11 +83,6 @@ class _WebAuthStartupGateState extends State<WebAuthStartupGate> {
         );
       });
     } on FirebaseAuthException catch (error, stackTrace) {
-      webAuthTrace('STARTUP_GATE_GET_REDIRECT_RESULT_EXCEPTION', {
-        'type': 'FirebaseAuthException',
-        'code': error.code,
-      });
-      webAuthTrace('STARTUP_GATE_FINISHED');
       if (kDebugMode) {
         debugPrint(
           'Web startup redirect authentication failed: '
@@ -310,7 +261,6 @@ Future<void> debugFirestoreRestOffers() async {
   }
 
   void _openSignUp() {
-    webAuthTrace('NAVIGATE -> AuthPage');
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -346,7 +296,6 @@ Future<void> debugFirestoreRestOffers() async {
 
     if (!mounted) return;
 
-    webAuthTrace('NAVIGATE -> HomeGate');
     navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeGate()),
       (route) => false,
@@ -364,7 +313,6 @@ Future<void> debugFirestoreRestOffers() async {
 
       if (!mounted) return;
 
-      webAuthTrace('NAVIGATE -> HomeGate');
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeGate()),
         (route) => false,
@@ -430,7 +378,6 @@ Future<void> debugFirestoreRestOffers() async {
 
   @override
   Widget build(BuildContext context) {
-    webAuthTrace('WELCOME_PAGE_BUILD', {'identity': identityHashCode(this)});
     final appState = context.read<app.AppState>();
 
     final favoriteDogs = appState.favoriteDogsNotifier.value;
@@ -813,7 +760,6 @@ class _SignInButton extends StatelessWidget {
 
     return ElevatedButton(
       onPressed: () {
-        webAuthTrace('NAVIGATE -> AuthPage');
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -863,7 +809,6 @@ class _SignUpButton extends StatelessWidget {
 
     return ElevatedButton(
       onPressed: () {
-        webAuthTrace('NAVIGATE -> AuthPage');
         Navigator.push(
           context,
           MaterialPageRoute(

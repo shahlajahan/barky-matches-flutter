@@ -20,6 +20,7 @@ import 'package:barky_matches_fixed/ui/vet/vaccine_notification_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 class VetPage extends StatefulWidget {
@@ -482,10 +483,19 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
   Future<void> _loadVetsFromFirestore() async {
     List<VetCardData> vets = [];
     try {
+      BusinessQueryDiagnostics.start(
+        'VetPage._loadVetsFromFirestore',
+        'businesses_public',
+        'status == approved',
+      );
       final query = FirebaseFirestore.instance
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       final snapshot = await query.get();
+      BusinessQueryDiagnostics.result(
+        'VetPage._loadVetsFromFirestore',
+        snapshot.docs.length,
+      );
       if (!mounted) return;
 
       vets = snapshot.docs
@@ -688,6 +698,10 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
 
         return bScore.compareTo(aScore);
       });
+      BusinessQueryDiagnostics.filtered(
+        'VetPage._loadVetsFromFirestore',
+        vets.length,
+      );
 
       if (!mounted) return;
 
@@ -698,7 +712,12 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
       });
 
       debugPrint("🐾 VETS LOADED: ${_filteredVets.length}");
-    } catch (e) {
+    } catch (e, stack) {
+      BusinessQueryDiagnostics.error(
+        'VetPage._loadVetsFromFirestore',
+        e,
+        stack,
+      );
       debugPrint("❌ load vets error: $e");
 
       if (!mounted) return;

@@ -9,7 +9,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:web": "flutter build web --release --no-wasm-dry-run && node scripts/sync-assetlinks.js",
+    "deploy:hosting": "firebase deploy --only hosting --project barkymatches-new"
   },
   "keywords": [],
   "author": "",

@@ -260,6 +260,25 @@ test("business synchronization suppresses private-only writes and handles retry/
   assert.equal(ref.deleteCount, 1);
 });
 
+test("legacy approved non-Pet-Taxi business without published remains public", async () => {
+  const firestore = new FakeFirestore();
+  const ref = firestore.collection("businesses_public").doc("legacy-no-published");
+  const business = {
+    businessId: "legacy-no-published",
+    status: "approved",
+    sectors: ["veterinary"],
+    profile: { displayName: "Legacy Vet" },
+  };
+
+  await synchronizeBusinessPublicProjection(
+    writeEvent("businessId", "legacy-no-published", null, business),
+    firestore
+  );
+
+  assert.equal(ref.setCount, 1);
+  assert.equal((await ref.get()).data().status, "approved");
+});
+
 test("business projection prefers canonical service subcollection and refreshes on service events", async () => {
   const firestore = new FakeFirestore();
   const ref = firestore.collection("businesses_public").doc("b1");

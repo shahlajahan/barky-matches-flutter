@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 
 import 'app_state.dart' as app;
 import 'l10n/app_localizations.dart';
@@ -44,10 +45,19 @@ class _GroomyPageState extends State<GroomyPage>
 
   Future<void> _loadGroomersFromFirestore() async {
     try {
+      BusinessQueryDiagnostics.start(
+        'GroomyPage._loadGroomersFromFirestore',
+        'businesses_public',
+        'status == approved',
+      );
       final query = FirebaseFirestore.instance
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       final snapshot = await query.get();
+      BusinessQueryDiagnostics.result(
+        'GroomyPage._loadGroomersFromFirestore',
+        snapshot.docs.length,
+      );
 
       if (!mounted) return;
 
@@ -55,6 +65,10 @@ class _GroomyPageState extends State<GroomyPage>
           .map((doc) => _mapGroomingBusiness(doc.id, doc.data()))
           .whereType<BusinessCardData>()
           .toList();
+      BusinessQueryDiagnostics.filtered(
+        'GroomyPage._loadGroomersFromFirestore',
+        groomers.length,
+      );
 
       groomers.sort((a, b) => a.name.compareTo(b.name));
 
@@ -65,7 +79,12 @@ class _GroomyPageState extends State<GroomyPage>
       });
 
       debugPrint('GROOMY PAGE LOADED businesses=${groomers.length}');
-    } catch (e) {
+    } catch (e, stack) {
+      BusinessQueryDiagnostics.error(
+        'GroomyPage._loadGroomersFromFirestore',
+        e,
+        stack,
+      );
       debugPrint('GROOMY PAGE LOAD ERROR $e');
       if (!mounted) return;
       setState(() {

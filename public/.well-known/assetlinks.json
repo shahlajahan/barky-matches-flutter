@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "com.petsupo.app",
       "sha256_cert_fingerprints": [
-        "8B:C6:3E:82:66:8E:FC:BC:43:21:A6:7E:17:5E:48:F8:43:01:6C:4D:C7:20:31:CD:9C:3E:64:E3:85:44:69:7B"
+        "8B:C6:3E:82:66:8E:FC:BC:43:21:A6:7E:17:5E:48:F8:43:01:6C:4D:C7:20:31:CD:9C:3E:64:E3:85:44:69:7B",
+        "19:CB:B0:CF:3C:92:9E:F9:29:3D:6C:24:2E:C3:26:85:92:DE:B9:08:BE:C5:49:E4:80:66:6B:66:AA:39:8A:B4"
       ]
     }
   }

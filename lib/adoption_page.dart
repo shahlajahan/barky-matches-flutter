@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/ui/adoption/adoption_request_sheet.dart';
 import 'package:barky_matches_fixed/utils/dog_filter.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 
 enum AdoptionViewType { centers, dogs }
 
@@ -139,6 +140,11 @@ class _AdoptionPageState extends State<AdoptionPage> {
 
   Widget _buildCentersSection() {
     final l10n = AppLocalizations.of(context)!;
+    BusinessQueryDiagnostics.start(
+      'AdoptionPage._buildCentersSection',
+      'businesses_public',
+      'sectors contains adoption_center; status == approved',
+    );
     final query = FirebaseFirestore.instance
         .collection('businesses_public')
         .where('sectors', arrayContains: 'adoption_center')
@@ -146,6 +152,17 @@ class _AdoptionPageState extends State<AdoptionPage> {
     return FutureBuilder<QuerySnapshot>(
       future: query.get(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          BusinessQueryDiagnostics.error(
+            'AdoptionPage._buildCentersSection',
+            snapshot.error!,
+          );
+        } else if (snapshot.hasData) {
+          BusinessQueryDiagnostics.result(
+            'AdoptionPage._buildCentersSection',
+            snapshot.data!.docs.length,
+          );
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -253,6 +270,10 @@ class _AdoptionPageState extends State<AdoptionPage> {
             data: data,
           );
         }).toList();
+        BusinessQueryDiagnostics.filtered(
+          'AdoptionPage._buildCentersSection',
+          businesses.length,
+        );
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 12),

@@ -7,13 +7,33 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
 import 'package:barky_matches_fixed/utils/business_sector.dart';
+import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 
 class PetTaxiBusinessRepository {
   Future<List<BusinessCardData>> loadBusinesses() async {
+    BusinessQueryDiagnostics.start(
+      'PetTaxiBusinessRepository.loadBusinesses',
+      'businesses_public',
+      'status == approved',
+    );
     final query = FirebaseFirestore.instance
         .collection('businesses_public')
         .where('status', isEqualTo: 'approved');
-    final snapshot = await query.get();
+    late final QuerySnapshot<Map<String, dynamic>> snapshot;
+    try {
+      snapshot = await query.get();
+    } catch (error, stack) {
+      BusinessQueryDiagnostics.error(
+        'PetTaxiBusinessRepository.loadBusinesses',
+        error,
+        stack,
+      );
+      rethrow;
+    }
+    BusinessQueryDiagnostics.result(
+      'PetTaxiBusinessRepository.loadBusinesses',
+      snapshot.docs.length,
+    );
 
     final businesses =
         snapshot.docs
@@ -21,6 +41,10 @@ class PetTaxiBusinessRepository {
             .whereType<BusinessCardData>()
             .toList()
           ..sort((a, b) => a.name.compareTo(b.name));
+    BusinessQueryDiagnostics.filtered(
+      'PetTaxiBusinessRepository.loadBusinesses',
+      businesses.length,
+    );
 
     return businesses;
   }

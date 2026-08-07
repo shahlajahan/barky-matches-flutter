@@ -1,6 +1,7 @@
 const admin = require("firebase-admin");
 const {
   filterSectorDataByCanonicalSectors,
+  isPetTaxiBusiness,
 } = require("./businessSectorMembership");
 
 const PUBLIC_USER_KEYS = [
@@ -557,7 +558,14 @@ async function synchronizeBusinessPublicProjection(event, firestore) {
   const after = event.params.serviceId
     ? await database.collection("businesses").doc(businessId).get()
     : event.data?.after;
-  if (!after || !after.exists || after.data()?.status !== "approved" || after.data()?.published !== true) {
+  const businessData = after?.data() || {};
+  // `published` was introduced after existing approved businesses were
+  // created. Missing is therefore the legacy public value for every sector
+  // except Pet Taxi, which was intentionally introduced as unpublished.
+  const isPetTaxi = isPetTaxiBusiness(businessData);
+  const isPublished = businessData.published === true ||
+    (businessData.published == null && !isPetTaxi);
+  if (!after || !after.exists || businessData.status !== "approved" || !isPublished) {
     if ((await ref.get()).exists) await ref.delete();
     return;
   }

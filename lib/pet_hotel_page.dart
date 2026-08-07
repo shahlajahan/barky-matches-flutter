@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -45,10 +46,19 @@ class _PetHotelPageState extends State<PetHotelPage>
 
   Future<void> _loadHotelsFromFirestore() async {
     try {
+      BusinessQueryDiagnostics.start(
+        'PetHotelPage._loadHotelsFromFirestore',
+        'businesses_public',
+        'status == approved',
+      );
       final query = FirebaseFirestore.instance
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved');
       final snapshot = await query.get();
+      BusinessQueryDiagnostics.result(
+        'PetHotelPage._loadHotelsFromFirestore',
+        snapshot.docs.length,
+      );
 
       if (!mounted) return;
 
@@ -56,6 +66,10 @@ class _PetHotelPageState extends State<PetHotelPage>
           .map((doc) => _mapHotelBusiness(doc.id, doc.data()))
           .whereType<VetCardData>()
           .toList();
+      BusinessQueryDiagnostics.filtered(
+        'PetHotelPage._loadHotelsFromFirestore',
+        hotels.length,
+      );
 
       hotels.sort((a, b) => a.name.compareTo(b.name));
 
@@ -66,7 +80,12 @@ class _PetHotelPageState extends State<PetHotelPage>
       });
 
       debugPrint('PET HOTEL PAGE LOADED businesses=${hotels.length}');
-    } catch (e) {
+    } catch (e, stack) {
+      BusinessQueryDiagnostics.error(
+        'PetHotelPage._loadHotelsFromFirestore',
+        e,
+        stack,
+      );
       debugPrint('PET HOTEL PAGE LOAD ERROR $e');
       if (!mounted) return;
       setState(() => _loading = false);

@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/services/business_chat_service.dart';
+import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
@@ -58,10 +59,19 @@ class _PetShopListPageState extends State<PetShopListPage>
     }
     try {
       _position ??= await _resolveLocation();
+      BusinessQueryDiagnostics.start(
+        'PetShopListPage._loadShops',
+        'businesses_public',
+        'status == approved',
+      );
       final snapshot = await FirebaseFirestore.instance
           .collection('businesses_public')
           .where('status', isEqualTo: 'approved')
           .get();
+      BusinessQueryDiagnostics.result(
+        'PetShopListPage._loadShops',
+        snapshot.docs.length,
+      );
       if (!mounted) return;
 
       final shops =
@@ -75,6 +85,10 @@ class _PetShopListPageState extends State<PetShopListPage>
               final bScore = (b.rating ?? 0) * 2 - (b.distanceKm ?? 999999);
               return bScore.compareTo(aScore);
             });
+      BusinessQueryDiagnostics.filtered(
+        'PetShopListPage._loadShops',
+        shops.length,
+      );
 
       setState(() {
         _shops = shops;
@@ -82,6 +96,11 @@ class _PetShopListPageState extends State<PetShopListPage>
         _loading = false;
       });
     } catch (error, stackTrace) {
+      BusinessQueryDiagnostics.error(
+        'PetShopListPage._loadShops',
+        error,
+        stackTrace,
+      );
       debugPrint('Pet shop discovery failed: $error\n$stackTrace');
       if (!mounted) return;
       setState(() {

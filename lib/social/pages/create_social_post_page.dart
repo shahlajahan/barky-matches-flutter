@@ -16,6 +16,84 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import '../models/social_post.dart';
 import '../services/social_post_service.dart';
 
+const Set<String> _allowedSocialMediaExtensions = <String>{
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+  'heic',
+  'mp4',
+  'mov',
+  'webm',
+};
+
+String socialMediaExtensionForFile(XFile file, {required bool isVideo}) {
+  final fromName = _socialMediaExtensionFromName(file.name);
+  if (fromName != null) return fromName;
+
+  final fromMimeType = _socialMediaExtensionFromMimeType(file.mimeType);
+  if (fromMimeType != null) return fromMimeType;
+
+  return isVideo ? 'mp4' : 'jpg';
+}
+
+String? _socialMediaExtensionFromName(String name) {
+  final normalizedName = name.trim();
+  if (normalizedName.isEmpty ||
+      normalizedName.contains('/') ||
+      normalizedName.contains(r'\') ||
+      normalizedName.contains('?') ||
+      normalizedName.contains('#')) {
+    return null;
+  }
+
+  final dot = normalizedName.lastIndexOf('.');
+  if (dot <= 0 || dot == normalizedName.length - 1) return null;
+  return _normalizeSocialMediaExtension(normalizedName.substring(dot + 1));
+}
+
+String? _socialMediaExtensionFromMimeType(String? mimeType) {
+  final normalizedMimeType = mimeType?.trim().toLowerCase();
+  if (normalizedMimeType == null || normalizedMimeType.isEmpty) return null;
+
+  switch (normalizedMimeType) {
+    case 'image/jpg':
+    case 'image/jpeg':
+      return 'jpg';
+    case 'video/quicktime':
+      return 'mov';
+  }
+
+  final slash = normalizedMimeType.lastIndexOf('/');
+  if (slash == -1 || slash == normalizedMimeType.length - 1) return null;
+  return _normalizeSocialMediaExtension(
+    normalizedMimeType.substring(slash + 1),
+  );
+}
+
+String? _normalizeSocialMediaExtension(String extension) {
+  final normalized = extension.trim().toLowerCase();
+  if (normalized.contains('.') ||
+      normalized.contains('/') ||
+      normalized.contains(r'\') ||
+      normalized.contains('?') ||
+      normalized.contains('#')) {
+    return null;
+  }
+
+  final mapped = switch (normalized) {
+    'heif' => 'heic',
+    'm4v' => 'mp4',
+    _ => normalized,
+  };
+  return _allowedSocialMediaExtensions.contains(mapped) ? mapped : null;
+}
+
+String _sanitizeSocialMediaFileName(String fileName) {
+  return fileName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+}
+
 class CreateSocialPostPage extends StatefulWidget {
   const CreateSocialPostPage({super.key});
 
@@ -218,8 +296,9 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
     for (var i = 0; i < _selectedMedia.length; i++) {
       final item = _selectedMedia[i];
       final ext = _extensionForFile(item.file, item);
-      final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}.$ext';
+      final fileName = _sanitizeSocialMediaFileName(
+        '${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4()}.$ext',
+      );
       final ref = FirebaseStorage.instance.ref().child(
         'social_posts/$uid/$postId/$fileName',
       );
@@ -233,14 +312,71 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
         webBytes = await item.file.readAsBytes();
       }
 
+      final uploadSize = webBytes?.length ?? await item.file.length();
+      final auth = FirebaseAuth.instance.currentUser;
+      debugPrint('UPLOAD START');
+      debugPrint('uid=${auth?.uid}');
+      debugPrint('localFilePath=${item.file.path}');
+      debugPrint('originalFilename=${item.file.name}');
+      debugPrint('generatedFilename=$fileName');
+      debugPrint('generatedStoragePath=${ref.fullPath}');
+      debugPrint('bucket=${ref.bucket}');
+      debugPrint('storagePath=${ref.fullPath}');
+      debugPrint('mimeType=${metadata.contentType}');
+      debugPrint('extension=$ext');
+      debugPrint('size=$uploadSize');
+      debugPrint('uploadMethod=${kIsWeb ? 'putData' : 'putFile'}');
+      debugPrint('UPLOAD REQUEST');
+
+      debugPrint('================================================');
+      debugPrint('RUNTIME STORAGE DIAGNOSTICS');
+      debugPrint('================================================');
+      debugPrint('item.file.name=${item.file.name}');
+      debugPrint('item.file.path=${item.file.path}');
+      debugPrint('item.file.mimeType=${item.file.mimeType}');
+      debugPrint('ext=$ext');
+      debugPrint('fileName=$fileName');
+      debugPrint('ref.name=${ref.name}');
+      debugPrint('ref.fullPath=${ref.fullPath}');
+      debugPrint('ref.bucket=${ref.bucket}');
+      debugPrint('metadata.contentType=${metadata.contentType}');
+      debugPrint('metadata.customMetadata=${metadata.customMetadata}');
+      debugPrint('================================================');
+
       final UploadTask uploadTask;
+      debugPrint('preUpload.ref.fullPath=${ref.fullPath}');
+      debugPrint('preUpload.ref.name=${ref.name}');
+      debugPrint('preUpload.ref.bucket=${ref.bucket}');
+      debugPrint('preUpload.metadata.contentType=${metadata.contentType}');
+      debugPrint(
+        'preUpload.metadata.customMetadata=${metadata.customMetadata}',
+      );
+      debugPrint('preUpload.extension=$ext');
+      debugPrint('preUpload.generatedFilename=$fileName');
+      debugPrint('preUpload.byteLength=$uploadSize');
+      debugPrint('preUpload.uid=${auth?.uid}');
+      debugPrint('preUpload.kIsWeb=$kIsWeb');
+      debugPrint('preUpload.uploadMethod=${kIsWeb ? 'putData' : 'putFile'}');
       if (kIsWeb) {
+        debugPrint('webBytes=$webBytes');
         uploadTask = ref.putData(webBytes!, metadata);
       } else {
         uploadTask = ref.putFile(File(item.file.path), metadata);
       }
 
+      debugPrint(
+        'uploadTask.snapshot.ref.fullPath=${uploadTask.snapshot.ref.fullPath}',
+      );
+      debugPrint(
+        'uploadTask.snapshot.ref.name=${uploadTask.snapshot.ref.name}',
+      );
+      debugPrint(
+        'uploadTask.snapshot.ref.bucket=${uploadTask.snapshot.ref.bucket}',
+      );
+
+      TaskSnapshot? lastUploadSnapshot;
       uploadTask.snapshotEvents.listen((snapshot) {
+        lastUploadSnapshot = snapshot;
         if (!mounted || snapshot.totalBytes <= 0) return;
         setState(() {
           _uploadProgress =
@@ -250,12 +386,61 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
         });
       });
 
-      await uploadTask;
+      try {
+        await uploadTask;
+      } on FirebaseException catch (error, stackTrace) {
+        debugPrint('UPLOAD ERROR');
+        debugPrint('FirebaseException full object: $error');
+        debugPrint('exception.runtimeType=${error.runtimeType}');
+        debugPrint('code=${error.code}');
+        debugPrint('plugin=${error.plugin}');
+        debugPrint('message=${error.message}');
+        debugPrint('details=not exposed by FirebaseException API');
+        debugPrint('stackTrace=$stackTrace');
+        debugPrint('toString=${error.toString()}');
+        debugPrint('storagePath=${ref.fullPath}');
+        debugPrint('ref.name=${ref.name}');
+        debugPrint('bucket=${ref.bucket}');
+        debugPrint('mimeType=${metadata.contentType}');
+        debugPrint('extension=$ext');
+        debugPrint('size=$uploadSize');
+        debugPrint('snapshot.state=${lastUploadSnapshot?.state}');
+        debugPrint(
+          'snapshot.bytesTransferred=${lastUploadSnapshot?.bytesTransferred}',
+        );
+        debugPrint('snapshot.totalBytes=${lastUploadSnapshot?.totalBytes}');
+        debugPrint('exception.toString=${error.toString()}');
+        debugPrint('stack=$stackTrace');
+        rethrow;
+      } catch (error, stackTrace) {
+        debugPrint('UPLOAD ERROR');
+        debugPrint('exception.runtimeType=${error.runtimeType}');
+        debugPrint('message=$error');
+        debugPrint('toString=$error');
+        debugPrint('storagePath=${ref.fullPath}');
+        debugPrint('ref.name=${ref.name}');
+        debugPrint('bucket=${ref.bucket}');
+        debugPrint('mimeType=${metadata.contentType}');
+        debugPrint('extension=$ext');
+        debugPrint('size=$uploadSize');
+        debugPrint('snapshot.state=${lastUploadSnapshot?.state}');
+        debugPrint(
+          'snapshot.bytesTransferred=${lastUploadSnapshot?.bytesTransferred}',
+        );
+        debugPrint('snapshot.totalBytes=${lastUploadSnapshot?.totalBytes}');
+        debugPrint('exception.toString=$error');
+        debugPrint('stack=$stackTrace');
+        rethrow;
+      }
 
       final String url;
       try {
+        debugPrint('lastUploadSnapshot=$lastUploadSnapshot');
+        debugPrint('uploadTask.snapshot=${uploadTask.snapshot}');
         url = await ref.getDownloadURL();
-      } catch (error, stackTrace) {
+        debugPrint('UPLOAD SUCCESS');
+        debugPrint('downloadUrl=$url');
+      } catch (_) {
         rethrow;
       }
       String? thumbnailUrl;
@@ -268,15 +453,100 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
           contentType: 'image/jpeg',
           customMetadata: const {'visibility': 'public'},
         );
+        final thumbnailPath = thumbRef.fullPath;
+        debugPrint('thumbnailBytes=${item.thumbnailBytes}');
+        final thumbnailSize = item.thumbnailBytes!.length;
+        debugPrint('UPLOAD START');
+        debugPrint('uid=${auth?.uid}');
+        debugPrint('localFilePath=${item.file.path}');
+        debugPrint('originalFilename=${item.file.name}');
+        debugPrint('generatedFilename=${fileName}_thumb.jpg');
+        debugPrint('generatedStoragePath=$thumbnailPath');
+        debugPrint('bucket=${thumbRef.bucket}');
+        debugPrint('storagePath=$thumbnailPath');
+        debugPrint('mimeType=${thumbnailMetadata.contentType}');
+        debugPrint('extension=jpg');
+        debugPrint('size=$thumbnailSize');
+        debugPrint('uploadMethod=putData');
+        debugPrint('UPLOAD REQUEST');
+        TaskSnapshot? lastThumbnailSnapshot;
         try {
-          await thumbRef.putData(item.thumbnailBytes!, thumbnailMetadata);
+          debugPrint('thumbnailBytes=${item.thumbnailBytes}');
+          debugPrint('preUpload.ref.fullPath=${thumbRef.fullPath}');
+          debugPrint('preUpload.ref.name=${thumbRef.name}');
+          debugPrint('preUpload.ref.bucket=${thumbRef.bucket}');
+          debugPrint(
+            'preUpload.metadata.contentType=${thumbnailMetadata.contentType}',
+          );
+          debugPrint(
+            'preUpload.metadata.customMetadata=${thumbnailMetadata.customMetadata}',
+          );
+          debugPrint('preUpload.extension=jpg');
+          debugPrint('preUpload.generatedFilename=${fileName}_thumb.jpg');
+          debugPrint('preUpload.byteLength=$thumbnailSize');
+          debugPrint('preUpload.uid=${auth?.uid}');
+          debugPrint('preUpload.kIsWeb=$kIsWeb');
+          debugPrint('preUpload.uploadMethod=putData');
+          final thumbnailUploadTask = thumbRef.putData(
+            item.thumbnailBytes!,
+            thumbnailMetadata,
+          );
+          thumbnailUploadTask.snapshotEvents.listen((snapshot) {
+            lastThumbnailSnapshot = snapshot;
+          });
+          await thumbnailUploadTask;
+        } on FirebaseException catch (error, stackTrace) {
+          debugPrint('UPLOAD ERROR');
+          debugPrint('FirebaseException full object: $error');
+          debugPrint('exception.runtimeType=${error.runtimeType}');
+          debugPrint('code=${error.code}');
+          debugPrint('plugin=${error.plugin}');
+          debugPrint('message=${error.message}');
+          debugPrint('details=not exposed by FirebaseException API');
+          debugPrint('stackTrace=$stackTrace');
+          debugPrint('toString=${error.toString()}');
+          debugPrint('storagePath=$thumbnailPath');
+          debugPrint('ref.name=${thumbRef.name}');
+          debugPrint('bucket=${thumbRef.bucket}');
+          debugPrint('mimeType=${thumbnailMetadata.contentType}');
+          debugPrint('extension=jpg');
+          debugPrint('size=$thumbnailSize');
+          debugPrint('snapshot.state=${lastThumbnailSnapshot?.state}');
+          debugPrint(
+            'snapshot.bytesTransferred=${lastThumbnailSnapshot?.bytesTransferred}',
+          );
+          debugPrint(
+            'snapshot.totalBytes=${lastThumbnailSnapshot?.totalBytes}',
+          );
+          debugPrint('stack=$stackTrace');
+          rethrow;
         } catch (error, stackTrace) {
+          debugPrint('UPLOAD ERROR');
+          debugPrint('exception.runtimeType=${error.runtimeType}');
+          debugPrint('message=$error');
+          debugPrint('toString=$error');
+          debugPrint('storagePath=$thumbnailPath');
+          debugPrint('ref.name=${thumbRef.name}');
+          debugPrint('bucket=${thumbRef.bucket}');
+          debugPrint('mimeType=${thumbnailMetadata.contentType}');
+          debugPrint('extension=jpg');
+          debugPrint('size=$thumbnailSize');
+          debugPrint('snapshot.state=${lastThumbnailSnapshot?.state}');
+          debugPrint(
+            'snapshot.bytesTransferred=${lastThumbnailSnapshot?.bytesTransferred}',
+          );
+          debugPrint(
+            'snapshot.totalBytes=${lastThumbnailSnapshot?.totalBytes}',
+          );
+          debugPrint('stack=$stackTrace');
           rethrow;
         }
 
         try {
           thumbnailUrl = await thumbRef.getDownloadURL();
-        } catch (error, stackTrace) {
+          debugPrint('UPLOAD SUCCESS');
+          debugPrint('downloadUrl=$thumbnailUrl');
+        } catch (_) {
           rethrow;
         }
       }
@@ -294,13 +564,7 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
   }
 
   String _extensionForFile(XFile file, _SelectedSocialMedia item) {
-    final path = file.path;
-    final dot = path.lastIndexOf('.');
-    if (dot != -1 && dot < path.length - 1) {
-      return path.substring(dot + 1).toLowerCase();
-    }
-
-    return item.isVideo ? 'mp4' : 'jpg';
+    return socialMediaExtensionForFile(file, isVideo: item.isVideo);
   }
 
   String _contentTypeFor(String ext, String type) {
@@ -337,7 +601,11 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppLocalizations.of(context)!.selectAtLeastOnePhotoOrVideo,
+            (() {
+              final localizations = AppLocalizations.of(context);
+              debugPrint('localizations=$localizations');
+              return localizations!.selectAtLeastOnePhotoOrVideo;
+            })(),
           ),
         ),
       );
@@ -405,19 +673,36 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
         userPhotoUrl: userPhoto?.toString(),
       );
 
-      await _postService.createPost(post);
+      debugPrint('POST CREATE START');
+      debugPrint('uid=${currentUser.uid}');
+      debugPrint('postId=$postId');
+      debugPrint('mediaUrl=${post.mediaUrls.join(',')}');
+      debugPrint('mediaType=${post.mediaType}');
+      try {
+        await _postService.createPost(post);
+        debugPrint('POST CREATE SUCCESS');
+      } catch (error) {
+        debugPrint('POST CREATE ERROR');
+        debugPrint('exception.runtimeType=${error.runtimeType}');
+        debugPrint('message=$error');
+        rethrow;
+      }
 
       if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
       debugPrint('CreateSocialPostPage error: $e');
+      debugPrint('CreateSocialPostPage original exception before error UI: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.errorCreatingPost('$e')),
-        ),
-      );
+      final localizations = AppLocalizations.of(context);
+      final message =
+          localizations?.errorCreatingPost('$e') ??
+          'Failed to create post. Please try again.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+      rethrow;
     } finally {
       if (mounted) {
         setState(() {
@@ -453,7 +738,13 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        title: Text(AppLocalizations.of(context)!.createPostTitle),
+        title: Text(
+          (() {
+            final localizations = AppLocalizations.of(context);
+            debugPrint('localizations=$localizations');
+            return localizations!.createPostTitle;
+          })(),
+        ),
         actions: [
           TextButton(
             onPressed: canShare ? _createPost : null,
@@ -464,7 +755,11 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Text(
-                    AppLocalizations.of(context)!.share,
+                    (() {
+                      final localizations = AppLocalizations.of(context);
+                      debugPrint('localizations=$localizations');
+                      return localizations!.share;
+                    })(),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -495,7 +790,11 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
                       onPressed: _isLoading ? null : _pickMedia,
                       icon: const Icon(LucideIcons.image),
                       label: Text(
-                        AppLocalizations.of(context)!.addPhotosOrVideos,
+                        (() {
+                          final localizations = AppLocalizations.of(context);
+                          debugPrint('localizations=$localizations');
+                          return localizations!.addPhotosOrVideos;
+                        })(),
                       ),
                     ),
                   ),
@@ -511,7 +810,11 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
                 maxLines: 5,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: AppLocalizations.of(context)!.writeSomethingHint,
+                  hintText: (() {
+                    final localizations = AppLocalizations.of(context);
+                    debugPrint('localizations=$localizations');
+                    return localizations!.writeSomethingHint;
+                  })(),
                   hintStyle: TextStyle(color: Colors.grey[500]),
                   filled: true,
                   fillColor: Colors.grey[900],
@@ -658,7 +961,10 @@ class _SelectedMediaPreview extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         if (item.thumbnailBytes != null)
-          Image.memory(item.thumbnailBytes!, fit: BoxFit.cover)
+          (() {
+            debugPrint('thumbnailBytes=${item.thumbnailBytes}');
+            return Image.memory(item.thumbnailBytes!, fit: BoxFit.cover);
+          })()
         else if (item.isVideo)
           ColoredBox(color: Colors.grey.shade900)
         else
@@ -699,7 +1005,13 @@ class _SelectedMediaStrip extends StatelessWidget {
                   width: 92,
                   height: 92,
                   child: item.thumbnailBytes != null
-                      ? Image.memory(item.thumbnailBytes!, fit: BoxFit.cover)
+                      ? (() {
+                          debugPrint('thumbnailBytes=${item.thumbnailBytes}');
+                          return Image.memory(
+                            item.thumbnailBytes!,
+                            fit: BoxFit.cover,
+                          );
+                        })()
                       : item.isVideo
                       ? ColoredBox(color: Colors.grey.shade900)
                       : PlatformPathImage(
@@ -720,7 +1032,12 @@ class _SelectedMediaStrip extends StatelessWidget {
                 top: 4,
                 right: 4,
                 child: InkWell(
-                  onTap: onRemove == null ? null : () => onRemove!(index),
+                  onTap: onRemove == null
+                      ? null
+                      : () {
+                          debugPrint('onRemove=$onRemove');
+                          onRemove!(index);
+                        },
                   borderRadius: BorderRadius.circular(99),
                   child: Container(
                     padding: const EdgeInsets.all(4),
