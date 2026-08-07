@@ -28,8 +28,16 @@ class DashboardMetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // GridView can produce short tiles on phone-sized layouts. In that
+        // case the regular vertical arrangement cannot fit its icon, label,
+        // and value inside the tile, so keep the same information in a dense
+        // horizontal arrangement. Larger cards retain the existing visual
+        // hierarchy and spacing.
+        final dense =
+            constraints.hasBoundedHeight && constraints.maxHeight < 80;
+
         return Container(
-          padding: EdgeInsets.all(compact ? 14 : 16),
+          padding: EdgeInsets.all(dense ? 8 : compact ? 14 : 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(
@@ -37,7 +45,37 @@ class DashboardMetricCard extends StatelessWidget {
             ),
             boxShadow: AppTheme.cardShadow(),
           ),
-          child: compact
+          child: dense
+              ? Row(
+                  children: [
+                    Icon(item.icon, size: 16, color: AppTheme.card),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.value,
+                            style: AppTheme.h2(
+                              weight: FontWeight.w800,
+                              size: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            item.label,
+                            style: AppTheme.caption(size: 10),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : compact
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -46,6 +84,8 @@ class DashboardMetricCard extends StatelessWidget {
                     Text(
                       item.value,
                       style: AppTheme.h2(weight: FontWeight.w800),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -78,6 +118,8 @@ class DashboardMetricCard extends StatelessWidget {
                     Text(
                       item.value,
                       style: AppTheme.h1(weight: FontWeight.w800, size: 24),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

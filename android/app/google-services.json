@@ -116,6 +116,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "188282684447-665dflfmqlfp8c8dpkul3hgpkfeb7qim.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.petsupo.app",
+            "certificate_hash": "871cca66aed0fc7b818d12f1b9cd95bd9b94fd84"
+          }
+        },
+        {
+          "client_id": "188282684447-hjlj9n066iul9merclaqachs3971h9p9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.petsupo.app",
+            "certificate_hash": "fe694c91f4df2e59040b4f82569432284c179496"
+          }
+        },
+        {
           "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
           "client_type": 3
         }
