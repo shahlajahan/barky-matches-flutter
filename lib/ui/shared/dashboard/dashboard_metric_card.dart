@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/theme/app_theme.dart';
@@ -28,13 +30,26 @@ class DashboardMetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // GridView can produce short tiles on phone-sized layouts. In that
-        // case the regular vertical arrangement cannot fit its icon, label,
-        // and value inside the tile, so keep the same information in a dense
-        // horizontal arrangement. Larger cards retain the existing visual
-        // hierarchy and spacing.
+        // Decide from the height available to the normal Column after its
+        // padding, rather than from the outer tile height. The 1.4 factor is
+        // a conservative line-height allowance for the Poppins text styles
+        // and user text scaling.
+        final normalPadding = compact ? 14.0 : 16.0;
+        final textScaler = MediaQuery.textScalerOf(context);
+        final captionHeight = textScaler.scale(12) * 1.4;
+        final valueHeight = textScaler.scale(compact ? 18 : 24) * 1.4;
+        final firstRowHeight = compact
+            ? 18.0
+            : math.max(16.0, captionHeight);
+        final normalContentHeight = compact
+            ? firstRowHeight + 2 + valueHeight + captionHeight
+            : firstRowHeight + 8 + valueHeight;
+        final availableContentHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight - normalPadding * 2
+            : double.infinity;
         final dense =
-            constraints.hasBoundedHeight && constraints.maxHeight < 80;
+            constraints.hasBoundedHeight &&
+            availableContentHeight < normalContentHeight;
 
         return Container(
           padding: EdgeInsets.all(dense ? 8 : compact ? 14 : 16),
