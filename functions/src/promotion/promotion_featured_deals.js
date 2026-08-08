@@ -106,6 +106,20 @@ function isPublicBusiness(data = {}) {
     data.suspended !== true;
 }
 
+function isEligibleServiceTarget({business, service, businessId}) {
+  const normalizedBusinessId = String(businessId || "").trim();
+  return Boolean(
+    business &&
+    isPublicBusiness(business) &&
+    service &&
+    service.isActive === true &&
+    service.isHidden !== true &&
+    service.moderationStatus !== "removed" &&
+    service.published !== false &&
+    (!service.businessId || String(service.businessId) === normalizedBusinessId)
+  );
+}
+
 async function readFeaturedServiceDeals({db, now = new Date(), limit = MAX_FEATURED_DEALS}) {
   const nowMs = timestampMillis(now);
   if (nowMs === null) throw new Error("Featured deal time is invalid");
@@ -173,16 +187,7 @@ async function synchronizeServicePromotionProjections({
     const target = parseCanonicalServiceTargetId(projection.targetId);
     if (!target || target.businessId !== normalizedBusinessId) continue;
     const service = servicesById.get(target.serviceId);
-    const eligible = Boolean(
-      business &&
-      isPublicBusiness(business) &&
-      service &&
-      service.isActive === true &&
-      service.isHidden !== true &&
-      service.moderationStatus !== "removed" &&
-      service.published !== false &&
-      (!service.businessId || String(service.businessId) === normalizedBusinessId)
-    );
+    const eligible = isEligibleServiceTarget({business, service, businessId: normalizedBusinessId});
     const fields = eligible ? serviceDisplayFields({business, service}) : {};
     batch.update(doc.ref, {
       featuredDealEligible: eligible,
@@ -206,5 +211,6 @@ module.exports = {
   selectFeaturedServiceDeals,
   readFeaturedServiceDeals,
   serviceDisplayFields,
+  isEligibleServiceTarget,
   synchronizeServicePromotionProjections,
 };
