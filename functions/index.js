@@ -59,6 +59,9 @@ const {
   readPromotionCampaignStats,
 } = require("./src/promotion/promotion_analytics");
 const {
+  readFeaturedServiceDeals,
+} = require("./src/promotion/promotion_featured_deals");
+const {
   reconcilePromotionConversion,
   readPromotionReconciliationHealth,
 } = require("./src/promotion/promotion_attribution");
@@ -2909,6 +2912,20 @@ exports.recordPromotionEvent = onCall(
         reason: error.message || String(error),
       });
       throw new HttpsError("failed-precondition", "Promotion event was rejected");
+    }
+  },
+);
+
+exports.readFeaturedServiceDeals = onCall(
+  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  async () => {
+    try {
+      return await readFeaturedServiceDeals({db});
+    } catch (error) {
+      logger.warn("featured_service_deals_read_failed", {
+        reason: error.code || "featured_service_deals_read_failed",
+      });
+      throw new HttpsError("unavailable", "Featured deals are temporarily unavailable");
     }
   },
 );

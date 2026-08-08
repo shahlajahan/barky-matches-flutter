@@ -1,6 +1,15 @@
 {
   "indexes": [
     {
+      "collectionGroup": "promotion_active",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetType", "order": "ASCENDING" },
+        { "fieldPath": "featuredDealEligible", "order": "ASCENDING" },
+        { "fieldPath": "campaignId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "creator_reward_ledger",
       "queryScope": "COLLECTION",
       "fields": [

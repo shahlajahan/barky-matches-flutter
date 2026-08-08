@@ -14,6 +14,8 @@ import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_settings_page.
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/vet_gallery_management_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_service_sector.dart';
+import 'package:barky_matches_fixed/promotion/widgets/service_promotion_action.dart';
 
 class VetDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -510,6 +512,14 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
           Text(
             "$priceText • $durationText",
             style: AppTheme.body(color: AppTheme.muted),
+          ),
+          const SizedBox(height: 10),
+          ServicePromotionAction(
+            businessId: businessId,
+            serviceId: id,
+            serviceTitle: data['title']?.toString() ?? '',
+            sector: PromotionServiceSector.vet,
+            isActive: data['isActive'] == true,
           ),
         ],
       ),

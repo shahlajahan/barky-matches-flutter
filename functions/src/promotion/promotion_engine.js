@@ -232,6 +232,10 @@ async function resolvePromotionTarget({db, uid, targetType, targetId, businessId
     ownerUid,
     businessId: normalizedBusinessId,
     sector: resolvedSector || (Array.isArray(business.sectors) ? String(business.sectors[0] || "") : null),
+    // Trusted snapshots used only to build backend-owned public projections.
+    // They are never returned to clients or persisted on the campaign.
+    businessData: business,
+    childData: child,
   };
   assertTargetOwner(target, uid);
   return target;
@@ -468,9 +472,10 @@ async function activatePromotionFromVerifiedPayment({db, campaignId, evidence, n
   const beforeActivation = beforeActivationSnap.data() || {};
   const alreadyProcessed = beforeActivation.status === "active" &&
     beforeActivation.providerTransactionId === payment.providerTransactionId;
+  let activationTarget = null;
   if (!alreadyProcessed) {
     try {
-      await resolvePromotionTarget({
+      activationTarget = await resolvePromotionTarget({
         db,
         uid: beforeActivation.ownerUid,
         targetType: beforeActivation.targetType,
@@ -545,6 +550,9 @@ async function activatePromotionFromVerifiedPayment({db, campaignId, evidence, n
       ownerUid: campaign.ownerUid,
       businessId: campaign.businessId || null,
       sector: campaign.sector || null,
+      featuredDealEligible: campaign.targetType === "SERVICE"
+        ? Boolean(activationTarget)
+        : false,
       startsAt,
       expiresAt,
       rankingWeight: Number(campaign.rankingWeight || 0),
@@ -553,6 +561,28 @@ async function activatePromotionFromVerifiedPayment({db, campaignId, evidence, n
       campaignVersion: campaignUpdate.version,
       updatedAt: activationTime,
     };
+    if (campaign.targetType === "SERVICE" && activationTarget) {
+      const businessData = activationTarget.businessData || {};
+      const service = activationTarget.childData || {};
+      const profile = businessData.profile && typeof businessData.profile === "object"
+        ? businessData.profile
+        : {};
+      const contact = businessData.contact && typeof businessData.contact === "object"
+        ? businessData.contact
+        : {};
+      projection.businessName = String(
+        profile.displayName || profile.businessName || businessData.businessName || businessData.name || "Business"
+      );
+      projection.serviceTitle = String(service.title || service.name || service.serviceName || "Service");
+      projection.location = [contact.district, contact.city]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+        .join(", ");
+      projection.price = service.price ?? null;
+      projection.currency = service.currency || "TRY";
+      projection.logoUrl = profile.logoUrl || profile.coverUrl || businessData.logoUrl || businessData.coverImageUrl || null;
+      projection.serviceId = parseCanonicalServiceTargetId(campaign.targetId)?.serviceId || null;
+    }
     tx.update(ref, campaignUpdate);
     tx.set(projectionRef, projection);
   });

@@ -57,6 +57,22 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
     }
   });
 
+  test("M7 SERVICE campaigns accept the bounded Home Featured Deal placement", async () => {
+    const targetId = "service/VET/business-featured/service-featured";
+    const campaignId = await seed("SERVICE", targetId, "VET");
+    const result = await ingestPromotionEvent({
+      db, authUid: "viewer", now,
+      data: {
+        eventId: "featured-service-impression",
+        eventType: "IMPRESSION", campaignId, targetType: "SERVICE", targetId,
+        placement: "home_featured_deal", sessionId: "featured-session",
+      },
+    });
+    assert.equal(result.accepted, true);
+    const stats = await readPromotionCampaignStats({db, uid: "m8-owner", campaignId});
+    assert.equal(stats.impressions, 1);
+  });
+
   test("M8 deduplicates retries and aggregates distinct events transactionally", async () => {
     const targetId = "product-m8-dedupe";
     const campaignId = await seed("PRODUCT", targetId, "pet_shop");

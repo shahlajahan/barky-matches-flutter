@@ -11,6 +11,8 @@ import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_schedule
 import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_page.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/widgets/business_quick_actions.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_service_sector.dart';
+import 'package:barky_matches_fixed/promotion/widgets/service_promotion_action.dart';
 
 class GroomyDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -569,6 +571,14 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
           Text(
             '$priceText • $durationText',
             style: AppTheme.body(color: AppTheme.muted),
+          ),
+          const SizedBox(height: 10),
+          ServicePromotionAction(
+            businessId: businessId,
+            serviceId: id,
+            serviceTitle: title,
+            sector: PromotionServiceSector.groomer,
+            isActive: data['isActive'] == true,
           ),
         ],
       ),

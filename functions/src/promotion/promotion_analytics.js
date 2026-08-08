@@ -14,6 +14,7 @@ const PLACEMENTS = Object.freeze({
   product: "marketplace_product_list",
   vet: "vet_service_list",
   groomer: "groomy_service_list",
+  serviceFeaturedDeal: "home_featured_deal",
 });
 
 const CLIENT_EVENT_TYPES = new Set(Object.values(EVENT_TYPES));
@@ -49,6 +50,15 @@ function placementFor(targetType, sector) {
   if (targetType === "SERVICE" && String(sector || "").toUpperCase() === "VET") return PLACEMENTS.vet;
   if (targetType === "SERVICE" && String(sector || "").toUpperCase() === "GROOMER") return PLACEMENTS.groomer;
   return null;
+}
+
+function validPlacementsFor(targetType, sector) {
+  if (targetType === "SERVICE" &&
+      ["VET", "GROOMER"].includes(String(sector || "").toUpperCase())) {
+    return [placementFor(targetType, sector), PLACEMENTS.serviceFeaturedDeal];
+  }
+  const placement = placementFor(targetType, sector);
+  return placement ? [placement] : [];
 }
 
 function eventDedupeId({eventId, campaignId, targetId, eventType, placement, actorUid, sessionId}) {
@@ -103,8 +113,8 @@ async function ingestPromotionEvent({db, authUid = null, data = {}, now = new Da
     throw new Error("Promotion campaign target mismatch");
   }
   if (!isEnabledTarget(targetType, projection.sector)) throw new Error("Promotion target is not analytics-enabled");
-  const expectedPlacement = placementFor(targetType, projection.sector);
-  if (placement !== expectedPlacement) throw new Error("Promotion placement is invalid");
+  const expectedPlacements = validPlacementsFor(targetType, projection.sector);
+  if (!expectedPlacements.includes(placement)) throw new Error("Promotion placement is invalid");
   const startsAt = projection.startsAt;
   const expiresAt = projection.expiresAt;
   if (!startsAt || !expiresAt || nowTimestamp.toMillis() < startsAt.toMillis() || nowTimestamp.toMillis() >= expiresAt.toMillis()) {
@@ -232,5 +242,6 @@ module.exports = {
   ingestPromotionEvent,
   readPromotionCampaignStats,
   placementFor,
+  validPlacementsFor,
   isEnabledTarget,
 };

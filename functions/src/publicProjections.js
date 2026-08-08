@@ -3,6 +3,9 @@ const {
   filterSectorDataByCanonicalSectors,
   isPetTaxiBusiness,
 } = require("./businessSectorMembership");
+const {
+  synchronizeServicePromotionProjections,
+} = require("./promotion/promotion_featured_deals");
 
 const PUBLIC_USER_KEYS = [
   "uid",
@@ -566,6 +569,12 @@ async function synchronizeBusinessPublicProjection(event, firestore) {
   const isPublished = businessData.published === true ||
     (businessData.published == null && !isPetTaxi);
   if (!after || !after.exists || businessData.status !== "approved" || !isPublished) {
+    await synchronizeServicePromotionProjections({
+      db: database,
+      businessId,
+      business: null,
+      services: [],
+    });
     if ((await ref.get()).exists) await ref.delete();
     return;
   }
@@ -586,6 +595,12 @@ async function synchronizeBusinessPublicProjection(event, firestore) {
   if (!current.exists || publicProjectionChanged(current.data(), next)) {
     await ref.set(next);
   }
+  await synchronizeServicePromotionProjections({
+    db: database,
+    businessId,
+    business: businessData,
+    services: canonicalServices.services,
+  });
 }
 
 function resolveServiceAuthority({ event, currentProjection, canonicalServices, source }) {

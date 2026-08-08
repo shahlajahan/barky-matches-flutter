@@ -20,6 +20,7 @@ class PromotionPlanSheet extends StatefulWidget {
     required this.title,
     this.businessId,
     this.sector,
+    this.planService,
   });
 
   final BuildContext hostContext;
@@ -28,6 +29,7 @@ class PromotionPlanSheet extends StatefulWidget {
   final String title;
   final String? businessId;
   final PromotionServiceSector? sector;
+  final PromotionPlanService? planService;
 
   static Future<void> show(
     BuildContext context, {
@@ -36,6 +38,7 @@ class PromotionPlanSheet extends StatefulWidget {
     required String title,
     String? businessId,
     PromotionServiceSector? sector,
+    PromotionPlanService? planService,
   }) => showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.white,
@@ -49,6 +52,7 @@ class PromotionPlanSheet extends StatefulWidget {
       title: title,
       businessId: businessId,
       sector: sector,
+      planService: planService,
     ),
   );
 
@@ -63,7 +67,9 @@ class _PromotionPlanSheetState extends State<PromotionPlanSheet> {
   @override
   void initState() {
     super.initState();
-    _plansFuture = PromotionPlanService().readPlans(widget.targetType);
+    _plansFuture = (widget.planService ?? PromotionPlanService()).readPlans(
+      widget.targetType,
+    );
   }
 
   String _durationLabel(int hours) {

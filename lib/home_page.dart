@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,6 +35,9 @@ import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
 import 'package:barky_matches_fixed/models/featured_deal.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_analytics_service.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_featured_deal_refresh_policy.dart';
+import 'package:intl/intl.dart';
 /*
 class FeaturedDeal {
   final String shopName;
@@ -65,7 +69,8 @@ class _HomePageState extends State<HomePage>
     with
         AutomaticKeepAliveClientMixin,
         SingleTickerProviderStateMixin,
-        LocalizationUtils {
+        LocalizationUtils,
+        WidgetsBindingObserver {
   late Box<String> userBox;
   String? _currentUserId;
   late Box<List<String>> savedParksBox;
@@ -116,6 +121,8 @@ class _HomePageState extends State<HomePage>
 
   int _dealIndex = 0;
   Timer? _dealTimer;
+  Timer? _promotionInventoryTimer;
+  DateTime? _lastPromotionInventoryFetch;
 
   Map<String, List<Map<String, dynamic>>> dogLikes = {};
 
@@ -175,7 +182,8 @@ class _HomePageState extends State<HomePage>
     try {
       final query = FirebaseFirestore.instance
           .collection("featured_deals")
-          .orderBy("order");
+          .orderBy("order")
+          .limit(12);
 
       debugPrint("🔥 QUERY CREATED");
 
@@ -209,6 +217,8 @@ class _HomePageState extends State<HomePage>
           })
           .toList();
 
+      final serviceDeals = await _fetchPromotedServiceDeals() ?? const [];
+
       debugPrint("🔥 DEAL PARSE FINISHED");
       debugPrint("🔥 DEAL COUNT FINAL = ${deals.length}");
 
@@ -218,7 +228,13 @@ class _HomePageState extends State<HomePage>
       }
 
       setState(() {
-        _featuredDeals = deals;
+        _featuredDeals = [...deals, ...serviceDeals];
+      });
+
+      _startPromotionInventoryRefresh();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _recordVisibleFeaturedDeal();
       });
 
       debugPrint("🔥 SETSTATE DONE");
@@ -232,12 +248,83 @@ class _HomePageState extends State<HomePage>
     }
   }
 
+  Future<List<FeaturedDeal>?> _fetchPromotedServiceDeals() async {
+    try {
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('readFeaturedServiceDeals').call();
+      final data = result.data;
+      if (data is Map && data['deals'] is List) {
+        _lastPromotionInventoryFetch = DateTime.now();
+        return (data['deals'] as List)
+            .whereType<Map>()
+            .map(
+              (deal) => FeaturedDeal.fromPromotedService(
+                Map<String, dynamic>.from(deal),
+              ),
+            )
+            .toList();
+      }
+    } catch (error) {
+      // Editorial deals remain available if the optional promotion inventory
+      // read is unavailable. This must never affect Home navigation.
+      debugPrint('Featured service inventory unavailable: $error');
+    }
+    return null;
+  }
+
+  void _startPromotionInventoryRefresh() {
+    _promotionInventoryTimer?.cancel();
+    _promotionInventoryTimer = Timer(
+      PromotionFeaturedDealRefreshPolicy.clientTtl,
+      () {
+        unawaited(_refreshPromotedServiceDeals());
+      },
+    );
+  }
+
+  Future<void> _refreshPromotedServiceDeals() async {
+    if (!mounted) return;
+    final serviceDeals = await _fetchPromotedServiceDeals();
+    if (!mounted) return;
+    if (serviceDeals == null) {
+      _startPromotionInventoryRefresh();
+      return;
+    }
+    setState(() {
+      final editorialDeals = _featuredDeals.where((deal) => !deal.isPromotion);
+      _featuredDeals = [...editorialDeals, ...serviceDeals];
+      if (_featuredDeals.isEmpty) {
+        _dealIndex = 0;
+      } else if (_dealIndex >= _featuredDeals.length) {
+        _dealIndex = 0;
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _recordVisibleFeaturedDeal();
+    });
+    _startPromotionInventoryRefresh();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final lastFetch = _lastPromotionInventoryFetch;
+    if (PromotionFeaturedDealRefreshPolicy.isStale(
+      lastFetchedAt: lastFetch,
+      now: DateTime.now(),
+    )) {
+      unawaited(_refreshPromotedServiceDeals());
+    }
+  }
+
   @override
   bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     debugPrint("🔥 INIT UID: $_currentUserId");
@@ -348,6 +435,70 @@ class _HomePageState extends State<HomePage>
 
   void _resetAutoSlide() {
     _startAutoSlide();
+  }
+
+  void _recordVisibleFeaturedDeal() {
+    if (!mounted || _featuredDeals.isEmpty) return;
+    final index = _dealIndex.clamp(0, _featuredDeals.length - 1);
+    final deal = _featuredDeals[index];
+    if (!deal.isPromotion || deal.campaignId == null || deal.targetId == null) {
+      return;
+    }
+    unawaited(
+      PromotionAnalyticsService().recordImpression(
+        campaignId: deal.campaignId!,
+        targetType: deal.targetType ?? 'SERVICE',
+        targetId: deal.targetId!,
+        placement: 'home_featured_deal',
+        sector: deal.sector,
+      ),
+    );
+  }
+
+  void _openFeaturedDeal(FeaturedDeal deal) {
+    if (!deal.isPromotion ||
+        deal.targetType?.toUpperCase() != 'SERVICE' ||
+        deal.businessId == null ||
+        deal.serviceId == null ||
+        deal.campaignId == null ||
+        deal.targetId == null) {
+      return;
+    }
+
+    unawaited(
+      PromotionAnalyticsService().recordClick(
+        campaignId: deal.campaignId!,
+        targetType: deal.targetType!,
+        targetId: deal.targetId!,
+        placement: 'home_featured_deal',
+        sector: deal.sector,
+      ),
+    );
+
+    final isGroomer = deal.sector?.toUpperCase() == 'GROOMER';
+    final business = BusinessCardData(
+      id: deal.businessId!,
+      name: deal.businessName?.trim().isNotEmpty == true
+          ? deal.businessName!
+          : deal.shopName,
+      city: deal.location ?? '',
+      district: '',
+      address: deal.location ?? '',
+      specialties: [deal.sector ?? 'SERVICE'],
+      services: [deal.serviceTitle ?? deal.shopName],
+      status: 'approved',
+      type: isGroomer ? BusinessType.groomer : BusinessType.vet,
+      logoUrl: deal.logoAsset.isEmpty ? null : deal.logoAsset,
+    );
+    final service = <String, dynamic>{
+      'id': deal.serviceId,
+      'title': deal.serviceTitle ?? deal.shopName,
+      if (deal.price != null) 'price': deal.price,
+      if (deal.currency != null) 'currency': deal.currency,
+    };
+    final appState = context.read<app.AppState>();
+    appState.setCurrentTab(isGroomer ? NavTab.groomy : NavTab.vet);
+    appState.openBusinessAppointment(business, selectedService: service);
   }
 
   @override
@@ -1021,6 +1172,8 @@ class _HomePageState extends State<HomePage>
 
     _dealPageController?.dispose();
     _dealTimer?.cancel();
+    _promotionInventoryTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _basketAnimController.dispose();
     super.dispose();
   }
@@ -1339,6 +1492,7 @@ class _HomePageState extends State<HomePage>
             onPageChanged: (i) {
               setState(() => _dealIndex = i);
               _resetAutoSlide();
+              _recordVisibleFeaturedDeal();
             },
 
             itemBuilder: (context, index) {
@@ -1421,7 +1575,9 @@ class _HomePageState extends State<HomePage>
                       Row(
                         children: [
                           Text(
-                            l.featuredDeal,
+                            deal.isPromotion
+                                ? l.homeSponsoredLabel
+                                : l.featuredDeal,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
@@ -1462,6 +1618,20 @@ class _HomePageState extends State<HomePage>
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+
+                      if (deal.isPromotion && deal.price != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _dealPrice(deal, context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 10),
 
@@ -1510,15 +1680,43 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  String _localizedDealShopName(FeaturedDeal deal) => deal.shopName;
+  String _localizedDealShopName(FeaturedDeal deal) {
+    if (!deal.isPromotion || deal.shopName.trim().isNotEmpty) {
+      return deal.shopName;
+    }
+    final l = AppLocalizations.of(context)!;
+    return deal.sector?.toUpperCase() == 'GROOMER'
+        ? l.promotionTargetGroomyService
+        : l.promotionTargetVetService;
+  }
 
-  String _localizedDealDescription(FeaturedDeal deal) => deal.description;
+  String _localizedDealDescription(FeaturedDeal deal) {
+    if (!deal.isPromotion) return deal.description;
+    final l = AppLocalizations.of(context)!;
+    final sector = deal.sector?.toUpperCase() == 'GROOMER'
+        ? l.promotionTargetGroomyService
+        : l.promotionTargetVetService;
+    return [
+      sector,
+      if (deal.businessName?.trim().isNotEmpty == true) deal.businessName!,
+      if (deal.location?.trim().isNotEmpty == true) deal.location!,
+    ].join(' · ');
+  }
+
+  String _dealPrice(FeaturedDeal deal, BuildContext context) {
+    final raw = deal.price;
+    final value = raw is num ? raw.toDouble() : double.tryParse('$raw');
+    if (value == null) return '';
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final currency = deal.currency ?? 'TRY';
+    return NumberFormat.currency(
+      locale: locale,
+      symbol: currency == 'TRY' ? '₺' : currency,
+      decimalDigits: value == value.roundToDouble() ? 0 : 2,
+    ).format(value);
+  }
 
   Widget _buildFeaturedDealLogo(String source) {
-    if (!kIsWeb) {
-      return Image.asset(source, fit: BoxFit.contain);
-    }
-
     if (source.trim().isEmpty) {
       return const Icon(Icons.storefront, color: Colors.white, size: 30);
     }
@@ -1709,7 +1907,7 @@ class _HomePageState extends State<HomePage>
 
                     _featuredDealsCarousel(
                       deals: _featuredDeals,
-                      onTapDeal: (deal) {},
+                      onTapDeal: _openFeaturedDeal,
                     ),
                   ],
 
