@@ -25,7 +25,9 @@ PetshopReturnNavigation classifyPetshopReturnNavigation(
   final isCanonicalHost = host == 'app.petsupo.com';
   final isCanonicalSuccess =
       isCanonicalHost &&
-      (path == '/payment-callback' || path == '/payment-success');
+      (path == '/payment-callback' ||
+          path == '/payment-success' ||
+          path == '/promotion-payment-return');
   final isCanonicalFailure = isCanonicalHost && path == '/payment-cancel';
 
   if (isLegacySuccess || isCanonicalSuccess) {

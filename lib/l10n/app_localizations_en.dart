@@ -9673,4 +9673,102 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viewPremiumPlans => 'View Premium Plans';
+
+  @override
+  String get promotionPerformanceTitle => 'Promotion performance';
+
+  @override
+  String get promotionCampaignStatus => 'Campaign status';
+
+  @override
+  String get promotionCampaignActive => 'Active';
+
+  @override
+  String get promotionCampaignExpired => 'Expired';
+
+  @override
+  String get promotionCampaignProcessing => 'Processing';
+
+  @override
+  String get promotionCampaignNeedsReconciliation => 'Needs reconciliation';
+
+  @override
+  String get promotionSpend => 'Spend';
+
+  @override
+  String get promotionImpressions => 'Impressions';
+
+  @override
+  String get promotionClicks => 'Clicks';
+
+  @override
+  String get promotionCtr => 'CTR';
+
+  @override
+  String get promotionDetailViews => 'Detail views';
+
+  @override
+  String get promotionFinancialConversions => 'Financial conversions';
+
+  @override
+  String get promotionNetRevenue => 'Net attributed revenue';
+
+  @override
+  String get promotionRoas => 'ROAS';
+
+  @override
+  String get promotionStarts => 'Started';
+
+  @override
+  String get promotionEnds => 'Ends';
+
+  @override
+  String promotionDurationHours(Object hours) {
+    return '$hours hours';
+  }
+
+  @override
+  String get promotionFinancialSection => 'Financial performance';
+
+  @override
+  String get promotionFinancialAvailable => 'Financial metrics are up to date.';
+
+  @override
+  String get promotionFinancialProvisional => 'Financial metrics are still being reconciled.';
+
+  @override
+  String get promotionFinancialUnavailable => 'Financial metrics are unavailable or not applicable.';
+
+  @override
+  String get promotionPetFinancialNotApplicable => 'Financial metrics are not applicable to Pet Boost.';
+
+  @override
+  String get promotionNoPerformanceData => 'Your promotion is active. Performance data will appear as people see and interact with it.';
+
+  @override
+  String get promotionRetry => 'Retry';
+
+  @override
+  String get promotionLoadError => 'Performance could not be loaded.';
+
+  @override
+  String get promotionUpToDate => 'Up to date';
+
+  @override
+  String get promotionReconciliationStatus => 'Reconciliation';
+
+  @override
+  String get promotionNa => 'N/A';
+
+  @override
+  String get promotionTargetPet => 'Pet';
+
+  @override
+  String get promotionTargetProduct => 'Product';
+
+  @override
+  String get promotionTargetVetService => 'Vet service';
+
+  @override
+  String get promotionTargetGroomyService => 'Groomy service';
 }

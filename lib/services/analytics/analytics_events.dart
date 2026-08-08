@@ -28,10 +28,10 @@ class AnalyticsEvents {
 
   // Grooming
   static const groomingProfileViewed = 'grooming_profile_viewed';
-static const groomingBookingStarted = 'grooming_booking_started';
-static const groomingBookingCompleted = 'grooming_booking_completed';
-static const groomingBookingCancelled = 'grooming_booking_cancelled';
-static const groomingReviewAdded = 'grooming_review_added';
+  static const groomingBookingStarted = 'grooming_booking_started';
+  static const groomingBookingCompleted = 'grooming_booking_completed';
+  static const groomingBookingCancelled = 'grooming_booking_cancelled';
+  static const groomingReviewAdded = 'grooming_review_added';
 
   // Pet Hotel
   static const hotelProfileViewed = 'hotel_profile_viewed';
@@ -47,10 +47,8 @@ static const groomingReviewAdded = 'grooming_review_added';
 
   // Adoption
   static const adoptionPetViewed = 'adoption_pet_viewed';
-  static const adoptionApplicationStarted =
-      'adoption_application_started';
-  static const adoptionApplicationSubmitted =
-      'adoption_application_submitted';
+  static const adoptionApplicationStarted = 'adoption_application_started';
+  static const adoptionApplicationSubmitted = 'adoption_application_submitted';
 
   // Petplore
   static const postCreated = 'post_created';
@@ -100,16 +98,19 @@ static const groomingReviewAdded = 'grooming_review_added';
 
   // Maps
   static const mapOpened = 'map_opened';
-  static const locationPermissionGranted =
-      'location_permission_granted';
-  static const locationPermissionDenied =
-      'location_permission_denied';
+  static const locationPermissionGranted = 'location_permission_granted';
+  static const locationPermissionDenied = 'location_permission_denied';
 
   // Errors
   static const bookingFailed = 'booking_failed';
   static const paymentError = 'payment_error';
   static const firebaseError = 'firebase_error';
   static const networkError = 'network_error';
+
+  // Promotion measurement (telemetry only; never financial truth).
+  static const promotionImpression = 'promotion_impression';
+  static const promotionClick = 'promotion_click';
+  static const promotionDetailView = 'promotion_detail_view';
 
   // Engagement
   static const dailyActive = 'daily_active';

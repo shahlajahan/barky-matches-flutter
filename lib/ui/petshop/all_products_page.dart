@@ -21,6 +21,11 @@ import 'package:barky_matches_fixed/ui/product/seller_profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/services/product_favorite_service.dart';
 import 'package:barky_matches_fixed/ui/product/favorite_products_page.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_enums.dart';
+import 'package:barky_matches_fixed/promotion/ranking/promotion_ranking_engine.dart';
+import 'package:barky_matches_fixed/promotion/ranking/promotion_ranking_state.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_analytics_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 class AllProductsPage extends StatefulWidget {
   final String? initialSellerId;
@@ -44,6 +49,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
   String? _selectedShippingMode;
   String _sort = 'recommended';
   String? _sellerIdFilter;
+  Map<String, List<Map<String, dynamic>>> _productPromotionProjections = {};
 
   final List<CartItem> _cart = [];
 
@@ -55,6 +61,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
     _sellerIdFilter = widget.initialSellerId;
 
     _loadCartFromFirestore(); // ✅ فقط اینجا
+    _loadProductPromotionProjections();
 
     _searchController.addListener(() {
       if (_query != _searchController.text.trim()) {
@@ -63,6 +70,25 @@ class _AllProductsPageState extends State<AllProductsPage> {
         });
       }
     });
+  }
+
+  Future<void> _loadProductPromotionProjections() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('promotion_active')
+          .where('targetType', isEqualTo: PromotionTargetType.product.value)
+          .get();
+      final grouped = <String, List<Map<String, dynamic>>>{};
+      for (final doc in snapshot.docs) {
+        final data = Map<String, dynamic>.from(doc.data());
+        final targetId = data['targetId']?.toString();
+        if (targetId == null || targetId.isEmpty) continue;
+        grouped.putIfAbsent(targetId, () => []).add(data);
+      }
+      if (mounted) setState(() => _productPromotionProjections = grouped);
+    } catch (_) {
+      // A projection read failure must leave products organic, never promoted.
+    }
   }
 
   @override
@@ -656,22 +682,50 @@ class _AllProductsPageState extends State<AllProductsPage> {
         });
         break;
       default:
-        result.sort((a, b) {
-          int score(Product p) {
-            int s = 0;
-            if (p.salePrice != null && p.salePrice! < p.price) s += 20;
-            if (p.allowFreeShipping) s += 10;
-            if (p.media.isNotEmpty) s += 8;
-            if ((p.businessName ?? '').isNotEmpty) s += 5;
-            if (p.stock > 0) s += 5;
-            return s;
-          }
-
-          return score(b).compareTo(score(a));
-        });
+        return _rankRecommendedProducts(result);
     }
 
     return result;
+  }
+
+  List<Product> _rankRecommendedProducts(List<Product> products) {
+    int organicScore(Product p) {
+      var score = 0;
+      if (p.salePrice != null && p.salePrice! < p.price) score += 20;
+      if (p.allowFreeShipping) score += 10;
+      if (p.media.isNotEmpty) score += 8;
+      if ((p.businessName ?? '').isNotEmpty) score += 5;
+      if (p.stock > 0) score += 5;
+      return score;
+    }
+
+    final now = DateTime.now();
+    return const PromotionRankingEngine()
+        .rank(
+          products.map(
+            (product) => PromotionRankingInput<Product>(
+              item: product,
+              targetType: PromotionTargetType.product,
+              targetId: product.id,
+              organicScore: organicScore(product),
+              ownerId: product.businessId,
+              promotionState: product.isActive && product.stock > 0
+                  ? PromotionRankingState.resolve(
+                      targetType: PromotionTargetType.product,
+                      targetId: product.id,
+                      projections:
+                          _productPromotionProjections[product.id] ?? const [],
+                      now: now,
+                    )
+                  : PromotionRankingState.organic(
+                      targetType: PromotionTargetType.product,
+                      targetId: product.id,
+                    ),
+            ),
+          ),
+        )
+        .map((ranked) => ranked.item)
+        .toList();
   }
 
   @override
@@ -1087,9 +1141,33 @@ class _AllProductsPageState extends State<AllProductsPage> {
                             itemCount: filtered.length,
                             itemBuilder: (_, index) {
                               final product = filtered[index];
+                              final promotion = PromotionRankingState.resolve(
+                                targetType: PromotionTargetType.product,
+                                targetId: product.id,
+                                projections:
+                                    _productPromotionProjections[product.id] ??
+                                    const [],
+                              );
 
                               return GestureDetector(
                                 onTap: () {
+                                  if (promotion.isPromoted &&
+                                      promotion.campaignId != null) {
+                                    final analytics =
+                                        PromotionAnalyticsService();
+                                    analytics.recordClick(
+                                      campaignId: promotion.campaignId!,
+                                      targetType: 'PRODUCT',
+                                      targetId: product.id,
+                                      placement: 'marketplace_product_list',
+                                    );
+                                    analytics.recordDetailView(
+                                      campaignId: promotion.campaignId!,
+                                      targetType: 'PRODUCT',
+                                      targetId: product.id,
+                                      placement: 'marketplace_product_list',
+                                    );
+                                  }
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -1102,6 +1180,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                                 },
                                 child: _CompactProductCard(
                                   product: product,
+                                  promotion: promotion,
                                   onAddToBasket: () => _addToBasket(product),
                                   onOpenSeller: () {
                                     Navigator.push(
@@ -1222,11 +1301,13 @@ class _FilterActionButton extends StatelessWidget {
 
 class _CompactProductCard extends StatefulWidget {
   final Product product;
+  final PromotionRankingState promotion;
   final VoidCallback onAddToBasket;
   final VoidCallback onOpenSeller;
 
   const _CompactProductCard({
     required this.product,
+    required this.promotion,
     required this.onAddToBasket,
     required this.onOpenSeller,
   });
@@ -1239,6 +1320,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
   bool _showAdded = false;
 
   Product get product => widget.product;
+  PromotionRankingState get promotion => widget.promotion;
   VoidCallback get onAddToBasket => widget.onAddToBasket;
   VoidCallback get onOpenSeller => widget.onOpenSeller;
 
@@ -1717,7 +1799,7 @@ class _CompactProductCardState extends State<_CompactProductCard> {
       ),
     );
 
-    return LayoutBuilder(
+    final card = LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 900) return mobileCard;
         return _buildDesktopCard(
@@ -1727,6 +1809,20 @@ class _CompactProductCardState extends State<_CompactProductCard> {
           hasDiscount,
         );
       },
+    );
+    if (!promotion.isPromoted || promotion.campaignId == null) return card;
+    return VisibilityDetector(
+      key: Key('promotion-product-${product.id}'),
+      onVisibilityChanged: (info) {
+        if (info.visibleFraction < 0.5) return;
+        PromotionAnalyticsService().recordImpression(
+          campaignId: promotion.campaignId!,
+          targetType: 'PRODUCT',
+          targetId: product.id,
+          placement: 'marketplace_product_list',
+        );
+      },
+      child: card,
     );
   }
 

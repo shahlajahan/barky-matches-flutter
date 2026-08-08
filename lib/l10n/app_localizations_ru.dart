@@ -9675,4 +9675,102 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get viewPremiumPlans => 'Посмотреть премиум-планы';
+
+  @override
+  String get promotionPerformanceTitle => 'Эффективность продвижения';
+
+  @override
+  String get promotionCampaignStatus => 'Статус кампании';
+
+  @override
+  String get promotionCampaignActive => 'Активна';
+
+  @override
+  String get promotionCampaignExpired => 'Истекла';
+
+  @override
+  String get promotionCampaignProcessing => 'Обрабатывается';
+
+  @override
+  String get promotionCampaignNeedsReconciliation => 'Требуется сверка';
+
+  @override
+  String get promotionSpend => 'Расходы';
+
+  @override
+  String get promotionImpressions => 'Показы';
+
+  @override
+  String get promotionClicks => 'Клики';
+
+  @override
+  String get promotionCtr => 'CTR';
+
+  @override
+  String get promotionDetailViews => 'Просмотры деталей';
+
+  @override
+  String get promotionFinancialConversions => 'Финансовые конверсии';
+
+  @override
+  String get promotionNetRevenue => 'Атрибутированный доход';
+
+  @override
+  String get promotionRoas => 'ROAS';
+
+  @override
+  String get promotionStarts => 'Начало';
+
+  @override
+  String get promotionEnds => 'Конец';
+
+  @override
+  String promotionDurationHours(Object hours) {
+    return '$hours часов';
+  }
+
+  @override
+  String get promotionFinancialSection => 'Финансовая эффективность';
+
+  @override
+  String get promotionFinancialAvailable => 'Финансовые показатели актуальны.';
+
+  @override
+  String get promotionFinancialProvisional => 'Финансовые показатели ещё сверяются.';
+
+  @override
+  String get promotionFinancialUnavailable => 'Финансовые показатели недоступны или неприменимы.';
+
+  @override
+  String get promotionPetFinancialNotApplicable => 'Финансовые показатели неприменимы к продвижению питомца.';
+
+  @override
+  String get promotionNoPerformanceData => 'Продвижение активно. Данные появятся после просмотров и взаимодействий пользователей.';
+
+  @override
+  String get promotionRetry => 'Повторить';
+
+  @override
+  String get promotionLoadError => 'Не удалось загрузить эффективность.';
+
+  @override
+  String get promotionUpToDate => 'Актуально';
+
+  @override
+  String get promotionReconciliationStatus => 'Сверка';
+
+  @override
+  String get promotionNa => 'Н/Д';
+
+  @override
+  String get promotionTargetPet => 'Питомец';
+
+  @override
+  String get promotionTargetProduct => 'Товар';
+
+  @override
+  String get promotionTargetVetService => 'Ветеринарная услуга';
+
+  @override
+  String get promotionTargetGroomyService => 'Услуга Groomy';
 }

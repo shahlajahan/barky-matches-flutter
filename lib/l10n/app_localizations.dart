@@ -18122,6 +18122,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View Premium Plans'**
   String get viewPremiumPlans;
+
+  /// No description provided for @promotionPerformanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Promotion performance'**
+  String get promotionPerformanceTitle;
+
+  /// No description provided for @promotionCampaignStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Campaign status'**
+  String get promotionCampaignStatus;
+
+  /// No description provided for @promotionCampaignActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get promotionCampaignActive;
+
+  /// No description provided for @promotionCampaignExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get promotionCampaignExpired;
+
+  /// No description provided for @promotionCampaignProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get promotionCampaignProcessing;
+
+  /// No description provided for @promotionCampaignNeedsReconciliation.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs reconciliation'**
+  String get promotionCampaignNeedsReconciliation;
+
+  /// No description provided for @promotionSpend.
+  ///
+  /// In en, this message translates to:
+  /// **'Spend'**
+  String get promotionSpend;
+
+  /// No description provided for @promotionImpressions.
+  ///
+  /// In en, this message translates to:
+  /// **'Impressions'**
+  String get promotionImpressions;
+
+  /// No description provided for @promotionClicks.
+  ///
+  /// In en, this message translates to:
+  /// **'Clicks'**
+  String get promotionClicks;
+
+  /// No description provided for @promotionCtr.
+  ///
+  /// In en, this message translates to:
+  /// **'CTR'**
+  String get promotionCtr;
+
+  /// No description provided for @promotionDetailViews.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail views'**
+  String get promotionDetailViews;
+
+  /// No description provided for @promotionFinancialConversions.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial conversions'**
+  String get promotionFinancialConversions;
+
+  /// No description provided for @promotionNetRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Net attributed revenue'**
+  String get promotionNetRevenue;
+
+  /// No description provided for @promotionRoas.
+  ///
+  /// In en, this message translates to:
+  /// **'ROAS'**
+  String get promotionRoas;
+
+  /// No description provided for @promotionStarts.
+  ///
+  /// In en, this message translates to:
+  /// **'Started'**
+  String get promotionStarts;
+
+  /// No description provided for @promotionEnds.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get promotionEnds;
+
+  /// No description provided for @promotionDurationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hours'**
+  String promotionDurationHours(Object hours);
+
+  /// No description provided for @promotionFinancialSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial performance'**
+  String get promotionFinancialSection;
+
+  /// No description provided for @promotionFinancialAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial metrics are up to date.'**
+  String get promotionFinancialAvailable;
+
+  /// No description provided for @promotionFinancialProvisional.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial metrics are still being reconciled.'**
+  String get promotionFinancialProvisional;
+
+  /// No description provided for @promotionFinancialUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial metrics are unavailable or not applicable.'**
+  String get promotionFinancialUnavailable;
+
+  /// No description provided for @promotionPetFinancialNotApplicable.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial metrics are not applicable to Pet Boost.'**
+  String get promotionPetFinancialNotApplicable;
+
+  /// No description provided for @promotionNoPerformanceData.
+  ///
+  /// In en, this message translates to:
+  /// **'Your promotion is active. Performance data will appear as people see and interact with it.'**
+  String get promotionNoPerformanceData;
+
+  /// No description provided for @promotionRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get promotionRetry;
+
+  /// No description provided for @promotionLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance could not be loaded.'**
+  String get promotionLoadError;
+
+  /// No description provided for @promotionUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get promotionUpToDate;
+
+  /// No description provided for @promotionReconciliationStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconciliation'**
+  String get promotionReconciliationStatus;
+
+  /// No description provided for @promotionNa.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get promotionNa;
+
+  /// No description provided for @promotionTargetPet.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet'**
+  String get promotionTargetPet;
+
+  /// No description provided for @promotionTargetProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Product'**
+  String get promotionTargetProduct;
+
+  /// No description provided for @promotionTargetVetService.
+  ///
+  /// In en, this message translates to:
+  /// **'Vet service'**
+  String get promotionTargetVetService;
+
+  /// No description provided for @promotionTargetGroomyService.
+  ///
+  /// In en, this message translates to:
+  /// **'Groomy service'**
+  String get promotionTargetGroomyService;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

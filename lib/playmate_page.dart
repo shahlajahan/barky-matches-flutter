@@ -22,6 +22,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
+import 'package:barky_matches_fixed/promotion/pet_promotion_state.dart';
+import 'package:barky_matches_fixed/promotion/ranking/promotion_ranking_engine.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_enums.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_analytics_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 enum PlaymatePageMode { browse, selectDogForPlaydate }
 
@@ -74,6 +79,8 @@ class _PlaymatePageState extends State<PlaymatePage>
   Timer? _searchDebounce;
   String? selectedOwnerGender;
   List<Dog> _sourceDogs = []; // 🔥 SOURCE OF TRUTH
+  Map<String, List<Map<String, dynamic>>> _petPromotionProjections = {};
+  static const _promotionRankingEngine = PromotionRankingEngine();
   StreamSubscription<QuerySnapshot>? _dogsSubscription;
   String _searchQuery = '';
   StreamSubscription<QuerySnapshot>? _notificationsSubscription;
@@ -592,6 +599,7 @@ class _PlaymatePageState extends State<PlaymatePage>
             appState.setAllDogs(sourceDogs);
           }
           await _loadUserPremiums(sourceDogs);
+          await _loadPetPromotionProjections();
           // 🔍 APPLY FILTERS
           final filtered = _applyFiltersMainThread(
             sourceDogs: sourceDogs,
@@ -610,7 +618,7 @@ class _PlaymatePageState extends State<PlaymatePage>
           // 🔍 APPLY SEARCH
           final words = _searchQuery.split(" ");
 
-          final finalList = _searchQuery.isEmpty
+          var finalList = _searchQuery.isEmpty
               ? filtered
               : filtered.where((dog) {
                   final name = dog.name.toLowerCase();
@@ -635,11 +643,7 @@ class _PlaymatePageState extends State<PlaymatePage>
                 }).toList();
 
           // 🔥 SMART RANKING (ADD HERE)
-          finalList.sort((a, b) {
-            final scoreA = _calculateDogScore(a);
-            final scoreB = _calculateDogScore(b);
-            return scoreB.compareTo(scoreA);
-          });
+          finalList = _rankDogs(finalList);
           for (var dog in finalList) {
             debugPrint("🏆 ORDER → ${dog.name}");
             debugPrint("📍 USER: $_userLatitude , $_userLongitude");
@@ -665,24 +669,64 @@ class _PlaymatePageState extends State<PlaymatePage>
         });
   }
 
-  int _calculateDogScore(Dog dog) {
-    int score = 0;
+  List<Dog> _rankDogs(Iterable<Dog> dogs) {
+    final rankingTime = DateTime.now();
+    return _promotionRankingEngine
+        .rank(
+          dogs.map(
+            (dog) => PromotionRankingInput<Dog>(
+              item: dog,
+              targetType: PromotionTargetType.pet,
+              targetId: dog.id,
+              organicScore: _organicDogScore(dog, rankingTime),
+              promotionState: _petState(dog, rankingTime).normalized,
+              ownerId: dog.ownerId,
+            ),
+          ),
+        )
+        .map((entry) => entry.item)
+        .toList();
+  }
 
-    // 🟡 Activity boost
+  int _organicDogScore(Dog dog, DateTime now) {
+    var score = 0;
     if (dog.updatedAt != null) {
-      final hours = DateTime.now().difference(dog.updatedAt!.toDate()).inHours;
-
+      final hours = now.difference(dog.updatedAt!.toDate()).inHours;
       score += (24 - hours).clamp(0, 24);
     }
-
-    // 🟣 Premium boost
-    final isPremium = _userPremiumMap[dog.ownerId] == true;
-    if (isPremium) score += 30;
-
-    // 🔴 Sponsored boost (🔥 پول‌ساز)
-    if (dog.isSponsored) score += dog.boostScore;
-
+    if (_userPremiumMap[dog.ownerId] == true) score += 30;
     return score;
+  }
+
+  PetPromotionState _petState(Dog dog, DateTime now) =>
+      PetPromotionState.resolve(
+        promotionProjection: null,
+        promotionProjections: _petPromotionProjections[dog.id],
+        legacyIsSponsored: dog.isSponsored,
+        legacyBoostScore: dog.boostScore,
+        legacyExpiresAt: dog.boostExpiresAt,
+        targetId: dog.id,
+        now: now,
+      );
+
+  Future<void> _loadPetPromotionProjections() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('promotion_active')
+          .where('targetType', isEqualTo: 'PET')
+          .get();
+      final projections = <String, List<Map<String, dynamic>>>{};
+      for (final document in snapshot.docs) {
+        final targetId = document.data()['targetId']?.toString();
+        if (targetId == null || targetId.isEmpty) continue;
+        projections.putIfAbsent(targetId, () => []).add(document.data());
+      }
+      _petPromotionProjections = projections;
+    } catch (_) {
+      // Legacy fields remain available if the public projection is temporarily
+      // unavailable. No client-side write or price decision is made here.
+      _petPromotionProjections = {};
+    }
   }
 
   Future<void> safePrecacheImage(BuildContext context, String imageUrl) async {
@@ -1164,11 +1208,7 @@ class _PlaymatePageState extends State<PlaymatePage>
       if (mounted) {
         setState(() {
           _filteredDogs = uniqueDogs.values.toList();
-          _filteredDogs.sort((a, b) {
-            final scoreA = _calculateDogScore(a);
-            final scoreB = _calculateDogScore(b);
-            return scoreB.compareTo(scoreA);
-          });
+          _filteredDogs = _rankDogs(_filteredDogs);
           if (kDebugMode) {
             debugPrint(
               'PlaymatePage - Filtered dogs count: ${_filteredDogs.length}',
@@ -1441,85 +1481,125 @@ class _PlaymatePageState extends State<PlaymatePage>
                       itemCount: dogs.length,
                       itemBuilder: (context, index) {
                         final dog = dogs[index];
+                        final promotion = _petState(
+                          dog,
+                          DateTime.now(),
+                        ).normalized;
 
                         return Padding(
                           padding: const EdgeInsets.only(
                             bottom: 14,
                           ), // ✅ better spacing
-                          child: RepaintBoundary(
-                            child: DogCard(
-                              disableTap: appState.isGuest,
-                              key: ValueKey(dog.id),
-                              dog: dog,
-                              mode: DogCardMode.compact,
-                              allDogs: _filteredDogs,
-                              currentUserId: appState.currentUserId ?? '',
-                              favoriteDogs: favs,
+                          child: VisibilityDetector(
+                            key: Key('promotion-pet-${dog.id}'),
+                            onVisibilityChanged: (info) {
+                              if (!promotion.isPromoted ||
+                                  promotion.campaignId == null ||
+                                  info.visibleFraction < 0.5) {
+                                return;
+                              }
+                              PromotionAnalyticsService().recordImpression(
+                                campaignId: promotion.campaignId!,
+                                targetType: 'PET',
+                                targetId: dog.id,
+                                placement: 'playmate_discovery',
+                              );
+                            },
+                            child: RepaintBoundary(
+                              child: DogCard(
+                                disableTap: appState.isGuest,
+                                key: ValueKey(dog.id),
+                                dog: dog,
+                                mode: DogCardMode.compact,
+                                allDogs: _filteredDogs,
+                                currentUserId: appState.currentUserId ?? '',
+                                favoriteDogs: favs,
 
-                              onCardTap: () {
-                                if (appState.isGuest) {
-                                  showLoginDialog(context);
-                                  return;
-                                }
+                                onCardTap: () {
+                                  if (promotion.isPromoted &&
+                                      promotion.campaignId != null) {
+                                    final analytics =
+                                        PromotionAnalyticsService();
+                                    analytics.recordClick(
+                                      campaignId: promotion.campaignId!,
+                                      targetType: 'PET',
+                                      targetId: dog.id,
+                                      placement: 'playmate_discovery',
+                                    );
+                                    analytics.recordDetailView(
+                                      campaignId: promotion.campaignId!,
+                                      targetType: 'PET',
+                                      targetId: dog.id,
+                                      placement: 'playmate_discovery',
+                                    );
+                                  }
+                                  if (appState.isGuest) {
+                                    showLoginDialog(context);
+                                    return;
+                                  }
 
-                                final ownerId = dog.ownerId;
-                                if (ownerId == null || ownerId.isEmpty) return;
+                                  final ownerId = dog.ownerId;
+                                  if (ownerId == null || ownerId.isEmpty)
+                                    return;
 
-                                appState.setPlaymateProfile(
-                                  ownerId,
-                                  _filteredDogs,
-                                );
-                              },
-                              // ❤️ FAVORITE
-                              onToggleFavorite: (dog) {
-                                if (appState.isGuest) {
-                                  showLoginDialog(context);
-                                  return;
-                                }
-                                appState.toggleFavorite(dog);
-                              },
+                                  appState.setPlaymateProfile(
+                                    ownerId,
+                                    _filteredDogs,
+                                  );
+                                },
+                                // ❤️ FAVORITE
+                                onToggleFavorite: (dog) {
+                                  if (appState.isGuest) {
+                                    showLoginDialog(context);
+                                    return;
+                                  }
+                                  appState.toggleFavorite(dog);
+                                },
 
-                              // 🏠 ADOPTION
-                              onAdopt: dog.isAvailableForAdoption
-                                  ? () {
-                                      if (appState.isGuest) {
-                                        showLoginDialog(context);
-                                        return;
-                                      }
+                                // 🏠 ADOPTION
+                                onAdopt: dog.isAvailableForAdoption
+                                    ? () {
+                                        if (appState.isGuest) {
+                                          showLoginDialog(context);
+                                          return;
+                                        }
 
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => AdoptionPage(
-                                            dogs: appState.allDogs,
-                                            favoriteDogs: favs,
-                                            onToggleFavorite: (dog) {
-                                              appState.toggleFavorite(dog);
-                                            },
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => AdoptionPage(
+                                              dogs: appState.allDogs,
+                                              favoriteDogs: favs,
+                                              onToggleFavorite: (dog) {
+                                                appState.toggleFavorite(dog);
+                                              },
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    }
-                                  : null,
-
-                              // 🎯 REQUEST
-                              selectedRequesterDogId: isSelectMode
-                                  ? null
-                                  : appState.selectedRequesterDogId,
-
-                              onRequesterDogChanged: isSelectMode
-                                  ? null
-                                  : (value) {
-                                      if (appState.isGuest) {
-                                        showLoginDialog(context);
-                                        return;
+                                        );
                                       }
+                                    : null,
 
-                                      appState.setSelectedRequesterDogId(value);
-                                    },
+                                // 🎯 REQUEST
+                                selectedRequesterDogId: isSelectMode
+                                    ? null
+                                    : appState.selectedRequesterDogId,
 
-                              showDogSelection: isSelectMode,
-                              likers: appState.dogLikes[dog.id] ?? [],
+                                onRequesterDogChanged: isSelectMode
+                                    ? null
+                                    : (value) {
+                                        if (appState.isGuest) {
+                                          showLoginDialog(context);
+                                          return;
+                                        }
+
+                                        appState.setSelectedRequesterDogId(
+                                          value,
+                                        );
+                                      },
+
+                                showDogSelection: isSelectMode,
+                                likers: appState.dogLikes[dog.id] ?? [],
+                              ),
                             ),
                           ),
                         );

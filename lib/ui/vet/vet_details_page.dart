@@ -15,6 +15,13 @@ import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_service_sector.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_enums.dart';
+import 'package:barky_matches_fixed/promotion/ranking/service_promotion_ranking.dart';
+import 'package:barky_matches_fixed/promotion/ranking/promotion_ranking_state.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_projection_service.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_analytics_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 enum ReviewSortType { mostRelevant, newest }
@@ -38,6 +45,7 @@ class _VetDetailsPageState extends State<VetDetailsPage>
   // 🔥 LIKE STATE (IMPORTANT)
   final Map<String, int> _optimisticLikes = {};
   final Map<String, bool> _optimisticIsLiked = {};
+  Map<String, List<Map<String, dynamic>>> _servicePromotionProjections = {};
   final Set<String> _likeBusy = {};
   final ValueNotifier<double?> _liveRating = ValueNotifier(null);
 
@@ -1072,7 +1080,7 @@ class _VetDetailsPageState extends State<VetDetailsPage>
       if (sector is Map && sector.containsKey('services')) {
         final rawServices = sector['services'];
         final services = PublicServiceNormalizer.toMaps(rawServices);
-        return services;
+        return _rankServices(services);
       }
     }
 
@@ -1084,7 +1092,24 @@ class _VetDetailsPageState extends State<VetDetailsPage>
     final activeServices = allCanonicalSnapshot.docs
         .where((doc) => doc.data()['isActive'] == true)
         .toList();
-    return activeServices.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+    return _rankServices(
+      activeServices.map((doc) => {...doc.data(), 'id': doc.id}).toList(),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _rankServices(
+    List<Map<String, dynamic>> services,
+  ) async {
+    final projections = await PromotionProjectionService().readByTargetType(
+      PromotionTargetType.service,
+    );
+    _servicePromotionProjections = projections;
+    return ServicePromotionRanking.rank(
+      businessId: widget.vet.id,
+      sector: PromotionServiceSector.vet,
+      services: services,
+      projectionsByTargetId: projections,
+    );
   }
 
   Widget _buildServicesTab() {
@@ -1125,6 +1150,19 @@ class _VetDetailsPageState extends State<VetDetailsPage>
           separatorBuilder: (context, index) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             final service = services[index];
+            final serviceId = (service['id'] ?? service['serviceId'] ?? '')
+                .toString();
+            final targetId = serviceId.isEmpty
+                ? null
+                : 'service/VET/${widget.vet.id}/$serviceId';
+            final promotion = targetId == null
+                ? null
+                : PromotionRankingState.resolve(
+                    targetType: PromotionTargetType.service,
+                    targetId: targetId,
+                    projections:
+                        _servicePromotionProjections[targetId] ?? const [],
+                  );
 
             final title = (service['title'] ?? '').toString();
 
@@ -1134,8 +1172,26 @@ class _VetDetailsPageState extends State<VetDetailsPage>
                 .toString()
                 .trim();
 
-            return GestureDetector(
+            final serviceCard = GestureDetector(
               onTap: () async {
+                if (promotion?.isPromoted == true &&
+                    promotion?.campaignId != null) {
+                  final analytics = PromotionAnalyticsService();
+                  analytics.recordClick(
+                    campaignId: promotion!.campaignId!,
+                    targetType: 'SERVICE',
+                    targetId: targetId!,
+                    placement: 'vet_service_list',
+                    sector: 'VET',
+                  );
+                  analytics.recordDetailView(
+                    campaignId: promotion.campaignId!,
+                    targetType: 'SERVICE',
+                    targetId: targetId,
+                    placement: 'vet_service_list',
+                    sector: 'VET',
+                  );
+                }
                 await _openAppointmentPage(service);
               },
               child: Container(
@@ -1190,6 +1246,24 @@ class _VetDetailsPageState extends State<VetDetailsPage>
                   ],
                 ),
               ),
+            );
+            if (promotion?.isPromoted != true ||
+                promotion?.campaignId == null) {
+              return serviceCard;
+            }
+            return VisibilityDetector(
+              key: Key('promotion-vet-service-$serviceId'),
+              onVisibilityChanged: (info) {
+                if (info.visibleFraction < 0.5) return;
+                PromotionAnalyticsService().recordImpression(
+                  campaignId: promotion!.campaignId!,
+                  targetType: 'SERVICE',
+                  targetId: targetId!,
+                  placement: 'vet_service_list',
+                  sector: 'VET',
+                );
+              },
+              child: serviceCard,
             );
           },
         );

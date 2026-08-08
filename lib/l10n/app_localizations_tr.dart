@@ -9673,4 +9673,102 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get viewPremiumPlans => 'Premium Planları Görüntüle';
+
+  @override
+  String get promotionPerformanceTitle => 'Promosyon performansı';
+
+  @override
+  String get promotionCampaignStatus => 'Kampanya durumu';
+
+  @override
+  String get promotionCampaignActive => 'Aktif';
+
+  @override
+  String get promotionCampaignExpired => 'Süresi doldu';
+
+  @override
+  String get promotionCampaignProcessing => 'İşleniyor';
+
+  @override
+  String get promotionCampaignNeedsReconciliation => 'Mutabakat gerekiyor';
+
+  @override
+  String get promotionSpend => 'Harcama';
+
+  @override
+  String get promotionImpressions => 'Gösterimler';
+
+  @override
+  String get promotionClicks => 'Tıklamalar';
+
+  @override
+  String get promotionCtr => 'TO';
+
+  @override
+  String get promotionDetailViews => 'Detay görüntülemeleri';
+
+  @override
+  String get promotionFinancialConversions => 'Finansal dönüşümler';
+
+  @override
+  String get promotionNetRevenue => 'Atfedilen net gelir';
+
+  @override
+  String get promotionRoas => 'ROAS';
+
+  @override
+  String get promotionStarts => 'Başlangıç';
+
+  @override
+  String get promotionEnds => 'Bitiş';
+
+  @override
+  String promotionDurationHours(Object hours) {
+    return '$hours saat';
+  }
+
+  @override
+  String get promotionFinancialSection => 'Finansal performans';
+
+  @override
+  String get promotionFinancialAvailable => 'Finansal metrikler güncel.';
+
+  @override
+  String get promotionFinancialProvisional => 'Finansal metrikler hâlâ mutabakat aşamasında.';
+
+  @override
+  String get promotionFinancialUnavailable => 'Finansal metrikler kullanılamıyor veya uygulanamaz.';
+
+  @override
+  String get promotionPetFinancialNotApplicable => 'Pet Boost için finansal metrikler uygulanamaz.';
+
+  @override
+  String get promotionNoPerformanceData => 'Promosyonunuz aktif. Kullanıcılar gördükçe ve etkileştikçe performans verileri burada görünecek.';
+
+  @override
+  String get promotionRetry => 'Tekrar dene';
+
+  @override
+  String get promotionLoadError => 'Performans yüklenemedi.';
+
+  @override
+  String get promotionUpToDate => 'Güncel';
+
+  @override
+  String get promotionReconciliationStatus => 'Mutabakat';
+
+  @override
+  String get promotionNa => 'Uygulanamaz';
+
+  @override
+  String get promotionTargetPet => 'Pet';
+
+  @override
+  String get promotionTargetProduct => 'Ürün';
+
+  @override
+  String get promotionTargetVetService => 'Veteriner hizmeti';
+
+  @override
+  String get promotionTargetGroomyService => 'Groomy hizmeti';
 }

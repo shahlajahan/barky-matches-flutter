@@ -48,6 +48,24 @@ const {
   resolvePetTaxiCurrentLocationForMigration,
 } = require("./src/businessSectorMembership");
 const { approvalPublicationPatch } = require("./src/businessPublication");
+const {
+  createPromotionCheckoutCore,
+  activatePromotionFromVerifiedPayment,
+  failPromotionPayment,
+  readPromotionPaymentStatus,
+} = require("./src/promotion/promotion_engine");
+const {
+  ingestPromotionEvent,
+  readPromotionCampaignStats,
+} = require("./src/promotion/promotion_analytics");
+const {
+  reconcilePromotionConversion,
+  readPromotionReconciliationHealth,
+} = require("./src/promotion/promotion_attribution");
+const {
+  assertPromotionIyzicoEndpoint,
+  isPromotionEmulatorEnvironment,
+} = require("./src/promotion/promotion_provider_config");
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 const storage = new Storage();
@@ -58,6 +76,12 @@ const IYZICO_SECRET_KEY = defineSecret("IYZICO_SECRET_KEY");
 
 const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
   default: "iyzico",
+});
+// Promotion keeps the existing provider adapter but makes the endpoint an
+// explicit deployment setting. The safe default is sandbox; production must
+// explicitly provision the live endpoint before enabling iyzico Promotion.
+const PROMOTION_IYZICO_API_URI = defineString("PROMOTION_IYZICO_API_URI", {
+  default: "https://sandbox-api.iyzipay.com",
 });
 
 const ISBANK_CLIENT_ID = defineSecret("ISBANK_CLIENT_ID");
@@ -2614,6 +2638,401 @@ exports.createIsbank3DPayHostingCheckout = onCall(
   async (request) => createIsbank3DPayHostingCheckoutResult(request)
 );
 
+function promotionProviderName() {
+  return normalizePaymentProvider(PAYMENT_PROVIDER.value());
+}
+
+async function createPromotionProviderCheckout({campaign, userData, authEmail, clientIp}) {
+  const provider = promotionProviderName();
+  const amount = Number(campaign.price);
+  const buyerName = normalizeText(
+    userData.displayName || userData.name || userData.profile?.displayName || "PetSupo User"
+  );
+  const buyerEmail = normalizeText(userData.email || authEmail || "");
+
+  if (provider === "isbank") {
+    const checkout = await createIsbank3DPayHostingCheckoutResult({
+      auth: {uid: campaign.ownerUid},
+      data: {
+        oid: campaign.campaignId,
+        orderId: campaign.campaignId,
+        amount,
+        price: amount,
+        currencyCode: ISBANK_CURRENCY_CODE.value(),
+        storeType: ISBANK_STORE_TYPE.value(),
+        installment: ISBANK_INSTALLMENT.value(),
+        lang: "tr",
+        billToName: buyerName,
+      },
+    });
+    return {
+      ...checkout,
+      provider: "isbank",
+      providerOrderId: campaign.campaignId,
+    };
+  }
+
+  if (!buyerEmail) {
+    throw new HttpsError("failed-precondition", "Promotion payer email is required");
+  }
+  const buyerPhone = normalizeText(userData.phone || userData.phoneNumber || "");
+  const buyerIdentityNumber = normalizeText(
+    userData.identityNumber || userData.billing?.identityNumber || userData.billingAddress?.identityNumber || ""
+  );
+  const buyerAddress = normalizeText(
+    userData.address || userData.billing?.registrationAddress || userData.billingAddress?.address || ""
+  );
+  const buyerCity = normalizeTurkishText(
+    userData.city || userData.billing?.city || userData.billingAddress?.city || ""
+  );
+  const buyerIp = normalizeText(clientIp || "");
+  if (!buyerPhone || !buyerIdentityNumber || !buyerAddress || !buyerCity || !buyerIp) {
+    throw new HttpsError("failed-precondition", "Promotion payer billing information is incomplete");
+  }
+  const iyzi = new Iyzipay({
+    apiKey: IYZICO_API_KEY.value(),
+    secretKey: IYZICO_SECRET_KEY.value(),
+    uri: assertPromotionIyzicoEndpoint({
+      uri: PROMOTION_IYZICO_API_URI.value(),
+      isEmulator: isPromotionEmulatorEnvironment(),
+    }),
+  });
+  const request = {
+    locale: Iyzipay.LOCALE.TR,
+    conversationId: campaign.campaignId,
+    price: amount.toFixed(2),
+    paidPrice: amount.toFixed(2),
+    currency: Iyzipay.CURRENCY.TRY,
+    basketId: campaign.campaignId,
+    paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
+    callbackUrl: `https://app.petsupo.com/promotion-payment-return?campaignId=${encodeURIComponent(campaign.campaignId)}`,
+    buyer: {
+      id: campaign.ownerUid,
+      name: buyerName.split(" ")[0] || "PetSupo",
+      surname: buyerName.split(" ").slice(1).join(" ") || "User",
+      gsmNumber: buyerPhone,
+      email: buyerEmail,
+      identityNumber: buyerIdentityNumber,
+      registrationAddress: buyerAddress,
+      ip: buyerIp,
+      city: buyerCity,
+      country: "Turkey",
+    },
+    basketItems: [{
+      id: campaign.planId,
+      name: `${campaign.targetType} promotion`,
+      category1: "Promotion",
+      itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
+      price: amount.toFixed(2),
+    }],
+  };
+  const result = await new Promise((resolve, reject) => {
+    iyzi.checkoutFormInitialize.create(request, (error, response) => {
+      if (error) return reject(error);
+      return resolve(response);
+    });
+  });
+  if (!result || result.status !== "success" || !result.token || !result.paymentPageUrl) {
+    throw new HttpsError("internal", result?.errorMessage || "Promotion checkout initialization failed");
+  }
+  return {
+    provider: "iyzico",
+    providerOrderId: campaign.campaignId,
+    checkoutUrl: result.paymentPageUrl,
+    token: result.token,
+  };
+}
+
+async function verifyPromotionIyzicoPayment(campaign) {
+  const token = normalizeText(campaign.checkoutToken);
+  if (!token) throw new HttpsError("failed-precondition", "Promotion payment token is missing");
+  const iyzi = new Iyzipay({
+    apiKey: IYZICO_API_KEY.value(),
+    secretKey: IYZICO_SECRET_KEY.value(),
+    uri: assertPromotionIyzicoEndpoint({
+      uri: PROMOTION_IYZICO_API_URI.value(),
+      isEmulator: isPromotionEmulatorEnvironment(),
+    }),
+  });
+  const result = await new Promise((resolve, reject) => {
+    iyzi.checkoutForm.retrieve({locale: Iyzipay.LOCALE.TR, token}, (error, response) => {
+      if (error) return reject(error);
+      return resolve(response);
+    });
+  });
+  const success = result?.status === "success" &&
+    String(result?.paymentStatus || "").toUpperCase() === "SUCCESS";
+  return {
+    verified: success,
+    provider: "iyzico",
+    providerOrderId: campaign.providerOrderId,
+    providerTransactionId: normalizeText(result?.paymentId || result?.itemTransactions?.[0]?.paymentTransactionId),
+    amount: Number(result?.paidPrice ?? result?.price),
+    currency: result?.currency,
+    paymentStatus: result?.paymentStatus || result?.status,
+  };
+}
+
+exports.createPromotionCheckout = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY, ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
+  },
+  async (request) => {
+    if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
+    try {
+      const result = await createPromotionCheckoutCore({
+        db,
+        uid: request.auth.uid,
+        data: request.data || {},
+        createProviderCheckout: createPromotionProviderCheckout,
+        authEmail: request.auth.token?.email || null,
+        clientIp: request.rawRequest?.ip || request.rawRequest?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || null,
+      });
+      logger.info("promotion_checkout_created", {
+        campaignId: result.campaignId,
+        targetType: result.targetType || null,
+        targetId: result.targetId || null,
+        ownerUid: request.auth.uid,
+        campaignStatus: result.campaignStatus,
+      });
+      return result;
+    } catch (error) {
+      logger.warn("promotion_checkout_failed", {
+        ownerUid: request.auth.uid,
+        code: error.code || "promotion_checkout_failed",
+        message: error.message || String(error),
+      });
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("failed-precondition", error.message || "Promotion checkout failed");
+    }
+  }
+);
+
+exports.verifyPromotionPayment = onCall(
+  {
+    region: "europe-west3",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+  },
+  async (request) => {
+    if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
+    const campaignId = normalizeText(request.data?.campaignId);
+    if (!campaignId) throw new HttpsError("invalid-argument", "campaignId is required");
+    const campaignRef = db.collection("promotion_campaigns").doc(campaignId);
+    const campaignSnap = await campaignRef.get();
+    if (!campaignSnap.exists) throw new HttpsError("not-found", "Promotion campaign not found");
+    const campaign = campaignSnap.data() || {};
+    if (campaign.ownerUid !== request.auth.uid) throw new HttpsError("permission-denied", "Not authorized");
+    if (campaign.paymentProvider === "isbank") {
+      return {
+        campaignId,
+        campaignStatus: campaign.status,
+        paymentStatus: campaign.paymentStatus || "pending",
+        pending: campaign.status !== "active" && campaign.status !== "failed",
+      };
+    }
+    if (campaign.paymentProvider !== "iyzico") throw new HttpsError("failed-precondition", "Promotion provider is not ready");
+    let evidence;
+    try {
+      evidence = await verifyPromotionIyzicoPayment(campaign);
+      if (!evidence.verified) {
+        if (["failure", "failed", "cancelled"].includes(String(evidence.paymentStatus).toLowerCase())) {
+          await failPromotionPayment({db, campaignId, failureCode: "provider_payment_failed"});
+        }
+        return {campaignId, campaignStatus: campaign.status, paymentStatus: evidence.paymentStatus || "pending", pending: true};
+      }
+      const activation = await activatePromotionFromVerifiedPayment({db, campaignId, evidence});
+      logger.info("promotion_payment_verified", {
+        campaignId,
+        targetType: campaign.targetType,
+        targetId: campaign.targetId,
+        ownerUid: campaign.ownerUid,
+        provider: evidence.provider,
+        providerTransactionId: evidence.providerTransactionId,
+        status: activation.status,
+      });
+      return {campaignId, campaignStatus: "active", paymentStatus: "paid", alreadyProcessed: activation.status === "already_processed"};
+    } catch (error) {
+      const failureMessage = String(error.message || "").toLowerCase();
+      if (/(amount|currency|provider order|provider mismatch|evidence)/.test(failureMessage)) {
+        await failPromotionPayment({
+          db,
+          campaignId,
+          failureCode: failureMessage.replace(/\s+/g, "_").slice(0, 80),
+        }).catch(() => null);
+      }
+      logger.warn("promotion_payment_verification_failed", {
+        campaignId,
+        reason: error.code || "promotion_payment_verification_failed",
+      });
+      throw new HttpsError("failed-precondition", "Promotion payment could not be verified");
+    }
+  }
+);
+
+exports.readPromotionPaymentStatus = onCall(
+  {region: "europe-west3", timeoutSeconds: 30},
+  async (request) => {
+    if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
+    try {
+      return await readPromotionPaymentStatus({
+        db,
+        uid: request.auth.uid,
+        campaignId: request.data?.campaignId,
+      });
+    } catch (error) {
+      if (error.message === "Not authorized to read promotion campaign") {
+        throw new HttpsError("permission-denied", error.message);
+      }
+      throw new HttpsError("not-found", error.message || "Promotion campaign not found");
+    }
+  }
+);
+
+exports.recordPromotionEvent = onCall(
+  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  async (request) => {
+    try {
+      return await ingestPromotionEvent({
+        db,
+        authUid: request.auth?.uid || null,
+        data: request.data || {},
+      });
+    } catch (error) {
+      logger.warn("promotion_event_rejected", {
+        eventType: request.data?.eventType || null,
+        campaignId: request.data?.campaignId || null,
+        reason: error.message || String(error),
+      });
+      throw new HttpsError("failed-precondition", "Promotion event was rejected");
+    }
+  },
+);
+
+exports.readPromotionCampaignStats = onCall(
+  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  async (request) => {
+    if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
+    try {
+      return await readPromotionCampaignStats({
+        db,
+        uid: request.auth.uid,
+        campaignId: request.data?.campaignId,
+      });
+    } catch (error) {
+      if (String(error.message || "").includes("authorized")) {
+        throw new HttpsError("permission-denied", "Not authorized to read promotion campaign stats");
+      }
+      throw new HttpsError("not-found", error.message || "Promotion campaign stats not found");
+    }
+  },
+);
+
+exports.readPromotionReconciliationHealth = onCall(
+  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  async (request) => {
+    if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
+    if (!(await isAdminUser(db, request.auth.uid))) {
+      throw new HttpsError("permission-denied", "Admin access required");
+    }
+    try {
+      return await readPromotionReconciliationHealth({
+        db,
+        limit: request.data?.limit,
+      });
+    } catch (error) {
+      logger.error("promotion_reconciliation_health_failed", {
+        adminUid: request.auth.uid,
+        reason: error.code || "health_read_failed",
+      });
+      throw new HttpsError("internal", "Promotion reconciliation health unavailable");
+    }
+  },
+);
+
+// M9 downstream reconciliation hooks. Domain/payment truth remains primary;
+// failures are logged and retried by the next authoritative source update.
+function logPromotionReconciliationResult(result, sourceType, sourceId) {
+  for (const item of result?.results || []) {
+    const event = ["ambiguous", "reconciliation_pending", "campaign_mismatch", "no_interaction"].includes(item.status)
+      ? "promotion_attribution_reconciliation_retry"
+      : "promotion_attribution_reconciliation_converged";
+    logger.info(event, {
+      sourceType,
+      sourceId,
+      campaignId: item.campaignId || null,
+      attributionId: item.attributionId || null,
+      status: item.status || null,
+      reconciliationStatus: item.reconciliationStatus || null,
+    });
+  }
+  return result;
+}
+
+exports.reconcilePromotionSellerOrder = onDocumentWritten(
+  {region: "europe-west3", document: "sellerOrders/{sellerOrderId}"},
+  async (event) => {
+    try {
+      return logPromotionReconciliationResult(await reconcilePromotionConversion({
+        db,
+        sourceType: "PRODUCT_ORDER",
+        sourceId: event.params.sellerOrderId,
+      }), "PRODUCT_ORDER", event.params.sellerOrderId);
+    } catch (error) {
+      logger.error("promotion_attribution_reconciliation_failed", {
+        sourceType: "PRODUCT_ORDER",
+        sourceId: event.params.sellerOrderId,
+        reason: error.message || String(error),
+      });
+      return null;
+    }
+  },
+);
+
+exports.reconcilePromotionVetAppointment = onDocumentWritten(
+  {region: "europe-west3", document: "vet_appointments/{appointmentId}"},
+  async (event) => {
+    try {
+      return logPromotionReconciliationResult(await reconcilePromotionConversion({
+        db,
+        sourceType: "VET_APPOINTMENT",
+        sourceId: event.params.appointmentId,
+      }), "VET_APPOINTMENT", event.params.appointmentId);
+    } catch (error) {
+      logger.error("promotion_attribution_reconciliation_failed", {
+        sourceType: "VET_APPOINTMENT",
+        sourceId: event.params.appointmentId,
+        reason: error.message || String(error),
+      });
+      return null;
+    }
+  },
+);
+
+exports.reconcilePromotionGroomyAppointment = onDocumentWritten(
+  {region: "europe-west3", document: "groomy_appointments/{appointmentId}"},
+  async (event) => {
+    try {
+      return logPromotionReconciliationResult(await reconcilePromotionConversion({
+        db,
+        sourceType: "GROOMY_APPOINTMENT",
+        sourceId: event.params.appointmentId,
+      }), "GROOMY_APPOINTMENT", event.params.appointmentId);
+    } catch (error) {
+      logger.error("promotion_attribution_reconciliation_failed", {
+        sourceType: "GROOMY_APPOINTMENT",
+        sourceId: event.params.appointmentId,
+        reason: error.message || String(error),
+      });
+      return null;
+    }
+  },
+);
+
 const WEB_SUBSCRIPTION_TERM_DAYS = webSubscriptionCore.TERM_DAYS;
 
 function webSubscriptionCatalog() {
@@ -3008,6 +3427,123 @@ function webSubscriptionBrowserReturn(kind) {
 exports.isbank3DSuccessReturn = webSubscriptionBrowserReturn("success");
 exports.isbank3DFailReturn = webSubscriptionBrowserReturn("fail");
 
+async function handlePromotionIsbankCallback({db, orderId, callback}) {
+  const promotionRef = db.collection("promotion_campaigns").doc(orderId);
+  const promotionSnap = await promotionRef.get();
+  if (!promotionSnap.exists) return false;
+
+  const promotion = promotionSnap.data() || {};
+  const callbackAmount = normalizeIsbankValue(
+    getIsbankCallbackValue(callback.fields, "amount") ||
+    getIsbankCallbackValue(callback.fields, "Amount")
+  );
+  const expectedAmount = normalizeIsbankAmount(promotion.price);
+  const callbackCurrencyRaw = normalizeIsbankValue(
+    getIsbankCallbackValue(callback.fields, "currency") ||
+    getIsbankCallbackValue(callback.fields, "Currency")
+  );
+  const callbackCurrency = canonicalizeIsbankCurrency(callbackCurrencyRaw);
+  const expectedCurrency = canonicalizeIsbankCurrency(promotion.currency);
+  const callbackOid = normalizeIsbankValue(
+    getIsbankCallbackValue(callback.fields, "oid") ||
+    getIsbankCallbackValue(callback.fields, "ReturnOid")
+  );
+  const callbackClientId = normalizeIsbankValue(
+    getIsbankCallbackValue(callback.fields, "clientid") ||
+    getIsbankCallbackValue(callback.fields, "clientId") ||
+    getIsbankCallbackValue(callback.fields, "merchantID")
+  );
+  const configuredClientId = normalizeIsbankValue(ISBANK_CLIENT_ID.value());
+  const callbackResponse = normalizeLower(
+    getIsbankCallbackValue(callback.fields, "Response")
+  );
+  const callbackProcReturnCode = normalizeIsbankValue(
+    getIsbankCallbackValue(callback.fields, "ProcReturnCode")
+  );
+  const callbackMdStatus = normalizeIsbankValue(
+    getIsbankCallbackValue(callback.fields, "mdStatus")
+  );
+  const providerTransactionId = normalizeIsbankValue(
+    getIsbankCallbackValue(callback.fields, "TransId") ||
+    getIsbankCallbackValue(callback.fields, "AuthCode")
+  );
+  const fail = async (failureCode) => {
+    await failPromotionPayment({db, campaignId: orderId, failureCode})
+      .catch((error) => logger.warn("promotion_callback_failure_persist_failed", {
+        campaignId: orderId,
+        reason: error.code || "persist_failed",
+      }));
+  };
+  const failed = async (message) => {
+    await fail(message);
+    return {
+      success: false,
+      title: "Payment failed",
+      message,
+    };
+  };
+
+  if (callbackOid && callbackOid !== orderId) return failed("Order ID mismatch");
+  if (configuredClientId && callbackClientId && callbackClientId !== configuredClientId) {
+    return failed("Merchant mismatch");
+  }
+  if (callbackAmount !== expectedAmount) return failed("Amount mismatch");
+  if (!callbackCurrency || callbackCurrency !== expectedCurrency) {
+    return failed("Currency mismatch");
+  }
+  if (!providerTransactionId) return failed("Provider transaction is missing");
+
+  const approved = webSubscriptionCore.isApprovedCallback({
+    response: callbackResponse,
+    procReturnCode: callbackProcReturnCode,
+    mdStatus: callbackMdStatus,
+    hashValid: true,
+  });
+  if (!approved) return failed("Payment was not approved");
+
+  try {
+    const activation = await activatePromotionFromVerifiedPayment({
+      db,
+      campaignId: orderId,
+      evidence: {
+        verified: true,
+        provider: "isbank",
+        providerOrderId: promotion.providerOrderId || orderId,
+        providerTransactionId,
+        amount: Number(callbackAmount),
+        currency: callbackCurrency,
+        paymentStatus: "paid",
+      },
+    });
+    logger.info("promotion_payment_verified", {
+      campaignId: orderId,
+      targetType: promotion.targetType,
+      targetId: promotion.targetId,
+      ownerUid: promotion.ownerUid,
+      provider: "isbank",
+      providerTransactionId,
+      status: activation.status,
+    });
+    return {
+      success: true,
+      title: "Payment confirmed",
+      message: activation.status === "already_processed"
+        ? "Callback already processed"
+        : "Promotion activated",
+    };
+  } catch (error) {
+    logger.warn("promotion_activation_failed", {
+      campaignId: orderId,
+      reason: error.code || "activation_failed",
+    });
+    return {
+      success: false,
+      title: "Payment failed",
+      message: "Promotion could not be activated",
+    };
+  }
+}
+
 exports.isbank3DPayHostingCallback = onRequest(
   {
     region: "europe-west3",
@@ -3191,6 +3727,21 @@ exports.isbank3DPayHostingCallback = onRequest(
           message: "Callback validation failed",
         })
       );
+      return;
+    }
+
+    const promotionCallbackResult = await handlePromotionIsbankCallback({
+      db,
+      orderId,
+      callback,
+    });
+    if (promotionCallbackResult) {
+      res.status(200).send(buildIsbankCallbackHtml({
+        orderId,
+        success: promotionCallbackResult.success,
+        title: promotionCallbackResult.title,
+        message: promotionCallbackResult.message,
+      }));
       return;
     }
 

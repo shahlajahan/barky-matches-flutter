@@ -31,7 +31,7 @@ class CheckoutSessionResult {
       orderId: (json['orderId'] ?? '') as String,
       provider: (json['provider'] ?? 'iyzico') as String,
       checkoutUrl: json['checkoutUrl']?.toString(),
-      html: json['html']?.toString(),
+      html: (json['html'] ?? json['checkoutHtml'])?.toString(),
       token: json['token'] as String?,
       gatewayUrl: json['gatewayUrl']?.toString(),
       storeType: json['storeType']?.toString(),

@@ -16,6 +16,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_enums.dart';
+import 'package:barky_matches_fixed/promotion/widgets/promotion_plan_sheet.dart';
 
 class ProductCardDashboard extends StatelessWidget {
   final Product product;
@@ -221,6 +223,19 @@ class ProductCardDashboard extends StatelessWidget {
                 onPressed: () {
                   service.deleteProduct(businessId, p.id);
                 },
+              ),
+              IconButton(
+                tooltip: 'Boost product',
+                icon: const Icon(LucideIcons.rocket),
+                onPressed: p.isActive && p.stock > 0
+                    ? () => PromotionPlanSheet.show(
+                        context,
+                        targetType: PromotionTargetType.product,
+                        targetId: p.id,
+                        businessId: businessId,
+                        title: 'Boost ${p.name}',
+                      )
+                    : null,
               ),
             ],
           ),

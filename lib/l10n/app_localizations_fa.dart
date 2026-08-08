@@ -9673,4 +9673,102 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get viewPremiumPlans => 'مشاهده طرح‌های پریمیوم';
+
+  @override
+  String get promotionPerformanceTitle => 'عملکرد تبلیغ';
+
+  @override
+  String get promotionCampaignStatus => 'وضعیت کمپین';
+
+  @override
+  String get promotionCampaignActive => 'فعال';
+
+  @override
+  String get promotionCampaignExpired => 'منقضی‌شده';
+
+  @override
+  String get promotionCampaignProcessing => 'در حال پردازش';
+
+  @override
+  String get promotionCampaignNeedsReconciliation => 'نیازمند تطبیق';
+
+  @override
+  String get promotionSpend => 'هزینه';
+
+  @override
+  String get promotionImpressions => 'نمایش‌ها';
+
+  @override
+  String get promotionClicks => 'کلیک‌ها';
+
+  @override
+  String get promotionCtr => 'نرخ کلیک';
+
+  @override
+  String get promotionDetailViews => 'مشاهده جزئیات';
+
+  @override
+  String get promotionFinancialConversions => 'تبدیل‌های مالی';
+
+  @override
+  String get promotionNetRevenue => 'درآمد خالص منتسب';
+
+  @override
+  String get promotionRoas => 'بازده هزینه تبلیغ';
+
+  @override
+  String get promotionStarts => 'شروع';
+
+  @override
+  String get promotionEnds => 'پایان';
+
+  @override
+  String promotionDurationHours(Object hours) {
+    return '$hours ساعت';
+  }
+
+  @override
+  String get promotionFinancialSection => 'عملکرد مالی';
+
+  @override
+  String get promotionFinancialAvailable => 'معیارهای مالی به‌روز هستند.';
+
+  @override
+  String get promotionFinancialProvisional => 'معیارهای مالی هنوز در حال تطبیق هستند.';
+
+  @override
+  String get promotionFinancialUnavailable => 'معیارهای مالی در دسترس نیستند یا کاربرد ندارند.';
+
+  @override
+  String get promotionPetFinancialNotApplicable => 'معیارهای مالی برای تبلیغ حیوان خانگی کاربرد ندارند.';
+
+  @override
+  String get promotionNoPerformanceData => 'تبلیغ شما فعال است. با مشاهده و تعامل کاربران، داده‌های عملکرد اینجا نمایش داده می‌شود.';
+
+  @override
+  String get promotionRetry => 'تلاش دوباره';
+
+  @override
+  String get promotionLoadError => 'عملکرد بارگذاری نشد.';
+
+  @override
+  String get promotionUpToDate => 'به‌روز';
+
+  @override
+  String get promotionReconciliationStatus => 'تطبیق';
+
+  @override
+  String get promotionNa => 'قابل اعمال نیست';
+
+  @override
+  String get promotionTargetPet => 'حیوان خانگی';
+
+  @override
+  String get promotionTargetProduct => 'محصول';
+
+  @override
+  String get promotionTargetVetService => 'خدمات دامپزشکی';
+
+  @override
+  String get promotionTargetGroomyService => 'خدمات گرومینگ';
 }

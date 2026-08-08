@@ -13,6 +13,11 @@ import 'ui/common/report_dialog.dart';
 import 'package:barky_matches_fixed/ui/common/pages/submit_complaint_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_plan.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_checkout_service.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_plan_service.dart';
+import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
+import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
 
 import 'package:barky_matches_fixed/ui/common/gallery_viewer_page.dart';
 import 'package:barky_matches_fixed/models/media_item.dart';
@@ -90,6 +95,7 @@ class _DogCardState extends State<DogCard>
   final double _heartScale = 0.5;
   bool _isEditing = false;
   bool _isDialogOpen = false;
+  bool _boostInProgress = false;
   final double _dragX = 0;
   bool get _enableHero => widget.mode == DogCardMode.normal;
   late ScaffoldMessengerState _scaffoldMessenger;
@@ -252,7 +258,7 @@ class _DogCardState extends State<DogCard>
 
   Widget _buildCompactDogCard(BuildContext context) {
     final isOwner = widget.dog.ownerId == widget.currentUserId;
-    final isHighlighted = widget.dog.isSponsored;
+    final isHighlighted = widget.dog.hasActiveLegacyBoost;
     return GestureDetector(
       onTap: widget.disableTap
           ? null
@@ -264,7 +270,7 @@ class _DogCardState extends State<DogCard>
         decoration: BoxDecoration(
           color: isHighlighted ? Colors.white : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: widget.dog.isSponsored
+          boxShadow: widget.dog.hasActiveLegacyBoost
               ? [
                   BoxShadow(
                     color: const Color(0xFF9E1B4F).withOpacity(0.25),
@@ -274,7 +280,7 @@ class _DogCardState extends State<DogCard>
                 ]
               : AppTheme.cardShadow(),
 
-          border: widget.dog.isSponsored
+          border: widget.dog.hasActiveLegacyBoost
               ? Border.all(color: const Color(0xFF9E1B4F), width: 1.5)
               : null,
         ),
@@ -290,7 +296,7 @@ class _DogCardState extends State<DogCard>
                 ),
 
                 // 🔥 BOOST BADGE
-                if (widget.dog.isSponsored)
+                if (widget.dog.hasActiveLegacyBoost)
                   Positioned(
                     top: 2,
                     left: 2,
@@ -459,86 +465,105 @@ class _DogCardState extends State<DogCard>
     );
   }
 
-  void _showBoostSheet(BuildContext context, Dog dog) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(LucideIcons.zap, color: Color(0xFF9E1B4F)),
-                    const SizedBox(width: 8),
-                    Text(
-                      localizations.boostDogTitle(dog.name),
-                      style: AppTheme.h2(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  localizations.boostVisibilityDescription,
-                  style: AppTheme.body(color: AppTheme.muted),
-                ),
-                const SizedBox(height: 16),
-
-                _boostOption(
-                  title: localizations.boost24HoursTitle,
-                  subtitle: localizations.boostQuickVisibilitySubtitle,
-                  price: localizations.boostPrice29,
-                  onTap: () => _boostDog(
-                    dog,
-                    hours: 24,
-                    boostScore: 80,
-                    sponsorshipType: 'boost_24h',
-                  ),
-                ),
-
-                _boostOption(
-                  title: localizations.boost3DaysTitle,
-                  subtitle: localizations.boostBetterExposureSubtitle,
-                  price: localizations.boostPrice69,
-                  onTap: () => _boostDog(
-                    dog,
-                    hours: 72,
-                    boostScore: 120,
-                    sponsorshipType: 'boost_3d',
-                  ),
-                ),
-
-                _boostOption(
-                  title: localizations.boost7DaysTitle,
-                  subtitle: localizations.boostBestValueSubtitle,
-                  price: localizations.boostPrice129,
-                  onTap: () => _boostDog(
-                    dog,
-                    hours: 168,
-                    boostScore: 180,
-                    sponsorshipType: 'boost_7d',
-                  ),
-                ),
-              ],
-            ),
+  Future<void> _showBoostSheet(BuildContext context, Dog dog) async {
+    try {
+      final plans = await PromotionPlanService().readPetPlans();
+      if (!mounted) return;
+      if (plans.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Boost plans are temporarily unavailable.'),
           ),
         );
-      },
-    );
+        return;
+      }
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.zap, color: Color(0xFF9E1B4F)),
+                      const SizedBox(width: 8),
+                      Text(
+                        localizations.boostDogTitle(dog.name),
+                        style: AppTheme.h2(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    localizations.boostVisibilityDescription,
+                    style: AppTheme.body(color: AppTheme.muted),
+                  ),
+                  const SizedBox(height: 16),
+
+                  ...plans.map(
+                    (plan) => _boostOption(
+                      title: _planTitle(plan),
+                      subtitle: _planSubtitle(plan),
+                      price:
+                          '${plan.price.toStringAsFixed(0)} ${plan.currency}',
+                      onTap: _boostInProgress
+                          ? null
+                          : () => _boostDog(dog, plan),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(localizations.boostFailed(error.toString()))),
+      );
+    }
+  }
+
+  String _planTitle(PromotionPlan plan) {
+    switch (plan.durationHours) {
+      case 24:
+        return localizations.boost24HoursTitle;
+      case 72:
+        return localizations.boost3DaysTitle;
+      case 168:
+        return localizations.boost7DaysTitle;
+      default:
+        return '${plan.durationHours} hours Boost';
+    }
+  }
+
+  String _planSubtitle(PromotionPlan plan) {
+    switch (plan.durationHours) {
+      case 24:
+        return localizations.boostQuickVisibilitySubtitle;
+      case 72:
+        return localizations.boostBetterExposureSubtitle;
+      case 168:
+        return localizations.boostBestValueSubtitle;
+      default:
+        return localizations.boostVisibilityDescription;
+    }
   }
 
   Widget _boostOption({
     required String title,
     required String subtitle,
     required String price,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -588,40 +613,54 @@ class _DogCardState extends State<DogCard>
     );
   }
 
-  Future<void> _boostDog(
-    Dog dog, {
-    required int hours,
-    required int boostScore,
-    required String sponsorshipType,
-  }) async {
-    final expiresAt = Timestamp.fromDate(
-      DateTime.now().add(Duration(hours: hours)),
-    );
-
+  Future<void> _boostDog(Dog dog, PromotionPlan plan) async {
+    if (_boostInProgress) return;
+    setState(() => _boostInProgress = true);
     try {
-      await FirebaseFirestore.instance.collection('dogs').doc(dog.id).update({
-        'isSponsored': true,
-        'boostScore': boostScore,
-        'boostExpiresAt': expiresAt,
-        'sponsorshipType': sponsorshipType,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
+      final campaign = await PromotionCheckoutService().createCheckout(
+        targetType: 'PET',
+        targetId: dog.id,
+        planId: plan.planId,
+        idempotencyKey:
+            'pet-${dog.id}-${DateTime.now().microsecondsSinceEpoch}',
+      );
       if (!mounted) return;
-
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(localizations.boostActivated)));
+      final session = CheckoutSessionResult.fromJson({
+        ...campaign,
+        'orderId': campaign['campaignId'],
+      });
+      await presentCheckoutSession(
+        context: context,
+        session: session,
+        orderId: campaign['campaignId'].toString(),
+        successUrlPrefix: 'https://app.petsupo.com/promotion-payment-return',
+        cancelUrlPrefix: 'https://app.petsupo.com/promotion-payment-return',
+      );
+      if (!mounted) return;
+      final status = await PromotionCheckoutService().waitForPaymentStatus(
+        campaign['campaignId'].toString(),
+      );
+      if (!mounted) return;
+      final active =
+          status['campaignStatus']?.toString().toLowerCase() == 'active';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            active
+                ? localizations.boostActivated
+                : 'Payment is still being verified.',
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-
-      Navigator.pop(context);
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(localizations.boostFailed(e.toString()))),
       );
+    } finally {
+      if (mounted) setState(() => _boostInProgress = false);
     }
   }
 
@@ -708,7 +747,7 @@ class _DogCardState extends State<DogCard>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    if (widget.dog.isSponsored) {
+    if (widget.dog.hasActiveLegacyBoost) {
       _pulseController.repeat(reverse: true);
     }
   }
@@ -878,7 +917,7 @@ class _DogCardState extends State<DogCard>
           borderRadius: BorderRadius.circular(AppTheme.radiusCard),
 
           // 🔥 GLOW
-          boxShadow: widget.dog.isSponsored
+          boxShadow: widget.dog.hasActiveLegacyBoost
               ? [
                   BoxShadow(
                     color: const Color(0xFF9E1B4F).withOpacity(0.25),
@@ -890,7 +929,7 @@ class _DogCardState extends State<DogCard>
               : AppTheme.cardShadow(),
 
           // 🟣 BORDER
-          border: widget.dog.isSponsored
+          border: widget.dog.hasActiveLegacyBoost
               ? Border.all(color: const Color(0xFF9E1B4F), width: 1.2)
               : null,
         ),
@@ -910,7 +949,7 @@ class _DogCardState extends State<DogCard>
                   ),
 
                   // 🔥 Boosted badge
-                  if (widget.dog.isSponsored)
+                  if (widget.dog.hasActiveLegacyBoost)
                     Positioned(
                       top: 10,
                       left: 10,
@@ -1771,7 +1810,7 @@ class _DogCardState extends State<DogCard>
                               ),
                             ),
                     ),
-                    if (widget.dog.isSponsored)
+                    if (widget.dog.hasActiveLegacyBoost)
                       Positioned(
                         top: 8,
                         left: 8,

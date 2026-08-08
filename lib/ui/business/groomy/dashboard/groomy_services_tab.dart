@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/sections/vet_dashboard_services_tab.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_service_sector.dart';
 
 class GroomyServicesTab extends StatelessWidget {
   final String businessId;
@@ -9,6 +10,9 @@ class GroomyServicesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return VetDashboardServicesTab(businessId: businessId);
+    return VetDashboardServicesTab(
+      businessId: businessId,
+      sector: PromotionServiceSector.groomer,
+    );
   }
 }

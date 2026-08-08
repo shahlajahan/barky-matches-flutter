@@ -113,6 +113,13 @@ class Dog extends HiveObject {
 
   Timestamp? updatedAt;
 
+  /// Compatibility-only legacy signal. Missing or expired legacy timestamps
+  /// are not active promotions; new activation comes from Promotion Engine.
+  bool get hasActiveLegacyBoost {
+    final expiry = boostExpiresAt?.toDate();
+    return isSponsored && expiry != null && DateTime.now().isBefore(expiry);
+  }
+
   Dog({
     required this.id,
     required this.name,

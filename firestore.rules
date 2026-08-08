@@ -1240,5 +1240,58 @@ match /stories/{storyId} {
     allow update, delete: if false;
   }
 }
+    // ===============================
+    // CENTRAL PROMOTION ENGINE
+    // ===============================
+
+    // Plans are safe configuration only. They are readable by signed-in and
+    // anonymous clients for future plan presentation, but all writes belong
+    // to the trusted backend/admin workflow. No client-supplied plan price is
+    // authoritative.
+    match /promotion_plans/{planId} {
+      allow read: if isRegisteredUser() || isAnonymousUser();
+      allow create, update, delete: if false;
+    }
+
+    // Campaign documents are financial and lifecycle truth. M2 intentionally
+    // denies all client writes; Promotion callables and provider callbacks
+    // use the Admin SDK for validated, idempotent transitions. Owners can
+    // inspect only their own campaigns.
+    match /promotion_campaigns/{campaignId} {
+      allow read: if isAdmin()
+        || (isRegisteredUser() && resource.data.ownerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Public ranking projection contains no provider/payment data. It is
+    // backend-owned and may be read by clients that can use public listings.
+    match /promotion_active/{campaignId} {
+      allow read: if isRegisteredUser() || isAnonymousUser();
+      allow create, update, delete: if false;
+    }
+
+    // Promotion analytics are ingested and aggregated by trusted Functions.
+    // Raw events are intentionally not client-readable or client-writable.
+    match /promotion_events/{eventId} {
+      allow read, create, update, delete: if false;
+    }
+
+    // Owners may read their own safe aggregate; all mutations remain backend-owned.
+    match /promotion_campaign_stats/{campaignId} {
+      allow read: if isAdmin()
+        || (isRegisteredUser() && resource.data.ownerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // Trusted conversion attribution is an internal reconciliation ledger.
+    // Campaign owners receive only the materialized stats read model.
+    match /promotion_attributions/{attributionId} {
+      allow read, create, update, delete: if false;
+    }
+
+    // Operational reconciliation cases are admin/server-only diagnostics.
+    match /promotion_reconciliation_cases/{caseId} {
+      allow read, create, update, delete: if false;
+    }
   }
 }

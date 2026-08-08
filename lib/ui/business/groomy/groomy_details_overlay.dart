@@ -10,6 +10,13 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/common/gallery_viewer_page.dart';
 import 'package:barky_matches_fixed/ui/common/smart_media.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_enums.dart';
+import 'package:barky_matches_fixed/promotion/models/promotion_service_sector.dart';
+import 'package:barky_matches_fixed/promotion/ranking/service_promotion_ranking.dart';
+import 'package:barky_matches_fixed/promotion/ranking/promotion_ranking_state.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_analytics_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+import 'package:barky_matches_fixed/promotion/services/promotion_projection_service.dart';
 
 enum ReviewSortType { mostRelevant, newest }
 
@@ -98,6 +105,8 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
   final ValueNotifier<int> _liveReviewCount = ValueNotifier<int>(0);
   late GroomyPublicBusinessDocumentStream _publicBusinessDocument;
   late GroomyServicesStream _servicesDocumentStream;
+  late Future<Map<String, List<Map<String, dynamic>>>>
+  _serviceProjectionsFuture;
 
   Map<String, dynamic> get _groomyData {
     final rawData = widget.data.rawData ?? widget.data.data ?? {};
@@ -350,6 +359,9 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
       firestore: FirebaseFirestore.instance,
       businessId: widget.data.id,
     );
+    _serviceProjectionsFuture = PromotionProjectionService().readByTargetType(
+      PromotionTargetType.service,
+    );
   }
 
   @override
@@ -364,6 +376,9 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
     _servicesDocumentStream = GroomyServicesStream(
       firestore: FirebaseFirestore.instance,
       businessId: widget.data.id,
+    );
+    _serviceProjectionsFuture = PromotionProjectionService().readByTargetType(
+      PromotionTargetType.service,
     );
   }
 
@@ -1280,6 +1295,18 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
   Widget _buildServicesTab() {
     final l10n = AppLocalizations.of(context)!;
 
+    return FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
+      future: _serviceProjectionsFuture,
+      builder: (context, projectionSnapshot) {
+        return _buildServicesStream(l10n, projectionSnapshot.data ?? const {});
+      },
+    );
+  }
+
+  Widget _buildServicesStream(
+    AppLocalizations l10n,
+    Map<String, List<Map<String, dynamic>>> projections,
+  ) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _servicesDocumentStream.stream,
       builder: (context, snapshot) {
@@ -1296,10 +1323,15 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
           return const Center(child: CircularProgressIndicator());
         }
 
-        final services = (snapshot.data?.docs ?? const [])
-            .map((doc) => doc.data())
-            .where((service) => service['isActive'] != false)
-            .toList();
+        final services = ServicePromotionRanking.rank(
+          businessId: widget.data.id,
+          sector: PromotionServiceSector.groomer,
+          projectionsByTargetId: projections,
+          services: (snapshot.data?.docs ?? const [])
+              .map((doc) => {...doc.data(), 'id': doc.id})
+              .where((service) => service['isActive'] != false)
+              .toList(),
+        );
 
         if (services.isEmpty) {
           return Center(
@@ -1316,6 +1348,18 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
           separatorBuilder: (context, index) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             final service = services[index];
+            final serviceId = (service['id'] ?? service['serviceId'] ?? '')
+                .toString();
+            final targetId = serviceId.isEmpty
+                ? null
+                : 'service/GROOMER/${widget.data.id}/$serviceId';
+            final promotion = targetId == null
+                ? null
+                : PromotionRankingState.resolve(
+                    targetType: PromotionTargetType.service,
+                    targetId: targetId,
+                    projections: projections[targetId] ?? const [],
+                  );
             final title = (service['title'] ?? '').toString();
             final price = groomyServicePrice(service);
             final duration = groomyServiceDuration(service);
@@ -1323,10 +1367,30 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
                 .toString()
                 .trim();
 
-            return GestureDetector(
+            final serviceCard = GestureDetector(
               onTap: widget.onOpenAppointment == null
                   ? null
-                  : () => widget.onOpenAppointment!(service),
+                  : () {
+                      if (promotion?.isPromoted == true &&
+                          promotion?.campaignId != null) {
+                        final analytics = PromotionAnalyticsService();
+                        analytics.recordClick(
+                          campaignId: promotion!.campaignId!,
+                          targetType: 'SERVICE',
+                          targetId: targetId!,
+                          placement: 'groomy_service_list',
+                          sector: 'GROOMER',
+                        );
+                        analytics.recordDetailView(
+                          campaignId: promotion.campaignId!,
+                          targetType: 'SERVICE',
+                          targetId: targetId,
+                          placement: 'groomy_service_list',
+                          sector: 'GROOMER',
+                        );
+                      }
+                      widget.onOpenAppointment!(service);
+                    },
 
               child: Container(
                 padding: const EdgeInsets.all(14),
@@ -1391,6 +1455,24 @@ class _GroomyDetailsOverlayState extends State<GroomyDetailsOverlay>
                   ],
                 ),
               ),
+            );
+            if (promotion?.isPromoted != true ||
+                promotion?.campaignId == null) {
+              return serviceCard;
+            }
+            return VisibilityDetector(
+              key: Key('promotion-groomy-service-$serviceId'),
+              onVisibilityChanged: (info) {
+                if (info.visibleFraction < 0.5) return;
+                PromotionAnalyticsService().recordImpression(
+                  campaignId: promotion!.campaignId!,
+                  targetType: 'SERVICE',
+                  targetId: targetId!,
+                  placement: 'groomy_service_list',
+                  sector: 'GROOMER',
+                );
+              },
+              child: serviceCard,
             );
           },
         );

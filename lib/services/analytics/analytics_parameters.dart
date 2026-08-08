@@ -1,6 +1,5 @@
 /// Standard parameter keys used across analytics events.
 
-
 class AnalyticsParameters {
   AnalyticsParameters._();
 
@@ -30,16 +29,21 @@ class AnalyticsParameters {
   static const appointmentType = 'appointment_type';
   static const vetId = 'vet_id';
   static const price = 'price';
-static const rating = 'rating';
+  static const rating = 'rating';
 
   // Payment
   static const amount = 'amount';
   static const currency = 'currency';
   static const paymentProvider = 'payment_provider';
 
+  // Promotion attribution context. Do not add revenue or spend here.
+  static const campaignId = 'campaign_id';
+  static const targetType = 'target_type';
+  static const targetId = 'target_id';
+  static const placement = 'placement';
+  static const sector = 'sector';
+
   // Search
   static const keyword = 'keyword';
   static const category = 'category';
-
-  
 }
