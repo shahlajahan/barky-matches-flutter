@@ -6,6 +6,8 @@ class FeaturedDeal {
   final int discountPercent;
 
   final String logoAsset;
+  final String? logoUrl;
+  final String? displayImageUrl;
 
   final bool goldOnly;
 
@@ -26,12 +28,15 @@ class FeaturedDeal {
   final String? currency;
   final String? publicLabel;
   final bool isPromotion;
+  final bool isPlaceholder;
 
   const FeaturedDeal({
     required this.shopName,
     required this.description,
     required this.discountPercent,
     required this.logoAsset,
+    this.logoUrl,
+    this.displayImageUrl,
     required this.order,
     this.goldOnly = false,
     this.premiumOnly = false,
@@ -48,7 +53,22 @@ class FeaturedDeal {
     this.currency,
     this.publicLabel,
     this.isPromotion = false,
+    this.isPlaceholder = false,
   });
+
+  factory FeaturedDeal.neutralPlaceholder({
+    required String title,
+    required String description,
+  }) {
+    return FeaturedDeal(
+      shopName: title,
+      description: description,
+      discountPercent: 0,
+      logoAsset: '',
+      order: 0,
+      isPlaceholder: true,
+    );
+  }
 
   factory FeaturedDeal.fromFirestore(
     Map<String, dynamic> data,
@@ -83,11 +103,13 @@ class FeaturedDeal {
     final description = businessName.isNotEmpty
         ? '$businessName${location.isNotEmpty ? ' · $location' : ''}'
         : location;
-    return FeaturedDeal(
+    final deal = FeaturedDeal(
       shopName: title,
       description: description,
       discountPercent: 0,
-      logoAsset: data['logoUrl']?.toString() ?? '',
+      logoAsset: '',
+      logoUrl: data['logoUrl']?.toString().trim(),
+      displayImageUrl: data['displayImageUrl']?.toString().trim(),
       order: 0,
       campaignId: data['campaignId']?.toString(),
       targetType: data['targetType']?.toString(),
@@ -103,5 +125,21 @@ class FeaturedDeal {
       publicLabel: data['publicLabel']?.toString(),
       isPromotion: true,
     );
+    return deal;
   }
+}
+
+bool isHttpsFeaturedDealLogoUrl(String? value) {
+  final uri = Uri.tryParse(value?.trim() ?? '');
+  return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
+}
+
+String? promotedFeaturedDealLogoUrl(FeaturedDeal deal) {
+  if (!deal.isPromotion) {
+    return null;
+  }
+  for (final candidate in [deal.displayImageUrl, deal.logoUrl]) {
+    if (isHttpsFeaturedDealLogoUrl(candidate)) return candidate!.trim();
+  }
+  return null;
 }

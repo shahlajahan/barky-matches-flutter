@@ -19,6 +19,7 @@ const REQUIRED_DISPLAY_FIELDS = [
   "price",
   "currency",
   "logoUrl",
+  "displayImageUrl",
   "projectionUpdatedAt",
 ];
 

@@ -896,6 +896,8 @@
   "shopNearYou": "Yakındaki ürünleri keşfet",
 
   "featuredDeal": "Öne Çıkan Fırsat",
+  "featuredDealsEmptyTitle": "Öne Çıkan Fırsatlar",
+  "featuredDealsEmptyDescription": "PetSupo iş ortaklarının özel teklifleri burada görünecek.",
   "premiumLabel": "Ayrıcalıklı",
   "goldLabel": "PetSupo Partner",
 

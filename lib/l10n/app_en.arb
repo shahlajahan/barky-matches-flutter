@@ -2041,6 +2041,8 @@
   "petShopTitle": "Pet Shop",
   "shopNearYou": "Shop near you",
   "featuredDeal": "Featured Deal",
+  "featuredDealsEmptyTitle": "Featured Deals",
+  "featuredDealsEmptyDescription": "Special offers from PetSupo partners will appear here.",
   "premiumLabel": "Premium",
   "goldLabel": "PetSupo Partner",
   "discountOff": "{percent}% OFF",

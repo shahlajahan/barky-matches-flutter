@@ -198,6 +198,34 @@ test("Featured Deal delivery reads projections only, not business or service doc
   assert.equal(result.candidateLimit, 100);
 });
 
+test("Featured Deal delivery returns the explicit displayImageUrl field", async () => {
+  const id = "promotion-display-image";
+  const projection = {
+    ...active(id),
+    businessId: "business-1",
+    serviceId: "service-1",
+    serviceTitle: "Laboratory",
+    businessName: "Vet A",
+    location: "Istanbul",
+    price: null,
+    currency: "TRY",
+    logoUrl: null,
+    displayImageUrl: "https://cdn.test/cover.jpg",
+  };
+  const db = {
+    collection(name) {
+      assert.equal(name, "promotion_active");
+      return fakeOrderedQuery([id], {}, {[id]: projection});
+    },
+  };
+  const result = await readFeaturedServiceDeals({
+    db,
+    now: new Date("2026-08-08T10:00:00.000Z"),
+  });
+  assert.equal(result.deals[0].displayImageUrl, "https://cdn.test/cover.jpg");
+  assert.equal(result.deals[0].logoUrl, null);
+});
+
 test("business and service mutations invalidate the denormalized eligibility flag", async () => {
   let updated;
   const projectionDoc = {

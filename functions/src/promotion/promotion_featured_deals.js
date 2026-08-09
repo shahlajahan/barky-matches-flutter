@@ -124,6 +124,7 @@ async function readFeaturedServiceDeals({db, now = new Date(), limit = MAX_FEATU
       price: projection.price ?? null,
       currency: projection.currency || "TRY",
       logoUrl: projection.logoUrl || null,
+      displayImageUrl: projection.displayImageUrl || null,
       publicLabel: projection.publicLabel || "Promoted",
       startsAt: projection.startsAt || null,
       expiresAt: projection.expiresAt || null,

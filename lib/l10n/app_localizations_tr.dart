@@ -2762,6 +2762,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get featuredDeal => 'Öne Çıkan Fırsat';
 
   @override
+  String get featuredDealsEmptyTitle => 'Öne Çıkan Fırsatlar';
+
+  @override
+  String get featuredDealsEmptyDescription => 'PetSupo iş ortaklarının özel teklifleri burada görünecek.';
+
+  @override
   String get premiumLabel => 'Ayrıcalıklı';
 
   @override

@@ -8,6 +8,25 @@ function firstText(...values) {
   return "";
 }
 
+function isValidHttpsUrl(value) {
+  const text = value === undefined || value === null ? "" : String(value).trim();
+  if (!text.startsWith("https://")) return false;
+  try {
+    const url = new URL(text);
+    return url.protocol === "https:" && Boolean(url.host);
+  } catch (_) {
+    return false;
+  }
+}
+
+function firstHttpsText(...values) {
+  for (const value of values) {
+    const text = value === undefined || value === null ? "" : String(value).trim();
+    if (isValidHttpsUrl(text)) return text;
+  }
+  return null;
+}
+
 function asMap(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
@@ -32,7 +51,7 @@ function publicBusinessLogo({publicBusiness = {}, sector}) {
     asMap(value.media),
   ]);
 
-  return firstText(
+  return firstHttpsText(
     ...sectorProfiles.flatMap((value) => [
       value.logoUrl,
       value.clinicLogoUrl,
@@ -45,6 +64,32 @@ function publicBusinessLogo({publicBusiness = {}, sector}) {
     profile.coverUrl,
     publicData.coverImageUrl,
   ) || null;
+}
+
+function publicBusinessDisplayImage({publicBusiness = {}, sector}) {
+  const publicData = asMap(publicBusiness);
+  const profile = asMap(publicData.profile);
+  const sectorData = asMap(publicData.publicSectorData);
+  const sectorProfiles = sectorKeys(sector)
+    .map((key) => asMap(sectorData[key]))
+    .filter((value) => Object.keys(value).length > 0);
+  const nestedProfiles = sectorProfiles.map((value) => asMap(value.profileContent));
+  const clinicPhotos = nestedProfiles.flatMap((value) =>
+    Array.isArray(value.clinicPhotoUrls) ? [value.clinicPhotoUrls[0]] : []
+  );
+
+  return firstHttpsText(
+    ...sectorProfiles.flatMap((value) => [value.logoUrl, value.clinicLogoUrl]),
+    ...nestedProfiles.flatMap((value) => [
+      value.logoUrl,
+      value.clinicLogoUrl,
+      value.coverImageUrl,
+    ]),
+    ...clinicPhotos,
+    profile.logoUrl,
+    profile.coverUrl,
+    publicData.coverImageUrl,
+  );
 }
 
 function serviceDisplayFields({
@@ -66,20 +111,30 @@ function serviceDisplayFields({
   );
   const district = firstText(contact.district);
   const city = firstText(contact.city);
+  const logoUrl = publicBusiness
+    ? publicBusinessLogo({publicBusiness: displayBusiness, sector})
+    : firstHttpsText(profile.logoUrl, profile.coverUrl, displayBusiness.logoUrl, displayBusiness.coverImageUrl);
+  const displayImageUrl = publicBusiness
+    ? publicBusinessDisplayImage({publicBusiness: displayBusiness, sector})
+    : logoUrl;
   return {
     businessName,
     serviceTitle,
     location: [district, city].filter(Boolean).join(", "),
     price: service.price ?? null,
     currency: service.currency || "TRY",
-    logoUrl: publicBusiness
-      ? publicBusinessLogo({publicBusiness: displayBusiness, sector})
-      : firstText(profile.logoUrl, profile.coverUrl, displayBusiness.logoUrl, displayBusiness.coverImageUrl) || null,
+    // Kept logo-only for compatibility. Cover/gallery media belongs in the
+    // explicitly named displayImageUrl field.
+    logoUrl,
+    displayImageUrl,
   };
 }
 
 module.exports = {
   firstText,
+  firstHttpsText,
+  isValidHttpsUrl,
   publicBusinessLogo,
+  publicBusinessDisplayImage,
   serviceDisplayFields,
 };

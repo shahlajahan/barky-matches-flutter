@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -37,6 +38,7 @@ import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
 import 'package:barky_matches_fixed/models/featured_deal.dart';
 import 'package:barky_matches_fixed/promotion/services/promotion_analytics_service.dart';
 import 'package:barky_matches_fixed/promotion/services/promotion_featured_deal_refresh_policy.dart';
+import 'package:barky_matches_fixed/promotion/services/featured_deal_inventory.dart';
 import 'package:intl/intl.dart';
 /*
 class FeaturedDeal {
@@ -139,6 +141,9 @@ class _HomePageState extends State<HomePage>
 
   bool _bootstrapped = false;
   List<FeaturedDeal> _featuredDeals = [];
+  List<FeaturedDeal> _editorialFeaturedDeals = [];
+  List<FeaturedDeal> _promotedServiceDeals = [];
+  int _featuredInventoryRequest = 0;
   /*
   List<FeaturedDeal> get _featuredDeals {
     final l = AppLocalizations.of(context)!;
@@ -182,6 +187,7 @@ class _HomePageState extends State<HomePage>
 
     debugPrint("🔥 LANGUAGE = $language");
 
+    final requestId = ++_featuredInventoryRequest;
     try {
       final query = FirebaseFirestore.instance
           .collection("featured_deals")
@@ -206,6 +212,7 @@ class _HomePageState extends State<HomePage>
       }
 
       final deals = snapshot.docs
+          .where((doc) => !isLegacyDemoFeaturedDealDocument(doc.id))
           .where((doc) {
             final active = doc.data()["isActive"];
 
@@ -220,7 +227,7 @@ class _HomePageState extends State<HomePage>
           })
           .toList();
 
-      final serviceDeals = await _fetchPromotedServiceDeals() ?? const [];
+      final serviceDeals = await _fetchPromotedServiceDeals();
 
       debugPrint("🔥 DEAL PARSE FINISHED");
       debugPrint("🔥 DEAL COUNT FINAL = ${deals.length}");
@@ -230,8 +237,28 @@ class _HomePageState extends State<HomePage>
         return;
       }
 
+      // A refresh can be started by activation invalidation or app resume
+      // while the initial load is still in flight. Older responses must not
+      // overwrite a newer inventory response.
+      if (requestId != _featuredInventoryRequest) return;
+
+      _editorialFeaturedDeals = deals;
+      if (serviceDeals != null) {
+        _promotedServiceDeals = serviceDeals;
+      }
+
       setState(() {
-        _featuredDeals = [...deals, ...serviceDeals];
+        _featuredDeals = composeFeaturedDealInventory(
+          editorialDeals: _editorialFeaturedDeals,
+          promotedDeals: serviceDeals,
+          previousPromotedDeals: _promotedServiceDeals,
+          placeholder: FeaturedDeal.neutralPlaceholder(
+            title: AppLocalizations.of(context)!.featuredDealsEmptyTitle,
+            description: AppLocalizations.of(
+              context,
+            )!.featuredDealsEmptyDescription,
+          ),
+        );
       });
 
       _startPromotionInventoryRefresh();
@@ -290,15 +317,28 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _refreshPromotedServiceDeals() async {
     if (!mounted) return;
+    final requestId = ++_featuredInventoryRequest;
     final serviceDeals = await _fetchPromotedServiceDeals();
     if (!mounted) return;
     if (serviceDeals == null) {
       _startPromotionInventoryRefresh();
       return;
     }
+    if (requestId != _featuredInventoryRequest) return;
+
+    _promotedServiceDeals = serviceDeals;
     setState(() {
-      final editorialDeals = _featuredDeals.where((deal) => !deal.isPromotion);
-      _featuredDeals = [...editorialDeals, ...serviceDeals];
+      _featuredDeals = composeFeaturedDealInventory(
+        editorialDeals: _editorialFeaturedDeals,
+        promotedDeals: serviceDeals,
+        previousPromotedDeals: _promotedServiceDeals,
+        placeholder: FeaturedDeal.neutralPlaceholder(
+          title: AppLocalizations.of(context)!.featuredDealsEmptyTitle,
+          description: AppLocalizations.of(
+            context,
+          )!.featuredDealsEmptyDescription,
+        ),
+      );
       if (_featuredDeals.isEmpty) {
         _dealIndex = 0;
       } else if (_dealIndex >= _featuredDeals.length) {
@@ -1556,8 +1596,10 @@ class _HomePageState extends State<HomePage>
   }) {
     final l = AppLocalizations.of(context)!;
 
-    const grad = LinearGradient(
-      colors: [Color(0xFFFFC107), Color(0xFFFF9800)],
+    final grad = LinearGradient(
+      colors: deal.isPlaceholder
+          ? [const Color(0xFF607D8B), const Color(0xFF455A64)]
+          : [const Color(0xFFFFC107), const Color(0xFFFF9800)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
@@ -1687,7 +1729,13 @@ class _HomePageState extends State<HomePage>
                     borderRadius: BorderRadius.circular(18),
                   ),
                   padding: const EdgeInsets.all(8),
-                  child: _buildFeaturedDealLogo(deal.logoAsset),
+                  child: deal.isPlaceholder
+                      ? const Icon(
+                          Icons.local_offer_outlined,
+                          color: Colors.white,
+                          size: 30,
+                        )
+                      : _buildFeaturedDealLogo(deal),
                 ),
               ],
             ),
@@ -1733,7 +1781,27 @@ class _HomePageState extends State<HomePage>
     ).format(value);
   }
 
-  Widget _buildFeaturedDealLogo(String source) {
+  Widget _buildFeaturedDealLogo(FeaturedDeal deal) {
+    final promotedLogoUrl = promotedFeaturedDealLogoUrl(deal);
+    if (deal.isPromotion) {
+      if (promotedLogoUrl == null) {
+        return const Icon(Icons.storefront, color: Colors.white, size: 30);
+      }
+      return Stack(
+        children: [
+          CachedNetworkImage(
+            imageUrl: promotedLogoUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) =>
+                const Icon(Icons.storefront, color: Colors.white, size: 30),
+            errorWidget: (context, url, error) =>
+                const Icon(Icons.storefront, color: Colors.white, size: 30),
+          ),
+        ],
+      );
+    }
+
+    final source = deal.logoAsset;
     if (source.trim().isEmpty) {
       return const Icon(Icons.storefront, color: Colors.white, size: 30);
     }
@@ -1749,10 +1817,6 @@ class _HomePageState extends State<HomePage>
       image: imageProvider,
       fit: BoxFit.contain,
       alignment: Alignment.center,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded || frame != null) return child;
-        return const SizedBox.expand();
-      },
       errorBuilder: (context, error, stackTrace) =>
           const Icon(Icons.storefront, color: Colors.white, size: 30),
     );

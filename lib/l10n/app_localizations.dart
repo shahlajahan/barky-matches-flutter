@@ -5145,6 +5145,18 @@ abstract class AppLocalizations {
   /// **'Featured Deal'**
   String get featuredDeal;
 
+  /// No description provided for @featuredDealsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured Deals'**
+  String get featuredDealsEmptyTitle;
+
+  /// No description provided for @featuredDealsEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Special offers from PetSupo partners will appear here.'**
+  String get featuredDealsEmptyDescription;
+
   /// No description provided for @premiumLabel.
   ///
   /// In en, this message translates to:

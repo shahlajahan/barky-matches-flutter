@@ -152,6 +152,8 @@
   "pamperYourPet": "Побалуйте своего питомца",
   "shopNearYou": "Магазин рядом с вами",
   "featuredDeal": "Избранное предложение",
+  "featuredDealsEmptyTitle": "Избранные предложения",
+  "featuredDealsEmptyDescription": "Специальные предложения партнёров PetSupo появятся здесь.",
   "premiumLabel": "Премиум",
   "goldLabel": "PetSupo Partner",
   "discountOff": "Скидка {percent}%",

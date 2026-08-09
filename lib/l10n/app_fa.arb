@@ -895,6 +895,8 @@
   "shopNearYou": "خرید نزدیک شما",
 
   "featuredDeal": "پیشنهاد ویژه",
+  "featuredDealsEmptyTitle": "پیشنهادهای ویژه",
+  "featuredDealsEmptyDescription": "پیشنهادهای ویژه شرکای PetSupo در اینجا نمایش داده می‌شوند.",
   "premiumLabel": "پریمیوم",
   "goldLabel": "PetSupo Partner",
 

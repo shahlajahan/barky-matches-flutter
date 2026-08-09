@@ -2762,6 +2762,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get featuredDeal => 'Избранное предложение';
 
   @override
+  String get featuredDealsEmptyTitle => 'Избранные предложения';
+
+  @override
+  String get featuredDealsEmptyDescription => 'Специальные предложения партнёров PetSupo появятся здесь.';
+
+  @override
   String get premiumLabel => 'Премиум';
 
   @override

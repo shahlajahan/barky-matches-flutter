@@ -76,7 +76,7 @@ const businessData = {
     status: "approved",
     published: true,
     isActive: true,
-    profile: {displayName: "Vet A", logoUrl: "logo"},
+    profile: {displayName: "Vet A", logoUrl: "https://cdn.test/vet-logo.jpg"},
     contact: {city: "Istanbul", district: "Kadikoy"},
   },
   services: {
@@ -112,7 +112,8 @@ test("apply is idempotent for complete projections and invalidates ineligible ta
     location: "Kadikoy, Istanbul",
     price: null,
     currency: "TRY",
-    logoUrl: "logo",
+    logoUrl: "https://cdn.test/vet-logo.jpg",
+    displayImageUrl: "https://cdn.test/vet-logo.jpg",
     projectionUpdatedAt: new Date(),
   };
   assert.equal(hasCompleteProjection(complete), true);

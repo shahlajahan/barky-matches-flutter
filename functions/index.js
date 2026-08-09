@@ -47,6 +47,10 @@ const {
   isPetTaxiBusiness,
   resolvePetTaxiCurrentLocationForMigration,
 } = require("./src/businessSectorMembership");
+const {
+  normalizeOptionalBusinessLogo,
+  sanitizeBusinessSectorLogoFields,
+} = require("./src/business/logo_fields");
 const { approvalPublicationPatch } = require("./src/businessPublication");
 const {
   createPromotionCheckoutCore,
@@ -10905,10 +10909,10 @@ exports.registerBusiness = onCall(
       const profile = draft.profile || {};
       const contact = draft.contact || {};
       const legal = draft.legal || {};
-      const sectorData = filterSectorDataByCanonicalSectors(
+      const sectorData = sanitizeBusinessSectorLogoFields(filterSectorDataByCanonicalSectors(
         draft.sectorData || {},
         sectors
-      );
+      ));
       const veterinaryData = sectorData.veterinary || {};
       const veterinaryProfile = veterinaryData.profileContent || {};
       const veterinarySocial = veterinaryProfile.socialMedia || {};
@@ -10971,7 +10975,7 @@ exports.registerBusiness = onCall(
               ? hotelImages
               : adoptionImages;
       const profileLogoUrl = firstNonEmptyString(
-        profile.logoUrl,
+        normalizeOptionalBusinessLogo(profile.logoUrl),
         veterinaryProfile.clinicLogoUrl,
         groomingProfile.clinicLogoUrl,
         groomingProfile.logo,

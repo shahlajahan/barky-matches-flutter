@@ -2762,6 +2762,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get featuredDeal => 'پیشنهاد ویژه';
 
   @override
+  String get featuredDealsEmptyTitle => 'پیشنهادهای ویژه';
+
+  @override
+  String get featuredDealsEmptyDescription => 'پیشنهادهای ویژه شرکای PetSupo در اینجا نمایش داده می‌شوند.';
+
+  @override
   String get premiumLabel => 'پریمیوم';
 
   @override
