@@ -3,6 +3,26 @@
 class PublicServiceNormalizer {
   const PublicServiceNormalizer._();
 
+  static String? serviceId(Map<String, dynamic> service) {
+    final value = (service['id'] ?? service['serviceId'])?.toString().trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  /// Keeps legacy public services visible when their projection predates
+  /// canonical service IDs. Unidentified records are never ranked or turned
+  /// into Promotion targets; they are appended unchanged instead.
+  static List<Map<String, dynamic>> mergeRankedWithLegacyServices({
+    required List<Map<String, dynamic>> ranked,
+    required List<Map<String, dynamic>> source,
+  }) {
+    final rankedIds = ranked.map(serviceId).whereType<String>().toSet();
+    final legacy = source.where((service) {
+      final id = serviceId(service);
+      return id == null || !rankedIds.contains(id);
+    });
+    return [...ranked, ...legacy];
+  }
+
   static List<Map<String, dynamic>> toMaps(dynamic raw) {
     if (raw is Map) {
       final nested = raw['offeredServices'] ?? raw['services'];

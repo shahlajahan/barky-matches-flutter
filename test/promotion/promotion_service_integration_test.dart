@@ -92,6 +92,20 @@ void main() {
     },
   );
 
+  test('Service ranking accepts the canonical serviceId field', () {
+    final ranked = ServicePromotionRanking.rank(
+      businessId: 'business-a',
+      sector: PromotionServiceSector.vet,
+      now: now,
+      services: [
+        {'serviceId': 'laboratory', 'title': 'Laboratory', 'isActive': true},
+      ],
+    );
+
+    expect(ranked, hasLength(1));
+    expect(ranked.single['serviceId'], 'laboratory');
+  });
+
   test('SERVICE remains distinct from BUSINESS and other target types', () {
     final id = PromotionServiceTargetId(
       sector: PromotionServiceSector.groomer,

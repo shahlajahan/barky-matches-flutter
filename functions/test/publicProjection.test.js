@@ -306,6 +306,10 @@ test("business projection prefers canonical service subcollection and refreshes 
     (await ref.get()).data().publicSectorData.veterinary.services.map((service) => service.title),
     ["Dental care", "Surgery"]
   );
+  assert.deepEqual(
+    (await ref.get()).data().publicSectorData.veterinary.services.map((service) => service.id),
+    ["dental_care", "surgery"]
+  );
 
   firestore.setSubcollection("businesses", "b1", "services", [
     { id: "dental_care", title: "Dental care updated", isActive: true },

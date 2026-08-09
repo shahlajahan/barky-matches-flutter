@@ -256,7 +256,7 @@ const PUBLIC_MAP_SCHEMAS = {
   location: new Set(["lat", "lng"]),
   workingHoursMap: new Set(["open", "close", "isOpen", "start", "end", "value"]),
   services: new Set([
-    "displayName", "name", "title", "description", "offeredServices", "services",
+    "id", "serviceId", "displayName", "name", "title", "description", "offeredServices", "services",
     "price", "priceRange", "pricing", "duration", "durationMin", "currency",
     "isActive", "sortOrder", "categories", "tags",
   ]),

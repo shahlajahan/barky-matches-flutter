@@ -1080,7 +1080,38 @@ class _VetDetailsPageState extends State<VetDetailsPage>
       if (sector is Map && sector.containsKey('services')) {
         final rawServices = sector['services'];
         final services = PublicServiceNormalizer.toMaps(rawServices);
-        return _rankServices(services);
+        if (services.isEmpty) {
+          // An explicitly empty public list is authoritative. Do not revive
+          // stale canonical services in that case.
+          return const [];
+        }
+
+        final hasMissingIdentity = services.any(
+          (service) => PublicServiceNormalizer.serviceId(service) == null,
+        );
+        if (hasMissingIdentity) {
+          // Older businesses_public projections may contain service details
+          // without canonical IDs. Resolve the authoritative records instead
+          // of inventing IDs from list positions or titles.
+          final canonicalSnapshot = await FirebaseFirestore.instance
+              .collection('businesses')
+              .doc(widget.vet.id)
+              .collection('services')
+              .get();
+          if (canonicalSnapshot.docs.isNotEmpty) {
+            final canonicalServices = canonicalSnapshot.docs
+                .where((doc) => doc.data()['isActive'] == true)
+                .map((doc) => {...doc.data(), 'id': doc.id})
+                .toList();
+            return _rankServices(canonicalServices);
+          }
+        }
+
+        final ranked = await _rankServices(services);
+        return PublicServiceNormalizer.mergeRankedWithLegacyServices(
+          ranked: ranked,
+          source: services,
+        );
       }
     }
 

@@ -19,7 +19,8 @@ class ServicePromotionRanking {
     final inputs = <PromotionRankingInput<Map<String, dynamic>>>[];
     for (var index = 0; index < services.length; index++) {
       final service = services[index];
-      final serviceId = service['id']?.toString().trim() ?? '';
+      final serviceId =
+          (service['id'] ?? service['serviceId'])?.toString().trim() ?? '';
       if (serviceId.isEmpty) continue;
       final targetId = PromotionServiceTargetId(
         sector: sector,
