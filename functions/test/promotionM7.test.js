@@ -122,6 +122,18 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
       {targetType: "SERVICE", targetId: target.targetId, sector: "VET"},
     );
     assert.equal("price" in projection, false);
+    assert.equal(projection.featuredDealEligible, true);
+    assert.equal(projection.serviceId, target.serviceId);
+    assert.equal(projection.businessName, "Business");
+    assert.equal(projection.serviceTitle, "Service");
+    assert.equal(projection.startsAt.toMillis(), activated.campaign.startsAt.toMillis());
+    assert.equal(projection.expiresAt.toMillis(), activated.campaign.expiresAt.toMillis());
+
+    await db.collection("businesses").doc(target.businessId).collection("services").doc(target.serviceId)
+      .update({title: "Laboratory"});
+    await activatePromotionFromVerifiedPayment({db, campaignId: first.campaignId, evidence});
+    const repaired = (await db.collection("promotion_active").doc(first.campaignId).get()).data();
+    assert.equal(repaired.serviceTitle, "Laboratory");
     await assert.rejects(checkout(target, "m7-service-overlap"), /SERVICE target already has an active promotion/);
 
     await db.collection("promotion_active").doc(first.campaignId).update({

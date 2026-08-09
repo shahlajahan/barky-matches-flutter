@@ -7,6 +7,7 @@ import '../models/promotion_plan.dart';
 import '../models/promotion_service_sector.dart';
 import '../pages/promotion_performance_page.dart';
 import '../services/promotion_checkout_service.dart';
+import '../services/promotion_featured_deal_refresh_policy.dart';
 import '../services/promotion_plan_service.dart';
 
 /// Generic fixed-duration purchase sheet. Target-specific screens provide only
@@ -130,6 +131,7 @@ class _PromotionPlanSheetState extends State<PromotionPlanSheet> {
         ),
       );
       if (active && widget.hostContext.mounted) {
+        PromotionFeaturedDealRefreshPolicy.invalidate();
         await Navigator.of(widget.hostContext).push(
           MaterialPageRoute<void>(
             builder: (_) => PromotionPerformancePage(

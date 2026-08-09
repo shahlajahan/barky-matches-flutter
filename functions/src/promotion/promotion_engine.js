@@ -115,6 +115,91 @@ function assertTargetOwner(target, uid) {
   }
 }
 
+function serviceTargetProjectionFields({business, service, serviceId}) {
+  const profile = business?.profile && typeof business.profile === "object"
+    ? business.profile
+    : {};
+  const contact = business?.contact && typeof business.contact === "object"
+    ? business.contact
+    : {};
+  const firstText = (...values) => values
+    .map((value) => String(value || "").trim())
+    .find((value) => value.length > 0) || "";
+  return {
+    businessName: firstText(
+      profile.displayName,
+      profile.businessName,
+      business?.businessName,
+      business?.name,
+      "Business",
+    ),
+    serviceTitle: firstText(service?.title, service?.name, service?.serviceName, "Service"),
+    serviceId,
+    location: [contact.district, contact.city]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(", "),
+    price: service?.price ?? null,
+    currency: service?.currency || "TRY",
+    logoUrl: firstText(
+      profile.logoUrl,
+      profile.coverUrl,
+      business?.logoUrl,
+      business?.coverImageUrl,
+    ) || null,
+  };
+}
+
+function isEligibleServiceProjectionTarget({business, service, businessId}) {
+  return Boolean(
+    business &&
+    isPublicBusiness(business) &&
+    service &&
+    service.isActive === true &&
+    service.isHidden !== true &&
+    service.moderationStatus !== "removed" &&
+    service.published !== false &&
+    (!service.businessId || String(service.businessId) === String(businessId))
+  );
+}
+
+async function repairActiveServiceProjection({db, campaign}) {
+  if (!campaign || campaign.targetType !== "SERVICE" || campaign.status !== "active") {
+    return false;
+  }
+  const target = parseCanonicalServiceTargetId(campaign.targetId);
+  if (!target || !target.sector || !["VET", "GROOMER"].includes(target.sector)) {
+    return false;
+  }
+  const businessRef = db.collection("businesses").doc(target.businessId);
+  const businessSnap = await businessRef.get();
+  const serviceSnap = await businessRef.collection("services").doc(target.serviceId).get();
+  const business = businessSnap.exists ? businessSnap.data() || {} : null;
+  const service = serviceSnap.exists ? serviceSnap.data() || {} : null;
+  const eligible = isEligibleServiceProjectionTarget({
+    business,
+    service,
+    businessId: target.businessId,
+  });
+  const fields = eligible
+    ? serviceTargetProjectionFields({business, service, serviceId: target.serviceId})
+    : {};
+  await db.collection("promotion_active").doc(campaign.campaignId).set({
+    campaignId: campaign.campaignId,
+    targetType: campaign.targetType,
+    targetId: campaign.targetId,
+    ownerUid: campaign.ownerUid,
+    businessId: campaign.businessId || target.businessId,
+    sector: campaign.sector || target.sector,
+    featuredDealEligible: eligible,
+    startsAt: campaign.startsAt || null,
+    expiresAt: campaign.expiresAt || null,
+    ...fields,
+    projectionUpdatedAt: dbTimestamp(new Date()),
+  }, {merge: true});
+  return eligible;
+}
+
 const TERMINAL_ACTIVATION_ELIGIBILITY_PATTERNS = [
   /target not found/i,
   /target is not eligible/i,
@@ -562,32 +647,30 @@ async function activatePromotionFromVerifiedPayment({db, campaignId, evidence, n
       updatedAt: activationTime,
     };
     if (campaign.targetType === "SERVICE" && activationTarget) {
-      const businessData = activationTarget.businessData || {};
-      const service = activationTarget.childData || {};
-      const profile = businessData.profile && typeof businessData.profile === "object"
-        ? businessData.profile
-        : {};
-      const contact = businessData.contact && typeof businessData.contact === "object"
-        ? businessData.contact
-        : {};
-      projection.businessName = String(
-        profile.displayName || profile.businessName || businessData.businessName || businessData.name || "Business"
-      );
-      projection.serviceTitle = String(service.title || service.name || service.serviceName || "Service");
-      projection.location = [contact.district, contact.city]
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
-        .join(", ");
-      projection.price = service.price ?? null;
-      projection.currency = service.currency || "TRY";
-      projection.logoUrl = profile.logoUrl || profile.coverUrl || businessData.logoUrl || businessData.coverImageUrl || null;
-      projection.serviceId = parseCanonicalServiceTargetId(campaign.targetId)?.serviceId || null;
+      Object.assign(projection, serviceTargetProjectionFields({
+        business: activationTarget.businessData,
+        service: activationTarget.childData,
+        serviceId: parseCanonicalServiceTargetId(campaign.targetId)?.serviceId || null,
+      }));
     }
     tx.update(ref, campaignUpdate);
     tx.set(projectionRef, projection);
   });
 
   const snap = await ref.get();
+  const activeCampaign = snap.data() || {};
+  if (activeCampaign.targetType === "SERVICE" && activeCampaign.status === "active") {
+    // A previously deployed activation callback may have created an active
+    // campaign before the Featured Deal projection fields existed. Repairing
+    // the backend-owned projection here is safe and does not alter payment or
+    // campaign truth. Projection failure remains retryable and must not undo a
+    // verified payment.
+    try {
+      await repairActiveServiceProjection({db, campaign: activeCampaign});
+    } catch (_) {
+      // The next authenticated status read or projection backfill can retry.
+    }
+  }
   return {status: result, campaignId: normalizedCampaignId, campaign: snap.data() || {}};
 }
 
@@ -616,6 +699,13 @@ async function readPromotionPaymentStatus({db, uid, campaignId}) {
   if (!snap.exists) throw new Error("Promotion campaign not found");
   const data = snap.data() || {};
   if (data.ownerUid !== asNonEmptyString(uid, "uid")) throw new Error("Not authorized to read promotion campaign");
+  if (data.targetType === "SERVICE" && data.status === "active") {
+    try {
+      await repairActiveServiceProjection({db, campaign: {...data, campaignId: ref.id}});
+    } catch (_) {
+      // Status reads remain available; projection repair is independently retryable.
+    }
+  }
   return {
     campaignId: ref.id,
     targetType: data.targetType,
@@ -635,6 +725,7 @@ module.exports = {
   resolvePromotionPlan,
   createPromotionCheckoutCore,
   activatePromotionFromVerifiedPayment,
+  repairActiveServiceProjection,
   failPromotionPayment,
   readPromotionPaymentStatus,
   stableCampaignId,

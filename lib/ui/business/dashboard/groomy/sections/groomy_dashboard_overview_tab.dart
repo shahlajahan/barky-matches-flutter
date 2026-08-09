@@ -38,6 +38,8 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
   final ScrollController _scrollController = ScrollController();
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _appointmentsStream;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _servicesStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+  _promotionProjectionsStream;
 
   @override
   bool get wantKeepAlive => true;
@@ -81,6 +83,10 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
         .doc(widget.businessId)
         .collection('services')
         .orderBy('sortOrder')
+        .snapshots();
+    _promotionProjectionsStream = FirebaseFirestore.instance
+        .collection('promotion_active')
+        .where('businessId', isEqualTo: widget.businessId)
         .snapshots();
   }
 
@@ -141,36 +147,62 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
           _KeepAliveWrapper(
             child: RepaintBoundary(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _servicesStream,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final docs = snapshot.data!.docs;
-                  if (docs.isEmpty) {
-                    return _emptyBox('No services yet');
-                  }
-
-                  final newServices = docs
-                      .map((e) => (e.data())['title']?.toString() ?? '')
-                      .where((title) => title.trim().isNotEmpty)
-                      .toList();
-
-                  final appState = context.read<AppState>();
-                  if (!listEquals(appState.existingServices, newServices)) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (context.mounted) {
-                        appState.setExistingServices(newServices);
+                stream: _promotionProjectionsStream,
+                builder: (context, promotionSnapshot) {
+                  final activeCampaigns =
+                      ServicePromotionAction.activeCampaignIdsForProjections(
+                        projections:
+                            promotionSnapshot.data?.docs.map(
+                              (doc) => doc.data(),
+                            ) ??
+                            const <Map<String, dynamic>>[],
+                        businessId: businessId,
+                        sector: PromotionServiceSector.groomer,
+                      );
+                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _servicesStream,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
                       }
-                    });
-                  }
 
-                  return Column(
-                    children: docs.map((doc) {
-                      final data = doc.data();
-                      return _serviceItem(context, doc.id, data);
-                    }).toList(),
+                      final docs = snapshot.data!.docs;
+                      if (docs.isEmpty) {
+                        return _emptyBox('No services yet');
+                      }
+
+                      final newServices = docs
+                          .map((e) => (e.data())['title']?.toString() ?? '')
+                          .where((title) => title.trim().isNotEmpty)
+                          .toList();
+
+                      final appState = context.read<AppState>();
+                      if (!listEquals(appState.existingServices, newServices)) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (context.mounted) {
+                            appState.setExistingServices(newServices);
+                          }
+                        });
+                      }
+
+                      return Column(
+                        children: docs.map((doc) {
+                          final data = doc.data();
+                          final targetId = PromotionServiceTargetId(
+                            sector: PromotionServiceSector.groomer,
+                            businessId: businessId,
+                            serviceId: doc.id,
+                          ).value;
+                          return _serviceItem(
+                            context,
+                            doc.id,
+                            data,
+                            activePromotionCampaignId:
+                                activeCampaigns[targetId],
+                          );
+                        }).toList(),
+                      );
+                    },
                   );
                 },
               ),
@@ -522,8 +554,9 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
   Widget _serviceItem(
     BuildContext context,
     String id,
-    Map<String, dynamic> data,
-  ) {
+    Map<String, dynamic> data, {
+    String? activePromotionCampaignId,
+  }) {
     final title = (data['title'] ?? 'Untitled').toString();
     final priceText = _servicePriceText(data);
     final durationText = _serviceDurationText(data);
@@ -579,6 +612,7 @@ class _GroomyDashboardOverviewTabState extends State<GroomyDashboardOverviewTab>
             serviceTitle: title,
             sector: PromotionServiceSector.groomer,
             isActive: data['isActive'] == true,
+            activeCampaignId: activePromotionCampaignId,
           ),
         ],
       ),

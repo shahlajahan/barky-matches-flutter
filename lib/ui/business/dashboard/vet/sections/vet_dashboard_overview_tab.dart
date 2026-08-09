@@ -37,6 +37,8 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
   final ScrollController _scrollController = ScrollController();
   late final Stream<QuerySnapshot> _appointmentsStream;
   late final Stream<QuerySnapshot> _servicesStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>
+  _promotionProjectionsStream;
 
   String get businessId => widget.businessId;
   Map<String, dynamic> get businessData => widget.businessData;
@@ -57,6 +59,10 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         .doc(widget.businessId)
         .collection('services')
         .orderBy('createdAt', descending: true)
+        .snapshots();
+    _promotionProjectionsStream = FirebaseFirestore.instance
+        .collection('promotion_active')
+        .where('businessId', isEqualTo: widget.businessId)
         .snapshots();
   }
 
@@ -280,52 +286,78 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
         const SizedBox(height: 10),
         _KeepAliveWrapper(
           child: RepaintBoundary(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _servicesStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  debugPrint(
-                    '❌ VET SERVICES STREAM ERROR → '
-                    'businessId=$businessId error=${snapshot.error}',
-                  );
-                  return _servicesErrorState();
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting &&
-                    !snapshot.hasData) {
-                  return const _ServicesLoadingState();
-                }
-
-                if (!snapshot.hasData) {
-                  return const _ServicesLoadingState();
-                }
-
-                final docs = snapshot.data!.docs;
-                final newServices = docs
-                    .map(
-                      (doc) => ((doc.data() as Map)['title'] ?? '').toString(),
-                    )
-                    .where((title) => title.isNotEmpty)
-                    .toList();
-                final appState = context.read<AppState>();
-
-                if (!listEquals(appState.existingServices, newServices)) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (context.mounted) {
-                      appState.setExistingServices(newServices);
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _promotionProjectionsStream,
+              builder: (context, promotionSnapshot) {
+                final activeCampaigns =
+                    ServicePromotionAction.activeCampaignIdsForProjections(
+                      projections:
+                          promotionSnapshot.data?.docs.map(
+                            (doc) => doc.data(),
+                          ) ??
+                          const <Map<String, dynamic>>[],
+                      businessId: businessId,
+                      sector: PromotionServiceSector.vet,
+                    );
+                return StreamBuilder<QuerySnapshot>(
+                  stream: _servicesStream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      debugPrint(
+                        '❌ VET SERVICES STREAM ERROR → '
+                        'businessId=$businessId error=${snapshot.error}',
+                      );
+                      return _servicesErrorState();
                     }
-                  });
-                }
 
-                if (docs.isEmpty) {
-                  return const _ServicesEmptyState();
-                }
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        !snapshot.hasData) {
+                      return const _ServicesLoadingState();
+                    }
 
-                return Column(
-                  children: docs.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return _serviceItem(context, doc.id, data);
-                  }).toList(),
+                    if (!snapshot.hasData) {
+                      return const _ServicesLoadingState();
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    final newServices = docs
+                        .map(
+                          (doc) =>
+                              ((doc.data() as Map)['title'] ?? '').toString(),
+                        )
+                        .where((title) => title.isNotEmpty)
+                        .toList();
+                    final appState = context.read<AppState>();
+
+                    if (!listEquals(appState.existingServices, newServices)) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) {
+                          appState.setExistingServices(newServices);
+                        }
+                      });
+                    }
+
+                    if (docs.isEmpty) {
+                      return const _ServicesEmptyState();
+                    }
+
+                    return Column(
+                      children: docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final targetId = PromotionServiceTargetId(
+                          sector: PromotionServiceSector.vet,
+                          businessId: businessId,
+                          serviceId: doc.id,
+                        ).value;
+                        return _serviceItem(
+                          context,
+                          doc.id,
+                          data,
+                          activePromotionCampaignId: activeCampaigns[targetId],
+                        );
+                      }).toList(),
+                    );
+                  },
                 );
               },
             ),
@@ -437,8 +469,9 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
   Widget _serviceItem(
     BuildContext context,
     String id,
-    Map<String, dynamic> data,
-  ) {
+    Map<String, dynamic> data, {
+    String? activePromotionCampaignId,
+  }) {
     // 🔥 اینجا درستشه
     final price = data['price']?.toString();
     final duration = data['duration']?.toString();
@@ -520,6 +553,7 @@ class _VetDashboardOverviewTabState extends State<VetDashboardOverviewTab>
             serviceTitle: data['title']?.toString() ?? '',
             sector: PromotionServiceSector.vet,
             isActive: data['isActive'] == true,
+            activeCampaignId: activePromotionCampaignId,
           ),
         ],
       ),

@@ -31,6 +31,20 @@ class PromotionCampaignStats {
   });
 
   factory PromotionCampaignStats.fromJson(Map<String, dynamic> json) {
+    Object? timestamp(Object? value) {
+      if (value is Map) {
+        final seconds = value['_seconds'] ?? value['seconds'];
+        final nanos = value['_nanoseconds'] ?? value['nanoseconds'] ?? 0;
+        if (seconds is num && nanos is num) {
+          return DateTime.fromMillisecondsSinceEpoch(
+            seconds.toInt() * 1000 + nanos.toInt() ~/ 1000000,
+            isUtc: true,
+          );
+        }
+      }
+      return value;
+    }
+
     double? number(Object? value) => value is num ? value.toDouble() : null;
     int integer(Object? value) => value is num ? value.toInt() : 0;
     return PromotionCampaignStats(
@@ -54,19 +68,19 @@ class PromotionCampaignStats {
       pricingVersion: integer(json['pricingVersion']),
       planId: json['planId']?.toString(),
       durationHours: integer(json['durationHours']),
-      startsAt: json['startsAt'],
-      expiresAt: json['expiresAt'],
+      startsAt: timestamp(json['startsAt']),
+      expiresAt: timestamp(json['expiresAt']),
       campaignStatus: json['campaignStatus']?.toString(),
       revenueCapability: json['revenueCapability']?.toString() ?? 'unknown',
       financialMetricsStatus:
           json['financialMetricsStatus']?.toString() ?? 'PROVISIONAL',
       reconciliationStatus:
           json['reconciliationStatus']?.toString() ?? 'PENDING',
-      updatedAt: json['updatedAt'],
+      updatedAt: timestamp(json['updatedAt']),
       ctr: number(json['ctr']),
       conversionRate: number(json['conversionRate']),
       roas: number(json['roas']),
-      lastReconciledAt: json['lastReconciledAt'],
+      lastReconciledAt: timestamp(json['lastReconciledAt']),
     );
   }
 

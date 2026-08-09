@@ -123,6 +123,9 @@ class _HomePageState extends State<HomePage>
   Timer? _dealTimer;
   Timer? _promotionInventoryTimer;
   DateTime? _lastPromotionInventoryFetch;
+  late final VoidCallback _promotionInvalidationListener;
+  int _lastPromotionInventoryRevision =
+      PromotionFeaturedDealRefreshPolicy.invalidation.value;
 
   Map<String, List<Map<String, dynamic>>> dogLikes = {};
 
@@ -256,6 +259,8 @@ class _HomePageState extends State<HomePage>
       final data = result.data;
       if (data is Map && data['deals'] is List) {
         _lastPromotionInventoryFetch = DateTime.now();
+        _lastPromotionInventoryRevision =
+            PromotionFeaturedDealRefreshPolicy.invalidation.value;
         return (data['deals'] as List)
             .whereType<Map>()
             .map(
@@ -324,6 +329,15 @@ class _HomePageState extends State<HomePage>
   @override
   void initState() {
     super.initState();
+    _promotionInvalidationListener = () {
+      if (!mounted) return;
+      final revision = PromotionFeaturedDealRefreshPolicy.invalidation.value;
+      if (revision == _lastPromotionInventoryRevision) return;
+      unawaited(_refreshPromotedServiceDeals());
+    };
+    PromotionFeaturedDealRefreshPolicy.invalidation.addListener(
+      _promotionInvalidationListener,
+    );
     WidgetsBinding.instance.addObserver(this);
     _currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -1173,6 +1187,9 @@ class _HomePageState extends State<HomePage>
     _dealPageController?.dispose();
     _dealTimer?.cancel();
     _promotionInventoryTimer?.cancel();
+    PromotionFeaturedDealRefreshPolicy.invalidation.removeListener(
+      _promotionInvalidationListener,
+    );
     WidgetsBinding.instance.removeObserver(this);
     _basketAnimController.dispose();
     super.dispose();

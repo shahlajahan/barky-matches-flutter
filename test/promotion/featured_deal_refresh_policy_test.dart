@@ -20,4 +20,10 @@ void main() {
       isTrue,
     );
   });
+
+  test('successful activation invalidates one cached inventory refresh', () {
+    final before = PromotionFeaturedDealRefreshPolicy.invalidation.value;
+    PromotionFeaturedDealRefreshPolicy.invalidate();
+    expect(PromotionFeaturedDealRefreshPolicy.invalidation.value, before + 1);
+  });
 }

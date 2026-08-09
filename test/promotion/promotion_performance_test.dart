@@ -28,7 +28,9 @@ PromotionCampaignStats stats({
   'reconciliationStatus': financialStatus == 'AVAILABLE'
       ? 'CONVERGED'
       : 'PENDING',
-  'revenueCapability': targetType == 'PET' ? 'not_applicable' : 'server_attributed',
+  'revenueCapability': targetType == 'PET'
+      ? 'not_applicable'
+      : 'server_attributed',
   'roas': roas,
   'campaignStatus': 'active',
   'durationHours': 24,
@@ -56,29 +58,56 @@ void main() {
     expect(available.financialMetricsStatus, 'AVAILABLE');
     expect(available.roas, 2.5);
 
-    final pet = stats(targetType: 'PET', financialStatus: 'UNAVAILABLE', roas: null);
+    final pet = stats(
+      targetType: 'PET',
+      financialStatus: 'UNAVAILABLE',
+      roas: null,
+    );
     expect(pet.hasRevenueAttribution, isFalse);
     expect(pet.roas, isNull);
   });
 
-  testWidgets('PET performance omits financial cards', (tester) async {
-    await tester.pumpWidget(harness((_) async => stats(
-      targetType: 'PET',
-      financialStatus: 'UNAVAILABLE',
-      roas: null,
-    )));
-    await tester.pumpAndSettle();
-    expect(find.text('Financial performance'), findsNothing);
-    expect(find.text('Financial metrics are not applicable to Pet Boost.'), findsOneWidget);
+  test('performance model parses callable Firestore timestamp maps', () {
+    final parsed = PromotionCampaignStats.fromJson({
+      'campaignId': 'campaign-1',
+      'targetType': 'SERVICE',
+      'targetId': 'service/VET/business-1/service-1',
+      'startsAt': {'_seconds': 1786183200, '_nanoseconds': 0},
+      'expiresAt': {'_seconds': 1786269600, '_nanoseconds': 0},
+    });
+    expect(parsed.startsAt, isA<DateTime>());
+    expect(parsed.expiresAt, isA<DateTime>());
   });
 
-  testWidgets('Product provisional performance is not shown as final ROAS', (tester) async {
-    await tester.pumpWidget(harness((_) async => stats(
-      financialStatus: 'PROVISIONAL',
-      roas: null,
-    )));
+  testWidgets('PET performance omits financial cards', (tester) async {
+    await tester.pumpWidget(
+      harness(
+        (_) async => stats(
+          targetType: 'PET',
+          financialStatus: 'UNAVAILABLE',
+          roas: null,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Financial metrics are still being reconciled.'), findsOneWidget);
+    expect(find.text('Financial performance'), findsNothing);
+    expect(
+      find.text('Financial metrics are not applicable to Pet Boost.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Product provisional performance is not shown as final ROAS', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness((_) async => stats(financialStatus: 'PROVISIONAL', roas: null)),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Financial metrics are still being reconciled.'),
+      findsOneWidget,
+    );
     expect(find.text('ROAS'), findsNothing);
   });
 

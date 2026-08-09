@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/promotion_enums.dart';
+import '../models/promotion_campaign_stats.dart';
 import '../models/promotion_service_sector.dart';
+import '../pages/promotion_performance_page.dart';
 import '../services/promotion_plan_service.dart';
 import 'promotion_plan_sheet.dart';
 
@@ -17,6 +20,8 @@ class ServicePromotionAction extends StatelessWidget {
     required this.serviceTitle,
     required this.sector,
     required this.isActive,
+    this.activeCampaignId,
+    this.loadPerformanceStats,
     this.planService,
   });
 
@@ -25,7 +30,58 @@ class ServicePromotionAction extends StatelessWidget {
   final String serviceTitle;
   final PromotionServiceSector sector;
   final bool isActive;
+  final String? activeCampaignId;
+  final Future<PromotionCampaignStats> Function(String campaignId)?
+  loadPerformanceStats;
   final PromotionPlanService? planService;
+
+  static Map<String, String> activeCampaignIdsForProjections({
+    required Iterable<Map<String, dynamic>> projections,
+    required String businessId,
+    required PromotionServiceSector sector,
+    DateTime? now,
+  }) {
+    final reference = now ?? DateTime.now();
+    final result = <String, String>{};
+    for (final projection in projections) {
+      if (projection['targetType']?.toString().toUpperCase() != 'SERVICE' ||
+          projection['featuredDealEligible'] != true) {
+        continue;
+      }
+      PromotionServiceTargetId? target;
+      try {
+        target = PromotionServiceTargetId.parse(
+          projection['targetId']?.toString() ?? '',
+        );
+      } on FormatException {
+        continue;
+      }
+      if (target == null ||
+          target.businessId != businessId ||
+          target.sector != sector) {
+        continue;
+      }
+      DateTime? asDate(Object? value) {
+        if (value is DateTime) return value;
+        if (value is Timestamp) return value.toDate();
+        return DateTime.tryParse(value?.toString() ?? '');
+      }
+
+      final startsAt = asDate(projection['startsAt']);
+      final expiresAt = asDate(projection['expiresAt']);
+      final campaignId = projection['campaignId']?.toString();
+      if (campaignId == null ||
+          campaignId.isEmpty ||
+          startsAt == null ||
+          expiresAt == null) {
+        continue;
+      }
+      if (!reference.isBefore(startsAt) && reference.isBefore(expiresAt)) {
+        result[target.value] ??= campaignId;
+      }
+    }
+    return result;
+  }
 
   static bool isEligible({
     required PromotionServiceSector sector,
@@ -46,6 +102,22 @@ class ServicePromotionAction extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isEligible(sector: sector, isActive: isActive)) {
       return const SizedBox.shrink();
+    }
+
+    if (activeCampaignId != null && activeCampaignId!.isNotEmpty) {
+      return OutlinedButton.icon(
+        icon: const Icon(Icons.analytics_outlined),
+        label: const Text('View promotion performance'),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PromotionPerformancePage(
+              campaignId: activeCampaignId!,
+              targetLabel: serviceTitle,
+              loadStats: loadPerformanceStats,
+            ),
+          ),
+        ),
+      );
     }
 
     return OutlinedButton.icon(
