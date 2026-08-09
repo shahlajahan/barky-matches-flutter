@@ -19,7 +19,6 @@ class AdoptionCenterDashboardGalleryTab extends StatefulWidget {
   State<AdoptionCenterDashboardGalleryTab> createState() =>
       _AdoptionCenterDashboardGalleryTabState();
 }
-
 class _AdoptionCenterDashboardGalleryTabState
     extends State<AdoptionCenterDashboardGalleryTab> {
   bool _picking = false;
@@ -50,8 +49,8 @@ class _AdoptionCenterDashboardGalleryTabState
       'business_sector_docs/${widget.businessId}/adoption_center/$folder/${DateTime.now().millisecondsSinceEpoch}.$extension',
     );
 
-    print("FILE NAME = ${file.path}");
-    print("FULL STORAGE REF = ${ref.fullPath}");
+    debugPrint("FILE NAME = ${file.path}");
+    debugPrint("FULL STORAGE REF = ${ref.fullPath}");
 
     try {
       final task = ref.putFile(file);
@@ -68,8 +67,8 @@ class _AdoptionCenterDashboardGalleryTabState
       final snap = await task;
       return snap.ref.getDownloadURL();
     } catch (e) {
-      print("UPLOAD FAILED REF = ${ref.fullPath}");
-      print("UPLOAD ERROR = $e");
+      debugPrint("UPLOAD FAILED REF = ${ref.fullPath}");
+      debugPrint("UPLOAD ERROR = $e");
       rethrow;
     }
   }
@@ -99,15 +98,15 @@ class _AdoptionCenterDashboardGalleryTabState
       debugPrint("VIDEOS: ${videoFiles.length}");
 
       final businessId = widget.businessId;
-      print("UPLOAD START");
-      print("AUTH UID = ${FirebaseAuth.instance.currentUser?.uid}");
-      print("BUSINESS ID = $businessId");
-      print("IMAGE COUNT = ${imageFiles.length}");
-      print("VIDEO COUNT = ${videoFiles.length}");
-      print(
+      debugPrint("UPLOAD START");
+      debugPrint("AUTH UID = ${FirebaseAuth.instance.currentUser?.uid}");
+      debugPrint("BUSINESS ID = $businessId");
+      debugPrint("IMAGE COUNT = ${imageFiles.length}");
+      debugPrint("VIDEO COUNT = ${videoFiles.length}");
+      debugPrint(
         "STORAGE PHOTO PATH = business_sector_docs/$businessId/adoption_center/photos/",
       );
-      print(
+      debugPrint(
         "STORAGE VIDEO PATH = business_sector_docs/$businessId/adoption_center/videos/",
       );
 

@@ -909,6 +909,13 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
 }
 
 void main() async {
+  // Development diagnostics remain available locally, but the production
+  // client must not expose Firestore documents, IDs, or debug state in the
+  // browser/device console.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   if (kDebugMode) {
     debugPrint('Main - Starting main function...');
   }

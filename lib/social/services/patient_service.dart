@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/owner_profile_snapshot.dart';
 
 class PatientService {
@@ -52,9 +53,9 @@ class PatientService {
       },
     );
     // ignore: avoid_print
-    print('PATIENT OWNER UID $ownerId');
+    debugPrint('PATIENT OWNER UID $ownerId');
     // ignore: avoid_print
-    print('DOG OWNER UID $petId');
+    debugPrint('DOG OWNER UID $petId');
 
     // PATIENT EXISTS
     if (existing.docs.isNotEmpty) {
@@ -79,7 +80,7 @@ class PatientService {
 
       if (hasMeaningfulOwnerProfile(mergedOwnerProfile)) {
         // ignore: avoid_print
-        print('PATIENT OWNER SNAPSHOT MERGED');
+        debugPrint('PATIENT OWNER SNAPSHOT MERGED');
       }
 
       return;
@@ -113,7 +114,7 @@ class PatientService {
 
     if (hasMeaningfulOwnerProfile(ownerSnapshot)) {
       // ignore: avoid_print
-      print('PATIENT OWNER SNAPSHOT SAVED');
+      debugPrint('PATIENT OWNER SNAPSHOT SAVED');
     }
   }
 }

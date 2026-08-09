@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const admin = require("firebase-admin");
 
 const {parseCanonicalServiceTargetId} = require("./promotion_engine");
+const {serviceDisplayFields} = require("./service_projection_fields");
 
 const MAX_CANDIDATES = 100;
 const MAX_FEATURED_DEALS = 6;
@@ -71,31 +72,6 @@ async function readRotationWindow(baseQuery, cursor, limit = MAX_CANDIDATES) {
     .limit(boundedLimit - startDocs.length)
     .get();
   return [...startDocs, ...prefixSnapshot.docs].slice(0, boundedLimit);
-}
-
-function firstText(...values) {
-  for (const value of values) {
-    const text = value === undefined || value === null ? "" : String(value).trim();
-    if (text) return text;
-  }
-  return "";
-}
-
-function serviceDisplayFields({business = {}, service = {}}) {
-  const profile = business.profile && typeof business.profile === "object" ? business.profile : {};
-  const contact = business.contact && typeof business.contact === "object" ? business.contact : {};
-  const serviceTitle = firstText(service.title, service.name, service.serviceName, "Service");
-  const businessName = firstText(profile.displayName, profile.businessName, business.businessName, business.name, "Business");
-  const district = firstText(contact.district);
-  const city = firstText(contact.city);
-  return {
-    businessName,
-    serviceTitle,
-    location: [district, city].filter(Boolean).join(", "),
-    price: service.price ?? null,
-    currency: service.currency || "TRY",
-    logoUrl: firstText(profile.logoUrl, profile.coverUrl, business.logoUrl, business.coverImageUrl) || null,
-  };
 }
 
 function isPublicBusiness(data = {}) {
@@ -167,6 +143,7 @@ async function synchronizeServicePromotionProjections({
   db,
   businessId,
   business,
+  publicBusiness = null,
   services = [],
 }) {
   const normalizedBusinessId = String(businessId || "").trim();
@@ -188,7 +165,14 @@ async function synchronizeServicePromotionProjections({
     if (!target || target.businessId !== normalizedBusinessId) continue;
     const service = servicesById.get(target.serviceId);
     const eligible = isEligibleServiceTarget({business, service, businessId: normalizedBusinessId});
-    const fields = eligible ? serviceDisplayFields({business, service}) : {};
+    const fields = eligible
+      ? serviceDisplayFields({
+        business,
+        publicBusiness,
+        service,
+        sector: target.sector,
+      })
+      : {};
     batch.update(doc.ref, {
       featuredDealEligible: eligible,
       ...fields,

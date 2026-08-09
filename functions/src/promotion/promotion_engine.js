@@ -2,6 +2,7 @@
 
 const crypto = require("crypto");
 const admin = require("firebase-admin");
+const {serviceDisplayFields} = require("./service_projection_fields");
 
 const {
   COLLECTIONS,
@@ -115,41 +116,6 @@ function assertTargetOwner(target, uid) {
   }
 }
 
-function serviceTargetProjectionFields({business, service, serviceId}) {
-  const profile = business?.profile && typeof business.profile === "object"
-    ? business.profile
-    : {};
-  const contact = business?.contact && typeof business.contact === "object"
-    ? business.contact
-    : {};
-  const firstText = (...values) => values
-    .map((value) => String(value || "").trim())
-    .find((value) => value.length > 0) || "";
-  return {
-    businessName: firstText(
-      profile.displayName,
-      profile.businessName,
-      business?.businessName,
-      business?.name,
-      "Business",
-    ),
-    serviceTitle: firstText(service?.title, service?.name, service?.serviceName, "Service"),
-    serviceId,
-    location: [contact.district, contact.city]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean)
-      .join(", "),
-    price: service?.price ?? null,
-    currency: service?.currency || "TRY",
-    logoUrl: firstText(
-      profile.logoUrl,
-      profile.coverUrl,
-      business?.logoUrl,
-      business?.coverImageUrl,
-    ) || null,
-  };
-}
-
 function isEligibleServiceProjectionTarget({business, service, businessId}) {
   return Boolean(
     business &&
@@ -173,8 +139,10 @@ async function repairActiveServiceProjection({db, campaign}) {
   }
   const businessRef = db.collection("businesses").doc(target.businessId);
   const businessSnap = await businessRef.get();
+  const publicBusinessSnap = await db.collection("businesses_public").doc(target.businessId).get();
   const serviceSnap = await businessRef.collection("services").doc(target.serviceId).get();
   const business = businessSnap.exists ? businessSnap.data() || {} : null;
+  const publicBusiness = publicBusinessSnap.exists ? publicBusinessSnap.data() || {} : null;
   const service = serviceSnap.exists ? serviceSnap.data() || {} : null;
   const eligible = isEligibleServiceProjectionTarget({
     business,
@@ -182,7 +150,15 @@ async function repairActiveServiceProjection({db, campaign}) {
     businessId: target.businessId,
   });
   const fields = eligible
-    ? serviceTargetProjectionFields({business, service, serviceId: target.serviceId})
+    ? {
+      ...serviceDisplayFields({
+        business,
+        publicBusiness,
+        service,
+        sector: target.sector,
+      }),
+      serviceId: target.serviceId,
+    }
     : {};
   await db.collection("promotion_active").doc(campaign.campaignId).set({
     campaignId: campaign.campaignId,
@@ -647,11 +623,15 @@ async function activatePromotionFromVerifiedPayment({db, campaignId, evidence, n
       updatedAt: activationTime,
     };
     if (campaign.targetType === "SERVICE" && activationTarget) {
-      Object.assign(projection, serviceTargetProjectionFields({
-        business: activationTarget.businessData,
-        service: activationTarget.childData,
-        serviceId: parseCanonicalServiceTargetId(campaign.targetId)?.serviceId || null,
-      }));
+      const activationTargetId = parseCanonicalServiceTargetId(campaign.targetId);
+      Object.assign(projection, {
+        ...serviceDisplayFields({
+          business: activationTarget.businessData,
+          service: activationTarget.childData,
+          sector: activationTargetId?.sector,
+        }),
+        serviceId: activationTargetId?.serviceId || null,
+      });
     }
     tx.update(ref, campaignUpdate);
     tx.set(projectionRef, projection);

@@ -599,6 +599,7 @@ async function synchronizeBusinessPublicProjection(event, firestore) {
     db: database,
     businessId,
     business: businessData,
+    publicBusiness: next,
     services: canonicalServices.services,
   });
 }

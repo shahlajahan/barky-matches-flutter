@@ -73,6 +73,7 @@ class FakeFirestore {
         return this.refs.get(key);
       },
     };
+    collection.where = () => collection;
     collection.orderBy = () => collection;
     collection.limit = (value) => {
       pageSize = value;

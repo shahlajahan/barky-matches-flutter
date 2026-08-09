@@ -26,14 +26,20 @@ function makeDb(projectionEntries, businesses) {
     writes,
     collection(name) {
       if (name === "promotion_active") return query;
-      if (name !== "businesses") throw new Error(`Unexpected collection ${name}`);
+      if (name !== "businesses" && name !== "businesses_public") {
+        throw new Error(`Unexpected collection ${name}`);
+      }
       return {
         doc(businessId) {
           const business = businesses[businessId];
           return {
             async get() {
-              return {exists: Boolean(business), data: () => business?.data || {}};
+              return {
+                exists: Boolean(business),
+                data: () => business?.data || {},
+              };
             },
+            ...(name === "businesses_public" ? {} : {
             collection(child) {
               assert.equal(child, "services");
               return {
@@ -42,6 +48,7 @@ function makeDb(projectionEntries, businesses) {
                 },
               };
             },
+            }),
           };
         },
       };

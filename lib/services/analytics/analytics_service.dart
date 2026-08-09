@@ -1,4 +1,5 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 
 import 'analytics_events.dart';
 import 'analytics_parameters.dart';
@@ -16,19 +17,22 @@ class AnalyticsService {
   Map<String, Object>? parameters,
 }) async {
   try {
-    print('📊 Analytics Event -> $name');
-    print('📊 Params -> $parameters');
+    if (kDebugMode) {
+      debugPrint('📊 Analytics Event -> $name');
+      debugPrint('📊 Params -> $parameters');
+    }
 
     await _analytics.logEvent(
       name: name,
       parameters: parameters,
     );
 
-    print('✅ Analytics Sent');
+    if (kDebugMode) debugPrint('✅ Analytics Sent');
   } catch (e, st) {
-    print('❌ Analytics Error');
-    print(e);
-    print(st);
+    if (kDebugMode) {
+      debugPrint('❌ Analytics Error: $e');
+      debugPrint('$st');
+    }
   }
 }
 

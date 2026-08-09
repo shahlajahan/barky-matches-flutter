@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AdoptionRequestService {
   /* =====================================================
@@ -66,7 +67,7 @@ class AdoptionRequestService {
       }
     }
 
-    print("🐾 REQUESTER NAME = $requesterName");
+    debugPrint("🐾 REQUESTER NAME = $requesterName");
 
     /// =====================================================
     /// Payload
@@ -99,13 +100,13 @@ class AdoptionRequestService {
       "closedReason": null,
     };
 
-    print("🐾 REQUEST PAYLOAD = $payload");
+    debugPrint("🐾 REQUEST PAYLOAD = $payload");
 
     final ref = await FirebaseFirestore.instance
         .collection('adoption_requests')
         .add(payload);
 
-    print("🐾 REQUEST CREATED ID = ${ref.id}");
+    debugPrint("🐾 REQUEST CREATED ID = ${ref.id}");
 
     return ref.id;
   }
@@ -141,17 +142,17 @@ class AdoptionRequestService {
 
       final data = snap.data()!;
 
-      print(
+      debugPrint(
         "REQUEST TARGET TYPE = "
         "${data['targetType']}",
       );
 
-      print(
+      debugPrint(
         "REQUEST TARGET ID = "
         "${data['targetId']}",
       );
 
-      print(
+      debugPrint(
         "REQUEST FULL DATA = "
         "$data",
       );
@@ -160,9 +161,9 @@ class AdoptionRequestService {
 
       final currentStatus = (data['status'] ?? '').toString();
 
-      print("SERVICE UID = $uid");
+      debugPrint("SERVICE UID = $uid");
 
-      print("OWNER FROM DOC = $ownerId");
+      debugPrint("OWNER FROM DOC = $ownerId");
 
       /*
     ==================================
@@ -182,7 +183,7 @@ class AdoptionRequestService {
 
           final businessOwnerUid = (business['ownerUid'] ?? '').toString();
 
-          print(
+          debugPrint(
             "BUSINESS OWNER UID = "
             "$businessOwnerUid",
           );
@@ -191,7 +192,7 @@ class AdoptionRequestService {
         }
       }
 
-      print(
+      debugPrint(
         "FINAL IS OWNER = "
         "$isOwner",
       );
@@ -216,12 +217,12 @@ class AdoptionRequestService {
               .doc(targetId);
 
           adoptionPetSnap = await tx.get(adoptionPetRef);
-          print(
+          debugPrint(
             "ADOPTION PET DOC EXISTS = "
             "${adoptionPetSnap.exists}",
           );
 
-          print(
+          debugPrint(
             "ADOPTION PET PATH = "
             "${adoptionPetRef.path}",
           );

@@ -19,7 +19,6 @@ class AdoptionInboxPage extends StatefulWidget {
   @override
   State<AdoptionInboxPage> createState() => _AdoptionInboxPageState();
 }
-
 class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
   int _tab = 0; // 0=pending, 1=approved
   String? _busyRequestId;
@@ -879,10 +878,10 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                 : () async {
                     debugPrint("🟢 APPROVE CLICK");
                     final uid = FirebaseAuth.instance.currentUser?.uid;
-                    print("APPROVE CURRENT UID = $uid");
-                    print("REQUEST ID = $requestId");
-                    print("REQUEST TARGET OWNER = $targetOwnerId");
-                    print("REQUEST REQUESTER = $requesterId");
+                    debugPrint("APPROVE CURRENT UID = $uid");
+                    debugPrint("REQUEST ID = $requestId");
+                    debugPrint("REQUEST TARGET OWNER = $targetOwnerId");
+                    debugPrint("REQUEST REQUESTER = $requesterId");
 
                     await _runSafe(requestId, () async {
                       await AdoptionRequestService.decideRequest(
@@ -918,10 +917,10 @@ class _AdoptionInboxPageState extends State<AdoptionInboxPage> {
                 : () async {
                     debugPrint("🔴 REJECT CLICK");
                     final uid = FirebaseAuth.instance.currentUser?.uid;
-                    print("APPROVE CURRENT UID = $uid");
-                    print("REQUEST ID = $requestId");
-                    print("REQUEST TARGET OWNER = $targetOwnerId");
-                    print("REQUEST REQUESTER = $requesterId");
+                    debugPrint("APPROVE CURRENT UID = $uid");
+                    debugPrint("REQUEST ID = $requestId");
+                    debugPrint("REQUEST TARGET OWNER = $targetOwnerId");
+                    debugPrint("REQUEST REQUESTER = $requesterId");
 
                     await _runSafe(requestId, () async {
                       await AdoptionRequestService.decideRequest(

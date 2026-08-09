@@ -4,8 +4,8 @@ const admin = require("firebase-admin");
 
 const {
   isEligibleServiceTarget,
-  serviceDisplayFields,
 } = require("../src/promotion/promotion_featured_deals");
+const {serviceDisplayFields} = require("../src/promotion/service_projection_fields");
 const {parseCanonicalServiceTargetId} = require("../src/promotion/promotion_engine");
 
 const CONFIRMATION = "I_UNDERSTAND";
@@ -153,16 +153,26 @@ async function backfillPromotionFeaturedProjections({
   for (const [businessId, businessCandidates] of byBusiness.entries()) {
     try {
       const businessSnap = await db.collection("businesses").doc(businessId).get();
+      const publicBusinessSnap = await db.collection("businesses_public").doc(businessId).get();
       const servicesSnap = businessSnap.exists
         ? await db.collection("businesses").doc(businessId).collection("services").get()
         : {docs: []};
       const services = new Map(servicesSnap.docs.map((doc) => [doc.id, doc.data() || {}]));
       const business = businessSnap.exists ? businessSnap.data() || {} : null;
+      const publicBusiness = publicBusinessSnap.exists ? publicBusinessSnap.data() || {} : null;
       for (const candidate of businessCandidates) {
         const service = services.get(candidate.target.serviceId);
         const eligible = isEligibleServiceTarget({business, service, businessId});
         const displayFields = eligible
-          ? {...serviceDisplayFields({business, service}), serviceId: candidate.target.serviceId}
+          ? {
+            ...serviceDisplayFields({
+              business,
+              publicBusiness,
+              service,
+              sector: candidate.target.sector,
+            }),
+            serviceId: candidate.target.serviceId,
+          }
           : {};
         const desiredFields = {featuredDealEligible: eligible, ...displayFields};
         if (eligible) result.eligible += 1;
