@@ -1,7 +1,5 @@
-import 'dart:io';
-
+import 'package:barky_matches_fixed/ui/adoption/adoption_upload_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -39,6 +37,7 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
   bool _visible = true;
 
   bool _saving = false;
+  bool _uploadingMedia = false;
 
   String? _coverImageUrl;
 
@@ -119,23 +118,18 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
     super.dispose();
   }
 
-  Future<String> _uploadImage(File file) async {
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-    final ref = FirebaseStorage.instance.ref().child(
-      'business_sector_docs/'
-      '${widget.businessId}/'
-      'adoption_center/'
-      'pets/'
-      '$fileName',
+  Future<String> _uploadImage(XFile file, String operation) async {
+    return uploadAdoptionPickedFile(
+      file: file,
+      folderPath:
+          'business_sector_docs/${widget.businessId}/adoption_center/pets',
+      operation: operation,
+      kind: AdoptionUploadKind.image,
     );
-
-    await ref.putFile(file);
-
-    return ref.getDownloadURL();
   }
 
   Future<void> _pickCover() async {
+    if (_uploadingMedia) return;
     try {
       final picker = ImagePicker();
 
@@ -143,7 +137,9 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
 
       if (picked == null) return;
 
-      final url = await _uploadImage(File(picked.path));
+      setState(() => _uploadingMedia = true);
+
+      final url = await _uploadImage(picked, 'adoption_pet_cover');
 
       if (!mounted) return;
 
@@ -154,20 +150,33 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
           _gallery.insert(0, url);
         }
       });
-    } catch (e) {
-      debugPrint('PET COVER ERROR: $e');
+    } catch (error, stackTrace) {
+      logAdoptionUploadError(
+        operation: 'adoption_pet_cover_picker',
+        storagePath:
+            'business_sector_docs/${widget.businessId}/adoption_center/pets',
+        contentType: 'unknown',
+        fileSize: 0,
+        error: error,
+        stackTrace: stackTrace,
+      );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.uploadFailed('$e'))),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.uploadFailed(error.toString()),
+          ),
+        ),
       );
+    } finally {
+      if (mounted) setState(() => _uploadingMedia = false);
     }
   }
 
   Future<void> _pickGallery() async {
+    if (_uploadingMedia) return;
     try {
       final picker = ImagePicker();
 
@@ -175,8 +184,10 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
 
       if (images.isEmpty) return;
 
+      setState(() => _uploadingMedia = true);
+
       for (final image in images) {
-        final url = await _uploadImage(File(image.path));
+        final url = await _uploadImage(image, 'adoption_pet_gallery');
 
         _gallery.add(url);
       }
@@ -184,8 +195,27 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
       if (!mounted) return;
 
       setState(() {});
-    } catch (e) {
-      debugPrint('PET GALLERY ERROR: $e');
+    } catch (error, stackTrace) {
+      logAdoptionUploadError(
+        operation: 'adoption_pet_gallery_picker',
+        storagePath:
+            'business_sector_docs/${widget.businessId}/adoption_center/pets',
+        contentType: 'unknown',
+        fileSize: 0,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.uploadFailed(error.toString()),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingMedia = false);
     }
   }
 
@@ -195,9 +225,7 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
     }
 
     if (_coverImageUrl == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.pleaseAddCoverImage),
         ),
@@ -256,15 +284,18 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
       if (!mounted) return;
 
       Navigator.pop(context);
-    } catch (e) {
-      debugPrint('SAVE PET ERROR: $e');
+    } catch (error, stackTrace) {
+      debugPrint('SAVE PET ERROR: $error');
+      debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.saveFailed('$e'))),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.saveFailed(error.toString()),
+          ),
+        ),
       );
     }
 
@@ -291,7 +322,7 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
     debugPrint('==============================');
 
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       items: items
           .map((e) => DropdownMenuItem<T>(value: e, child: Text(e.toString())))
           .toList(),
@@ -310,16 +341,22 @@ class _AddEditAdoptionPetPageState extends State<AddEditAdoptionPetPage> {
           padding: const EdgeInsets.all(16),
           children: [
             ElevatedButton(
-              onPressed: _pickCover,
-              child: Text(
-                _coverImageUrl == null ? 'Upload Cover' : 'Change Cover',
-              ),
+              onPressed: _uploadingMedia ? null : _pickCover,
+              child: _uploadingMedia
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      _coverImageUrl == null ? 'Upload Cover' : 'Change Cover',
+                    ),
             ),
 
             const SizedBox(height: 12),
 
             ElevatedButton(
-              onPressed: _pickGallery,
+              onPressed: _uploadingMedia ? null : _pickGallery,
               child: Text(AppLocalizations.of(context)!.addGalleryImages),
             ),
 

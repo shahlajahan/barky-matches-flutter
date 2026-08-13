@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:barky_matches_fixed/subscription/subscription_checkout_platform.dart';
+import 'package:barky_matches_fixed/subscription/iap_service.dart';
 import 'package:barky_matches_fixed/subscription/web_subscription_return_page.dart';
 import 'package:barky_matches_fixed/subscription/web_subscription_service.dart';
 import 'package:barky_matches_fixed/upgrade_page.dart';
@@ -84,6 +85,14 @@ void main() {
       ),
       SubscriptionCheckoutPlatform.googlePlay,
     );
+  });
+
+  test('mobile IAP is enabled after server store verification is configured', () {
+    expect(IapService.mobileIapEnabled, isTrue);
+  });
+
+  test('mobile upgrade purchase and restore controls are enabled', () {
+    expect(mobileIapPurchaseControlsEnabled(), isTrue);
   });
 
   test('return state trusts only verified backend success', () {

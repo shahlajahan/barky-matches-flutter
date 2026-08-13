@@ -9,7 +9,6 @@ import 'package:barky_matches_fixed/groomy_page.dart';
 import 'package:barky_matches_fixed/pet_hotel_page.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_page.dart';
 import 'package:barky_matches_fixed/ui/common/pages/petshop_list_page.dart';
-import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_detail_page.dart';
 import 'package:barky_matches_fixed/ui/green_memorial/green_memorial_page.dart';
 import 'package:barky_matches_fixed/play_date_requests_page_new.dart';
 import 'package:barky_matches_fixed/user_profile_page.dart';
@@ -31,8 +30,6 @@ import 'package:barky_matches_fixed/play_date_scheduling_page.dart';
 import 'package:barky_matches_fixed/ui/adoption/adoption_inbox_page.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
-
 import 'package:barky_matches_fixed/ui/orders/my_orders_page.dart';
 //import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
 import 'package:barky_matches_fixed/appointments/pages/appointment_status_page.dart';
@@ -52,6 +49,7 @@ import 'package:barky_matches_fixed/social/pages/petplore_page.dart';
 
 import 'package:barky_matches_fixed/appointments/pages/service_categories_page.dart';
 import 'package:barky_matches_fixed/ui/appointments/my_appointments_page.dart';
+import 'package:barky_matches_fixed/ui/appointments/user_appointment_router.dart';
 import 'package:barky_matches_fixed/screens/suspended_account_page.dart';
 
 // ─────────────────────────────────────────────
@@ -327,9 +325,44 @@ class _HomeBodyState extends State<_HomeBody> {
       (s) => s.selectedAppointmentCollection,
     );
 
+    final pendingUserAppointmentId = context.select<AppState, String?>(
+      (s) => s.pendingUserAppointmentId,
+    );
+    final pendingUserAppointmentCollection = context.select<AppState, String?>(
+      (s) => s.pendingUserAppointmentCollection,
+    );
+
     final currentTab = context.select<AppState, NavTab>((s) => s.currentTab);
 
     final appState = context.read<AppState>();
+
+    if (pendingUserAppointmentId != null &&
+        pendingUserAppointmentCollection != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final state = context.read<AppState>();
+        final id = state.pendingUserAppointmentId;
+        final collection = state.pendingUserAppointmentCollection;
+        if (id == null || collection == null) return;
+
+        final destination = buildUserAppointmentDetailPage(
+          collection: collection,
+          appointmentId: id,
+        );
+        state.consumePendingUserAppointmentDetail();
+        if (destination == null) {
+          debugPrint(
+            '❌ APPOINTMENT ROUTE FAILED → collection=$collection id=$id',
+          );
+          return;
+        }
+
+        debugPrint(
+          '🧭 APPOINTMENT ROUTE RESOLVED → collection=$collection destination=${destination.runtimeType}',
+        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
+      });
+    }
 
     // ==========================
     // 🔥 APPOINTMENT PAYMENT NAVIGATION
@@ -338,53 +371,21 @@ class _HomeBodyState extends State<_HomeBody> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final appointmentId = selectedAppointmentId;
         final collection = selectedAppointmentCollection ?? 'vet_appointments';
-        final isPetTaxi = collection == 'pet_taxi_bookings';
-        final isGroomy = collection == 'groomy_appointments';
-        final isHotel = collection == 'hotel_bookings';
         debugPrint("💳 NAVIGATE TO PAYMENT PAGE → $appointmentId");
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => isPetTaxi
-                ? PetTaxiBookingDetailPage(bookingId: appointmentId)
-                : AppointmentPaymentPage(
-                    appointmentId: appointmentId,
-                    appointmentCollection: collection,
-                    appointmentType: isHotel
-                        ? 'pet_hotel'
-                        : isGroomy
-                        ? 'grooming'
-                        : 'veterinary',
-                    updateStatusFunctionName: isHotel
-                        ? 'updateHotelBookingStatus'
-                        : isGroomy
-                        ? 'updateGroomyAppointmentStatus'
-                        : 'updateVetAppointmentStatus',
-                    createOrderFunctionName: isHotel
-                        ? 'createHotelBookingOrder'
-                        : 'createAppointmentOrder',
-                    verifyPaymentFunctionName: isHotel
-                        ? 'verifyHotelBookingPayment'
-                        : 'verifyPayment',
-                    serviceFallbackName: isHotel
-                        ? 'Hotel stay'
-                        : isGroomy
-                        ? 'Grooming service'
-                        : 'Veterinary service',
-                    businessFallbackName: isHotel
-                        ? 'Pet hotel'
-                        : isGroomy
-                        ? 'Grooming studio'
-                        : 'Vet clinic',
-                    businessInfoLabel: isHotel
-                        ? 'Hotel'
-                        : isGroomy
-                        ? 'Groomy'
-                        : 'Clinic',
-                  ),
-          ),
+        final destination = buildUserAppointmentDetailPage(
+          collection: collection,
+          appointmentId: appointmentId,
         );
+        if (destination == null) {
+          debugPrint(
+            '❌ APPOINTMENT ROUTE FAILED → collection=$collection id=$appointmentId',
+          );
+          appState.consumeSelectedAppointment();
+          return;
+        }
+
+        Navigator.push(context, MaterialPageRoute(builder: (_) => destination));
 
         appState.consumeSelectedAppointment();
       });
@@ -626,6 +627,11 @@ class _ProfileTab extends StatelessWidget {
               );
         break;
       case ProfileSubPage.appointments:
+        child = const ServiceCategoriesPage();
+        break;
+      case ProfileSubPage.myAppointments:
+        child = const MyAppointmentsPage();
+        break;
       default:
         child = const ServiceCategoriesPage();
         break;
@@ -674,6 +680,7 @@ class _ProfileTab extends StatelessWidget {
 
     // 🟢 Appointments
     if (subPage == ProfileSubPage.appointments ||
+        subPage == ProfileSubPage.myAppointments ||
         subPage == ProfileSubPage.appointmentStatus ||
         subPage == ProfileSubPage.appointmentHistory) {
       return _buildAppointmentSubPage(context, appState);

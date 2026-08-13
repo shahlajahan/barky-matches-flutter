@@ -9,6 +9,11 @@ class LocationPermissionService {
   static bool _explanationShownThisSession = false;
   static bool _settingsPromptShownThisSession = false;
 
+  static bool acceptsForegroundPermission(LocationPermission permission) {
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+  }
+
   static Future<bool> ensurePermission(
     BuildContext context, {
     required String title,
@@ -26,10 +31,10 @@ class LocationPermissionService {
       return false;
     }
 
-    var status = await handler.Permission.location.status;
-    if (status.isGranted || status.isLimited) return true;
+    var status = await Geolocator.checkPermission();
+    if (acceptsForegroundPermission(status)) return true;
 
-    if (status.isPermanentlyDenied || status.isRestricted) {
+    if (status == LocationPermission.deniedForever) {
       if (context.mounted) {
         await _showSettingsDialogOnce(context);
       }
@@ -56,10 +61,10 @@ class LocationPermissionService {
       if (shouldContinue != true || !context.mounted) return false;
     }
 
-    status = await handler.Permission.location.request();
-    if (status.isGranted || status.isLimited) return true;
+    status = await Geolocator.requestPermission();
+    if (acceptsForegroundPermission(status)) return true;
 
-    if (status.isPermanentlyDenied || status.isRestricted) {
+    if (status == LocationPermission.deniedForever) {
       if (context.mounted) {
         await _showSettingsDialogOnce(context);
       }

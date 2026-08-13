@@ -21,6 +21,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
+import 'package:barky_matches_fixed/services/business_search_matcher.dart';
 import 'package:barky_matches_fixed/services/location_permission_service.dart';
 
 class VetPage extends StatefulWidget {
@@ -810,16 +811,14 @@ class _VetPageState extends State<VetPage> with AutomaticKeepAliveClientMixin {
 
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      final lower = query.toLowerCase();
+      final lower = BusinessSearchMatcher.normalize(query);
 
       setState(() {
         _searchQuery = lower;
 
-        _filteredVets = _vets.where((vet) {
-          return vet.name.toLowerCase().contains(lower) ||
-              vet.specialties.join(' ').toLowerCase().contains(lower) ||
-              (vet.city ?? '').toLowerCase().contains(lower);
-        }).toList();
+        _filteredVets = _vets
+            .where((vet) => BusinessSearchMatcher.matches(vet, lower))
+            .toList();
       });
     });
   }

@@ -135,53 +135,15 @@
       var startupCompleted = false;
       var startupTimer = null;
 
-      // Ordered startup trace, console-only, never rendered to the user.
-      // Kept as a plain array (not just individual console.log calls) so
-      // the *sequence* — and exactly where it stops — is easy to read back
-      // in one place from Safari Web Inspector: run
-      // `copy(window.barkyStartupTrace)` in the console to copy it.
-      var trace = [];
-      window.barkyStartupTrace = trace;
-
       function record(message) {
-        var entry = (Date.now() - traceStart) + 'ms: ' + message;
-        trace.push(entry);
-        try { console.log('[petsupo-startup] ' + entry); } catch (_) {}
+        // Startup UI state remains active; routine console diagnostics do not.
       }
 
       function logDiagnostic(source, detail) {
-        trace.push((Date.now() - traceStart) + 'ms: ERROR at ' + source);
-        try { console.error('[petsupo-startup] ' + source, detail); } catch (_) {}
+        // Browser default error handling remains responsible for real errors.
       }
 
-      var traceStart = Date.now();
       record('index.html execution started');
-
-      // Coarse feature/UA logging only — no canvas/font fingerprinting, no
-      // entropy collection beyond what any page already gets from the
-      // request headers. Purely to distinguish "which code path Safari
-      // takes" from "which code path Chrome takes" when reading the trace.
-      try {
-        var nav = window.navigator || {};
-        record('UA: ' + (nav.userAgent || 'unknown'));
-        record(
-          'features: wasm=' + (typeof WebAssembly !== 'undefined') +
-          ' indexedDB=' + (typeof window.indexedDB !== 'undefined') +
-          ' serviceWorker=' + ('serviceWorker' in nav) +
-          ' crossOriginIsolated=' + (typeof window.crossOriginIsolated !== 'undefined' ? window.crossOriginIsolated : 'n/a')
-        );
-        try {
-          var probeCanvas = document.createElement('canvas');
-          record(
-            'webgl: webgl2=' + !!probeCanvas.getContext('webgl2') +
-            ' webgl1=' + !!probeCanvas.getContext('webgl')
-          );
-        } catch (webglError) {
-          logDiagnostic('webgl-probe', webglError);
-        }
-      } catch (featureProbeError) {
-        logDiagnostic('feature-probe', featureProbeError);
-      }
 
       function showFallback() {
         if (startupCompleted) return;
@@ -218,11 +180,7 @@
         showFallback();
       }, 20000);
 
-      // Exposed for flutter_bootstrap.js (a separate <script>, no shared
-      // closure) and for the bootstrap script tag's own onload/onerror
-      // attributes below — every call is defensive (typeof-checked at the
-      // call site) so a version mismatch between this file and a cached
-      // main.dart.js can never throw.
+      // Exposed for the bootstrap script and startup fallback handling.
       window.barkyLog = record;
       window.barkyLogError = logDiagnostic;
       window.barkyShowStartupFallback = showFallback;
@@ -382,6 +340,8 @@
       });
     };
   </script>
+  <!-- This is a browser-restricted key for Maps JS/Places/Geocoding only.
+       Keep the server-only GOOGLE_MAPS_SERVER_KEY out of this file. -->
   <script
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAMpyDBgPKo4WlpiU0zOCzARZ43KTZDFBs&libraries=places&loading=async"
     async
@@ -389,8 +349,7 @@
   <script
     src="flutter_bootstrap.js"
     async
-    onload="if (typeof window.barkyLog === 'function') window.barkyLog('flutter_bootstrap.js script tag loaded');"
-    onerror="if (typeof window.barkyLogError === 'function') window.barkyLogError('flutter_bootstrap.js failed to load (network/404)', event); if (typeof window.barkyShowStartupFallback === 'function') window.barkyShowStartupFallback();"
+    onerror="if (typeof window.barkyShowStartupFallback === 'function') window.barkyShowStartupFallback();"
   ></script>
 </body>
 

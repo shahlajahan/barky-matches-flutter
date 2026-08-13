@@ -53,7 +53,10 @@ async function calculateAppointmentFinancial({
     if (sector === "taxi") {
         return buildCanonicalFinancialSnapshot({
             financial: await calculateCommission({ sector, finalPrice }),
-            currency: record.currency || "TRY",
+            currency: record.finalPriceCurrency ||
+                record.paymentCurrency ||
+                record.currency ||
+                "TRY",
             calculationInputs: {
                 sector,
                 serviceType: record.serviceType || null,

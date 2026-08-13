@@ -457,6 +457,13 @@ allow read: if isAdmin() || (
 
     match /dogs/{dogId} {
 
+      function isDogOwner(data) {
+        return isSignedIn() && (
+          ('ownerId' in data && data.ownerId == request.auth.uid) ||
+          ('ownerUid' in data && data.ownerUid == request.auth.uid)
+        );
+      }
+
       allow read:
         if isRegisteredUser()
         || (
@@ -472,16 +479,22 @@ allow read: if isAdmin() || (
         if isAdmin() ||
 
         (
-          isSignedIn() &&
-          resource.data.ownerId == request.auth.uid &&
+          isDogOwner(resource.data) &&
 
           request.resource.data
             .diff(resource.data)
             .affectedKeys()
             .hasOnly([
-              'ownerProfile',
-              'ownerProfileUpdatedAt',
-              'updatedAt',
+              'name',
+              'petName',
+              'age',
+              'healthStatus',
+              'isNeutered',
+              'description',
+              'traits',
+              'ownerGender',
+              'imagePaths',
+              'isAvailableForAdoption',
             ])
         );
 
@@ -670,7 +683,11 @@ match /dogs/{dogId}/visits/{visitId} {
     }
 
     match /subscriptions/{subscriptionId} {
-      allow read: if isAdmin() || isSubscriptionOwner(resource.data);
+      // The document may not exist yet for a new/free user. Path ownership is
+      // therefore required in addition to the legacy data ownership check.
+      allow read: if isAdmin() || (isSignedIn()
+        && subscriptionId == request.auth.uid)
+        || isSubscriptionOwner(resource.data);
       // Paid entitlement is backend-owned. End users can inspect their own
       // subscription but cannot grant, extend, replace, or delete it.
       allow create, update, delete: if isAdmin();
@@ -857,6 +874,12 @@ match /dogs/{dogId}/visits/{visitId} {
         request.resource.data.userId == request.auth.uid ||
         request.resource.data.buyerUid == request.auth.uid ||
         request.resource.data.buyerEmail == request.auth.token.email
+      ) && (
+        request.resource.data.type != 'pet_taxi' ||
+        (
+          request.resource.data.status == 'pending' &&
+          request.resource.data.paymentStatus == 'pending'
+        )
       );
       allow update, delete: if false;
     }

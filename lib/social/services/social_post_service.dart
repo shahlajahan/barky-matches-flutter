@@ -34,7 +34,6 @@ class SocialPostService {
 
     return query.snapshots().map((snapshot) {
       debugPrint('🔥 POSTS RECEIVED: ${snapshot.docs.length}');
-
       for (final doc in snapshot.docs) {
         debugPrint('🔥 POST DOC: ${doc.id}');
       }

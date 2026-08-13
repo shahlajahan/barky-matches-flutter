@@ -1,9 +1,13 @@
-import 'dart:convert';
+import 'dart:async';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
-import 'package:http/http.dart' as http;
 import 'web_google_location_service.dart';
+
+class PetTaxiRouteUnavailableException implements Exception {
+  const PetTaxiRouteUnavailableException();
+}
 
 class PetTaxiLocationPoint {
   final String formattedAddress;
@@ -18,6 +22,84 @@ class PetTaxiLocationPoint {
 
   Map<String, dynamic> toMap() {
     return {'formattedAddress': formattedAddress, 'lat': lat, 'lng': lng};
+  }
+}
+
+typedef PetTaxiLocationSearch =
+    Future<List<PetTaxiLocationPoint>> Function(String query);
+
+class PetTaxiLocationSearchController {
+  PetTaxiLocationSearchController({
+    required this.search,
+    this.debounceDuration = const Duration(milliseconds: 350),
+  });
+
+  final PetTaxiLocationSearch search;
+  final Duration debounceDuration;
+  Timer? _timer;
+  int _generation = 0;
+
+  void schedule(
+    String rawQuery, {
+    required void Function() onSearching,
+    required void Function(List<PetTaxiLocationPoint> results) onResults,
+    required void Function(Object error) onError,
+    required void Function() onCleared,
+  }) {
+    _timer?.cancel();
+    final query = rawQuery.trim();
+    final generation = ++_generation;
+    if (query.length < 4) {
+      onCleared();
+      return;
+    }
+
+    onSearching();
+    _timer = Timer(debounceDuration, () {
+      _run(query, generation, onResults: onResults, onError: onError);
+    });
+  }
+
+  Future<void> searchNow(
+    String rawQuery, {
+    required void Function() onSearching,
+    required void Function(List<PetTaxiLocationPoint> results) onResults,
+    required void Function(Object error) onError,
+    required void Function() onCleared,
+  }) async {
+    _timer?.cancel();
+    final query = rawQuery.trim();
+    final generation = ++_generation;
+    if (query.length < 4) {
+      onCleared();
+      return;
+    }
+
+    onSearching();
+    await _run(query, generation, onResults: onResults, onError: onError);
+  }
+
+  Future<void> _run(
+    String query,
+    int generation, {
+    required void Function(List<PetTaxiLocationPoint> results) onResults,
+    required void Function(Object error) onError,
+  }) async {
+    try {
+      final results = await search(query);
+      if (generation == _generation) onResults(results);
+    } catch (error) {
+      if (generation == _generation) onError(error);
+    }
+  }
+
+  void dispose() {
+    cancelPending();
+  }
+
+  void cancelPending() {
+    _timer?.cancel();
+    _generation++;
   }
 }
 
@@ -49,8 +131,7 @@ class PetTaxiLocationSearchService {
 
   Future<List<PetTaxiLocationPoint>> searchLocations(
     String query, {
-    String city = 'Istanbul',
-    String country = 'Turkey',
+    String? country,
   }) async {
     final trimmed = query.trim();
     if (trimmed.length < 4) return const [];
@@ -59,10 +140,10 @@ class PetTaxiLocationSearchService {
       return _searchWebLocations(trimmed);
     }
 
-    // TODO: Replace geocoding search with Google Places Autocomplete filtered
-    // by configured country/admin region.
     final locations = await geocoding.locationFromAddress(
-      '$trimmed, $city, $country',
+      country == null || country.trim().isEmpty
+          ? trimmed
+          : '$trimmed, ${country.trim()}',
     );
 
     final results = <PetTaxiLocationPoint>[];
@@ -160,131 +241,66 @@ class PetTaxiLocationSearchService {
 }
 
 class PetTaxiRouteService {
-  // Temporary: reuse the existing Maps key already configured in
-  // lib/config/api_keys.dart and ios/Runner/AppDelegate.swift.
-  static const String _googleDirectionsApiKey =
-      'AIzaSyCN_Y8FNV_XI7Ru4S4UKKckrBi7HkI-GcY';
+  const PetTaxiRouteService({FirebaseFunctions? functions})
+    : _functions = functions;
 
-  const PetTaxiRouteService({http.Client? client}) : _client = client;
-
-  final http.Client? _client;
+  final FirebaseFunctions? _functions;
 
   Future<PetTaxiRouteEstimate> estimateDrivingRoute({
     required PetTaxiLocationPoint pickup,
     required PetTaxiLocationPoint dropoff,
   }) async {
-    const apiKey = _googleDirectionsApiKey;
-    if (apiKey.isEmpty) {
-      throw StateError(
-        'Google Directions API key is missing in PetTaxiRouteService.',
-      );
-    }
-
-    // TODO: Move Google Directions calls behind a callable Cloud Function when
-    // API keys are server-managed.
     // TODO: Extend request options for realtime traffic, toll/bridge detection,
     // airport detection, saved addresses, and route preview polylines.
-    final uri = Uri.https('maps.googleapis.com', '/maps/api/directions/json', {
-      'origin': '${pickup.lat},${pickup.lng}',
-      'destination': '${dropoff.lat},${dropoff.lng}',
-      'mode': 'driving',
-      'region': 'tr',
-      'language': 'tr',
-      'units': 'metric',
-      'alternatives': 'false',
-      'key': apiKey,
-    });
-    final safeUri = uri.replace(
-      queryParameters: {...uri.queryParameters, 'key': _maskedApiKey(apiKey)},
-    );
-
     debugPrint('PetTaxiRouteService route request started');
     debugPrint(
       'PetTaxiRouteService pickup=${pickup.lat},${pickup.lng} dropoff=${dropoff.lat},${dropoff.lng}',
     );
-    debugPrint('PetTaxiRouteService requestUrl=$safeUri');
 
-    final client = _client ?? http.Client();
+    final functions =
+        _functions ?? FirebaseFunctions.instanceFor(region: 'europe-west3');
     try {
-      final response = await client.get(uri);
-      debugPrint('PetTaxiRouteService httpStatus=${response.statusCode}');
-      if (response.statusCode != 200) {
-        debugPrint('PetTaxiRouteService responseBody=${response.body}');
+      final result = await functions
+          .httpsCallable(
+            'estimatePetTaxiRoute',
+            options: HttpsCallableOptions(timeout: const Duration(seconds: 20)),
+          )
+          .call(<String, dynamic>{
+            'origin': {'lat': pickup.lat, 'lng': pickup.lng},
+            'destination': {'lat': dropoff.lat, 'lng': dropoff.lng},
+          });
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final distanceKm = (data['distanceKm'] as num?)?.toDouble();
+      final durationMinutes = (data['durationMinutes'] as num?)?.round();
+      if (distanceKm == null ||
+          durationMinutes == null ||
+          !distanceKm.isFinite ||
+          distanceKm <= 0 ||
+          durationMinutes <= 0) {
         throw StateError(
-          'Google Directions route request failed with HTTP ${response.statusCode}. Body: ${response.body}',
+          'Pet Taxi route function returned an invalid estimate.',
         );
       }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final status = body['status']?.toString() ?? 'UNKNOWN';
-      debugPrint('PetTaxiRouteService apiStatus=$status');
-      if (status != 'OK') {
-        final message = body['error_message']?.toString();
-        debugPrint('PetTaxiRouteService apiError=${message ?? status}');
-        debugPrint('PetTaxiRouteService responseBody=${response.body}');
-        throw StateError(
-          'Google Directions API failed with status $status${message == null ? '' : ': $message'}. Body: ${response.body}',
-        );
-      }
-
-      final routes = body['routes'];
-      if (routes is! List || routes.isEmpty) {
-        debugPrint('PetTaxiRouteService responseBody=${response.body}');
-        throw StateError('Google Directions returned no driving route.');
-      }
-
-      final route = Map<String, dynamic>.from(routes.first as Map);
-      final legs = route['legs'];
-      if (legs is! List || legs.isEmpty) {
-        debugPrint('PetTaxiRouteService responseBody=${response.body}');
-        throw StateError('Google Directions route has no distance legs.');
-      }
-
-      var distanceMeters = 0;
-      var durationSeconds = 0;
-      for (final leg in legs) {
-        final data = Map<String, dynamic>.from(leg as Map);
-        distanceMeters += _intValue(data['distance']);
-        durationSeconds += _intValue(data['duration']);
-      }
-
-      if (distanceMeters <= 0 || durationSeconds <= 0) {
-        debugPrint('PetTaxiRouteService responseBody=${response.body}');
-        throw StateError(
-          'Google Directions route distance or duration is missing. distanceMeters=$distanceMeters durationSeconds=$durationSeconds',
-        );
-      }
-
-      final polyline = route['overview_polyline'];
       final estimate = PetTaxiRouteEstimate(
-        distanceKm: double.parse((distanceMeters / 1000).toStringAsFixed(2)),
-        durationMinutes: (durationSeconds / 60).ceil(),
-        source: 'google_directions_driving',
-        encodedPolyline: polyline is Map
-            ? polyline['points']?.toString()
-            : null,
+        distanceKm: distanceKm,
+        durationMinutes: durationMinutes,
+        source: data['source']?.toString() ?? 'google_directions_driving',
+        encodedPolyline: data['encodedPolyline']?.toString(),
       );
       debugPrint(
         'PetTaxiRouteService decoded distanceKm=${estimate.distanceKm} durationMinutes=${estimate.durationMinutes} polyline=${estimate.encodedPolyline == null ? 'none' : 'present'}',
       );
       return estimate;
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'not-found') {
+        throw const PetTaxiRouteUnavailableException();
+      }
+      throw StateError(
+        'Pet Taxi route estimation failed: ${error.message ?? error.code}',
+      );
     } catch (e) {
       debugPrint('PetTaxi route estimate error: ${e.toString()}');
       rethrow;
-    } finally {
-      if (_client == null) client.close();
     }
-  }
-
-  int _intValue(dynamic value) {
-    if (value is Map && value['value'] is num) {
-      return (value['value'] as num).round();
-    }
-    return 0;
-  }
-
-  String _maskedApiKey(String key) {
-    if (key.length <= 8) return '***';
-    return '${key.substring(0, 6)}...${key.substring(key.length - 4)}';
   }
 }

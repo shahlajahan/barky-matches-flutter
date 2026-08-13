@@ -15,6 +15,8 @@ import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/ui/common/platform_path_image_provider.dart';
 import 'pet_taxi_location_picker_page.dart';
 import 'pet_taxi_booking_detail_page.dart';
+import 'pet_taxi_booking_reconciliation.dart';
+import 'package:barky_matches_fixed/ui/legal/petsupo_marketplace_disclaimer.dart';
 
 import 'package:provider/provider.dart';
 
@@ -48,6 +50,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
   final _emergencyPhone = TextEditingController();
   final _pricingService = const PetTaxiPricingService();
   final _routeService = const PetTaxiRouteService();
+  final _requestIdentity = PetTaxiBookingRequestIdentity();
 
   Dog? _selectedDog;
   PetTaxiLocationPoint? _pickupLocation;
@@ -261,7 +264,11 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
         _estimate = null;
         _estimating = false;
       });
-      _snack('Route estimate failed: ${e.toString()}');
+      _snack(
+        e is PetTaxiRouteUnavailableException
+            ? AppLocalizations.of(context)!.petTaxiRouteUnavailable
+            : AppLocalizations.of(context)!.routeEstimateUnavailable,
+      );
     }
   }
 
@@ -358,12 +365,17 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
       return;
     }
 
+    if (!await showPetSupoMarketplaceDisclaimer(context)) return;
+    if (!mounted) return;
+
+    final clientRequestId = _requestIdentity.value;
     setState(() => _saving = true);
     try {
       final callable = FirebaseFunctions.instanceFor(
         region: 'europe-west3',
       ).httpsCallable('createPetTaxiBooking');
-      final result = await callable.call({
+      final payload = <String, dynamic>{
+        'clientRequestId': clientRequestId,
         'businessId': widget.business.id,
         'businessName': widget.business.name,
         'petId': dog.id,
@@ -402,7 +414,10 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
         'leashRequired': _leashRequired,
         'largeDog': _largeDog,
         'specialAssistanceRequired': _specialAssistance,
-      });
+      };
+      final result = await reconcilePetTaxiBooking(
+        () => callable.call(payload),
+      );
 
       final data = Map<String, dynamic>.from(result.data as Map);
       final bookingId = data['bookingId']?.toString();
@@ -412,6 +427,7 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
         Navigator.of(context).pop();
         return;
       }
+      _requestIdentity.clear();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => PetTaxiBookingDetailPage(bookingId: bookingId),
@@ -419,7 +435,14 @@ class _PetTaxiBookingPageState extends State<PetTaxiBookingPage> {
       );
     } catch (e) {
       debugPrint('PetTaxiBookingPage submit error: ${e.toString()}');
-      if (mounted) _snack(e.toString());
+      if (mounted) {
+        if (isPetTaxiAmbiguousOutcome(e)) {
+          _snack(AppLocalizations.of(context)!.petTaxiStatusUnknown);
+        } else {
+          _requestIdentity.clear();
+          _snack(e.toString());
+        }
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

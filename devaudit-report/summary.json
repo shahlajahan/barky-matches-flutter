@@ -6,15 +6,67 @@
   },
   "target": ".",
   "summary": {
-    "filesScanned": 533,
-    "issues": 0
+    "filesScanned": 568,
+    "issues": 23
   },
   "bySeverity": {
     "info": 0,
-    "warning": 0,
+    "warning": 23,
     "error": 0
   },
-  "byRule": {},
-  "byFolder": [],
-  "byFile": []
+  "byRule": {
+    "flutter.localization.hardcoded-ui-string": 23
+  },
+  "byFolder": [
+    {
+      "path": "lib/ui/admin",
+      "count": 8
+    },
+    {
+      "path": "lib",
+      "count": 7
+    },
+    {
+      "path": "lib/promotion/widgets",
+      "count": 6
+    },
+    {
+      "path": "lib/social/pages",
+      "count": 1
+    },
+    {
+      "path": "lib/ui/petshop/widgets",
+      "count": 1
+    }
+  ],
+  "byFile": [
+    {
+      "path": "lib/ui/admin/pet_taxi_admin_review_panel.dart",
+      "count": 8
+    },
+    {
+      "path": "lib/apple_account_recovery_page.dart",
+      "count": 6
+    },
+    {
+      "path": "lib/promotion/widgets/promotion_plan_sheet.dart",
+      "count": 4
+    },
+    {
+      "path": "lib/promotion/widgets/service_promotion_action.dart",
+      "count": 2
+    },
+    {
+      "path": "lib/dog_card.dart",
+      "count": 1
+    },
+    {
+      "path": "lib/social/pages/social_post_route_page.dart",
+      "count": 1
+    },
+    {
+      "path": "lib/ui/petshop/widgets/product_card_dashboard.dart",
+      "count": 1
+    }
+  ]
 }

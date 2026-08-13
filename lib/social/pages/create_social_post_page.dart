@@ -470,8 +470,6 @@ class _CreateSocialPostPageState extends State<CreateSocialPostPage> {
       if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
-      debugPrint('CreateSocialPostPage error: $e');
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

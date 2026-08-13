@@ -100,7 +100,14 @@ class AdoptionRequestService {
       "closedReason": null,
     };
 
-    debugPrint("🐾 REQUEST PAYLOAD = $payload");
+    debugPrint(
+      "🐾 REQUEST PAYLOAD READY "
+      "targetType=$targetType "
+      "targetId=$targetId "
+      "targetOwnerId=$targetOwnerId "
+      "requesterId=$uid "
+      "documentsCount=${documents.length}",
+    );
 
     final ref = await FirebaseFirestore.instance
         .collection('adoption_requests')
@@ -153,8 +160,12 @@ class AdoptionRequestService {
       );
 
       debugPrint(
-        "REQUEST FULL DATA = "
-        "$data",
+        "REQUEST DATA SUMMARY "
+        "targetType=${data['targetType']} "
+        "targetId=${data['targetId']} "
+        "targetOwnerId=${data['targetOwnerId']} "
+        "requesterId=${data['requesterId']} "
+        "status=${data['status']}",
       );
 
       final ownerId = (data['targetOwnerId'] ?? '').toString();
@@ -244,7 +255,7 @@ class AdoptionRequestService {
       if (adoptionPetRef != null &&
           adoptionPetSnap != null &&
           adoptionPetSnap.exists) {
-        tx.update(adoptionPetRef!, {
+        tx.update(adoptionPetRef, {
           "status": "adopted",
 
           "adoptedAt": FieldValue.serverTimestamp(),

@@ -11,11 +11,16 @@ import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_location_permi
 class PetTaxiLocationPickerPage extends StatefulWidget {
   final String title;
   final PetTaxiLocationPoint? initialLocation;
+  final Future<List<PetTaxiLocationPoint>> Function(String query)?
+  locationSearch;
+  final bool initializeLocation;
 
   const PetTaxiLocationPickerPage({
     super.key,
     required this.title,
     this.initialLocation,
+    this.locationSearch,
+    this.initializeLocation = true,
   });
 
   @override
@@ -28,11 +33,17 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
 
   final _search = TextEditingController();
   final _service = const PetTaxiLocationSearchService();
+  late final PetTaxiLocationSearchController _searchController =
+      PetTaxiLocationSearchController(
+        search: widget.locationSearch ?? _service.searchLocations,
+      );
   final _permissionService = const PetTaxiLocationPermissionService();
   GoogleMapController? _mapController;
   PetTaxiLocationPoint? _selected;
   List<PetTaxiLocationPoint> _results = const [];
   bool _searching = false;
+  bool _hasSearched = false;
+  String? _searchError;
   bool _resolvingMapTap = false;
   bool _myLocationEnabled = false;
 
@@ -40,15 +51,17 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
   void initState() {
     super.initState();
     _selected = widget.initialLocation;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeMyLocation();
-    });
+    if (widget.initializeLocation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initializeMyLocation();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _searchController.cancelPending();
     _search.dispose();
-    _mapController?.dispose();
     super.dispose();
   }
 
@@ -70,40 +83,84 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
   }
 
   Future<void> _searchLocations() async {
-    final l10n = AppLocalizations.of(context)!;
-    final query = _search.text.trim();
-    if (query.length < 4) {
-      return;
-    }
+    await _searchController.searchNow(
+      _search.text,
+      onSearching: _markSearchStarted,
+      onResults: _showSearchResults,
+      onError: _showSearchError,
+      onCleared: _clearSearchResults,
+    );
+  }
 
-    setState(() => _searching = true);
-    try {
-      final results = await _service.searchLocations(query);
-      if (!mounted) {
-        return;
-      }
-      setState(() => _results = results);
-      if (results.isNotEmpty) {
-        await _select(results.first, moveCamera: true);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.locationSearchFailed(e.toString()))),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _searching = false);
-      }
+  void _onSearchChanged(String value) {
+    if (_selected != null) {
+      setState(() => _selected = null);
     }
+    _searchController.schedule(
+      value,
+      onSearching: _markSearchStarted,
+      onResults: _showSearchResults,
+      onError: _showSearchError,
+      onCleared: _clearSearchResults,
+    );
+  }
+
+  void _markSearchStarted() {
+    if (!mounted) return;
+    setState(() {
+      _searching = true;
+      _hasSearched = false;
+      _searchError = null;
+      _results = const [];
+    });
+  }
+
+  void _showSearchResults(List<PetTaxiLocationPoint> results) {
+    if (!mounted) return;
+    setState(() {
+      _searching = false;
+      _hasSearched = true;
+      _searchError = null;
+      _results = results;
+    });
+  }
+
+  void _showSearchError(Object error) {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    setState(() {
+      _searching = false;
+      _hasSearched = true;
+      _results = const [];
+      _searchError = l10n.locationSearchFailed(error.toString());
+    });
+  }
+
+  void _clearSearchResults() {
+    if (!mounted) return;
+    setState(() {
+      _searching = false;
+      _hasSearched = false;
+      _searchError = null;
+      _results = const [];
+    });
   }
 
   Future<void> _select(
     PetTaxiLocationPoint point, {
     required bool moveCamera,
   }) async {
-    setState(() => _selected = point);
+    _searchController.cancelPending();
+    _search.value = TextEditingValue(
+      text: point.formattedAddress,
+      selection: TextSelection.collapsed(offset: point.formattedAddress.length),
+    );
+    setState(() {
+      _selected = point;
+      _results = const [];
+      _searchError = null;
+      _hasSearched = false;
+    });
     if (moveCamera) {
       await _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(LatLng(point.lat, point.lng), 16),
@@ -265,8 +322,30 @@ class _PetTaxiLocationPickerPageState extends State<PetTaxiLocationPickerPage> {
                             icon: const Icon(LucideIcons.arrowRight, size: 28),
                           ),
                   ),
+                  onChanged: _onSearchChanged,
                   onSubmitted: (_) => _searchLocations(),
                 ),
+                if (_searchError != null) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _searchError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ] else if (_hasSearched && !_searching && _results.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      l10n.noResults,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ),
+                ],
                 if (_results.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   ..._results.map(

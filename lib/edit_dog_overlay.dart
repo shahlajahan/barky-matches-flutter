@@ -170,7 +170,7 @@ class _EditDogOverlayState extends State<EditDogOverlay>
     if (kIsWeb) {
       uploadTask = ref.putData(await file.readAsBytes(), metadata);
     } else {
-      uploadTask = ref.putFile(File(file.path));
+      uploadTask = ref.putFile(File(file.path), metadata);
     }
 
     final taskSnapshot = await uploadTask;

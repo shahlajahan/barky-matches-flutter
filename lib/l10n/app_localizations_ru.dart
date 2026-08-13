@@ -58,6 +58,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get checkoutButton => 'Оформить заказ';
 
   @override
+  String get marketplaceDisclaimerTitle => 'Перед продолжением';
+
+  @override
+  String get marketplaceDisclaimerMessage => 'PetSupo — это платформа, которая связывает вас с независимыми компаниями и поставщиками услуг. Выбранную услугу предоставляет указанная компания или поставщик. PetSupo не гарантирует качество или выполнение этой независимой услуги и не несёт за это ответственность. Перед продолжением ознакомьтесь с информацией о компании или поставщике.';
+
+  @override
+  String get marketplaceDisclaimerAccept => 'Принять и продолжить';
+
+  @override
+  String get marketplaceDisclaimerCancel => 'Отмена';
+
+  @override
   String get checkoutStepAddressTitle => 'Адрес';
 
   @override
@@ -738,7 +750,35 @@ class AppLocalizationsRu extends AppLocalizations {
   String get emailVerifiedSuccessfully => 'Электронная почта успешно подтверждена';
 
   @override
-  String get invalidVerificationCode => 'Недействительный код подтверждения';
+  String get invalidVerificationCode => 'Недействительный код подтверждения. Попробуйте еще раз.';
+
+  @override
+  String get verificationCodeExpired => 'Срок действия кода истек. Запросите новый код.';
+
+  @override
+  String get unableToVerifyEmail => 'Сейчас не удается подтвердить почту. Попробуйте еще раз.';
+
+  @override
+  String get unableToSendVerificationCode => 'Сейчас не удается отправить новый код. Попробуйте еще раз.';
+
+  @override
+  String verificationCodeSentTo(Object email) {
+    return 'Код отправлен на адрес: $email';
+  }
+
+  @override
+  String get verificationCodeSentToLabel => 'Код подтверждения отправлен на';
+
+  @override
+  String get sendingVerificationCode => 'Отправка...';
+
+  @override
+  String resendCodeAvailableIn(Object seconds) {
+    return 'Повторная отправка кода доступна через $seconds с';
+  }
+
+  @override
+  String get changeEmail => 'Изменить электронную почту';
 
   @override
   String verificationCodeSent(Object email) {
@@ -4214,6 +4254,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get restorePurchases => 'Восстановить покупки';
 
   @override
+  String get mobileSubscriptionVerificationFailed => 'Не удалось подтвердить подписку. Повторите восстановление покупок.';
+
+  @override
+  String get mobileSubscriptionOwnershipConflict => 'Эта подписка привязана к другой учетной записи Petsupo. Войдите в учетную запись, которая ранее использовалась для этой подписки.';
+
+  @override
+  String get deleteAccountStoreSubscriptionNotice => 'Удаление аккаунта PetSupo не отменяет подписку в App Store или Google Play. Отмените оплату в магазине отдельно перед удалением аккаунта.';
+
+  @override
+  String get manageStoreSubscription => 'Управление подпиской магазина';
+
+  @override
   String get upgradePaymentTerms => 'Сумма будет списана с вашего аккаунта App Store при подтверждении. Подписки продлеваются автоматически, если не отменены как минимум за 24 часа до конца текущего периода.';
 
   @override
@@ -7362,6 +7414,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get driverOnline => 'Водитель онлайн';
 
   @override
+  String get petTaxiAwaitingActivation => 'Зоотакси ожидает активации.';
+
+  @override
+  String get petTaxiAvailabilityUpdateFailed => 'Не удалось обновить статус водителя. Повторите попытку.';
+
+  @override
   String get serviceDetailsSaveFailed => 'Не удалось сохранить сведения об услуге.';
 
   @override
@@ -7894,6 +7952,27 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get petTaxiManualReviewNotice => 'Заявка на зоотакси не будет опубликована до ручной проверки и одобрения документов.';
+
+  @override
+  String get petTaxiReplacementExpiryDateDriverLicense => 'Новая дата окончания водительского удостоверения';
+
+  @override
+  String get petTaxiReplacementExpiryDateTrafficInsurance => 'Новая дата окончания страховки автомобиля';
+
+  @override
+  String get petTaxiReplacementExpiryRequired => 'Перед отправкой замены выберите действительную будущую дату.';
+
+  @override
+  String get petTaxiReplacementSubmitted => 'Замена отправлена на проверку.';
+
+  @override
+  String get petTaxiDocumentsRequiringReplacement => 'Документы, требующие замены';
+
+  @override
+  String get petTaxiRejected => 'Отклонено';
+
+  @override
+  String get petTaxiReplaceDocument => 'Заменить';
 
   @override
   String get transportationLawNotice => 'Транспортное законодательство зависит от города и страны. Компания обязана соблюдать местные правила перевозки, страхования и налогообложения.';
@@ -9105,6 +9184,12 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get petTaxiRouteUnavailable => 'Между выбранными местами не удалось найти автомобильный маршрут. Проверьте точки посадки и назначения.';
+
+  @override
+  String get routeEstimateUnavailable => 'Оценка маршрута сейчас недоступна. Проверьте выбранные места и попробуйте снова.';
+
+  @override
   String get createPetTaxiBooking => 'Create pet taxi booking';
 
   @override
@@ -9779,4 +9864,263 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get promotionTargetGroomyService => 'Услуга Groomy';
+
+  @override
+  String get petTaxiDocumentTaxPlate => 'Налоговая табличка';
+
+  @override
+  String get petTaxiDocumentBusinessRegistration => 'Регистрация бизнеса';
+
+  @override
+  String get petTaxiDocumentVehicleRegistration => 'Регистрация автомобиля';
+
+  @override
+  String get petTaxiDocumentDriverLicense => 'Водительское удостоверение';
+
+  @override
+  String get petTaxiDocumentTrafficInsurance => 'Страховка автомобиля';
+
+  @override
+  String get petTaxiDocumentStatusPendingReview => 'На проверке';
+
+  @override
+  String get petTaxiDocumentStatusApproved => 'Одобрено';
+
+  @override
+  String get petTaxiDocumentStatusRejected => 'Отклонено';
+
+  @override
+  String get petTaxiDocumentStatusMissing => 'Отсутствует';
+
+  @override
+  String get petTaxiDocumentExpired => 'Срок истёк';
+
+  @override
+  String petTaxiDocumentExpiryDate(Object date) {
+    return 'Срок действия: $date';
+  }
+
+  @override
+  String get petTaxiDocumentExpiredMessage => 'Срок действия этого документа истёк. Отклоните его и попросите компанию загрузить действующую замену.';
+
+  @override
+  String petTaxiRejectDocumentTitle(Object document) {
+    return 'Отклонить документ «$document»';
+  }
+
+  @override
+  String get petTaxiAdminErrorPermissionDenied => 'У вас нет разрешения на это действие.';
+
+  @override
+  String get petTaxiAdminErrorUnauthenticated => 'Срок действия сеанса истёк. Войдите снова.';
+
+  @override
+  String get petTaxiAdminErrorNotFound => 'Компания или документ не найдены.';
+
+  @override
+  String get petTaxiAdminErrorInvalidArgument => 'Проверьте данные документа и повторите попытку.';
+
+  @override
+  String get petTaxiAdminErrorAlreadyExists => 'Это действие уже выполнено.';
+
+  @override
+  String get petTaxiAdminErrorFailedPrecondition => 'Это действие невозможно в текущем состоянии документа.';
+
+  @override
+  String get petTaxiAdminErrorGeneric => 'Не удалось выполнить действие. Повторите попытку.';
+
+  @override
+  String get petTaxiAdminActionCompleted => 'Документ обновлён';
+
+  @override
+  String get petTaxiUploadDocument => 'Загрузить документ';
+
+  @override
+  String get petTaxiTakePhoto => 'Сделать фото';
+
+  @override
+  String get petTaxiChoosePhoto => 'Выбрать фото';
+
+  @override
+  String get petTaxiChoosePdf => 'Выбрать PDF';
+
+  @override
+  String get petTaxiSupportedDocumentFormats => 'PDF, JPG или PNG (до 25 МБ)';
+
+  @override
+  String get petTaxiUnsupportedDocumentFormat => 'Выберите документ в формате PDF, JPG или PNG.';
+
+  @override
+  String get petTaxiDocumentTooLarge => 'Размер документа превышает 25 МБ.';
+
+  @override
+  String get petTaxiDocumentUploadFailed => 'Не удалось загрузить документ. Повторите попытку.';
+
+  @override
+  String get petTaxiOpenDocumentFailed => 'Не удалось открыть этот документ.';
+
+  @override
+  String get businessRegisterOptional => 'Необязательно';
+
+  @override
+  String get businessRegisterTaxPlateRequired => 'Необходимо загрузить налоговое свидетельство.';
+
+  @override
+  String get businessRegisterMersisNumberRequired => 'Требуется номер MERSIS.';
+
+  @override
+  String get businessRegisterPhoneOptional => 'Телефон (необязательно)';
+
+  @override
+  String get businessRegisterWhatsApp => 'WhatsApp';
+
+  @override
+  String get businessRegisterDetectLocationTitle => 'Определить местоположение компании';
+
+  @override
+  String get businessRegisterDetectLocationMessage => 'Мы используем ваше местоположение, чтобы определить город и район.';
+
+  @override
+  String get petTaxiDocumentPermissionDenied => 'Доступ к камере или фотографиям запрещён. Вместо этого можно выбрать фото или PDF.';
+
+  @override
+  String get petTaxiRequiredDocuments => 'Обязательные документы';
+
+  @override
+  String get petTaxiRequiredDocumentsSubtitle => 'Документы, необходимые для ручной проверки администратором';
+
+  @override
+  String get petTaxiOptionalDocuments => 'Необязательные / условные документы';
+
+  @override
+  String get petTaxiOptionalDocumentsSubtitle => 'Загрузите их, если они относятся к вашей услуге';
+
+  @override
+  String get petTaxiComplianceTitle => 'Подтверждения соответствия и закона';
+
+  @override
+  String get petTaxiComplianceSubtitle => 'Обязательные подтверждения перед отправкой';
+
+  @override
+  String get petTaxiPetSafetyEquipmentConfirmation => 'Подтверждаю наличие оборудования для безопасности животных в автомобиле.';
+
+  @override
+  String get petTaxiHygieneConfirmation => 'Подтверждаю соблюдение требований гигиены.';
+
+  @override
+  String get petTaxiDriverLicenseConfirmation => 'Подтверждаю, что водительские права действительны.';
+
+  @override
+  String get petTaxiVehicleRegistrationConfirmation => 'Подтверждаю, что регистрация автомобиля относится к транспортному средству услуги.';
+
+  @override
+  String get petTaxiTrafficInsuranceConfirmation => 'Подтверждаю, что страховка автомобиля действительна.';
+
+  @override
+  String get petTaxiTaxResponsibilityConfirmation => 'Подтверждаю, что налоговые обязательства и ответственность за счета или чеки относятся к моей компании.';
+
+  @override
+  String get petTaxiTransportRulesConfirmation => 'Подтверждаю соблюдение правил перевозки города и страны.';
+
+  @override
+  String get petTaxiComplianceNotes => 'Примечания для проверки администратором';
+
+  @override
+  String get petTaxiOptionalIfApplicable => 'Необязательно / если применимо';
+
+  @override
+  String petTaxiDocumentRequired(Object document) {
+    return 'Требуется документ: $document';
+  }
+
+  @override
+  String petTaxiDateRequired(Object date) {
+    return 'Требуется дата: $date';
+  }
+
+  @override
+  String petTaxiDateCannotBePast(Object date) {
+    return 'Дата $date не может быть в прошлом';
+  }
+
+  @override
+  String get petTaxiDocumentNumber => 'Номер документа';
+
+  @override
+  String get petTaxiDocumentNumberOptional => 'Номер документа (необязательно)';
+
+  @override
+  String get petTaxiDocumentNumberRequired => 'Требуется номер документа';
+
+  @override
+  String get petTaxiVehicleRegistrationIssueDate => 'Дата выдачи регистрации автомобиля';
+
+  @override
+  String get petTaxiDriverLicenseExpiryDate => 'Срок действия водительских прав';
+
+  @override
+  String get petTaxiTrafficInsuranceExpiryDate => 'Срок действия страховки автомобиля';
+
+  @override
+  String get petTaxiSrcCertificateExpiryDate => 'Срок действия сертификата SRC';
+
+  @override
+  String get petTaxiPsychotechnicalExpiryDate => 'Срок действия психотехнического отчёта';
+
+  @override
+  String get petTaxiKaskoExpiryDate => 'Срок действия каско';
+
+  @override
+  String get petTaxiValidTurkishPlate => 'Введите действительный турецкий номер автомобиля.';
+
+  @override
+  String get petTaxiRequiredDocumentsMissing => 'Загрузите все обязательные документы Pet Taxi.';
+
+  @override
+  String get petTaxiComplianceConfirmationsMissing => 'Подтвердите все обязательные заявления о соответствии.';
+
+  @override
+  String get petTaxiValidPhoneNumber => 'Введите действительный номер телефона.';
+
+  @override
+  String get petTaxiValidCapacity => 'Введите действительную вместимость автомобиля.';
+
+  @override
+  String get petTaxiCapacityMinimum => 'Вместимость автомобиля должна быть не менее 1.';
+
+  @override
+  String get petTaxiCapacityMaximum => 'Вместимость автомобиля не может превышать 15.';
+
+  @override
+  String get petTaxiSelectVehicleType => 'Выберите тип автомобиля.';
+
+  @override
+  String get petTaxiDriverFullName => 'Полное имя водителя';
+
+  @override
+  String get petTaxiDriverPhoneNumber => 'Телефон водителя';
+
+  @override
+  String get petTaxiVehiclePlateNumber => 'Номер автомобиля';
+
+  @override
+  String get petTaxiVehicleCapacity => 'Вместимость автомобиля';
+
+  @override
+  String get petTaxiVehicleSedan => 'Седан';
+
+  @override
+  String get petTaxiVehicleHatchback => 'Хэтчбек';
+
+  @override
+  String get petTaxiVehicleSuv => 'Внедорожник';
+
+  @override
+  String get petTaxiVehicleVan => 'Фургон';
+
+  @override
+  String get petTaxiVehiclePetTransportVan => 'Фургон для перевозки животных';
+
+  @override
+  String get petTaxiVehicleLargeAnimalTransport => 'Транспорт для крупных животных';
 }

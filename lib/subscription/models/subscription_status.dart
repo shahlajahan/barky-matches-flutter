@@ -11,6 +11,7 @@ enum SubscriptionStatus {
       case 'expired':
         return SubscriptionStatus.expired;
       case 'canceled':
+      case 'cancelled': // Legacy admin spelling; canonical writes use canceled.
         return SubscriptionStatus.canceled;
       case 'grace_period':
         return SubscriptionStatus.gracePeriod;

@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
+import 'package:barky_matches_fixed/services/business_search_matcher.dart';
 import 'pet_taxi_booking_page.dart';
 import 'repositories/pet_taxi_business_repository.dart';
 
@@ -144,19 +145,12 @@ class _PetTaxiDriversPageState extends State<PetTaxiDriversPage>
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
       if (!mounted) return;
-      final query = value.trim().toLowerCase();
+      final query = BusinessSearchMatcher.normalize(value);
       setState(() {
         _searchQuery = query;
-        _filtered = _businesses.where((business) {
-          final searchable = [
-            business.name,
-            business.city,
-            business.district,
-            business.address,
-            business.description,
-          ].join(' ').toLowerCase();
-          return query.isEmpty || searchable.contains(query);
-        }).toList();
+        _filtered = _businesses
+            .where((business) => BusinessSearchMatcher.matches(business, query))
+            .toList();
       });
     });
   }

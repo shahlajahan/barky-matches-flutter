@@ -132,6 +132,14 @@
           }
         },
         {
+          "client_id": "188282684447-qh6cmtvbhh96u9therceecrus7n646pt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.petsupo.app",
+            "certificate_hash": "0517059a56ee4fb88360f50385f75c10d8638ce6"
+          }
+        },
+        {
           "client_id": "188282684447-pg244gqs3aeiqkbefavj0i6fb75t8p4k.apps.googleusercontent.com",
           "client_type": 3
         }

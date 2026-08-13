@@ -7,17 +7,19 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.role == 'admin';
+      return isSignedIn()
+        && 'role' in request.auth.token
+        && request.auth.token.role == 'admin';
     }
 
     function hasAllowedMedia() {
       return request.resource != null
         && request.resource.size <= 104857600
         && request.resource.contentType.matches(
-          'image/(jpeg|png|webp|gif|heic)|video/(mp4|quicktime|webm)'
+          'image/(jpeg|png|webp|gif|heic)|video/(mp4|quicktime|webm|hevc)'
         )
         && request.resource.name.matches(
-          '.*\\.(jpg|jpeg|png|webp|gif|heic|mp4|mov|webm)$'
+          '.*\\.(jpg|jpeg|png|webp|gif|heic|mp4|mov|webm|hevc)$'
         );
     }
 
@@ -32,12 +34,63 @@ service firebase.storage {
         );
     }
 
+    function hasAllowedPetTaxiDocument() {
+      return request.resource != null
+        && request.resource.size <= 26214400
+        && request.resource.contentType.matches(
+          'image/(jpeg|png)|application/pdf'
+        )
+        && request.resource.name.matches(
+          '.*\\.(jpg|jpeg|png|pdf)$'
+        );
+    }
+
+    function isBusinessOwner(businessId) {
+      return isSignedIn()
+        && businessId is string
+        && firestore.get(
+          /databases/(default)/documents/businesses/$(businessId)
+        ).data.ownerUid == request.auth.uid;
+    }
+
+    match /adoption_requests_uploads/{userId}/{allPaths=**} {
+      allow read: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isSignedIn()
+        && request.auth.uid == userId
+        && hasAllowedDocument();
+      allow delete: if isSignedIn()
+        && (request.auth.uid == userId || isAdmin());
+    }
+
+    match /business_sector_docs/{ownerOrBusinessId}/adoption_center/{allPaths=**} {
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == ownerOrBusinessId ||
+          isBusinessOwner(ownerOrBusinessId) ||
+          isAdmin()
+        );
+      allow create, update: if isSignedIn()
+        && (
+          request.auth.uid == ownerOrBusinessId ||
+          isBusinessOwner(ownerOrBusinessId) ||
+          isAdmin()
+        )
+        && hasAllowedMedia();
+      allow delete: if isSignedIn()
+        && (
+          request.auth.uid == ownerOrBusinessId ||
+          isBusinessOwner(ownerOrBusinessId) ||
+          isAdmin()
+        );
+    }
+
     match /business_sector_docs/{ownerUid}/pet_taxi/{allPaths=**} {
       allow read: if isSignedIn()
         && (request.auth.uid == ownerUid || isAdmin());
       allow create, update: if isSignedIn()
         && (request.auth.uid == ownerUid || isAdmin())
-        && hasAllowedDocument();
+        && hasAllowedPetTaxiDocument();
       allow delete: if isSignedIn()
         && (request.auth.uid == ownerUid || isAdmin());
     }
@@ -48,6 +101,16 @@ service firebase.storage {
         && request.auth.uid == ownerUid
         && hasAllowedDocument();
       allow delete: if isSignedIn() && request.auth.uid == ownerUid;
+    }
+
+    match /business_docs/{ownerUid}/{allPaths=**} {
+      allow read: if isSignedIn()
+        && (request.auth.uid == ownerUid || isAdmin());
+      allow create, update: if isSignedIn()
+        && (request.auth.uid == ownerUid || isAdmin())
+        && hasAllowedDocument();
+      allow delete: if isSignedIn()
+        && (request.auth.uid == ownerUid || isAdmin());
     }
 
     match /stories/{userId}/{allPaths=**} {

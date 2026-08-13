@@ -104,7 +104,6 @@ class _PetTaxiMapPageState extends State<PetTaxiMapPage>
   void dispose() {
     cancelGoogleMapHealthTimer();
     _driversSubscription?.cancel();
-    _mapController?.dispose();
     super.dispose();
   }
 

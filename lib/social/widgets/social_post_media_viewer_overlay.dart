@@ -365,8 +365,13 @@ class _ViewerMedia extends StatelessWidget {
         fit: BoxFit.contain,
         placeholder: (context, url) =>
             const Center(child: CircularProgressIndicator(color: Colors.white)),
-        errorWidget: (context, url, error) =>
-            const Icon(LucideIcons.imageOff, color: Colors.white38, size: 54),
+        errorWidget: (context, url, error) {
+          return const Icon(
+            LucideIcons.imageOff,
+            color: Colors.white38,
+            size: 54,
+          );
+        },
       ),
     );
   }

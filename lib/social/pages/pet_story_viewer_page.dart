@@ -219,8 +219,6 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
           itemCount: widget.stories.length,
           itemBuilder: (context, index) {
             final story = widget.stories[index];
-            debugPrint('✅ STORY RENDERED: ${story.id}');
-
             return _buildStoryPage(story);
           },
         ),
@@ -318,8 +316,6 @@ class _PetStoryViewerPageState extends State<PetStoryViewerPage>
         return const Center(child: CircularProgressIndicator());
       },
       errorWidget: (context, url, error) {
-        debugPrint('❌ STORY IMAGE FAILED');
-
         return const Center(
           child: Icon(
             Icons.broken_image_rounded,

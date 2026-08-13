@@ -109,17 +109,7 @@ class _PetTaxiBookingDetailPageState extends State<PetTaxiBookingDetailPage> {
         cancelUrlPrefix: 'payment-cancel',
       );
 
-      if (result == 'verify') {
-        final verifyCallable = FirebaseFunctions.instanceFor(
-          region: 'europe-west3',
-        ).httpsCallable('verifyPetTaxiPayment');
-        await verifyCallable.call({'orderId': orderId});
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.paymentSuccessful)));
-        }
-      } else if (result == 'isbank_success_redirect') {
+      if (result == 'isbank_success_redirect') {
         final paymentState = await _paymentService.waitForPaymentConfirmation(
           orderId,
         );

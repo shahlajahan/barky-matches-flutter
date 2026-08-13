@@ -1,10 +1,8 @@
 // lib/ui/business/adoption_center/adoption_center_details_page.dart
 
-import 'dart:io';
-
+import 'package:barky_matches_fixed/ui/adoption/adoption_upload_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../models/business_draft.dart';
@@ -139,20 +137,19 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
     _whatsapp.text = contact.whatsapp;
   }
 
-  Future<String> _uploadFile(File file, String folder) async {
+  Future<String> _uploadFile(XFile file, String folder) async {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       throw Exception("User not logged in");
     }
 
-    final ref = FirebaseStorage.instance.ref().child(
-      "business_sector_docs/${user.uid}/adoption_center/$folder/${DateTime.now().millisecondsSinceEpoch}.jpg",
+    return uploadAdoptionPickedFile(
+      file: file,
+      folderPath: 'business_sector_docs/${user.uid}/adoption_center/$folder',
+      operation: 'adoption_center_details_$folder',
+      kind: AdoptionUploadKind.image,
     );
-
-    await ref.putFile(file);
-
-    return ref.getDownloadURL();
   }
 
   Future<void> _pickLogo() async {
@@ -165,13 +162,32 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
     setState(() => _loading = true);
 
     try {
-      final url = await _uploadFile(File(xf.path), "logo");
+      final url = await _uploadFile(xf, "logo");
 
       if (!mounted) return;
 
       setState(() {
         _logoUrl = url;
       });
+    } catch (error, stackTrace) {
+      logAdoptionUploadError(
+        operation: 'adoption_center_details_logo_picker',
+        storagePath:
+            'business_sector_docs/${FirebaseAuth.instance.currentUser?.uid ?? 'unknown'}/adoption_center/logo',
+        contentType: 'unknown',
+        fileSize: 0,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.uploadFailed(error.toString()),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -189,13 +205,32 @@ class _AdoptionCenterDetailsPageState extends State<AdoptionCenterDetailsPage> {
     setState(() => _loading = true);
 
     try {
-      final url = await _uploadFile(File(xf.path), "photos");
+      final url = await _uploadFile(xf, "photos");
 
       if (!mounted) return;
 
       setState(() {
         _photos.add(url);
       });
+    } catch (error, stackTrace) {
+      logAdoptionUploadError(
+        operation: 'adoption_center_details_photos_picker',
+        storagePath:
+            'business_sector_docs/${FirebaseAuth.instance.currentUser?.uid ?? 'unknown'}/adoption_center/photos',
+        contentType: 'unknown',
+        fileSize: 0,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.uploadFailed(error.toString()),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _loading = false);

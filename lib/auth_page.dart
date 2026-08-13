@@ -31,6 +31,7 @@ import 'package:barky_matches_fixed/services/social_auth_service.dart';
 import 'package:barky_matches_fixed/services/referral_attribution_service.dart';
 import 'package:barky_matches_fixed/social_profile_completion_page.dart';
 import 'package:barky_matches_fixed/apple_account_recovery_page.dart';
+import 'package:barky_matches_fixed/auth/email_verification_flow.dart';
 
 const List<Map<String, String>> countryCodes = [
   {'name': 'Afghanistan', 'code': '+93'},
@@ -405,9 +406,142 @@ class VerifyEmailPage extends StatefulWidget {
 class _VerifyEmailPageState extends State<VerifyEmailPage> {
   final _codeController = TextEditingController();
   bool _isLoading = false;
+  bool _isResending = false;
+  int _resendCooldown = 0;
+  Timer? _resendTimer;
+  late String _requestId;
 
   static const String verifyEmailCodeUrl =
       'https://verifyemailcode-tj6s667gfq-ey.a.run.app';
+  static const String sendVerificationCodeUrl =
+      'https://sendverificationcode-tj6s667gfq-ey.a.run.app';
+
+  @override
+  void initState() {
+    super.initState();
+    _requestId = widget.requestId;
+    unawaited(_restorePersistedRequestId());
+  }
+
+  static const _pendingEmailKey = 'pendingEmailVerificationEmail';
+  static const _pendingUserIdKey = 'pendingEmailVerificationUserId';
+  static const _pendingRequestIdKey = 'pendingEmailVerificationRequestId';
+  static const _pendingSentAtKey = 'pendingEmailVerificationSentAt';
+
+  Future<void> _restorePersistedRequestId() async {
+    final box = Hive.box<String>('currentUserBox');
+    if (!EmailVerificationRecoveryPolicy.canReusePersistedSession(
+      emailMatches: box.get(_pendingEmailKey) == widget.email,
+      userMatches: box.get(_pendingUserIdKey) == widget.userId,
+      requestIdPresent: (box.get(_pendingRequestIdKey) ?? '').isNotEmpty,
+    )) {
+      return;
+    }
+    final savedRequestId = box.get(_pendingRequestIdKey);
+    if (savedRequestId == null || savedRequestId.isEmpty || !mounted) return;
+    setState(() => _requestId = savedRequestId);
+    final sentAt = DateTime.tryParse(box.get(_pendingSentAtKey) ?? '');
+    if (sentAt != null) {
+      final remaining = 60 - DateTime.now().difference(sentAt).inSeconds;
+      if (remaining > 0 && mounted) {
+        _startResendCooldownFor(remaining);
+      }
+    }
+  }
+
+  void _startResendCooldownFor(int seconds) {
+    _resendTimer?.cancel();
+    setState(() => _resendCooldown = seconds);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _resendCooldown <= 1) {
+        timer.cancel();
+        if (mounted) setState(() => _resendCooldown = 0);
+      } else {
+        setState(() => _resendCooldown--);
+      }
+    });
+  }
+
+  Future<void> _persistRequestId() async {
+    final box = Hive.box<String>('currentUserBox');
+    await box.put(_pendingEmailKey, widget.email);
+    await box.put(_pendingUserIdKey, widget.userId);
+    await box.put(_pendingRequestIdKey, _requestId);
+    await box.put(_pendingSentAtKey, DateTime.now().toIso8601String());
+  }
+
+  Future<void> _clearPersistedVerification() async {
+    final box = Hive.box<String>('currentUserBox');
+    await box.delete(_pendingEmailKey);
+    await box.delete(_pendingUserIdKey);
+    await box.delete(_pendingRequestIdKey);
+    await box.delete(_pendingSentAtKey);
+  }
+
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    setState(() => _resendCooldown = 60);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldown <= 1) {
+        timer.cancel();
+        setState(() => _resendCooldown = 0);
+      } else {
+        setState(() => _resendCooldown--);
+      }
+    });
+  }
+
+  Future<void> _resendCode(BuildContext context) async {
+    if (!EmailVerificationResendGuard.canResend(
+      isVerifying: _isLoading,
+      isResending: _isResending,
+      cooldownSeconds: _resendCooldown,
+    )) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context)!;
+
+    setState(() => _isResending = true);
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$sendVerificationCodeUrl?email=${Uri.encodeQueryComponent(widget.email)}',
+        ),
+      );
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final newRequestId = data['requestId']?.toString();
+
+      if (response.statusCode != 200 ||
+          data['success'] != true ||
+          newRequestId == null ||
+          newRequestId.isEmpty) {
+        throw StateError('verification_session_not_created');
+      }
+
+      // Resend replaces the active session. The previous request ID can no
+      // longer verify a code, so this never creates competing client sessions.
+      _requestId = newRequestId;
+      await _persistRequestId();
+      _codeController.clear();
+      _startResendCooldown();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.verificationCodeSent(widget.email))),
+      );
+    } catch (e) {
+      debugPrint('VerifyEmailPage - Error resending code: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.unableToSendVerificationCode)),
+      );
+    } finally {
+      if (mounted) setState(() => _isResending = false);
+    }
+  }
 
   Future<void> _verifyCode(BuildContext context, Function onSuccess) async {
     final l10n = AppLocalizations.of(context)!;
@@ -432,7 +566,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           'email': widget.email,
           'code': code,
           'userId': widget.userId,
-          'requestId': widget.requestId,
+          'requestId': _requestId,
         }),
       );
 
@@ -440,6 +574,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
       if (resp.statusCode == 200 && data['success'] == true) {
         await Hive.box<String>('currentUserBox').put('emailVerified', 'true');
+        await _clearPersistedVerification();
 
         await FirebaseFirestore.instance
             .collection('users')
@@ -458,7 +593,15 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
         onSuccess();
       } else {
-        final msg = data['error'] ?? l10n.invalidVerificationCode;
+        final failure = classifyEmailVerificationFailure(
+          statusCode: resp.statusCode,
+          serverError: data['error']?.toString(),
+        );
+        final msg = switch (failure) {
+          EmailVerificationFailure.invalidCode => l10n.invalidVerificationCode,
+          EmailVerificationFailure.expiredCode => l10n.verificationCodeExpired,
+          EmailVerificationFailure.network => l10n.unableToVerifyEmail,
+        };
 
         if (!mounted) return;
 
@@ -473,7 +616,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(l10n.errorOccurred(e.toString()))));
+      ).showSnackBar(SnackBar(content: Text(l10n.unableToVerifyEmail)));
     } finally {
       if (mounted) {
         setState(() {
@@ -483,74 +626,173 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     }
   }
 
+  void _changeEmail() {
+    if (_isLoading || _isResending) return;
+    Navigator.pop(context, false);
+  }
+
+  @override
+  void dispose() {
+    _resendTimer?.cancel();
+    _codeController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     debugPrint('VerifyEmailPage - Building UI for email: ${widget.email}');
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.pink, Colors.pinkAccent],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _changeEmail();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.pink,
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: (_isLoading || _isResending) ? null : _changeEmail,
+            tooltip: l10n.changeEmail,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                l10n.verifyEmailTitle,
-                style: GoogleFonts.dancingScript(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                l10n.enterVerificationCodeSentToEmail,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _codeController,
-                decoration: InputDecoration(
-                  labelText: l10n.enterCodeLabel,
-                  labelStyle: const TextStyle(color: Colors.white),
-                  filled: true,
-                  fillColor: Colors.white24,
-                  border: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide.none,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.pink, Colors.pinkAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 24),
+                  Text(
+                    l10n.verifyEmailTitle,
+                    style: GoogleFonts.dancingScript(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isLoading
-                    ? null
-                    : () => _verifyCode(context, () {
-                        Navigator.pop(context, true);
-                      }),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.pink,
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.pink)
-                    : Text(
-                        l10n.verifyButton,
-                        style: const TextStyle(fontSize: 16),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.enterVerificationCodeSentToEmail,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    l10n.verificationCodeSentToLabel,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.email,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _codeController,
+                    decoration: InputDecoration(
+                      labelText: l10n.enterCodeLabel,
+                      labelStyle: const TextStyle(color: Colors.white),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.16),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.45),
+                        ),
                       ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                        borderSide: BorderSide(color: Colors.white, width: 1.5),
+                      ),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => _verifyCode(context, () {
+                            Navigator.pop(context, true);
+                          }),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.pink,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.pink)
+                        : Text(
+                            l10n.verifyButton,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed:
+                        (_isLoading || _isResending || _resendCooldown > 0)
+                        ? null
+                        : () => _resendCode(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.white70,
+                    ),
+                    child: _isResending
+                        ? Text(l10n.sendingVerificationCode)
+                        : _resendCooldown > 0
+                        ? Text(l10n.resendCodeAvailableIn(_resendCooldown))
+                        : Text(l10n.resendCode),
+                  ),
+                  TextButton(
+                    onPressed: _isLoading || _isResending ? null : _changeEmail,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.white70,
+                      backgroundColor: Colors.white.withValues(alpha: 0.16),
+                      minimumSize: const Size(168, 46),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.white),
+                      ),
+                    ),
+                    child: Text(
+                      l10n.changeEmail,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -654,6 +896,192 @@ class _AuthPageState extends State<AuthPage> {
   SocialAuthProvider? _socialProviderLoading;
   late bool isLoginMode;
   String? _emailVerificationRequestId;
+
+  static const _sendVerificationCodeUrl =
+      'https://sendverificationcode-tj6s667gfq-ey.a.run.app';
+
+  Future<String?> _requestVerificationCode(String email) async {
+    final response = await http.get(
+      Uri.parse(
+        '$_sendVerificationCodeUrl?email=${Uri.encodeQueryComponent(email)}',
+      ),
+    );
+    if (response.statusCode != 200) return null;
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final requestId = data['requestId']?.toString();
+    return data['success'] == true && requestId != null && requestId.isNotEmpty
+        ? requestId
+        : null;
+  }
+
+  Future<void> _persistPendingVerification({
+    required String email,
+    required String userId,
+    required String requestId,
+  }) async {
+    final box = Hive.box<String>('currentUserBox');
+    await box.put('pendingEmailVerificationEmail', email);
+    await box.put('pendingEmailVerificationUserId', userId);
+    await box.put('pendingEmailVerificationRequestId', requestId);
+    await box.put(
+      'pendingEmailVerificationSentAt',
+      DateTime.now().toIso8601String(),
+    );
+  }
+
+  Future<void> _clearPendingVerification() async {
+    final box = Hive.box<String>('currentUserBox');
+    await box.delete('pendingEmailVerificationEmail');
+    await box.delete('pendingEmailVerificationUserId');
+    await box.delete('pendingEmailVerificationRequestId');
+    await box.delete('pendingEmailVerificationSentAt');
+  }
+
+  Future<void> _deleteUnverifiedUser(User? user) async {
+    if (user == null ||
+        !EmailVerificationRecoveryPolicy.shouldDeleteCreatedAccount(
+          emailVerified: user.emailVerified,
+        )) {
+      return;
+    }
+    try {
+      await user.delete();
+    } catch (e) {
+      debugPrint('AuthPage - Could not clean up unverified user: $e');
+      await FirebaseAuth.instance.signOut();
+    } finally {
+      await _clearPendingVerification();
+    }
+  }
+
+  Future<Map<String, dynamic>> _finishRegistrationSetup({
+    required String userId,
+    required String username,
+    required String email,
+    required String? phone,
+    required String city,
+    required String district,
+    required String referralCode,
+    required String requestId,
+    required AppLocalizations l10n,
+  }) async {
+    final userData = {
+      'username': username.trim(),
+      'email': email,
+      'phone': (phone ?? '').trim(),
+      'city': city,
+      'district': district,
+      'isPremium': false,
+      'emailVerified': false,
+      'profileCompleted': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .set(userData, SetOptions(merge: true));
+
+    final fcmToken = await safeGetFcmToken();
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'fcmToken': fcmToken,
+      }, SetOptions(merge: true));
+    }
+
+    final referralCodeAccepted = referralCode.trim().isEmpty
+        ? true
+        : await ReferralAttributionService.attributeCode(referralCode);
+    final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
+    final hiveUserData = Map<String, dynamic>.from(userData)
+      ..['createdAt'] = DateTime.now().toIso8601String();
+    hiveUserData.removeWhere((key, value) => value == null);
+    await userDataBox.put(userId, hiveUserData);
+
+    return {
+      'success': true,
+      'userId': userId,
+      'requestId': requestId,
+      'referralCodeAccepted': referralCodeAccepted,
+      'errorMessage': null,
+    };
+  }
+
+  Future<Map<String, dynamic>> _recoverUnverifiedSignup({
+    required String email,
+    required String password,
+    required AppLocalizations l10n,
+  }) async {
+    try {
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final user = credential.user;
+      await user?.reload();
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null ||
+          !EmailVerificationRecoveryPolicy.canRecoverExistingAccount(
+            emailVerified: currentUser.emailVerified,
+          )) {
+        await FirebaseAuth.instance.signOut();
+        return {
+          'success': false,
+          'userId': null,
+          'requestId': null,
+          'errorMessage': l10n.emailAlreadyRegisteredTryLoggingIn,
+        };
+      }
+
+      final box = Hive.box<String>('currentUserBox');
+      final savedRequestId = box.get('pendingEmailVerificationRequestId');
+      final savedEmail = box.get('pendingEmailVerificationEmail');
+      final savedUserId = box.get('pendingEmailVerificationUserId');
+      final canReuse = EmailVerificationRecoveryPolicy.canReusePersistedSession(
+        emailMatches: savedEmail == email,
+        userMatches: savedUserId == currentUser.uid,
+        requestIdPresent: (savedRequestId ?? '').isNotEmpty,
+      );
+      final requestId = canReuse
+          ? savedRequestId
+          : await _requestVerificationCode(email);
+      if (requestId == null) {
+        await FirebaseAuth.instance.signOut();
+        return {
+          'success': false,
+          'userId': null,
+          'requestId': null,
+          'errorMessage': l10n.verificationEmailCouldNotBeSent,
+        };
+      }
+      if (!canReuse) {
+        await _persistPendingVerification(
+          email: email,
+          userId: currentUser.uid,
+          requestId: requestId,
+        );
+      }
+      return {
+        'success': true,
+        'userId': currentUser.uid,
+        'requestId': requestId,
+        'referralCodeAccepted': true,
+        'recoveredUnverified': true,
+      };
+    } on FirebaseAuthException catch (error) {
+      await FirebaseAuth.instance.signOut();
+      return {
+        'success': false,
+        'userId': null,
+        'requestId': null,
+        'errorMessage':
+            error.code == 'wrong-password' || error.code == 'invalid-credential'
+            ? l10n.incorrectPassword
+            : l10n.emailAlreadyRegisteredTryLoggingIn,
+      };
+    }
+  }
 
   @override
   void initState() {
@@ -876,6 +1304,10 @@ class _AuthPageState extends State<AuthPage> {
         };
       }
 
+      debugPrint(
+        'Password login attempt email=$trimmedEmail '
+        'currentUserBeforeLogin=${FirebaseAuth.instance.currentUser?.uid ?? 'NULL'}',
+      );
       final userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: trimmedEmail, password: password);
 
@@ -1034,6 +1466,7 @@ class _AuthPageState extends State<AuthPage> {
         'username': username,
       };
     } on FirebaseAuthException catch (e, stackTrace) {
+      debugPrint('Password login FirebaseAuthException code=${e.code}');
       AuthenticationDiagnostics.captureFailure(
         operation: 'sign_in',
         error: e,
@@ -1109,17 +1542,19 @@ class _AuthPageState extends State<AuthPage> {
     String referralCode,
   ) async {
     final l10n = AppLocalizations.of(context)!;
+    final trimmedEmail = email.trim().toLowerCase();
 
+    User? createdUser;
     try {
       await ensureFirebase();
 
-      final trimmedEmail = email.trim().toLowerCase();
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: trimmedEmail,
         password: password,
       );
 
       final user = cred.user;
+      createdUser = user;
 
       if (user == null) {
         return {
@@ -1130,93 +1565,34 @@ class _AuthPageState extends State<AuthPage> {
       }
 
       final userId = user.uid;
-      String? requestId;
       try {
-        final encodedEmail = Uri.encodeQueryComponent(trimmedEmail);
-
-        final resp = await http.get(
-          Uri.parse(
-            'https://sendverificationcode-tj6s667gfq-ey.a.run.app?email=$encodedEmail',
-          ),
+        final requestId = await _requestVerificationCode(trimmedEmail);
+        if (requestId == null) throw StateError('verification_send_failed');
+        await _persistPendingVerification(
+          email: trimmedEmail,
+          userId: userId,
+          requestId: requestId,
         );
-
-        if (resp.statusCode != 200) {
-          debugPrint('⚠️ verification API failed: ${resp.body}');
-
-          return {
-            'success': false,
-            'userId': userId,
-            'requestId': null,
-            'errorMessage': l10n.verificationEmailCouldNotBeSent,
-          };
-        }
-
-        final decoded = jsonDecode(resp.body) as Map<String, dynamic>;
-        requestId = decoded['requestId']?.toString();
-
-        if (requestId == null || requestId.isEmpty) {
-          return {
-            'success': false,
-            'userId': userId,
-            'requestId': null,
-            'errorMessage': l10n.verificationSessionCouldNotBeCreated,
-          };
-        }
+        return await _finishRegistrationSetup(
+          userId: userId,
+          username: username,
+          email: trimmedEmail,
+          phone: phone,
+          city: city,
+          district: district,
+          referralCode: referralCode,
+          requestId: requestId,
+          l10n: l10n,
+        );
       } catch (e) {
         debugPrint('⚠️ verification API error: $e');
-
+        await _deleteUnverifiedUser(createdUser);
         return {
           'success': false,
-          'userId': userId,
+          'userId': null,
           'errorMessage': l10n.verificationEmailCouldNotBeSent,
         };
       }
-
-      final userData = {
-        'username': username.trim(),
-        'email': trimmedEmail,
-        'phone': (phone ?? '').trim(),
-        'city': city,
-        'district': district,
-        'isPremium': false,
-        'emailVerified': false,
-        'profileCompleted': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .set(userData, SetOptions(merge: true));
-
-      final fcmToken = await safeGetFcmToken();
-
-      if (fcmToken != null && fcmToken.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('users').doc(userId).set({
-          'fcmToken': fcmToken,
-        }, SetOptions(merge: true));
-      }
-
-      final referralCodeAccepted = referralCode.trim().isEmpty
-          ? true
-          : await ReferralAttributionService.attributeCode(referralCode);
-
-      final userDataBox = Hive.box<Map<dynamic, dynamic>>('userDataBox');
-
-      final hiveUserData = Map<String, dynamic>.from(userData)
-        ..['createdAt'] = DateTime.now().toIso8601String();
-
-      hiveUserData.removeWhere((key, value) => value == null);
-
-      await userDataBox.put(userId, hiveUserData);
-
-      return {
-        'success': true,
-        'userId': userId,
-        'requestId': requestId,
-        'referralCodeAccepted': referralCodeAccepted,
-        'errorMessage': null,
-      };
     } on FirebaseAuthException catch (e, stackTrace) {
       AuthenticationDiagnostics.captureFailure(
         operation: 'sign_up',
@@ -1228,8 +1604,11 @@ class _AuthPageState extends State<AuthPage> {
 
       switch (e.code) {
         case 'email-already-in-use':
-          msg = l10n.emailAlreadyRegisteredTryLoggingIn;
-          break;
+          return _recoverUnverifiedSignup(
+            email: trimmedEmail,
+            password: password,
+            l10n: l10n,
+          );
         case 'invalid-email':
           msg = l10n.emailInvalid;
           break;
@@ -1379,6 +1758,7 @@ class _AuthPageState extends State<AuthPage> {
                             return;
                           }
 
+                          debugPrint('Password reset requested email=$email');
                           try {
                             final response = await http.post(
                               Uri.parse(
@@ -1389,6 +1769,9 @@ class _AuthPageState extends State<AuthPage> {
                             );
 
                             if (response.statusCode >= 400) {
+                              debugPrint(
+                                'Password reset failure status=${response.statusCode}',
+                              );
                               AuthenticationDiagnostics.captureFailure(
                                 operation: 'forgot_password',
                                 error: 'password_reset_http',
@@ -1396,6 +1779,10 @@ class _AuthPageState extends State<AuthPage> {
                                 data: <String, dynamic>{
                                   'statusCode': response.statusCode,
                                 },
+                              );
+                            } else {
+                              debugPrint(
+                                'Password reset request succeeded status=${response.statusCode}',
                               );
                             }
 
@@ -1407,6 +1794,7 @@ class _AuthPageState extends State<AuthPage> {
                               ),
                             );
                           } catch (e, stackTrace) {
+                            debugPrint('Password reset failure exception=$e');
                             AuthenticationDiagnostics.captureFailure(
                               operation: 'forgot_password',
                               error: e,
@@ -1644,6 +2032,7 @@ class _AuthPageState extends State<AuthPage> {
           ).put('receiveNews', _receiveNews.toString());
           debugPrint('AuthPage - Receive news preference saved: $_receiveNews');
           final emailUserId = userId;
+          final recoveredUnverified = result['recoveredUnverified'] == true;
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -1670,6 +2059,40 @@ class _AuthPageState extends State<AuthPage> {
                 MaterialPageRoute(builder: (_) => const HomeGate()),
                 (route) => false,
               );
+            } else if (isVerified == false) {
+              // The verification route is the only active route for this
+              // newly-created account. Sign out before returning to the form
+              // so changing the email does not leave a second auth session
+              // active or make the next signup attempt ambiguous.
+              try {
+                final pendingUser = FirebaseAuth.instance.currentUser;
+                if (!recoveredUnverified &&
+                    pendingUser?.uid == emailUserId &&
+                    pendingUser?.emailVerified == false) {
+                  await pendingUser!.delete();
+                } else {
+                  await FirebaseAuth.instance.signOut();
+                }
+                await Hive.box<String>(
+                  'currentUserBox',
+                ).delete('currentUserId');
+                await Hive.box<String>(
+                  'currentUserBox',
+                ).delete('emailVerified');
+                await Hive.box<String>(
+                  'currentUserBox',
+                ).delete('pendingEmailVerificationEmail');
+                await Hive.box<String>(
+                  'currentUserBox',
+                ).delete('pendingEmailVerificationUserId');
+                await Hive.box<String>(
+                  'currentUserBox',
+                ).delete('pendingEmailVerificationRequestId');
+              } catch (e) {
+                debugPrint(
+                  'AuthPage - Could not clear pending verification session: $e',
+                );
+              }
             }
           });
           if (mounted) {

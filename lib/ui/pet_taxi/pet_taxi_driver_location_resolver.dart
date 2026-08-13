@@ -37,7 +37,7 @@ class PetTaxiDriverLocationResolver {
 
     if (currentLat != null &&
         currentLng != null &&
-        _isFreshLiveLocation(currentUpdatedAt, resolvedNow)) {
+        isFreshLiveLocation(currentUpdatedAt, resolvedNow)) {
       return PetTaxiResolvedLocation(
         lat: currentLat,
         lng: currentLng,
@@ -95,7 +95,7 @@ class PetTaxiDriverLocationResolver {
     }
   }
 
-  static bool _isFreshLiveLocation(Object? updatedAt, DateTime now) {
+  static bool isFreshLiveLocation(Object? updatedAt, DateTime now) {
     final updatedAtDate = _readDateTime(updatedAt);
     if (updatedAtDate == null) {
       return false;

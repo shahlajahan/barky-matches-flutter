@@ -1,6 +1,25 @@
 {
   "indexes": [
     {
+      "collectionGroup": "subscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "payment.provider", "order": "ASCENDING" },
+        { "fieldPath": "payment.callbackValidated", "order": "ASCENDING" },
+        { "fieldPath": "payment.finalizationStatus", "order": "ASCENDING" },
+        { "fieldPath": "payment.finalizationLeaseUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "promotion_active",
       "queryScope": "COLLECTION",
       "fields": [

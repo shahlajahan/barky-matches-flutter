@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
+import 'package:barky_matches_fixed/ui/legal/petsupo_marketplace_disclaimer.dart';
 
 class VetAppointmentPage extends StatefulWidget {
   final BusinessCardData vet;
@@ -713,6 +714,9 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
     debugPrint("🚀 SUBMIT CLICKED");
 
     if (!_isValid || _submitting) return;
+
+    if (!await showPetSupoMarketplaceDisclaimer(context)) return;
+    if (!mounted) return;
 
     final appState = context.read<AppState>();
     final userId = appState.currentUserId;

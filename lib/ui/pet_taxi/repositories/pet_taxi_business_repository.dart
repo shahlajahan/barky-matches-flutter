@@ -10,13 +10,18 @@ import 'package:barky_matches_fixed/utils/business_sector.dart';
 import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 
 class PetTaxiBusinessRepository {
+  final FirebaseFirestore? _firestore;
+
+  PetTaxiBusinessRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore;
+
   Future<List<BusinessCardData>> loadBusinesses() async {
     BusinessQueryDiagnostics.start(
       'PetTaxiBusinessRepository.loadBusinesses',
       'businesses_public',
       'status == approved',
     );
-    final query = FirebaseFirestore.instance
+    final query = (_firestore ?? FirebaseFirestore.instance)
         .collection('businesses_public')
         .where('status', isEqualTo: 'approved');
     late final QuerySnapshot<Map<String, dynamic>> snapshot;
@@ -109,14 +114,12 @@ class PetTaxiBusinessRepository {
     );
   }
 
-  Future<BusinessCardData> findNearestBusiness({
+  Future<BusinessCardData?> findNearestBusiness({
     required dynamic pickup,
   }) async {
     final businesses = await loadBusinesses();
 
-    if (businesses.isEmpty) {
-      throw Exception('No pet taxi business found');
-    }
+    if (businesses.isEmpty) return null;
 
     BusinessCardData? nearest;
     double nearestDistance = double.infinity;
@@ -168,10 +171,6 @@ class PetTaxiBusinessRepository {
         nearestDistance = distance;
         nearest = business;
       }
-    }
-
-    if (nearest == null) {
-      throw Exception('No available pet taxi business found');
     }
 
     return nearest;

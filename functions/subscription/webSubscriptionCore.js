@@ -2,6 +2,7 @@
 
 const ALLOWED_PLANS = new Set(["premium", "gold"]);
 const TERM_DAYS = 30;
+const {buildSubscriptionCatalog} = require("./subscriptionCatalog");
 
 function normalizePlan(planId) {
   return String(planId || "").trim().toLowerCase();
@@ -18,22 +19,12 @@ function resolvePlan(planId) {
 function resolveCatalog({ premiumAmount, goldAmount, currency }) {
   const normalizedCurrency = String(currency || "").trim().toUpperCase();
   if (normalizedCurrency !== "TRY") throw new Error("unsupported-currency");
-  const catalog = {};
-  for (const [planId, rawAmount] of Object.entries({
-    premium: premiumAmount,
-    gold: goldAmount,
-  })) {
-    const amount = Number(rawAmount);
-    if (!Number.isFinite(amount) || amount <= 0) {
+  for (const [planId, rawAmount] of Object.entries({premium: premiumAmount, gold: goldAmount})) {
+    if (!Number.isFinite(Number(rawAmount)) || Number(rawAmount) <= 0) {
       throw new Error(`missing-price:${planId}`);
     }
-    catalog[planId] = {
-      amount: Math.round(amount * 100) / 100,
-      currency: "TRY",
-      durationDays: TERM_DAYS,
-    };
   }
-  return catalog;
+  return buildSubscriptionCatalog({premiumAmount, goldAmount, currency: normalizedCurrency});
 }
 
 function isApprovedCallback({ response, procReturnCode, mdStatus, hashValid }) {

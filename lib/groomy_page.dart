@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
+import 'package:barky_matches_fixed/services/business_search_matcher.dart';
 
 import 'app_state.dart' as app;
 import 'l10n/app_localizations.dart';
@@ -273,21 +274,13 @@ class _GroomyPageState extends State<GroomyPage>
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      final lower = query.toLowerCase().trim();
+      final lower = BusinessSearchMatcher.normalize(query);
 
       setState(() {
         _searchQuery = lower;
-        _filteredGroomers = _groomers.where((business) {
-          final searchable = [
-            business.name,
-            business.city,
-            business.district,
-            business.description,
-            business.specialties.join(' '),
-            business.services?.join(' ') ?? '',
-          ].join(' ').toLowerCase();
-          return lower.isEmpty || searchable.contains(lower);
-        }).toList();
+        _filteredGroomers = _groomers
+            .where((business) => BusinessSearchMatcher.matches(business, lower))
+            .toList();
       });
     });
   }

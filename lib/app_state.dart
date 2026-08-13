@@ -101,6 +101,7 @@ enum ProfileSubPage {
   adoptionInbox,
   businessRegister,
   appointments,
+  myAppointments,
   myOrders,
   feedback,
   privacy,
@@ -141,7 +142,7 @@ class AppState with ChangeNotifier {
   int unreadChatsCount = 0;
 
   bool get shouldShowAds {
-    return !_subscription.plan.isPaid;
+    return !_subscription.hasValidPaidAccess;
   }
 
   bool showGuestFeatureGate = false;
@@ -1121,7 +1122,8 @@ class AppState with ChangeNotifier {
 
   void openProfileSubPage(ProfileSubPage page) {
     if (_profileSubPage == page) return;
-    if (page == ProfileSubPage.appointments) {
+    if (page == ProfileSubPage.appointments ||
+        page == ProfileSubPage.myAppointments) {
       _clearAppointmentFlowSelection();
     } else if (page != ProfileSubPage.appointmentStatus &&
         page != ProfileSubPage.appointmentHistory) {
@@ -1164,6 +1166,9 @@ class AppState with ChangeNotifier {
         break;
       case ProfileSubPage.appointments:
         _clearAppointmentFlowSelection();
+        _profileSubPage = ProfileSubPage.none;
+        break;
+      case ProfileSubPage.myAppointments:
         _profileSubPage = ProfileSubPage.none;
         break;
       default:
@@ -1339,11 +1344,6 @@ class AppState with ChangeNotifier {
         'ownerGender': updatedDog.ownerGender,
         'imagePaths': updatedDog.imagePaths,
         'isAvailableForAdoption': updatedDog.isAvailableForAdoption,
-
-        // 🔐 برای عبور از rules
-        'ownerUid': ownerUid,
-        'ownerRole': data['ownerRole'],
-        'centerId': data['centerId'],
       });
 
       debugPrint(
@@ -1415,12 +1415,19 @@ class AppState with ChangeNotifier {
         '🌐 SERVER-FORCED READ SKIPPED → loadSubscriptionFromFirestore',
       );
 
-      final doc = await _criticalFirestoreRetry(
-        () => FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get()
-            .timeout(_firestoreReadTimeout),
+      final reads = await _criticalFirestoreRetry(
+        () => Future.wait([
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get(const GetOptions(source: Source.server))
+              .timeout(_firestoreReadTimeout),
+          FirebaseFirestore.instance
+              .collection('subscriptions')
+              .doc(uid)
+              .get(const GetOptions(source: Source.server))
+              .timeout(_firestoreReadTimeout),
+        ]),
         operationName: 'loadSubscriptionFromFirestore',
       );
 
@@ -1429,13 +1436,30 @@ class AppState with ChangeNotifier {
         return;
       }
 
-      final data = doc.data();
+      final userDoc = reads[0];
+      final canonicalDoc = reads[1];
+      final data = userDoc.data();
+      final canonicalData = canonicalDoc.data();
 
       debugPrint('🔥 firestore subscription fetched');
 
-      final subscriptionData = data?['subscription'];
+      // subscriptions/{uid} is authoritative. users/* fields are compatibility
+      // projections for older readers and are used only as a legacy fallback.
+      final subscriptionData = canonicalDoc.exists
+          ? canonicalData
+          : data?['subscription'];
 
-      if (data == null) {
+      debugPrint(
+        '🔥 raw subscription data=${subscriptionData ?? <String, dynamic>{}} '
+        'rootPlan=${data?['subscriptionPlan']} '
+        'rootStatus=${data?['subscriptionStatus']}',
+      );
+
+      if (canonicalDoc.exists && canonicalData != null) {
+        _subscription = UserSubscription.fromMap(
+          Map<String, dynamic>.from(canonicalData),
+        );
+      } else if (data == null) {
         _subscription = UserSubscription.normal();
       } else if (subscriptionData is Map) {
         _subscription = UserSubscription.fromMap(
@@ -1448,7 +1472,19 @@ class AppState with ChangeNotifier {
         });
       }
 
-      _isPremium = _subscription.plan.isPaid && _subscription.status.isActive;
+      _isPremium = _subscription.hasValidPaidAccess;
+
+      debugPrint(
+        'RAW SUBSCRIPTION STATUS: top=${subscriptionData?['status']} '
+        'mobile=${subscriptionData?['mobile'] is Map ? (subscriptionData?['mobile'] as Map)['status'] : null}',
+      );
+      debugPrint(
+        'RAW PLAN: top=${subscriptionData?['plan']} '
+        'mobile=${subscriptionData?['mobile'] is Map ? (subscriptionData?['mobile'] as Map)['plan'] : null}',
+      );
+      debugPrint('MAPPED PLAN: ${_subscription.plan}');
+      debugPrint('MAPPED STATUS: ${_subscription.status}');
+      debugPrint('CAN_REGISTER: $canRegisterBusiness');
 
       await _refreshSubscriptionHiveCache(uid);
 
@@ -1511,8 +1547,11 @@ class AppState with ChangeNotifier {
       ..['subscription'] = {
         'plan': _subscription.plan.toFirestore(),
         'status': _subscription.status.toFirestore(),
+        'startedAt': _subscription.startedAt,
+        'expiresAt': _subscription.expiresAt,
         'autoRenew': _subscription.autoRenew,
         'source': _subscription.source.toFirestore(),
+        'lastUpdatedAt': _subscription.lastUpdatedAt,
       };
 
     await userDataBox.put(uid, cleanDeep(updated));
@@ -1580,7 +1619,7 @@ class AppState with ChangeNotifier {
       return false;
     }
 
-    _isPremium = _subscription.plan.isPaid && _subscription.status.isActive;
+    _isPremium = _subscription.hasValidPaidAccess;
     return true;
   }
 
@@ -3735,6 +3774,55 @@ class AppState with ChangeNotifier {
   String? _selectedAppointmentId;
   String? _selectedAppointmentCollection;
 
+  String? _pendingUserAppointmentId;
+  String? _pendingUserAppointmentCollection;
+
+  String? get pendingUserAppointmentId => _pendingUserAppointmentId;
+  String? get pendingUserAppointmentCollection =>
+      _pendingUserAppointmentCollection;
+
+  void requestUserAppointmentDetail({
+    required String collection,
+    required String appointmentId,
+  }) {
+    final normalizedCollection = collection.trim();
+    final normalizedId = appointmentId.trim();
+    const supportedCollections = {
+      'vet_appointments',
+      'groomy_appointments',
+      'hotel_bookings',
+      'pet_taxi_bookings',
+    };
+
+    if (!supportedCollections.contains(normalizedCollection) ||
+        normalizedId.isEmpty) {
+      debugPrint(
+        '❌ APPOINTMENT ROUTE FAILED → collection=$normalizedCollection id=$normalizedId',
+      );
+      return;
+    }
+
+    if (_pendingUserAppointmentId == normalizedId &&
+        _pendingUserAppointmentCollection == normalizedCollection) {
+      return;
+    }
+
+    debugPrint(
+      '🔔 ROUTE INTENT → collection=$normalizedCollection appointmentId=$normalizedId',
+    );
+    _pendingUserAppointmentId = normalizedId;
+    _pendingUserAppointmentCollection = normalizedCollection;
+    closeNotifications();
+    setCurrentTab(NavTab.profile, preserveProfileSubPage: true);
+    openProfileSubPage(ProfileSubPage.myAppointments);
+    notifyListeners();
+  }
+
+  void consumePendingUserAppointmentDetail() {
+    _pendingUserAppointmentId = null;
+    _pendingUserAppointmentCollection = null;
+  }
+
   String? get selectedAppointmentId => _selectedAppointmentId;
   String? get selectedAppointmentCollection => _selectedAppointmentCollection;
 
@@ -4069,8 +4157,12 @@ class AppState with ChangeNotifier {
 
         setCurrentTab(NavTab.home);
       } else {
-        setCurrentTab(NavTab.profile);
-        openProfileSubPage(ProfileSubPage.businessDashboard);
+        requestUserAppointmentDetail(
+          collection:
+              payload['appointmentCollection']?.toString() ??
+              'vet_appointments',
+          appointmentId: appointmentId,
+        );
       }
 
       return;
@@ -4106,8 +4198,12 @@ class AppState with ChangeNotifier {
         debugPrint("💳 GROOMY RESPONSE → open payment flow");
         setCurrentTab(NavTab.home);
       } else {
-        setCurrentTab(NavTab.profile);
-        openProfileSubPage(ProfileSubPage.appointments);
+        requestUserAppointmentDetail(
+          collection:
+              payload['appointmentCollection']?.toString() ??
+              'groomy_appointments',
+          appointmentId: appointmentId,
+        );
       }
 
       return;
@@ -4132,8 +4228,11 @@ class AppState with ChangeNotifier {
         setSelectedAppointmentId(appointmentId, collection: 'hotel_bookings');
         setCurrentTab(NavTab.home);
       } else {
-        setCurrentTab(NavTab.profile);
-        openProfileSubPage(ProfileSubPage.appointments);
+        requestUserAppointmentDetail(
+          collection:
+              payload['appointmentCollection']?.toString() ?? 'hotel_bookings',
+          appointmentId: appointmentId,
+        );
       }
 
       return;
@@ -4168,8 +4267,11 @@ class AppState with ChangeNotifier {
       _ignoreNextNotificationTap = true;
       ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
 
-      setCurrentTab(NavTab.profile);
-      openProfileSubPage(ProfileSubPage.appointments);
+      requestUserAppointmentDetail(
+        collection:
+            payload['appointmentCollection']?.toString() ?? 'pet_taxi_bookings',
+        appointmentId: appointmentId,
+      );
 
       return;
     }
@@ -4428,12 +4530,14 @@ class AppState with ChangeNotifier {
 
   NavTab get currentTab => _currentTab;
 
-  void setCurrentTab(NavTab tab) {
+  void setCurrentTab(NavTab tab, {bool preserveProfileSubPage = false}) {
     debugPrint('🧭 setCurrentTab CALLED → $tab');
 
     // 🔥 اگر دوباره روی PROFILE زد
     if (_currentTab == NavTab.profile && tab == NavTab.profile) {
-      closeProfileSubPage();
+      if (!preserveProfileSubPage) {
+        closeProfileSubPage();
+      }
 
       notifyListeners();
 
@@ -4520,7 +4624,7 @@ class AppState with ChangeNotifier {
 
   bool get isGold =>
       subscription.plan == SubscriptionPlan.gold &&
-      subscription.status.isActive;
+      subscription.hasValidPaidAccess;
 
   bool get canRegisterBusiness => subscriptionAccess.canRegisterBusiness;
 

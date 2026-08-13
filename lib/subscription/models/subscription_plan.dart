@@ -5,7 +5,7 @@ enum SubscriptionPlan {
 
   /// Convert Firestore string → enum
   static SubscriptionPlan fromString(String? value) {
-    switch (value) {
+    switch (value?.trim().toLowerCase()) {
       case 'premium':
         return SubscriptionPlan.premium;
       case 'gold':

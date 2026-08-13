@@ -133,9 +133,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)!.businessApproved),
           ),
@@ -161,6 +159,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
     );
 
     if (reason == null || reason.isEmpty) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
 
@@ -172,9 +171,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)!.businessRejected),
           ),
@@ -200,6 +197,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
     );
 
     if (reason == null || reason.isEmpty) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
 
@@ -210,9 +208,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)!.businessSuspended),
           ),
@@ -236,9 +232,7 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
       await _restoreCallable.call({"businessId": widget.businessId});
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocalizations.of(context)!.businessRestored),
           ),
@@ -261,41 +255,77 @@ class _BusinessAdminActionsState extends State<BusinessAdminActions> {
     required String confirmText,
     required Color confirmColor,
   }) async {
-    final controller = TextEditingController();
-
     return showDialog<String>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: InputDecoration(hintText: hint),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(AppLocalizations.of(context)!.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              style: ElevatedButton.styleFrom(backgroundColor: confirmColor),
-              child: Text(confirmText),
-            ),
-          ],
-        );
-      },
+      builder: (_) => _BusinessReasonDialog(
+        title: title,
+        hint: hint,
+        confirmText: confirmText,
+        confirmColor: confirmColor,
+      ),
     );
   }
 
   void _showError(Object e) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.actionFailed('$e')),
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.actionFailed('$e'))),
+    );
+  }
+}
+
+class _BusinessReasonDialog extends StatefulWidget {
+  final String title;
+  final String hint;
+  final String confirmText;
+  final Color confirmColor;
+
+  const _BusinessReasonDialog({
+    required this.title,
+    required this.hint,
+    required this.confirmText,
+    required this.confirmColor,
+  });
+
+  @override
+  State<_BusinessReasonDialog> createState() => _BusinessReasonDialogState();
+}
+
+class _BusinessReasonDialogState extends State<_BusinessReasonDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        maxLines: 3,
+        decoration: InputDecoration(hintText: widget.hint),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(AppLocalizations.of(context)!.cancel),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          style: ElevatedButton.styleFrom(backgroundColor: widget.confirmColor),
+          child: Text(widget.confirmText),
+        ),
+      ],
     );
   }
 }

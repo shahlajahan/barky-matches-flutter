@@ -8,6 +8,13 @@ import 'package:barky_matches_fixed/ui/business/finance/pet_taxi_revenue_section
 import 'package:barky_matches_fixed/ui/business/finance/seller_finance_summary.dart';
 
 void main() {
+  final now = DateTime.now();
+  final recentDate = now.subtract(const Duration(days: 1));
+  final previousDate = now.subtract(const Duration(days: 2));
+  final expectedRevenueMonths = {
+    '${recentDate.year}-${recentDate.month}',
+    '${previousDate.year}-${previousDate.month}',
+  }.length;
   final summary = SellerFinanceSummary(
     businessId: 'business-1',
     currency: 'TRY',
@@ -46,7 +53,7 @@ void main() {
       averageTicket: 1000,
       trend: [
         SellerRevenueTrendPoint(
-          date: DateTime.utc(2026, 8, 1),
+          date: recentDate,
           amount: 1000,
           count: 1,
           grossRevenue: 1000,
@@ -55,7 +62,7 @@ void main() {
           paymentCount: 1,
         ),
         SellerRevenueTrendPoint(
-          date: DateTime.utc(2026, 8, 2),
+          date: previousDate,
           amount: 2000,
           count: 2,
           grossRevenue: 2000,
@@ -167,7 +174,7 @@ void main() {
       expect(groups, hasLength(12));
       expect(
         groups.where((group) => group.barRods.single.toY > 0),
-        hasLength(1),
+        hasLength(expectedRevenueMonths),
       );
       expect(tester.takeException(), isNull);
     },

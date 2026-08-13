@@ -58,6 +58,18 @@ class AppLocalizationsTr extends AppLocalizations {
   String get checkoutButton => 'Ödeme';
 
   @override
+  String get marketplaceDisclaimerTitle => 'Devam etmeden önce';
+
+  @override
+  String get marketplaceDisclaimerMessage => 'PetSupo, sizi bağımsız işletmeler ve hizmet sağlayıcılarla buluşturan bir platformdur. Seçtiğiniz hizmet, gösterilen işletme veya sağlayıcı tarafından sunulur. PetSupo, bu bağımsız hizmetin kalitesini veya gerçekleştirilmesini garanti etmez ve bundan sorumlu değildir. Lütfen devam etmeden önce işletme veya sağlayıcı bilgilerini inceleyin.';
+
+  @override
+  String get marketplaceDisclaimerAccept => 'Kabul Et ve Devam Et';
+
+  @override
+  String get marketplaceDisclaimerCancel => 'İptal';
+
+  @override
   String get checkoutStepAddressTitle => 'Adres';
 
   @override
@@ -738,7 +750,35 @@ class AppLocalizationsTr extends AppLocalizations {
   String get emailVerifiedSuccessfully => 'E-posta başarıyla doğrulandı';
 
   @override
-  String get invalidVerificationCode => 'Geçersiz doğrulama kodu';
+  String get invalidVerificationCode => 'Geçersiz doğrulama kodu. Lütfen tekrar deneyin.';
+
+  @override
+  String get verificationCodeExpired => 'Bu kodun süresi doldu. Yeni bir kod isteyin.';
+
+  @override
+  String get unableToVerifyEmail => 'Şu anda doğrulama yapılamıyor. Lütfen tekrar deneyin.';
+
+  @override
+  String get unableToSendVerificationCode => 'Yeni kod şu anda gönderilemiyor. Lütfen tekrar deneyin.';
+
+  @override
+  String verificationCodeSentTo(Object email) {
+    return 'Kod şu adrese gönderildi: $email';
+  }
+
+  @override
+  String get verificationCodeSentToLabel => 'Doğrulama kodu şu adrese gönderildi';
+
+  @override
+  String get sendingVerificationCode => 'Gönderiliyor...';
+
+  @override
+  String resendCodeAvailableIn(Object seconds) {
+    return 'Kod gönderme $seconds saniye sonra kullanılabilir';
+  }
+
+  @override
+  String get changeEmail => 'E-postayı değiştir';
 
   @override
   String verificationCodeSent(Object email) {
@@ -4212,6 +4252,18 @@ class AppLocalizationsTr extends AppLocalizations {
   String get restorePurchases => 'Satın Alımları Geri Yükle';
 
   @override
+  String get mobileSubscriptionVerificationFailed => 'Abonelik henüz doğrulanamadı. Lütfen Satın Alımları Geri Yükle seçeneğini tekrar deneyin.';
+
+  @override
+  String get mobileSubscriptionOwnershipConflict => 'Bu abonelik başka bir Petsupo hesabına bağlı. Lütfen bu abonelik için daha önce kullandığınız hesaba giriş yapın.';
+
+  @override
+  String get deleteAccountStoreSubscriptionNotice => 'PetSupo hesabınızı silmek Apple App Store veya Google Play aboneliğinizi iptal etmez. Hesabınızı silmeden önce mağaza faturalandırmasını ayrıca iptal edin.';
+
+  @override
+  String get manageStoreSubscription => 'Mağaza aboneliğini yönet';
+
+  @override
   String get upgradePaymentTerms => 'Ödemeniz onaylandığında App Store hesabınızdan tahsil edilir. Geçerli dönem bitmeden en az 24 saat önce iptal edilmediği sürece abonelikler otomatik yenilenir.';
 
   @override
@@ -7360,6 +7412,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get driverOnline => 'Sürücü Çevrimiçi';
 
   @override
+  String get petTaxiAwaitingActivation => 'Pet Taksi etkinleştirme bekliyor.';
+
+  @override
+  String get petTaxiAvailabilityUpdateFailed => 'Sürücü çevrimiçi durumu güncellenemedi. Lütfen tekrar deneyin.';
+
+  @override
   String get serviceDetailsSaveFailed => 'Hizmet ayrıntıları kaydedilemedi.';
 
   @override
@@ -7892,6 +7950,27 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get petTaxiManualReviewNotice => 'Pet Taksi başvurunuz, belgeler manuel olarak incelenip onaylanana kadar yayımlanmaz.';
+
+  @override
+  String get petTaxiReplacementExpiryDateDriverLicense => 'Yeni sürücü belgesi son kullanma tarihi';
+
+  @override
+  String get petTaxiReplacementExpiryDateTrafficInsurance => 'Yeni trafik sigortası son kullanma tarihi';
+
+  @override
+  String get petTaxiReplacementExpiryRequired => 'Bu değişimi göndermeden önce geçerli bir gelecek tarihi seçin.';
+
+  @override
+  String get petTaxiReplacementSubmitted => 'Değişim inceleme için gönderildi.';
+
+  @override
+  String get petTaxiDocumentsRequiringReplacement => 'Değiştirilmesi gereken belgeler';
+
+  @override
+  String get petTaxiRejected => 'Reddedildi';
+
+  @override
+  String get petTaxiReplaceDocument => 'Değiştir';
 
   @override
   String get transportationLawNotice => 'Ulaşım yasaları şehre veya ülkeye göre değişebilir. İşletmeler yerel ulaşım, sigorta ve vergi düzenlemelerine uymakla sorumludur.';
@@ -9103,6 +9182,12 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
+  String get petTaxiRouteUnavailable => 'Seçilen konumlar arasında araçla gidilebilen bir rota bulunamadı. Lütfen alım ve varış konumlarını kontrol edin.';
+
+  @override
+  String get routeEstimateUnavailable => 'Rota tahmini şu anda kullanılamıyor. Lütfen seçilen konumları kontrol edip tekrar deneyin.';
+
+  @override
   String get createPetTaxiBooking => 'Create pet taxi booking';
 
   @override
@@ -9777,4 +9862,263 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get promotionTargetGroomyService => 'Groomy hizmeti';
+
+  @override
+  String get petTaxiDocumentTaxPlate => 'Vergi levhası';
+
+  @override
+  String get petTaxiDocumentBusinessRegistration => 'İşletme kayıt belgesi';
+
+  @override
+  String get petTaxiDocumentVehicleRegistration => 'Araç ruhsatı';
+
+  @override
+  String get petTaxiDocumentDriverLicense => 'Sürücü belgesi';
+
+  @override
+  String get petTaxiDocumentTrafficInsurance => 'Trafik sigortası';
+
+  @override
+  String get petTaxiDocumentStatusPendingReview => 'İnceleme bekliyor';
+
+  @override
+  String get petTaxiDocumentStatusApproved => 'Onaylandı';
+
+  @override
+  String get petTaxiDocumentStatusRejected => 'Reddedildi';
+
+  @override
+  String get petTaxiDocumentStatusMissing => 'Eksik';
+
+  @override
+  String get petTaxiDocumentExpired => 'Süresi dolmuş';
+
+  @override
+  String petTaxiDocumentExpiryDate(Object date) {
+    return 'Son kullanma tarihi: $date';
+  }
+
+  @override
+  String get petTaxiDocumentExpiredMessage => 'Bu belgenin süresi dolmuş. Belgeyi reddedin ve işletmeden geçerli yeni bir belge yüklemesini isteyin.';
+
+  @override
+  String petTaxiRejectDocumentTitle(Object document) {
+    return '$document belgesini reddet';
+  }
+
+  @override
+  String get petTaxiAdminErrorPermissionDenied => 'Bu işlemi gerçekleştirme izniniz yok.';
+
+  @override
+  String get petTaxiAdminErrorUnauthenticated => 'Oturumunuzun süresi dolmuş. Lütfen tekrar giriş yapın.';
+
+  @override
+  String get petTaxiAdminErrorNotFound => 'İşletme veya belge bulunamadı.';
+
+  @override
+  String get petTaxiAdminErrorInvalidArgument => 'Belge ayrıntılarını kontrol edip tekrar deneyin.';
+
+  @override
+  String get petTaxiAdminErrorAlreadyExists => 'Bu işlem zaten tamamlanmış.';
+
+  @override
+  String get petTaxiAdminErrorFailedPrecondition => 'Bu işlem mevcut belge durumunda tamamlanamaz.';
+
+  @override
+  String get petTaxiAdminErrorGeneric => 'İşlem tamamlanamadı. Lütfen tekrar deneyin.';
+
+  @override
+  String get petTaxiAdminActionCompleted => 'Belge güncellendi';
+
+  @override
+  String get petTaxiUploadDocument => 'Belge yükle';
+
+  @override
+  String get petTaxiTakePhoto => 'Fotoğraf çek';
+
+  @override
+  String get petTaxiChoosePhoto => 'Fotoğraf seç';
+
+  @override
+  String get petTaxiChoosePdf => 'PDF seç';
+
+  @override
+  String get petTaxiSupportedDocumentFormats => 'PDF, JPG veya PNG (en fazla 25 MB)';
+
+  @override
+  String get petTaxiUnsupportedDocumentFormat => 'PDF, JPG veya PNG formatında bir belge seçin.';
+
+  @override
+  String get petTaxiDocumentTooLarge => 'Bu belge 25 MB boyut sınırını aşıyor.';
+
+  @override
+  String get petTaxiDocumentUploadFailed => 'Belge yüklenemedi. Lütfen tekrar deneyin.';
+
+  @override
+  String get petTaxiOpenDocumentFailed => 'Bu belge açılamadı.';
+
+  @override
+  String get businessRegisterOptional => 'İsteğe bağlı';
+
+  @override
+  String get businessRegisterTaxPlateRequired => 'Vergi levhası yüklenmelidir.';
+
+  @override
+  String get businessRegisterMersisNumberRequired => 'MERSİS numarası gereklidir.';
+
+  @override
+  String get businessRegisterPhoneOptional => 'Telefon (isteğe bağlı)';
+
+  @override
+  String get businessRegisterWhatsApp => 'WhatsApp';
+
+  @override
+  String get businessRegisterDetectLocationTitle => 'İşletme konumunuzu algılayın';
+
+  @override
+  String get businessRegisterDetectLocationMessage => 'Şehrinizi ve ilçenizi algılamak için konumunuzu kullanırız.';
+
+  @override
+  String get petTaxiDocumentPermissionDenied => 'Kamera veya fotoğraf erişimine izin verilmedi. Bunun yerine fotoğraf ya da PDF seçebilirsiniz.';
+
+  @override
+  String get petTaxiRequiredDocuments => 'Gerekli belgeler';
+
+  @override
+  String get petTaxiRequiredDocumentsSubtitle => 'Yönetici incelemesi için gerekli belgeler';
+
+  @override
+  String get petTaxiOptionalDocuments => 'İsteğe bağlı / koşullu belgeler';
+
+  @override
+  String get petTaxiOptionalDocumentsSubtitle => 'Hizmetiniz için geçerliyse yükleyin';
+
+  @override
+  String get petTaxiComplianceTitle => 'Uygunluk ve yasal onaylar';
+
+  @override
+  String get petTaxiComplianceSubtitle => 'Göndermeden önce gerekli onaylar';
+
+  @override
+  String get petTaxiPetSafetyEquipmentConfirmation => 'Araçta evcil hayvan güvenlik ekipmanının bulunduğunu onaylıyorum.';
+
+  @override
+  String get petTaxiHygieneConfirmation => 'Hijyen ve sanitasyon gerekliliklerinin karşılandığını onaylıyorum.';
+
+  @override
+  String get petTaxiDriverLicenseConfirmation => 'Sürücü belgesinin geçerli olduğunu onaylıyorum.';
+
+  @override
+  String get petTaxiVehicleRegistrationConfirmation => 'Araç ruhsatının hizmet aracına ait olduğunu onaylıyorum.';
+
+  @override
+  String get petTaxiTrafficInsuranceConfirmation => 'Trafik sigortasının aktif olduğunu onaylıyorum.';
+
+  @override
+  String get petTaxiTaxResponsibilityConfirmation => 'Vergi ve fatura veya fiş sorumluluğunun işletmeme ait olduğunu onaylıyorum.';
+
+  @override
+  String get petTaxiTransportRulesConfirmation => 'Şehir ve ülke ulaşım kurallarına uyduğumu onaylıyorum.';
+
+  @override
+  String get petTaxiComplianceNotes => 'Yönetici incelemesi için uygunluk notları';
+
+  @override
+  String get petTaxiOptionalIfApplicable => 'İsteğe bağlı / geçerliyse';
+
+  @override
+  String petTaxiDocumentRequired(Object document) {
+    return '$document gereklidir';
+  }
+
+  @override
+  String petTaxiDateRequired(Object date) {
+    return '$date gereklidir';
+  }
+
+  @override
+  String petTaxiDateCannotBePast(Object date) {
+    return '$date geçmişte olamaz';
+  }
+
+  @override
+  String get petTaxiDocumentNumber => 'Belge numarası';
+
+  @override
+  String get petTaxiDocumentNumberOptional => 'Belge numarası (isteğe bağlı)';
+
+  @override
+  String get petTaxiDocumentNumberRequired => 'Belge numarası gereklidir';
+
+  @override
+  String get petTaxiVehicleRegistrationIssueDate => 'Araç ruhsatı düzenlenme tarihi';
+
+  @override
+  String get petTaxiDriverLicenseExpiryDate => 'Sürücü belgesi son geçerlilik tarihi';
+
+  @override
+  String get petTaxiTrafficInsuranceExpiryDate => 'Trafik sigortası son geçerlilik tarihi';
+
+  @override
+  String get petTaxiSrcCertificateExpiryDate => 'SRC belgesi son geçerlilik tarihi';
+
+  @override
+  String get petTaxiPsychotechnicalExpiryDate => 'Psikoteknik raporu son geçerlilik tarihi';
+
+  @override
+  String get petTaxiKaskoExpiryDate => 'Kasko son geçerlilik tarihi';
+
+  @override
+  String get petTaxiValidTurkishPlate => 'Geçerli bir Türk araç plakası girin.';
+
+  @override
+  String get petTaxiRequiredDocumentsMissing => 'Gerekli Pet Taksi belgelerini yükleyin.';
+
+  @override
+  String get petTaxiComplianceConfirmationsMissing => 'Gerekli tüm uygunluk onaylarını işaretleyin.';
+
+  @override
+  String get petTaxiValidPhoneNumber => 'Geçerli bir telefon numarası girin.';
+
+  @override
+  String get petTaxiValidCapacity => 'Geçerli bir araç kapasitesi girin.';
+
+  @override
+  String get petTaxiCapacityMinimum => 'Araç kapasitesi en az 1 olmalıdır.';
+
+  @override
+  String get petTaxiCapacityMaximum => 'Araç kapasitesi 15\'ten fazla olamaz.';
+
+  @override
+  String get petTaxiSelectVehicleType => 'Bir araç türü seçin.';
+
+  @override
+  String get petTaxiDriverFullName => 'Sürücü adı soyadı';
+
+  @override
+  String get petTaxiDriverPhoneNumber => 'Sürücü telefon numarası';
+
+  @override
+  String get petTaxiVehiclePlateNumber => 'Araç plaka numarası';
+
+  @override
+  String get petTaxiVehicleCapacity => 'Araç kapasitesi';
+
+  @override
+  String get petTaxiVehicleSedan => 'Sedan';
+
+  @override
+  String get petTaxiVehicleHatchback => 'Hatchback';
+
+  @override
+  String get petTaxiVehicleSuv => 'SUV';
+
+  @override
+  String get petTaxiVehicleVan => 'Panelvan';
+
+  @override
+  String get petTaxiVehiclePetTransportVan => 'Evcil hayvan taşıma aracı';
+
+  @override
+  String get petTaxiVehicleLargeAnimalTransport => 'Büyük hayvan taşıma aracı';
 }

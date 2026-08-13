@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
 import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
+import 'package:barky_matches_fixed/services/business_search_matcher.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -283,21 +284,13 @@ class _PetHotelPageState extends State<PetHotelPage>
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      final lower = query.toLowerCase().trim();
+      final lower = BusinessSearchMatcher.normalize(query);
 
       setState(() {
         _searchQuery = lower;
-        _filteredHotels = _hotels.where((business) {
-          final searchable = [
-            business.name,
-            business.city,
-            business.district,
-            business.description,
-            business.specialties.join(' '),
-            business.services?.join(' ') ?? '',
-          ].join(' ').toLowerCase();
-          return lower.isEmpty || searchable.contains(lower);
-        }).toList();
+        _filteredHotels = _hotels
+            .where((business) => BusinessSearchMatcher.matches(business, lower))
+            .toList();
       });
     });
   }

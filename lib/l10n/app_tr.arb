@@ -32,6 +32,10 @@
   "cartIsEmpty": "Sepet boş",
   "totalLabel": "Toplam",
   "checkoutButton": "Ödeme",
+  "marketplaceDisclaimerTitle": "Devam etmeden önce",
+  "marketplaceDisclaimerMessage": "PetSupo, sizi bağımsız işletmeler ve hizmet sağlayıcılarla buluşturan bir platformdur. Seçtiğiniz hizmet, gösterilen işletme veya sağlayıcı tarafından sunulur. PetSupo, bu bağımsız hizmetin kalitesini veya gerçekleştirilmesini garanti etmez ve bundan sorumlu değildir. Lütfen devam etmeden önce işletme veya sağlayıcı bilgilerini inceleyin.",
+  "marketplaceDisclaimerAccept": "Kabul Et ve Devam Et",
+  "marketplaceDisclaimerCancel": "İptal",
   "checkoutStepAddressTitle": "Adres",
   "checkoutStepPaymentTitle": "Ödeme",
   "checkoutStepConfirmTitle": "Onay",
@@ -418,11 +422,20 @@
   "emailVerifiedSuccessfully": "E-posta başarıyla doğrulandı",
   "@emailVerifiedSuccessfully": { "description": "E-posta doğrulamasından sonra başarı mesajı" },
 
-  "invalidVerificationCode": "Geçersiz doğrulama kodu",
+  "invalidVerificationCode": "Geçersiz doğrulama kodu. Lütfen tekrar deneyin.",
   "@invalidVerificationCode": { "description": "Geçersiz doğrulama kodu için hata mesajı" },
 
   "verificationCodeSent": "{email} adresine bir doğrulama kodu gönderildi",
   "@verificationCodeSent": { "description": "Doğrulama kodu gönderimi için başarı mesajı", "placeholders": { "email": {} } },
+
+  "verificationCodeExpired": "Bu kodun süresi doldu. Yeni bir kod isteyin.",
+  "unableToVerifyEmail": "Şu anda doğrulama yapılamıyor. Lütfen tekrar deneyin.",
+  "unableToSendVerificationCode": "Yeni kod şu anda gönderilemiyor. Lütfen tekrar deneyin.",
+  "verificationCodeSentTo": "Kod şu adrese gönderildi: {email}",
+  "verificationCodeSentToLabel": "Doğrulama kodu şu adrese gönderildi",
+  "sendingVerificationCode": "Gönderiliyor...",
+  "resendCodeAvailableIn": "Kod gönderme {seconds} saniye sonra kullanılabilir",
+  "changeEmail": "E-postayı değiştir",
 
   "enterCodeLabel": "6 haneli kodu girin",
   "@enterCodeLabel": { "description": "Doğrulama kodu girişi için etiket" },
@@ -2536,6 +2549,10 @@
   "processingLabel": "İşleniyor...",
   "restoreRequestSent": "Geri yükleme isteği gönderildi.",
   "restorePurchases": "Satın Alımları Geri Yükle",
+  "mobileSubscriptionVerificationFailed": "Abonelik henüz doğrulanamadı. Lütfen Satın Alımları Geri Yükle seçeneğini tekrar deneyin.",
+  "mobileSubscriptionOwnershipConflict": "Bu abonelik başka bir Petsupo hesabına bağlı. Lütfen bu abonelik için daha önce kullandığınız hesaba giriş yapın.",
+  "deleteAccountStoreSubscriptionNotice": "PetSupo hesabınızı silmek Apple App Store veya Google Play aboneliğinizi iptal etmez. Hesabınızı silmeden önce mağaza faturalandırmasını ayrıca iptal edin.",
+  "manageStoreSubscription": "Mağaza aboneliğini yönet",
   "upgradePaymentTerms": "Ödemeniz onaylandığında App Store hesabınızdan tahsil edilir. Geçerli dönem bitmeden en az 24 saat önce iptal edilmediği sürece abonelikler otomatik yenilenir.",
   "autoRenewableMonthlySubscription": "Otomatik yenilenen aylık abonelik",
   "securePaymentNotice": "Güvenli ödeme • İstediğiniz zaman iptal edin • Planlar App Store tarafından yönetilir",
@@ -3585,6 +3602,8 @@
 ,"sendPrice": "Fiyatı Gönder"
 ,"petTaxiOverview": "Pet Taksi Genel Bakışı"
 ,"driverOnline": "Sürücü Çevrimiçi"
+,"petTaxiAwaitingActivation": "Pet Taksi etkinleştirme bekliyor."
+,"petTaxiAvailabilityUpdateFailed": "Sürücü çevrimiçi durumu güncellenemedi. Lütfen tekrar deneyin."
 ,"serviceDetailsSaveFailed": "Hizmet ayrıntıları kaydedilemedi."
 ,"priceDeterminedAfterExamination": "Nihai fiyat muayeneden sonra belirlenecekse boş bırakın."
 ,"editing": "Düzenleniyor"
@@ -3753,6 +3772,13 @@
 ,"amenities": "Olanaklar"
 ,"petTaxiDetails": "Pet Taksi Ayrıntıları"
 ,"petTaxiManualReviewNotice": "Pet Taksi başvurunuz, belgeler manuel olarak incelenip onaylanana kadar yayımlanmaz."
+,"petTaxiReplacementExpiryDateDriverLicense": "Yeni sürücü belgesi son kullanma tarihi"
+,"petTaxiReplacementExpiryDateTrafficInsurance": "Yeni trafik sigortası son kullanma tarihi"
+,"petTaxiReplacementExpiryRequired": "Bu değişimi göndermeden önce geçerli bir gelecek tarihi seçin."
+,"petTaxiReplacementSubmitted": "Değişim inceleme için gönderildi."
+,"petTaxiDocumentsRequiringReplacement": "Değiştirilmesi gereken belgeler"
+,"petTaxiRejected": "Reddedildi"
+,"petTaxiReplaceDocument": "Değiştir"
 ,"transportationLawNotice": "Ulaşım yasaları şehre veya ülkeye göre değişebilir. İşletmeler yerel ulaşım, sigorta ve vergi düzenlemelerine uymakla sorumludur."
 ,"legalDocumentsPrivacyNotice": "Yasal belgeler yalnızca işletme sahibi ve yönetici incelemesi için saklanır. Kamuya açık kullanıcılara gösterilmez."
 ,"savePetTaxiDetails": "Pet Taksi Ayrıntılarını Kaydet"
@@ -4165,6 +4191,8 @@
 ,"estimatedPrice": "Estimated Price"
 ,"routeEstimateNeeded": "Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate."
 ,"routeEstimateDetail": "{distance} km driving route • {duration} min. Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider."
+,"petTaxiRouteUnavailable": "Seçilen konumlar arasında araçla gidilebilen bir rota bulunamadı. Lütfen alım ve varış konumlarını kontrol edin."
+,"routeEstimateUnavailable": "Rota tahmini şu anda kullanılamıyor. Lütfen seçilen konumları kontrol edip tekrar deneyin."
 ,"createPetTaxiBooking": "Create pet taxi booking"
 ,"creatingBooking": "Creating booking..."
 ,"petTaxiTitle": "Pet Taxi"
@@ -4377,4 +4405,87 @@
 ,"promotionTargetProduct": "Ürün"
 ,"promotionTargetVetService": "Veteriner hizmeti"
 ,"promotionTargetGroomyService": "Groomy hizmeti"
+,"petTaxiDocumentTaxPlate": "Vergi levhası"
+,"petTaxiDocumentBusinessRegistration": "İşletme kayıt belgesi"
+,"petTaxiDocumentVehicleRegistration": "Araç ruhsatı"
+,"petTaxiDocumentDriverLicense": "Sürücü belgesi"
+,"petTaxiDocumentTrafficInsurance": "Trafik sigortası"
+,"petTaxiDocumentStatusPendingReview": "İnceleme bekliyor"
+,"petTaxiDocumentStatusApproved": "Onaylandı"
+,"petTaxiDocumentStatusRejected": "Reddedildi"
+,"petTaxiDocumentStatusMissing": "Eksik"
+,"petTaxiDocumentExpired": "Süresi dolmuş"
+,"petTaxiDocumentExpiryDate": "Son kullanma tarihi: {date}"
+,"petTaxiDocumentExpiredMessage": "Bu belgenin süresi dolmuş. Belgeyi reddedin ve işletmeden geçerli yeni bir belge yüklemesini isteyin."
+,"petTaxiRejectDocumentTitle": "{document} belgesini reddet"
+,"petTaxiAdminErrorPermissionDenied": "Bu işlemi gerçekleştirme izniniz yok."
+,"petTaxiAdminErrorUnauthenticated": "Oturumunuzun süresi dolmuş. Lütfen tekrar giriş yapın."
+,"petTaxiAdminErrorNotFound": "İşletme veya belge bulunamadı."
+,"petTaxiAdminErrorInvalidArgument": "Belge ayrıntılarını kontrol edip tekrar deneyin."
+,"petTaxiAdminErrorAlreadyExists": "Bu işlem zaten tamamlanmış."
+,"petTaxiAdminErrorFailedPrecondition": "Bu işlem mevcut belge durumunda tamamlanamaz."
+,"petTaxiAdminErrorGeneric": "İşlem tamamlanamadı. Lütfen tekrar deneyin."
+,"petTaxiAdminActionCompleted": "Belge güncellendi"
+,"petTaxiUploadDocument": "Belge yükle"
+,"petTaxiTakePhoto": "Fotoğraf çek"
+,"petTaxiChoosePhoto": "Fotoğraf seç"
+,"petTaxiChoosePdf": "PDF seç"
+,"petTaxiSupportedDocumentFormats": "PDF, JPG veya PNG (en fazla 25 MB)"
+,"petTaxiUnsupportedDocumentFormat": "PDF, JPG veya PNG formatında bir belge seçin."
+,"petTaxiDocumentTooLarge": "Bu belge 25 MB boyut sınırını aşıyor."
+,"petTaxiDocumentUploadFailed": "Belge yüklenemedi. Lütfen tekrar deneyin."
+,"petTaxiOpenDocumentFailed": "Bu belge açılamadı."
+,"businessRegisterOptional": "İsteğe bağlı"
+,"businessRegisterTaxPlateRequired": "Vergi levhası yüklenmelidir."
+,"businessRegisterMersisNumberRequired": "MERSİS numarası gereklidir."
+,"businessRegisterPhoneOptional": "Telefon (isteğe bağlı)"
+,"businessRegisterWhatsApp": "WhatsApp"
+,"businessRegisterDetectLocationTitle": "İşletme konumunuzu algılayın"
+,"businessRegisterDetectLocationMessage": "Şehrinizi ve ilçenizi algılamak için konumunuzu kullanırız."
+,"petTaxiDocumentPermissionDenied": "Kamera veya fotoğraf erişimine izin verilmedi. Bunun yerine fotoğraf ya da PDF seçebilirsiniz."
+,"petTaxiRequiredDocuments": "Gerekli belgeler"
+,"petTaxiRequiredDocumentsSubtitle": "Yönetici incelemesi için gerekli belgeler"
+,"petTaxiOptionalDocuments": "İsteğe bağlı / koşullu belgeler"
+,"petTaxiOptionalDocumentsSubtitle": "Hizmetiniz için geçerliyse yükleyin"
+,"petTaxiComplianceTitle": "Uygunluk ve yasal onaylar"
+,"petTaxiComplianceSubtitle": "Göndermeden önce gerekli onaylar"
+,"petTaxiPetSafetyEquipmentConfirmation": "Araçta evcil hayvan güvenlik ekipmanının bulunduğunu onaylıyorum."
+,"petTaxiHygieneConfirmation": "Hijyen ve sanitasyon gerekliliklerinin karşılandığını onaylıyorum."
+,"petTaxiDriverLicenseConfirmation": "Sürücü belgesinin geçerli olduğunu onaylıyorum."
+,"petTaxiVehicleRegistrationConfirmation": "Araç ruhsatının hizmet aracına ait olduğunu onaylıyorum."
+,"petTaxiTrafficInsuranceConfirmation": "Trafik sigortasının aktif olduğunu onaylıyorum."
+,"petTaxiTaxResponsibilityConfirmation": "Vergi ve fatura veya fiş sorumluluğunun işletmeme ait olduğunu onaylıyorum."
+,"petTaxiTransportRulesConfirmation": "Şehir ve ülke ulaşım kurallarına uyduğumu onaylıyorum."
+,"petTaxiComplianceNotes": "Yönetici incelemesi için uygunluk notları"
+,"petTaxiOptionalIfApplicable": "İsteğe bağlı / geçerliyse"
+,"petTaxiDocumentRequired": "{document} gereklidir"
+,"petTaxiDateRequired": "{date} gereklidir"
+,"petTaxiDateCannotBePast": "{date} geçmişte olamaz"
+,"petTaxiDocumentNumber": "Belge numarası"
+,"petTaxiDocumentNumberOptional": "Belge numarası (isteğe bağlı)"
+,"petTaxiDocumentNumberRequired": "Belge numarası gereklidir"
+,"petTaxiVehicleRegistrationIssueDate": "Araç ruhsatı düzenlenme tarihi"
+,"petTaxiDriverLicenseExpiryDate": "Sürücü belgesi son geçerlilik tarihi"
+,"petTaxiTrafficInsuranceExpiryDate": "Trafik sigortası son geçerlilik tarihi"
+,"petTaxiSrcCertificateExpiryDate": "SRC belgesi son geçerlilik tarihi"
+,"petTaxiPsychotechnicalExpiryDate": "Psikoteknik raporu son geçerlilik tarihi"
+,"petTaxiKaskoExpiryDate": "Kasko son geçerlilik tarihi"
+,"petTaxiValidTurkishPlate": "Geçerli bir Türk araç plakası girin."
+,"petTaxiRequiredDocumentsMissing": "Gerekli Pet Taksi belgelerini yükleyin."
+,"petTaxiComplianceConfirmationsMissing": "Gerekli tüm uygunluk onaylarını işaretleyin."
+,"petTaxiValidPhoneNumber": "Geçerli bir telefon numarası girin."
+,"petTaxiValidCapacity": "Geçerli bir araç kapasitesi girin."
+,"petTaxiCapacityMinimum": "Araç kapasitesi en az 1 olmalıdır."
+,"petTaxiCapacityMaximum": "Araç kapasitesi 15'ten fazla olamaz."
+,"petTaxiSelectVehicleType": "Bir araç türü seçin."
+,"petTaxiDriverFullName": "Sürücü adı soyadı"
+,"petTaxiDriverPhoneNumber": "Sürücü telefon numarası"
+,"petTaxiVehiclePlateNumber": "Araç plaka numarası"
+,"petTaxiVehicleCapacity": "Araç kapasitesi"
+,"petTaxiVehicleSedan": "Sedan"
+,"petTaxiVehicleHatchback": "Hatchback"
+,"petTaxiVehicleSuv": "SUV"
+,"petTaxiVehicleVan": "Panelvan"
+,"petTaxiVehiclePetTransportVan": "Evcil hayvan taşıma aracı"
+,"petTaxiVehicleLargeAnimalTransport": "Büyük hayvan taşıma aracı"
 }

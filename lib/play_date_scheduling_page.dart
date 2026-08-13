@@ -1039,7 +1039,6 @@ class _MapPickerPageState extends State<MapPickerPage> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
     super.dispose();
   }
 }

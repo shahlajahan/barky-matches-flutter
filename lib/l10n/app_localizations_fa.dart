@@ -58,6 +58,18 @@ class AppLocalizationsFa extends AppLocalizations {
   String get checkoutButton => 'پرداخت';
 
   @override
+  String get marketplaceDisclaimerTitle => 'پیش از ادامه';
+
+  @override
+  String get marketplaceDisclaimerMessage => 'پت‌سوپو پلتفرمی است که شما را به کسب‌وکارها و ارائه‌دهندگان مستقل خدمات متصل می‌کند. خدمت انتخاب‌شده توسط کسب‌وکار یا ارائه‌دهنده نمایش‌داده‌شده ارائه می‌شود. پت‌سوپو کیفیت یا اجرای این خدمت مستقل را تضمین نمی‌کند و مسئولیتی در قبال آن ندارد. لطفاً پیش از ادامه اطلاعات کسب‌وکار یا ارائه‌دهنده را بررسی کنید.';
+
+  @override
+  String get marketplaceDisclaimerAccept => 'پذیرش و ادامه';
+
+  @override
+  String get marketplaceDisclaimerCancel => 'لغو';
+
+  @override
   String get checkoutStepAddressTitle => 'آدرس';
 
   @override
@@ -738,7 +750,35 @@ class AppLocalizationsFa extends AppLocalizations {
   String get emailVerifiedSuccessfully => 'ایمیل با موفقیت تأیید شد';
 
   @override
-  String get invalidVerificationCode => 'کد تأیید نامعتبر است';
+  String get invalidVerificationCode => 'کد تأیید نامعتبر است. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get verificationCodeExpired => 'این کد منقضی شده است. یک کد جدید درخواست کنید.';
+
+  @override
+  String get unableToVerifyEmail => 'در حال حاضر امکان تأیید وجود ندارد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get unableToSendVerificationCode => 'در حال حاضر امکان ارسال کد جدید وجود ندارد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String verificationCodeSentTo(Object email) {
+    return 'کد به این آدرس ارسال شد: $email';
+  }
+
+  @override
+  String get verificationCodeSentToLabel => 'کد تأیید به این آدرس ارسال شد';
+
+  @override
+  String get sendingVerificationCode => 'در حال ارسال...';
+
+  @override
+  String resendCodeAvailableIn(Object seconds) {
+    return 'ارسال مجدد کد تا $seconds ثانیه دیگر در دسترس است';
+  }
+
+  @override
+  String get changeEmail => 'تغییر ایمیل';
 
   @override
   String verificationCodeSent(Object email) {
@@ -4212,6 +4252,18 @@ class AppLocalizationsFa extends AppLocalizations {
   String get restorePurchases => 'بازیابی خریدها';
 
   @override
+  String get mobileSubscriptionVerificationFailed => 'تأیید اشتراک انجام نشد. لطفاً بازیابی خریدها را دوباره امتحان کنید.';
+
+  @override
+  String get mobileSubscriptionOwnershipConflict => 'این اشتراک به حساب دیگری در Petsupo متصل است. لطفاً با حسابی که قبلاً برای این اشتراک استفاده کرده‌اید وارد شوید.';
+
+  @override
+  String get deleteAccountStoreSubscriptionNotice => 'حذف حساب PetSupo اشتراک App Store یا Google Play را لغو نمی‌کند. پیش از حذف حساب، پرداخت فروشگاه را جداگانه لغو کنید.';
+
+  @override
+  String get manageStoreSubscription => 'مدیریت اشتراک فروشگاه';
+
+  @override
   String get upgradePaymentTerms => 'پرداخت شما هنگام تأیید از حساب App Store شما کسر می‌شود. اشتراک‌ها به‌صورت خودکار تمدید می‌شوند مگر اینکه حداقل 24 ساعت قبل از پایان دوره فعلی لغو شوند.';
 
   @override
@@ -7360,6 +7412,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get driverOnline => 'راننده آنلاین';
 
   @override
+  String get petTaxiAwaitingActivation => 'تاکسی حیوانات در انتظار فعال‌سازی است.';
+
+  @override
+  String get petTaxiAvailabilityUpdateFailed => 'وضعیت آنلاین بودن راننده به‌روزرسانی نشد. لطفاً دوباره تلاش کنید.';
+
+  @override
   String get serviceDetailsSaveFailed => 'جزئیات خدمت ذخیره نشد.';
 
   @override
@@ -7892,6 +7950,27 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get petTaxiManualReviewNotice => 'درخواست تاکسی حیوانات شما تا بررسی و تأیید دستی مدارک منتشر نمی‌شود.';
+
+  @override
+  String get petTaxiReplacementExpiryDateDriverLicense => 'تاریخ انقضای جدید گواهینامه رانندگی';
+
+  @override
+  String get petTaxiReplacementExpiryDateTrafficInsurance => 'تاریخ انقضای جدید بیمه شخص ثالث';
+
+  @override
+  String get petTaxiReplacementExpiryRequired => 'پیش از ارسال جایگزین، یک تاریخ معتبر در آینده انتخاب کنید.';
+
+  @override
+  String get petTaxiReplacementSubmitted => 'جایگزین برای بررسی ارسال شد.';
+
+  @override
+  String get petTaxiDocumentsRequiringReplacement => 'مدارک نیازمند جایگزینی';
+
+  @override
+  String get petTaxiRejected => 'رد شده';
+
+  @override
+  String get petTaxiReplaceDocument => 'جایگزینی';
 
   @override
   String get transportationLawNotice => 'قوانین حمل‌ونقل ممکن است بر اساس شهر یا کشور متفاوت باشد. کسب‌وکارها مسئول رعایت مقررات محلی حمل‌ونقل، بیمه و مالیات هستند.';
@@ -9103,6 +9182,12 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
+  String get petTaxiRouteUnavailable => 'بین مکان‌های انتخاب‌شده مسیر قابل رانندگی پیدا نشد. لطفاً مبدأ و مقصد را بررسی کنید.';
+
+  @override
+  String get routeEstimateUnavailable => 'برآورد مسیر در حال حاضر در دسترس نیست. مکان‌های انتخاب‌شده را بررسی کرده و دوباره تلاش کنید.';
+
+  @override
   String get createPetTaxiBooking => 'Create pet taxi booking';
 
   @override
@@ -9777,4 +9862,263 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get promotionTargetGroomyService => 'خدمات گرومینگ';
+
+  @override
+  String get petTaxiDocumentTaxPlate => 'مالیات و ثبت کسب‌وکار';
+
+  @override
+  String get petTaxiDocumentBusinessRegistration => 'ثبت کسب‌وکار';
+
+  @override
+  String get petTaxiDocumentVehicleRegistration => 'مدرک ثبت خودرو';
+
+  @override
+  String get petTaxiDocumentDriverLicense => 'گواهینامه رانندگی';
+
+  @override
+  String get petTaxiDocumentTrafficInsurance => 'بیمه شخص ثالث';
+
+  @override
+  String get petTaxiDocumentStatusPendingReview => 'در انتظار بررسی';
+
+  @override
+  String get petTaxiDocumentStatusApproved => 'تأییدشده';
+
+  @override
+  String get petTaxiDocumentStatusRejected => 'ردشده';
+
+  @override
+  String get petTaxiDocumentStatusMissing => 'ناقص';
+
+  @override
+  String get petTaxiDocumentExpired => 'منقضی‌شده';
+
+  @override
+  String petTaxiDocumentExpiryDate(Object date) {
+    return 'تاریخ انقضا: $date';
+  }
+
+  @override
+  String get petTaxiDocumentExpiredMessage => 'اعتبار این مدرک منقضی شده است. مدرک را رد کنید و از کسب‌وکار بخواهید نسخه معتبر جدیدی بارگذاری کند.';
+
+  @override
+  String petTaxiRejectDocumentTitle(Object document) {
+    return 'رد مدرک $document';
+  }
+
+  @override
+  String get petTaxiAdminErrorPermissionDenied => 'شما اجازه انجام این کار را ندارید.';
+
+  @override
+  String get petTaxiAdminErrorUnauthenticated => 'جلسه شما منقضی شده است. لطفاً دوباره وارد شوید.';
+
+  @override
+  String get petTaxiAdminErrorNotFound => 'کسب‌وکار یا مدرک پیدا نشد.';
+
+  @override
+  String get petTaxiAdminErrorInvalidArgument => 'جزئیات مدرک را بررسی و دوباره تلاش کنید.';
+
+  @override
+  String get petTaxiAdminErrorAlreadyExists => 'این کار قبلاً انجام شده است.';
+
+  @override
+  String get petTaxiAdminErrorFailedPrecondition => 'این کار در وضعیت فعلی مدرک قابل انجام نیست.';
+
+  @override
+  String get petTaxiAdminErrorGeneric => 'عملیات انجام نشد. لطفاً دوباره تلاش کنید.';
+
+  @override
+  String get petTaxiAdminActionCompleted => 'مدرک به‌روزرسانی شد';
+
+  @override
+  String get petTaxiUploadDocument => 'بارگذاری مدرک';
+
+  @override
+  String get petTaxiTakePhoto => 'گرفتن عکس';
+
+  @override
+  String get petTaxiChoosePhoto => 'انتخاب عکس';
+
+  @override
+  String get petTaxiChoosePdf => 'انتخاب PDF';
+
+  @override
+  String get petTaxiSupportedDocumentFormats => 'PDF، JPG یا PNG (حداکثر ۲۵ مگابایت)';
+
+  @override
+  String get petTaxiUnsupportedDocumentFormat => 'یک مدرک با فرمت PDF، JPG یا PNG انتخاب کنید.';
+
+  @override
+  String get petTaxiDocumentTooLarge => 'حجم این مدرک بیشتر از ۲۵ مگابایت است.';
+
+  @override
+  String get petTaxiDocumentUploadFailed => 'بارگذاری مدرک انجام نشد. دوباره تلاش کنید.';
+
+  @override
+  String get petTaxiOpenDocumentFailed => 'این مدرک باز نشد.';
+
+  @override
+  String get businessRegisterOptional => 'اختیاری';
+
+  @override
+  String get businessRegisterTaxPlateRequired => 'بارگذاری گواهی مالیاتی الزامی است.';
+
+  @override
+  String get businessRegisterMersisNumberRequired => 'شماره مرسیس الزامی است.';
+
+  @override
+  String get businessRegisterPhoneOptional => 'تلفن (اختیاری)';
+
+  @override
+  String get businessRegisterWhatsApp => 'واتساپ';
+
+  @override
+  String get businessRegisterDetectLocationTitle => 'مکان کسب‌وکار خود را پیدا کنید';
+
+  @override
+  String get businessRegisterDetectLocationMessage => 'برای تشخیص شهر و منطقه شما از موقعیت مکانی استفاده می‌کنیم.';
+
+  @override
+  String get petTaxiDocumentPermissionDenied => 'دسترسی دوربین یا عکس رد شد. می‌توانید به‌جای آن عکس یا PDF انتخاب کنید.';
+
+  @override
+  String get petTaxiRequiredDocuments => 'مدارک الزامی';
+
+  @override
+  String get petTaxiRequiredDocumentsSubtitle => 'مدارک لازم برای بررسی دستی مدیر';
+
+  @override
+  String get petTaxiOptionalDocuments => 'مدارک اختیاری / مشروط';
+
+  @override
+  String get petTaxiOptionalDocumentsSubtitle => 'اگر برای خدمات شما کاربرد دارد، آن را بارگذاری کنید';
+
+  @override
+  String get petTaxiComplianceTitle => 'تأییدیه‌های قانونی و انطباق';
+
+  @override
+  String get petTaxiComplianceSubtitle => 'تأییدیه‌های لازم پیش از ارسال';
+
+  @override
+  String get petTaxiPetSafetyEquipmentConfirmation => 'تأیید می‌کنم تجهیزات ایمنی حیوان در خودرو موجود است.';
+
+  @override
+  String get petTaxiHygieneConfirmation => 'تأیید می‌کنم الزامات بهداشت رعایت شده است.';
+
+  @override
+  String get petTaxiDriverLicenseConfirmation => 'تأیید می‌کنم گواهینامه راننده معتبر است.';
+
+  @override
+  String get petTaxiVehicleRegistrationConfirmation => 'تأیید می‌کنم سند خودرو متعلق به خودروی خدمات است.';
+
+  @override
+  String get petTaxiTrafficInsuranceConfirmation => 'تأیید می‌کنم بیمه شخص ثالث فعال است.';
+
+  @override
+  String get petTaxiTaxResponsibilityConfirmation => 'تأیید می‌کنم مسئولیت مالیات و فاکتور یا رسید بر عهده کسب‌وکار من است.';
+
+  @override
+  String get petTaxiTransportRulesConfirmation => 'تأیید می‌کنم قوانین حمل‌ونقل شهر و کشور را رعایت می‌کنم.';
+
+  @override
+  String get petTaxiComplianceNotes => 'یادداشت‌های انطباق برای بررسی مدیر';
+
+  @override
+  String get petTaxiOptionalIfApplicable => 'اختیاری / در صورت کاربرد';
+
+  @override
+  String petTaxiDocumentRequired(Object document) {
+    return '$document الزامی است';
+  }
+
+  @override
+  String petTaxiDateRequired(Object date) {
+    return '$date الزامی است';
+  }
+
+  @override
+  String petTaxiDateCannotBePast(Object date) {
+    return '$date نمی‌تواند در گذشته باشد';
+  }
+
+  @override
+  String get petTaxiDocumentNumber => 'شماره مدرک';
+
+  @override
+  String get petTaxiDocumentNumberOptional => 'شماره مدرک (اختیاری)';
+
+  @override
+  String get petTaxiDocumentNumberRequired => 'شماره مدرک الزامی است';
+
+  @override
+  String get petTaxiVehicleRegistrationIssueDate => 'تاریخ صدور سند خودرو';
+
+  @override
+  String get petTaxiDriverLicenseExpiryDate => 'تاریخ انقضای گواهینامه راننده';
+
+  @override
+  String get petTaxiTrafficInsuranceExpiryDate => 'تاریخ انقضای بیمه شخص ثالث';
+
+  @override
+  String get petTaxiSrcCertificateExpiryDate => 'تاریخ انقضای گواهی SRC';
+
+  @override
+  String get petTaxiPsychotechnicalExpiryDate => 'تاریخ انقضای گزارش روان‌فنی';
+
+  @override
+  String get petTaxiKaskoExpiryDate => 'تاریخ انقضای بیمه بدنه';
+
+  @override
+  String get petTaxiValidTurkishPlate => 'یک پلاک معتبر ترکی وارد کنید.';
+
+  @override
+  String get petTaxiRequiredDocumentsMissing => 'مدارک الزامی پت‌تاکسی را بارگذاری کنید.';
+
+  @override
+  String get petTaxiComplianceConfirmationsMissing => 'همه تأییدیه‌های الزامی انطباق را انتخاب کنید.';
+
+  @override
+  String get petTaxiValidPhoneNumber => 'یک شماره تلفن معتبر وارد کنید.';
+
+  @override
+  String get petTaxiValidCapacity => 'ظرفیت معتبر خودرو را وارد کنید.';
+
+  @override
+  String get petTaxiCapacityMinimum => 'ظرفیت خودرو باید حداقل ۱ باشد.';
+
+  @override
+  String get petTaxiCapacityMaximum => 'ظرفیت خودرو نمی‌تواند بیشتر از ۱۵ باشد.';
+
+  @override
+  String get petTaxiSelectVehicleType => 'نوع خودرو را انتخاب کنید.';
+
+  @override
+  String get petTaxiDriverFullName => 'نام و نام خانوادگی راننده';
+
+  @override
+  String get petTaxiDriverPhoneNumber => 'شماره تلفن راننده';
+
+  @override
+  String get petTaxiVehiclePlateNumber => 'شماره پلاک خودرو';
+
+  @override
+  String get petTaxiVehicleCapacity => 'ظرفیت خودرو';
+
+  @override
+  String get petTaxiVehicleSedan => 'سدان';
+
+  @override
+  String get petTaxiVehicleHatchback => 'هاچ‌بک';
+
+  @override
+  String get petTaxiVehicleSuv => 'SUV';
+
+  @override
+  String get petTaxiVehicleVan => 'ون';
+
+  @override
+  String get petTaxiVehiclePetTransportVan => 'ون حمل حیوانات خانگی';
+
+  @override
+  String get petTaxiVehicleLargeAnimalTransport => 'خودروی حمل حیوانات بزرگ';
 }

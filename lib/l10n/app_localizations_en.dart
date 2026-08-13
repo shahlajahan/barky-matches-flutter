@@ -58,6 +58,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutButton => 'Checkout';
 
   @override
+  String get marketplaceDisclaimerTitle => 'Before you continue';
+
+  @override
+  String get marketplaceDisclaimerMessage => 'PetSupo is a platform that connects you with independent businesses and service providers. The selected service is provided by the business or provider shown. PetSupo does not guarantee or assume responsibility for the quality or execution of that independent service. Please review the business or provider information before continuing.';
+
+  @override
+  String get marketplaceDisclaimerAccept => 'Accept & Continue';
+
+  @override
+  String get marketplaceDisclaimerCancel => 'Cancel';
+
+  @override
   String get checkoutStepAddressTitle => 'Address';
 
   @override
@@ -738,7 +750,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emailVerifiedSuccessfully => 'Email verified successfully';
 
   @override
-  String get invalidVerificationCode => 'Invalid verification code';
+  String get invalidVerificationCode => 'Invalid verification code. Please try again.';
+
+  @override
+  String get verificationCodeExpired => 'This code has expired. Request a new code.';
+
+  @override
+  String get unableToVerifyEmail => 'Unable to verify right now. Please try again.';
+
+  @override
+  String get unableToSendVerificationCode => 'Unable to send a new code right now. Please try again.';
+
+  @override
+  String verificationCodeSentTo(Object email) {
+    return 'Code sent to: $email';
+  }
+
+  @override
+  String get verificationCodeSentToLabel => 'Verification code sent to';
+
+  @override
+  String get sendingVerificationCode => 'Sending...';
+
+  @override
+  String resendCodeAvailableIn(Object seconds) {
+    return 'Resend code available in ${seconds}s';
+  }
+
+  @override
+  String get changeEmail => 'Change email';
 
   @override
   String verificationCodeSent(Object email) {
@@ -4212,6 +4252,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restorePurchases => 'Restore Purchases';
 
   @override
+  String get mobileSubscriptionVerificationFailed => 'We couldn\'t verify the subscription yet. Please try Restore Purchases again.';
+
+  @override
+  String get mobileSubscriptionOwnershipConflict => 'This subscription is linked to another Petsupo account. Please sign in to the account originally used for this subscription.';
+
+  @override
+  String get deleteAccountStoreSubscriptionNotice => 'Deleting your PetSupo account does not cancel Apple App Store or Google Play subscriptions. Cancel store billing separately before deleting your account.';
+
+  @override
+  String get manageStoreSubscription => 'Manage store subscription';
+
+  @override
   String get upgradePaymentTerms => 'Your payment will be charged to your App Store account at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period.';
 
   @override
@@ -7360,6 +7412,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get driverOnline => 'Driver Online';
 
   @override
+  String get petTaxiAwaitingActivation => 'Pet Taxi is awaiting activation.';
+
+  @override
+  String get petTaxiAvailabilityUpdateFailed => 'Could not update Driver Online status. Please try again.';
+
+  @override
   String get serviceDetailsSaveFailed => 'Service details could not be saved.';
 
   @override
@@ -7892,6 +7950,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get petTaxiManualReviewNotice => 'Your Pet Taxi application will not be published until documents are manually reviewed and approved.';
+
+  @override
+  String get petTaxiReplacementExpiryDateDriverLicense => 'New driver license expiry date';
+
+  @override
+  String get petTaxiReplacementExpiryDateTrafficInsurance => 'New traffic insurance expiry date';
+
+  @override
+  String get petTaxiReplacementExpiryRequired => 'Select a valid future expiry date before submitting this replacement.';
+
+  @override
+  String get petTaxiReplacementSubmitted => 'Replacement submitted for review.';
+
+  @override
+  String get petTaxiDocumentsRequiringReplacement => 'Documents requiring replacement';
+
+  @override
+  String get petTaxiRejected => 'Rejected';
+
+  @override
+  String get petTaxiReplaceDocument => 'Replace';
 
   @override
   String get transportationLawNotice => 'Transportation laws may vary by city/country. Businesses are responsible for complying with local transportation, insurance, and tax regulations.';
@@ -9103,6 +9182,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get petTaxiRouteUnavailable => 'No drivable route could be found between the selected locations. Please check the pickup and destination.';
+
+  @override
+  String get routeEstimateUnavailable => 'The route estimate is currently unavailable. Please check the selected locations and try again.';
+
+  @override
   String get createPetTaxiBooking => 'Create pet taxi booking';
 
   @override
@@ -9777,4 +9862,263 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get promotionTargetGroomyService => 'Groomy service';
+
+  @override
+  String get petTaxiDocumentTaxPlate => 'Tax plate';
+
+  @override
+  String get petTaxiDocumentBusinessRegistration => 'Business registration';
+
+  @override
+  String get petTaxiDocumentVehicleRegistration => 'Vehicle registration';
+
+  @override
+  String get petTaxiDocumentDriverLicense => 'Driver license';
+
+  @override
+  String get petTaxiDocumentTrafficInsurance => 'Traffic insurance';
+
+  @override
+  String get petTaxiDocumentStatusPendingReview => 'Pending review';
+
+  @override
+  String get petTaxiDocumentStatusApproved => 'Approved';
+
+  @override
+  String get petTaxiDocumentStatusRejected => 'Rejected';
+
+  @override
+  String get petTaxiDocumentStatusMissing => 'Missing';
+
+  @override
+  String get petTaxiDocumentExpired => 'Expired';
+
+  @override
+  String petTaxiDocumentExpiryDate(Object date) {
+    return 'Expiry date: $date';
+  }
+
+  @override
+  String get petTaxiDocumentExpiredMessage => 'This document has expired. Reject it and ask the business to upload a valid replacement.';
+
+  @override
+  String petTaxiRejectDocumentTitle(Object document) {
+    return 'Reject $document';
+  }
+
+  @override
+  String get petTaxiAdminErrorPermissionDenied => 'You do not have permission to perform this action.';
+
+  @override
+  String get petTaxiAdminErrorUnauthenticated => 'Your session has expired. Please sign in again.';
+
+  @override
+  String get petTaxiAdminErrorNotFound => 'The business or document could not be found.';
+
+  @override
+  String get petTaxiAdminErrorInvalidArgument => 'Please review the document details and try again.';
+
+  @override
+  String get petTaxiAdminErrorAlreadyExists => 'This action has already been completed.';
+
+  @override
+  String get petTaxiAdminErrorFailedPrecondition => 'This action cannot be completed in the current document state.';
+
+  @override
+  String get petTaxiAdminErrorGeneric => 'The action could not be completed. Please try again.';
+
+  @override
+  String get petTaxiAdminActionCompleted => 'Document updated';
+
+  @override
+  String get petTaxiUploadDocument => 'Upload document';
+
+  @override
+  String get petTaxiTakePhoto => 'Take photo';
+
+  @override
+  String get petTaxiChoosePhoto => 'Choose photo';
+
+  @override
+  String get petTaxiChoosePdf => 'Choose PDF';
+
+  @override
+  String get petTaxiSupportedDocumentFormats => 'PDF, JPG or PNG (up to 25 MB)';
+
+  @override
+  String get petTaxiUnsupportedDocumentFormat => 'Choose a PDF, JPG or PNG document.';
+
+  @override
+  String get petTaxiDocumentTooLarge => 'This document is larger than 25 MB.';
+
+  @override
+  String get petTaxiDocumentUploadFailed => 'Document upload failed. Please try again.';
+
+  @override
+  String get petTaxiOpenDocumentFailed => 'Could not open this document.';
+
+  @override
+  String get businessRegisterOptional => 'Optional';
+
+  @override
+  String get businessRegisterTaxPlateRequired => 'Tax plate must be uploaded.';
+
+  @override
+  String get businessRegisterMersisNumberRequired => 'MERSIS number is required.';
+
+  @override
+  String get businessRegisterPhoneOptional => 'Phone (optional)';
+
+  @override
+  String get businessRegisterWhatsApp => 'WhatsApp';
+
+  @override
+  String get businessRegisterDetectLocationTitle => 'Detect your business location';
+
+  @override
+  String get businessRegisterDetectLocationMessage => 'We use your location to detect your city and district.';
+
+  @override
+  String get petTaxiDocumentPermissionDenied => 'Camera or photo access was denied. You can choose a photo or PDF instead.';
+
+  @override
+  String get petTaxiRequiredDocuments => 'Required documents';
+
+  @override
+  String get petTaxiRequiredDocumentsSubtitle => 'Documents required for manual admin review';
+
+  @override
+  String get petTaxiOptionalDocuments => 'Optional / conditional documents';
+
+  @override
+  String get petTaxiOptionalDocumentsSubtitle => 'Upload these if they apply to your service';
+
+  @override
+  String get petTaxiComplianceTitle => 'Compliance & legal confirmations';
+
+  @override
+  String get petTaxiComplianceSubtitle => 'Required confirmations before submitting';
+
+  @override
+  String get petTaxiPetSafetyEquipmentConfirmation => 'Pet safety equipment is available in the vehicle.';
+
+  @override
+  String get petTaxiHygieneConfirmation => 'Hygiene and sanitation requirements are confirmed.';
+
+  @override
+  String get petTaxiDriverLicenseConfirmation => 'I confirm the driver license is valid.';
+
+  @override
+  String get petTaxiVehicleRegistrationConfirmation => 'I confirm the vehicle registration belongs to the service vehicle.';
+
+  @override
+  String get petTaxiTrafficInsuranceConfirmation => 'I confirm traffic insurance is active.';
+
+  @override
+  String get petTaxiTaxResponsibilityConfirmation => 'I confirm tax obligations and invoice or receipt responsibilities belong to my business.';
+
+  @override
+  String get petTaxiTransportRulesConfirmation => 'I confirm I comply with city and country transportation rules.';
+
+  @override
+  String get petTaxiComplianceNotes => 'Compliance notes for admin review';
+
+  @override
+  String get petTaxiOptionalIfApplicable => 'Optional / if applicable';
+
+  @override
+  String petTaxiDocumentRequired(Object document) {
+    return '$document is required';
+  }
+
+  @override
+  String petTaxiDateRequired(Object date) {
+    return '$date is required';
+  }
+
+  @override
+  String petTaxiDateCannotBePast(Object date) {
+    return '$date cannot be in the past';
+  }
+
+  @override
+  String get petTaxiDocumentNumber => 'Document number';
+
+  @override
+  String get petTaxiDocumentNumberOptional => 'Document number (optional)';
+
+  @override
+  String get petTaxiDocumentNumberRequired => 'Document number is required';
+
+  @override
+  String get petTaxiVehicleRegistrationIssueDate => 'Vehicle registration issue date';
+
+  @override
+  String get petTaxiDriverLicenseExpiryDate => 'Driver license expiry date';
+
+  @override
+  String get petTaxiTrafficInsuranceExpiryDate => 'Traffic insurance expiry date';
+
+  @override
+  String get petTaxiSrcCertificateExpiryDate => 'SRC certificate expiry date';
+
+  @override
+  String get petTaxiPsychotechnicalExpiryDate => 'Psychotechnical report expiry date';
+
+  @override
+  String get petTaxiKaskoExpiryDate => 'Comprehensive insurance expiry date';
+
+  @override
+  String get petTaxiValidTurkishPlate => 'Enter a valid Turkish vehicle plate.';
+
+  @override
+  String get petTaxiRequiredDocumentsMissing => 'Upload all required Pet Taxi documents.';
+
+  @override
+  String get petTaxiComplianceConfirmationsMissing => 'Confirm all required compliance statements.';
+
+  @override
+  String get petTaxiValidPhoneNumber => 'Enter a valid phone number.';
+
+  @override
+  String get petTaxiValidCapacity => 'Enter a valid vehicle capacity.';
+
+  @override
+  String get petTaxiCapacityMinimum => 'Vehicle capacity must be at least 1.';
+
+  @override
+  String get petTaxiCapacityMaximum => 'Vehicle capacity cannot be greater than 15.';
+
+  @override
+  String get petTaxiSelectVehicleType => 'Select a vehicle type.';
+
+  @override
+  String get petTaxiDriverFullName => 'Driver full name';
+
+  @override
+  String get petTaxiDriverPhoneNumber => 'Driver phone number';
+
+  @override
+  String get petTaxiVehiclePlateNumber => 'Vehicle plate number';
+
+  @override
+  String get petTaxiVehicleCapacity => 'Vehicle capacity';
+
+  @override
+  String get petTaxiVehicleSedan => 'Sedan';
+
+  @override
+  String get petTaxiVehicleHatchback => 'Hatchback';
+
+  @override
+  String get petTaxiVehicleSuv => 'SUV';
+
+  @override
+  String get petTaxiVehicleVan => 'Van';
+
+  @override
+  String get petTaxiVehiclePetTransportVan => 'Pet transport van';
+
+  @override
+  String get petTaxiVehicleLargeAnimalTransport => 'Large animal transport';
 }

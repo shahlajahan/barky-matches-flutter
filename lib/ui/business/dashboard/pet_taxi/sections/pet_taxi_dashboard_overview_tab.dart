@@ -12,9 +12,27 @@ import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_status_pill.da
 import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_business_location_resolver.dart';
 import 'package:barky_matches_fixed/ui/pet_taxi/services/pet_taxi_location_permission_service.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/ui/business/dashboard/pet_taxi/pet_taxi_document_resubmission_panel.dart';
+
+bool isPetTaxiAvailabilityEligible(Map<String, dynamic> businessData) {
+  final sectorData = (businessData['sectorData'] as Map?)
+      ?.cast<String, dynamic>();
+  final taxi = (sectorData?['pet_taxi'] as Map?)?.cast<String, dynamic>();
+  final compliance = (taxi?['compliance'] as Map?)?.cast<String, dynamic>();
+  final verification = (businessData['verification'] as Map?)
+      ?.cast<String, dynamic>();
+
+  return businessData['status'] == 'approved' &&
+      verification?['isVerified'] == true &&
+      compliance?['status'] == 'approved' &&
+      taxi?['isActive'] == true &&
+      taxi?['published'] == true &&
+      businessData['published'] == true;
+}
 
 class PetTaxiDashboardOverviewTab extends StatefulWidget {
   final String businessId;
@@ -47,14 +65,24 @@ class _PetTaxiDashboardOverviewTabState
     );
 
     final taxi = Map<String, dynamic>.from(sectorData['pet_taxi'] ?? {});
+    final compliance = Map<String, dynamic>.from(taxi['compliance'] ?? {});
 
-    _isAvailable = taxi['isAvailable'] == true;
+    _isAvailable =
+        taxi['isAvailable'] == true &&
+        isPetTaxiAvailabilityEligible(widget.businessData);
     PetTaxiBusinessLocationResolver.scheduleMigrationIfNeeded(
       businessId: widget.businessId,
       businessData: widget.businessData,
     );
-    debugPrint("🚀 INIT isAvailable = $_isAvailable");
-    debugPrint("🚀 START LOCATION SERVICE");
+    _availabilityDebug(
+      'INIT isAvailable=$_isAvailable '
+      'isActive=${taxi['isActive'] == true} '
+      'published=${taxi['published'] == true && widget.businessData['published'] == true} '
+      'complianceStatus=${_safeValue(compliance['status'])}',
+    );
+    _availabilityDebug(
+      'LOCATION_SERVICE_INIT online=$_isAvailable subscriptionStarted=false',
+    );
     if (_isAvailable) {
       _startLocationUpdates();
     }
@@ -76,6 +104,10 @@ class _PetTaxiDashboardOverviewTabState
           .where('businessId', isEqualTo: widget.businessId)
           .snapshots(),
       builder: (context, snapshot) {
+        final availabilityEligible = isPetTaxiAvailabilityEligible(
+          widget.businessData,
+        );
+        final displayedAvailability = availabilityEligible && _isAvailable;
         final docs = snapshot.data?.docs ?? [];
         final pending = docs
             .where((doc) => doc.data()['status'] == 'pending')
@@ -111,8 +143,8 @@ class _PetTaxiDashboardOverviewTabState
                   const SizedBox(height: 8),
                   DashboardStatusPill(
                     prefix: 'Driver',
-                    label: _isAvailable ? 'Online' : 'Offline',
-                    active: _isAvailable,
+                    label: displayedAvailability ? 'Online' : 'Offline',
+                    active: displayedAvailability,
                   ),
                 ],
               ),
@@ -160,11 +192,27 @@ class _PetTaxiDashboardOverviewTabState
                         ),
                       ),
                     ),
-                    Switch(value: _isAvailable, onChanged: _toggleAvailability),
+                    Switch(
+                      value: displayedAvailability,
+                      onChanged: availabilityEligible
+                          ? _toggleAvailability
+                          : null,
+                    ),
                   ],
                 ),
               ),
             ),
+            if (!availabilityEligible)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, right: 8, bottom: 16),
+                child: Text(
+                  AppLocalizations.of(context)!.petTaxiAwaitingActivation,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 13,
+                  ),
+                ),
+              ),
 
             _infoCard(
               title: 'Vehicle',
@@ -193,6 +241,10 @@ class _PetTaxiDashboardOverviewTabState
                 'Hygiene: ${compliance['hygieneSanitationConfirmed'] == true ? 'Confirmed' : '-'}',
               ],
             ),
+            PetTaxiDocumentResubmissionPanel(
+              businessId: widget.businessId,
+              businessData: widget.businessData,
+            ),
           ],
         );
       },
@@ -200,11 +252,56 @@ class _PetTaxiDashboardOverviewTabState
   }
 
   Future<void> _toggleAvailability(bool value) async {
+    final sectorData = Map<String, dynamic>.from(
+      widget.businessData['sectorData'] ?? {},
+    );
+    final taxi = Map<String, dynamic>.from(sectorData['pet_taxi'] ?? {});
+    final compliance = Map<String, dynamic>.from(taxi['compliance'] ?? {});
+    _availabilityDebug(
+      'TOGGLE_REQUESTED requested=$value current=$_isAvailable',
+    );
+    _availabilityDebug(
+      'ELIGIBILITY_STATE '
+      'isActive=${taxi['isActive'] == true} '
+      'published=${taxi['published'] == true && widget.businessData['published'] == true} '
+      'complianceApproved=${compliance['status'] == 'approved'} '
+      'businessApproved=${widget.businessData['status'] == 'approved'} '
+      'verified=${(widget.businessData['verification'] as Map?)?['isVerified'] == true}',
+    );
+
+    if (!isPetTaxiAvailabilityEligible(widget.businessData)) {
+      _availabilityDebug('TOGGLE_ABORTED reason=not_operationally_eligible');
+      if (mounted) {
+        setState(() {
+          _isAvailable = false;
+        });
+      }
+      return;
+    }
+
     if (value) {
-      final granted = await _permissionService.ensureForegroundPermission(
-        context,
+      _availabilityDebug('PERMISSION_CHECK_START');
+      bool granted;
+      try {
+        granted = await _permissionService.ensureForegroundPermission(context);
+      } catch (error) {
+        _availabilityDebug(
+          'TOGGLE_ABORTED reason=permission_check_error '
+          'type=${error.runtimeType} sanitizedMessage=${_safeError(error)}',
+        );
+        rethrow;
+      }
+      _availabilityDebug('PERMISSION_CHECK_RESULT result=$granted');
+      final locationEnabled = await Geolocator.isLocationServiceEnabled();
+      final locationPermission = await Geolocator.checkPermission();
+      _availabilityDebug('LOCATION_SERVICE_STATE enabled=$locationEnabled');
+      _availabilityDebug(
+        'LOCATION_PERMISSION_STATE status=${locationPermission.name}',
       );
+
       if (!granted) {
+        _availabilityDebug('TOGGLE_ABORTED reason=permission_denied');
+        _availabilityDebug('LOCAL_STATE_UPDATE value=false');
         if (mounted) {
           setState(() {
             _isAvailable = false;
@@ -213,51 +310,109 @@ class _PetTaxiDashboardOverviewTabState
         return;
       }
     }
-    debugPrint("🔘 SWITCH = $value");
+    _availabilityDebug('LOCAL_STATE_UPDATE value=$value');
     setState(() {
       _isAvailable = value;
     });
 
-    await FirebaseFirestore.instance
-        .collection("businesses")
-        .doc(widget.businessId)
-        .update({"sectorData.pet_taxi.isAvailable": value});
+    _availabilityDebug(
+      'FIRESTORE_WRITE_START '
+      'field=sectorData.pet_taxi.isAvailable value=$value',
+    );
+    try {
+      await FirebaseFirestore.instance
+          .collection("businesses")
+          .doc(widget.businessId)
+          .update({"sectorData.pet_taxi.isAvailable": value});
+      _availabilityDebug('FIRESTORE_WRITE_SUCCESS value=$value');
+    } catch (error) {
+      _availabilityDebug(
+        'FIRESTORE_WRITE_ERROR '
+        'code=${_firebaseErrorCode(error)} '
+        'type=${error.runtimeType} '
+        'sanitizedMessage=${_safeError(error)}',
+      );
+      _availabilityDebug('TOGGLE_ABORTED reason=firestore_write_error');
+      if (mounted) {
+        setState(() {
+          _isAvailable = !value;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.petTaxiAvailabilityUpdateFailed,
+            ),
+          ),
+        );
+      }
+      return;
+    }
 
     if (value) {
       _startLocationUpdates();
     } else {
       _positionSubscription?.cancel();
       _positionSubscription = null;
+      _availabilityDebug('LOCATION_STREAM_STOP');
     }
+    _availabilityDebug('TOGGLE_COMPLETE finalValue=$_isAvailable');
   }
 
   Future<void> _startLocationUpdates() async {
-    debugPrint("🚀 _startLocationUpdates CALLED");
+    _availabilityDebug('LOCATION_STREAM_START');
 
     _positionSubscription?.cancel();
-    final granted = await _permissionService.ensureForegroundPermission(
-      context,
+    _availabilityDebug('PERMISSION_CHECK_START source=location_stream');
+    bool granted;
+    try {
+      granted = await _permissionService.ensureForegroundPermission(context);
+    } catch (error) {
+      _availabilityDebug(
+        'TOGGLE_ABORTED reason=location_permission_error '
+        'type=${error.runtimeType} sanitizedMessage=${_safeError(error)}',
+      );
+      rethrow;
+    }
+    _availabilityDebug(
+      'PERMISSION_CHECK_RESULT result=$granted source=location_stream',
     );
     if (!granted) {
+      _availabilityDebug('TOGGLE_ABORTED reason=location_permission_denied');
+      _availabilityDebug('LOCAL_STATE_UPDATE value=false');
       if (mounted) {
         setState(() {
           _isAvailable = false;
         });
       }
-      await FirebaseFirestore.instance
-          .collection("businesses")
-          .doc(widget.businessId)
-          .update({"sectorData.pet_taxi.isAvailable": false});
+      _availabilityDebug(
+        'FIRESTORE_WRITE_START '
+        'field=sectorData.pet_taxi.isAvailable value=false '
+        'reason=location_permission_denied',
+      );
+      try {
+        await FirebaseFirestore.instance
+            .collection("businesses")
+            .doc(widget.businessId)
+            .update({"sectorData.pet_taxi.isAvailable": false});
+        _availabilityDebug('FIRESTORE_WRITE_SUCCESS value=false');
+      } catch (error) {
+        _availabilityDebug(
+          'FIRESTORE_WRITE_ERROR '
+          'code=${_firebaseErrorCode(error)} '
+          'type=${error.runtimeType} '
+          'sanitizedMessage=${_safeError(error)}',
+        );
+        _availabilityDebug('TOGGLE_ABORTED reason=firestore_write_error');
+        rethrow;
+      }
       return;
     }
 
     final permission = await Geolocator.checkPermission();
-
-    debugPrint("📍 PERMISSION = $permission");
+    _availabilityDebug('LOCATION_PERMISSION_STATE status=${permission.name}');
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-
-    debugPrint("📍 LOCATION SERVICE = $serviceEnabled");
+    _availabilityDebug('LOCATION_SERVICE_STATE enabled=$serviceEnabled');
 
     _positionSubscription =
         Geolocator.getPositionStream(
@@ -273,45 +428,82 @@ class _PetTaxiDashboardOverviewTabState
             )
             .listen(
               (position) async {
-                debugPrint(
-                  "📍 NEW POSITION = "
-                  "${position.latitude}, ${position.longitude}",
-                );
-
                 if (_lastLat == position.latitude &&
                     _lastLng == position.longitude) {
-                  debugPrint("⏭️ SAME LOCATION -> SKIPPED");
                   return;
                 }
 
                 _lastLat = position.latitude;
                 _lastLng = position.longitude;
 
-                await FirebaseFirestore.instance
-                    .collection("businesses")
-                    .doc(widget.businessId)
-                    .update({
-                      "sectorData.pet_taxi.currentLocation.lat":
-                          position.latitude,
-                      "sectorData.pet_taxi.currentLocation.lng":
-                          position.longitude,
-                      "sectorData.pet_taxi.currentLocation.source":
-                          "gps_runtime",
-                      "sectorData.pet_taxi.currentLocation.updatedAt":
-                          FieldValue.serverTimestamp(),
-                    });
+                try {
+                  await FirebaseFirestore.instance
+                      .collection("businesses")
+                      .doc(widget.businessId)
+                      .update({
+                        "sectorData.pet_taxi.currentLocation.lat":
+                            position.latitude,
+                        "sectorData.pet_taxi.currentLocation.lng":
+                            position.longitude,
+                        "sectorData.pet_taxi.currentLocation.source":
+                            "gps_runtime",
+                        "sectorData.pet_taxi.currentLocation.updatedAt":
+                            FieldValue.serverTimestamp(),
+                      });
+                } catch (error) {
+                  _availabilityDebug(
+                    'LOCATION_STREAM_ERROR '
+                    'type=${error.runtimeType} '
+                    'sanitizedMessage=${_safeError(error)}',
+                  );
+                  rethrow;
+                }
               },
               onError: (error) {
-                debugPrint("❌ POSITION STREAM ERROR = $error");
+                _availabilityDebug(
+                  'LOCATION_STREAM_ERROR '
+                  'type=${error.runtimeType} '
+                  'sanitizedMessage=${_safeError(error)}',
+                );
               },
             );
+    _availabilityDebug('LOCATION_STREAM_STARTED');
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _availabilityDebug('LOCATION_STREAM_STOP reason=dispose');
 
     super.dispose();
+  }
+
+  void _availabilityDebug(String message) {
+    if (kDebugMode) {
+      debugPrint('[PetTaxiAvailability] $message');
+    }
+  }
+
+  String _safeValue(Object? value) {
+    final text = value?.toString() ?? 'null';
+    return text.replaceAll(RegExp(r'[^a-zA-Z0-9_.-]'), '_');
+  }
+
+  String _firebaseErrorCode(Object error) {
+    return error is FirebaseException ? _safeValue(error.code) : 'none';
+  }
+
+  String _safeError(Object error) {
+    var text = error is FirebaseException
+        ? (error.message ?? '')
+        : error.toString();
+    text = text.replaceAll(RegExp(r'https?://\S+'), '<redacted-url>');
+    text = text.replaceAll(
+      RegExp(r'\b(?:businesses|businesses_public|pet_taxi_bookings)[^\s,;)]*'),
+      '<redacted-path>',
+    );
+    text = text.replaceAll(RegExp(r'\b[A-Za-z0-9_-]{16,}\b'), '<redacted>');
+    return _safeValue(text.length > 160 ? text.substring(0, 160) : text);
   }
 
   Widget _infoCard({

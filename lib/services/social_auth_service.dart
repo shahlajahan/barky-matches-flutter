@@ -101,11 +101,23 @@ class SocialAuthService {
     GoogleSignIn? googleSignIn,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
-       _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const ['email']);
+       _googleSignIn = googleSignIn;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
-  final GoogleSignIn _googleSignIn;
+  GoogleSignIn? _googleSignIn;
+
+  @visibleForTesting
+  static bool shouldCreateGoogleSignIn({required bool isWeb}) => !isWeb;
+
+  GoogleSignIn get _mobileGoogleSignIn {
+    final existing = _googleSignIn;
+    if (existing != null) return existing;
+
+    final created = GoogleSignIn(scopes: const ['email']);
+    _googleSignIn = created;
+    return created;
+  }
 
   static bool get supportsApple =>
       supportsAppleOnPlatform(isWeb: kIsWeb, platform: defaultTargetPlatform);
@@ -153,12 +165,12 @@ class SocialAuthService {
 
   Future<UserCredential?> _signInGoogleCredential({bool? isLoginMode}) async {
     try {
-      if (kIsWeb) {
+      if (!shouldCreateGoogleSignIn(isWeb: kIsWeb)) {
         final provider = GoogleAuthProvider()
           ..setCustomParameters(googleWebCustomParameters());
         return _webSignIn(provider, isLoginMode: isLoginMode);
       }
-      final account = await _googleSignIn.signIn();
+      final account = await _mobileGoogleSignIn.signIn();
       if (account == null) throw const SocialAuthCancelled();
       final authentication = await account.authentication;
       final oauthCredential = GoogleAuthProvider.credential(

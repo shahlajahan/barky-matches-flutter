@@ -5,5 +5,69 @@
     "version": "0.1.0-dev.2"
   },
   "target": ".",
-  "tasks": []
+  "tasks": [
+    {
+      "id": "0001",
+      "file": "lib/apple_account_recovery_page.dart",
+      "task": "agent/tasks/0001_apple_account_recovery_page.md",
+      "findingCount": 6,
+      "ruleIds": [
+        "flutter.localization.hardcoded-ui-string"
+      ]
+    },
+    {
+      "id": "0002",
+      "file": "lib/dog_card.dart",
+      "task": "agent/tasks/0002_dog_card.md",
+      "findingCount": 1,
+      "ruleIds": [
+        "flutter.localization.hardcoded-ui-string"
+      ]
+    },
+    {
+      "id": "0003",
+      "file": "lib/promotion/widgets/promotion_plan_sheet.dart",
+      "task": "agent/tasks/0003_promotion_plan_sheet.md",
+      "findingCount": 4,
+      "ruleIds": [
+        "flutter.localization.hardcoded-ui-string"
+      ]
+    },
+    {
+      "id": "0004",
+      "file": "lib/promotion/widgets/service_promotion_action.dart",
+      "task": "agent/tasks/0004_service_promotion_action.md",
+      "findingCount": 2,
+      "ruleIds": [
+        "flutter.localization.hardcoded-ui-string"
+      ]
+    },
+    {
+      "id": "0005",
+      "file": "lib/social/pages/social_post_route_page.dart",
+      "task": "agent/tasks/0005_social_post_route_page.md",
+      "findingCount": 1,
+      "ruleIds": [
+        "flutter.localization.hardcoded-ui-string"
+      ]
+    },
+    {
+      "id": "0006",
+      "file": "lib/ui/admin/pet_taxi_admin_review_panel.dart",
+      "task": "agent/tasks/0006_pet_taxi_admin_review_panel.md",
+      "findingCount": 8,
+      "ruleIds": [
+        "flutter.localization.hardcoded-ui-string"
+      ]
+    },
+    {
+      "id": "0007",
+      "file": "lib/ui/petshop/widgets/product_card_dashboard.dart",
+      "task": "agent/tasks/0007_product_card_dashboard.md",
+      "findingCount": 1,
+      "ruleIds": [
+        "flutter.localization.hardcoded-ui-string"
+      ]
+    }
+  ]
 }

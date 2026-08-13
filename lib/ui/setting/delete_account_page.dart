@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -115,6 +117,30 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                     color: Colors.black87,
                     height: 1.5,
                   ),
+                ),
+
+                const SizedBox(height: 12),
+
+                Text(
+                  l10n.deleteAccountStoreSubscriptionNotice,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                TextButton(
+                  onPressed: () async {
+                    final uri = defaultTargetPlatform == TargetPlatform.iOS
+                        ? Uri.parse('https://apps.apple.com/account/subscriptions')
+                        : Uri.parse('https://play.google.com/store/account/subscriptions');
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                  child: Text(l10n.manageStoreSubscription),
                 ),
 
                 const SizedBox(height: 28),

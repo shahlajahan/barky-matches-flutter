@@ -10,6 +10,7 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/ui/legal/petsupo_marketplace_disclaimer.dart';
 
 class GroomyAppointmentPage extends StatefulWidget {
   final BusinessCardData groomy;
@@ -485,6 +486,9 @@ class _GroomyAppointmentPageState extends State<GroomyAppointmentPage> {
     final l10n = AppLocalizations.of(context)!;
 
     if (!_isValid || _submitting) return;
+
+    if (!await showPetSupoMarketplaceDisclaimer(context)) return;
+    if (!mounted) return;
 
     final appState = context.read<AppState>();
     final userId = appState.currentUserId;

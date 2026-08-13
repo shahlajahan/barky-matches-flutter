@@ -15,6 +15,7 @@ enum SubscriptionSource {
       case 'web_isbank':
         return SubscriptionSource.webIsbank;
       case 'admin':
+      case 'admin_grant':
         return SubscriptionSource.admin;
       case 'free':
       default:

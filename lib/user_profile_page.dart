@@ -1260,6 +1260,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
               );
         break;
       case ProfileSubPage.appointments:
+        child = const ServiceCategoriesPage();
+        break;
+      case ProfileSubPage.myAppointments:
+        child = const MyAppointmentsPage();
+        break;
       default:
         child = const ServiceCategoriesPage();
         break;
@@ -1308,6 +1313,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       return const BusinessRegisterPage();
     }
     if (appState.profileSubPage == ProfileSubPage.appointments ||
+        appState.profileSubPage == ProfileSubPage.myAppointments ||
         appState.profileSubPage == ProfileSubPage.appointmentStatus ||
         appState.profileSubPage == ProfileSubPage.appointmentHistory) {
       return _buildAppointmentSubPage(appState);
@@ -3036,7 +3042,11 @@ class _EditProfileOverlayState extends State<EditProfileOverlay> {
 
       // ✅ FIX 2: username uniqueness BEFORE save
       final usernameCheck = await FirebaseFirestore.instance
-          .collection('users')
+          // The private users collection only permits per-document owner/admin
+          // reads. Username availability is already backed by the public
+          // projection, which is the intended searchable surface for this
+          // non-sensitive field.
+          .collection('users_public')
           .where('username', isEqualTo: username)
           .get();
 

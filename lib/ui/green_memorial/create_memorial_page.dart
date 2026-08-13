@@ -64,7 +64,6 @@ class _CreateMemorialPageState extends State<CreateMemorialPage> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
     _titleController.dispose();
     _storyController.dispose();
     _cityController.dispose();

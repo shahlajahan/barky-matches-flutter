@@ -9,7 +9,7 @@ class SubscriptionAccess {
 
   /// Only active subscriptions unlock paid features
   bool get _isActive {
-    return subscription.status == SubscriptionStatus.active;
+    return subscription.hasValidPaidAccess;
   }
 
   /// Premium OR Gold
@@ -66,7 +66,10 @@ class SubscriptionAccess {
   /// 🔐 MOST IMPORTANT RULE
   /// Only GOLD users with ACTIVE subscription
   bool get canRegisterBusiness {
-    return _isActive && _isGold;
+    return subscription.plan == SubscriptionPlan.gold &&
+        subscription.status == SubscriptionStatus.active &&
+        subscription.expiresAt != null &&
+        subscription.expiresAt!.isAfter(DateTime.now());
   }
 
   bool get canAccessBusinessDashboard {

@@ -1,10 +1,8 @@
-import 'dart:io';
-
+import 'package:barky_matches_fixed/ui/adoption/adoption_upload_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import 'package:barky_matches_fixed/services/adoption_request_service.dart';
@@ -121,8 +119,6 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
     void Function(String)? onChanged,
     bool enabled = true,
   }) {
-    final isLastField = false; // اگر خواستی بعداً برای هر فیلد کنترل کنیم
-
     return SizedBox(
       height: maxLines == 1 ? 56 : null,
       child: TextFormField(
@@ -154,23 +150,19 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
   // ✅ Upload helpers (REAL upload to Firebase Storage)
   // ─────────────────────────────────────────────
   Future<String> _uploadFile({
-    required File file,
+    required XFile file,
     required String kind, // "house" | "id" | "income"
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception("User not logged in");
 
-    final ts = DateTime.now().millisecondsSinceEpoch;
-    final ext = file.path.toLowerCase().endsWith(".png") ? "png" : "jpg";
-
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child("adoption_requests_uploads")
-        .child(user.uid)
-        .child("${ts}_$kind.$ext");
-
-    final task = await ref.putFile(file);
-    return await task.ref.getDownloadURL();
+    return uploadAdoptionPickedFile(
+      file: file,
+      folderPath: 'adoption_requests_uploads/${user.uid}',
+      operation: 'adoption_request_$kind',
+      kind: AdoptionUploadKind.document,
+      filenameTag: kind,
+    );
   }
 
   Future<void> _pickHousePhotos() async {
@@ -185,8 +177,7 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
 
       final urls = <String>[];
       for (final xf in files) {
-        final f = File(xf.path);
-        final url = await _uploadFile(file: f, kind: "house");
+        final url = await _uploadFile(file: xf, kind: "house");
         urls.add(url);
       }
 
@@ -194,6 +185,19 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
       setState(() {
         _housePhotoUrls.addAll(urls);
       });
+    } catch (error, stackTrace) {
+      logAdoptionUploadError(
+        operation: 'adoption_request_house_picker',
+        storagePath:
+            'adoption_requests_uploads/${FirebaseAuth.instance.currentUser?.uid ?? 'unknown'}',
+        contentType: 'unknown',
+        fileSize: 0,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        _toast(AppLocalizations.of(context)!.uploadFailed(error.toString()));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -211,13 +215,26 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
 
       setState(() => _loading = true);
 
-      final url = await _uploadFile(file: File(xf.path), kind: kind);
+      final url = await _uploadFile(file: xf, kind: kind);
 
       if (!mounted) return;
       setState(() {
         if (kind == "id") _idPhotoUrl = url;
         if (kind == "income") _incomeProofUrl = url;
       });
+    } catch (error, stackTrace) {
+      logAdoptionUploadError(
+        operation: 'adoption_request_${kind}_picker',
+        storagePath:
+            'adoption_requests_uploads/${FirebaseAuth.instance.currentUser?.uid ?? 'unknown'}',
+        contentType: 'unknown',
+        fileSize: 0,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        _toast(AppLocalizations.of(context)!.uploadFailed(error.toString()));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -316,7 +333,6 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
     if (user == null) throw Exception("Not logged in");
 
     final requesterId = user.uid;
-    final requesterName = _fullName.text.trim();
 
     try {
       // Build structured form payload (PRO)
@@ -390,9 +406,11 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
       if (!mounted) return;
       Navigator.pop(context);
       _toast(AppLocalizations.of(context)!.requestCreatedSuccess);
-    } catch (e) {
+    } catch (error, stackTrace) {
+      debugPrint('ADOPTION_REQUEST_SUBMIT_FAILED error=$error');
+      debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
-      _toast(AppLocalizations.of(context)!.errorOccurred(e.toString()));
+      _toast(AppLocalizations.of(context)!.errorOccurred(error.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -722,8 +740,9 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
               validator: (v) {
                 if (!_hasGarden) return null;
                 final n = int.tryParse((v ?? "").trim());
-                if (n == null || n <= 0 || n > 400)
+                if (n == null || n <= 0 || n > 400) {
                   return l10n.adoptionEnterValidFenceHeight;
+                }
                 return null;
               },
             ),
@@ -754,8 +773,9 @@ class _AdoptionRequestSheetState extends State<AdoptionRequestSheet> {
             hint: l10n.adoptionYearsOfExperienceHint,
             validator: (v) {
               final n = int.tryParse((v ?? "").trim());
-              if (n == null || n < 0 || n > 60)
+              if (n == null || n < 0 || n > 60) {
                 return l10n.adoptionEnterYearsOfExperience;
+              }
               return null;
             },
           ),

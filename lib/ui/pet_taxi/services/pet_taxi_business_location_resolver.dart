@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:barky_matches_fixed/utils/business_sector.dart';
+import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_driver_location_resolver.dart';
 
 class PetTaxiResolvedBusinessLocation {
   final Map<String, dynamic> location;
@@ -51,10 +52,17 @@ class PetTaxiBusinessLocationResolver {
     final contactHasCoordinates = _hasCoordinates(contactLocation);
     final currentLocationSource = currentLocation['source']?.toString().trim();
     final hasRuntimeTimestamp = currentLocation['updatedAt'] != null;
+    final hasFreshRuntimeTimestamp =
+        hasRuntimeTimestamp &&
+        PetTaxiDriverLocationResolver.isFreshLiveLocation(
+          currentLocation['updatedAt'],
+          DateTime.now(),
+        );
 
     final currentLooksRuntime =
         currentHasCoordinates &&
-        (currentLocationSource == 'gps_runtime' || hasRuntimeTimestamp);
+        (currentLocationSource == 'gps_runtime' || hasRuntimeTimestamp) &&
+        hasFreshRuntimeTimestamp;
 
     final currentLooksSeededAddress =
         currentHasCoordinates &&

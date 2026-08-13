@@ -185,6 +185,9 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   bool _verificationSyncInFlight = false;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _ocrSubscription;
 
+  bool get _isPetTaxiRegistration =>
+      selectedSectors.length == 1 && selectedSectors.contains('pet_taxi');
+
   bool _sectorCompleted = false;
   BusinessDraft? _completedSectorDraft;
 
@@ -246,9 +249,14 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 
     if (_step == 2) {
       if (_country == "Turkey") {
-        if (_taxPlateUrl == null ||
-            _tradeRegistryUrl == null ||
-            _signatureDocUrl == null) {
+        if (_isPetTaxiRegistration && _taxPlateUrl == null) {
+          errors.add(
+            AppLocalizations.of(context)!.businessRegisterTaxPlateRequired,
+          );
+        } else if (!_isPetTaxiRegistration &&
+            (_taxPlateUrl == null ||
+                _tradeRegistryUrl == null ||
+                _signatureDocUrl == null)) {
           errors.add(
             AppLocalizations.of(
               context,
@@ -256,12 +264,24 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
           );
         }
       }
-      if (_country == "Turkey") {
+      if (_country == "Turkey" && !_isPetTaxiRegistration) {
         if (!_documentsVerified || !_taxLocked || !_mersisLocked) {
           errors.add(
             AppLocalizations.of(
               context,
             )!.businessRegisterDocumentsVerifiedBeforeContinuing,
+          );
+        }
+      }
+      if (_country == "Turkey" && _isPetTaxiRegistration) {
+        if (_taxNumberController.text.trim().isEmpty) {
+          errors.add(
+            AppLocalizations.of(context)!.businessRegisterTaxNumberRequired,
+          );
+        }
+        if (_mersisNumberController.text.trim().isEmpty) {
+          errors.add(
+            AppLocalizations.of(context)!.businessRegisterMersisNumberRequired,
           );
         }
       }
@@ -663,8 +683,12 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     try {
       final allowed = await LocationPermissionService.ensurePermission(
         context,
-        title: 'Detect your business location',
-        message: 'We use your location to detect your city and district.',
+        title: AppLocalizations.of(
+          context,
+        )!.businessRegisterDetectLocationTitle,
+        message: AppLocalizations.of(
+          context,
+        )!.businessRegisterDetectLocationMessage,
       );
       if (!allowed) {
         _snack(locationPermissionDenied);
@@ -865,9 +889,10 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     }
 
     final uid = user.uid;
+    final extension = fileName.split('.').last.toLowerCase();
 
     final ref = FirebaseStorage.instance.ref().child(
-      "business_docs/$uid/${DateTime.now().millisecondsSinceEpoch}_$kind",
+      "business_docs/$uid/${DateTime.now().millisecondsSinceEpoch}_$kind.$extension",
     );
 
     debugPrint(
@@ -875,7 +900,10 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     );
     await ref.putFile(
       file,
-      SettableMetadata(customMetadata: {'documentKind': kind}),
+      SettableMetadata(
+        contentType: _documentContentType(fileName),
+        customMetadata: {'documentKind': kind},
+      ),
     );
     debugPrint('✅ Firebase upload completed: kind=$kind filename=$fileName');
     final url = await ref.getDownloadURL();
@@ -1090,7 +1118,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     }
 
     // 🔐 OCR enforcement for Turkey
-    if (_country == "Turkey") {
+    if (_country == "Turkey" && !_isPetTaxiRegistration) {
       if (!_documentsVerified || !_taxLocked || !_mersisLocked) {
         _snack(
           AppLocalizations.of(
@@ -1792,7 +1820,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             controller: _phone,
             keyboardType: TextInputType.phone,
             decoration: _inputDecoration(
-              "${AppLocalizations.of(context)!.businessRegisterPhone} (Optional)",
+              AppLocalizations.of(context)!.businessRegisterPhoneOptional,
               icon: LucideIcons.phone,
             ),
           ),
@@ -1802,7 +1830,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             controller: _whatsapp,
             keyboardType: TextInputType.phone,
             decoration: _inputDecoration(
-              "WhatsApp",
+              AppLocalizations.of(context)!.businessRegisterWhatsApp,
               icon: LucideIcons.messageCircle,
             ),
           ),
@@ -2047,6 +2075,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             AppLocalizations.of(context)!.businessRegisterTradeRegistryGazette,
             _tradeRegistryUrl,
             () => _pickDoc("registry"),
+            required: !_isPetTaxiRegistration,
           ),
 
           _docCard(
@@ -2055,6 +2084,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             )!.businessRegisterAuthorizedSignatureDocument,
             _signatureDocUrl,
             () => _pickDoc("signature"),
+            required: !_isPetTaxiRegistration,
           ),
 
           const SizedBox(height: 20),
@@ -2104,6 +2134,13 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
                       context,
                     )!.businessRegisterAutoFilledFromDocument,
                   ),
+                  validator: _isPetTaxiRegistration
+                      ? (value) => value == null || value.trim().isEmpty
+                            ? AppLocalizations.of(
+                                context,
+                              )!.businessRegisterTaxNumberRequired
+                            : null
+                      : null,
                 ),
               ],
             ),
@@ -2203,6 +2240,14 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
                           )!.businessRegisterAutoFilledAfterVerification,
                   ),
                   validator: (v) {
+                    if (_isPetTaxiRegistration) {
+                      if (v == null || v.trim().isEmpty) {
+                        return AppLocalizations.of(
+                          context,
+                        )!.businessRegisterMersisNumberRequired;
+                      }
+                      return null;
+                    }
                     if (_tradeRegistryUrl == null) {
                       return AppLocalizations.of(
                         context,
@@ -2616,7 +2661,12 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     );
   }
 
-  Widget _docCard(String title, String? url, VoidCallback onTap) {
+  Widget _docCard(
+    String title,
+    String? url,
+    VoidCallback onTap, {
+    bool required = true,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -2644,7 +2694,13 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
                 ),
                 Text(
                   url == null
-                      ? AppLocalizations.of(context)!.businessRegisterRequired
+                      ? (required
+                            ? AppLocalizations.of(
+                                context,
+                              )!.businessRegisterRequired
+                            : AppLocalizations.of(
+                                context,
+                              )!.businessRegisterOptional)
                       : AppLocalizations.of(context)!.businessRegisterUploaded,
                   style: TextStyle(
                     fontSize: 12,

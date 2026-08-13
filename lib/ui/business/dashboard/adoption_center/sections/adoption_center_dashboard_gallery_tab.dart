@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'package:barky_matches_fixed/ui/adoption/adoption_upload_helper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,6 +20,7 @@ class AdoptionCenterDashboardGalleryTab extends StatefulWidget {
   State<AdoptionCenterDashboardGalleryTab> createState() =>
       _AdoptionCenterDashboardGalleryTabState();
 }
+
 class _AdoptionCenterDashboardGalleryTabState
     extends State<AdoptionCenterDashboardGalleryTab> {
   bool _picking = false;
@@ -30,47 +32,26 @@ class _AdoptionCenterDashboardGalleryTabState
     return p.endsWith('.mp4') || p.endsWith('.mov') || p.endsWith('.hevc');
   }
 
-  String _extensionFor(File file, {required bool isVideo}) {
-    final name = file.path.split('/').last;
-    final dot = name.lastIndexOf('.');
-    if (dot >= 0 && dot < name.length - 1) {
-      return name.substring(dot + 1).toLowerCase();
-    }
-    return isVideo ? 'mp4' : 'jpg';
-  }
-
   Future<String> _uploadAdoptionMedia(
-    File file, {
+    XFile file, {
     required bool isVideo,
   }) async {
     final folder = isVideo ? 'videos' : 'photos';
-    final extension = _extensionFor(file, isVideo: isVideo);
-    final ref = FirebaseStorage.instance.ref().child(
-      'business_sector_docs/${widget.businessId}/adoption_center/$folder/${DateTime.now().millisecondsSinceEpoch}.$extension',
-    );
-
-    debugPrint("FILE NAME = ${file.path}");
-    debugPrint("FULL STORAGE REF = ${ref.fullPath}");
-
-    try {
-      final task = ref.putFile(file);
-      task.snapshotEvents.listen((event) {
-        if (!mounted || event.totalBytes <= 0) return;
+    return uploadAdoptionPickedFile(
+      file: file,
+      folderPath:
+          'business_sector_docs/${widget.businessId}/adoption_center/$folder',
+      operation: isVideo
+          ? 'adoption_dashboard_gallery_video'
+          : 'adoption_dashboard_gallery_photo',
+      kind: AdoptionUploadKind.media,
+      onProgress: (progress) {
+        if (!mounted) return;
         setState(() {
-          _progress = (event.bytesTransferred / event.totalBytes).clamp(
-            0.0,
-            1.0,
-          );
+          _progress = progress.clamp(0.0, 1.0);
         });
-      });
-
-      final snap = await task;
-      return snap.ref.getDownloadURL();
-    } catch (e) {
-      debugPrint("UPLOAD FAILED REF = ${ref.fullPath}");
-      debugPrint("UPLOAD ERROR = $e");
-      rethrow;
-    }
+      },
+    );
   }
 
   Future<void> _pickAndUploadMultiple() async {
@@ -82,12 +63,11 @@ class _AdoptionCenterDashboardGalleryTabState
       final pickedFiles = await picker.pickMultipleMedia();
       if (pickedFiles.isEmpty) return;
 
-      final files = pickedFiles.map((x) => File(x.path)).toList();
-      final imageFiles = <File>[];
-      final videoFiles = <File>[];
+      final imageFiles = <XFile>[];
+      final videoFiles = <XFile>[];
 
-      for (final f in files) {
-        if (_isVideo(f.path)) {
+      for (final f in pickedFiles) {
+        if (_isVideo(f.name)) {
           videoFiles.add(f);
         } else {
           imageFiles.add(f);
@@ -147,20 +127,33 @@ class _AdoptionCenterDashboardGalleryTabState
           'coverImageUrl': imageUrls.first,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('MULTI UPLOAD ERROR: $e');
+    } catch (error, stackTrace) {
+      logAdoptionUploadError(
+        operation: 'adoption_dashboard_gallery_picker',
+        storagePath:
+            'business_sector_docs/${widget.businessId}/adoption_center',
+        contentType: 'unknown',
+        fileSize: 0,
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.uploadFailed('$e'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.uploadFailed(error.toString()),
+            ),
+          ),
+        );
       }
     } finally {
       _picking = false;
-      if (!mounted) return;
-      setState(() {
-        _uploading = false;
-        _progress = 0;
-      });
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _progress = 0;
+        });
+      }
     }
   }
 
@@ -190,12 +183,27 @@ class _AdoptionCenterDashboardGalleryTabState
             'coverImageUrl': nextCover,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('DELETE ERROR: $e');
+    } catch (error, stackTrace) {
+      debugPrint(
+        'ADOPTION_DASHBOARD_GALLERY_DELETE_FAILED '
+        'operation=adoption_dashboard_gallery_delete '
+        'platform=${kIsWeb ? 'web' : defaultTargetPlatform.name} '
+        'storagePath=$url '
+        'contentType=unknown '
+        'fileSize=0 '
+        'error=$error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.deleteFailedWithError('$e'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(
+                context,
+              )!.deleteFailedWithError(error.toString()),
+            ),
+          ),
+        );
       }
     }
   }
@@ -209,12 +217,17 @@ class _AdoptionCenterDashboardGalleryTabState
             'coverImageUrl': url,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('SET COVER ERROR: $e');
+    } catch (error, stackTrace) {
+      debugPrint('SET COVER ERROR: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.failedToSetCover('$e'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.failedToSetCover(error.toString()),
+            ),
+          ),
+        );
       }
     }
   }
@@ -263,14 +276,20 @@ class _AdoptionCenterDashboardGalleryTabState
                           : _progress.clamp(0.0, 1.0),
                     ),
                     const SizedBox(height: 6),
-                    Text(AppLocalizations.of(context)!.uploadedPercent((_progress * 100).toStringAsFixed(0))),
+                    Text(
+                      AppLocalizations.of(
+                        context,
+                      )!.uploadedPercent((_progress * 100).toStringAsFixed(0)),
+                    ),
                   ],
                 ],
               ),
             ),
             Expanded(
               child: media.isEmpty
-                  ? Center(child: Text(AppLocalizations.of(context)!.noMediaYet))
+                  ? Center(
+                      child: Text(AppLocalizations.of(context)!.noMediaYet),
+                    )
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                       itemCount: media.length,

@@ -16,6 +16,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
 import 'package:barky_matches_fixed/ui/checkout/checkout_completion_guard.dart';
 import 'package:barky_matches_fixed/ui/checkout/checkout_order_summary.dart';
+import 'package:barky_matches_fixed/ui/legal/petsupo_marketplace_disclaimer.dart';
 import 'package:barky_matches_fixed/ui/checkout/multi_order_confirmation_page.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -510,6 +511,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (_loading) return;
 
     if (!_validate()) return;
+
+    if (!await showPetSupoMarketplaceDisclaimer(context)) return;
+    if (!mounted) return;
 
     setState(() => _loading = true);
 

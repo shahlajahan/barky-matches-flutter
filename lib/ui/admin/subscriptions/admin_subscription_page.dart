@@ -95,9 +95,7 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
                           return ListTile(
                             leading: const CircularProgressIndicator(),
                             title: Text(
-                              AppLocalizations.of(
-                                context,
-                              )!.loadingSubscription,
+                              AppLocalizations.of(context)!.loadingSubscription,
                             ),
                           );
                         }
@@ -105,6 +103,7 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
                         String plan = "free";
                         String status = "active";
                         double price = 0;
+                        String? currency;
 
                         /// subscription exists
                         if (subSnap.hasData && subSnap.data!.docs.isNotEmpty) {
@@ -114,6 +113,7 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
 
                           plan = subData["plan"] ?? "free";
                           status = subData["status"] ?? "active";
+                          currency = subData["currency"]?.toString();
 
                           /// 🔥 SAFE PRICE PARSING
                           price = (subData["price"] as num?)?.toDouble() ?? 0.0;
@@ -141,7 +141,9 @@ class _AdminSubscriptionPageState extends State<AdminSubscriptionPage> {
                           title: Text(userId),
 
                           subtitle: Text(
-                            "$plan • $status • \$${price.toStringAsFixed(2)}",
+                            currency == null
+                                ? "$plan • $status"
+                                : "$plan • $status • ${price.toStringAsFixed(2)} $currency",
                           ),
 
                           trailing: const Icon(Icons.chevron_right),

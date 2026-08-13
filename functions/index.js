@@ -6,6 +6,7 @@
  * =============================== */
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onMessagePublished } = require("firebase-functions/v2/pubsub");
 const {
   onDocumentCreated,
   onDocumentWritten,
@@ -53,6 +54,13 @@ const {
 } = require("./src/business/logo_fields");
 const { approvalPublicationPatch } = require("./src/businessPublication");
 const {
+  reviewPetTaxiDocument,
+  approvePetTaxiCompliance,
+  activatePetTaxiPublication,
+  resubmitPetTaxiDocument,
+  processPetTaxiExpiryReminders,
+} = require("./src/petTaxiApproval");
+const {
   createPromotionCheckoutCore,
   activatePromotionFromVerifiedPayment,
   failPromotionPayment,
@@ -80,6 +88,9 @@ const { defineSecret, defineString } = require("firebase-functions/params");
 
 const IYZICO_API_KEY = defineSecret("IYZICO_API_KEY");
 const IYZICO_SECRET_KEY = defineSecret("IYZICO_SECRET_KEY");
+// Server-only key. Configure this key with Directions API enabled and an API
+// restriction for the Directions API; never put it in Flutter or web assets.
+const GOOGLE_MAPS_SERVER_KEY = defineSecret("GOOGLE_MAPS_SERVER_KEY");
 
 const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
   default: "iyzico",
@@ -142,6 +153,33 @@ const {
 
 const webSubscriptionCore = require("./subscription/webSubscriptionCore");
 const {
+  buildEffectiveSubscription,
+  userMirrorFromEffective,
+} = require("./subscription/entitlementCore");
+const {
+  verifyApplePurchase,
+  verifyGooglePurchase,
+  acknowledgeGooglePurchase,
+} = require("./subscription/mobileStoreVerifiers");
+const {
+  synchronizeMobileEntitlement,
+  accountBindingToken,
+} = require("./subscription/mobileIapCore");
+const {
+  handleAppleNotification,
+  handleGoogleNotification,
+  reconcileMobilePurchase,
+} = require("./subscription/mobileIapLifecycle");
+const {
+  ADMIN_SUBSCRIPTION_CATALOG,
+  applyAdminAction,
+  entitlementFields: adminEntitlementFields,
+  normalizeStatus: normalizeSubscriptionStatus,
+} = require("./subscription/adminSubscriptionCore");
+const {loadValidGoldEntitlement} = require(
+  "./subscription/businessEntitlementAuthorization"
+);
+const {
   calculateMarketplaceShipping,
 } = require("./shipping/marketplaceShipping");
 const {
@@ -183,6 +221,139 @@ const {
 
 const { Resend } = require("resend");
 const { settlePayable } = require("./settlement/settlementFinalizer");
+
+function readRouteCoordinate(value, field) {
+  const point = value && typeof value === "object" ? value : null;
+  const lat = Number(point?.lat);
+  const lng = Number(point?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
+      lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new HttpsError("invalid-argument", `${field} must contain valid coordinates.`);
+  }
+  return { lat, lng };
+}
+
+exports.estimatePetTaxiRoute = onCall({
+  region: "europe-west3",
+  timeoutSeconds: 20,
+  secrets: [GOOGLE_MAPS_SERVER_KEY],
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication is required.");
+  }
+
+  const origin = readRouteCoordinate(request.data?.origin, "origin");
+  const destination = readRouteCoordinate(request.data?.destination, "destination");
+  const diagnosticContext = {
+    function: "estimatePetTaxiRoute",
+    region: "europe-west3",
+    origin,
+    destination,
+    authenticated: true,
+  };
+  const apiKey = GOOGLE_MAPS_SERVER_KEY.value();
+  if (!apiKey) {
+    logger.error("Pet Taxi route estimation is not configured.", {
+      ...diagnosticContext,
+      failure: "secret_missing_or_unavailable",
+      secret: "GOOGLE_MAPS_SERVER_KEY",
+    });
+    throw new HttpsError("failed-precondition", "Route estimation is not configured.");
+  }
+
+  const query = new URLSearchParams({
+    origin: `${origin.lat},${origin.lng}`,
+    destination: `${destination.lat},${destination.lng}`,
+    mode: "driving",
+    region: "tr",
+    language: "tr",
+    units: "metric",
+    alternatives: "false",
+    key: apiKey,
+  });
+
+  let response;
+  try {
+    response = await fetch(`https://maps.googleapis.com/maps/api/directions/json?${query}`);
+  } catch (error) {
+    logger.error("Pet Taxi Directions request failed", {
+      ...diagnosticContext,
+      failure: "network_or_fetch_exception",
+      errorName: error?.name || null,
+      errorMessage: error?.message || String(error),
+    });
+    throw new HttpsError("unavailable", "Route estimation is temporarily unavailable.");
+  }
+
+  let body;
+  try {
+    body = await response.json();
+  } catch (error) {
+    logger.error("Pet Taxi Directions returned invalid JSON", {
+      ...diagnosticContext,
+      failure: "invalid_google_response",
+      httpStatus: response.status,
+      errorName: error?.name || null,
+      errorMessage: error?.message || String(error),
+    });
+    throw new HttpsError("internal", "Route estimation failed.");
+  }
+  if (!response.ok) {
+    logger.error("Pet Taxi Directions returned HTTP error", {
+      ...diagnosticContext,
+      failure: "google_http_error",
+      httpStatus: response.status,
+      googleStatus: body?.status || null,
+      googleErrorMessage: body?.error_message || null,
+    });
+    throw new HttpsError("internal", "Route estimation failed.");
+  }
+  if (body.status === "ZERO_RESULTS") {
+    logger.info("Pet Taxi Directions returned no route", {
+      ...diagnosticContext,
+      failure: "google_zero_results",
+      googleStatus: body.status,
+    });
+    throw new HttpsError("not-found", "No driving route was found.");
+  }
+  if (body.status !== "OK" || !Array.isArray(body.routes) || !body.routes[0]) {
+    logger.error("Pet Taxi Directions API error", {
+      ...diagnosticContext,
+      failure: "google_api_rejection_or_invalid_route",
+      httpStatus: response.status,
+      googleStatus: body.status || null,
+      googleErrorMessage: body.error_message || null,
+      routeCount: Array.isArray(body.routes) ? body.routes.length : null,
+    });
+    throw new HttpsError("internal", "Route estimation failed.");
+  }
+
+  const route = body.routes[0];
+  const legs = Array.isArray(route.legs) ? route.legs : [];
+  const distanceMeters = legs.reduce(
+    (total, leg) => total + Number(leg?.distance?.value || 0), 0);
+  const durationSeconds = legs.reduce(
+    (total, leg) => total + Number(leg?.duration?.value || 0), 0);
+  if (!Number.isFinite(distanceMeters) || !Number.isFinite(durationSeconds) ||
+      distanceMeters <= 0 || durationSeconds <= 0) {
+    logger.error("Pet Taxi Directions returned incomplete route data", {
+      ...diagnosticContext,
+      failure: "google_incomplete_route",
+      googleStatus: body.status,
+      legCount: legs.length,
+      distanceMeters,
+      durationSeconds,
+    });
+    throw new HttpsError("internal", "Route estimation returned incomplete data.");
+  }
+
+  return {
+    distanceKm: Number((distanceMeters / 1000).toFixed(2)),
+    durationMinutes: Math.ceil(durationSeconds / 60),
+    source: "google_directions_driving",
+    encodedPolyline: route.overview_polyline?.points || null,
+  };
+});
 
 async function settleCommittedMarketplaceSellerOrders({ db, sellerOrdersSnap, actor }) {
   const outcomes = [];
@@ -345,6 +516,24 @@ const ORDER_EXTERNAL_NOTIFICATIONS_ENABLED = defineSecret(
 );
 
 const TELEGRAM_BOT_TOKEN = defineSecret("TELEGRAM_BOT_TOKEN");
+
+// Mobile IAP credentials are intentionally deployment-only secrets. The
+// callable remains fail-closed until all of these values are provisioned.
+const APPLE_IAP_ISSUER_ID = defineSecret("APPLE_IAP_ISSUER_ID");
+const APPLE_IAP_KEY_ID = defineSecret("APPLE_IAP_KEY_ID");
+const APPLE_IAP_PRIVATE_KEY = defineSecret("APPLE_IAP_PRIVATE_KEY");
+const APPLE_ROOT_CA_BUNDLE = defineSecret("APPLE_ROOT_CA_BUNDLE");
+const APPLE_IAP_ENVIRONMENT = defineString("APPLE_IAP_ENVIRONMENT", {
+  default: "production",
+});
+const APPLE_BUNDLE_ID = defineString("APPLE_BUNDLE_ID", {
+  default: "com.shahlajahan.barkymatches.dev",
+});
+const APPLE_APP_ID = defineString("APPLE_APP_ID", {default: ""});
+const {
+  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
+  GOOGLE_PLAY_PACKAGE_NAME,
+} = require("./subscription/googleIapConfig");
 
 
 if (!admin.apps.length) {
@@ -1401,6 +1590,221 @@ async function finalizeAppointmentAfterPaid({
   };
 }
 
+async function finalizePetTaxiAfterPaid({
+  orderData,
+  orderId,
+  transactionId = null,
+}) {
+  if (
+    orderData.type !== "pet_taxi" ||
+    orderData.appointmentCollection !== "pet_taxi_bookings"
+  ) {
+    return null;
+  }
+
+  const bookingId = String(orderData.bookingId || orderData.appointmentId || "").trim();
+  if (!bookingId) return null;
+
+  const bookingRef = db.collection("pet_taxi_bookings").doc(bookingId);
+  const expectedAmount = Number(orderData.pricing?.grandTotal || 0);
+  const expectedCurrency = canonicalizeIsbankCurrency(
+    orderData.pricing?.currency || orderData.currency || ""
+  );
+
+  if (
+    !Number.isFinite(expectedAmount) ||
+    expectedAmount <= 0 ||
+    Number(normalizeIsbankAmount(expectedAmount)) !== expectedAmount ||
+    !expectedCurrency
+  ) {
+    return { status: "failed", reason: "invalid_pet_taxi_order_amount" };
+  }
+
+  let finalization;
+  try {
+    finalization = await db.runTransaction(async (transaction) => {
+      const bookingSnap = await transaction.get(bookingRef);
+      if (!bookingSnap.exists) return { status: "missing" };
+
+      const bookingData = bookingSnap.data() || {};
+      const bookingAmount = Number(bookingData.finalPrice);
+      const bookingCurrency = canonicalizeIsbankCurrency(
+        bookingData.finalPriceCurrency || bookingData.paymentCurrency || ""
+      );
+
+      if (
+        !Number.isFinite(bookingAmount) ||
+        bookingAmount !== expectedAmount ||
+        bookingCurrency !== expectedCurrency
+      ) {
+        return { status: "failed", reason: "booking_amount_or_currency_mismatch" };
+      }
+
+      const bookingPaymentFinalizationStatus = normalizeIsbankValue(
+        bookingData.payment?.finalizationStatus || ""
+      );
+      const bookingIsPaid =
+        bookingData.paymentStatus === "paid" ||
+        bookingData.status === "confirmed_paid" ||
+        bookingPaymentFinalizationStatus === "completed";
+      if (bookingIsPaid) {
+        const existingBookingOrderId = String(
+          bookingData.orderId || bookingData.paymentOrderId || ""
+        ).trim();
+        if (existingBookingOrderId !== orderId) {
+          return {
+            status: "failed",
+            reason: "booking_already_paid_different_order",
+          };
+        }
+        return {
+          status: "alreadyProcessed",
+          bookingData,
+          financialStatus: bookingData.financialStatus || FINANCIAL_STATUS.PENDING,
+        };
+      }
+
+      let financial = null;
+      let financialError = null;
+      try {
+        financial = await calculateAppointmentFinancial({
+          collectionName: "pet_taxi_bookings",
+          record: bookingData,
+          paidAmount: expectedAmount,
+        });
+        assertVerifiedCanonicalFinancial(financial);
+      } catch (error) {
+        financialError = error;
+      }
+
+      const paidAt = admin.firestore.FieldValue.serverTimestamp();
+      transaction.set(
+        bookingRef,
+        {
+          paymentStatus: "paid",
+          status: "confirmed_paid",
+          "marketplace.lifecycleStatus": buildMarketplaceStatus("confirmed_paid"),
+          "marketplace.pendingAction": false,
+          "marketplace.updatedAt": new Date().toISOString(),
+          "marketplace.lastStatusChangedBy": "system",
+          "marketplace.lastStatusChangedAt": new Date().toISOString(),
+          "invoice.pricing": appointmentInvoicePricingSnapshot({
+            paymentAmount: expectedAmount,
+          }),
+          paidAt,
+          updatedAt: paidAt,
+          paymentOrderId: orderId,
+          orderId,
+          paymentId: transactionId || null,
+          paymentTransactionId: transactionId || null,
+          paymentTransactionIds: transactionId ? [transactionId] : [],
+          paymentProvider: "isbank",
+          financialStatus: financial
+            ? FINANCIAL_STATUS.VERIFIED
+            : FINANCIAL_STATUS.REQUIRES_REPAIR,
+          "payment.finalizationStatus": "completed",
+          "payment.finalizationCompletedAt": paidAt,
+          paymentAmount: expectedAmount,
+          paymentCurrency: expectedCurrency,
+          ...(financial ? { financial } : {}),
+          ...(financialError
+            ? {
+              settlement: {
+                ...(bookingData.settlement || {}),
+                status: "blocked",
+                failureCode: "FINANCIAL_REPAIR_REQUIRED",
+                failureMessage: financialError.message || String(financialError),
+                updatedAt: paidAt,
+              },
+            }
+            : {}),
+          providerPayoutStatus: "pending_completion",
+          providerPayoutAt: null,
+          refundStatus: bookingData.refundStatus || "none",
+          refundReason: bookingData.refundReason || null,
+          lastStatusChange: {
+            from: bookingData.status || "awaiting_user_payment",
+            to: "confirmed_paid",
+            at: paidAt,
+            by: "system",
+          },
+        },
+        { merge: true }
+      );
+
+      return {
+        status: "completed",
+        bookingData,
+        financialError: Boolean(financialError),
+        financialStatus: financial
+          ? FINANCIAL_STATUS.VERIFIED
+          : FINANCIAL_STATUS.REQUIRES_REPAIR,
+      };
+    });
+  } catch (error) {
+    logger.error("pet_taxi_isbank_finalization_failed", {
+      orderId,
+      bookingId,
+      message: error?.message || String(error),
+    });
+    return { status: "processing", reason: "finalization_error" };
+  }
+
+  if (["completed", "alreadyProcessed"].includes(finalization.status)) {
+    const bookingSnap = await bookingRef.get();
+    const bookingData = bookingSnap.exists ? bookingSnap.data() || {} : {};
+    const businessId = bookingData.businessId || orderData.businessId || null;
+    let recipientUserId = null;
+    if (businessId) {
+      const businessSnap = await db.collection("businesses").doc(String(businessId)).get();
+      const businessData = businessSnap.exists ? businessSnap.data() || {} : {};
+      recipientUserId = businessData.ownerUid || businessData.uid || null;
+    }
+    const buyerUserId = String(
+      bookingData.userId || orderData.buyerUid || orderData.userId || ""
+    ).trim() || null;
+
+    try {
+      await createPetTaxiPaymentNotificationOnce({
+        notificationId: `pet_taxi_payment_completed_${orderId}_${recipientUserId || "owner_unresolved"}`,
+        type: "pet_taxi_payment_completed",
+        recipientUserId,
+        senderUserId: buyerUserId || "system",
+        title: "Pet Taxi Payment Completed",
+        body: `${bookingData.petName || "Pet taxi booking"} payment completed successfully`,
+        bookingId,
+        businessId,
+        status: "confirmed_paid",
+        orderId,
+      });
+      await createPetTaxiPaymentNotificationOnce({
+        notificationId: `pet_taxi_payment_success_${orderId}_${buyerUserId || "buyer_unresolved"}`,
+        type: "pet_taxi_payment_success",
+        recipientUserId: buyerUserId,
+        senderUserId: recipientUserId || "system",
+        title: "Pet Taxi Payment Successful",
+        body: `${bookingData.petName || "Your pet taxi booking"} is paid and confirmed`,
+        bookingId,
+        businessId,
+        status: "confirmed_paid",
+        orderId,
+      });
+    } catch (notificationError) {
+      logger.warn("pet_taxi_payment_notification_failed", {
+        orderId,
+        bookingId,
+        message: notificationError?.message || String(notificationError),
+      });
+    }
+  }
+
+  return {
+    ...finalization,
+    recordRef: bookingRef,
+    sector: "taxi",
+  };
+}
+
 async function finalizeIsbankPaidOrder({
   orderRef,
   orderData,
@@ -1639,7 +2043,7 @@ async function finalizeIsbankPaidOrder({
     }
 
     const buyerUid = effectiveOrderData.buyerUid || effectiveOrderData.userId || null;
-    if (buyerUid) {
+    if (buyerUid && effectiveOrderData.type !== "pet_taxi") {
       try {
         const buyerNotificationId = `order_paid_${orderId}`;
         const buyerCreated = await createDeterministicNotification(buyerNotificationId, {
@@ -1817,11 +2221,27 @@ async function finalizeIsbankPaidOrder({
       }
     }
 
-    const appointmentSettlementTarget = await finalizeAppointmentAfterPaid({
-      orderData: effectiveOrderData,
-      orderId,
-      transactionId: transId || null,
-    });
+    const appointmentSettlementTarget = effectiveOrderData.type === "pet_taxi"
+      ? await finalizePetTaxiAfterPaid({
+        orderData: effectiveOrderData,
+        orderId,
+        transactionId: transId || null,
+      })
+      : await finalizeAppointmentAfterPaid({
+        orderData: effectiveOrderData,
+        orderId,
+        transactionId: transId || null,
+      });
+
+    if (
+      effectiveOrderData.type === "pet_taxi" &&
+      ["failed", "missing", "processing"].includes(appointmentSettlementTarget?.status)
+    ) {
+      return appointmentSettlementTarget;
+    }
+    if (effectiveOrderData.type === "pet_taxi" && !appointmentSettlementTarget) {
+      return { status: "failed", reason: "pet_taxi_finalization_target_missing" };
+    }
 
     const completionResult = await db.runTransaction(async (transaction) => {
       const latestOrderSnap = await transaction.get(orderRef);
@@ -1870,6 +2290,9 @@ async function finalizeIsbankPaidOrder({
             ? "payment_verified_pending_inventory"
             : "paid",
           paymentStatus: deferMarketplacePaymentState ? "pending" : "paid",
+          ...(effectiveOrderData.type === "pet_taxi" && appointmentSettlementTarget?.financialStatus
+            ? { financialStatus: appointmentSettlementTarget.financialStatus }
+            : {}),
           paidAt: now,
           cartCleared: true,
           payment: {
@@ -1940,34 +2363,37 @@ async function finalizeIsbankPaidOrder({
           });
         }
       }
-      try {
-        await sendExternalOrderNotifications({
-          orderId,
-          orderData: effectiveOrderData,
-          source: "isbank3DPayHostingCallback",
-          paymentId: transId || authCode || orderId,
-          userId:
-            effectiveOrderData.buyerUid ||
-            effectiveOrderData.userId ||
-            null,
-        });
-        logger.info("isbank_confirmation_email_dispatch_completed", {
-          orderId,
-          status: "completed",
-        });
-      } catch (error) {
-        logger.warn("isbank_confirmation_email_dispatch_failed", {
-          orderId,
-          status: "failed",
-          errorCode: error?.code || null,
-        });
-      }
+      if (effectiveOrderData.type !== "pet_taxi") {
+        try {
+          await sendExternalOrderNotifications({
+            orderId,
+            orderData: effectiveOrderData,
+            source: "isbank3DPayHostingCallback",
+            paymentId: transId || authCode || orderId,
+            userId:
+              effectiveOrderData.buyerUid ||
+              effectiveOrderData.userId ||
+              null,
+          });
+          logger.info("isbank_confirmation_email_dispatch_completed", {
+            orderId,
+            status: "completed",
+          });
+        } catch (error) {
+          logger.warn("isbank_confirmation_email_dispatch_failed", {
+            orderId,
+            status: "failed",
+            errorCode: error?.code || null,
+          });
+        }
 
-      const cartReconciliation = await reconcilePaidMarketplaceCart(orderId);
-      return {
-        ...completionResult,
-        cartReconciled: cartReconciliation.reconciled === true,
-      };
+        const cartReconciliation = await reconcilePaidMarketplaceCart(orderId);
+        return {
+          ...completionResult,
+          cartReconciled: cartReconciliation.reconciled === true,
+        };
+      }
+      return completionResult;
     }
 
     return completionResult;
@@ -1983,6 +2409,65 @@ async function finalizeIsbankPaidOrder({
     };
   }
 }
+
+// A callback can commit the booking before the order-completion transaction
+// if the process dies between those two transactions. Re-run only stale,
+// already hash-validated Pet Taxi claims; this recovery never contacts the
+// bank and cannot create payment proof on its own.
+exports.recoverStalePetTaxiIsbankFinalizations = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    region: "europe-west3",
+    timeZone: "Europe/Istanbul",
+    timeoutSeconds: 540,
+    retryCount: 3,
+  },
+  async () => {
+    const staleBefore = admin.firestore.Timestamp.fromMillis(
+      Date.now() - 15 * 60 * 1000
+    );
+    const staleClaims = await db
+      .collection("orders")
+      .where("type", "==", "pet_taxi")
+      .where("payment.provider", "==", "isbank")
+      .where("payment.callbackValidated", "==", true)
+      .where("payment.finalizationStatus", "==", "processing")
+      .where("payment.finalizationLeaseUntil", "<", staleBefore)
+      .limit(25)
+      .get();
+
+    const outcomes = [];
+    for (const orderSnap of staleClaims.docs) {
+      const orderData = orderSnap.data() || {};
+      const payment = orderData.payment || {};
+      try {
+        const result = await finalizeIsbankPaidOrder({
+          orderRef: orderSnap.ref,
+          orderData,
+          orderId: orderSnap.id,
+          callbackAmount: payment.amount,
+          callbackCurrency: payment.currency,
+          authCode: payment.authCode,
+          hostRefNum: payment.hostRefNum,
+          procReturnCode: payment.procReturnCode,
+          responseText: payment.response,
+          transId: payment.transId,
+          mdStatus: payment.mdStatus,
+          callbackResponse: payment.response,
+        });
+        outcomes.push({ orderId: orderSnap.id, status: result?.status || "unknown" });
+      } catch (error) {
+        logger.error("stale_pet_taxi_isbank_recovery_failed", {
+          orderId: orderSnap.id,
+          message: error?.message || String(error),
+        });
+        outcomes.push({ orderId: orderSnap.id, status: "failed" });
+      }
+    }
+
+    return { inspected: staleClaims.size, outcomes };
+  }
+);
 
 async function markIsbankPaymentFailed({
   orderRef,
@@ -2649,7 +3134,7 @@ function promotionProviderName() {
   return normalizePaymentProvider(PAYMENT_PROVIDER.value());
 }
 
-async function createPromotionProviderCheckout({campaign, userData, authEmail, clientIp}) {
+async function createPromotionProviderCheckout({ campaign, userData, authEmail, clientIp }) {
   const provider = promotionProviderName();
   const amount = Number(campaign.price);
   const buyerName = normalizeText(
@@ -2659,7 +3144,7 @@ async function createPromotionProviderCheckout({campaign, userData, authEmail, c
 
   if (provider === "isbank") {
     const checkout = await createIsbank3DPayHostingCheckoutResult({
-      auth: {uid: campaign.ownerUid},
+      auth: { uid: campaign.ownerUid },
       data: {
         oid: campaign.campaignId,
         orderId: campaign.campaignId,
@@ -2762,7 +3247,7 @@ async function verifyPromotionIyzicoPayment(campaign) {
     }),
   });
   const result = await new Promise((resolve, reject) => {
-    iyzi.checkoutForm.retrieve({locale: Iyzipay.LOCALE.TR, token}, (error, response) => {
+    iyzi.checkoutForm.retrieve({ locale: Iyzipay.LOCALE.TR, token }, (error, response) => {
       if (error) return reject(error);
       return resolve(response);
     });
@@ -2848,11 +3333,11 @@ exports.verifyPromotionPayment = onCall(
       evidence = await verifyPromotionIyzicoPayment(campaign);
       if (!evidence.verified) {
         if (["failure", "failed", "cancelled"].includes(String(evidence.paymentStatus).toLowerCase())) {
-          await failPromotionPayment({db, campaignId, failureCode: "provider_payment_failed"});
+          await failPromotionPayment({ db, campaignId, failureCode: "provider_payment_failed" });
         }
-        return {campaignId, campaignStatus: campaign.status, paymentStatus: evidence.paymentStatus || "pending", pending: true};
+        return { campaignId, campaignStatus: campaign.status, paymentStatus: evidence.paymentStatus || "pending", pending: true };
       }
-      const activation = await activatePromotionFromVerifiedPayment({db, campaignId, evidence});
+      const activation = await activatePromotionFromVerifiedPayment({ db, campaignId, evidence });
       logger.info("promotion_payment_verified", {
         campaignId,
         targetType: campaign.targetType,
@@ -2862,7 +3347,7 @@ exports.verifyPromotionPayment = onCall(
         providerTransactionId: evidence.providerTransactionId,
         status: activation.status,
       });
-      return {campaignId, campaignStatus: "active", paymentStatus: "paid", alreadyProcessed: activation.status === "already_processed"};
+      return { campaignId, campaignStatus: "active", paymentStatus: "paid", alreadyProcessed: activation.status === "already_processed" };
     } catch (error) {
       const failureMessage = String(error.message || "").toLowerCase();
       if (/(amount|currency|provider order|provider mismatch|evidence)/.test(failureMessage)) {
@@ -2882,7 +3367,7 @@ exports.verifyPromotionPayment = onCall(
 );
 
 exports.readPromotionPaymentStatus = onCall(
-  {region: "europe-west3", timeoutSeconds: 30},
+  { region: "europe-west3", timeoutSeconds: 30 },
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
     try {
@@ -2901,7 +3386,7 @@ exports.readPromotionPaymentStatus = onCall(
 );
 
 exports.recordPromotionEvent = onCall(
-  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
   async (request) => {
     try {
       return await ingestPromotionEvent({
@@ -2921,10 +3406,10 @@ exports.recordPromotionEvent = onCall(
 );
 
 exports.readFeaturedServiceDeals = onCall(
-  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
   async () => {
     try {
-      return await readFeaturedServiceDeals({db});
+      return await readFeaturedServiceDeals({ db });
     } catch (error) {
       logger.warn("featured_service_deals_read_failed", {
         reason: error.code || "featured_service_deals_read_failed",
@@ -2935,7 +3420,7 @@ exports.readFeaturedServiceDeals = onCall(
 );
 
 exports.readPromotionCampaignStats = onCall(
-  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
     try {
@@ -2954,7 +3439,7 @@ exports.readPromotionCampaignStats = onCall(
 );
 
 exports.readPromotionReconciliationHealth = onCall(
-  {region: "europe-west3", timeoutSeconds: 30, memory: "256MiB"},
+  { region: "europe-west3", timeoutSeconds: 30, memory: "256MiB" },
   async (request) => {
     if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Login required");
     if (!(await isAdminUser(db, request.auth.uid))) {
@@ -2995,7 +3480,7 @@ function logPromotionReconciliationResult(result, sourceType, sourceId) {
 }
 
 exports.reconcilePromotionSellerOrder = onDocumentWritten(
-  {region: "europe-west3", document: "sellerOrders/{sellerOrderId}"},
+  { region: "europe-west3", document: "sellerOrders/{sellerOrderId}" },
   async (event) => {
     try {
       return logPromotionReconciliationResult(await reconcilePromotionConversion({
@@ -3015,7 +3500,7 @@ exports.reconcilePromotionSellerOrder = onDocumentWritten(
 );
 
 exports.reconcilePromotionVetAppointment = onDocumentWritten(
-  {region: "europe-west3", document: "vet_appointments/{appointmentId}"},
+  { region: "europe-west3", document: "vet_appointments/{appointmentId}" },
   async (event) => {
     try {
       return logPromotionReconciliationResult(await reconcilePromotionConversion({
@@ -3035,7 +3520,7 @@ exports.reconcilePromotionVetAppointment = onDocumentWritten(
 );
 
 exports.reconcilePromotionGroomyAppointment = onDocumentWritten(
-  {region: "europe-west3", document: "groomy_appointments/{appointmentId}"},
+  { region: "europe-west3", document: "groomy_appointments/{appointmentId}" },
   async (event) => {
     try {
       return logPromotionReconciliationResult(await reconcilePromotionConversion({
@@ -3296,38 +3781,46 @@ async function finalizeWebSubscriptionPayment({
     const currentExpiry =
       current.expiresAt?.toDate?.() ||
       (current.expiresAt instanceof Date ? current.expiresAt : null);
+    const currentWeb = current.sources?.web_isbank ||
+      (current.source === "web_isbank" ? current : {});
     const { expiresAt } = webSubscriptionCore.entitlementWindow({
       now: verifiedAt,
-      currentPlan: current.plan,
-      currentStatus: current.status,
-      currentExpiresAt: currentExpiry,
+      currentPlan: currentWeb.plan,
+      currentStatus: currentWeb.status,
+      currentExpiresAt: currentWeb.expiresAt || currentExpiry,
       purchasedPlan: planId,
     });
-    const subscriptionData = {
+    const webSource = {
       plan: planId,
       status: "active",
-      userId: uid,
       source: "web_isbank",
       provider: "isbank",
       autoRenew: false,
       productId: `web_${planId}_30_day`,
+      price: order.pricing?.grandTotal ?? null,
+      currency: order.pricing?.currency || null,
+      listPrice: order.pricing?.grandTotal ?? null,
+      listPriceCurrency: order.pricing?.currency || null,
+      paidAmount: callbackAmount ?? order.pricing?.grandTotal ?? null,
       startedAt: admin.firestore.Timestamp.fromDate(verifiedAt),
       expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastPaymentOrderId: orderId,
     };
 
+    const effective = buildEffectiveSubscription({
+      current,
+      sourceUpdates: {web_isbank: webSource},
+      now: verifiedAt,
+    });
+    const subscriptionData = {
+      ...effective,
+      userId: uid,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
     transaction.set(subscriptionRef, subscriptionData, { merge: true });
-    transaction.set(
-      userRef,
-      {
-        isPremium: true,
-        subscriptionPlan: planId,
-        subscriptionStatus: "active",
-        subscription: subscriptionData,
-      },
-      { merge: true }
-    );
+    transaction.set(userRef, userMirrorFromEffective(effective, verifiedAt), {merge: true});
     transaction.set(
       orderRef,
       {
@@ -3448,7 +3941,7 @@ function webSubscriptionBrowserReturn(kind) {
 exports.isbank3DSuccessReturn = webSubscriptionBrowserReturn("success");
 exports.isbank3DFailReturn = webSubscriptionBrowserReturn("fail");
 
-async function handlePromotionIsbankCallback({db, orderId, callback}) {
+async function handlePromotionIsbankCallback({ db, orderId, callback }) {
   const promotionRef = db.collection("promotion_campaigns").doc(orderId);
   const promotionSnap = await promotionRef.get();
   if (!promotionSnap.exists) return false;
@@ -3489,7 +3982,7 @@ async function handlePromotionIsbankCallback({db, orderId, callback}) {
     getIsbankCallbackValue(callback.fields, "AuthCode")
   );
   const fail = async (failureCode) => {
-    await failPromotionPayment({db, campaignId: orderId, failureCode})
+    await failPromotionPayment({ db, campaignId: orderId, failureCode })
       .catch((error) => logger.warn("promotion_callback_failure_persist_failed", {
         campaignId: orderId,
         reason: error.code || "persist_failed",
@@ -4249,7 +4742,7 @@ exports.isbank3DPayHostingCallback = onRequest(
     if (
       paymentCallbackClaim &&
       !["completed", "alreadyProcessed", "failed", "missing"].includes(finalizationResult?.status)
-      ) {
+    ) {
       await markPaymentCallbackCommitPending({
         ref: paymentCallbackClaim.ref,
         ownerToken: paymentCallbackClaim.ownerToken,
@@ -4455,7 +4948,9 @@ exports.readPaymentStatusByOrderId = onCall(
     const cartReconciled =
       Number(orderData?.cartReconciliation?.version || 0) >= 1 &&
       orderData?.cartReconciliation?.status === "completed";
-    const paid = finalizationStatus === "completed" && cartReconciled;
+    const paid =
+      finalizationStatus === "completed" &&
+      (orderData.type === "pet_taxi" || cartReconciled);
 
     return {
       success: true,
@@ -5786,8 +6281,8 @@ async function writeCanonicalCancellationRefund({
     const current = snapshot.exists ? snapshot.data() || {} : {};
     const currentRefund =
       current.cancellationRefund &&
-      typeof current.cancellationRefund === "object" &&
-      !Array.isArray(current.cancellationRefund)
+        typeof current.cancellationRefund === "object" &&
+        !Array.isArray(current.cancellationRefund)
         ? current.cancellationRefund
         : {};
     const next = { ...current, ...fields };
@@ -10906,6 +11401,14 @@ exports.registerBusiness = onCall(
         throw new HttpsError("invalid-argument", "Missing sectors or draft");
       }
 
+      const hasValidGold = await loadValidGoldEntitlement({db, uid});
+      if (!hasValidGold) {
+        throw new HttpsError(
+          "failed-precondition",
+          "GOLD_SUBSCRIPTION_REQUIRED"
+        );
+      }
+
       const profile = draft.profile || {};
       const contact = draft.contact || {};
       const legal = draft.legal || {};
@@ -10926,6 +11429,8 @@ exports.registerBusiness = onCall(
       const hotelSocial = hotelProfile.socialMedia || hotelData.contact || {};
       const hotelServices = hotelData.services || {};
       const petTaxiData = sectorData.pet_taxi || sectorData.petTaxi || {};
+      const hasPetTaxiSector = isPetTaxiBusiness({ sectors });
+      const petTaxiOnlyRegistration = hasPetTaxiSector && sectors.length === 1;
       const adoptionData =
         sectorData.adoptionCenter ||
         sectorData.adoption_center ||
@@ -11071,7 +11576,7 @@ exports.registerBusiness = onCall(
       // =========================
       let riskFlags = [];
 
-      if (request.data.countryCode === "TR") {
+      if (request.data.countryCode === "TR" && !petTaxiOnlyRegistration) {
         if (!legal.taxNumber || !legal.mersisNumber) {
           throw new HttpsError(
             "invalid-argument",
@@ -11124,7 +11629,6 @@ exports.registerBusiness = onCall(
 
       console.log("🔥 SECTORS:", sectors);
       console.log("🔥 SECTOR DATA:", draft.sectorData);
-      const hasPetTaxiSector = isPetTaxiBusiness({ sectors });
       const publicSectorData = hasPetTaxiSector
         ? {
           ...sectorData,
@@ -11759,6 +12263,108 @@ exports.resolveBusinessRequest = onCall(
     }
   }
 );
+exports.reviewPetTaxiDocument = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const db = admin.firestore();
+    const adminUid = await requireAdmin(db, request);
+    const data = request.data || {};
+    return reviewPetTaxiDocument({
+      db,
+      businessId: data.businessId,
+      documentKey: data.documentKey,
+      action: data.action,
+      reason: data.reason,
+      adminUid,
+    });
+  }
+);
+
+exports.approvePetTaxiCompliance = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const db = admin.firestore();
+    const adminUid = await requireAdmin(db, request);
+    return approvePetTaxiCompliance({
+      db,
+      businessId: request.data?.businessId,
+      adminUid,
+    });
+  }
+);
+
+exports.activatePetTaxiPublication = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const db = admin.firestore();
+    const adminUid = await requireAdmin(db, request);
+    return activatePetTaxiPublication({
+      db,
+      businessId: request.data?.businessId,
+      adminUid,
+    });
+  }
+);
+
+exports.resubmitPetTaxiDocument = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Login required");
+    const db = admin.firestore();
+    return resubmitPetTaxiDocument({
+      db,
+      businessId: request.data?.businessId,
+      documentKey: request.data?.documentKey,
+      document: request.data?.document,
+      ownerUid: request.auth.uid,
+    });
+  }
+);
+
+exports.petTaxiDocumentExpiryReminderScheduler = onSchedule(
+  {
+    region: "europe-west3",
+    schedule: "every 24 hours",
+    timeZone: "Europe/Istanbul",
+  },
+  async () => processPetTaxiExpiryReminders({
+    db,
+    sendPush: async ({ token, userId, title, body, data }) => {
+      try {
+        await admin.messaging().send({
+          token,
+          notification: { title, body },
+          data: Object.fromEntries(
+            Object.entries(data || {}).map(([key, value]) => [key, String(value)])
+          ),
+          android: {
+            priority: "high",
+            notification: {
+              sound: "default",
+              channelId: "high_importance_channel",
+            },
+          },
+          apns: {
+            headers: { "apns-priority": "10" },
+            payload: {
+              aps: {
+                alert: { title, body },
+                sound: "default",
+                badge: 1,
+              },
+            },
+          },
+        });
+      } catch (error) {
+        logger.warn("pet_taxi_expiry_reminder_push_failed", {
+          userId,
+          code: error?.code || null,
+        });
+      }
+    },
+  })
+);
+
 exports.migrateAdoptionCentersToBusinesses = onRequest(
   {
     region: "europe-west3",
@@ -14402,7 +15008,7 @@ exports.createCheckoutSession = onCall(
                 (total, item) => total + Math.max(
                   0,
                   Number(item.financialSnapshot?.referencePrice || 0) -
-                    Number(item.unitPriceExclTax || 0)
+                  Number(item.unitPriceExclTax || 0)
                 ),
                 0
               ),
@@ -16871,7 +17477,7 @@ exports.verifyPayment = onCall(
             status: "confirmed_paid",
             ...(appointmentCollection === "vet_appointments"
               ? { serviceCategory: resolvedServiceCategory }
-            : {}),
+              : {}),
             ...(appointmentFinancial ? { financial: appointmentFinancial } : {}),
             financialStatus: appointmentFinancial
               ? FINANCIAL_STATUS.VERIFIED
@@ -19366,6 +19972,10 @@ exports.deleteUserAccount = onCall(
         db.collection("subscriptions").where("userId", "==", uid)
       );
 
+      // Store purchase ownership tombstones are intentionally retained. They
+      // contain no store credentials and prevent a consumed Apple/Google
+      // transaction from being rebound to a newly created Firebase account.
+
       // --------------------------------------------------
       // complains
       // --------------------------------------------------
@@ -19848,17 +20458,17 @@ exports.createMarketplaceOrderV2 = onCall(
 
     const m3OrderIds = m3Enabled
       ? buildM3OrderIds({
-          buyerUid: auth.uid,
-          checkoutAttemptId,
-          businessIds,
-        })
+        buyerUid: auth.uid,
+        checkoutAttemptId,
+        businessIds,
+      })
       : null;
     const m3Lines = m3Enabled
       ? buildCanonicalLines({
-          rootOrderId: m3OrderIds.rootOrderId,
-          sellerOrderIds: m3OrderIds.sellerOrderIds,
-          items,
-        })
+        rootOrderId: m3OrderIds.rootOrderId,
+        sellerOrderIds: m3OrderIds.sellerOrderIds,
+        items,
+      })
       : [];
     const m3LineByItem = new Map();
     m3Lines.forEach((line, index) => m3LineByItem.set(items[index], line));
@@ -19869,13 +20479,13 @@ exports.createMarketplaceOrderV2 = onCall(
         const canonicalLine = m3LineByItem.get(item);
         return canonicalLine
           ? {
-              ...normalized,
-              lineId: canonicalLine.lineId,
-              sellerOrderLineId: canonicalLine.lineId,
-              inventoryStatus: canonicalLine.inventoryStatus,
-              inventoryOperationVersion:
-                canonicalLine.inventoryOperationVersion,
-            }
+            ...normalized,
+            lineId: canonicalLine.lineId,
+            sellerOrderLineId: canonicalLine.lineId,
+            inventoryStatus: canonicalLine.inventoryStatus,
+            inventoryOperationVersion:
+              canonicalLine.inventoryOperationVersion,
+          }
           : normalized;
       });
       return [shopId, normalizedItems];
@@ -20120,29 +20730,29 @@ exports.createMarketplaceOrderV2 = onCall(
         items: shopItems,
         ...(m3Enabled
           ? {
-              inventoryLines: shopItems.map((item) => ({
-                rootOrderId: rootOrderRef.id,
-                sellerOrderId,
-                lineId: item.lineId,
-                sellerOrderLineId: item.lineId,
-                buyerUid: auth.uid,
-                businessId: shopId,
-                productId: item.productId,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                totalPrice: item.taxSnapshot?.lineGrandTotal || 0,
-                currency,
-                title: item.name || null,
-                imageUrl: item.imageUrl || null,
-                inventoryStatus: "not_started",
-                inventoryOperationVersion: 1,
-              })),
+            inventoryLines: shopItems.map((item) => ({
+              rootOrderId: rootOrderRef.id,
+              sellerOrderId,
+              lineId: item.lineId,
+              sellerOrderLineId: item.lineId,
+              buyerUid: auth.uid,
+              businessId: shopId,
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.taxSnapshot?.lineGrandTotal || 0,
+              currency,
+              title: item.name || null,
+              imageUrl: item.imageUrl || null,
               inventoryStatus: "not_started",
-              inventorySchemaVersion: 1,
               inventoryOperationVersion: 1,
-              financeEligibility: "ineligible",
-              providerPaymentStatus: "pending",
-            }
+            })),
+            inventoryStatus: "not_started",
+            inventorySchemaVersion: 1,
+            inventoryOperationVersion: 1,
+            financeEligibility: "ineligible",
+            providerPaymentStatus: "pending",
+          }
           : {}),
         delivery: {
           city: delivery.city || null,
@@ -20304,23 +20914,23 @@ exports.createMarketplaceOrderV2 = onCall(
       sellerCount: sellerOrderIds.length,
       ...(m3Enabled
         ? {
-            inventoryLineSet: m3Lines.map((line) => ({
-              rootOrderId: line.rootOrderId,
-              sellerOrderId: line.sellerOrderId,
-              lineId: line.lineId,
-              businessId: line.businessId,
-              productId: line.productId,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice,
-              totalPrice: line.totalPrice,
-              currency: line.currency,
-            })),
-            providerPaymentStatus: "pending",
-            inventoryStatus: "not_started",
-            financeEligibility: "ineligible",
-            inventorySchemaVersion: 1,
-            inventoryOperationVersion: 1,
-          }
+          inventoryLineSet: m3Lines.map((line) => ({
+            rootOrderId: line.rootOrderId,
+            sellerOrderId: line.sellerOrderId,
+            lineId: line.lineId,
+            businessId: line.businessId,
+            productId: line.productId,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            totalPrice: line.totalPrice,
+            currency: line.currency,
+          })),
+          providerPaymentStatus: "pending",
+          inventoryStatus: "not_started",
+          financeEligibility: "ineligible",
+          inventorySchemaVersion: 1,
+          inventoryOperationVersion: 1,
+        }
         : {}),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -21779,7 +22389,7 @@ exports.cancelSellerOrderBeforeShipment = onCall(
               payoutSyncError?.message || String(payoutSyncError),
             needsManualReconciliation: true,
           },
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       if (rootOrderRef) {
@@ -21848,7 +22458,7 @@ exports.cancelSellerOrderBeforeShipment = onCall(
             needsManualReconciliation: true,
             errorMessage: error?.message || String(error),
           },
-        }).catch(() => {});
+        }).catch(() => { });
         logger.error("ORDER_CANCELLATION_REFUND_RECONCILIATION_REQUIRED", {
           sellerOrderId,
           error: error?.message || String(error),
@@ -22940,8 +23550,8 @@ exports.markOrderReturnShippedBack = onCall(
         authUid,
         notes || null,
         {
-        trackingNumber: safeTracking,
-        carrier: safeCarrier,
+          trackingNumber: safeTracking,
+          carrier: safeCarrier,
           sellerConfirmationDeadlineAt:
             sellerConfirmationDeadlineAt.toDate().toISOString(),
         }
@@ -29386,6 +29996,56 @@ async function createPetTaxiNotification({
   });
 }
 
+async function createPetTaxiPaymentNotificationOnce({
+  notificationId,
+  type,
+  recipientUserId,
+  senderUserId,
+  title,
+  body,
+  bookingId,
+  businessId,
+  status,
+  orderId,
+}) {
+  if (!recipientUserId) return;
+  const created = await createDeterministicNotification(notificationId, {
+    type,
+    recipientUserId,
+    senderUserId,
+    title,
+    body,
+    bookingId,
+    appointmentId: bookingId,
+    appointmentCollection: "pet_taxi_bookings",
+    businessId,
+    status,
+    orderId,
+    notificationKey: notificationId,
+    payload: {
+      type,
+      bookingId,
+      appointmentId: bookingId,
+      appointmentCollection: "pet_taxi_bookings",
+      businessId,
+      orderId,
+      recipientUserId,
+      status,
+    },
+  });
+  if (created) {
+    await sendPetTaxiPush({
+      recipientUserId,
+      type,
+      title,
+      body,
+      bookingId,
+      businessId,
+      status,
+    });
+  }
+}
+
 function petTaxiUserPushTypeForStatus(status) {
   const map = {
     awaiting_user_payment: "pet_taxi_price_proposed",
@@ -29413,6 +30073,13 @@ function hasLatLng(value) {
     typeof value.lng === "number" &&
     Number.isFinite(value.lng)
   );
+}
+
+function petTaxiClientRequestIdHash(uid, clientRequestId) {
+  return crypto
+    .createHash("sha256")
+    .update(`${uid}:${clientRequestId}`, "utf8")
+    .digest("hex");
 }
 
 exports.repairPetTaxiBusinessLocation = onCall(
@@ -29496,6 +30163,7 @@ exports.createPetTaxiBooking = onCall(
 
       const uid = request.auth.uid;
       const {
+        clientRequestId,
         businessId,
         businessName,
         petId,
@@ -29518,6 +30186,14 @@ exports.createPetTaxiBooking = onCall(
         userPhone,
         paymentMethod,
       } = request.data || {};
+
+      const normalizedClientRequestId = String(clientRequestId || "").trim();
+      if (!normalizedClientRequestId || normalizedClientRequestId.length > 128) {
+        throw new HttpsError(
+          "invalid-argument",
+          "clientRequestId is required and must be at most 128 characters."
+        );
+      }
 
       if (!businessId || !petId || !petName || !pickupAddress || !dropoffAddress || !scheduledAt || !userPhone) {
         throw new HttpsError("invalid-argument", "Missing required fields.");
@@ -29548,7 +30224,11 @@ exports.createPetTaxiBooking = onCall(
         businessData.profile?.displayName ||
         "Pet Taxi";
 
-      const docRef = await db.collection("pet_taxi_bookings").add({
+      const docRef = db.collection("pet_taxi_bookings").doc();
+      const idempotencyRef = db
+        .collection("pet_taxi_booking_requests")
+        .doc(petTaxiClientRequestIdHash(uid, normalizedClientRequestId));
+      const bookingData = {
         ...buildMarketplaceTransactionPatch({
           vertical: "pet_taxi",
           transactionId: null,
@@ -29633,41 +30313,78 @@ exports.createPetTaxiBooking = onCall(
           at: admin.firestore.FieldValue.serverTimestamp(),
           by: uid,
         },
+      };
+
+      const transactionResult = await db.runTransaction(async (transaction) => {
+        const existingRequest = await transaction.get(idempotencyRef);
+        if (existingRequest.exists) {
+          const existingData = existingRequest.data() || {};
+          if (existingData.userId !== uid || !existingData.bookingId) {
+            throw new HttpsError("failed-precondition", "Booking request identity is invalid.");
+          }
+          return {
+            bookingId: String(existingData.bookingId),
+            deduplicated: true,
+          };
+        }
+
+        transaction.create(docRef, {
+          ...bookingData,
+          marketplace: {
+            ...(bookingData.marketplace || {}),
+            transactionId: docRef.id,
+          },
+          invoice: {
+            ...(bookingData.invoice || {}),
+            transactionId: docRef.id,
+          },
+        });
+        transaction.create(idempotencyRef, {
+          userId: uid,
+          clientRequestIdHash: petTaxiClientRequestIdHash(uid, normalizedClientRequestId),
+          bookingId: docRef.id,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return {
+          bookingId: docRef.id,
+          deduplicated: false,
+        };
       });
-      await docRef.set(
-        {
-          "marketplace.transactionId": docRef.id,
-          "invoice.transactionId": docRef.id,
-        },
-        { merge: true }
-      );
+
       logger.info("🧾 MARKETPLACE TRANSACTION INIT", {
         vertical: "pet_taxi",
-        bookingId: docRef.id,
+        bookingId: transactionResult.bookingId,
         businessId,
+        deduplicated: transactionResult.deduplicated,
       });
 
-      try {
-        const businessOwnerUid = businessData.ownerUid || businessData.uid || businessId;
-        const title = "New Pet Taxi Request";
-        const body = `${petName} needs a pet taxi ride`;
+      if (!transactionResult.deduplicated) {
+        try {
+          const businessOwnerUid = businessData.ownerUid || businessData.uid || businessId;
+          const title = "New Pet Taxi Request";
+          const body = `${petName} needs a pet taxi ride`;
 
-        await createPetTaxiNotification({
-          type: "pet_taxi_booking_request",
-          recipientUserId: businessOwnerUid,
-          senderUserId: uid,
-          title,
-          body,
-          bookingId: docRef.id,
-          businessId,
-          status: "pending",
-          fallbackToken: businessData.fcmToken || null,
-        });
-      } catch (e) {
-        logger.error("❌ Pet taxi booking notification error:", e);
+          await createPetTaxiNotification({
+            type: "pet_taxi_booking_request",
+            recipientUserId: businessOwnerUid,
+            senderUserId: uid,
+            title,
+            body,
+            bookingId: transactionResult.bookingId,
+            businessId,
+            status: "pending",
+            fallbackToken: businessData.fcmToken || null,
+          });
+        } catch (e) {
+          logger.error("❌ Pet taxi booking notification error:", e);
+        }
       }
 
-      return { ok: true, bookingId: docRef.id };
+      return {
+        ok: true,
+        bookingId: transactionResult.bookingId,
+        deduplicated: transactionResult.deduplicated,
+      };
     } catch (e) {
       logger.error("❌ createPetTaxiBooking FAILED:", e);
       if (e instanceof HttpsError) throw e;
@@ -29763,6 +30480,12 @@ exports.updatePetTaxiBookingStatus = onCall(
       };
 
       if (proposingPrice) {
+        if (data.paymentOrderId || data.orderId) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Final price cannot change after payment order creation."
+          );
+        }
         const parsedFinalPrice = Number(finalPrice);
         if (!Number.isFinite(parsedFinalPrice) || parsedFinalPrice <= 0) {
           throw new HttpsError("invalid-argument", "Final price is required.");
@@ -29862,7 +30585,7 @@ exports.updatePetTaxiBookingStatus = onCall(
 exports.createPetTaxiOrder = onCall(
   {
     region: "europe-west3",
-    secrets: [IYZICO_API_KEY, IYZICO_SECRET_KEY],
+    secrets: [ISBANK_CLIENT_ID, ISBANK_STORE_KEY],
   },
   async (request) => {
     try {
@@ -29877,124 +30600,155 @@ exports.createPetTaxiOrder = onCall(
       }
 
       const bookingRef = db.collection("pet_taxi_bookings").doc(bookingId);
-      const bookingSnap = await bookingRef.get();
-      if (!bookingSnap.exists) {
-        throw new HttpsError("not-found", "Pet taxi booking not found");
-      }
+      const reservation = await db.runTransaction(async (transaction) => {
+        const bookingSnap = await transaction.get(bookingRef);
+        if (!bookingSnap.exists) {
+          throw new HttpsError("not-found", "Pet taxi booking not found");
+        }
 
-      const data = bookingSnap.data() || {};
-      if (data.userId !== uid) {
-        throw new HttpsError("permission-denied", "Only the booking owner can pay");
-      }
-      if (!["awaiting_user_payment", "payment_failed"].includes(data.status)) {
-        throw new HttpsError(
-          "failed-precondition",
-          `Payment can only be started while awaiting payment. Current status: ${data.status}`
-        );
-      }
+        const data = bookingSnap.data() || {};
+        if (data.userId !== uid) {
+          throw new HttpsError("permission-denied", "Only the booking owner can pay");
+        }
+        if (!["awaiting_user_payment", "payment_failed"].includes(data.status)) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Payment can only be started while awaiting payment. Current status: ${data.status}`
+          );
+        }
 
-      const price = Number(data.finalPrice || data.paymentAmount || 0);
-      if (!Number.isFinite(price) || price <= 0) {
-        throw new HttpsError("failed-precondition", "Invalid final price");
-      }
-      const currency = data.finalPriceCurrency || data.paymentCurrency || "TRY";
+        const price = Number(data.finalPrice);
+        if (
+          !Number.isFinite(price) ||
+          price <= 0 ||
+          Number(normalizeIsbankAmount(price)) !== price
+        ) {
+          throw new HttpsError("failed-precondition", "Invalid final price");
+        }
+        const currency = data.finalPriceCurrency || "TRY";
+        const canonicalCurrency = canonicalizeIsbankCurrency(currency);
+        if (!canonicalCurrency) {
+          throw new HttpsError("failed-precondition", "Invalid final price currency");
+        }
+
+        const existingOrderId = String(
+          data.paymentOrderId || data.orderId || ""
+        ).trim();
+        const orderRef = existingOrderId
+          ? db.collection("orders").doc(existingOrderId)
+          : db.collection("orders").doc();
+
+        if (existingOrderId) {
+          const existingOrderSnap = await transaction.get(orderRef);
+          if (!existingOrderSnap.exists) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Existing Pet Taxi payment order is unavailable"
+            );
+          }
+          const existingOrder = existingOrderSnap.data() || {};
+          const existingAmount = Number(existingOrder.pricing?.grandTotal);
+          const existingCurrency = canonicalizeIsbankCurrency(
+            existingOrder.pricing?.currency || existingOrder.currency || ""
+          );
+          if (
+            existingOrder.type !== "pet_taxi" ||
+            existingOrder.buyerUid !== uid ||
+            existingOrder.bookingId !== bookingId ||
+            existingAmount !== price ||
+            existingCurrency !== canonicalCurrency
+          ) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Existing Pet Taxi payment order does not match this booking"
+            );
+          }
+          return { data, price, canonicalCurrency, orderRef };
+        }
+
+        transaction.set(orderRef, {
+          type: "pet_taxi",
+          appointmentType: "pet_taxi",
+          appointmentCollection: "pet_taxi_bookings",
+          appointmentId: bookingId,
+          bookingId,
+          buyerUid: uid,
+          businessId: data.businessId,
+          status: "pending",
+          paymentStatus: "pending",
+          pricing: {
+            grandTotal: price,
+            currency: canonicalCurrency,
+          },
+          payment: {
+            provider: "isbank",
+            paymentProvider: "isbank",
+            storeType: "3D_PAY_HOSTING",
+            status: "pending",
+            oid: orderRef.id,
+            orderId: orderRef.id,
+          },
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        transaction.set(bookingRef, {
+          status: "awaiting_user_payment",
+          orderId: orderRef.id,
+          paymentOrderId: orderRef.id,
+          conversationId: orderRef.id,
+          paymentStatus: "pending",
+          paymentProvider: "isbank",
+          provider: "isbank",
+          storeType: "3D_PAY_HOSTING",
+          paymentAmount: price,
+          paymentCurrency: canonicalCurrency,
+          refundStatus: data.refundStatus || "none",
+          providerPayoutStatus: data.providerPayoutStatus || "not_ready",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastStatusChange: {
+            from: data.status || "awaiting_user_payment",
+            to: "awaiting_user_payment",
+            at: admin.firestore.FieldValue.serverTimestamp(),
+            by: uid,
+          },
+        }, { merge: true });
+        return { data, price, canonicalCurrency, orderRef };
+      });
+
+      const data = reservation.data;
+      const price = reservation.price;
+      const canonicalCurrency = reservation.canonicalCurrency;
+      const orderRef = reservation.orderRef;
 
       const userSnap = await db.collection("users").doc(uid).get();
       const user = userSnap.data() || {};
 
-      const buyer = {
-        id: uid,
-        name: safe(user.name || user.displayName, "User"),
-        surname: safe(user.surname, "User"),
-        gsmNumber: safe(user.phone || data.userPhone, "+905000000000"),
-        email: safe(user.email, "test@email.com"),
-        identityNumber: "11111111111",
-        registrationAddress: safe(user.address || data.pickupAddress, "Istanbul"),
-        ip: request.rawRequest?.ip || "85.34.78.112",
-        city: safe(user.city, "Istanbul"),
-        country: "Turkey",
-        zipCode: safe(user.zipCode, "34000"),
-        registrationDate: formatIyziDate(),
-        lastLoginDate: formatIyziDate(),
-      };
-
-      const address = {
-        contactName: `${buyer.name} ${buyer.surname}`,
-        city: buyer.city,
-        country: buyer.country,
-        address: buyer.registrationAddress,
-        zipCode: buyer.zipCode,
-      };
-
-      const orderRef = db.collection("orders").doc();
-      await orderRef.set({
-        type: "pet_taxi",
-        appointmentType: "pet_taxi",
-        appointmentCollection: "pet_taxi_bookings",
-        appointmentId: bookingId,
-        bookingId,
-        buyerUid: uid,
-        businessId: data.businessId,
-        status: "pending",
-        paymentStatus: "pending",
-        pricing: {
-          grandTotal: price,
-          currency,
+      const checkout = await createIsbank3DPayHostingCheckoutResult({
+        auth: request.auth,
+        data: {
+          oid: orderRef.id,
+          orderId: orderRef.id,
+          amount: price,
+          price,
+          currencyCode: ISBANK_CURRENCY_CODE.value(),
+          storeType: ISBANK_STORE_TYPE.value(),
+          installment: ISBANK_INSTALLMENT.value(),
+          lang: request.data?.lang || "tr",
+          refreshTime: request.data?.refreshTime ||
+            request.data?.refreshtime ||
+            "5",
+          billToName: `${safe(user.name || user.displayName, "User")} ${safe(user.surname, "User")}`.trim(),
         },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-
-      const iyzi = new Iyzipay({
-        apiKey: IYZICO_API_KEY.value(),
-        secretKey: IYZICO_SECRET_KEY.value(),
-        uri: "https://sandbox-api.iyzipay.com",
-      });
-
-      const result = await new Promise((resolve, reject) => {
-        iyzi.checkoutFormInitialize.create(
-          {
-            locale: Iyzipay.LOCALE.TR,
-            conversationId: orderRef.id,
-            price: price.toString(),
-            paidPrice: price.toString(),
-            currency,
-            buyer,
-            shippingAddress: address,
-            billingAddress: address,
-            basketItems: [
-              {
-                id: bookingId,
-                name: data.serviceTitle || `Pet Taxi Booking - ${data.petName || "Pet"}`,
-                category1: "Pet Taxi",
-                itemType: "VIRTUAL",
-                price: price.toString(),
-              },
-            ],
-            callbackUrl:
-              "https://barkymatches.app/payment-success?orderId=" +
-              orderRef.id,
-          },
-          (err, res) => {
-            if (err) return reject(err);
-            resolve(res);
-          }
-        );
-      });
-
-      if (!result || !result.token || !result.paymentPageUrl) {
-        logger.error("❌ INVALID PET TAXI IYZICO RESPONSE", result);
-        throw new HttpsError("internal", "Iyzi failed");
-      }
 
       await orderRef.update({
         payment: {
-          checkoutToken: result.token,
-          checkoutUrl: result.paymentPageUrl,
-          provider: "iyzico",
+          provider: "isbank",
+          paymentProvider: "isbank",
+          storeType: "3D_PAY_HOSTING",
           status: "pending",
-          currency,
-          price,
-          conversationId: orderRef.id,
+          oid: checkout.oid,
+          orderId: orderRef.id,
+          hashAlgorithm: checkout.hashAlgorithm,
         },
       });
 
@@ -30003,12 +30757,13 @@ exports.createPetTaxiOrder = onCall(
           status: "awaiting_user_payment",
           orderId: orderRef.id,
           paymentOrderId: orderRef.id,
-          checkoutToken: result.token,
           conversationId: orderRef.id,
           paymentStatus: "pending",
-          paymentProvider: "iyzico",
+          paymentProvider: "isbank",
+          provider: "isbank",
+          storeType: "3D_PAY_HOSTING",
           paymentAmount: price,
-          paymentCurrency: currency,
+          paymentCurrency: canonicalCurrency,
           refundStatus: data.refundStatus || "none",
           providerPayoutStatus: data.providerPayoutStatus || "not_ready",
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -30023,8 +30778,10 @@ exports.createPetTaxiOrder = onCall(
       );
 
       return {
+        success: true,
+        provider: "isbank",
         orderId: orderRef.id,
-        checkoutUrl: result.paymentPageUrl,
+        ...checkout,
       };
     } catch (error) {
       logger.error("❌ createPetTaxiOrder ERROR", error);
@@ -30482,6 +31239,15 @@ function appointmentCollectionForRequest(data = {}) {
 function appointmentCollectionForOrder(orderData = {}) {
   logger.info("🧪 appointmentCollectionForOrder INPUT", orderData);
 
+  if (
+    orderData.appointmentCollection === "pet_taxi_bookings" ||
+    normalizeLower(orderData.appointmentType) === "pet_taxi" ||
+    normalizeLower(orderData.type) === "pet_taxi"
+  ) {
+    logger.info("🧪 RETURN pet_taxi_bookings via explicit Pet Taxi order");
+    return "pet_taxi_bookings";
+  }
+
   if (orderData.appointmentCollection === "groomy_appointments") {
     logger.info("🧪 RETURN groomy_appointments via explicit collection");
     return "groomy_appointments";
@@ -30699,48 +31465,396 @@ exports.createAppointmentOrder = onCall(
 exports.createHotelBookingOrder = exports.createAppointmentOrder;
 
 
+exports.getAdminSubscriptionCatalog = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const database = admin.firestore();
+    await requireAdmin(database, request);
+    return { plans: ADMIN_SUBSCRIPTION_CATALOG };
+  }
+);
+
+exports.adminUpdateSubscription = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    const database = admin.firestore();
+    const adminUid = await requireAdmin(database, request);
+    const uid = String(request.data?.uid || "").trim();
+    const action = String(request.data?.action || "").trim().toLowerCase();
+    if (!uid) throw new HttpsError("invalid-argument", "uid required");
+
+    const subscriptionRef = database.collection("subscriptions").doc(uid);
+    const userRef = database.collection("users").doc(uid);
+    const result = await database.runTransaction(async (transaction) => {
+      const subscriptionSnap = await transaction.get(subscriptionRef);
+      const userSnap = await transaction.get(userRef);
+      const current = subscriptionSnap.exists ? subscriptionSnap.data() || {} : {};
+      const now = new Date();
+      let next;
+      try {
+        const currentAdmin = current.sources?.admin_grant ||
+          (current.source === "admin_grant" ? current : {});
+        next = applyAdminAction({uid, action, current: currentAdmin, now});
+      } catch (error) {
+        throw new HttpsError("invalid-argument", String(error.message || error));
+      }
+
+      next.status = normalizeSubscriptionStatus(next.status);
+      next.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+      const effective = buildEffectiveSubscription({
+        current,
+        sourceUpdates: {admin_grant: next},
+        now: now,
+      });
+      const canonical = {
+        ...effective,
+        userId: uid,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      const userEntitlements = userMirrorFromEffective(effective, now);
+      transaction.set(subscriptionRef, canonical, { merge: true });
+      transaction.set(userRef, userEntitlements, { merge: true });
+      return {
+        uid,
+        adminUid,
+        plan: userEntitlements.subscriptionPlan,
+        status: userEntitlements.subscriptionStatus,
+        isPremium: userEntitlements.isPremium,
+        userExisted: userSnap.exists,
+      };
+    });
+    return result;
+  }
+);
+
+
 exports.activateSubscription = onCall(
   {
     region: "europe-west3",
+    secrets: [
+      APPLE_IAP_ISSUER_ID,
+      APPLE_IAP_KEY_ID,
+      APPLE_IAP_PRIVATE_KEY,
+      APPLE_ROOT_CA_BUNDLE,
+    ],
   },
   async (request) => {
-    const uid = request.auth?.uid;
-
-    if (!uid) {
-      throw new HttpsError("unauthenticated", "User not logged in");
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Login required");
     }
 
-    const { plan, productId } = request.data;
+    const data = request.data || {};
+    const store = String(data.store || "").trim();
+    const uid = request.auth.uid;
+    let verified;
 
-    if (!plan) {
-      throw new HttpsError("invalid-argument", "Missing plan");
-    }
+    try {
+      if (store === "app_store") {
+        // productId, plan, price, currency, and expiration from the client are
+        // deliberately ignored. Apple derives all entitlement fields.
+        const verificationData = String(data.verificationData || "");
+        console.info("APPLE_IAP_ACTIVATION_INPUT", {
+          uid,
+          productIdReceived: String(data.productIdHint || "") || null,
+          transactionId: String(data.purchaseId || "") || null,
+          verificationPayloadPresent: Boolean(verificationData),
+          verificationPayloadLength: verificationData.length,
+          verificationPayloadFormat: verificationData.split(".").length === 3
+            ? "jws"
+            : verificationData ? "legacy-or-unknown" : "missing",
+          environment: APPLE_IAP_ENVIRONMENT.value(),
+        });
+        verified = await verifyApplePurchase({
+          transactionId: data.purchaseId,
+          verificationData,
+          productIdHint: data.productIdHint,
+          config: {
+            issuerId: APPLE_IAP_ISSUER_ID.value(),
+            keyId: APPLE_IAP_KEY_ID.value(),
+            privateKey: APPLE_IAP_PRIVATE_KEY.value(),
+            rootCertificates: APPLE_ROOT_CA_BUNDLE.value(),
+            environment: APPLE_IAP_ENVIRONMENT.value(),
+            bundleId: APPLE_BUNDLE_ID.value(),
+            appAppleId: APPLE_APP_ID.value(),
+          },
+        });
+        if (
+          verified.appAccountToken &&
+          verified.appAccountToken !== accountBindingToken(uid)
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "This Apple purchase is linked to another account"
+          );
+        }
+      } else {
+        throw new HttpsError(
+          "failed-precondition",
+          "Google Play uses the activateGoogleSubscription function"
+        );
+      }
 
-    await admin.firestore()
-      .collection("subscriptions")
-      .doc(uid)
-      .set({
-        plan,
-        status: "active",
-        userId: uid,
-        startedAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        productId,
+      const result = await synchronizeMobileEntitlement({
+        db: admin.firestore(),
+        uid,
+        verified,
       });
 
-    await admin.firestore()
-      .collection("users")
-      .doc(uid)
-      .update({
-        subscription: {
-          plan,
-          status: "active",
-          productId,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      return result;
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error?.code === "purchase-already-owned") {
+        throw new HttpsError(
+          "permission-denied",
+          "This store purchase is already linked to another account"
+        );
+      }
+      console.error("Mobile subscription verification failed", {
+        uid,
+        store,
+        error: error?.message || String(error),
+      });
+      throw new HttpsError(
+        "failed-precondition",
+        "Mobile subscription verification failed"
+      );
+    }
+  }
+);
+
+// Google Play activation is deliberately isolated from the Apple callable so
+// an Apple-only deployment does not require Google credentials. The client
+// must select this callable for Google purchases; verification, ownership, and
+// entitlement synchronization remain identical to the Apple path.
+exports.activateGoogleSubscription = onCall(
+  {
+    region: "europe-west3",
+    secrets: [GOOGLE_PLAY_SERVICE_ACCOUNT_JSON],
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+
+    const uid = request.auth.uid;
+    try {
+      const verified = await verifyGooglePurchase({
+        purchaseToken: request.data?.verificationData,
+        config: {
+          packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+          serviceAccountJson: process.env[GOOGLE_PLAY_SERVICE_ACCOUNT_JSON],
         },
       });
+      const expectedAccountBinding = accountBindingToken(uid);
+      if (
+        verified.obfuscatedExternalAccountId &&
+        verified.obfuscatedExternalAccountId !== expectedAccountBinding
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "This Google Play purchase is linked to another account"
+        );
+      }
 
-    return { success: true };
+      const result = await synchronizeMobileEntitlement({
+        db: admin.firestore(),
+        uid,
+        verified,
+      });
+
+      let acknowledgementPending = false;
+      if (
+        verified.status === "active" &&
+        verified.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING"
+      ) {
+        try {
+          await acknowledgeGooglePurchase({
+            purchaseToken: verified.purchaseToken,
+            config: {
+              packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+              productId: verified.productId,
+              serviceAccountJson: process.env[GOOGLE_PLAY_SERVICE_ACCOUNT_JSON],
+            },
+          });
+        } catch (error) {
+          acknowledgementPending = true;
+          console.error("Google subscription acknowledgement failed", error);
+        }
+      }
+      return {...result, acknowledgementPending};
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      if (error?.code === "purchase-already-owned") {
+        throw new HttpsError(
+          "permission-denied",
+          "This store purchase is already linked to another account"
+        );
+      }
+      console.error("Google subscription verification failed", {
+        uid,
+        error: error?.message || String(error),
+      });
+      throw new HttpsError(
+        "failed-precondition",
+        "Google Play subscription verification is not configured or failed"
+      );
+    }
+  }
+);
+
+exports.appleSubscriptionNotifications = onRequest(
+  {
+    region: "europe-west3",
+    secrets: [
+      APPLE_IAP_ISSUER_ID,
+      APPLE_IAP_KEY_ID,
+      APPLE_IAP_PRIVATE_KEY,
+      APPLE_ROOT_CA_BUNDLE,
+    ],
+  },
+  async (request, response) => {
+    try {
+      const signedPayload = String(request.body?.signedPayload || "");
+      console.info("APPLE_IAP_NOTIFICATION_INPUT", {
+        environment: APPLE_IAP_ENVIRONMENT.value(),
+        signedPayloadPresent: Boolean(signedPayload),
+        signedPayloadLength: signedPayload.length,
+      });
+      const result = await handleAppleNotification({
+        db: admin.firestore(),
+        signedPayload,
+        config: {
+          issuerId: APPLE_IAP_ISSUER_ID.value(),
+          keyId: APPLE_IAP_KEY_ID.value(),
+          privateKey: APPLE_IAP_PRIVATE_KEY.value(),
+          rootCertificates: APPLE_ROOT_CA_BUNDLE.value(),
+          environment: APPLE_IAP_ENVIRONMENT.value(),
+          bundleId: APPLE_BUNDLE_ID.value(),
+          appAppleId: APPLE_APP_ID.value(),
+        },
+      });
+      return response.status(200).json(result);
+    } catch (error) {
+      console.error("Apple subscription notification failed", error);
+      return response.status(500).json({error: "notification processing failed"});
+    }
+  }
+);
+
+exports.googlePlaySubscriptionNotifications = onMessagePublished(
+  {
+    topic: "google-play-subscriptions",
+    region: "europe-west3",
+    secrets: [GOOGLE_PLAY_SERVICE_ACCOUNT_JSON],
+  },
+  async (event) => {
+    try {
+      const result = await handleGoogleNotification({
+        db: admin.firestore(),
+        requestBody: {
+          message: {
+            data: event.data.message.data,
+          },
+        },
+        config: {
+          packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+          serviceAccountJson: process.env[GOOGLE_PLAY_SERVICE_ACCOUNT_JSON],
+        },
+      });
+      console.log("Google subscription notification processed", result);
+      return result;
+    } catch (error) {
+      console.error("Google subscription notification failed", error);
+      throw error;
+    }
+  }
+);
+
+exports.reconcileMobileSubscriptions = onSchedule(
+  {
+    schedule: "every 6 hours",
+    region: "europe-west3",
+    secrets: [
+      APPLE_IAP_ISSUER_ID,
+      APPLE_IAP_KEY_ID,
+      APPLE_IAP_PRIVATE_KEY,
+      APPLE_ROOT_CA_BUNDLE,
+    ],
+  },
+  async () => {
+    const database = admin.firestore();
+    const config = {
+      issuerId: APPLE_IAP_ISSUER_ID.value(),
+      keyId: APPLE_IAP_KEY_ID.value(),
+      privateKey: APPLE_IAP_PRIVATE_KEY.value(),
+      rootCertificates: APPLE_ROOT_CA_BUNDLE.value(),
+      environment: APPLE_IAP_ENVIRONMENT.value(),
+      bundleId: APPLE_BUNDLE_ID.value(),
+      appAppleId: APPLE_APP_ID.value(),
+    };
+    let processed = 0;
+    const snapshot = await database.collection("mobileSubscriptionPurchases")
+      .where("store", "==", "app_store")
+      .limit(200)
+      .get();
+    for (const purchase of snapshot.docs) {
+      try {
+        await reconcileMobilePurchase({
+          db: database,
+          ownership: {id: purchase.id, ...purchase.data()},
+          configs: {apple: config},
+        });
+        processed += 1;
+      } catch (error) {
+        console.error("Apple subscription reconciliation failed", {
+          purchaseId: purchase.id,
+          error: error?.message || String(error),
+        });
+      }
+    }
+    return {
+      processed,
+      googlePlay: {
+        status: "deferred",
+        reason: "Google reconciliation is handled by activateGoogleSubscription credentials",
+      },
+    };
+  }
+);
+
+exports.reconcileGoogleSubscriptions = onSchedule(
+  {
+    schedule: "every 6 hours",
+    region: "europe-west3",
+    secrets: [GOOGLE_PLAY_SERVICE_ACCOUNT_JSON],
+  },
+  async () => {
+    const database = admin.firestore();
+    const config = {
+      packageName: GOOGLE_PLAY_PACKAGE_NAME.value(),
+      serviceAccountJson: process.env[GOOGLE_PLAY_SERVICE_ACCOUNT_JSON],
+    };
+    const snapshot = await database.collection("mobileSubscriptionPurchases")
+      .where("store", "==", "google_play")
+      .limit(200)
+      .get();
+    let processed = 0;
+    for (const purchase of snapshot.docs) {
+      try {
+        await reconcileMobilePurchase({
+          db: database,
+          ownership: {id: purchase.id, ...purchase.data()},
+          configs: {google: config},
+        });
+        processed += 1;
+      } catch (error) {
+        console.error("Google subscription reconciliation failed", {
+          purchaseId: purchase.id,
+          error: error?.message || String(error),
+        });
+      }
+    }
+    return {processed};
   }
 );
 

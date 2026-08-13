@@ -43,20 +43,42 @@ class UserSubscription {
       return UserSubscription.normal();
     }
 
-    final plan = SubscriptionPlan.fromString(data['plan'] as String?);
+    final topLevelPlan = SubscriptionPlan.fromString(data['plan'] as String?);
+    final topLevelStatus = SubscriptionStatus.fromString(
+      data['status'] as String?,
+    );
+    final mobileData = data['mobile'];
+    final mobile = mobileData is Map
+        ? Map<String, dynamic>.from(mobileData)
+        : null;
 
-    final status = SubscriptionStatus.fromString(data['status'] as String?);
+    // The canonical subscription document keeps store-specific provenance in
+    // `mobile`. When the effective top-level record is free/normal, preserve a
+    // mobile terminal status instead of falling back to the default active
+    // status. A paid top-level source remains authoritative when present.
+    final useMobileProjection =
+        !topLevelPlan.isPaid && mobile != null && mobile.isNotEmpty;
+    final projection = useMobileProjection ? mobile : data;
+    final mobileStatus = useMobileProjection
+        ? SubscriptionStatus.fromString(mobile['status'] as String?)
+        : topLevelStatus;
+    final plan = useMobileProjection && mobileStatus.isInactive
+        ? SubscriptionPlan.normal
+        : SubscriptionPlan.fromString(projection['plan'] as String?);
+    final status = mobileStatus;
 
-    final source = SubscriptionSource.fromString(data['source'] as String?);
+    final source = SubscriptionSource.fromString(
+      projection['source'] as String?,
+    );
 
     return UserSubscription(
       plan: plan,
       status: status,
-      startedAt: _parseTimestamp(data['startedAt']),
-      expiresAt: _parseTimestamp(data['expiresAt']),
-      autoRenew: data['autoRenew'] ?? false,
+      startedAt: _parseTimestamp(projection['startedAt']),
+      expiresAt: _parseTimestamp(projection['expiresAt']),
+      autoRenew: projection['autoRenew'] ?? false,
       source: source,
-      lastUpdatedAt: _parseTimestamp(data['lastUpdatedAt']),
+      lastUpdatedAt: _parseTimestamp(projection['lastUpdatedAt']),
     );
   }
 
@@ -91,6 +113,20 @@ class UserSubscription {
   /// Subscription active state
   bool get isActive {
     return status == SubscriptionStatus.active;
+  }
+
+  /// Paid access is valid only while the server-provided expiry is in the
+  /// future. Legacy paid records without an expiry fail closed; free records
+  /// remain represented by the normal active subscription.
+  bool get hasValidPaidAccess {
+    if (!plan.isPaid) return false;
+    if (status != SubscriptionStatus.active &&
+        status != SubscriptionStatus.gracePeriod &&
+        status != SubscriptionStatus.canceled) {
+      return false;
+    }
+    final expiry = expiresAt;
+    return expiry != null && expiry.isAfter(DateTime.now());
   }
 
   /// Premium plan

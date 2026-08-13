@@ -30,8 +30,6 @@ class PetStoryService {
               .toList();
           stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-          debugPrint('📚 Petplore active stories count: ${stories.length}');
-
           return stories;
         });
   }
@@ -48,8 +46,6 @@ class PetStoryService {
     final storyRef = _stories.doc();
     final storyId = storyRef.id;
     final safeMediaType = mediaType.trim().isEmpty ? 'image' : mediaType.trim();
-
-    debugPrint('📤 Petplore story upload start: storyId=$storyId');
 
     try {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
@@ -71,7 +67,6 @@ class PetStoryService {
       final metadata = SettableMetadata(contentType: 'image/jpeg');
 
       final bytes = await file.readAsBytes();
-      debugPrint('📦 STORY FILE SIZE = ${bytes.length}');
 
       if (kIsWeb) {
         await ref.putData(bytes, metadata);
@@ -95,10 +90,7 @@ class PetStoryService {
         'replyCount': 0,
         'shareCount': 0,
       });
-
-      debugPrint('✅ Petplore story upload success: storyId=$storyId');
     } catch (e) {
-      debugPrint('❌ Petplore story upload error: $e');
       rethrow;
     }
   }

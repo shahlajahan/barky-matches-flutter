@@ -32,6 +32,10 @@
   "cartIsEmpty": "Cart is empty",
   "totalLabel": "Total",
   "checkoutButton": "Checkout",
+  "marketplaceDisclaimerTitle": "Before you continue",
+  "marketplaceDisclaimerMessage": "PetSupo is a platform that connects you with independent businesses and service providers. The selected service is provided by the business or provider shown. PetSupo does not guarantee or assume responsibility for the quality or execution of that independent service. Please review the business or provider information before continuing.",
+  "marketplaceDisclaimerAccept": "Accept & Continue",
+  "marketplaceDisclaimerCancel": "Cancel",
   "checkoutStepAddressTitle": "Address",
   "checkoutStepPaymentTitle": "Payment",
   "checkoutStepConfirmTitle": "Confirm",
@@ -418,8 +422,17 @@
   "emailVerifiedSuccessfully": "Email verified successfully",
   "@emailVerifiedSuccessfully": { "description": "Success message after email verification" },
 
-  "invalidVerificationCode": "Invalid verification code",
+  "invalidVerificationCode": "Invalid verification code. Please try again.",
   "@invalidVerificationCode": { "description": "Error message for invalid verification code" },
+
+  "verificationCodeExpired": "This code has expired. Request a new code.",
+  "unableToVerifyEmail": "Unable to verify right now. Please try again.",
+  "unableToSendVerificationCode": "Unable to send a new code right now. Please try again.",
+  "verificationCodeSentTo": "Code sent to: {email}",
+  "verificationCodeSentToLabel": "Verification code sent to",
+  "sendingVerificationCode": "Sending...",
+  "resendCodeAvailableIn": "Resend code available in {seconds}s",
+  "changeEmail": "Change email",
 
   "verificationCodeSent": "A verification code has been sent to {email}",
   "@verificationCodeSent": { "description": "Success message for sending verification code", "placeholders": { "email": {} } },
@@ -2528,6 +2541,10 @@
   "processingLabel": "Processing...",
   "restoreRequestSent": "Restore request sent.",
   "restorePurchases": "Restore Purchases",
+  "mobileSubscriptionVerificationFailed": "We couldn't verify the subscription yet. Please try Restore Purchases again.",
+  "mobileSubscriptionOwnershipConflict": "This subscription is linked to another Petsupo account. Please sign in to the account originally used for this subscription.",
+  "deleteAccountStoreSubscriptionNotice": "Deleting your PetSupo account does not cancel Apple App Store or Google Play subscriptions. Cancel store billing separately before deleting your account.",
+  "manageStoreSubscription": "Manage store subscription",
   "upgradePaymentTerms": "Your payment will be charged to your App Store account at confirmation. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period.",
   "autoRenewableMonthlySubscription": "Auto-renewable monthly subscription",
   "securePaymentNotice": "Secure payment • Cancel anytime • Plans are managed by the App Store",
@@ -3579,6 +3596,8 @@
 ,"sendPrice": "Send Price"
 ,"petTaxiOverview": "Pet Taxi Overview"
 ,"driverOnline": "Driver Online"
+,"petTaxiAwaitingActivation": "Pet Taxi is awaiting activation."
+,"petTaxiAvailabilityUpdateFailed": "Could not update Driver Online status. Please try again."
 ,"serviceDetailsSaveFailed": "Service details could not be saved."
 ,"priceDeterminedAfterExamination": "Leave empty if the final price is determined after examination."
 ,"editing": "Editing"
@@ -3765,6 +3784,13 @@
 ,"amenities": "Amenities"
 ,"petTaxiDetails": "Pet Taxi Details"
 ,"petTaxiManualReviewNotice": "Your Pet Taxi application will not be published until documents are manually reviewed and approved."
+,"petTaxiReplacementExpiryDateDriverLicense": "New driver license expiry date"
+,"petTaxiReplacementExpiryDateTrafficInsurance": "New traffic insurance expiry date"
+,"petTaxiReplacementExpiryRequired": "Select a valid future expiry date before submitting this replacement."
+,"petTaxiReplacementSubmitted": "Replacement submitted for review."
+,"petTaxiDocumentsRequiringReplacement": "Documents requiring replacement"
+,"petTaxiRejected": "Rejected"
+,"petTaxiReplaceDocument": "Replace"
 ,"transportationLawNotice": "Transportation laws may vary by city/country. Businesses are responsible for complying with local transportation, insurance, and tax regulations."
 ,"legalDocumentsPrivacyNotice": "Legal documents are stored for business owner and admin review only. They are not shown to public users."
 ,"savePetTaxiDetails": "Save Pet Taxi Details"
@@ -4179,6 +4205,8 @@
 ,"estimatedPrice": "Estimated Price"
 ,"routeEstimateNeeded": "Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate."
 ,"routeEstimateDetail": "{distance} km driving route • {duration} min. Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider."
+,"petTaxiRouteUnavailable": "No drivable route could be found between the selected locations. Please check the pickup and destination."
+,"routeEstimateUnavailable": "The route estimate is currently unavailable. Please check the selected locations and try again."
 ,"createPetTaxiBooking": "Create pet taxi booking"
 ,"creatingBooking": "Creating booking..."
 ,"petTaxiTitle": "Pet Taxi"
@@ -4391,4 +4419,87 @@
 ,"promotionTargetProduct": "Product"
 ,"promotionTargetVetService": "Vet service"
 ,"promotionTargetGroomyService": "Groomy service"
+,"petTaxiDocumentTaxPlate": "Tax plate"
+,"petTaxiDocumentBusinessRegistration": "Business registration"
+,"petTaxiDocumentVehicleRegistration": "Vehicle registration"
+,"petTaxiDocumentDriverLicense": "Driver license"
+,"petTaxiDocumentTrafficInsurance": "Traffic insurance"
+,"petTaxiDocumentStatusPendingReview": "Pending review"
+,"petTaxiDocumentStatusApproved": "Approved"
+,"petTaxiDocumentStatusRejected": "Rejected"
+,"petTaxiDocumentStatusMissing": "Missing"
+,"petTaxiDocumentExpired": "Expired"
+,"petTaxiDocumentExpiryDate": "Expiry date: {date}"
+,"petTaxiDocumentExpiredMessage": "This document has expired. Reject it and ask the business to upload a valid replacement."
+,"petTaxiRejectDocumentTitle": "Reject {document}"
+,"petTaxiAdminErrorPermissionDenied": "You do not have permission to perform this action."
+,"petTaxiAdminErrorUnauthenticated": "Your session has expired. Please sign in again."
+,"petTaxiAdminErrorNotFound": "The business or document could not be found."
+,"petTaxiAdminErrorInvalidArgument": "Please review the document details and try again."
+,"petTaxiAdminErrorAlreadyExists": "This action has already been completed."
+,"petTaxiAdminErrorFailedPrecondition": "This action cannot be completed in the current document state."
+,"petTaxiAdminErrorGeneric": "The action could not be completed. Please try again."
+,"petTaxiAdminActionCompleted": "Document updated"
+,"petTaxiUploadDocument": "Upload document"
+,"petTaxiTakePhoto": "Take photo"
+,"petTaxiChoosePhoto": "Choose photo"
+,"petTaxiChoosePdf": "Choose PDF"
+,"petTaxiSupportedDocumentFormats": "PDF, JPG or PNG (up to 25 MB)"
+,"petTaxiUnsupportedDocumentFormat": "Choose a PDF, JPG or PNG document."
+,"petTaxiDocumentTooLarge": "This document is larger than 25 MB."
+,"petTaxiDocumentUploadFailed": "Document upload failed. Please try again."
+,"petTaxiOpenDocumentFailed": "Could not open this document."
+,"businessRegisterOptional": "Optional"
+,"businessRegisterTaxPlateRequired": "Tax plate must be uploaded."
+,"businessRegisterMersisNumberRequired": "MERSIS number is required."
+,"businessRegisterPhoneOptional": "Phone (optional)"
+,"businessRegisterWhatsApp": "WhatsApp"
+,"businessRegisterDetectLocationTitle": "Detect your business location"
+,"businessRegisterDetectLocationMessage": "We use your location to detect your city and district."
+,"petTaxiDocumentPermissionDenied": "Camera or photo access was denied. You can choose a photo or PDF instead."
+,"petTaxiRequiredDocuments": "Required documents"
+,"petTaxiRequiredDocumentsSubtitle": "Documents required for manual admin review"
+,"petTaxiOptionalDocuments": "Optional / conditional documents"
+,"petTaxiOptionalDocumentsSubtitle": "Upload these if they apply to your service"
+,"petTaxiComplianceTitle": "Compliance & legal confirmations"
+,"petTaxiComplianceSubtitle": "Required confirmations before submitting"
+,"petTaxiPetSafetyEquipmentConfirmation": "Pet safety equipment is available in the vehicle."
+,"petTaxiHygieneConfirmation": "Hygiene and sanitation requirements are confirmed."
+,"petTaxiDriverLicenseConfirmation": "I confirm the driver license is valid."
+,"petTaxiVehicleRegistrationConfirmation": "I confirm the vehicle registration belongs to the service vehicle."
+,"petTaxiTrafficInsuranceConfirmation": "I confirm traffic insurance is active."
+,"petTaxiTaxResponsibilityConfirmation": "I confirm tax obligations and invoice or receipt responsibilities belong to my business."
+,"petTaxiTransportRulesConfirmation": "I confirm I comply with city and country transportation rules."
+,"petTaxiComplianceNotes": "Compliance notes for admin review"
+,"petTaxiOptionalIfApplicable": "Optional / if applicable"
+,"petTaxiDocumentRequired": "{document} is required"
+,"petTaxiDateRequired": "{date} is required"
+,"petTaxiDateCannotBePast": "{date} cannot be in the past"
+,"petTaxiDocumentNumber": "Document number"
+,"petTaxiDocumentNumberOptional": "Document number (optional)"
+,"petTaxiDocumentNumberRequired": "Document number is required"
+,"petTaxiVehicleRegistrationIssueDate": "Vehicle registration issue date"
+,"petTaxiDriverLicenseExpiryDate": "Driver license expiry date"
+,"petTaxiTrafficInsuranceExpiryDate": "Traffic insurance expiry date"
+,"petTaxiSrcCertificateExpiryDate": "SRC certificate expiry date"
+,"petTaxiPsychotechnicalExpiryDate": "Psychotechnical report expiry date"
+,"petTaxiKaskoExpiryDate": "Comprehensive insurance expiry date"
+,"petTaxiValidTurkishPlate": "Enter a valid Turkish vehicle plate."
+,"petTaxiRequiredDocumentsMissing": "Upload all required Pet Taxi documents."
+,"petTaxiComplianceConfirmationsMissing": "Confirm all required compliance statements."
+,"petTaxiValidPhoneNumber": "Enter a valid phone number."
+,"petTaxiValidCapacity": "Enter a valid vehicle capacity."
+,"petTaxiCapacityMinimum": "Vehicle capacity must be at least 1."
+,"petTaxiCapacityMaximum": "Vehicle capacity cannot be greater than 15."
+,"petTaxiSelectVehicleType": "Select a vehicle type."
+,"petTaxiDriverFullName": "Driver full name"
+,"petTaxiDriverPhoneNumber": "Driver phone number"
+,"petTaxiVehiclePlateNumber": "Vehicle plate number"
+,"petTaxiVehicleCapacity": "Vehicle capacity"
+,"petTaxiVehicleSedan": "Sedan"
+,"petTaxiVehicleHatchback": "Hatchback"
+,"petTaxiVehicleSuv": "SUV"
+,"petTaxiVehicleVan": "Van"
+,"petTaxiVehiclePetTransportVan": "Pet transport van"
+,"petTaxiVehicleLargeAnimalTransport": "Large animal transport"
 }

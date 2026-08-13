@@ -211,6 +211,15 @@ class _PetTaxiBottomSheetState extends State<PetTaxiBottomSheet> {
 
                     if (!context.mounted) return;
 
+                    if (business == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.petTaxiScheduleUnavailable),
+                        ),
+                      );
+                      return;
+                    }
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(

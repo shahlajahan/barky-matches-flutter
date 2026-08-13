@@ -180,7 +180,9 @@ class _AdoptionCenterDashboardOverviewTabState
                           const SizedBox(height: 4),
 
                           Text(
-                            AppLocalizations.of(context)!.latestAdoptionApplications,
+                            AppLocalizations.of(
+                              context,
+                            )!.latestAdoptionApplications,
 
                             style: AppTheme.caption(color: AppTheme.muted),
                           ),
@@ -318,7 +320,7 @@ class _AdoptionCenterDashboardOverviewTabState
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
 
       decoration: BoxDecoration(
-        color: const Color(0xFF9E1B4F).withOpacity(0.08),
+        color: const Color(0xFF9E1B4F).withValues(alpha: 0.08),
 
         borderRadius: BorderRadius.circular(10),
       ),
@@ -377,7 +379,12 @@ class _AdoptionRequestItemState extends State<_AdoptionRequestItem> {
 
     final targetId = (widget.data['targetId'] ?? '').toString();
 
-    debugPrint('🐾 REQUEST DATA = ${widget.data}');
+    debugPrint(
+      '🐾 REQUEST DATA SUMMARY '
+      'requesterId=$requesterId '
+      'targetId=$targetId '
+      'status=$status',
+    );
 
     debugPrint('🐾 REQUESTER ID = $requesterId');
 
@@ -479,7 +486,7 @@ class _AdoptionRequestItemState extends State<_AdoptionRequestItem> {
               borderRadius: BorderRadius.circular(18),
 
               border: Border.all(
-                color: const Color(0xFF9E1B4F).withOpacity(.10),
+                color: const Color(0xFF9E1B4F).withValues(alpha: .10),
               ),
 
               boxShadow: AppTheme.cardShadow(opacity: .06),
@@ -499,7 +506,7 @@ class _AdoptionRequestItemState extends State<_AdoptionRequestItem> {
                         height: 44,
 
                         decoration: BoxDecoration(
-                          color: const Color(0xFF9E1B4F).withOpacity(.08),
+                          color: const Color(0xFF9E1B4F).withValues(alpha: .08),
 
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -603,7 +610,7 @@ class _AdoptionRequestItemState extends State<_AdoptionRequestItem> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
 
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
 
         borderRadius: BorderRadius.circular(999),
       ),
@@ -658,7 +665,9 @@ class _KpiCard extends StatelessWidget {
 
           borderRadius: BorderRadius.circular(16),
 
-          border: Border.all(color: const Color(0xFF9E1B4F).withOpacity(0.15)),
+          border: Border.all(
+            color: const Color(0xFF9E1B4F).withValues(alpha: 0.15),
+          ),
         ),
 
         child: Column(

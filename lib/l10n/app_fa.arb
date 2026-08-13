@@ -32,6 +32,10 @@
   "cartIsEmpty": "سبد خالی است",
   "totalLabel": "مجموع",
   "checkoutButton": "پرداخت",
+  "marketplaceDisclaimerTitle": "پیش از ادامه",
+  "marketplaceDisclaimerMessage": "پت‌سوپو پلتفرمی است که شما را به کسب‌وکارها و ارائه‌دهندگان مستقل خدمات متصل می‌کند. خدمت انتخاب‌شده توسط کسب‌وکار یا ارائه‌دهنده نمایش‌داده‌شده ارائه می‌شود. پت‌سوپو کیفیت یا اجرای این خدمت مستقل را تضمین نمی‌کند و مسئولیتی در قبال آن ندارد. لطفاً پیش از ادامه اطلاعات کسب‌وکار یا ارائه‌دهنده را بررسی کنید.",
+  "marketplaceDisclaimerAccept": "پذیرش و ادامه",
+  "marketplaceDisclaimerCancel": "لغو",
   "checkoutStepAddressTitle": "آدرس",
   "checkoutStepPaymentTitle": "پرداخت",
   "checkoutStepConfirmTitle": "تأیید",
@@ -418,11 +422,20 @@
   "emailVerifiedSuccessfully": "ایمیل با موفقیت تأیید شد",
   "@emailVerifiedSuccessfully": { "description": "پیام موفقیت پس از تأیید ایمیل" },
 
-  "invalidVerificationCode": "کد تأیید نامعتبر است",
+  "invalidVerificationCode": "کد تأیید نامعتبر است. لطفاً دوباره تلاش کنید.",
   "@invalidVerificationCode": { "description": "پیام خطا برای کد تأیید نامعتبر" },
 
   "verificationCodeSent": "کد تأیید به {email} ارسال شد",
   "@verificationCodeSent": { "description": "پیام موفقیت برای ارسال کد تأیید", "placeholders": { "email": {} } },
+
+  "verificationCodeExpired": "این کد منقضی شده است. یک کد جدید درخواست کنید.",
+  "unableToVerifyEmail": "در حال حاضر امکان تأیید وجود ندارد. لطفاً دوباره تلاش کنید.",
+  "unableToSendVerificationCode": "در حال حاضر امکان ارسال کد جدید وجود ندارد. لطفاً دوباره تلاش کنید.",
+  "verificationCodeSentTo": "کد به این آدرس ارسال شد: {email}",
+  "verificationCodeSentToLabel": "کد تأیید به این آدرس ارسال شد",
+  "sendingVerificationCode": "در حال ارسال...",
+  "resendCodeAvailableIn": "ارسال مجدد کد تا {seconds} ثانیه دیگر در دسترس است",
+  "changeEmail": "تغییر ایمیل",
 
   "enterCodeLabel": "کد ۶ رقمی را وارد کنید",
   "@enterCodeLabel": { "description": "برچسب برای ورودی کد تأیید" },
@@ -2535,6 +2548,10 @@
   "processingLabel": "در حال پردازش...",
   "restoreRequestSent": "درخواست بازیابی ارسال شد.",
   "restorePurchases": "بازیابی خریدها",
+  "mobileSubscriptionVerificationFailed": "تأیید اشتراک انجام نشد. لطفاً بازیابی خریدها را دوباره امتحان کنید.",
+  "mobileSubscriptionOwnershipConflict": "این اشتراک به حساب دیگری در Petsupo متصل است. لطفاً با حسابی که قبلاً برای این اشتراک استفاده کرده‌اید وارد شوید.",
+  "deleteAccountStoreSubscriptionNotice": "حذف حساب PetSupo اشتراک App Store یا Google Play را لغو نمی‌کند. پیش از حذف حساب، پرداخت فروشگاه را جداگانه لغو کنید.",
+  "manageStoreSubscription": "مدیریت اشتراک فروشگاه",
   "upgradePaymentTerms": "پرداخت شما هنگام تأیید از حساب App Store شما کسر می‌شود. اشتراک‌ها به‌صورت خودکار تمدید می‌شوند مگر اینکه حداقل 24 ساعت قبل از پایان دوره فعلی لغو شوند.",
   "autoRenewableMonthlySubscription": "اشتراک ماهانه با تمدید خودکار",
   "securePaymentNotice": "پرداخت امن • هر زمان خواستید لغو کنید • برنامه‌ها توسط App Store مدیریت می‌شوند",
@@ -3586,6 +3603,8 @@
 ,"sendPrice": "ارسال قیمت"
 ,"petTaxiOverview": "نمای کلی تاکسی حیوانات"
 ,"driverOnline": "راننده آنلاین"
+,"petTaxiAwaitingActivation": "تاکسی حیوانات در انتظار فعال‌سازی است."
+,"petTaxiAvailabilityUpdateFailed": "وضعیت آنلاین بودن راننده به‌روزرسانی نشد. لطفاً دوباره تلاش کنید."
 ,"serviceDetailsSaveFailed": "جزئیات خدمت ذخیره نشد."
 ,"priceDeterminedAfterExamination": "اگر قیمت نهایی پس از معاینه تعیین می‌شود، خالی بگذارید."
 ,"editing": "در حال ویرایش"
@@ -3754,6 +3773,13 @@
 ,"amenities": "امکانات"
 ,"petTaxiDetails": "جزئیات تاکسی حیوانات"
 ,"petTaxiManualReviewNotice": "درخواست تاکسی حیوانات شما تا بررسی و تأیید دستی مدارک منتشر نمی‌شود."
+,"petTaxiReplacementExpiryDateDriverLicense": "تاریخ انقضای جدید گواهینامه رانندگی"
+,"petTaxiReplacementExpiryDateTrafficInsurance": "تاریخ انقضای جدید بیمه شخص ثالث"
+,"petTaxiReplacementExpiryRequired": "پیش از ارسال جایگزین، یک تاریخ معتبر در آینده انتخاب کنید."
+,"petTaxiReplacementSubmitted": "جایگزین برای بررسی ارسال شد."
+,"petTaxiDocumentsRequiringReplacement": "مدارک نیازمند جایگزینی"
+,"petTaxiRejected": "رد شده"
+,"petTaxiReplaceDocument": "جایگزینی"
 ,"transportationLawNotice": "قوانین حمل‌ونقل ممکن است بر اساس شهر یا کشور متفاوت باشد. کسب‌وکارها مسئول رعایت مقررات محلی حمل‌ونقل، بیمه و مالیات هستند."
 ,"legalDocumentsPrivacyNotice": "مدارک قانونی فقط برای بررسی صاحب کسب‌وکار و مدیر نگهداری می‌شوند و به کاربران عمومی نمایش داده نمی‌شوند."
 ,"savePetTaxiDetails": "ذخیره جزئیات تاکسی حیوانات"
@@ -4166,6 +4192,8 @@
 ,"estimatedPrice": "Estimated Price"
 ,"routeEstimateNeeded": "Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate."
 ,"routeEstimateDetail": "{distance} km driving route • {duration} min. Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider."
+,"petTaxiRouteUnavailable": "بین مکان‌های انتخاب‌شده مسیر قابل رانندگی پیدا نشد. لطفاً مبدأ و مقصد را بررسی کنید."
+,"routeEstimateUnavailable": "برآورد مسیر در حال حاضر در دسترس نیست. مکان‌های انتخاب‌شده را بررسی کرده و دوباره تلاش کنید."
 ,"createPetTaxiBooking": "Create pet taxi booking"
 ,"creatingBooking": "Creating booking..."
 ,"petTaxiTitle": "Pet Taxi"
@@ -4378,4 +4406,87 @@
 ,"promotionTargetProduct": "محصول"
 ,"promotionTargetVetService": "خدمات دامپزشکی"
 ,"promotionTargetGroomyService": "خدمات گرومینگ"
+,"petTaxiDocumentTaxPlate": "مالیات و ثبت کسب‌وکار"
+,"petTaxiDocumentBusinessRegistration": "ثبت کسب‌وکار"
+,"petTaxiDocumentVehicleRegistration": "مدرک ثبت خودرو"
+,"petTaxiDocumentDriverLicense": "گواهینامه رانندگی"
+,"petTaxiDocumentTrafficInsurance": "بیمه شخص ثالث"
+,"petTaxiDocumentStatusPendingReview": "در انتظار بررسی"
+,"petTaxiDocumentStatusApproved": "تأییدشده"
+,"petTaxiDocumentStatusRejected": "ردشده"
+,"petTaxiDocumentStatusMissing": "ناقص"
+,"petTaxiDocumentExpired": "منقضی‌شده"
+,"petTaxiDocumentExpiryDate": "تاریخ انقضا: {date}"
+,"petTaxiDocumentExpiredMessage": "اعتبار این مدرک منقضی شده است. مدرک را رد کنید و از کسب‌وکار بخواهید نسخه معتبر جدیدی بارگذاری کند."
+,"petTaxiRejectDocumentTitle": "رد مدرک {document}"
+,"petTaxiAdminErrorPermissionDenied": "شما اجازه انجام این کار را ندارید."
+,"petTaxiAdminErrorUnauthenticated": "جلسه شما منقضی شده است. لطفاً دوباره وارد شوید."
+,"petTaxiAdminErrorNotFound": "کسب‌وکار یا مدرک پیدا نشد."
+,"petTaxiAdminErrorInvalidArgument": "جزئیات مدرک را بررسی و دوباره تلاش کنید."
+,"petTaxiAdminErrorAlreadyExists": "این کار قبلاً انجام شده است."
+,"petTaxiAdminErrorFailedPrecondition": "این کار در وضعیت فعلی مدرک قابل انجام نیست."
+,"petTaxiAdminErrorGeneric": "عملیات انجام نشد. لطفاً دوباره تلاش کنید."
+,"petTaxiAdminActionCompleted": "مدرک به‌روزرسانی شد"
+,"petTaxiUploadDocument": "بارگذاری مدرک"
+,"petTaxiTakePhoto": "گرفتن عکس"
+,"petTaxiChoosePhoto": "انتخاب عکس"
+,"petTaxiChoosePdf": "انتخاب PDF"
+,"petTaxiSupportedDocumentFormats": "PDF، JPG یا PNG (حداکثر ۲۵ مگابایت)"
+,"petTaxiUnsupportedDocumentFormat": "یک مدرک با فرمت PDF، JPG یا PNG انتخاب کنید."
+,"petTaxiDocumentTooLarge": "حجم این مدرک بیشتر از ۲۵ مگابایت است."
+,"petTaxiDocumentUploadFailed": "بارگذاری مدرک انجام نشد. دوباره تلاش کنید."
+,"petTaxiOpenDocumentFailed": "این مدرک باز نشد."
+,"businessRegisterOptional": "اختیاری"
+,"businessRegisterTaxPlateRequired": "بارگذاری گواهی مالیاتی الزامی است."
+,"businessRegisterMersisNumberRequired": "شماره مرسیس الزامی است."
+,"businessRegisterPhoneOptional": "تلفن (اختیاری)"
+,"businessRegisterWhatsApp": "واتساپ"
+,"businessRegisterDetectLocationTitle": "مکان کسب‌وکار خود را پیدا کنید"
+,"businessRegisterDetectLocationMessage": "برای تشخیص شهر و منطقه شما از موقعیت مکانی استفاده می‌کنیم."
+,"petTaxiDocumentPermissionDenied": "دسترسی دوربین یا عکس رد شد. می‌توانید به‌جای آن عکس یا PDF انتخاب کنید."
+,"petTaxiRequiredDocuments": "مدارک الزامی"
+,"petTaxiRequiredDocumentsSubtitle": "مدارک لازم برای بررسی دستی مدیر"
+,"petTaxiOptionalDocuments": "مدارک اختیاری / مشروط"
+,"petTaxiOptionalDocumentsSubtitle": "اگر برای خدمات شما کاربرد دارد، آن را بارگذاری کنید"
+,"petTaxiComplianceTitle": "تأییدیه‌های قانونی و انطباق"
+,"petTaxiComplianceSubtitle": "تأییدیه‌های لازم پیش از ارسال"
+,"petTaxiPetSafetyEquipmentConfirmation": "تأیید می‌کنم تجهیزات ایمنی حیوان در خودرو موجود است."
+,"petTaxiHygieneConfirmation": "تأیید می‌کنم الزامات بهداشت رعایت شده است."
+,"petTaxiDriverLicenseConfirmation": "تأیید می‌کنم گواهینامه راننده معتبر است."
+,"petTaxiVehicleRegistrationConfirmation": "تأیید می‌کنم سند خودرو متعلق به خودروی خدمات است."
+,"petTaxiTrafficInsuranceConfirmation": "تأیید می‌کنم بیمه شخص ثالث فعال است."
+,"petTaxiTaxResponsibilityConfirmation": "تأیید می‌کنم مسئولیت مالیات و فاکتور یا رسید بر عهده کسب‌وکار من است."
+,"petTaxiTransportRulesConfirmation": "تأیید می‌کنم قوانین حمل‌ونقل شهر و کشور را رعایت می‌کنم."
+,"petTaxiComplianceNotes": "یادداشت‌های انطباق برای بررسی مدیر"
+,"petTaxiOptionalIfApplicable": "اختیاری / در صورت کاربرد"
+,"petTaxiDocumentRequired": "{document} الزامی است"
+,"petTaxiDateRequired": "{date} الزامی است"
+,"petTaxiDateCannotBePast": "{date} نمی‌تواند در گذشته باشد"
+,"petTaxiDocumentNumber": "شماره مدرک"
+,"petTaxiDocumentNumberOptional": "شماره مدرک (اختیاری)"
+,"petTaxiDocumentNumberRequired": "شماره مدرک الزامی است"
+,"petTaxiVehicleRegistrationIssueDate": "تاریخ صدور سند خودرو"
+,"petTaxiDriverLicenseExpiryDate": "تاریخ انقضای گواهینامه راننده"
+,"petTaxiTrafficInsuranceExpiryDate": "تاریخ انقضای بیمه شخص ثالث"
+,"petTaxiSrcCertificateExpiryDate": "تاریخ انقضای گواهی SRC"
+,"petTaxiPsychotechnicalExpiryDate": "تاریخ انقضای گزارش روان‌فنی"
+,"petTaxiKaskoExpiryDate": "تاریخ انقضای بیمه بدنه"
+,"petTaxiValidTurkishPlate": "یک پلاک معتبر ترکی وارد کنید."
+,"petTaxiRequiredDocumentsMissing": "مدارک الزامی پت‌تاکسی را بارگذاری کنید."
+,"petTaxiComplianceConfirmationsMissing": "همه تأییدیه‌های الزامی انطباق را انتخاب کنید."
+,"petTaxiValidPhoneNumber": "یک شماره تلفن معتبر وارد کنید."
+,"petTaxiValidCapacity": "ظرفیت معتبر خودرو را وارد کنید."
+,"petTaxiCapacityMinimum": "ظرفیت خودرو باید حداقل ۱ باشد."
+,"petTaxiCapacityMaximum": "ظرفیت خودرو نمی‌تواند بیشتر از ۱۵ باشد."
+,"petTaxiSelectVehicleType": "نوع خودرو را انتخاب کنید."
+,"petTaxiDriverFullName": "نام و نام خانوادگی راننده"
+,"petTaxiDriverPhoneNumber": "شماره تلفن راننده"
+,"petTaxiVehiclePlateNumber": "شماره پلاک خودرو"
+,"petTaxiVehicleCapacity": "ظرفیت خودرو"
+,"petTaxiVehicleSedan": "سدان"
+,"petTaxiVehicleHatchback": "هاچ‌بک"
+,"petTaxiVehicleSuv": "SUV"
+,"petTaxiVehicleVan": "ون"
+,"petTaxiVehiclePetTransportVan": "ون حمل حیوانات خانگی"
+,"petTaxiVehicleLargeAnimalTransport": "خودروی حمل حیوانات بزرگ"
 }

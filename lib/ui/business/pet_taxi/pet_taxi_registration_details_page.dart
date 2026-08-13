@@ -1,14 +1,13 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:barky_matches_fixed/models/business_draft.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/pet_taxi_document_picker.dart';
 
 class PetTaxiRegistrationDetailsPage extends StatefulWidget {
   final BusinessDraft baseDraft;
@@ -56,66 +55,37 @@ class _PetTaxiRegistrationDetailsPageState
   ];
 
   static const List<_DocSpec> _requiredDocs = [
-    _DocSpec(
-      key: 'taxPlate',
-      label: 'Vergi levhası / tax plate',
-      required: true,
-    ),
-    _DocSpec(
-      key: 'businessRegistration',
-      label: 'Faaliyet belgesi / company registration',
-      required: true,
-    ),
+    _DocSpec(key: 'taxPlate', required: true),
     _DocSpec(
       key: 'vehicleRegistration',
-      label: 'Araç ruhsatı / vehicle registration',
       required: true,
       requiredDocumentNumber: true,
       dateField: 'vehicleRegistrationIssueDate',
-      dateLabel: 'Vehicle registration issue date',
       pastAllowed: true,
     ),
     _DocSpec(
       key: 'driverLicense',
-      label: 'Sürücü belgesi / driver license',
       required: true,
       requiredDocumentNumber: true,
       dateField: 'driverLicenseExpiryDate',
-      dateLabel: 'Driver license expiry date',
     ),
     _DocSpec(
       key: 'trafficInsurance',
-      label: 'Zorunlu trafik sigortası / mandatory traffic insurance',
       required: true,
       requiredDocumentNumber: true,
       dateField: 'trafficInsuranceExpiryDate',
-      dateLabel: 'Traffic insurance expiry date',
     ),
   ];
 
   static const List<_DocSpec> _optionalDocs = [
-    _DocSpec(
-      key: 'srcCertificate',
-      label: 'SRC certificate, if applicable',
-      dateField: 'srcCertificateExpiryDate',
-      dateLabel: 'SRC certificate expiry date',
-    ),
+    _DocSpec(key: 'businessRegistration'),
+    _DocSpec(key: 'srcCertificate', dateField: 'srcCertificateExpiryDate'),
     _DocSpec(
       key: 'psychotechnicalReport',
-      label: 'Psikoteknik raporu, if applicable',
       dateField: 'psychotechnicalReportExpiryDate',
-      dateLabel: 'Psychotechnical report expiry date',
     ),
-    _DocSpec(
-      key: 'criminalRecord',
-      label: 'Adli sicil kaydı / criminal record, optional',
-    ),
-    _DocSpec(
-      key: 'kaskoInsurance',
-      label: 'Kasko insurance, optional',
-      dateField: 'kaskoInsuranceExpiryDate',
-      dateLabel: 'Kasko insurance expiry date',
-    ),
+    _DocSpec(key: 'criminalRecord'),
+    _DocSpec(key: 'kaskoInsurance', dateField: 'kaskoInsuranceExpiryDate'),
   ];
 
   List<_DocSpec> get _allDocs => [..._requiredDocs, ..._optionalDocs];
@@ -143,55 +113,34 @@ class _PetTaxiRegistrationDetailsPageState
   }
 
   Future<Map<String, dynamic>> _uploadFile(
-    PlatformFile platformFile,
+    PetTaxiPickedDocument picked,
     String field,
   ) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final extension = platformFile.name.split('.').last.toLowerCase();
-    final contentType = switch (extension) {
-      'pdf' => 'application/pdf',
-      'png' => 'image/png',
-      'jpg' || 'jpeg' => 'image/jpeg',
-      _ => 'application/octet-stream',
-    };
+    final extension = picked.name.split('.').last.toLowerCase();
     final ref = FirebaseStorage.instance.ref().child(
       'business_sector_docs/${user.uid}/pet_taxi/$field/${DateTime.now().millisecondsSinceEpoch}.$extension',
     );
 
-    if (kIsWeb) {
-      final bytes = platformFile.bytes;
-      if (bytes == null || bytes.isEmpty) {
-        throw StateError(
-          'The browser returned no bytes for ${platformFile.name}',
-        );
-      }
-      debugPrint(
-        '📤 Firebase upload started: field=$field '
-        'filename=${platformFile.name} mode=putData bytes=${bytes.length}',
+    if (picked.bytes != null) {
+      final bytes = picked.bytes!;
+      await ref.putData(
+        bytes,
+        SettableMetadata(contentType: picked.contentType),
       );
-      await ref.putData(bytes, SettableMetadata(contentType: contentType));
     } else {
-      final path = platformFile.path;
+      final path = picked.path;
       if (path == null || path.isEmpty) {
         throw StateError('The native picker returned no file path.');
       }
-      debugPrint(
-        '📤 Firebase upload started: field=$field '
-        'filename=${platformFile.name} mode=putFile',
+      await ref.putFile(
+        File(path),
+        SettableMetadata(contentType: picked.contentType),
       );
-      await ref.putFile(File(path), SettableMetadata(contentType: contentType));
     }
-    debugPrint(
-      '✅ Firebase upload completed: field=$field '
-      'filename=${platformFile.name}',
-    );
     final url = await ref.getDownloadURL();
-    debugPrint(
-      '🔗 Download URL received: field=$field '
-      'filename=${platformFile.name} url=$url',
-    );
 
     return {
       'url': url,
@@ -201,47 +150,46 @@ class _PetTaxiRegistrationDetailsPageState
       'status': 'pending_review',
       'verified': false,
       'rejectedReason': null,
-      'contentType': contentType,
-      'fileName': platformFile.name,
+      'contentType': picked.contentType,
+      'fileName': picked.name,
     };
   }
 
   Future<void> _pickDocument(_DocSpec spec) async {
-    debugPrint('🖱️ Upload button pressed: field=${spec.key}');
-    debugPrint(
-      '📂 File picker opened: field=${spec.key} '
-      'platform=${kIsWeb ? 'web' : 'native'}',
-    );
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
-      allowMultiple: false,
-      withData: kIsWeb,
-    );
-    if (result == null || result.files.isEmpty) {
-      debugPrint('↩️ File picker closed without selection: field=${spec.key}');
+    PetTaxiPickedDocument? picked;
+    try {
+      picked = await pickPetTaxiDocument(context);
+    } on PetTaxiDocumentPickerException catch (error) {
+      if (mounted) _snack(_pickerErrorMessage(error.kind));
       return;
     }
-
-    final platformFile = result.files.first;
-    debugPrint('📄 File selected: field=${spec.key}');
-    debugPrint('📄 filename=${platformFile.name}');
-    debugPrint('📄 size=${platformFile.size}');
-    debugPrint(
-      '📄 bytes length=${platformFile.bytes?.length ?? (kIsWeb ? 0 : 'not loaded (native putFile)')}',
-    );
+    if (picked == null || !mounted) return;
 
     setState(() => _loading = true);
     try {
-      final metadata = await _uploadFile(platformFile, spec.key);
+      final metadata = await _uploadFile(picked, spec.key);
       if (!mounted) return;
       setState(() => _documents[spec.key] = metadata);
     } catch (e) {
-      debugPrint('PetTaxiRegistration upload error: ${e.toString()}');
-      if (mounted) _snack(e.toString());
+      if (mounted) {
+        _snack(AppLocalizations.of(context)!.petTaxiDocumentUploadFailed);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _pickerErrorMessage(PetTaxiDocumentPickerError error) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (error) {
+      PetTaxiDocumentPickerError.unsupportedFormat =>
+        l10n.petTaxiUnsupportedDocumentFormat,
+      PetTaxiDocumentPickerError.tooLarge => l10n.petTaxiDocumentTooLarge,
+      PetTaxiDocumentPickerError.permissionDenied =>
+        l10n.petTaxiDocumentPermissionDenied,
+      PetTaxiDocumentPickerError.unavailable =>
+        l10n.petTaxiDocumentUploadFailed,
+    };
   }
 
   Future<void> _pickDate(_DocSpec spec) async {
@@ -253,7 +201,9 @@ class _PetTaxiRegistrationDetailsPageState
       firstDate: spec.pastAllowed ? DateTime(now.year - 30) : now,
       lastDate: DateTime(now.year + 20),
     );
-    if (date == null) return;
+    if (date == null) {
+      return;
+    }
     setState(() => _documentDates[spec.key] = date);
   }
 
@@ -263,7 +213,9 @@ class _PetTaxiRegistrationDetailsPageState
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) _snack('Could not open document');
+    if (!opened && mounted) {
+      _snack(AppLocalizations.of(context)!.petTaxiOpenDocumentFailed);
+    }
   }
 
   Future<void> _submit() async {
@@ -272,16 +224,16 @@ class _PetTaxiRegistrationDetailsPageState
 
     final plate = _normalizeTurkishPlate(_vehiclePlate.text);
     if (plate == null) {
-      _snack('Enter a valid Turkish vehicle plate');
+      _snack(AppLocalizations.of(context)!.petTaxiValidTurkishPlate);
       return;
     }
 
     final missingDocs = _requiredDocs
         .where((spec) => !_documents.containsKey(spec.key))
-        .map((spec) => spec.label)
+        .map(_documentLabel)
         .toList();
     if (missingDocs.isNotEmpty) {
-      _snack('Upload all required legal and vehicle documents');
+      _snack(AppLocalizations.of(context)!.petTaxiRequiredDocumentsMissing);
       return;
     }
 
@@ -304,7 +256,9 @@ class _PetTaxiRegistrationDetailsPageState
         !_trafficInsuranceConfirmed ||
         !_taxResponsibilityConfirmed ||
         !_transportRulesConfirmed) {
-      _snack('Confirm all required compliance statements');
+      _snack(
+        AppLocalizations.of(context)!.petTaxiComplianceConfirmationsMissing,
+      );
       return;
     }
 
@@ -380,18 +334,26 @@ class _PetTaxiRegistrationDetailsPageState
 
       if (!uploaded) {
         if (spec.required) {
-          return '${spec.label} is required';
+          return AppLocalizations.of(
+            context,
+          )!.petTaxiDocumentRequired(_documentLabel(spec));
         }
         continue;
       }
       if (spec.dateField == null) continue;
 
       final date = _documentDates[spec.key];
-      if (date == null) return '${spec.dateLabel} is required';
+      if (date == null) {
+        return AppLocalizations.of(
+          context,
+        )!.petTaxiDateRequired(_dateLabel(spec));
+      }
 
       final normalized = DateTime(date.year, date.month, date.day);
       if (!spec.pastAllowed && normalized.isBefore(today)) {
-        return '${spec.dateLabel} cannot be in the past';
+        return AppLocalizations.of(
+          context,
+        )!.petTaxiDateCannotBePast(_dateLabel(spec));
       }
     }
     return null;
@@ -404,7 +366,7 @@ class _PetTaxiRegistrationDetailsPageState
 
       final number = _documentNumbers[spec.key]?.text.trim() ?? '';
       if (number.isEmpty) {
-        return '${spec.label} document number is required';
+        return AppLocalizations.of(context)!.petTaxiDocumentNumberRequired;
       }
     }
     return null;
@@ -428,7 +390,7 @@ class _PetTaxiRegistrationDetailsPageState
   String? _phoneValidator(String? value) {
     final phone = _normalizePhone(value ?? '');
     if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(phone)) {
-      return 'Enter a valid phone number';
+      return AppLocalizations.of(context)!.petTaxiValidPhoneNumber;
     }
     return null;
   }
@@ -437,15 +399,15 @@ class _PetTaxiRegistrationDetailsPageState
     final capacity = int.tryParse((value ?? '').trim());
 
     if (capacity == null) {
-      return 'Enter valid capacity';
+      return AppLocalizations.of(context)!.petTaxiValidCapacity;
     }
 
     if (capacity < 1) {
-      return 'Capacity must be at least 1';
+      return AppLocalizations.of(context)!.petTaxiCapacityMinimum;
     }
 
     if (capacity > 15) {
-      return 'Capacity is unrealistically high';
+      return AppLocalizations.of(context)!.petTaxiCapacityMaximum;
     }
 
     return null;
@@ -470,21 +432,27 @@ class _PetTaxiRegistrationDetailsPageState
               _basicInfoCard(),
               const SizedBox(height: 12),
               _sectionTile(
-                title: 'Required Documents',
-                subtitle: 'Legal documents required for manual admin review',
+                title: AppLocalizations.of(context)!.petTaxiRequiredDocuments,
+                subtitle: AppLocalizations.of(
+                  context,
+                )!.petTaxiRequiredDocumentsSubtitle,
                 initiallyExpanded: true,
                 children: _requiredDocs.map(_docTile).toList(),
               ),
               const SizedBox(height: 12),
               _sectionTile(
-                title: 'Optional / Conditional Documents',
-                subtitle: 'Upload these if they apply to your service',
+                title: AppLocalizations.of(context)!.petTaxiOptionalDocuments,
+                subtitle: AppLocalizations.of(
+                  context,
+                )!.petTaxiOptionalDocumentsSubtitle,
                 children: _optionalDocs.map(_docTile).toList(),
               ),
               const SizedBox(height: 12),
               _sectionTile(
-                title: 'Compliance & Legal Confirmations',
-                subtitle: 'Required confirmations before submitting',
+                title: AppLocalizations.of(context)!.petTaxiComplianceTitle,
+                subtitle: AppLocalizations.of(
+                  context,
+                )!.petTaxiComplianceSubtitle,
                 children: [
                   Text(
                     AppLocalizations.of(context)!.petTaxiManualReviewNotice,
@@ -507,50 +475,61 @@ class _PetTaxiRegistrationDetailsPageState
                     value: _petSafetyConfirmed,
                     onChanged: (value) =>
                         setState(() => _petSafetyConfirmed = value),
-                    title: 'Pet safety equipment is available in the vehicle.',
+                    title: AppLocalizations.of(
+                      context,
+                    )!.petTaxiPetSafetyEquipmentConfirmation,
                   ),
                   _check(
                     value: _hygieneConfirmed,
                     onChanged: (value) =>
                         setState(() => _hygieneConfirmed = value),
-                    title: 'Hygiene and sanitation requirements are confirmed.',
+                    title: AppLocalizations.of(
+                      context,
+                    )!.petTaxiHygieneConfirmation,
                   ),
                   _check(
                     value: _driverLicenseValidConfirmed,
                     onChanged: (value) =>
                         setState(() => _driverLicenseValidConfirmed = value),
-                    title: 'I confirm driver license is valid.',
+                    title: AppLocalizations.of(
+                      context,
+                    )!.petTaxiDriverLicenseConfirmation,
                   ),
                   _check(
                     value: _vehicleRegistrationConfirmed,
                     onChanged: (value) =>
                         setState(() => _vehicleRegistrationConfirmed = value),
-                    title:
-                        'I confirm vehicle registration belongs to the service vehicle.',
+                    title: AppLocalizations.of(
+                      context,
+                    )!.petTaxiVehicleRegistrationConfirmation,
                   ),
                   _check(
                     value: _trafficInsuranceConfirmed,
                     onChanged: (value) =>
                         setState(() => _trafficInsuranceConfirmed = value),
-                    title: 'I confirm traffic insurance is active.',
+                    title: AppLocalizations.of(
+                      context,
+                    )!.petTaxiTrafficInsuranceConfirmation,
                   ),
                   _check(
                     value: _taxResponsibilityConfirmed,
                     onChanged: (value) =>
                         setState(() => _taxResponsibilityConfirmed = value),
-                    title:
-                        'I confirm tax obligations and invoice/receipt responsibilities belong to my business.',
+                    title: AppLocalizations.of(
+                      context,
+                    )!.petTaxiTaxResponsibilityConfirmation,
                   ),
                   _check(
                     value: _transportRulesConfirmed,
                     onChanged: (value) =>
                         setState(() => _transportRulesConfirmed = value),
-                    title:
-                        'I confirm I comply with city/country transportation rules.',
+                    title: AppLocalizations.of(
+                      context,
+                    )!.petTaxiTransportRulesConfirmation,
                   ),
                   _field(
                     _notes,
-                    'Compliance notes for admin review',
+                    AppLocalizations.of(context)!.petTaxiComplianceNotes,
                     required: false,
                     maxLines: 3,
                   ),
@@ -635,16 +614,19 @@ class _PetTaxiRegistrationDetailsPageState
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
-            _field(_driverName, 'Driver full name'),
+            _field(
+              _driverName,
+              AppLocalizations.of(context)!.petTaxiDriverFullName,
+            ),
             _field(
               _driverPhone,
-              'Driver phone number',
+              AppLocalizations.of(context)!.petTaxiDriverPhoneNumber,
               keyboardType: TextInputType.phone,
               validator: _phoneValidator,
             ),
             _field(
               _vehiclePlate,
-              'Vehicle plate number',
+              AppLocalizations.of(context)!.petTaxiVehiclePlateNumber,
               onChanged: (value) {
                 final plate = _normalizeTurkishPlate(value);
                 if (plate != null && plate != value) {
@@ -661,14 +643,17 @@ class _PetTaxiRegistrationDetailsPageState
                 labelText: AppLocalizations.of(context)!.vehicleType,
               ),
               items: _vehicleTypes.map((type) {
-                return DropdownMenuItem(value: type, child: Text(type));
+                return DropdownMenuItem(
+                  value: type,
+                  child: Text(_vehicleTypeLabel(type)),
+                );
               }).toList(),
               onChanged: (value) {
                 setState(() => _selectedVehicleType = value);
               },
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Select vehicle type';
+                  return AppLocalizations.of(context)!.petTaxiSelectVehicleType;
                 }
                 return null;
               },
@@ -676,7 +661,7 @@ class _PetTaxiRegistrationDetailsPageState
             const SizedBox(height: 12),
             _field(
               _vehicleCapacity,
-              'Vehicle capacity',
+              AppLocalizations.of(context)!.petTaxiVehicleCapacity,
               keyboardType: TextInputType.number,
               validator: _capacityValidator,
             ),
@@ -714,6 +699,7 @@ class _PetTaxiRegistrationDetailsPageState
   Widget _docTile(_DocSpec spec) {
     final uploaded = _documents.containsKey(spec.key);
     final fileName = _documents[spec.key]?['fileName']?.toString();
+    final l10n = AppLocalizations.of(context)!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -731,11 +717,13 @@ class _PetTaxiRegistrationDetailsPageState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        spec.label,
+                        _documentLabel(spec),
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       Text(
-                        spec.required ? 'Required' : 'Optional / if applicable',
+                        spec.required
+                            ? l10n.businessRegisterRequired
+                            : l10n.petTaxiOptionalIfApplicable,
                       ),
                       if (fileName != null) Text(fileName),
                     ],
@@ -749,7 +737,7 @@ class _PetTaxiRegistrationDetailsPageState
                 Expanded(
                   child: TextButton(
                     onPressed: _loading ? null : () => _pickDocument(spec),
-                    child: Text(uploaded ? 'Replace file' : 'Upload PDF/Image'),
+                    child: Text(l10n.petTaxiUploadDocument),
                   ),
                 ),
                 if (uploaded)
@@ -767,14 +755,14 @@ class _PetTaxiRegistrationDetailsPageState
                 controller: _documentNumbers[spec.key],
                 decoration: InputDecoration(
                   labelText: spec.requiredDocumentNumber
-                      ? 'Document number'
-                      : 'Document number (optional)',
+                      ? l10n.petTaxiDocumentNumber
+                      : l10n.petTaxiDocumentNumberOptional,
                 ),
                 validator: (value) {
                   if (!spec.requiredDocumentNumber) return null;
                   if (!_documents.containsKey(spec.key)) return null;
                   if (value == null || value.trim().isEmpty) {
-                    return 'Document number is required';
+                    return l10n.petTaxiDocumentNumberRequired;
                   }
                   return null;
                 },
@@ -787,8 +775,8 @@ class _PetTaxiRegistrationDetailsPageState
                     alignment: Alignment.centerLeft,
                     child: Text(
                       _documentDates[spec.key] == null
-                          ? spec.dateLabel!
-                          : '${spec.dateLabel}: ${_dateText(_documentDates[spec.key]!)}',
+                          ? _dateLabel(spec)
+                          : '${_dateLabel(spec)}: ${_dateText(_documentDates[spec.key]!)}',
                     ),
                   ),
                 ),
@@ -817,6 +805,44 @@ class _PetTaxiRegistrationDetailsPageState
     return '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
   }
 
+  String _documentLabel(_DocSpec spec) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (spec.key) {
+      'taxPlate' => l10n.petTaxiDocumentTaxPlate,
+      'businessRegistration' => l10n.petTaxiDocumentBusinessRegistration,
+      'vehicleRegistration' => l10n.petTaxiDocumentVehicleRegistration,
+      'driverLicense' => l10n.petTaxiDocumentDriverLicense,
+      'trafficInsurance' => l10n.petTaxiDocumentTrafficInsurance,
+      _ => spec.key,
+    };
+  }
+
+  String _vehicleTypeLabel(String type) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (type) {
+      'Sedan' => l10n.petTaxiVehicleSedan,
+      'Hatchback' => l10n.petTaxiVehicleHatchback,
+      'SUV' => l10n.petTaxiVehicleSuv,
+      'Van' => l10n.petTaxiVehicleVan,
+      'Pet Transport Van' => l10n.petTaxiVehiclePetTransportVan,
+      'Large Animal Transport' => l10n.petTaxiVehicleLargeAnimalTransport,
+      _ => type,
+    };
+  }
+
+  String _dateLabel(_DocSpec spec) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (spec.key) {
+      'vehicleRegistration' => l10n.petTaxiVehicleRegistrationIssueDate,
+      'driverLicense' => l10n.petTaxiDriverLicenseExpiryDate,
+      'trafficInsurance' => l10n.petTaxiTrafficInsuranceExpiryDate,
+      'srcCertificate' => l10n.petTaxiSrcCertificateExpiryDate,
+      'psychotechnicalReport' => l10n.petTaxiPsychotechnicalExpiryDate,
+      'kaskoInsurance' => l10n.petTaxiKaskoExpiryDate,
+      _ => spec.key,
+    };
+  }
+
   void _snack(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
@@ -824,20 +850,16 @@ class _PetTaxiRegistrationDetailsPageState
 
 class _DocSpec {
   final String key;
-  final String label;
   final bool required;
   final bool requiredDocumentNumber;
   final String? dateField;
-  final String? dateLabel;
   final bool pastAllowed;
 
   const _DocSpec({
     required this.key,
-    required this.label,
     this.required = false,
     this.requiredDocumentNumber = false,
     this.dateField,
-    this.dateLabel,
     this.pastAllowed = false,
   });
 }

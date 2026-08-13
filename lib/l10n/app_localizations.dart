@@ -177,6 +177,30 @@ abstract class AppLocalizations {
   /// **'Checkout'**
   String get checkoutButton;
 
+  /// No description provided for @marketplaceDisclaimerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Before you continue'**
+  String get marketplaceDisclaimerTitle;
+
+  /// No description provided for @marketplaceDisclaimerMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'PetSupo is a platform that connects you with independent businesses and service providers. The selected service is provided by the business or provider shown. PetSupo does not guarantee or assume responsibility for the quality or execution of that independent service. Please review the business or provider information before continuing.'**
+  String get marketplaceDisclaimerMessage;
+
+  /// No description provided for @marketplaceDisclaimerAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept & Continue'**
+  String get marketplaceDisclaimerAccept;
+
+  /// No description provided for @marketplaceDisclaimerCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get marketplaceDisclaimerCancel;
+
   /// No description provided for @checkoutStepAddressTitle.
   ///
   /// In en, this message translates to:
@@ -1488,8 +1512,56 @@ abstract class AppLocalizations {
   /// Error message for invalid verification code
   ///
   /// In en, this message translates to:
-  /// **'Invalid verification code'**
+  /// **'Invalid verification code. Please try again.'**
   String get invalidVerificationCode;
+
+  /// No description provided for @verificationCodeExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This code has expired. Request a new code.'**
+  String get verificationCodeExpired;
+
+  /// No description provided for @unableToVerifyEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to verify right now. Please try again.'**
+  String get unableToVerifyEmail;
+
+  /// No description provided for @unableToSendVerificationCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to send a new code right now. Please try again.'**
+  String get unableToSendVerificationCode;
+
+  /// No description provided for @verificationCodeSentTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent to: {email}'**
+  String verificationCodeSentTo(Object email);
+
+  /// No description provided for @verificationCodeSentToLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification code sent to'**
+  String get verificationCodeSentToLabel;
+
+  /// No description provided for @sendingVerificationCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending...'**
+  String get sendingVerificationCode;
+
+  /// No description provided for @resendCodeAvailableIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code available in {seconds}s'**
+  String resendCodeAvailableIn(Object seconds);
+
+  /// No description provided for @changeEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Change email'**
+  String get changeEmail;
 
   /// Success message for sending verification code
   ///
@@ -7881,6 +7953,30 @@ abstract class AppLocalizations {
   /// **'Restore Purchases'**
   String get restorePurchases;
 
+  /// No description provided for @mobileSubscriptionVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t verify the subscription yet. Please try Restore Purchases again.'**
+  String get mobileSubscriptionVerificationFailed;
+
+  /// No description provided for @mobileSubscriptionOwnershipConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This subscription is linked to another Petsupo account. Please sign in to the account originally used for this subscription.'**
+  String get mobileSubscriptionOwnershipConflict;
+
+  /// No description provided for @deleteAccountStoreSubscriptionNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your PetSupo account does not cancel Apple App Store or Google Play subscriptions. Cancel store billing separately before deleting your account.'**
+  String get deleteAccountStoreSubscriptionNotice;
+
+  /// No description provided for @manageStoreSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage store subscription'**
+  String get manageStoreSubscription;
+
   /// No description provided for @upgradePaymentTerms.
   ///
   /// In en, this message translates to:
@@ -13725,6 +13821,18 @@ abstract class AppLocalizations {
   /// **'Driver Online'**
   String get driverOnline;
 
+  /// No description provided for @petTaxiAwaitingActivation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet Taxi is awaiting activation.'**
+  String get petTaxiAwaitingActivation;
+
+  /// No description provided for @petTaxiAvailabilityUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update Driver Online status. Please try again.'**
+  String get petTaxiAvailabilityUpdateFailed;
+
   /// No description provided for @serviceDetailsSaveFailed.
   ///
   /// In en, this message translates to:
@@ -14720,6 +14828,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your Pet Taxi application will not be published until documents are manually reviewed and approved.'**
   String get petTaxiManualReviewNotice;
+
+  /// No description provided for @petTaxiReplacementExpiryDateDriverLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'New driver license expiry date'**
+  String get petTaxiReplacementExpiryDateDriverLicense;
+
+  /// No description provided for @petTaxiReplacementExpiryDateTrafficInsurance.
+  ///
+  /// In en, this message translates to:
+  /// **'New traffic insurance expiry date'**
+  String get petTaxiReplacementExpiryDateTrafficInsurance;
+
+  /// No description provided for @petTaxiReplacementExpiryRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a valid future expiry date before submitting this replacement.'**
+  String get petTaxiReplacementExpiryRequired;
+
+  /// No description provided for @petTaxiReplacementSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Replacement submitted for review.'**
+  String get petTaxiReplacementSubmitted;
+
+  /// No description provided for @petTaxiDocumentsRequiringReplacement.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents requiring replacement'**
+  String get petTaxiDocumentsRequiringReplacement;
+
+  /// No description provided for @petTaxiRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get petTaxiRejected;
+
+  /// No description provided for @petTaxiReplaceDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get petTaxiReplaceDocument;
 
   /// No description provided for @transportationLawNotice.
   ///
@@ -17067,6 +17217,18 @@ abstract class AppLocalizations {
   /// **'{distance} km driving route • {duration} min. Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider.'**
   String routeEstimateDetail(Object distance, Object duration);
 
+  /// No description provided for @petTaxiRouteUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No drivable route could be found between the selected locations. Please check the pickup and destination.'**
+  String get petTaxiRouteUnavailable;
+
+  /// No description provided for @routeEstimateUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The route estimate is currently unavailable. Please check the selected locations and try again.'**
+  String get routeEstimateUnavailable;
+
   /// No description provided for @createPetTaxiBooking.
   ///
   /// In en, this message translates to:
@@ -18326,6 +18488,504 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Groomy service'**
   String get promotionTargetGroomyService;
+
+  /// No description provided for @petTaxiDocumentTaxPlate.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax plate'**
+  String get petTaxiDocumentTaxPlate;
+
+  /// No description provided for @petTaxiDocumentBusinessRegistration.
+  ///
+  /// In en, this message translates to:
+  /// **'Business registration'**
+  String get petTaxiDocumentBusinessRegistration;
+
+  /// No description provided for @petTaxiDocumentVehicleRegistration.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle registration'**
+  String get petTaxiDocumentVehicleRegistration;
+
+  /// No description provided for @petTaxiDocumentDriverLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver license'**
+  String get petTaxiDocumentDriverLicense;
+
+  /// No description provided for @petTaxiDocumentTrafficInsurance.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic insurance'**
+  String get petTaxiDocumentTrafficInsurance;
+
+  /// No description provided for @petTaxiDocumentStatusPendingReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending review'**
+  String get petTaxiDocumentStatusPendingReview;
+
+  /// No description provided for @petTaxiDocumentStatusApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get petTaxiDocumentStatusApproved;
+
+  /// No description provided for @petTaxiDocumentStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get petTaxiDocumentStatusRejected;
+
+  /// No description provided for @petTaxiDocumentStatusMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing'**
+  String get petTaxiDocumentStatusMissing;
+
+  /// No description provided for @petTaxiDocumentExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get petTaxiDocumentExpired;
+
+  /// No description provided for @petTaxiDocumentExpiryDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiry date: {date}'**
+  String petTaxiDocumentExpiryDate(Object date);
+
+  /// No description provided for @petTaxiDocumentExpiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This document has expired. Reject it and ask the business to upload a valid replacement.'**
+  String get petTaxiDocumentExpiredMessage;
+
+  /// No description provided for @petTaxiRejectDocumentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject {document}'**
+  String petTaxiRejectDocumentTitle(Object document);
+
+  /// No description provided for @petTaxiAdminErrorPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have permission to perform this action.'**
+  String get petTaxiAdminErrorPermissionDenied;
+
+  /// No description provided for @petTaxiAdminErrorUnauthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Please sign in again.'**
+  String get petTaxiAdminErrorUnauthenticated;
+
+  /// No description provided for @petTaxiAdminErrorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The business or document could not be found.'**
+  String get petTaxiAdminErrorNotFound;
+
+  /// No description provided for @petTaxiAdminErrorInvalidArgument.
+  ///
+  /// In en, this message translates to:
+  /// **'Please review the document details and try again.'**
+  String get petTaxiAdminErrorInvalidArgument;
+
+  /// No description provided for @petTaxiAdminErrorAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'This action has already been completed.'**
+  String get petTaxiAdminErrorAlreadyExists;
+
+  /// No description provided for @petTaxiAdminErrorFailedPrecondition.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be completed in the current document state.'**
+  String get petTaxiAdminErrorFailedPrecondition;
+
+  /// No description provided for @petTaxiAdminErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'The action could not be completed. Please try again.'**
+  String get petTaxiAdminErrorGeneric;
+
+  /// No description provided for @petTaxiAdminActionCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Document updated'**
+  String get petTaxiAdminActionCompleted;
+
+  /// No description provided for @petTaxiUploadDocument.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload document'**
+  String get petTaxiUploadDocument;
+
+  /// No description provided for @petTaxiTakePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take photo'**
+  String get petTaxiTakePhoto;
+
+  /// No description provided for @petTaxiChoosePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose photo'**
+  String get petTaxiChoosePhoto;
+
+  /// No description provided for @petTaxiChoosePdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose PDF'**
+  String get petTaxiChoosePdf;
+
+  /// No description provided for @petTaxiSupportedDocumentFormats.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF, JPG or PNG (up to 25 MB)'**
+  String get petTaxiSupportedDocumentFormats;
+
+  /// No description provided for @petTaxiUnsupportedDocumentFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a PDF, JPG or PNG document.'**
+  String get petTaxiUnsupportedDocumentFormat;
+
+  /// No description provided for @petTaxiDocumentTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'This document is larger than 25 MB.'**
+  String get petTaxiDocumentTooLarge;
+
+  /// No description provided for @petTaxiDocumentUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Document upload failed. Please try again.'**
+  String get petTaxiDocumentUploadFailed;
+
+  /// No description provided for @petTaxiOpenDocumentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open this document.'**
+  String get petTaxiOpenDocumentFailed;
+
+  /// No description provided for @businessRegisterOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get businessRegisterOptional;
+
+  /// No description provided for @businessRegisterTaxPlateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax plate must be uploaded.'**
+  String get businessRegisterTaxPlateRequired;
+
+  /// No description provided for @businessRegisterMersisNumberRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'MERSIS number is required.'**
+  String get businessRegisterMersisNumberRequired;
+
+  /// No description provided for @businessRegisterPhoneOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone (optional)'**
+  String get businessRegisterPhoneOptional;
+
+  /// No description provided for @businessRegisterWhatsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp'**
+  String get businessRegisterWhatsApp;
+
+  /// No description provided for @businessRegisterDetectLocationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect your business location'**
+  String get businessRegisterDetectLocationTitle;
+
+  /// No description provided for @businessRegisterDetectLocationMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'We use your location to detect your city and district.'**
+  String get businessRegisterDetectLocationMessage;
+
+  /// No description provided for @petTaxiDocumentPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera or photo access was denied. You can choose a photo or PDF instead.'**
+  String get petTaxiDocumentPermissionDenied;
+
+  /// No description provided for @petTaxiRequiredDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'Required documents'**
+  String get petTaxiRequiredDocuments;
+
+  /// No description provided for @petTaxiRequiredDocumentsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents required for manual admin review'**
+  String get petTaxiRequiredDocumentsSubtitle;
+
+  /// No description provided for @petTaxiOptionalDocuments.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional / conditional documents'**
+  String get petTaxiOptionalDocuments;
+
+  /// No description provided for @petTaxiOptionalDocumentsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload these if they apply to your service'**
+  String get petTaxiOptionalDocumentsSubtitle;
+
+  /// No description provided for @petTaxiComplianceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compliance & legal confirmations'**
+  String get petTaxiComplianceTitle;
+
+  /// No description provided for @petTaxiComplianceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Required confirmations before submitting'**
+  String get petTaxiComplianceSubtitle;
+
+  /// No description provided for @petTaxiPetSafetyEquipmentConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet safety equipment is available in the vehicle.'**
+  String get petTaxiPetSafetyEquipmentConfirmation;
+
+  /// No description provided for @petTaxiHygieneConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Hygiene and sanitation requirements are confirmed.'**
+  String get petTaxiHygieneConfirmation;
+
+  /// No description provided for @petTaxiDriverLicenseConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm the driver license is valid.'**
+  String get petTaxiDriverLicenseConfirmation;
+
+  /// No description provided for @petTaxiVehicleRegistrationConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm the vehicle registration belongs to the service vehicle.'**
+  String get petTaxiVehicleRegistrationConfirmation;
+
+  /// No description provided for @petTaxiTrafficInsuranceConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm traffic insurance is active.'**
+  String get petTaxiTrafficInsuranceConfirmation;
+
+  /// No description provided for @petTaxiTaxResponsibilityConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm tax obligations and invoice or receipt responsibilities belong to my business.'**
+  String get petTaxiTaxResponsibilityConfirmation;
+
+  /// No description provided for @petTaxiTransportRulesConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm I comply with city and country transportation rules.'**
+  String get petTaxiTransportRulesConfirmation;
+
+  /// No description provided for @petTaxiComplianceNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Compliance notes for admin review'**
+  String get petTaxiComplianceNotes;
+
+  /// No description provided for @petTaxiOptionalIfApplicable.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional / if applicable'**
+  String get petTaxiOptionalIfApplicable;
+
+  /// No description provided for @petTaxiDocumentRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'{document} is required'**
+  String petTaxiDocumentRequired(Object document);
+
+  /// No description provided for @petTaxiDateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} is required'**
+  String petTaxiDateRequired(Object date);
+
+  /// No description provided for @petTaxiDateCannotBePast.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} cannot be in the past'**
+  String petTaxiDateCannotBePast(Object date);
+
+  /// No description provided for @petTaxiDocumentNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Document number'**
+  String get petTaxiDocumentNumber;
+
+  /// No description provided for @petTaxiDocumentNumberOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Document number (optional)'**
+  String get petTaxiDocumentNumberOptional;
+
+  /// No description provided for @petTaxiDocumentNumberRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Document number is required'**
+  String get petTaxiDocumentNumberRequired;
+
+  /// No description provided for @petTaxiVehicleRegistrationIssueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle registration issue date'**
+  String get petTaxiVehicleRegistrationIssueDate;
+
+  /// No description provided for @petTaxiDriverLicenseExpiryDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver license expiry date'**
+  String get petTaxiDriverLicenseExpiryDate;
+
+  /// No description provided for @petTaxiTrafficInsuranceExpiryDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic insurance expiry date'**
+  String get petTaxiTrafficInsuranceExpiryDate;
+
+  /// No description provided for @petTaxiSrcCertificateExpiryDate.
+  ///
+  /// In en, this message translates to:
+  /// **'SRC certificate expiry date'**
+  String get petTaxiSrcCertificateExpiryDate;
+
+  /// No description provided for @petTaxiPsychotechnicalExpiryDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Psychotechnical report expiry date'**
+  String get petTaxiPsychotechnicalExpiryDate;
+
+  /// No description provided for @petTaxiKaskoExpiryDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Comprehensive insurance expiry date'**
+  String get petTaxiKaskoExpiryDate;
+
+  /// No description provided for @petTaxiValidTurkishPlate.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid Turkish vehicle plate.'**
+  String get petTaxiValidTurkishPlate;
+
+  /// No description provided for @petTaxiRequiredDocumentsMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload all required Pet Taxi documents.'**
+  String get petTaxiRequiredDocumentsMissing;
+
+  /// No description provided for @petTaxiComplianceConfirmationsMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm all required compliance statements.'**
+  String get petTaxiComplianceConfirmationsMissing;
+
+  /// No description provided for @petTaxiValidPhoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid phone number.'**
+  String get petTaxiValidPhoneNumber;
+
+  /// No description provided for @petTaxiValidCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid vehicle capacity.'**
+  String get petTaxiValidCapacity;
+
+  /// No description provided for @petTaxiCapacityMinimum.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle capacity must be at least 1.'**
+  String get petTaxiCapacityMinimum;
+
+  /// No description provided for @petTaxiCapacityMaximum.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle capacity cannot be greater than 15.'**
+  String get petTaxiCapacityMaximum;
+
+  /// No description provided for @petTaxiSelectVehicleType.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a vehicle type.'**
+  String get petTaxiSelectVehicleType;
+
+  /// No description provided for @petTaxiDriverFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver full name'**
+  String get petTaxiDriverFullName;
+
+  /// No description provided for @petTaxiDriverPhoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver phone number'**
+  String get petTaxiDriverPhoneNumber;
+
+  /// No description provided for @petTaxiVehiclePlateNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle plate number'**
+  String get petTaxiVehiclePlateNumber;
+
+  /// No description provided for @petTaxiVehicleCapacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle capacity'**
+  String get petTaxiVehicleCapacity;
+
+  /// No description provided for @petTaxiVehicleSedan.
+  ///
+  /// In en, this message translates to:
+  /// **'Sedan'**
+  String get petTaxiVehicleSedan;
+
+  /// No description provided for @petTaxiVehicleHatchback.
+  ///
+  /// In en, this message translates to:
+  /// **'Hatchback'**
+  String get petTaxiVehicleHatchback;
+
+  /// No description provided for @petTaxiVehicleSuv.
+  ///
+  /// In en, this message translates to:
+  /// **'SUV'**
+  String get petTaxiVehicleSuv;
+
+  /// No description provided for @petTaxiVehicleVan.
+  ///
+  /// In en, this message translates to:
+  /// **'Van'**
+  String get petTaxiVehicleVan;
+
+  /// No description provided for @petTaxiVehiclePetTransportVan.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet transport van'**
+  String get petTaxiVehiclePetTransportVan;
+
+  /// No description provided for @petTaxiVehicleLargeAnimalTransport.
+  ///
+  /// In en, this message translates to:
+  /// **'Large animal transport'**
+  String get petTaxiVehicleLargeAnimalTransport;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

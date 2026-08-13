@@ -1,9 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
-import 'package:barky_matches_fixed/promotion/models/promotion_enums.dart';
 import 'package:barky_matches_fixed/promotion/models/promotion_service_sector.dart';
-import 'package:barky_matches_fixed/promotion/widgets/promotion_plan_sheet.dart';
+import 'package:barky_matches_fixed/promotion/widgets/service_promotion_action.dart';
 
 class VetDashboardServicesTab extends StatelessWidget {
   final String businessId;
@@ -164,24 +163,13 @@ class VetDashboardServicesTab extends StatelessWidget {
                                   await doc.reference.delete();
                                 },
                               ),
-                              if (sector.m7Enabled && data['isActive'] == true)
-                                OutlinedButton.icon(
-                                  icon: const Icon(Icons.rocket_launch),
-                                  label: const Text('Boost service'),
-                                  onPressed: () => PromotionPlanSheet.show(
-                                    context,
-                                    targetType: PromotionTargetType.service,
-                                    targetId: PromotionServiceTargetId(
-                                      sector: sector,
-                                      businessId: businessId,
-                                      serviceId: doc.id,
-                                    ).value,
-                                    businessId: businessId,
-                                    sector: sector,
-                                    title:
-                                        'Boost ${data['title'] ?? 'service'}',
-                                  ),
-                                ),
+                              ServicePromotionAction(
+                                businessId: businessId,
+                                serviceId: doc.id,
+                                serviceTitle: data['title']?.toString() ?? '',
+                                sector: sector,
+                                isActive: data['isActive'] == true,
+                              ),
                             ],
                           ),
                         ],

@@ -10,6 +10,7 @@ import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/services/business_chat_service.dart';
 import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
+import 'package:barky_matches_fixed/services/business_search_matcher.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/business_card.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
@@ -174,18 +175,12 @@ class _PetShopListPageState extends State<PetShopListPage>
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      final query = value.trim().toLowerCase();
+      final query = BusinessSearchMatcher.normalize(value);
       setState(() {
         _filteredShops = query.isEmpty
             ? _shops
             : _shops.where((shop) {
-                return [
-                  shop.name,
-                  shop.address,
-                  shop.city,
-                  shop.district,
-                  ...shop.specialties,
-                ].join(' ').toLowerCase().contains(query);
+                return BusinessSearchMatcher.matches(shop, query);
               }).toList();
       });
     });

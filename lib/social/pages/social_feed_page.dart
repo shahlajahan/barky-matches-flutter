@@ -40,10 +40,10 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
   int _viewerMediaIndex = 0;
 
   @override
-void initState() {
-  super.initState();
-  _feedStream = _postService.streamPublicPosts();
-}
+  void initState() {
+    super.initState();
+    _feedStream = _postService.streamPublicPosts();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +244,9 @@ void initState() {
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         value: 'report',
-                        child: Text(AppLocalizations.of(context)!.reportMenuPost),
+                        child: Text(
+                          AppLocalizations.of(context)!.reportMenuPost,
+                        ),
                       ),
                     ],
                   ),
@@ -381,29 +383,32 @@ void initState() {
                                 Row(
                                   children: [
                                     StreamBuilder<bool>(
-  stream: _postService.likedStream(post.id),
-  builder: (context, snapshot) {
-    final liked = snapshot.data ?? false;
+                                      stream: _postService.likedStream(post.id),
+                                      builder: (context, snapshot) {
+                                        final liked = snapshot.data ?? false;
 
-    return _buildActionButton(
-      icon: LucideIcons.heart,
-      iconColor: liked
-          ? const Color(0xFFFF4D8D)
-          : Colors.white,
-      count: post.likeCount.toString(),
-      onTap: () async {
-        final appState = context.read<AppState>();
+                                        return _buildActionButton(
+                                          icon: LucideIcons.heart,
+                                          iconColor: liked
+                                              ? const Color(0xFFFF4D8D)
+                                              : Colors.white,
+                                          count: post.likeCount.toString(),
+                                          onTap: () async {
+                                            final appState = context
+                                                .read<AppState>();
 
-        if (appState.isGuest) {
-          appState.openGuestFeatureGate();
-          return;
-        }
+                                            if (appState.isGuest) {
+                                              appState.openGuestFeatureGate();
+                                              return;
+                                            }
 
-        await _postService.toggleLike(post.id);
-      },
-    );
-  },
-),
+                                            await _postService.toggleLike(
+                                              post.id,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
 
                                     const SizedBox(width: 18),
 
@@ -474,20 +479,20 @@ void initState() {
                                       debugPrint('❌ SAVE ERROR: $e');
                                     }
                                   },
-                                 child: StreamBuilder<bool>(
-  stream: _saveService.savedStream(post.id),
-  builder: (context, snapshot) {
-    final saved = snapshot.data ?? false;
+                                  child: StreamBuilder<bool>(
+                                    stream: _saveService.savedStream(post.id),
+                                    builder: (context, snapshot) {
+                                      final saved = snapshot.data ?? false;
 
-    return Icon(
-      LucideIcons.bookmark,
-      color: saved
-    ? const Color(0xFFFF4D8D)
-    : Colors.white,
-      size: 28,
-    );
-  },
-),
+                                      return Icon(
+                                        LucideIcons.bookmark,
+                                        color: saved
+                                            ? const Color(0xFFFF4D8D)
+                                            : Colors.white,
+                                        size: 28,
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                             ],
@@ -531,17 +536,17 @@ ${SocialPostShare.canonicalUrl(post.id)}
   }
 
   Widget _buildActionButton({
-  required IconData icon,
-  required String count,
-  required VoidCallback onTap,
-  Color iconColor = Colors.white,
-}) {
+    required IconData icon,
+    required String count,
+    required VoidCallback onTap,
+    Color iconColor = Colors.white,
+  }) {
     return GestureDetector(
       onTap: onTap,
 
       child: Row(
         children: [
-         Icon(icon, color: iconColor, size: 28),
+          Icon(icon, color: iconColor, size: 28),
 
           const SizedBox(width: 7),
 

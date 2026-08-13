@@ -53,7 +53,15 @@
   "enterVerificationCodeSentToEmail": "Введите код подтверждения, отправленный на вашу электронную почту",
   "pleaseEnterSixDigitCode": "Пожалуйста, введите 6-значный код",
   "emailVerifiedSuccessfully": "Электронная почта успешно подтверждена",
-  "invalidVerificationCode": "Недействительный код подтверждения",
+  "invalidVerificationCode": "Недействительный код подтверждения. Попробуйте еще раз.",
+  "verificationCodeExpired": "Срок действия кода истек. Запросите новый код.",
+  "unableToVerifyEmail": "Сейчас не удается подтвердить почту. Попробуйте еще раз.",
+  "unableToSendVerificationCode": "Сейчас не удается отправить новый код. Попробуйте еще раз.",
+  "verificationCodeSentTo": "Код отправлен на адрес: {email}",
+  "verificationCodeSentToLabel": "Код подтверждения отправлен на",
+  "sendingVerificationCode": "Отправка...",
+  "resendCodeAvailableIn": "Повторная отправка кода доступна через {seconds} с",
+  "changeEmail": "Изменить электронную почту",
   "enterCodeLabel": "Введите 6-значный код",
   "verifyButton": "Подтвердить",
   "authWelcomeBackSubtitle": "С возвращением в PetSupo",
@@ -471,6 +479,10 @@
   "cartIsEmpty": "Корзина пуста",
   "totalLabel": "Итого",
   "checkoutButton": "Оформить заказ",
+  "marketplaceDisclaimerTitle": "Перед продолжением",
+  "marketplaceDisclaimerMessage": "PetSupo — это платформа, которая связывает вас с независимыми компаниями и поставщиками услуг. Выбранную услугу предоставляет указанная компания или поставщик. PetSupo не гарантирует качество или выполнение этой независимой услуги и не несёт за это ответственность. Перед продолжением ознакомьтесь с информацией о компании или поставщике.",
+  "marketplaceDisclaimerAccept": "Принять и продолжить",
+  "marketplaceDisclaimerCancel": "Отмена",
   "checkoutStepAddressTitle": "Адрес",
   "checkoutStepPaymentTitle": "Оплата",
   "checkoutStepConfirmTitle": "Подтверждение",
@@ -906,6 +918,10 @@
   "processingLabel": "Обработка...",
   "restoreRequestSent": "Запрос на восстановление отправлен.",
   "restorePurchases": "Восстановить покупки",
+  "mobileSubscriptionVerificationFailed": "Не удалось подтвердить подписку. Повторите восстановление покупок.",
+  "mobileSubscriptionOwnershipConflict": "Эта подписка привязана к другой учетной записи Petsupo. Войдите в учетную запись, которая ранее использовалась для этой подписки.",
+  "deleteAccountStoreSubscriptionNotice": "Удаление аккаунта PetSupo не отменяет подписку в App Store или Google Play. Отмените оплату в магазине отдельно перед удалением аккаунта.",
+  "manageStoreSubscription": "Управление подпиской магазина",
   "upgradePaymentTerms": "Сумма будет списана с вашего аккаунта App Store при подтверждении. Подписки продлеваются автоматически, если не отменены как минимум за 24 часа до конца текущего периода.",
   "autoRenewableMonthlySubscription": "Ежемесячная подписка с автопродлением",
   "securePaymentNotice": "Безопасная оплата • Можно отменить в любое время • Планами управляет App Store",
@@ -2392,6 +2408,8 @@
 ,"sendPrice": "Отправить цену"
 ,"petTaxiOverview": "Обзор зоотакси"
 ,"driverOnline": "Водитель онлайн"
+,"petTaxiAwaitingActivation": "Зоотакси ожидает активации."
+,"petTaxiAvailabilityUpdateFailed": "Не удалось обновить статус водителя. Повторите попытку."
 ,"serviceDetailsSaveFailed": "Не удалось сохранить сведения об услуге."
 ,"priceDeterminedAfterExamination": "Оставьте поле пустым, если итоговая цена определяется после осмотра."
 ,"editing": "Редактирование"
@@ -2560,6 +2578,13 @@
 ,"amenities": "Удобства"
 ,"petTaxiDetails": "Сведения о зоотакси"
 ,"petTaxiManualReviewNotice": "Заявка на зоотакси не будет опубликована до ручной проверки и одобрения документов."
+,"petTaxiReplacementExpiryDateDriverLicense": "Новая дата окончания водительского удостоверения"
+,"petTaxiReplacementExpiryDateTrafficInsurance": "Новая дата окончания страховки автомобиля"
+,"petTaxiReplacementExpiryRequired": "Перед отправкой замены выберите действительную будущую дату."
+,"petTaxiReplacementSubmitted": "Замена отправлена на проверку."
+,"petTaxiDocumentsRequiringReplacement": "Документы, требующие замены"
+,"petTaxiRejected": "Отклонено"
+,"petTaxiReplaceDocument": "Заменить"
 ,"transportationLawNotice": "Транспортное законодательство зависит от города и страны. Компания обязана соблюдать местные правила перевозки, страхования и налогообложения."
 ,"legalDocumentsPrivacyNotice": "Юридические документы хранятся только для проверки владельцем компании и администратором. Они не показываются обычным пользователям."
 ,"savePetTaxiDetails": "Сохранить сведения о зоотакси"
@@ -2972,6 +2997,8 @@
 ,"estimatedPrice": "Estimated Price"
 ,"routeEstimateNeeded": "Select pickup/dropoff locations and pickup time to calculate a real driving-route estimate."
 ,"routeEstimateDetail": "{distance} km driving route • {duration} min. Estimated based on Istanbul taxi tariff + pet transport service premium. Bridge, highway, waiting and provider-specific fees may be added. Final price will be confirmed by provider."
+,"petTaxiRouteUnavailable": "Между выбранными местами не удалось найти автомобильный маршрут. Проверьте точки посадки и назначения."
+,"routeEstimateUnavailable": "Оценка маршрута сейчас недоступна. Проверьте выбранные места и попробуйте снова."
 ,"createPetTaxiBooking": "Create pet taxi booking"
 ,"creatingBooking": "Creating booking..."
 ,"petTaxiTitle": "Pet Taxi"
@@ -3184,4 +3211,87 @@
 ,"promotionTargetProduct": "Товар"
 ,"promotionTargetVetService": "Ветеринарная услуга"
 ,"promotionTargetGroomyService": "Услуга Groomy"
+,"petTaxiDocumentTaxPlate": "Налоговая табличка"
+,"petTaxiDocumentBusinessRegistration": "Регистрация бизнеса"
+,"petTaxiDocumentVehicleRegistration": "Регистрация автомобиля"
+,"petTaxiDocumentDriverLicense": "Водительское удостоверение"
+,"petTaxiDocumentTrafficInsurance": "Страховка автомобиля"
+,"petTaxiDocumentStatusPendingReview": "На проверке"
+,"petTaxiDocumentStatusApproved": "Одобрено"
+,"petTaxiDocumentStatusRejected": "Отклонено"
+,"petTaxiDocumentStatusMissing": "Отсутствует"
+,"petTaxiDocumentExpired": "Срок истёк"
+,"petTaxiDocumentExpiryDate": "Срок действия: {date}"
+,"petTaxiDocumentExpiredMessage": "Срок действия этого документа истёк. Отклоните его и попросите компанию загрузить действующую замену."
+,"petTaxiRejectDocumentTitle": "Отклонить документ «{document}»"
+,"petTaxiAdminErrorPermissionDenied": "У вас нет разрешения на это действие."
+,"petTaxiAdminErrorUnauthenticated": "Срок действия сеанса истёк. Войдите снова."
+,"petTaxiAdminErrorNotFound": "Компания или документ не найдены."
+,"petTaxiAdminErrorInvalidArgument": "Проверьте данные документа и повторите попытку."
+,"petTaxiAdminErrorAlreadyExists": "Это действие уже выполнено."
+,"petTaxiAdminErrorFailedPrecondition": "Это действие невозможно в текущем состоянии документа."
+,"petTaxiAdminErrorGeneric": "Не удалось выполнить действие. Повторите попытку."
+,"petTaxiAdminActionCompleted": "Документ обновлён"
+,"petTaxiUploadDocument": "Загрузить документ"
+,"petTaxiTakePhoto": "Сделать фото"
+,"petTaxiChoosePhoto": "Выбрать фото"
+,"petTaxiChoosePdf": "Выбрать PDF"
+,"petTaxiSupportedDocumentFormats": "PDF, JPG или PNG (до 25 МБ)"
+,"petTaxiUnsupportedDocumentFormat": "Выберите документ в формате PDF, JPG или PNG."
+,"petTaxiDocumentTooLarge": "Размер документа превышает 25 МБ."
+,"petTaxiDocumentUploadFailed": "Не удалось загрузить документ. Повторите попытку."
+,"petTaxiOpenDocumentFailed": "Не удалось открыть этот документ."
+,"businessRegisterOptional": "Необязательно"
+,"businessRegisterTaxPlateRequired": "Необходимо загрузить налоговое свидетельство."
+,"businessRegisterMersisNumberRequired": "Требуется номер MERSIS."
+,"businessRegisterPhoneOptional": "Телефон (необязательно)"
+,"businessRegisterWhatsApp": "WhatsApp"
+,"businessRegisterDetectLocationTitle": "Определить местоположение компании"
+,"businessRegisterDetectLocationMessage": "Мы используем ваше местоположение, чтобы определить город и район."
+,"petTaxiDocumentPermissionDenied": "Доступ к камере или фотографиям запрещён. Вместо этого можно выбрать фото или PDF."
+,"petTaxiRequiredDocuments": "Обязательные документы"
+,"petTaxiRequiredDocumentsSubtitle": "Документы, необходимые для ручной проверки администратором"
+,"petTaxiOptionalDocuments": "Необязательные / условные документы"
+,"petTaxiOptionalDocumentsSubtitle": "Загрузите их, если они относятся к вашей услуге"
+,"petTaxiComplianceTitle": "Подтверждения соответствия и закона"
+,"petTaxiComplianceSubtitle": "Обязательные подтверждения перед отправкой"
+,"petTaxiPetSafetyEquipmentConfirmation": "Подтверждаю наличие оборудования для безопасности животных в автомобиле."
+,"petTaxiHygieneConfirmation": "Подтверждаю соблюдение требований гигиены."
+,"petTaxiDriverLicenseConfirmation": "Подтверждаю, что водительские права действительны."
+,"petTaxiVehicleRegistrationConfirmation": "Подтверждаю, что регистрация автомобиля относится к транспортному средству услуги."
+,"petTaxiTrafficInsuranceConfirmation": "Подтверждаю, что страховка автомобиля действительна."
+,"petTaxiTaxResponsibilityConfirmation": "Подтверждаю, что налоговые обязательства и ответственность за счета или чеки относятся к моей компании."
+,"petTaxiTransportRulesConfirmation": "Подтверждаю соблюдение правил перевозки города и страны."
+,"petTaxiComplianceNotes": "Примечания для проверки администратором"
+,"petTaxiOptionalIfApplicable": "Необязательно / если применимо"
+,"petTaxiDocumentRequired": "Требуется документ: {document}"
+,"petTaxiDateRequired": "Требуется дата: {date}"
+,"petTaxiDateCannotBePast": "Дата {date} не может быть в прошлом"
+,"petTaxiDocumentNumber": "Номер документа"
+,"petTaxiDocumentNumberOptional": "Номер документа (необязательно)"
+,"petTaxiDocumentNumberRequired": "Требуется номер документа"
+,"petTaxiVehicleRegistrationIssueDate": "Дата выдачи регистрации автомобиля"
+,"petTaxiDriverLicenseExpiryDate": "Срок действия водительских прав"
+,"petTaxiTrafficInsuranceExpiryDate": "Срок действия страховки автомобиля"
+,"petTaxiSrcCertificateExpiryDate": "Срок действия сертификата SRC"
+,"petTaxiPsychotechnicalExpiryDate": "Срок действия психотехнического отчёта"
+,"petTaxiKaskoExpiryDate": "Срок действия каско"
+,"petTaxiValidTurkishPlate": "Введите действительный турецкий номер автомобиля."
+,"petTaxiRequiredDocumentsMissing": "Загрузите все обязательные документы Pet Taxi."
+,"petTaxiComplianceConfirmationsMissing": "Подтвердите все обязательные заявления о соответствии."
+,"petTaxiValidPhoneNumber": "Введите действительный номер телефона."
+,"petTaxiValidCapacity": "Введите действительную вместимость автомобиля."
+,"petTaxiCapacityMinimum": "Вместимость автомобиля должна быть не менее 1."
+,"petTaxiCapacityMaximum": "Вместимость автомобиля не может превышать 15."
+,"petTaxiSelectVehicleType": "Выберите тип автомобиля."
+,"petTaxiDriverFullName": "Полное имя водителя"
+,"petTaxiDriverPhoneNumber": "Телефон водителя"
+,"petTaxiVehiclePlateNumber": "Номер автомобиля"
+,"petTaxiVehicleCapacity": "Вместимость автомобиля"
+,"petTaxiVehicleSedan": "Седан"
+,"petTaxiVehicleHatchback": "Хэтчбек"
+,"petTaxiVehicleSuv": "Внедорожник"
+,"petTaxiVehicleVan": "Фургон"
+,"petTaxiVehiclePetTransportVan": "Фургон для перевозки животных"
+,"petTaxiVehicleLargeAnimalTransport": "Транспорт для крупных животных"
 }

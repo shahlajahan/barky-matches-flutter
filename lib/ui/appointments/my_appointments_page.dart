@@ -12,9 +12,8 @@ import 'package:barky_matches_fixed/appointments/mappers/appointment_status_mapp
 import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_status.dart';
 import 'package:barky_matches_fixed/ui/appointments/appointment_status_utils.dart';
-import 'package:barky_matches_fixed/ui/business/dashboard/vet/appointment_payment_page.dart';
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
-import 'package:barky_matches_fixed/ui/pet_taxi/pet_taxi_booking_detail_page.dart';
+import 'package:barky_matches_fixed/ui/appointments/user_appointment_router.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 
 class MyAppointmentsPage extends StatefulWidget {
@@ -373,56 +372,25 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage> {
   ) async {
     final collection = doc.reference.parent.id;
     final appointmentId = doc.id;
-    final isGroomy = collection == 'groomy_appointments';
-    final isHotel = collection == 'hotel_bookings';
-    final isPetTaxi = collection == 'pet_taxi_bookings';
     debugPrint("🩺 OPEN USER APPOINTMENT DETAIL → $collection/$appointmentId");
+
+    final destination = buildUserAppointmentDetailPage(
+      collection: collection,
+      appointmentId: appointmentId,
+    );
+    if (destination == null) {
+      debugPrint(
+        '❌ APPOINTMENT ROUTE FAILED → collection=$collection id=$appointmentId',
+      );
+      return;
+    }
+    debugPrint(
+      '🧭 APPOINTMENT ROUTE RESOLVED → collection=$collection destination=${destination.runtimeType}',
+    );
 
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) {
-          if (isPetTaxi) {
-            return PetTaxiBookingDetailPage(bookingId: appointmentId);
-          }
-
-          return AppointmentPaymentPage(
-            appointmentId: appointmentId,
-            appointmentCollection: collection,
-            appointmentType: isHotel
-                ? 'pet_hotel'
-                : isGroomy
-                ? 'grooming'
-                : 'veterinary',
-            updateStatusFunctionName: isHotel
-                ? 'updateHotelBookingStatus'
-                : isGroomy
-                ? 'updateGroomyAppointmentStatus'
-                : 'updateVetAppointmentStatus',
-            createOrderFunctionName: isHotel
-                ? 'createHotelBookingOrder'
-                : 'createAppointmentOrder',
-            verifyPaymentFunctionName: isHotel
-                ? 'verifyHotelBookingPayment'
-                : 'verifyPayment',
-            serviceFallbackName: isHotel
-                ? 'Hotel stay'
-                : isGroomy
-                ? 'Grooming service'
-                : 'Veterinary service',
-            businessFallbackName: isHotel
-                ? 'Pet hotel'
-                : isGroomy
-                ? 'Grooming studio'
-                : 'Vet clinic',
-            businessInfoLabel: isHotel
-                ? 'Hotel'
-                : isGroomy
-                ? 'Groomy'
-                : 'Clinic',
-          );
-        },
-      ),
+      MaterialPageRoute(builder: (_) => destination),
     );
   }
 

@@ -9,6 +9,8 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 const double webUpgradeContentMaxWidth = 1100;
 
+bool mobileIapPurchaseControlsEnabled() => IapService.mobileIapEnabled;
+
 double upgradeContentWidth({
   required double viewportWidth,
   required bool isWeb,
@@ -51,16 +53,30 @@ class _UpgradePageState extends State<UpgradePage> {
     if (kIsWeb) {
       _loadWebCatalog();
     } else {
+      IapService.instance.setSubscriptionErrorCallback((reason) async {
+        if (!mounted) return;
+        final l10n = AppLocalizations.of(context);
+        if (l10n == null) return;
+        final message = reason == IapService.ownershipConflictReason
+            ? l10n.mobileSubscriptionOwnershipConflict
+            : l10n.mobileSubscriptionVerificationFailed;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      });
       _ensureStoreLoaded();
     }
   }
 
   Future<void> _ensureStoreLoaded() async {
-    if (kIsWeb) return;
-    if (IapService.instance.products.isEmpty) {
+    if (kIsWeb || !IapService.mobileIapEnabled) return;
+    if (IapService.instance.products.isNotEmpty) return;
+    try {
       await IapService.instance.init();
-      if (mounted) setState(() {});
+    } catch (error, stack) {
+      debugPrint('🛒 STORE INIT ERROR: $error\n$stack');
     }
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadWebCatalog() async {
@@ -158,6 +174,7 @@ class _UpgradePageState extends State<UpgradePage> {
     final l10n = AppLocalizations.of(context)!;
     final premium = kIsWeb ? null : IapService.instance.premiumProduct;
     final gold = kIsWeb ? null : IapService.instance.goldProduct;
+    final mobileIapEnabled = mobileIapPurchaseControlsEnabled();
 
     final selectedProduct = selectedPlan == "premium" ? premium : gold;
     final webUnavailable = l10n.webSubscriptionPaymentUnavailable;
@@ -310,7 +327,9 @@ class _UpgradePageState extends State<UpgradePage> {
                             price: kIsWeb
                                 ? (_webPlans['premium']?.formattedPrice ??
                                       webUnavailable)
-                                : premium?.price ?? l10n.loadingLabel,
+                                : mobileIapEnabled
+                                ? premium?.price ?? l10n.loadingLabel
+                                : l10n.storeNotReadyTryAgain,
                             isSelected: selectedPlan == "premium",
                             isGold: false,
                             features: [
@@ -334,7 +353,9 @@ class _UpgradePageState extends State<UpgradePage> {
                             price: kIsWeb
                                 ? (_webPlans['gold']?.formattedPrice ??
                                       webUnavailable)
-                                : gold?.price ?? l10n.loadingLabel,
+                                : mobileIapEnabled
+                                ? gold?.price ?? l10n.loadingLabel
+                                : l10n.storeNotReadyTryAgain,
                             isSelected: selectedPlan == "gold",
                             isGold: true,
                             badge: l10n.mostPopularLabel,
@@ -375,6 +396,7 @@ class _UpgradePageState extends State<UpgradePage> {
                               ),
                               onPressed:
                                   isBusy ||
+                                      (!kIsWeb && !mobileIapEnabled) ||
                                       (kIsWeb &&
                                           (_webCatalogLoading ||
                                               !_webCheckoutAvailable))
@@ -446,7 +468,7 @@ class _UpgradePageState extends State<UpgradePage> {
 
                           const SizedBox(height: 8),
 
-                          if (!kIsWeb)
+                          if (!kIsWeb && mobileIapEnabled)
                             TextButton(
                               onPressed: () async {
                                 await IapService.instance.restorePurchases();

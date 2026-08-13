@@ -449,7 +449,7 @@ class OffersManager {
     final isGold = appState.isGold;
     final isPremium =
         appState.subscription.plan == SubscriptionPlan.premium &&
-        appState.subscription.status.isActive;
+        appState.subscription.hasValidPaidAccess;
     // ─── چک دسترسی پرمیوم (قبل از هر چیزی) ───────────────────────────────
     // فرض: plan از Provider.of<UserProvider>(context).plan یا مشابه میاد
     // اگر هنوز نداری، باید از بیرون پاس بدی یا از context بگیری
