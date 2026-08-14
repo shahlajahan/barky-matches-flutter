@@ -2,7 +2,7 @@ name: barky_matches_fixed
 description: A Flutter application for dog playdates.
 publish_to: 'none'
 
-version: 1.0.3+14
+version: 1.0.3+15
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
