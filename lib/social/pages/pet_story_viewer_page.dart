@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 import '../models/pet_story.dart';
 import '../services/pet_story_service.dart';
+import '../widgets/petplore_avatar.dart';
 
 class PetStoryViewerPage extends StatefulWidget {
   final List<PetStory> stories;
@@ -543,8 +543,6 @@ https://petsupo.com/story/${story.id}
   }
 
   Widget _buildHeader(PetStory story) {
-    final hasAvatar =
-        story.userAvatarUrl != null && story.userAvatarUrl!.trim().isNotEmpty;
     final contentWidth = MediaQuery.sizeOf(context).width - 24;
     final nameWidth = contentWidth - 20 - 36 - 10 - 8 - 34 - 48;
 
@@ -557,15 +555,12 @@ https://petsupo.com/story/${story.id}
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          PetploreAvatar(
+            imageUrl: story.userAvatarUrl,
             radius: 18,
-            backgroundColor: Colors.white12,
-            backgroundImage: hasAvatar
-                ? CachedNetworkImageProvider(story.userAvatarUrl!)
-                : null,
-            child: hasAvatar
-                ? null
-                : const Icon(LucideIcons.dog, color: Colors.white, size: 18),
+            iconColor: Colors.white,
+            iconSize: 18,
+            semanticLabel: '${story.username} avatar',
           ),
           const SizedBox(width: 10),
           SizedBox(

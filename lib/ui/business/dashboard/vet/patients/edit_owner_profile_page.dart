@@ -7,6 +7,67 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/vet/patients/owner_profile_snapshot.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
+String normalizeOwnerProfilePhone(String value) {
+  final stripped = value.replaceAll(RegExp(r'[^0-9+]'), '');
+  final digits = stripped.replaceAll(RegExp(r'[^0-9]'), '');
+
+  if (stripped.startsWith('+') && digits.startsWith('90')) {
+    return '+$digits';
+  }
+
+  if (digits.length == 12 && digits.startsWith('90')) {
+    return '+$digits';
+  }
+
+  if (digits.length == 11 && digits.startsWith('0')) {
+    return '+9$digits';
+  }
+
+  if (digits.length == 10 && digits.startsWith('5')) {
+    return '+90$digits';
+  }
+
+  return stripped;
+}
+
+bool isValidOwnerProfilePhone(String value) {
+  final normalized = normalizeOwnerProfilePhone(value);
+
+  return RegExp(r'^\+905[0-9]{9}$').hasMatch(normalized);
+}
+
+Map<String, dynamic> buildEditableOwnerProfile({
+  required String ownerName,
+  required String ownerPhone,
+  required String emergencyContact,
+  required String emergencyPhone,
+  required String city,
+  required String district,
+  required String address,
+}) {
+  return {
+    'ownerName': ownerName,
+    'ownerPhone': ownerPhone,
+    'emergencyContact': emergencyContact,
+    'emergencyPhone': emergencyPhone,
+    'city': city,
+    'district': district,
+    'address': address,
+  };
+}
+
+Map<String, dynamic> buildOwnerProfileFieldUpdate(
+  Map<String, dynamic> editableOwnerProfile, {
+  required Object serverTimestamp,
+}) {
+  return {
+    for (final entry in editableOwnerProfile.entries)
+      'ownerProfile.${entry.key}': entry.value,
+    'ownerProfileUpdatedAt': serverTimestamp,
+    'updatedAt': serverTimestamp,
+  };
+}
+
 class EditOwnerProfilePage extends StatefulWidget {
   final String businessId;
   final String patientId;
@@ -131,18 +192,11 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
   }
 
   String _normalizePhone(String value) {
-    return value
-        .trim()
-        .replaceAll(' ', '')
-        .replaceAll('-', '')
-        .replaceAll('(', '')
-        .replaceAll(')', '');
+    return normalizeOwnerProfilePhone(value);
   }
 
   bool _isValidTurkishPhone(String value) {
-    final normalized = _normalizePhone(value);
-
-    return RegExp(r'^\+90[0-9]{10}$').hasMatch(normalized);
+    return isValidOwnerProfilePhone(value);
   }
 
   bool _isValidName(String value) {
@@ -188,17 +242,22 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
       _isSaving = true;
     });
 
-    final updatedOwnerProfile = Map<String, dynamic>.from(ownerProfile)
-      ..['ownerName'] = ownerName
-      ..['ownerPhone'] = ownerPhone
-      ..['city'] = city
-      ..['district'] = district
-      ..['address'] = address
-      ..['emergencyContact'] = emergencyContact
-      ..['emergencyPhone'] = emergencyPhone;
+    final editableOwnerProfile = buildEditableOwnerProfile(
+      ownerName: ownerName,
+      ownerPhone: ownerPhone,
+      emergencyContact: emergencyContact,
+      emergencyPhone: emergencyPhone,
+      city: city,
+      district: district,
+      address: address,
+    );
 
-    updatedOwnerProfile['updatedAt'] = FieldValue.serverTimestamp();
-    updatedOwnerProfile['profileVersion'] = 1;
+    Map<String, dynamic> ownerProfileUpdateData() => {
+      ...buildOwnerProfileFieldUpdate(
+        editableOwnerProfile,
+        serverTimestamp: FieldValue.serverTimestamp(),
+      ),
+    };
 
     try {
       final firestore = FirebaseFirestore.instance;
@@ -232,13 +291,13 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      final ownerName = updatedOwnerProfile['ownerName']?.toString().trim();
-      if (ownerName != null && ownerName.isNotEmpty) {
-        userUpdateData['displayName'] = ownerName;
+      final safeOwnerName = ownerName.trim();
+      if (safeOwnerName.isNotEmpty) {
+        userUpdateData['displayName'] = safeOwnerName;
       }
 
-      final safePhone = updatedOwnerProfile['ownerPhone']?.toString().trim();
-      if (safePhone != null && safePhone.isNotEmpty) {
+      final safePhone = ownerPhone.trim();
+      if (safePhone.isNotEmpty) {
         userUpdateData['phone'] = safePhone;
       }
 
@@ -248,11 +307,10 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
         debugPrint('SKIPPING BUSINESS MIRROR');
         debugPrint('SKIPPING PATIENT MIRROR');
 
-        await firestore.collection('dogs').doc(dogId).set({
-          'ownerProfile': updatedOwnerProfile,
-          'ownerProfileUpdatedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        await firestore
+            .collection('dogs')
+            .doc(dogId)
+            .update(ownerProfileUpdateData());
         debugPrint('OWNER PROFILE DOG UPDATED');
 
         if (ownerUid != null) {
@@ -282,11 +340,7 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
 
       final dogRef = firestore.collection('dogs').doc(dogId);
 
-      batch.set(dogRef, {
-        'ownerProfile': updatedOwnerProfile,
-        'ownerProfileUpdatedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      batch.update(dogRef, ownerProfileUpdateData());
       debugPrint('OWNER PROFILE DOG UPDATED');
 
       if (ownerUid != null) {
@@ -304,11 +358,7 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
           .collection('patients')
           .doc(widget.patientId);
 
-      batch.set(currentPatientRef, {
-        'ownerProfile': updatedOwnerProfile,
-        'ownerProfileUpdatedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      batch.update(currentPatientRef, ownerProfileUpdateData());
 
       final mirrors = await firestore
           .collectionGroup('patients')
@@ -316,11 +366,7 @@ class _EditOwnerProfilePageState extends State<EditOwnerProfilePage> {
           .get();
 
       for (final doc in mirrors.docs) {
-        batch.set(doc.reference, {
-          'ownerProfile': updatedOwnerProfile,
-          'ownerProfileUpdatedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        batch.update(doc.reference, ownerProfileUpdateData());
       }
 
       await batch.commit();

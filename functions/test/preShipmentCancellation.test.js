@@ -69,6 +69,22 @@ test("cancellation reuses refund providers and emits notifications", () => {
   assert.match(callable, /order_cancellation_refunded/);
 });
 
+test("seller cancellation notification requires an Auth UID", () => {
+  const callable = cancellationSource();
+  assert.match(
+    callable,
+    /const sellerRecipientUid =\s*initialOrder\.sellerUid \|\| initialOrder\.sellerSnapshot\?\.ownerUid \|\| null;/
+  );
+  assert.match(callable, /if \(sellerRecipientUid\) \{[\s\S]*?recipientUserId: sellerRecipientUid/);
+  assert.doesNotMatch(
+    callable,
+    /order_cancelled_before_shipment[\s\S]*?initialOrder\.shopId/
+  );
+  assert.match(callable, /missing_seller_auth_uid/);
+  assert.match(callable, /await Promise\.allSettled\(notificationPromises\)/);
+  assert.match(callable, /let gatewaySucceeded = false;/);
+});
+
 test("completed cancellation refunds buyer gross and reconciles payout", () => {
   const callable = cancellationSource();
   assert.match(callable, /initialOrder\?\.pricing\?\.grandTotal/);

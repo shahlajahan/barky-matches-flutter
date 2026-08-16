@@ -7,7 +7,20 @@ import 'social_post_share.dart';
 import 'package:flutter/foundation.dart';
 
 class SocialPostService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  SocialPostService({
+    FirebaseFirestore? firestore,
+    String? Function()? currentUserId,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _currentUserId =
+           currentUserId ?? (() => FirebaseAuth.instance.currentUser?.uid);
+
+  final FirebaseFirestore _firestore;
+
+  /// Resolves the acting user's UID. Defaults to the real
+  /// `FirebaseAuth.instance.currentUser?.uid`; tests inject a fixed value
+  /// since `FirebaseAuth.instance` cannot be faked without a real Firebase
+  /// app/plugin.
+  final String? Function() _currentUserId;
 
   CollectionReference<Map<String, dynamic>> get _postsCollection =>
       _firestore.collection('social_posts');
@@ -18,6 +31,8 @@ class SocialPostService {
   String _likeDocId(String postId, String userId) {
     return '${postId}_$userId';
   }
+
+  final Set<String> _pendingLikeToggles = {};
 
   /// STREAM PUBLIC POSTS
   Stream<List<SocialPost>> streamPublicPosts({int limit = 20}) {
@@ -119,42 +134,54 @@ class SocialPostService {
   }
 
   Future<void> toggleLike(String postId) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final uid = _currentUserId();
 
-    if (user == null) {
+    if (uid == null) {
       debugPrint("🚫 Guest cannot like posts");
       return;
     }
 
-    final likeRef = _likesCollection.doc(_likeDocId(postId, user.uid));
-    final postRef = _postsCollection.doc(postId);
-    final likeDoc = await likeRef.get();
-    final batch = _firestore.batch();
-
-    if (likeDoc.exists) {
-      batch.delete(likeRef);
-      batch.update(postRef, {'likeCount': FieldValue.increment(-1)});
-    } else {
-      batch.set(likeRef, {
-        'userId': user.uid,
-        'postId': postId,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      batch.update(postRef, {'likeCount': FieldValue.increment(1)});
+    // Ignore a rapid duplicate tap on the same post while its previous
+    // toggle is still in flight, instead of racing two read-then-write
+    // batches that could double (or lose) the counter update.
+    if (_pendingLikeToggles.contains(postId)) {
+      return;
     }
+    _pendingLikeToggles.add(postId);
 
-    await batch.commit();
+    try {
+      final likeRef = _likesCollection.doc(_likeDocId(postId, uid));
+      final postRef = _postsCollection.doc(postId);
+      final likeDoc = await likeRef.get();
+      final batch = _firestore.batch();
+
+      if (likeDoc.exists) {
+        batch.delete(likeRef);
+        batch.update(postRef, {'likeCount': FieldValue.increment(-1)});
+      } else {
+        batch.set(likeRef, {
+          'userId': uid,
+          'postId': postId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        batch.update(postRef, {'likeCount': FieldValue.increment(1)});
+      }
+
+      await batch.commit();
+    } finally {
+      _pendingLikeToggles.remove(postId);
+    }
   }
 
   Stream<bool> likedStream(String postId) {
-    final user = FirebaseAuth.instance.currentUser;
+    final uid = _currentUserId();
 
-    if (user == null) {
+    if (uid == null) {
       return Stream.value(false);
     }
 
     return _likesCollection
-        .doc(_likeDocId(postId, user.uid))
+        .doc(_likeDocId(postId, uid))
         .snapshots()
         .map((doc) => doc.exists);
   }

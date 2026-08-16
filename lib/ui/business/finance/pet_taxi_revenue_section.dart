@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/ui/business/finance/seller_finance_repository.dart';
 import 'package:barky_matches_fixed/ui/business/finance/seller_finance_summary.dart';
 import 'package:barky_matches_fixed/ui/business/settings/bank_account_settings_page.dart';
@@ -17,6 +18,8 @@ import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_panel.dart';
 import 'package:barky_matches_fixed/ui/shared/dashboard/dashboard_status_pill.dart';
 
 const double _mobileRevenueBreakpoint = 900;
+const double _mobileValueStackedTextScale = 1.25;
+const double _mobileValueStackedMaxWidth = 340;
 
 class BusinessRevenueDashboard extends StatelessWidget {
   const BusinessRevenueDashboard({
@@ -25,12 +28,20 @@ class BusinessRevenueDashboard extends StatelessWidget {
     required this.recordLabel,
     this.repository,
     this.summaryStream,
+    this.showHeader = true,
   });
 
   final String businessId;
   final String recordLabel;
   final SellerFinanceRepository? repository;
   final Stream<SellerFinanceSummary?>? summaryStream;
+
+  /// Whether the mobile summary panel renders its own "Finance & Earnings"
+  /// title row. Defaults to true for every embedded call site (dashboard
+  /// tabs), which have no other header. [BusinessRevenueDetailPage] passes
+  /// false because its AppBar already supplies that title, avoiding a
+  /// duplicated heading directly under the AppBar.
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +79,7 @@ class BusinessRevenueDashboard extends StatelessWidget {
                 summary: summary,
                 recordLabel: recordLabel,
                 isEmptyState: isEmptyState,
+                showHeader: showHeader,
                 onUpdateBank: () => _openBankSettings(context),
               );
             } else {
@@ -99,73 +111,146 @@ class BusinessRevenueDashboard extends StatelessWidget {
 /// Compatibility alias for existing dashboard integrations.
 typedef PetTaxiRevenueSection = BusinessRevenueDashboard;
 
+/// UI_NAV_STANDARD "Detail Route" (Type D) shell for [BusinessRevenueDashboard]
+/// when it is opened as its own pushed page (e.g. from a notification tap)
+/// rather than embedded inside a business dashboard's own tab shell.
+///
+/// [BusinessRevenueDashboard] itself intentionally owns no Scaffold/AppBar
+/// because most call sites embed it as a SubPage section inside an existing
+/// shell (BarkyScaffold via ProfileSubPage.businessDashboard). A route
+/// reached via `Navigator.push` must supply its own Scaffold + AppBar per the
+/// Type D rules in docs/UI_NAV_STANDARD.md, so this wrapper provides that
+/// standard shell without altering the embedded widget's behavior.
+class BusinessRevenueDetailPage extends StatelessWidget {
+  const BusinessRevenueDetailPage({
+    super.key,
+    required this.businessId,
+    required this.recordLabel,
+    this.repository,
+    this.summaryStream,
+  });
+
+  final String businessId;
+  final String recordLabel;
+  final SellerFinanceRepository? repository;
+  final Stream<SellerFinanceSummary?>? summaryStream;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      appBar: AppBar(title: Text(l10n.sellerFinanceTitle)),
+      body: SafeArea(
+        child: BusinessRevenueDashboard(
+          businessId: businessId,
+          recordLabel: recordLabel,
+          repository: repository,
+          summaryStream: summaryStream,
+          showHeader: false,
+        ),
+      ),
+    );
+  }
+}
+
 class _MobileRevenueView extends StatelessWidget {
   const _MobileRevenueView({
     required this.summary,
     required this.recordLabel,
     required this.isEmptyState,
     required this.onUpdateBank,
+    required this.showHeader,
   });
 
   final SellerFinanceSummary summary;
   final String recordLabel;
   final bool isEmptyState;
   final VoidCallback onUpdateBank;
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).toLanguageTag();
     final date = _formatDate(context, summary.nextEligibilityDate);
-    return DashboardPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final safePadding = MediaQuery.paddingOf(context);
+    return ListView(
+      key: PageStorageKey<String>('business-revenue-mobile-$recordLabel'),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        safePadding.top,
+        0,
+        32 + safePadding.bottom,
+      ),
+      children: [
+        DashboardPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(LucideIcons.walletCards, color: Color(0xFF9E1B4F)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.sellerFinanceTitle,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
+              if (showHeader) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      LucideIcons.walletCards,
+                      color: Color(0xFF9E1B4F),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        l10n.sellerFinanceTitle,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 16),
+              ],
+              if (isEmptyState) ...[
+                Text(
+                  l10n.noRevenueData,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+              ],
+              _MobileValue(
+                label: l10n.sellerFinanceAvailable,
+                value: _money(summary.available.amount, summary.currency),
+              ),
+              const SizedBox(height: 12),
+              _MobileValue(
+                label: l10n.sellerFinanceWaiting,
+                value: _money(summary.waiting.amount, summary.currency),
+              ),
+              const SizedBox(height: 12),
+              _MobileValue(
+                label: l10n.creatorUpcomingPayout,
+                value:
+                    '${date ?? '—'} • '
+                    '${_money(summary.amountBecomingEligibleNext, summary.currency)}',
+              ),
+              const SizedBox(height: 16),
+              _BankStatusCard(
+                status: summary.bankValidationStatus,
+                onUpdateBank: onUpdateBank,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (isEmptyState) ...[
-            Text(
-              l10n.noRevenueData,
-              style: const TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 12),
-          ],
-          _MobileValue(
-            label: l10n.sellerFinanceAvailable,
-            value: _money(summary.available.amount, summary.currency),
-          ),
-          const SizedBox(height: 12),
-          _MobileValue(
-            label: l10n.sellerFinanceWaiting,
-            value: _money(summary.waiting.amount, summary.currency),
-          ),
-          const SizedBox(height: 12),
-          _MobileValue(
-            label: l10n.creatorUpcomingPayout,
-            value:
-                '${date ?? '—'} • '
-                '${_money(summary.amountBecomingEligibleNext, summary.currency)}',
-          ),
-          const SizedBox(height: 16),
-          _BankStatusCard(
-            status: summary.bankValidationStatus,
-            onUpdateBank: onUpdateBank,
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 18),
+        _RevenueCharts(
+          summary: summary,
+          trend: summary.revenue.trend,
+          locale: locale,
+        ),
+        const SizedBox(height: 18),
+        _SettlementTimeline(summary: summary, recordLabel: recordLabel),
+        const SizedBox(height: 18),
+        _PayoutHistory(summary: summary, recordLabel: recordLabel),
+      ],
     );
   }
 }
@@ -425,18 +510,20 @@ class _RevenueTrendState extends State<_RevenueTrend> {
     final hasRevenue = points.any((point) => point.paymentValue > 0);
     final maxValue = values.fold<double>(0, math.max);
     final maxY = _niceMaxY(maxValue);
+    final effectiveScale = _effectiveTextScale(context);
     return DashboardPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(l10n.revenueTrend, style: _PanelTitle.style),
-              ),
-              DropdownButton<int>(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 360 ||
+                  effectiveScale >= _mobileValueStackedTextScale;
+              final rangePicker = DropdownButton<int>(
                 value: _days,
                 isDense: true,
+                isExpanded: stacked,
                 items: [
                   DropdownMenuItem(
                     value: 7,
@@ -454,8 +541,26 @@ class _RevenueTrendState extends State<_RevenueTrend> {
                 onChanged: (value) {
                   if (value != null) setState(() => _days = value);
                 },
-              ),
-            ],
+              );
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.revenueTrend, style: _PanelTitle.style),
+                    const SizedBox(height: 8),
+                    SizedBox(width: double.infinity, child: rangePicker),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: Text(l10n.revenueTrend, style: _PanelTitle.style),
+                  ),
+                  rangePicker,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           if (!hasRevenue)
@@ -917,21 +1022,45 @@ class _MobileValue extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Text(label, style: const TextStyle(color: Colors.black54)),
-      ),
-      const SizedBox(width: 12),
-      Flexible(
-        child: Text(
-          value,
-          textAlign: TextAlign.end,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final effectiveScale = _effectiveTextScale(context);
+    const labelStyle = TextStyle(color: Colors.black54);
+    const valueStyle = TextStyle(fontWeight: FontWeight.w800);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked =
+            constraints.maxWidth < _mobileValueStackedMaxWidth ||
+            effectiveScale >= _mobileValueStackedTextScale;
+        if (stacked) {
+          return Semantics(
+            container: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: labelStyle),
+                const SizedBox(height: 4),
+                Text(value, style: valueStyle),
+              ],
+            ),
+          );
+        }
+
+        return Semantics(
+          container: true,
+          child: Row(
+            children: [
+              Expanded(child: Text(label, style: labelStyle)),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(value, textAlign: TextAlign.end, style: valueStyle),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _LegendRow extends StatelessWidget {
@@ -946,18 +1075,49 @@ class _LegendRow extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Container(
-        width: 9,
-        height: 9,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-      const SizedBox(width: 8),
-      Expanded(child: Text(label)),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final effectiveScale = _effectiveTextScale(context);
+    const valueStyle = TextStyle(fontWeight: FontWeight.w700);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final marker = Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        );
+        final stacked =
+            constraints.maxWidth < 360 ||
+            effectiveScale >= _mobileValueStackedTextScale;
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  marker,
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(label)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 17),
+                child: Text(value, style: valueStyle),
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            marker,
+            const SizedBox(width: 8),
+            Expanded(child: Text(label)),
+            Text(value, style: valueStyle),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _PanelTitle {
@@ -966,6 +1126,9 @@ class _PanelTitle {
 
 double _number(Object? value) =>
     value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+
+double _effectiveTextScale(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(14) / 14;
 
 String _money(double value, String currency) =>
     '${value.toStringAsFixed(2)} $currency';

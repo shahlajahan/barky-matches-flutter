@@ -19,8 +19,13 @@ bool canViewInternalOrderPayout({required bool isSeller}) => isSeller;
 
 class OrderDetailPage extends StatefulWidget {
   final String sellerOrderId;
+  final String? returnId;
 
-  const OrderDetailPage({super.key, required this.sellerOrderId});
+  const OrderDetailPage({
+    super.key,
+    required this.sellerOrderId,
+    this.returnId,
+  });
 
   @override
   State<OrderDetailPage> createState() => _OrderDetailPageState();
@@ -28,6 +33,7 @@ class OrderDetailPage extends StatefulWidget {
 
 class _OrderDetailPageState extends State<OrderDetailPage> {
   final TextEditingController _trackingController = TextEditingController();
+  late final String? _focusedReturnId;
 
   bool _isLoading = false;
   String? _selectedCarrier;
@@ -61,6 +67,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   @override
   void initState() {
     super.initState();
+    final returnId = widget.returnId?.trim();
+    _focusedReturnId = returnId == null || returnId.isEmpty ? null : returnId;
     debugPrint("🔥 OPEN ORDER ID: ${widget.sellerOrderId}");
   }
 
@@ -668,7 +676,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         if (snapshot.hasError) {
           return _sectionCard(
             title: l10n.returnRequestsTitle,
-            child: Text(l10n.errorOccurred(snapshot.error.toString())),
+            child: Text(l10n.orderNotFound),
           );
         }
 
@@ -758,6 +766,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       record: record,
                       isSeller: false,
                       isBuyer: true,
+                      highlighted: record.returnId == _focusedReturnId,
                       onChanged: () {},
                     ),
                   ),
@@ -775,6 +784,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       record: record,
                       isSeller: true,
                       isBuyer: false,
+                      highlighted: record.returnId == _focusedReturnId,
                       onChanged: () {},
                     ),
                   ),
@@ -887,9 +897,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(
-              child: Text(l10n.errorOccurred(snapshot.error.toString())),
-            );
+            return Center(child: Text(l10n.orderNotFound));
           }
 
           if (!snapshot.hasData) {

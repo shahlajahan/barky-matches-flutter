@@ -1,32 +1,52 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../models/social_post.dart';
 import '../services/post_comment_service.dart';
+import 'petplore_avatar.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/models/report_model.dart';
 import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 
 class CommentsBottomSheet extends StatefulWidget {
   final SocialPost post;
+  final PostCommentService? commentService;
 
-  const CommentsBottomSheet({super.key, required this.post});
+  /// Test-only override for the comment-author avatar's image cache
+  /// manager (see PetploreAvatar). Never set in production.
+  final BaseCacheManager? avatarCacheManager;
+
+  const CommentsBottomSheet({
+    super.key,
+    required this.post,
+    this.commentService,
+    this.avatarCacheManager,
+  });
 
   @override
   State<CommentsBottomSheet> createState() => _CommentsBottomSheetState();
 }
 
 class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
-  final PostCommentService _commentService = PostCommentService();
+  late final PostCommentService _commentService;
 
   final TextEditingController _controller = TextEditingController();
 
   bool _sending = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _commentService = widget.commentService ?? PostCommentService();
+  }
+
   Future<void> _sendComment() async {
     final text = _controller.text.trim();
 
     if (text.isEmpty) return;
+    if (text.length > PostCommentService.kMaxCommentLength) return;
+    if (_sending) return;
 
     setState(() {
       _sending = true;
@@ -35,9 +55,18 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     try {
       await _commentService.addComment(postId: widget.post.id, text: text);
 
+      // Only clear/dismiss on confirmed success; a failed write leaves the
+      // draft intact so the user doesn't lose what they typed.
       _controller.clear();
     } catch (e) {
       debugPrint('COMMENT ERROR: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.somethingWentWrong),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -137,16 +166,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                         final comment = comments[index];
 
                         return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.grey[800],
-
-                            backgroundImage: comment.userPhotoUrl != null
-                                ? NetworkImage(comment.userPhotoUrl!)
-                                : null,
-
-                            child: comment.userPhotoUrl == null
-                                ? const Icon(Icons.person, color: Colors.white)
-                                : null,
+                          leading: PetploreAvatar(
+                            imageUrl: comment.userPhotoUrl,
+                            radius: 20,
+                            backgroundColor: Colors.grey.shade800,
+                            icon: Icons.person,
+                            iconColor: Colors.white,
+                            cacheManager: widget.avatarCacheManager,
+                            semanticLabel: '${comment.username} avatar',
                           ),
 
                           title: Text(

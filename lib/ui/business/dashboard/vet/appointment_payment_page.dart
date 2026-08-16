@@ -13,6 +13,7 @@ import 'package:barky_matches_fixed/ui/business/dashboard/groomy/groomy_clients_
 import 'package:barky_matches_fixed/ui/marketplace/marketplace_transaction_status.dart';
 import 'package:barky_matches_fixed/services/petshop_checkout_service.dart';
 import 'package:barky_matches_fixed/services/public_service_normalizer.dart';
+import 'package:barky_matches_fixed/ui/appointments/hotel_booking_notification_route.dart';
 import 'package:barky_matches_fixed/ui/petshop/checkout_session_presenter.dart';
 
 class AppointmentPaymentPage extends StatefulWidget {
@@ -64,6 +65,10 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
   Map<String, dynamic>? _businessData;
   String? _watchedBusinessId;
   DateTime _now = DateTime.now();
+
+  bool get _isHotelBooking =>
+      widget.appointmentCollection == 'hotel_bookings' ||
+      widget.appointmentType == 'pet_hotel';
 
   @override
   void initState() {
@@ -127,9 +132,10 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
           },
           onError: (e) {
             if (!mounted) return;
+            debugPrint('🩺 APPOINTMENT WATCH ERROR → $e');
             setState(() {
               loading = false;
-              errorText = e.toString();
+              errorText = "This booking could not be loaded. Please try again.";
             });
           },
         );
@@ -139,47 +145,66 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     if (businessId.isEmpty || _watchedBusinessId == businessId) return;
     _watchedBusinessId = businessId;
     _businessSub?.cancel();
+    final collection = _isHotelBooking ? 'businesses_public' : 'businesses';
     debugPrint(
-      '🩺 BUSINESS WATCH → source=AppointmentPayment businessId=$businessId',
+      '🩺 BUSINESS WATCH → source=AppointmentPayment collection=$collection businessId=$businessId',
     );
     _businessSub = FirebaseFirestore.instance
-        .collection('businesses')
+        .collection(collection)
         .doc(businessId)
         .snapshots()
-        .listen((snap) {
-          if (!mounted) return;
-          final data = snap.data();
-          if (data == null) return;
-          final profile = Map<String, dynamic>.from(data['profile'] ?? {});
+        .listen(
+          (snap) {
+            if (!mounted) return;
+            final data = snap.data();
+            if (data == null) {
+              setState(() => _businessData = null);
+              return;
+            }
+            final profile = Map<String, dynamic>.from(data['profile'] ?? {});
 
-          final sectorData = Map<String, dynamic>.from(
-            data['sectorData'] ?? {},
-          );
+            final sectorData = Map<String, dynamic>.from(
+              _isHotelBooking
+                  ? data['publicSectorData'] ?? {}
+                  : data['sectorData'] ?? {},
+            );
 
-          final sectorKey = widget.appointmentType == 'pet_hotel'
-              ? 'hotel'
-              : widget.appointmentType == 'grooming'
-              ? 'groomy'
-              : 'veterinary';
+            final sectorKey = widget.appointmentType == 'pet_hotel'
+                ? 'hotel'
+                : widget.appointmentType == 'grooming'
+                ? 'groomy'
+                : 'veterinary';
 
-          final sector = Map<String, dynamic>.from(sectorData[sectorKey] ?? {});
+            final sector = Map<String, dynamic>.from(
+              sectorData[sectorKey] ??
+                  sectorData['pet_hotel'] ??
+                  sectorData['petHotel'] ??
+                  {},
+            );
 
-          final serviceCount = PublicServiceNormalizer.toMaps(
-            sector['services'],
-          ).length;
+            final serviceCount = PublicServiceNormalizer.toMaps(
+              sector['services'],
+            ).length;
 
-          debugPrint(
-            '🩺 BUSINESS MAP → '
-            'source=AppointmentPayment '
-            'businessId=$businessId '
-            'displayName=${profile['displayName']} '
-            'serviceCount=$serviceCount '
-            'selectedPricingSource='
-            'businesses/$businessId/sectorData.$sectorKey.services',
-          );
+            debugPrint(
+              '🩺 BUSINESS MAP → '
+              'source=AppointmentPayment '
+              'collection=$collection '
+              'businessId=$businessId '
+              'displayName=${profile['displayName']} '
+              'serviceCount=$serviceCount',
+            );
 
-          setState(() => _businessData = data);
-        });
+            setState(() => _businessData = data);
+          },
+          onError: (e) {
+            debugPrint(
+              '🩺 BUSINESS WATCH ERROR → source=AppointmentPayment collection=$collection businessId=$businessId error=$e',
+            );
+            if (!mounted) return;
+            setState(() => _businessData = null);
+          },
+        );
   }
 
   Future<void> _refreshAppointment() async {
@@ -628,11 +653,10 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     final petType = appointment!['petType'] ?? "dog";
     final petBreed = appointment!['petBreed'] ?? "-";
     final petAge = appointment!['petAge'] ?? "-";
-    final isHotelBooking =
-        widget.appointmentCollection == 'hotel_bookings' ||
-        widget.appointmentType == 'pet_hotel';
+    final isHotelBooking = _isHotelBooking;
 
     final status = appointment!['status']?.toString() ?? "pending";
+    final normalizedStatus = status.trim().toLowerCase();
     final paymentStatus = appointment!['paymentStatus']?.toString() ?? "unpaid";
     final refundRequired = appointment!['refundRequired'] == true;
     final refundStatus = appointment!['refundStatus']?.toString() ?? "";
@@ -648,10 +672,12 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     final canCancel =
         currentUserId != null &&
         currentUserId == ownerUid &&
-        (status == 'pending' ||
-            status == 'awaiting_payment' ||
-            status == 'confirmed' ||
-            status == 'confirmed_paid');
+        (isHotelBooking
+            ? hotelBookingCanShowCancelAction(normalizedStatus)
+            : (status == 'pending' ||
+                  status == 'awaiting_payment' ||
+                  status == 'confirmed' ||
+                  status == 'confirmed_paid'));
 
     if (canCancel && !_loggedCancelVisible) {
       debugPrint("🩺 CANCEL BUTTON VISIBLE");
@@ -687,7 +713,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
         '🩺 PAYMENT CTA DECISION → '
         'status=$status paymentStatus=$paymentStatus '
         'serviceRequiresPayment=$serviceRequiresPayment '
-        'showButton=${status == "awaiting_payment"}',
+        'showButton=${isHotelBooking ? hotelBookingCanShowPaymentAction(normalizedStatus) : normalizedStatus == "awaiting_payment"}',
       );
     }
 
@@ -825,6 +851,7 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
                 isPaid: isPaid || isConfirmedWithoutPayment,
                 status: status,
                 serviceRequiresPayment: serviceRequiresPayment,
+                isHotelBooking: isHotelBooking,
               ),
             ],
           ),
@@ -840,7 +867,9 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
       foregroundColor: Colors.white,
       centerTitle: true,
       title: Text(
-        AppLocalizations.of(context)!.appointmentPayment,
+        _isHotelBooking
+            ? "Hotel Booking"
+            : AppLocalizations.of(context)!.appointmentPayment,
         style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 17),
       ),
     );
@@ -1119,7 +1148,13 @@ class _AppointmentPaymentPageState extends State<AppointmentPaymentPage> {
     required bool isPaid,
     required String status,
     required bool serviceRequiresPayment,
+    required bool isHotelBooking,
   }) {
+    final normalizedStatus = status.trim().toLowerCase();
+    if (isHotelBooking && !hotelBookingCanShowPaymentAction(normalizedStatus)) {
+      return const SizedBox.shrink();
+    }
+
     if (status == 'cancelled_by_user' ||
         status == 'cancelled_by_vet' ||
         status == 'expired') {

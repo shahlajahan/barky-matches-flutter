@@ -14,6 +14,7 @@ class OrderReturnCard extends StatefulWidget {
   final OrderReturnRecord record;
   final bool isSeller;
   final bool isBuyer;
+  final bool highlighted;
   final VoidCallback? onChanged;
 
   const OrderReturnCard({
@@ -21,6 +22,7 @@ class OrderReturnCard extends StatefulWidget {
     required this.record,
     required this.isSeller,
     required this.isBuyer,
+    this.highlighted = false,
     this.onChanged,
   });
 
@@ -759,7 +761,12 @@ class _OrderReturnCardState extends State<OrderReturnCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withValues(alpha: 0.15)),
+        border: Border.all(
+          color: widget.highlighted
+              ? Theme.of(context).colorScheme.primary
+              : statusColor.withValues(alpha: 0.15),
+          width: widget.highlighted ? 2 : 1,
+        ),
         boxShadow: AppTheme.cardShadow(opacity: 0.04),
       ),
       child: Column(

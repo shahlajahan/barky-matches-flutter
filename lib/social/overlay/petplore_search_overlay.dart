@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../app_state.dart';
 import '../../ui/shell/nav_tab.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/petplore_avatar.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetploreSearchOverlay extends StatefulWidget {
@@ -224,21 +225,12 @@ class _PetploreSearchOverlayState extends State<PetploreSearchOverlay> {
                                   child: Row(
                                     children: [
                                       // AVATAR
-                                      CircleAvatar(
+                                      PetploreAvatar(
+                                        imageUrl: photoUrl?.toString(),
                                         radius: 28,
-
                                         backgroundColor: Colors.white,
-
-                                        backgroundImage: photoUrl != null
-                                            ? NetworkImage(photoUrl)
-                                            : null,
-
-                                        child: photoUrl == null
-                                            ? const Icon(
-                                                LucideIcons.dog,
-                                                color: Colors.white,
-                                              )
-                                            : null,
+                                        iconColor: Colors.white,
+                                        semanticLabel: '$username avatar',
                                       ),
 
                                       const SizedBox(width: 14),

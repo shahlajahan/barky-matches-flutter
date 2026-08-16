@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
+import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/social/models/social_post.dart';
 import 'package:barky_matches_fixed/social/services/post_save_service.dart';
 import 'package:barky_matches_fixed/social/services/social_post_service.dart';
@@ -61,6 +62,23 @@ class _SocialPostMediaViewerOverlayState
     _videoControllers.clear();
     _controller.dispose();
     super.dispose();
+  }
+
+  /// Mirrors `_SocialFeedPageState._toggleLike`: catches any failure so it
+  /// never escapes as an unhandled exception past this fire-and-forget
+  /// `VoidCallback` boundary, and surfaces a controlled localized message.
+  Future<void> _toggleLike(String postId) async {
+    try {
+      await _postService.toggleLike(postId);
+    } catch (e) {
+      debugPrint('LIKE ERROR: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.somethingWentWrong),
+        ),
+      );
+    }
   }
 
   List<_ViewerMediaItem> _flattenItems(List<SocialPost> posts) {
@@ -279,7 +297,7 @@ ${SocialPostShare.canonicalUrl(post.id)}
               bottom: 16,
               child: _ViewerBottomBar(
                 post: post,
-                onLike: () => _postService.toggleLike(post.id),
+                onLike: () => _toggleLike(post.id),
                 onComment: () {
                   showModalBottomSheet(
                     context: context,

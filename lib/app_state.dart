@@ -27,6 +27,7 @@ import 'package:barky_matches_fixed/subscription/models/cart_item.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
+import 'package:barky_matches_fixed/ui/business/finance/business_revenue_dashboard.dart';
 import 'package:barky_matches_fixed/utils/firestore_cleaner.dart';
 import 'offers_manager.dart';
 import 'package:barky_matches_fixed/models/product.dart';
@@ -34,8 +35,12 @@ import 'package:barky_matches_fixed/dogs_box_manager.dart';
 import 'package:barky_matches_fixed/services/dog_sync_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_service.dart';
 import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
+import 'package:barky_matches_fixed/services/marketplace_order_notification_types.dart';
+import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
+import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_status.dart';
+import 'package:barky_matches_fixed/ui/appointments/hotel_booking_notification_route.dart';
 
 /// Selects a single canonical approved business owned by [ownerUid].
 /// Published businesses are preferred when that field is present. A caller
@@ -964,6 +969,27 @@ class AppState with ChangeNotifier {
   ProfileSubPage _profileSubPage = ProfileSubPage.none;
 
   ProfileSubPage get profileSubPage => _profileSubPage;
+
+  String? _pendingBuyerOrdersRootOrderId;
+  String? _pendingBuyerOrdersReturnId;
+
+  @visibleForTesting
+  String? get pendingBuyerOrdersRootOrderId => _pendingBuyerOrdersRootOrderId;
+
+  String? takePendingBuyerOrdersRootOrderId() {
+    final value = _pendingBuyerOrdersRootOrderId;
+    _pendingBuyerOrdersRootOrderId = null;
+    return value;
+  }
+
+  @visibleForTesting
+  String? get pendingBuyerOrdersReturnId => _pendingBuyerOrdersReturnId;
+
+  String? takePendingBuyerOrdersReturnId() {
+    final value = _pendingBuyerOrdersReturnId;
+    _pendingBuyerOrdersReturnId = null;
+    return value;
+  }
 
   AppointmentService? _selectedAppointmentService;
   AppointmentStatus? _selectedAppointmentStatus;
@@ -3282,55 +3308,43 @@ class AppState with ChangeNotifier {
     );
   }
 
-  Future<void> checkInitialNotification() async {
-    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-
-    if (initialMessage != null) {
-      debugPrint('🔥 TERMINATED MESSAGE FOUND');
-      await Future.delayed(const Duration(milliseconds: 800));
-      handleNotificationTap(initialMessage.data);
-    }
-  }
-
   Future<void> openOrderSmart(
     String? sellerOrderId,
-    String? rootOrderId,
-  ) async {
-    // ✅ اگر sellerOrderId داریم → مستقیم باز کن
-    if (sellerOrderId != null && sellerOrderId.isNotEmpty) {
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(
-          builder: (_) => OrderDetailPage(sellerOrderId: sellerOrderId),
-        ),
-      );
+    String? rootOrderId, {
+    String? returnId,
+  }) async {
+    final cleanSellerOrderId = sellerOrderId?.trim();
+    final cleanRootOrderId = rootOrderId?.trim();
+
+    if (cleanSellerOrderId != null && cleanSellerOrderId.isNotEmpty) {
+      try {
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => OrderDetailPage(
+              sellerOrderId: cleanSellerOrderId,
+              returnId: returnId,
+            ),
+          ),
+        );
+      } catch (error, stackTrace) {
+        debugPrint('❌ OPEN SELLER ORDER FAILED: $error');
+        debugPrint('$stackTrace');
+      }
       return;
     }
 
-    // ❌ اگر فقط rootOrderId داریم → باید پیدا کنیم
-    if (rootOrderId != null && rootOrderId.isNotEmpty) {
-      debugPrint("🔍 FINDING sellerOrder FROM root: $rootOrderId");
-
-      final snap = await FirebaseFirestore.instance
-          .collection("sellerOrders")
-          .where("rootOrderId", isEqualTo: rootOrderId)
-          .limit(1)
-          .get();
-
-      if (snap.docs.isEmpty) {
-        debugPrint("❌ NO sellerOrder FOUND");
-        return;
-      }
-
-      final foundId = snap.docs.first.id;
-
-      debugPrint("✅ FOUND sellerOrderId = $foundId");
-
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(
-          builder: (_) => OrderDetailPage(sellerOrderId: foundId),
-        ),
-      );
+    if (cleanRootOrderId != null && cleanRootOrderId.isNotEmpty) {
+      debugPrint("📦 OPEN BUYER ORDER ROOT IN MY ORDERS → $cleanRootOrderId");
+      _pendingBuyerOrdersRootOrderId = cleanRootOrderId;
+      _pendingBuyerOrdersReturnId = returnId?.trim().isEmpty == true
+          ? null
+          : returnId?.trim();
+      setCurrentTab(NavTab.profile, preserveProfileSubPage: true);
+      openProfileSubPage(ProfileSubPage.myOrders);
+      return;
     }
+
+    debugPrint("❌ NO ORDER ID AT ALL");
   }
 
   Future<bool> loadUsernameFromFirebase() async {
@@ -3911,18 +3925,93 @@ class AppState with ChangeNotifier {
     return true;
   }
 
+  void _handleBusinessFinanceNotification(Map<String, dynamic> payload) {
+    closeNotifications();
+    _ignoreNextNotificationTap = true;
+    ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
+
+    final requestedBusinessId = payload['businessId']?.toString().trim();
+    final ownedBusinessId = _businessId?.trim();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    if (uid == null ||
+        uid.isEmpty ||
+        isGuestUser ||
+        requestedBusinessId == null ||
+        requestedBusinessId.isEmpty ||
+        ownedBusinessId == null ||
+        ownedBusinessId.isEmpty ||
+        requestedBusinessId != ownedBusinessId) {
+      setCurrentTab(NavTab.profile, preserveProfileSubPage: true);
+      openProfileSubPage(ProfileSubPage.businessDashboard);
+      return;
+    }
+
+    try {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => BusinessRevenueDetailPage(
+            businessId: ownedBusinessId,
+            recordLabel: 'orders',
+          ),
+        ),
+      );
+    } catch (error, stackTrace) {
+      debugPrint('BUSINESS FINANCE NOTIFICATION NAVIGATION FAILED: $error');
+      debugPrint('$stackTrace');
+      setCurrentTab(NavTab.profile, preserveProfileSubPage: true);
+      openProfileSubPage(ProfileSubPage.businessDashboard);
+    }
+  }
+
+  void _handleMarketplaceBusinessDelayedNotification(
+    Map<String, dynamic> payload,
+  ) {
+    closeNotifications();
+    _ignoreNextNotificationTap = true;
+    ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final collection = payload['appointmentCollection']?.toString().trim();
+    final appointmentId =
+        payload['appointmentId']?.toString().trim().isNotEmpty == true
+        ? payload['appointmentId']!.toString().trim()
+        : payload['bookingId']?.toString().trim();
+
+    void fallback() {
+      setCurrentTab(NavTab.profile, preserveProfileSubPage: true);
+      openProfileSubPage(ProfileSubPage.myAppointments);
+    }
+
+    if (uid == null ||
+        uid.isEmpty ||
+        isGuestUser ||
+        collection == null ||
+        !{
+          'vet_appointments',
+          'groomy_appointments',
+          'hotel_bookings',
+          'pet_taxi_bookings',
+        }.contains(collection) ||
+        appointmentId == null ||
+        appointmentId.isEmpty) {
+      fallback();
+      return;
+    }
+
+    requestUserAppointmentDetail(
+      collection: collection,
+      appointmentId: appointmentId,
+    );
+  }
+
   void handleNotificationTap(Map<String, dynamic> payload) {
     debugPrint("🧪 ENTERED NEW HANDLER VERSION");
     debugPrint('🔥🔥🔥 TAP HANDLER EXECUTED');
     debugPrint('🔔 handleNotificationTap payload=$payload');
 
     final rawType = payload['type']?.toString() ?? '';
-    final type = rawType
-        .toLowerCase()
-        .trim()
-        .replaceAll('\n', '')
-        .replaceAll('\r', '')
-        .replaceAll(' ', '');
+    final type = normalizeNotificationType(rawType);
     debugPrint("🔥 TYPE LENGTH = ${type.length}");
     debugPrint("🧪 FULL PAYLOAD = $payload");
     debugPrint("🧪 TYPE RAW = [$rawType]");
@@ -3935,6 +4024,16 @@ class AppState with ChangeNotifier {
         payload['foundDogId']?.toString() ?? payload['foundPetId']?.toString();
 
     if (_handleMarketplaceInvoiceNotification(type, payload)) {
+      return;
+    }
+
+    if (isBusinessFinanceNotificationType(type)) {
+      _handleBusinessFinanceNotification(payload);
+      return;
+    }
+
+    if (isMarketplaceServiceNotificationType(type)) {
+      _handleMarketplaceBusinessDelayedNotification(payload);
       return;
     }
 
@@ -4224,7 +4323,7 @@ class AppState with ChangeNotifier {
       _ignoreNextNotificationTap = true;
       ignoreNotificationIconTapFor(const Duration(milliseconds: 700));
 
-      if (status == 'awaiting_payment') {
+      if (hotelBookingResponseOpensPayment(status)) {
         setSelectedAppointmentId(appointmentId, collection: 'hotel_bookings');
         setCurrentTab(NavTab.home);
       } else {
@@ -4369,17 +4468,11 @@ class AppState with ChangeNotifier {
 
     // ───────────────── ORDER FLOW 🔥 ─────────────────
 
-    const orderTypes = [
-      'new_order',
-      'order_paid',
-      'order_update',
-      'order_created',
-      'new_paid_order',
-    ];
-
-    if (orderTypes.any((t) => type.contains(t))) {
+    if (isMarketplaceOrderNotificationType(type)) {
       final sellerOrderId = payload['sellerOrderId']?.toString();
-      final rootOrderId = payload['orderId']?.toString();
+      final rootOrderId =
+          payload['rootOrderId']?.toString() ?? payload['orderId']?.toString();
+      final returnId = payload['returnId']?.toString();
 
       debugPrint("📦 NOTIF sellerOrderId = $sellerOrderId");
       debugPrint("📦 NOTIF rootOrderId = $rootOrderId");
@@ -4387,6 +4480,13 @@ class AppState with ChangeNotifier {
       if ((sellerOrderId == null || sellerOrderId.isEmpty) &&
           (rootOrderId == null || rootOrderId.isEmpty)) {
         debugPrint("❌ NO ORDER ID AT ALL");
+        if (isSellerReturnNotificationType(type)) {
+          setCurrentTab(NavTab.petShop);
+          openPetShopOrders();
+        } else {
+          setCurrentTab(NavTab.profile, preserveProfileSubPage: true);
+          openProfileSubPage(ProfileSubPage.myOrders);
+        }
         return;
       }
 
@@ -4401,7 +4501,14 @@ class AppState with ChangeNotifier {
 
       debugPrint("📦 OPEN ORDER → $idToOpen");
 
-      openOrderSmart(sellerOrderId, rootOrderId);
+      if ((sellerOrderId == null || sellerOrderId.isEmpty) &&
+          isSellerReturnNotificationType(type)) {
+        setCurrentTab(NavTab.petShop);
+        openPetShopOrders();
+        return;
+      }
+
+      openOrderSmart(sellerOrderId, rootOrderId, returnId: returnId);
 
       return;
     }

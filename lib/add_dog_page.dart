@@ -411,14 +411,24 @@ class _AddDogPageState extends State<AddDogPage> {
       try {
         final file = File(imageFile.path);
 
-        final fileName = DateTime.now().millisecondsSinceEpoch.toString();
+        final ext = imageFile.name.split('.').last.toLowerCase();
+        final fileName =
+            '${DateTime.now().millisecondsSinceEpoch}.${ext.isEmpty ? 'jpg' : ext}';
 
+        final contentType = switch (ext) {
+          'png' => 'image/png',
+          'webp' => 'image/webp',
+          'gif' => 'image/gif',
+          'heic' => 'image/heic',
+          _ => 'image/jpeg',
+        };
+        final metadata = SettableMetadata(contentType: contentType);
         final ref = FirebaseStorage.instance.ref().child(
-          'dog_images/$userId/$dogId/$fileName.jpg',
+          'dogs/$userId/$fileName',
         );
-        debugPrint('🔥 STORAGE PATH = dog_images/$userId/$dogId/$fileName.jpg');
+        debugPrint('🔥 STORAGE PATH = dogs/$userId/$fileName');
         try {
-          await ref.putFile(file);
+          await ref.putFile(file, metadata);
         } on FirebaseException catch (e) {
           debugPrint('🔥 STORAGE CODE = ${e.code}');
           debugPrint('🔥 STORAGE MESSAGE = ${e.message}');
@@ -426,8 +436,6 @@ class _AddDogPageState extends State<AddDogPage> {
         }
 
         debugPrint("AddDogPage - Uploading image to ${ref.fullPath}");
-
-        await ref.putFile(file);
 
         final url = await ref.getDownloadURL();
 

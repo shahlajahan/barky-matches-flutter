@@ -10,6 +10,7 @@ import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/dog_card.dart';
 import 'package:barky_matches_fixed/social/models/social_post.dart';
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
+import 'package:barky_matches_fixed/social/widgets/petplore_avatar.dart';
 import 'package:barky_matches_fixed/social/widgets/social_post_media_viewer_overlay.dart';
 import 'package:barky_matches_fixed/theme/app_theme.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
@@ -403,19 +404,12 @@ class _ProfileHeader extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
+              PetploreAvatar(
+                imageUrl: user.photoUrl,
                 radius: 42,
-                backgroundColor: Colors.white12,
-                backgroundImage: user.photoUrl.isNotEmpty
-                    ? CachedNetworkImageProvider(user.photoUrl)
-                    : null,
-                child: user.photoUrl.isEmpty
-                    ? const Icon(
-                        LucideIcons.user,
-                        color: Colors.white70,
-                        size: 34,
-                      )
-                    : null,
+                icon: LucideIcons.user,
+                iconSize: 34,
+                semanticLabel: '${user.username} avatar',
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1102,15 +1096,11 @@ class _SocialGraphUserTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
+            PetploreAvatar(
+              imageUrl: user.photoUrl,
               radius: 23,
-              backgroundColor: Colors.white12,
-              backgroundImage: user.photoUrl.isNotEmpty
-                  ? CachedNetworkImageProvider(user.photoUrl)
-                  : null,
-              child: user.photoUrl.isEmpty
-                  ? const Icon(LucideIcons.user, color: Colors.white70)
-                  : null,
+              icon: LucideIcons.user,
+              semanticLabel: '${user.username} avatar',
             ),
             const SizedBox(width: 12),
             Expanded(

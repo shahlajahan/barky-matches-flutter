@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_state.dart';
 import '../../ui/shell/nav_tab.dart';
+import '../widgets/petplore_avatar.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class PetploreSearchDelegate extends SearchDelegate {
@@ -65,10 +66,9 @@ class PetploreSearchDelegate extends SearchDelegate {
             final data = docs[index].data() as Map<String, dynamic>;
 
             return ListTile(
-              leading: CircleAvatar(
-                backgroundImage: data['photoUrl'] != null
-                    ? NetworkImage(data['photoUrl'])
-                    : null,
+              leading: PetploreAvatar(
+                imageUrl: data['photoUrl']?.toString(),
+                semanticLabel: '${data['username'] ?? 'Unknown'} avatar',
               ),
 
               title: Text(data['username'] ?? 'Unknown'),

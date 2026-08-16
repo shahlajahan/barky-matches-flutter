@@ -36,7 +36,8 @@ test("users rules retain owner/admin-only writes and creator protection", () => 
     /match \/users\/\{userId\} \{([\s\S]*?)\n    \}/
   );
   assert.ok(usersMatch);
-  assert.match(usersMatch[1], /allow update: if \(isOwnUserDoc\(userId\) \|\| isAdmin\(\)/);
+  assert.match(usersMatch[1], /isOwnUserDoc\(userId\) && selfUserUpdateFieldsAreAllowed\(\)/);
+  assert.match(usersMatch[1], /\|\| isAdmin\(\)/);
   assert.match(usersMatch[1], /affectedKeys\(\)\.hasAny\(\['creator'\]\)/);
 });
 

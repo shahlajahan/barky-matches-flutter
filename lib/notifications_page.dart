@@ -11,6 +11,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
+import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
 
 class NotificationsPage extends StatefulWidget {
   final String? currentUserId;
@@ -169,6 +171,36 @@ class _NotificationsPageState extends State<NotificationsPage>
 
                         debugPrint("🔔 Notification tapped → type=$rawType");
 
+                        if (isBusinessFinanceNotificationType(rawType)) {
+                          Future.microtask(() {
+                            if (mounted) {
+                              appState.closeNotifications();
+                            }
+                          });
+                          widget.onNotificationSelected({
+                            'type': rawType,
+                            'businessId': data['businessId'],
+                          });
+                          return;
+                        }
+
+                        if (isMarketplaceServiceNotificationType(rawType)) {
+                          Future.microtask(() {
+                            if (mounted) {
+                              appState.closeNotifications();
+                            }
+                          });
+                          widget.onNotificationSelected({
+                            'type': rawType,
+                            'appointmentId': data['appointmentId'],
+                            'bookingId': data['bookingId'],
+                            'appointmentCollection':
+                                data['appointmentCollection'],
+                            'businessId': data['businessId'],
+                          });
+                          return;
+                        }
+
                         // ✅ اول overlay بسته شود
                         //context.read<AppState>().closeNotifications();
 
@@ -316,6 +348,20 @@ class _NotificationsPageState extends State<NotificationsPage>
                           case 'order_update':
                           case 'order_created':
                           case 'new_paid_order':
+                          case 'order_cancellation_refund_processing':
+                          case 'order_cancellation_refunded':
+                          case 'order_cancelled_before_shipment':
+                          case 'order_return_requested':
+                          case 'order_return_approved':
+                          case 'order_return_rejected':
+                          case 'order_return_cancelled':
+                          case 'order_return_shipped_back':
+                          case 'order_return_received':
+                          case 'order_return_disputed':
+                          case 'order_return_auto_received':
+                          case 'order_return_refund_rejected':
+                          case 'order_return_refund_failed':
+                          case 'order_return_refunded':
                             Future.microtask(() {
                               if (mounted) {
                                 appState.closeNotifications();
@@ -327,7 +373,14 @@ class _NotificationsPageState extends State<NotificationsPage>
 
                               // ✅ هر دو رو بفرست
                               'orderId': data['orderId'],
+                              'rootOrderId':
+                                  data['rootOrderId'] ?? data['orderId'],
                               'sellerOrderId': data['sellerOrderId'],
+                              'returnId': data['returnId'],
+                              'businessId': data['businessId'],
+                              'status': data['status'],
+                              'refundStatus': data['refundStatus'],
+                              'cancellationStatus': data['cancellationStatus'],
                             });
 
                             break;

@@ -33,6 +33,7 @@
     "resend": "^6.12.2"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "firebase-functions-test": "^3.4.1"
   },
   "private": true

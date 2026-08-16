@@ -971,7 +971,6 @@ class _AuthPageState extends State<AuthPage> {
       'phone': (phone ?? '').trim(),
       'city': city,
       'district': district,
-      'isPremium': false,
       'emailVerified': false,
       'profileCompleted': false,
       'createdAt': FieldValue.serverTimestamp(),
@@ -1356,7 +1355,6 @@ class _AuthPageState extends State<AuthPage> {
           'phone': '',
           'city': '',
           'district': '',
-          'isPremium': trimmedEmail == 'durbinistanbul@gmail.com',
           'emailVerified': firebaseEmailVerified,
           'profileCompleted': false,
           'createdAt': DateTime.now().toIso8601String(),
@@ -1425,7 +1423,6 @@ class _AuthPageState extends State<AuthPage> {
           'phone': userData['phone'] ?? '',
           'city': userData['city'] ?? '',
           'district': userData['district'] ?? '',
-          'isPremium': userData['isPremium'] ?? false,
           'emailVerified': userData['emailVerified'] ?? false,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));

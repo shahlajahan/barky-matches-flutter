@@ -1,3 +1,4 @@
+import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import 'package:barky_matches_fixed/ui/orders/buyer_order_list_item.dart';
 import 'package:barky_matches_fixed/ui/orders/buyer_orders_repository.dart';
@@ -5,12 +6,19 @@ import 'package:barky_matches_fixed/ui/orders/order_detail_page.dart';
 import 'package:barky_matches_fixed/utils/carrier_mapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class MyOrdersPage extends StatefulWidget {
-  const MyOrdersPage({super.key, this.repository, this.buyerUid});
+  const MyOrdersPage({
+    super.key,
+    this.repository,
+    this.buyerUid,
+    this.focusRootOrderId,
+  });
 
   final BuyerOrdersDataSource? repository;
   final String? buyerUid;
+  final String? focusRootOrderId;
 
   @override
   State<MyOrdersPage> createState() => _MyOrdersPageState();
@@ -22,16 +30,44 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
   Stream<List<BuyerOrderListItem>>? _ordersStream;
   BuyerOrderSort _sort = BuyerOrderSort.newest;
   BuyerOrderStatusFilter _statusFilter = BuyerOrderStatusFilter.all;
+  String? _focusedRootOrderId;
+  String? _focusedReturnId;
 
   @override
   void initState() {
     super.initState();
     _repository = widget.repository ?? BuyerOrdersRepository();
     _buyerUid = widget.buyerUid ?? FirebaseAuth.instance.currentUser?.uid;
+    _focusedRootOrderId = _normalizeId(widget.focusRootOrderId);
     if (_buyerUid case final buyerUid?) {
       _ordersStream = _repository
           .watchBuyerOrders(buyerUid)
           .asBroadcastStream();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final appState = context.read<AppState?>();
+    final pendingRootOrderId = appState?.takePendingBuyerOrdersRootOrderId();
+    if (pendingRootOrderId != null && pendingRootOrderId.trim().isNotEmpty) {
+      _focusedRootOrderId = pendingRootOrderId.trim();
+      _statusFilter = BuyerOrderStatusFilter.all;
+    }
+    final pendingReturnId = appState?.takePendingBuyerOrdersReturnId();
+    if (pendingReturnId != null && pendingReturnId.trim().isNotEmpty) {
+      _focusedReturnId = pendingReturnId.trim();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MyOrdersPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextFocus = _normalizeId(widget.focusRootOrderId);
+    if (nextFocus != null && nextFocus != _focusedRootOrderId) {
+      _focusedRootOrderId = nextFocus;
+      _statusFilter = BuyerOrderStatusFilter.all;
     }
   }
 
@@ -61,6 +97,9 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
         stream: _ordersStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
+            if (_focusedRootOrderId != null) {
+              return const _FocusedOrderUnavailableView();
+            }
             return Center(
               child: Text(l10n.errorOccurred(snapshot.error.toString())),
             );
@@ -74,8 +113,19 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
             sort: _sort,
             statusFilter: _statusFilter,
           );
+          final focusedRootOrderId = _focusedRootOrderId;
+          final focusedOrderFound =
+              focusedRootOrderId != null &&
+              snapshot.data!.any(
+                (order) => order.rootOrderId == focusedRootOrderId,
+              );
+          final visibleOrders = focusedRootOrderId == null
+              ? orders
+              : _focusRootOrderFirst(orders, focusedRootOrderId);
           return Column(
             children: [
+              if (focusedRootOrderId != null && !focusedOrderFound)
+                const _OrderFocusUnavailableBanner(),
               _OrderControls(
                 sort: _sort,
                 statusFilter: _statusFilter,
@@ -86,7 +136,7 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _refresh,
-                  child: orders.isEmpty
+                  child: visibleOrders.isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: [
@@ -104,19 +154,24 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
                           key: const Key('buyer-orders-list'),
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                          itemCount: orders.length,
+                          itemCount: visibleOrders.length,
                           itemBuilder: (context, index) => BuyerOrderCard(
                             key: Key(
-                              'buyer-order-${orders[index].sellerOrderId}',
+                              'buyer-order-${visibleOrders[index].sellerOrderId}',
                             ),
-                            order: orders[index],
-                            onTap: orders[index].canOpenDetail
+                            order: visibleOrders[index],
+                            highlighted:
+                                focusedRootOrderId != null &&
+                                visibleOrders[index].rootOrderId ==
+                                    focusedRootOrderId,
+                            onTap: visibleOrders[index].canOpenDetail
                                 ? () async {
                                     await Navigator.of(context).push(
                                       MaterialPageRoute<void>(
                                         builder: (_) => OrderDetailPage(
-                                          sellerOrderId:
-                                              orders[index].sellerOrderId,
+                                          sellerOrderId: visibleOrders[index]
+                                              .sellerOrderId,
+                                          returnId: _focusedReturnId,
                                         ),
                                       ),
                                     );
@@ -130,6 +185,64 @@ class _MyOrdersPageState extends State<MyOrdersPage> {
           );
         },
       ),
+    );
+  }
+}
+
+String? _normalizeId(String? value) {
+  final trimmed = value?.trim();
+  return trimmed == null || trimmed.isEmpty ? null : trimmed;
+}
+
+List<BuyerOrderListItem> _focusRootOrderFirst(
+  List<BuyerOrderListItem> orders,
+  String rootOrderId,
+) {
+  final focused = <BuyerOrderListItem>[];
+  final rest = <BuyerOrderListItem>[];
+  for (final order in orders) {
+    if (order.rootOrderId == rootOrderId) {
+      focused.add(order);
+    } else {
+      rest.add(order);
+    }
+  }
+  return [...focused, ...rest];
+}
+
+class _OrderFocusUnavailableBanner extends StatelessWidget {
+  const _OrderFocusUnavailableBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('buyer-order-focus-unavailable'),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFE082)),
+      ),
+      child: const Text(
+        'Order not found or unavailable.',
+        style: TextStyle(color: Color(0xFF6D4C00), fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _FocusedOrderUnavailableView extends StatelessWidget {
+  const _FocusedOrderUnavailableView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        _OrderFocusUnavailableBanner(),
+        Expanded(child: Center(child: Text('Order not found or unavailable.'))),
+      ],
     );
   }
 }
@@ -228,10 +341,16 @@ class _ControlChip extends StatelessWidget {
 }
 
 class BuyerOrderCard extends StatelessWidget {
-  const BuyerOrderCard({super.key, required this.order, required this.onTap});
+  const BuyerOrderCard({
+    super.key,
+    required this.order,
+    required this.onTap,
+    this.highlighted = false,
+  });
 
   final BuyerOrderListItem order;
   final VoidCallback? onTap;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +372,12 @@ class BuyerOrderCard extends StatelessWidget {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFEDE7EA)),
+        side: BorderSide(
+          color: highlighted
+              ? const Color(0xFFE91E63)
+              : const Color(0xFFEDE7EA),
+          width: highlighted ? 2 : 1,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(

@@ -799,6 +799,43 @@ exports.promoteFinanceEligibility = onSchedule(
   }
 );
 
+/* ===============================
+ * SOCIAL — COMMENTS
+ * ===============================
+ * post_comments uses auto-generated document IDs, so firestore.rules has
+ * no deterministic path it can use to prove a given client create is
+ * atomically paired with its social_posts.commentCount increment the way
+ * it can for likes (post_likes/{postId}_{uid} is deterministic). Rather
+ * than accept an unproven client-side pairing, comment creation and its
+ * counter increment happen together, transactionally, in
+ * addSocialCommentCore — via the Admin SDK, which is not subject to
+ * firestore.rules at all. Clients can never write post_comments or
+ * social_posts.commentCount directly; see the matching post_comments/
+ * social_posts rules in firestore.rules.
+ */
+const { addSocialCommentCore } = require("./src/social/addSocialCommentCore");
+
+exports.addSocialComment = onCall(
+  { region: "europe-west3", timeoutSeconds: 20, memory: "256MiB" },
+  async (request) => {
+    try {
+      return await addSocialCommentCore({
+        db,
+        uid: request.auth?.uid || null,
+        data: request.data || {},
+      });
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      logger.error("add_social_comment_failed", {
+        postId: request.data?.postId || null,
+        uid: request.auth?.uid || null,
+        reason: error?.message || String(error),
+      });
+      throw new HttpsError("internal", "Failed to add comment.");
+    }
+  }
+);
+
 exports.projectSellerFinanceSummary = onDocumentWritten(
   { document: "payoutIndex/{payoutIndexId}", region: "europe-west1" },
   async (event) => {
@@ -1447,6 +1484,59 @@ async function createDeterministicNotification(docId, payload) {
       return false;
     }
     throw error;
+  }
+}
+
+function marketplaceBusinessDelayedNotificationId(collectionName, documentId) {
+  const identity = `${String(collectionName)}:${String(documentId)}`;
+  const digest = crypto.createHash("sha256").update(identity).digest("hex");
+  return `marketplace_business_delayed_${digest}`;
+}
+
+async function sendMarketplaceBusinessDelayedPush(payload) {
+  const recipientUserId =
+    payload?.recipientUserId || payload?.userId || null;
+  const title = payload?.title || null;
+  const body = payload?.body || null;
+  const type = payload?.type || null;
+
+  if (!recipientUserId || !title || !body || !type) return false;
+
+  try {
+    const userSnap = await db.collection("users").doc(String(recipientUserId)).get();
+    const token = userSnap.data()?.fcmToken || null;
+    if (!token) return false;
+
+    const data = {};
+    Object.entries(payload || {}).forEach(([key, value]) => {
+      if (["title", "body", "createdAt"].includes(key)) return;
+      if (value === undefined || value === null || typeof value === "object") return;
+      data[key] = String(value);
+    });
+    data.type = String(type);
+
+    await safeSendPush({
+      token,
+      userId: String(recipientUserId),
+      payload: {
+        notification: { title: String(title), body: String(body) },
+        data,
+        android: {
+          priority: "high",
+          notification: {
+            sound: "default",
+            channelId: "high_importance_channel",
+          },
+        },
+      },
+    });
+    return true;
+  } catch (error) {
+    logger.error("marketplace_business_delayed_push_failed", {
+      type,
+      message: error?.message || String(error),
+    });
+    return false;
   }
 }
 
@@ -22263,7 +22353,9 @@ exports.cancelSellerOrderBeforeShipment = onCall(
       provider: refundReference.provider,
       refundAmount,
     });
-    await Promise.allSettled([
+    const sellerRecipientUid =
+      initialOrder.sellerUid || initialOrder.sellerSnapshot?.ownerUid || null;
+    const notificationPromises = [
       createNotification(db, {
         recipientUserId: buyerUid,
         userId: buyerUid,
@@ -22273,24 +22365,24 @@ exports.cancelSellerOrderBeforeShipment = onCall(
         orderId: rootOrderId,
         sellerOrderId,
       }),
-      createNotification(db, {
-        recipientUserId:
-          initialOrder.sellerUid ||
-          initialOrder.sellerSnapshot?.ownerUid ||
-          initialOrder.shopId ||
-          null,
-        userId:
-          initialOrder.sellerUid ||
-          initialOrder.sellerSnapshot?.ownerUid ||
-          initialOrder.shopId ||
-          null,
+    ];
+    if (sellerRecipientUid) {
+      notificationPromises.push(createNotification(db, {
+        recipientUserId: sellerRecipientUid,
+        userId: sellerRecipientUid,
         type: "order_cancelled_before_shipment",
         title: "Order cancelled before shipment",
         body: `Order ${sellerOrderId} was cancelled before shipment.`,
         orderId: rootOrderId,
         sellerOrderId,
-      }),
-    ]);
+      }));
+    } else {
+      logger.warn("ORDER_CANCELLATION_SELLER_NOTIFICATION_SKIPPED", {
+        code: "missing_seller_auth_uid",
+        notificationType: "order_cancelled_before_shipment",
+      });
+    }
+    await Promise.allSettled(notificationPromises);
 
     let gatewaySucceeded = false;
     let refundPersisted = false;
@@ -25856,26 +25948,91 @@ exports.checkMarketplaceAccountability = onSchedule(
         .get();
 
       for (const doc of pendingSnap.docs) {
-        const data = doc.data() || {};
-        const deadlineMillis = toMillisSafe(data.deadlines?.responseDeadlineAt);
-        if (!deadlineMillis || deadlineMillis >= nowMillis) continue;
-        if (data.marketplace?.delayedAction === true) continue;
+        const notificationId = marketplaceBusinessDelayedNotificationId(
+          collectionName,
+          doc.id
+        );
+        const notificationRef = db.collection("notifications").doc(notificationId);
+        const result = await db.runTransaction(async (transaction) => {
+          const sourceSnap = await transaction.get(doc.ref);
+          const notificationSnap = await transaction.get(notificationRef);
+          if (!sourceSnap.exists) return { status: "missing" };
 
-        await doc.ref.update({
-          "marketplace.delayedAction": true,
-          "marketplace.warningState": "response_delayed",
-          "marketplace.punishmentState": "warning",
-          "marketplace.visibleStatus": "Business response delayed",
-          "compliance.delayedResponse": true,
-          "compliance.delayedCount": admin.firestore.FieldValue.increment(1),
-          "compliance.warningCount": admin.firestore.FieldValue.increment(1),
-          "compliance.penaltyPoints": admin.firestore.FieldValue.increment(10),
-          "compliance.lastWarningAt": admin.firestore.FieldValue.serverTimestamp(),
-          "compliance.lastCheckedAt": new Date().toISOString(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          const data = sourceSnap.data() || {};
+          const deadlineMillis = toMillisSafe(data.deadlines?.responseDeadlineAt);
+          const buyerUid = String(data.userId || data.buyerUid || "").trim();
+          if (
+            normalizeLower(data.status) !== "pending" ||
+            !deadlineMillis ||
+            deadlineMillis >= Date.now() ||
+            data.marketplace?.delayedAction === true ||
+            notificationSnap.exists
+          ) {
+            return { status: "already_processed" };
+          }
+
+          const businessId = data.businessId || null;
+          const notificationPayload = buyerUid
+            ? {
+                recipientUserId: buyerUid,
+                userId: buyerUid,
+                type: "marketplace_business_delayed",
+                title: "Business response delayed",
+                body: "The business has not responded yet. We are tracking this delay.",
+                appointmentId: doc.id,
+                ...(collectionName === "hotel_bookings" ||
+                collectionName === "pet_taxi_bookings"
+                  ? { bookingId: doc.id }
+                  : {}),
+                appointmentCollection: collectionName,
+                businessId,
+              }
+            : null;
+
+          transaction.update(doc.ref, {
+            "marketplace.delayedAction": true,
+            "marketplace.warningState": "response_delayed",
+            "marketplace.punishmentState": "warning",
+            "marketplace.visibleStatus": "Business response delayed",
+            "compliance.delayedResponse": true,
+            "compliance.delayedCount": admin.firestore.FieldValue.increment(1),
+            "compliance.warningCount": admin.firestore.FieldValue.increment(1),
+            "compliance.penaltyPoints": admin.firestore.FieldValue.increment(10),
+            "compliance.lastWarningAt": admin.firestore.FieldValue.serverTimestamp(),
+            "compliance.lastCheckedAt": new Date().toISOString(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          if (notificationPayload) {
+            transaction.create(notificationRef, {
+              isRead: false,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              ...notificationPayload,
+            });
+          }
+
+          return {
+            status: "claimed",
+            notificationCreated: Boolean(notificationPayload),
+            notificationPayload,
+            businessId,
+          };
         });
 
-        const businessId = data.businessId || null;
+        if (result.status !== "claimed") continue;
+
+        if (!result.notificationCreated) {
+          logger.warn("MARKETPLACE_DELAYED_NOTIFICATION_SKIPPED", {
+            code: "missing_buyer_auth_uid",
+            notificationType: "marketplace_business_delayed",
+            collection: collectionName,
+          });
+        } else {
+          await sendMarketplaceBusinessDelayedPush(result.notificationPayload);
+        }
+
+        const data = doc.data() || {};
+        const businessId = result.businessId || data.businessId || null;
         const businessSnap = businessId
           ? await db.collection("businesses").doc(String(businessId)).get()
           : null;
@@ -25886,7 +26043,6 @@ exports.checkMarketplaceAccountability = onSchedule(
           data.marketplace?.businessOwnerUid ||
           data.businessOwnerUid ||
           null;
-        const userId = data.userId || data.buyerUid || null;
 
         if (businessOwnerUid) {
           await createNotification(db, {
@@ -25895,21 +26051,6 @@ exports.checkMarketplaceAccountability = onSchedule(
             type: "marketplace_response_delayed",
             title: "Response delayed",
             body: "A pending customer request needs your response.",
-            appointmentId: doc.id,
-            bookingId: collectionName === "hotel_bookings" || collectionName === "pet_taxi_bookings"
-              ? doc.id
-              : null,
-            appointmentCollection: collectionName,
-            businessId,
-          });
-        }
-        if (userId) {
-          await createNotification(db, {
-            recipientUserId: userId,
-            userId,
-            type: "marketplace_business_delayed",
-            title: "Business response delayed",
-            body: "The business has not responded yet. We are tracking this delay.",
             appointmentId: doc.id,
             bookingId: collectionName === "hotel_bookings" || collectionName === "pet_taxi_bookings"
               ? doc.id

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/social/services/follow_service.dart';
+import 'package:barky_matches_fixed/social/widgets/petplore_avatar.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class FollowersListPage extends StatelessWidget {
@@ -53,15 +54,11 @@ class FollowUserListTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              CircleAvatar(
+              PetploreAvatar(
+                imageUrl: profile.avatarUrl,
                 radius: 24,
-                backgroundColor: Colors.white12,
-                backgroundImage: profile.avatarUrl.isNotEmpty
-                    ? NetworkImage(profile.avatarUrl)
-                    : null,
-                child: profile.avatarUrl.isEmpty
-                    ? const Icon(LucideIcons.user, color: Colors.white70)
-                    : null,
+                icon: LucideIcons.user,
+                semanticLabel: '${profile.username} avatar',
               ),
               const SizedBox(width: 12),
               Expanded(

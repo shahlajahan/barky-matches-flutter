@@ -41,6 +41,10 @@ import 'package:barky_matches_fixed/ui/checkout/marketplace_checkout_return_rout
 import 'package:barky_matches_fixed/ui/creator/creator_dashboard_web_page.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
+import 'package:barky_matches_fixed/services/initial_notification_coordinator.dart';
+import 'package:barky_matches_fixed/services/marketplace_order_notification_types.dart';
+import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
+import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -677,6 +681,19 @@ Future<void> setupFCM() async {
             appState.handleNotificationTap(Map<String, dynamic>.from(payload));
             return;
           }
+
+          if (isMarketplaceOrderNotificationType(type)) {
+            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            return;
+          }
+          if (isBusinessFinanceNotificationType(type)) {
+            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            return;
+          }
+          if (isMarketplaceServiceNotificationType(type)) {
+            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            return;
+          }
           /*
 if ((type == 'playdateRequest' ||
      type == 'playdateResponse') &&
@@ -781,6 +798,8 @@ String? token; // متغیر اصلی که باید آپدیت بشه
 StreamSubscription<RemoteMessage>? _fcmMessageOpenedSub;
 StreamSubscription<RemoteMessage>? _fcmForegroundSub;
 StreamSubscription<User?>? _authFcmSub;
+final InitialNotificationCoordinator _initialNotificationCoordinator =
+    InitialNotificationCoordinator();
 
 Future<void> _openChatFromPayload(Map<String, dynamic> payload) async {
   final chatId = (payload['chatId'] ?? payload['conversationId'] ?? '')
@@ -842,7 +861,10 @@ Future<void> _initializeNotificationsAfterStartup(AppState appState) async {
 }
 
 Future<void> _handleRemoteMessage(RemoteMessage message) async {
-  final data = message.data;
+  await _handleRemoteMessageData(Map<String, dynamic>.from(message.data));
+}
+
+Future<void> _handleRemoteMessageData(Map<String, dynamic> data) async {
   final type = (data['type'] ?? '').toString();
 
   debugPrint("🟨 HANDLE REMOTE MESSAGE: $data");
@@ -906,6 +928,57 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
     appState.handleNotificationTap(data);
     return;
   }
+
+  if (isMarketplaceOrderNotificationType(type)) {
+    appState.handleNotificationTap(Map<String, dynamic>.from(data));
+    return;
+  }
+
+  if (isBusinessFinanceNotificationType(type)) {
+    appState.handleNotificationTap(Map<String, dynamic>.from(data));
+    return;
+  }
+
+  if (isMarketplaceServiceNotificationType(type)) {
+    appState.handleNotificationTap(Map<String, dynamic>.from(data));
+    return;
+  }
+}
+
+InitialNotificationReadiness _initialNotificationReadiness() {
+  final context = navigatorKey.currentContext;
+  final appState = context?.read<AppState>();
+  final uid = appState?.currentUserId ?? FirebaseAuth.instance.currentUser?.uid;
+
+  return InitialNotificationReadiness(
+    navigatorReady: navigatorKey.currentState != null && context != null,
+    appStateReady: appState?.isUserProfileReady ?? false,
+    authReady: appState?.authUserDetected ?? false,
+    isGuest: appState?.isGuestUser ?? true,
+    currentUserId: uid,
+  );
+}
+
+Future<void> _processPendingInitialNotification() {
+  return _initialNotificationCoordinator.processPendingIfReady(
+    readiness: _initialNotificationReadiness(),
+    handle: _handleRemoteMessageData,
+  );
+}
+
+Future<void> _retrieveInitialNotificationOnce() {
+  return _initialNotificationCoordinator.retrieveOnce(
+    getInitialMessage: () async {
+      final message = await FirebaseMessaging.instance.getInitialMessage();
+      if (message == null) return null;
+      return InitialNotificationMessage(
+        messageId: message.messageId,
+        data: Map<String, dynamic>.from(message.data),
+      );
+    },
+    readiness: _initialNotificationReadiness(),
+    handle: _handleRemoteMessageData,
+  );
 }
 
 void main() async {
@@ -1094,19 +1167,12 @@ void main() async {
       recoveryScope: FirestoreRecoveryScope.startup,
     );
     await setupFCM();
-
-    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-
-    if (initialMessage != null) {
-      debugPrint('🔥 Initial message detected (terminated state)');
-      await _handleRemoteMessage(initialMessage);
-    }
+    await _retrieveInitialNotificationOnce();
+    await _processPendingInitialNotification();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_processPendingInitialNotification());
+    });
   }
-
-  // final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-  //if (initialMessage != null) {
-  //await _handleRemoteMessage(initialMessage);
-  //}
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
     // Flutter's first frame has now painted — hide the web startup safety

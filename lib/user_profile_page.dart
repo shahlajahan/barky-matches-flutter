@@ -1066,7 +1066,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
       'city': newCity,
       'district': newDistrict,
       'password': userDataBox.get(_currentUserId)?['password'] ?? '',
-      'isPremium': newEmail == 'durbinistanbul@gmail.com' ? true : false,
     };
 
     try {

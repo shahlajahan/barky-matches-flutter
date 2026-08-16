@@ -12,6 +12,7 @@ import '../widgets/comments_bottom_sheet.dart';
 
 import '../services/post_save_service.dart';
 
+import '../widgets/petplore_avatar.dart';
 import '../widgets/petplore_stories_bar.dart';
 import '../widgets/social_post_media_viewer_overlay.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -23,14 +24,17 @@ import 'package:barky_matches_fixed/ui/common/report_dialog.dart';
 class NativeAdMarker {}
 
 class SocialFeedPage extends StatefulWidget {
-  const SocialFeedPage({super.key});
+  const SocialFeedPage({super.key, SocialPostService? postService})
+    : _postService = postService;
+
+  final SocialPostService? _postService;
 
   @override
   State<SocialFeedPage> createState() => _SocialFeedPageState();
 }
 
 class _SocialFeedPageState extends State<SocialFeedPage> {
-  final SocialPostService _postService = SocialPostService();
+  late final SocialPostService _postService;
   late final Stream<List<SocialPost>> _feedStream;
 
   final PostSaveService _saveService = PostSaveService();
@@ -42,7 +46,30 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
   @override
   void initState() {
     super.initState();
+    _postService = widget._postService ?? SocialPostService();
     _feedStream = _postService.streamPublicPosts();
+  }
+
+  /// Toggles the like on [postId], catching any failure (permission,
+  /// network) so it never escapes as an unhandled exception. The heart
+  /// icon reflects [SocialPostService.likedStream], not local optimistic
+  /// state, so on failure the UI simply stays at its last-known-correct
+  /// state; there is nothing to roll back. Returns whether the toggle
+  /// reached Firestore successfully.
+  Future<bool> _toggleLike(String postId) async {
+    try {
+      await _postService.toggleLike(postId);
+      return true;
+    } catch (e) {
+      debugPrint('LIKE ERROR: $e');
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.somethingWentWrong),
+        ),
+      );
+      return false;
+    }
   }
 
   @override
@@ -173,18 +200,11 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
                       ),
                     ),
 
-                    child: CircleAvatar(
+                    child: PetploreAvatar(
+                      imageUrl: post.userPhotoUrl,
                       radius: 24,
-
-                      backgroundColor: Colors.white12,
-
-                      backgroundImage: post.userPhotoUrl != null
-                          ? CachedNetworkImageProvider(post.userPhotoUrl!)
-                          : null,
-
-                      child: post.userPhotoUrl == null
-                          ? const Icon(LucideIcons.dog, color: Colors.white)
-                          : null,
+                      iconColor: Colors.white,
+                      semanticLabel: '${post.username ?? 'Pet User'} avatar',
                     ),
                   ),
                 ),
@@ -267,7 +287,8 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
                   return;
                 }
 
-                await _postService.toggleLike(post.id);
+                final liked = await _toggleLike(post.id);
+                if (!liked) return;
 
                 await Future.delayed(const Duration(milliseconds: 700));
 
@@ -402,9 +423,7 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
                                               return;
                                             }
 
-                                            await _postService.toggleLike(
-                                              post.id,
-                                            );
+                                            await _toggleLike(post.id);
                                           },
                                         );
                                       },

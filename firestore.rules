@@ -117,6 +117,143 @@ service cloud.firestore {
         && request.auth.uid in data.participants;
     }
 
+    function isValidDirectChatCreate(chatId) {
+      return isRegisteredUser()
+        && request.resource.data.keys().hasOnly([
+          'chatId',
+          'type',
+          'participants',
+          'participantMap',
+          'participantNames',
+          'participantPhotos',
+          'lastMessage',
+          'lastMessageAt',
+          'lastSenderId',
+          'unreadCount',
+          'createdBy',
+          'createdAt',
+          'updatedAt',
+          'schemaVersion'
+        ])
+        && (
+          chatId == request.resource.data.participants[0] + '_' + request.resource.data.participants[1]
+          || !('lastSenderId' in request.resource.data)
+        )
+        && request.resource.data.participants[0] < request.resource.data.participants[1]
+        && (
+          !('chatId' in request.resource.data)
+          || request.resource.data.chatId == chatId
+        )
+        && (
+          !('type' in request.resource.data)
+          || request.resource.data.type == 'direct'
+        )
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.participants[0] is string
+        && request.resource.data.participants[1] is string
+        && request.resource.data.participants[0] != request.resource.data.participants[1]
+        && request.auth.uid in request.resource.data.participants
+        && (
+          !('createdBy' in request.resource.data)
+          || request.resource.data.createdBy == request.auth.uid
+        )
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.participants[0]))
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.participants[1]))
+        && request.resource.data.lastMessage == ''
+        && (
+          !('lastSenderId' in request.resource.data)
+          || request.resource.data.lastSenderId == ''
+        );
+    }
+
+    function isMissingCanonicalDirectChatLookup(chatId) {
+      return isRegisteredUser()
+        && !exists(/databases/$(database)/documents/chats/$(chatId))
+        && (
+          chatId.matches(request.auth.uid + '_.*')
+          || chatId.matches('.*_' + request.auth.uid)
+        );
+    }
+
+    function chatParticipantsUnchanged() {
+      return request.resource.data.participants == resource.data.participants
+        && (
+          !('participantMap' in resource.data)
+          || request.resource.data.participantMap == resource.data.participantMap
+        )
+        && (
+          !('createdBy' in resource.data)
+          || request.resource.data.createdBy == resource.data.createdBy
+        )
+        && (
+          !('chatId' in resource.data)
+          || request.resource.data.chatId == resource.data.chatId
+        )
+        && (
+          !('type' in resource.data)
+          || request.resource.data.type == resource.data.type
+        )
+        && (
+          !('schemaVersion' in resource.data)
+          || request.resource.data.schemaVersion == resource.data.schemaVersion
+        );
+    }
+
+    function isValidChatParticipantUpdate() {
+      return isChatParticipant(resource.data)
+        && chatParticipantsUnchanged()
+        && request.resource.data
+          .diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'participantNames',
+            'participantPhotos',
+            'lastMessage',
+            'lastMessageAt',
+            'lastSenderId',
+            'unreadCount',
+            'updatedAt'
+          ])
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastSenderId'])
+          || request.resource.data.lastSenderId == request.auth.uid
+          || request.resource.data.lastSenderId == ''
+        );
+    }
+
+    function isValidChatMessageCreate(chatId) {
+      return isRegisteredUser()
+        && request.auth.uid in get(
+          /databases/$(database)/documents/chats/$(chatId)
+        ).data.participants
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'messageId',
+          'chatId',
+          'senderId',
+          'receiverId',
+          'senderName',
+          'text',
+          'type',
+          'createdAt',
+          'seenBy'
+        ])
+        && (
+          !('chatId' in request.resource.data)
+          || request.resource.data.chatId == chatId
+        )
+        && (
+          !('receiverId' in request.resource.data)
+          || (
+            request.resource.data.receiverId in get(
+              /databases/$(database)/documents/chats/$(chatId)
+            ).data.participants
+            && request.resource.data.receiverId != request.auth.uid
+          )
+        );
+    }
+
     function isBusinessChatParticipant(data) {
       return isRegisteredUser() && (
         ('participants' in data && data.participants is list
@@ -372,6 +509,203 @@ allow read: if isAdmin() || (
       return request.resource.data.diff(resource.data).changedKeys().hasOnly(['likes', 'likedBy']);
     }
 
+    function isSocialPostEligibleForInteraction(data) {
+      return data.visibility == 'public'
+        && (!('published' in data) || data.published == true)
+        && (!('moderationStatus' in data) || data.moderationStatus == 'active')
+        && (!('isHidden' in data) || data.isHidden == false);
+    }
+
+    function priorSocialPostLikeCount() {
+      return resource.data.likeCount is int ? resource.data.likeCount : 0;
+    }
+
+    // ── Atomic like/counter coupling ──────────────────────────────────
+    // A bare "changed keys == likeCount, delta == +/-1" rule bounds the
+    // SIZE of a write but proves nothing about whether it corresponds to
+    // a real like/unlike: a malicious client could call
+    // postRef.update({likeCount: increment(1)}) standalone, repeatedly,
+    // with no post_likes document ever created. These helpers close that
+    // gap by requiring the counter transition and the caller's own
+    // deterministic post_likes/{postId}_{uid} existence transition to
+    // happen in the SAME write/commit, verified from both sides:
+    //   - the social_posts update rule checks the like doc's before/after
+    //     existence via exists()/existsAfter();
+    //   - the post_likes create/delete rule checks the counter's
+    //     before/after value via get()/getAfter().
+    // Both must independently agree for the batch to commit, so neither a
+    // standalone counter write nor a standalone membership write (without
+    // its paired counter change) can succeed.
+    function likeMembershipExistsBefore(postId, uid) {
+      return exists(/databases/$(database)/documents/post_likes/$(postId + '_' + uid));
+    }
+
+    function likeMembershipExistsAfter(postId, uid) {
+      return existsAfter(/databases/$(database)/documents/post_likes/$(postId + '_' + uid));
+    }
+
+    function socialPostLikeCountBefore(postId) {
+      let post = get(/databases/$(database)/documents/social_posts/$(postId)).data;
+      return 'likeCount' in post && post.likeCount is int ? post.likeCount : 0;
+    }
+
+    function socialPostLikeCountAfter(postId) {
+      let post = getAfter(/databases/$(database)/documents/social_posts/$(postId)).data;
+      return 'likeCount' in post && post.likeCount is int ? post.likeCount : 0;
+    }
+
+    // Lets any eligible signed-in user bump a public post's own likeCount
+    // by exactly +1/-1 through SocialPostService.toggleLike's batch,
+    // requiring the same commit to create/delete their own deterministic
+    // post_likes/{postId}_{uid} document — see the block comment above.
+    function isSocialPostLikeCounterOnlyUpdate(postId) {
+      return isSocialPostEligibleForInteraction(resource.data)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['likeCount'])
+        && request.resource.data.likeCount is int
+        && request.resource.data.likeCount >= 0
+        && (
+          (
+            request.resource.data.likeCount == priorSocialPostLikeCount() + 1
+            && !likeMembershipExistsBefore(postId, request.auth.uid)
+            && likeMembershipExistsAfter(postId, request.auth.uid)
+          ) ||
+          (
+            request.resource.data.likeCount == priorSocialPostLikeCount() - 1
+            && likeMembershipExistsBefore(postId, request.auth.uid)
+            && !likeMembershipExistsAfter(postId, request.auth.uid)
+          )
+        );
+    }
+
+    // The mirror-image check, evaluated from the post_likes side: a
+    // create is only valid if the paired parent counter went up by
+    // exactly 1 in the same commit; a delete only if it went down by 1.
+    function isAtomicLikeCreatePair(postId) {
+      return socialPostLikeCountAfter(postId) == socialPostLikeCountBefore(postId) + 1;
+    }
+
+    function isAtomicLikeDeletePair(postId) {
+      return socialPostLikeCountAfter(postId) == socialPostLikeCountBefore(postId) - 1;
+    }
+
+    function isEligibleSocialPostId(postId) {
+      return postId is string
+        && postId.size() > 0
+        && exists(/databases/$(database)/documents/social_posts/$(postId))
+        && isSocialPostEligibleForInteraction(
+          get(/databases/$(database)/documents/social_posts/$(postId)).data
+        );
+    }
+
+    function ownerProfileEditableFields() {
+      return [
+        'ownerName',
+        'ownerPhone',
+        'emergencyContact',
+        'emergencyPhone',
+        'city',
+        'district',
+        'address'
+      ];
+    }
+
+    function changedOwnerProfileKeysAreAllowed() {
+      return !('ownerProfile' in request.resource.data)
+        || !('ownerProfile' in resource.data)
+        || !(resource.data.ownerProfile is map)
+        || request.resource.data.ownerProfile
+          .diff(resource.data.ownerProfile)
+          .affectedKeys()
+          .hasOnly(ownerProfileEditableFields());
+    }
+
+    function createdOwnerProfileKeysAreAllowed() {
+      return !('ownerProfile' in request.resource.data)
+        || (
+          'ownerProfile' in resource.data
+          && resource.data.ownerProfile is map
+        )
+        || (
+          request.resource.data.ownerProfile is map
+          && request.resource.data.ownerProfile.keys().hasOnly(ownerProfileEditableFields())
+        );
+    }
+
+    function isOwnerProfileSnapshotUpdate() {
+      return request.resource.data
+        .diff(resource.data)
+        .affectedKeys()
+        .hasOnly([
+          'ownerProfile',
+          'ownerProfileUpdatedAt',
+          'updatedAt'
+        ])
+        && (
+          !('ownerProfile' in request.resource.data)
+          || request.resource.data.ownerProfile is map
+        )
+        && changedOwnerProfileKeysAreAllowed()
+        && createdOwnerProfileKeysAreAllowed();
+    }
+
+    function protectedUserFields() {
+      return [
+        'uid',
+        'userId',
+        'ownerUid',
+        'ownerId',
+        'role',
+        'admin',
+        'isAdmin',
+        'isPremium',
+        'subscription',
+        'subscriptions',
+        'subscriptionPlan',
+        'subscriptionStatus',
+        'entitlement',
+        'entitlements',
+        'businessId',
+        'businessOwnerUid',
+        'creator'
+      ];
+    }
+
+    function protectedUserCreateFields() {
+      return [
+        'userId',
+        'ownerUid',
+        'ownerId',
+        'role',
+        'admin',
+        'isAdmin',
+        'isPremium',
+        'subscription',
+        'subscriptions',
+        'subscriptionPlan',
+        'subscriptionStatus',
+        'entitlement',
+        'entitlements',
+        'businessId',
+        'businessOwnerUid',
+        'creator'
+      ];
+    }
+
+    function selfUserCreateFieldsAreAllowed(userId) {
+      return !request.resource.data.keys().hasAny(protectedUserCreateFields())
+      && (
+        !('uid' in request.resource.data)
+        || request.resource.data.uid == userId
+      );
+    }
+
+    function selfUserUpdateFieldsAreAllowed() {
+      return !request.resource.data
+        .diff(resource.data)
+        .affectedKeys()
+        .hasAny(protectedUserFields());
+    }
+
     function isOfferClickCountOnlyUpdate() {
       return request.resource.data.diff(resource.data).changedKeys().hasOnly(['clickCount']);
     }
@@ -388,9 +722,15 @@ allow read: if isAdmin() || (
       // (createCreatorProfile / assignReferralCode / activateCreator /
       // deactivateCreator). Every other field on this document keeps its
       // existing self-or-admin write access, unchanged.
-      allow create: if (isOwnUserDoc(userId) || isAdmin())
+      allow create: if (
+          (isOwnUserDoc(userId) && selfUserCreateFieldsAreAllowed(userId))
+          || isAdmin()
+        )
         && !('creator' in request.resource.data);
-      allow update: if (isOwnUserDoc(userId) || isAdmin())
+      allow update: if (
+          (isOwnUserDoc(userId) && selfUserUpdateFieldsAreAllowed())
+          || isAdmin()
+        )
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creator']);
       allow delete: if isOwnUserDoc(userId) || isAdmin();
 
@@ -405,9 +745,15 @@ allow read: if isAdmin() || (
       // creator.enabled — this block was the reason why.
       match /{document=**} {
         allow read: if isOwnUserDoc(userId) || isAdmin();
-        allow create: if (isOwnUserDoc(userId) || isAdmin())
+        allow create: if (
+            (isOwnUserDoc(userId) && selfUserCreateFieldsAreAllowed(userId))
+            || isAdmin()
+          )
           && !('creator' in request.resource.data);
-        allow update: if (isOwnUserDoc(userId) || isAdmin())
+        allow update: if (
+            (isOwnUserDoc(userId) && selfUserUpdateFieldsAreAllowed())
+            || isAdmin()
+          )
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creator']);
         allow delete: if isOwnUserDoc(userId) || isAdmin();
       }
@@ -496,6 +842,11 @@ allow read: if isAdmin() || (
               'imagePaths',
               'isAvailableForAdoption',
             ])
+        ) ||
+
+        (
+          isDogOwner(resource.data) &&
+          isOwnerProfileSnapshotUpdate()
         );
 
       allow delete:
@@ -996,16 +1347,17 @@ match /dogs/{dogId}/visits/{visitId} {
 // ===============================
 match /chats/{chatId} {
 
-  allow get: if isAdmin() || isChatParticipant(resource.data);
+  allow get:
+    if isAdmin()
+    || isChatParticipant(resource.data)
+    || isMissingCanonicalDirectChatLookup(chatId);
 
   allow list: if isRegisteredUser()
     && request.auth.uid in resource.data.participants;
 
-  allow create: if isAdmin()
-    || (isChatParticipant(request.resource.data)
-      && request.auth.uid in request.resource.data.participants);
+  allow create: if isAdmin() || isValidDirectChatCreate(chatId);
 
-  allow update: if isAdmin() || isChatParticipant(resource.data);
+  allow update: if isAdmin() || isValidChatParticipantUpdate();
 
   allow delete: if false;
 
@@ -1021,16 +1373,13 @@ match /chats/{chatId} {
       ).data.participants
     );
 
-    allow create: if isAdmin() || (isRegisteredUser()
-      && request.auth.uid in get(
-        /databases/$(database)/documents/chats/$(chatId)
-      ).data.participants
-      && request.resource.data.senderId == request.auth.uid);
+    allow create: if isAdmin() || isValidChatMessageCreate(chatId);
 
     allow update: if isAdmin() || (isRegisteredUser()
       && request.auth.uid in get(
         /databases/$(database)/documents/chats/$(chatId)
-      ).data.participants);
+      ).data.participants
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']));
 
     allow delete: if false;
   }
@@ -1177,9 +1526,19 @@ match /social_posts/{postId} {
   allow create: if isRegisteredUser()
     && request.resource.data.userId == request.auth.uid;
 
-  allow update: if isAdmin() || (
-    isRegisteredUser() && resource.data.userId == request.auth.uid
-  );
+  // commentCount is intentionally NOT client-writable under any condition:
+  // post_comments uses auto-generated IDs, so this rule has no way to
+  // discover which (if any) new comment document a given write is
+  // supposed to pair with, and therefore cannot prove atomic coupling the
+  // way the deterministic post_likes/{postId}_{uid} id lets it do for
+  // likeCount. Comment creation and its counter increment are instead
+  // handled together, transactionally, by the addSocialComment trusted
+  // callable (functions/index.js), which writes via the Admin SDK and so
+  // bypasses these rules entirely — the only path that can ever change
+  // commentCount.
+  allow update: if isAdmin()
+    || (isRegisteredUser() && resource.data.userId == request.auth.uid)
+    || (isRegisteredUser() && isSocialPostLikeCounterOnlyUpdate(postId));
 
   allow delete: if isRegisteredUser()
     && (
@@ -1201,10 +1560,23 @@ match /post_likes/{likeId} {
 
   allow read: if isSignedIn();
 
+  // Deterministic doc ID ("{postId}_{uid}") makes a like idempotent per
+  // user/post and stops a client from creating multiple like documents
+  // for the same post under different random IDs to inflate likeCount.
+  // isAtomicLikeCreatePair/isAtomicLikeDeletePair additionally require
+  // the paired social_posts.likeCount transition to happen in the same
+  // commit, so this document can never be created/deleted standalone
+  // either — see the block comment above isSocialPostLikeCounterOnlyUpdate.
   allow create: if isRegisteredUser()
-    && request.resource.data.userId == request.auth.uid;
+    && request.resource.data.userId == request.auth.uid
+    && isEligibleSocialPostId(request.resource.data.postId)
+    && likeId == request.resource.data.postId + '_' + request.auth.uid
+    && isAtomicLikeCreatePair(request.resource.data.postId);
 
-  allow delete: if isRegisteredUser();
+  allow delete: if isAdmin()
+    || (isRegisteredUser()
+      && resource.data.userId == request.auth.uid
+      && isAtomicLikeDeletePair(resource.data.postId));
 
   allow update: if false;
 }
@@ -1212,10 +1584,22 @@ match /post_comments/{commentId} {
 
   allow read: if isSignedIn();
 
-  allow create: if isRegisteredUser()
-    && request.resource.data.userId == request.auth.uid;
+  // Comments are callable-only: post_comments uses auto-generated IDs, so
+  // there is no deterministic path this rule (or the social_posts update
+  // rule) could use to prove a given create is atomically paired with its
+  // commentCount increment the way post_likes proves it for likes. Rather
+  // than accept an unpaired/unproven counter mutation, comment creation
+  // and its counter increment happen together, transactionally, in the
+  // addSocialComment trusted callable (functions/index.js), which writes
+  // via the Admin SDK and so is not subject to this rule at all.
+  allow create: if false;
 
-  allow delete: if isRegisteredUser();
+  // Author self-service delete is intentionally not offered while there
+  // is no compensating commentCount decrement path (there is currently no
+  // client delete UI either). Admin moderation deletes remain available;
+  // a future self-service delete must be a callable that also decrements
+  // commentCount in the same transaction, mirroring addSocialComment.
+  allow delete: if isAdmin();
 
   allow update: if false;
 }
