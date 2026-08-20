@@ -23,6 +23,8 @@ import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 import '../../app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../models/business_draft.dart';
+import '../../models/company_type.dart';
+import '../../models/business_document_requirements.dart';
 
 import '../../data/location_repository.dart';
 import '../../data/location_models.dart';
@@ -163,6 +165,16 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   final _addressLine = TextEditingController();
 
   // ─────────────────────────────
+  // COMPANY TYPE (legal entity structure — controls which of the legal
+  // documents below are required; distinct from the `businessType`
+  // field used elsewhere for the service sector/category)
+  // ─────────────────────────────
+  CompanyType? _companyType;
+
+  TurkeyBusinessDocumentRequirements get _documentRequirements =>
+      TurkeyBusinessDocumentRequirements.forCompanyType(_companyType);
+
+  // ─────────────────────────────
   // STEP 3 – LEGAL DOCS
   // ─────────────────────────────
   String? _taxPlateUrl;
@@ -195,6 +207,11 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
     final errors = <String>[];
 
     if (_step == 0) {
+      if (_companyType == null) {
+        errors.add(
+          AppLocalizations.of(context)!.businessRegisterCompanyTypeRequired,
+        );
+      }
       if (_legalName.text.trim().isEmpty) {
         errors.add(
           AppLocalizations.of(
@@ -255,7 +272,8 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
           );
         } else if (!_isPetTaxiRegistration &&
             (_taxPlateUrl == null ||
-                _tradeRegistryUrl == null ||
+                (_documentRequirements.requiresTradeRegistryGazette &&
+                    _tradeRegistryUrl == null) ||
                 _signatureDocUrl == null)) {
           errors.add(
             AppLocalizations.of(
@@ -1157,6 +1175,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
         legal: BusinessLegalDraft(
           taxNumber: _taxNumberController.text.trim(),
           mersisNumber: _mersisNumberController.text.trim(),
+          companyType: _companyType?.toFirestore(),
           disclaimerAccepted: true,
           disclaimerVersion: "v1.0",
           disclaimerAcceptedAt: DateTime.now().toIso8601String(),
@@ -1231,6 +1250,7 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
       legal: BusinessLegalDraft(
         taxNumber: _taxNumberController.text.trim(),
         mersisNumber: _mersisNumberController.text.trim(),
+        companyType: _companyType?.toFirestore(),
         disclaimerAccepted: true,
       ),
 
@@ -1696,11 +1716,136 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   }
 
   // ─────────────────────────────
+  // COMPANY TYPE — asked first, before any document-upload step. Controls
+  // which legal documents are required later in the flow (see
+  // _documentRequirements / _stepLegal). Remains editable until final
+  // submission; persisted to businessDrafts/{uid} so it survives a
+  // draft reopen (see _onCompanyTypeSelected and _listenForOcrResults).
+  // ─────────────────────────────
+  Widget _companyTypeCard() {
+    final l10n = AppLocalizations.of(context)!;
+    final options = <(CompanyType, String)>[
+      (
+        CompanyType.soleProprietorship,
+        l10n.businessRegisterCompanyTypeSoleProprietorship,
+      ),
+      (
+        CompanyType.limitedCompany,
+        l10n.businessRegisterCompanyTypeLimitedCompany,
+      ),
+      (
+        CompanyType.jointStockCompany,
+        l10n.businessRegisterCompanyTypeJointStockCompany,
+      ),
+    ];
+
+    return _sectionCard(
+      title: l10n.businessRegisterCompanyTypeQuestion,
+      subtitle: l10n.businessRegisterCompanyTypeHelper,
+      icon: LucideIcons.building2,
+      child: Column(
+        children: options.map((option) {
+          final type = option.$1;
+          final label = option.$2;
+          final selected = _companyType == type;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => _onCompanyTypeSelected(type),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFF9E1B4F).withOpacity(0.08)
+                      : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: selected
+                        ? const Color(0xFF9E1B4F)
+                        : Colors.grey.shade200,
+                    width: selected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      selected
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_off,
+                      color: selected ? const Color(0xFF9E1B4F) : Colors.grey,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _companyTypeLabel(CompanyType type) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (type) {
+      case CompanyType.soleProprietorship:
+        return l10n.businessRegisterCompanyTypeSoleProprietorship;
+      case CompanyType.limitedCompany:
+        return l10n.businessRegisterCompanyTypeLimitedCompany;
+      case CompanyType.jointStockCompany:
+        return l10n.businessRegisterCompanyTypeJointStockCompany;
+    }
+  }
+
+  void _onCompanyTypeSelected(CompanyType type) {
+    if (_companyType == type) return;
+    setState(() => _companyType = type);
+    _persistCompanyTypeToDraft(type);
+  }
+
+  /// Persists the selected company type to businessDrafts/{uid} so it
+  /// survives the user closing and reopening the registration form, and so
+  /// the server-side OCR verification pipeline (ocrBusinessDoc /
+  /// syncBusinessDocumentVerification) can compute the correct
+  /// document-verification requirement for this user without needing a
+  /// MERSIS number from a sole proprietor who has no trade registry
+  /// document. Best-effort: failure here does not block the form, since
+  /// the value is also submitted directly with the final application.
+  Future<void> _persistCompanyTypeToDraft(CompanyType type) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('businessDrafts')
+          .doc(user.uid)
+          .set({'companyType': type.toFirestore()}, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('⚠️ Failed to persist companyType to draft: $error');
+    }
+  }
+
+  // ─────────────────────────────
   // STEP 1
   // ─────────────────────────────
   Widget _stepIdentity() {
     return Column(
       children: [
+        _companyTypeCard(),
+        const SizedBox(height: 16),
         _sectionCard(
           title: AppLocalizations.of(context)!.businessRegisterBusinessIdentity,
           subtitle: AppLocalizations.of(
@@ -2071,12 +2216,24 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             () => _pickDoc("tax"),
           ),
 
-          _docCard(
-            AppLocalizations.of(context)!.businessRegisterTradeRegistryGazette,
-            _tradeRegistryUrl,
-            () => _pickDoc("registry"),
-            required: !_isPetTaxiRegistration,
-          ),
+          // Şahıs İşletmesi (sole proprietorship) is not required to
+          // register with the Turkish Trade Registry, so it may have no
+          // Ticaret Sicil Gazetesi — the card is hidden entirely, not just
+          // marked optional, per the confirmed product requirement. Pet
+          // taxi's existing (pre-existing, unrelated) optional-display
+          // behavior is preserved unchanged.
+          if (shouldShowTradeRegistryCard(
+            isPetTaxiRegistration: _isPetTaxiRegistration,
+            companyType: _companyType,
+          ))
+            _docCard(
+              AppLocalizations.of(
+                context,
+              )!.businessRegisterTradeRegistryGazette,
+              _tradeRegistryUrl,
+              () => _pickDoc("registry"),
+              required: !_isPetTaxiRegistration,
+            ),
 
           _docCard(
             AppLocalizations.of(
@@ -2173,97 +2330,105 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 
           // =========================
           // 3️⃣ MERSIS NUMBER (AUTO-FILL)
+          // Hidden for a non-pet-taxi Şahıs İşletmesi: MERSIS numbers are
+          // issued through Trade Registry registration, which sole
+          // proprietorships are not required to have (see the trade
+          // registry card above).
           // =========================
-          Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      _mersisLocked
-                          ? Icons.verified
-                          : (_ocrStatus == "processing"
-                                ? Icons.hourglass_top
-                                : Icons.info_outline),
-                      color: _mersisLocked
-                          ? Colors.green
-                          : (_ocrStatus == "processing"
-                                ? Colors.orange
-                                : Colors.grey),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppLocalizations.of(
-                        context,
-                      )!.businessRegisterMersisNumber,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                _infoPill(
-                  icon: Icons.lock,
-                  text: AppLocalizations.of(
-                    context,
-                  )!.businessRegisterDocumentsSecurelyEncrypted,
-                  color: Colors.blue,
-                ),
-
-                const SizedBox(height: 8),
-
-                TextFormField(
-                  controller: _mersisNumberController,
-                  enabled: !_mersisLocked,
-                  keyboardType: TextInputType.number,
-                  decoration: _inputDecoration(
-                    _mersisLocked
-                        ? AppLocalizations.of(
-                            context,
-                          )!.businessRegisterVerifiedFromDocument
-                        : AppLocalizations.of(
-                            context,
-                          )!.businessRegisterAutoFilledAfterVerification,
+          if (shouldShowMersisSection(
+            isPetTaxiRegistration: _isPetTaxiRegistration,
+            companyType: _companyType,
+          ))
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
                   ),
-                  validator: (v) {
-                    if (_isPetTaxiRegistration) {
-                      if (v == null || v.trim().isEmpty) {
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _mersisLocked
+                            ? Icons.verified
+                            : (_ocrStatus == "processing"
+                                  ? Icons.hourglass_top
+                                  : Icons.info_outline),
+                        color: _mersisLocked
+                            ? Colors.green
+                            : (_ocrStatus == "processing"
+                                  ? Colors.orange
+                                  : Colors.grey),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppLocalizations.of(
+                          context,
+                        )!.businessRegisterMersisNumber,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  _infoPill(
+                    icon: Icons.lock,
+                    text: AppLocalizations.of(
+                      context,
+                    )!.businessRegisterDocumentsSecurelyEncrypted,
+                    color: Colors.blue,
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  TextFormField(
+                    controller: _mersisNumberController,
+                    enabled: !_mersisLocked,
+                    keyboardType: TextInputType.number,
+                    decoration: _inputDecoration(
+                      _mersisLocked
+                          ? AppLocalizations.of(
+                              context,
+                            )!.businessRegisterVerifiedFromDocument
+                          : AppLocalizations.of(
+                              context,
+                            )!.businessRegisterAutoFilledAfterVerification,
+                    ),
+                    validator: (v) {
+                      if (_isPetTaxiRegistration) {
+                        if (v == null || v.trim().isEmpty) {
+                          return AppLocalizations.of(
+                            context,
+                          )!.businessRegisterMersisNumberRequired;
+                        }
+                        return null;
+                      }
+                      if (_tradeRegistryUrl == null) {
                         return AppLocalizations.of(
                           context,
-                        )!.businessRegisterMersisNumberRequired;
+                        )!.businessRegisterUploadTradeRegistryFirst;
+                      }
+                      if (!_mersisLocked) {
+                        return AppLocalizations.of(
+                          context,
+                        )!.businessRegisterWaitingForDocumentVerification;
                       }
                       return null;
-                    }
-                    if (_tradeRegistryUrl == null) {
-                      return AppLocalizations.of(
-                        context,
-                      )!.businessRegisterUploadTradeRegistryFirst;
-                    }
-                    if (!_mersisLocked) {
-                      return AppLocalizations.of(
-                        context,
-                      )!.businessRegisterWaitingForDocumentVerification;
-                    }
-                    return null;
-                  },
-                ),
-              ],
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
 
         // =====================================================
@@ -2559,6 +2724,41 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             ),
           ),
 
+          const SizedBox(height: 10),
+
+          // Review/summary of the selected company type — this is the
+          // closest thing to a review screen this flow currently has
+          // before final submission; the user can still go Back to step 0
+          // to change it.
+          if (_companyType != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    LucideIcons.building2,
+                    size: 18,
+                    color: Color(0xFF9E1B4F),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalizations.of(
+                      context,
+                    )!.businessRegisterCompanyTypeLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  Text(_companyTypeLabel(_companyType!)),
+                ],
+              ),
+            ),
+
           const SizedBox(height: 14),
 
           /// 🟣 TERMS CHECKBOX
@@ -2789,6 +2989,17 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             final data = doc.data();
             if (data == null) return;
 
+            // Restore the previously-selected company type when reopening
+            // an in-progress draft. Only applied if nothing has been
+            // selected locally yet, so it never clobbers a fresher local
+            // choice mid-session.
+            final restoredCompanyType = CompanyType.fromString(
+              data['companyType']?.toString(),
+            );
+            if (_companyType == null && restoredCompanyType != null) {
+              _companyType = restoredCompanyType;
+            }
+
             final verification = data["verification"];
             final ocr = verification is Map ? verification["ocr"] : null;
             final tax = (ocr is Map) ? ocr["extractedTaxNumber"] : null;
@@ -2806,11 +3017,17 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
             final mersisText = mersis?.toString().trim() ?? '';
             final hasTax = RegExp(r'^\d{10}$').hasMatch(taxText);
             final hasMersis = RegExp(r'^\d{16}$').hasMatch(mersisText);
+            // A non-pet-taxi Şahıs İşletmesi has no MERSIS number to
+            // extract (see _documentRequirements) — the backend's own
+            // documentsVerified already accounts for this (see
+            // ocrBusinessDoc / syncBusinessDocumentVerification), but this
+            // client-side flag is recomputed independently and must apply
+            // the same rule so it doesn't stay permanently "processing".
             final verified =
                 backendDocumentsVerified &&
                 verificationStatus == 'verified' &&
                 hasTax &&
-                hasMersis;
+                (!_documentRequirements.requiresMersisNumber || hasMersis);
 
             debugPrint(
               '🔄 OCR STATE TRANSITION: uid=$uid '

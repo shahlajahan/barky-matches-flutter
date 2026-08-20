@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -67,7 +68,11 @@ Map<String, dynamic> buildSocialProfileCreationData({
     'city': '',
     'district': '',
     'photoUrl': photoUrl.trim(),
-    'isPremium': false,
+    // 'isPremium' is deliberately omitted: it is a backend-owned entitlement
+    // field (see protectedUserCreateFields() in firestore.rules) and every
+    // new profile is free/normal by default without needing to state it
+    // explicitly. Sending it here previously caused Firestore Rules to
+    // reject the entire create, leaving the Auth account without a profile.
     'emailVerified': true,
     'profileCompleted': false,
     'authProvider': providerId,
@@ -98,13 +103,17 @@ class SocialAuthService {
   SocialAuthService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     GoogleSignIn? googleSignIn,
   }) : _auth = auth ?? FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'europe-west3'),
        _googleSignIn = googleSignIn;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   GoogleSignIn? _googleSignIn;
 
   @visibleForTesting
@@ -458,37 +467,39 @@ class SocialAuthService {
         ? 'google.com'
         : 'apple.com';
     final reference = _firestore.collection('users').doc(user.uid);
-    late bool isNewProfile;
-    late Map<String, dynamic> profile;
+    final snapshot = await reference.get();
+    bool isNewProfile;
+    Map<String, dynamic> profile;
 
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(reference);
-      final now = FieldValue.serverTimestamp();
-      if (snapshot.exists) {
-        isNewProfile = false;
-        profile = Map<String, dynamic>.from(snapshot.data() ?? {});
-        transaction.set(
-          reference,
-          buildSocialProfileLoginMetadata(
-            providerId: providerId,
-            serverTimestamp: now,
-            providerArrayValue: FieldValue.arrayUnion([providerId]),
-          ),
-          SetOptions(merge: true),
-        );
-      } else {
-        isNewProfile = true;
-        profile = buildSocialProfileCreationData(
-          uid: user.uid,
+    if (snapshot.exists) {
+      isNewProfile = false;
+      profile = Map<String, dynamic>.from(snapshot.data() ?? {});
+      await reference.set(
+        buildSocialProfileLoginMetadata(
           providerId: providerId,
-          email: user.email ?? '',
-          displayName: user.displayName ?? '',
-          photoUrl: user.photoURL ?? '',
-          serverTimestamp: now,
+          serverTimestamp: FieldValue.serverTimestamp(),
+          providerArrayValue: FieldValue.arrayUnion([providerId]),
+        ),
+        SetOptions(merge: true),
+      );
+    } else {
+      // Server-owned, idempotent provisioning (see ensureUserProfile in
+      // functions/user/ensureUserProfileCore.js) replaces a direct
+      // client-side create. The Function derives every field from this
+      // user's own Auth record and never accepts entitlement/role fields
+      // from the client, so it cannot be rejected by protectedUserCreateFields
+      // regardless of what a future client accidentally sends.
+      await _functions.httpsCallable('ensureUserProfile').call();
+      final created = await reference.get();
+      if (!created.exists) {
+        throw FirebaseAuthException(
+          code: 'profile-provisioning-failed',
+          message: 'Unable to create the user profile after sign-in.',
         );
-        transaction.set(reference, profile);
       }
-    });
+      isNewProfile = true;
+      profile = Map<String, dynamic>.from(created.data() ?? {});
+    }
 
     return SocialProfileResult(
       user: user,

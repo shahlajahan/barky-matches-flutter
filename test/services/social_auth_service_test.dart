@@ -23,6 +23,48 @@ void main() {
     expect(data['createdAt'], 'server-time');
   });
 
+  test(
+    'social creation payload never contains protected/entitlement fields',
+    () {
+      final data = buildSocialProfileCreationData(
+        uid: 'firebase-uid',
+        providerId: 'google.com',
+        email: 'person@example.com',
+        displayName: 'Pet Owner',
+        photoUrl: 'https://example.com/photo.jpg',
+        serverTimestamp: 'server-time',
+      );
+
+      // Regression test for the production bug where `isPremium: false`
+      // in this payload caused Firestore Rules to reject every self-create
+      // for social signups, leaving the Auth account without a profile.
+      const protectedFields = [
+        'isPremium',
+        'subscription',
+        'subscriptions',
+        'subscriptionPlan',
+        'subscriptionStatus',
+        'role',
+        'admin',
+        'isAdmin',
+        'entitlement',
+        'entitlements',
+        'businessId',
+        'businessOwnerUid',
+        'creator',
+        'ownerUid',
+        'ownerId',
+      ];
+      for (final field in protectedFields) {
+        expect(
+          data.containsKey(field),
+          isFalse,
+          reason: '$field must never be sent by the client self-create',
+        );
+      }
+    },
+  );
+
   test('returning-user metadata cannot overwrite profile fields', () {
     final metadata = buildSocialProfileLoginMetadata(
       providerId: 'apple.com',

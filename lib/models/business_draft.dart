@@ -102,17 +102,24 @@ class BusinessLegalDraft {
   final String? disclaimerVersion;
   final String? disclaimerAcceptedAt;
 
+  /// Serialized CompanyType value (see lib/models/company_type.dart), e.g.
+  /// 'sole_proprietorship'. Null for legacy drafts or non-Turkey
+  /// registrations where the field is not yet meaningful.
+  final String? companyType;
+
   const BusinessLegalDraft({
     required this.taxNumber,
     required this.mersisNumber,
     required this.disclaimerAccepted,
     this.disclaimerVersion,
     this.disclaimerAcceptedAt,
+    this.companyType,
   });
 
   Map<String, dynamic> toJson() => {
     "taxNumber": taxNumber.trim(),
     "mersisNumber": mersisNumber.trim(),
+    "companyType": companyType,
     "documents": [],
     "disclaimerAccepted": disclaimerAccepted,
     "disclaimerVersion": disclaimerVersion,

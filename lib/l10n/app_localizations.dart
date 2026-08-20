@@ -5985,6 +5985,54 @@ abstract class AppLocalizations {
   /// **'Yetkili İmza Belgesi'**
   String get businessRegisterAuthorizedSignatureDocument;
 
+  /// No description provided for @businessRegisterCompanyTypeQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'What is your business type?'**
+  String get businessRegisterCompanyTypeQuestion;
+
+  /// No description provided for @businessRegisterCompanyTypeHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'The documents you need to upload will be determined by your business type.'**
+  String get businessRegisterCompanyTypeHelper;
+
+  /// No description provided for @businessRegisterCompanyTypeSoleProprietorship.
+  ///
+  /// In en, this message translates to:
+  /// **'Şahıs İşletmesi (Sole Proprietorship)'**
+  String get businessRegisterCompanyTypeSoleProprietorship;
+
+  /// No description provided for @businessRegisterCompanyTypeLimitedCompany.
+  ///
+  /// In en, this message translates to:
+  /// **'Limited Şirket (Limited Company)'**
+  String get businessRegisterCompanyTypeLimitedCompany;
+
+  /// No description provided for @businessRegisterCompanyTypeJointStockCompany.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonim Şirket (Joint Stock Company)'**
+  String get businessRegisterCompanyTypeJointStockCompany;
+
+  /// No description provided for @businessRegisterCompanyTypeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'• Please select your company type.'**
+  String get businessRegisterCompanyTypeRequired;
+
+  /// No description provided for @businessRegisterCompanyTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Company Type'**
+  String get businessRegisterCompanyTypeLabel;
+
+  /// No description provided for @businessRegisterCompanyTypeLegacyUnspecified.
+  ///
+  /// In en, this message translates to:
+  /// **'Unspecified / Legacy'**
+  String get businessRegisterCompanyTypeLegacyUnspecified;
+
   /// No description provided for @businessRegisterTaxNumberVkn.
   ///
   /// In en, this message translates to:

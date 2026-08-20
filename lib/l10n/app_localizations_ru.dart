@@ -3192,6 +3192,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get businessRegisterAuthorizedSignatureDocument => 'Документ уполномоченной подписи';
 
   @override
+  String get businessRegisterCompanyTypeQuestion => 'Какой у вас тип бизнеса?';
+
+  @override
+  String get businessRegisterCompanyTypeHelper => 'Необходимые документы будут определены в зависимости от типа вашего бизнеса.';
+
+  @override
+  String get businessRegisterCompanyTypeSoleProprietorship => 'Şahıs İşletmesi (Индивидуальный предприниматель)';
+
+  @override
+  String get businessRegisterCompanyTypeLimitedCompany => 'Limited Şirket (Общество с ограниченной ответственностью)';
+
+  @override
+  String get businessRegisterCompanyTypeJointStockCompany => 'Anonim Şirket (Акционерное общество)';
+
+  @override
+  String get businessRegisterCompanyTypeRequired => '• Пожалуйста, выберите тип компании.';
+
+  @override
+  String get businessRegisterCompanyTypeLabel => 'Тип компании';
+
+  @override
+  String get businessRegisterCompanyTypeLegacyUnspecified => 'Не указано / устаревшая запись';
+
+  @override
   String get businessRegisterTaxNumberVkn => 'Налоговый номер (VKN)';
 
   @override

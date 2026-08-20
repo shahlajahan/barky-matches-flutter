@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dog.dart';
 import 'notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -3363,7 +3364,7 @@ class AppState with ChangeNotifier {
       );
       debugPrint('🌐 FIRESTORE GATED READ → loadUsernameFromFirebase');
 
-      final doc = await _criticalFirestoreRetry(
+      var doc = await _criticalFirestoreRetry(
         () => FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
@@ -3373,6 +3374,29 @@ class AppState with ChangeNotifier {
       );
 
       if (!isUserSessionCurrent(uid, generation)) return false;
+
+      if (!doc.exists) {
+        // Self-heal: the Auth account exists but its users/{uid} profile
+        // does not (e.g. an interrupted signup, or an older client version
+        // whose self-create payload was rejected by Firestore Rules — see
+        // functions/user/ensureUserProfileCore.js). Provision it via the
+        // trusted, idempotent server-side path and retry the read once.
+        // Never falls back to writing protected/entitlement fields from
+        // the client.
+        debugPrint(
+          '🌐 USER PROFILE MISSING → attempting self-heal via ensureUserProfile',
+        );
+        final healed = await _ensureUserProfileSelfHeal(uid);
+        if (!isUserSessionCurrent(uid, generation)) return false;
+        if (healed) {
+          doc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get()
+              .timeout(_firestoreReadTimeout);
+          if (!isUserSessionCurrent(uid, generation)) return false;
+        }
+      }
 
       final data = doc.data();
       var loadedFromNetwork = false;
@@ -3437,6 +3461,25 @@ class AppState with ChangeNotifier {
         debugPrint('🌐 OFFLINE STARTUP SURVIVAL MODE → profile unavailable');
       }
       return usedCache;
+    }
+  }
+
+  /// Calls the trusted, idempotent `ensureUserProfile` Cloud Function to
+  /// repair an Auth-only account that is missing its users/{uid} profile.
+  /// Never writes protected/entitlement fields from the client; the
+  /// function derives every field from the caller's own Auth record. Safe
+  /// to call repeatedly — returns false (does not throw) on any failure so
+  /// callers can fall back to existing degraded-mode behavior.
+  Future<bool> _ensureUserProfileSelfHeal(String uid) async {
+    try {
+      await FirebaseFunctions.instanceFor(
+        region: 'europe-west3',
+      ).httpsCallable('ensureUserProfile').call();
+      debugPrint('🌐 ENSURE_USER_PROFILE self-heal succeeded → uid=$uid');
+      return true;
+    } catch (e) {
+      debugPrint('❌ ensureUserProfile self-heal failed uid=$uid error=$e');
+      return false;
     }
   }
 

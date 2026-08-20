@@ -179,6 +179,11 @@ const {
 const {loadValidGoldEntitlement} = require(
   "./subscription/businessEntitlementAuthorization"
 );
+const {ensureUserProfile} = require("./user/ensureUserProfileCore");
+const {
+  isValidCompanyType,
+  requiredTurkeyDocuments,
+} = require("./business/businessDocumentRequirements");
 const {
   calculateMarketplaceShipping,
 } = require("./shipping/marketplaceShipping");
@@ -11662,15 +11667,41 @@ exports.registerBusiness = onCall(
 
 
       // =========================
+      // COMPANY TYPE (legal entity structure — distinct from `businessType`
+      // used elsewhere for the service sector/category)
+      // =========================
+      const companyType = legal.companyType ?? null;
+      if (companyType !== null && !isValidCompanyType(companyType)) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Unsupported companyType value"
+        );
+      }
+      const requiresTurkeyCompanyType =
+        request.data.countryCode === "TR" && !petTaxiOnlyRegistration;
+      if (requiresTurkeyCompanyType && companyType === null) {
+        throw new HttpsError(
+          "invalid-argument",
+          "companyType is required"
+        );
+      }
+      const documentRequirements = requiredTurkeyDocuments(companyType);
+
+      // =========================
       // OCR VALIDATION (TR)
       // =========================
       let riskFlags = [];
 
-      if (request.data.countryCode === "TR" && !petTaxiOnlyRegistration) {
-        if (!legal.taxNumber || !legal.mersisNumber) {
+      if (requiresTurkeyCompanyType) {
+        if (
+          !legal.taxNumber ||
+          (documentRequirements.requiresMersisNumber && !legal.mersisNumber)
+        ) {
           throw new HttpsError(
             "invalid-argument",
-            "Tax Number and MERSIS required"
+            documentRequirements.requiresMersisNumber
+              ? "Tax Number and MERSIS required"
+              : "Tax Number required"
           );
         }
 
@@ -11702,18 +11733,20 @@ exports.registerBusiness = onCall(
           );
         }
 
-        if (
-          ocr.extractedMersisNumber &&
-          ocr.extractedMersisNumber !== legal.mersisNumber
-        ) {
-          throw new HttpsError(
-            "permission-denied",
-            "MERSIS mismatch with OCR"
-          );
-        }
+        if (documentRequirements.requiresMersisNumber) {
+          if (
+            ocr.extractedMersisNumber &&
+            ocr.extractedMersisNumber !== legal.mersisNumber
+          ) {
+            throw new HttpsError(
+              "permission-denied",
+              "MERSIS mismatch with OCR"
+            );
+          }
 
-        if (!legal.mersisNumber.startsWith(legal.taxNumber)) {
-          riskFlags.push("mersis_prefix_mismatch");
+          if (!legal.mersisNumber.startsWith(legal.taxNumber)) {
+            riskFlags.push("mersis_prefix_mismatch");
+          }
         }
       }
 
@@ -11790,6 +11823,7 @@ exports.registerBusiness = onCall(
         },
 
         legal: {
+          companyType,
           taxNumber: legal.taxNumber,
           mersisNumber: legal.mersisNumber,
           documents: [],
@@ -11936,6 +11970,7 @@ exports.registerBusiness = onCall(
         },
 
         legal: {
+          companyType,
           taxNumber: legal.taxNumber,
           mersisNumber: legal.mersisNumber,
         },
@@ -12659,6 +12694,15 @@ exports.ocrBusinessDoc = onObjectFinalized(
         const draftSnap = await transaction.get(draftRef);
         const currentVerification = draftSnap.data()?.verification || {};
         const currentDocuments = currentVerification.documents || {};
+        // companyType is client-set on businessDrafts/{uid} at selection
+        // time (see business_register_page.dart) and controls whether a
+        // MERSIS number is required for "verified" — see
+        // functions/business/businessDocumentRequirements.js. A sole
+        // proprietorship has no trade registry document to extract a
+        // MERSIS number from, so requiring one here would permanently
+        // block their verification.
+        const companyType = draftSnap.data()?.companyType ?? null;
+        const requirements = requiredTurkeyDocuments(companyType);
         const documents = {
           ...currentDocuments,
           [documentKind]: {
@@ -12678,7 +12722,8 @@ exports.ocrBusinessDoc = onObjectFinalized(
           .map((document) => document?.extractedMersisNumber)
           .find((value) => /^\d{16}$/.test(String(value || ""))) || null;
         const documentsVerified =
-          aggregateTaxNumber !== null && aggregateMersisNumber !== null;
+          aggregateTaxNumber !== null &&
+          (!requirements.requiresMersisNumber || aggregateMersisNumber !== null);
         const status = documentsVerified ? "verified" : "ocr_extracted";
 
         transaction.set(
@@ -12818,9 +12863,12 @@ exports.syncBusinessDocumentVerification = onCall(
         }
 
         const verification = draftSnap.data()?.verification || {};
+        const companyType = draftSnap.data()?.companyType ?? null;
+        const requirements = requiredTurkeyDocuments(companyType);
         const documentsVerified =
           /^\d{10}$/.test(extractedTaxNumber) &&
-          /^\d{16}$/.test(extractedMersisNumber);
+          (!requirements.requiresMersisNumber ||
+            /^\d{16}$/.test(extractedMersisNumber));
         const status = documentsVerified
           ? "verified"
           : verification.status || "pending_verification";
@@ -31605,6 +31653,41 @@ exports.createAppointmentOrder = onCall(
 
 exports.createHotelBookingOrder = exports.createAppointmentOrder;
 
+
+// Server-owned, idempotent users/{uid} profile provisioning. Fixes the class
+// of bug where Firebase Authentication succeeds but the client-side
+// users/{uid} create fails or is never attempted (e.g. app killed, network
+// drop, or — the originally diagnosed case — a protected field in the
+// self-create payload being rejected by Firestore Rules). Operates only on
+// the caller's own uid: every identity value is read from the Auth record
+// for request.auth.uid, never from client-supplied fields, so a caller
+// cannot provision another uid or inject role/entitlement/claims data.
+exports.ensureUserProfile = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Login required");
+    }
+    const uid = request.auth.uid;
+    const database = admin.firestore();
+    let authUser;
+    try {
+      authUser = await admin.auth().getUser(uid);
+    } catch (error) {
+      throw new HttpsError(
+        "internal",
+        "Unable to load the authenticated user record"
+      );
+    }
+    const result = await ensureUserProfile({
+      db: database,
+      authUser,
+      now: admin.firestore.FieldValue.serverTimestamp(),
+      logger: console,
+    });
+    return result;
+  }
+);
 
 exports.getAdminSubscriptionCatalog = onCall(
   { region: "europe-west3" },

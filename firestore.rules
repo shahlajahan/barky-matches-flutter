@@ -75,6 +75,24 @@ service cloud.firestore {
       return isSignedIn() && data.ownerUid == request.auth.uid;
     }
 
+    // Defense-in-depth against a tampered/unsupported legal.companyType on a
+    // direct client create of businesses/{businessId} or business_requests
+    // (registerBusiness, the trusted Cloud Function, is the authoritative
+    // enforcement point for the full document-requirement matrix — see
+    // functions/business/businessDocumentRequirements.js — this only
+    // rejects an invalid enum value, it does not compute required
+    // documents). companyType is optional at this layer (absent is
+    // legacy-compatible); only an explicitly-set invalid value is rejected.
+    function isValidOrAbsentCompanyType(legalData) {
+      return !('companyType' in legalData)
+        || legalData.companyType == null
+        || legalData.companyType in [
+          'sole_proprietorship',
+          'limited_company',
+          'joint_stock_company'
+        ];
+    }
+
     function isCanonicalBusinessOwner(businessId) {
       return isSignedIn()
         && get(
@@ -671,6 +689,14 @@ allow read: if isAdmin() || (
     }
 
     function protectedUserCreateFields() {
+      // 'isPremium' is intentionally excluded from this list. It is handled
+      // separately by isLegacyIsPremiumFalseCreate() below: a narrow,
+      // exact-`false`-only backward-compatibility exception for already-
+      // released app versions whose signup payload still includes
+      // `isPremium: false`. It is never permitted to be `true` on create,
+      // and remains fully protected from any update — see
+      // protectedUserFields()/selfUserUpdateFieldsAreAllowed below, which is
+      // unchanged and still includes 'isPremium'.
       return [
         'userId',
         'ownerUid',
@@ -678,7 +704,6 @@ allow read: if isAdmin() || (
         'role',
         'admin',
         'isAdmin',
-        'isPremium',
         'subscription',
         'subscriptions',
         'subscriptionPlan',
@@ -691,8 +716,25 @@ allow read: if isAdmin() || (
       ];
     }
 
+    // Backward compatibility for already-released clients: pre-fix versions
+    // of buildSocialProfileCreationData() (lib/services/social_auth_service.dart)
+    // send `isPremium: false` on initial profile creation, which used to be
+    // unconditionally rejected by protectedUserCreateFields() — causing Auth
+    // sign-in to succeed while the users/{uid} profile silently failed to be
+    // created. Only an exact literal `false` is ever accepted here;
+    // `isPremium: true` (or any other value) is always rejected. This
+    // exception applies to document creation only — isPremium remains fully
+    // update-protected via protectedUserFields()/selfUserUpdateFieldsAreAllowed.
+    // Safe to remove once no released client version still sends isPremium on
+    // signup (the fixed client omits it entirely, which this also permits).
+    function isLegacyIsPremiumFalseCreate() {
+      return !('isPremium' in request.resource.data)
+        || request.resource.data.isPremium == false;
+    }
+
     function selfUserCreateFieldsAreAllowed(userId) {
       return !request.resource.data.keys().hasAny(protectedUserCreateFields())
+      && isLegacyIsPremiumFalseCreate()
       && (
         !('uid' in request.resource.data)
         || request.resource.data.uid == userId
@@ -942,7 +984,11 @@ match /dogs/{dogId}/visits/{visitId} {
           'trust',
           'riskFlags',
           'createdAt'
-        ])
+        ]) &&
+        (
+          !('legal' in request.resource.data)
+          || isValidOrAbsentCompanyType(request.resource.data.legal)
+        )
       );
       allow update: if isAdmin() || canOwnerUpdateBusinessDocument(businessId);
       allow delete: if isAdmin() || isCanonicalBusinessOwner(businessId);
@@ -1149,7 +1195,13 @@ match /dogs/{dogId}/visits/{visitId} {
 
     match /business_requests/{requestId} {
       allow read: if isAdmin() || isBusinessRequestOwner(resource.data);
-      allow create: if isAdmin() || isBusinessRequestOwner(request.resource.data);
+      allow create: if isAdmin() || (
+        isBusinessRequestOwner(request.resource.data) &&
+        (
+          !('legal' in request.resource.data)
+          || isValidOrAbsentCompanyType(request.resource.data.legal)
+        )
+      );
       allow update, delete: if isAdmin() || isBusinessRequestOwner(resource.data);
     }
 

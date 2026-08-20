@@ -3192,6 +3192,30 @@ class AppLocalizationsFa extends AppLocalizations {
   String get businessRegisterAuthorizedSignatureDocument => 'مدرک امضای مجاز';
 
   @override
+  String get businessRegisterCompanyTypeQuestion => 'نوع کسب‌وکار شما چیست؟';
+
+  @override
+  String get businessRegisterCompanyTypeHelper => 'مدارک لازم برای بارگذاری بر اساس نوع کسب‌وکار شما تعیین می‌شود.';
+
+  @override
+  String get businessRegisterCompanyTypeSoleProprietorship => 'شخص حقیقی (Şahıs İşletmesi)';
+
+  @override
+  String get businessRegisterCompanyTypeLimitedCompany => 'شرکت با مسئولیت محدود (Limited Şirket)';
+
+  @override
+  String get businessRegisterCompanyTypeJointStockCompany => 'شرکت سهامی (Anonim Şirket)';
+
+  @override
+  String get businessRegisterCompanyTypeRequired => '• لطفاً نوع شرکت خود را انتخاب کنید.';
+
+  @override
+  String get businessRegisterCompanyTypeLabel => 'نوع شرکت';
+
+  @override
+  String get businessRegisterCompanyTypeLegacyUnspecified => 'نامشخص / قدیمی';
+
+  @override
   String get businessRegisterTaxNumberVkn => 'شماره مالیاتی (VKN)';
 
   @override

@@ -2131,16 +2131,34 @@ class _AuthPageState extends State<AuthPage> {
       if (result == null) return;
       await _completeSocialAuthentication(result, service, l10n);
     } on SocialAuthCancelled {
+      // Not a failure — the user backed out of the provider's own UI. No
+      // diagnostic event, and the session state is unchanged.
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l10n.authenticationCancelled)));
     } on FirebaseAuthException catch (error, stackTrace) {
+      // Covers both real Auth provider failures and the profile-provisioning
+      // failure surfaced by SocialAuthService._finalizeUser as a
+      // FirebaseAuthException(code: 'profile-provisioning-failed') when
+      // ensureUserProfile could not create users/{uid} after a successful
+      // sign-in — kept distinguishable in the diagnostic reason below so it
+      // never gets silently folded into a generic auth-provider failure.
+      final isProvisioningFailure = error.code == 'profile-provisioning-failed';
       AuthenticationDiagnostics.captureFailure(
         operation: 'social_auth',
         error: error,
         stackTrace: stackTrace,
+        reason: isProvisioningFailure
+            ? 'social_auth_profile_provisioning_failed'
+            : null,
       );
+      // The Auth session may still be signed in even though the profile
+      // could not be created — do not silently continue into the app with
+      // no profile document; force sign-out so the user retries cleanly.
+      if (isProvisioningFailure) {
+        await FirebaseAuth.instance.signOut();
+      }
       if (!mounted) return;
       final collision =
           error.code == 'account-exists-with-different-credential' ||
@@ -2155,7 +2173,45 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ),
       );
-    } catch (_) {
+    } on FirebaseException catch (error, stackTrace) {
+      // Firestore/other Firebase-service failures (e.g. a Security Rules
+      // permission-denied on the profile self-create) — previously fell
+      // through to the generic catch below with no diagnostic captured at
+      // all, which is exactly how this bug went unobserved in production.
+      AuthenticationDiagnostics.captureFailure(
+        operation: 'social_auth',
+        error: error,
+        stackTrace: stackTrace,
+        reason: error.code == 'permission-denied'
+            ? 'social_auth_firestore_permission_denied'
+            : 'social_auth_firestore_failure',
+        data: <String, dynamic>{'plugin': error.plugin, 'code': error.code},
+      );
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.unableToSignIn)));
+    } on TimeoutException catch (error, stackTrace) {
+      AuthenticationDiagnostics.captureFailure(
+        operation: 'social_auth',
+        error: error,
+        stackTrace: stackTrace,
+        reason: 'social_auth_network_timeout',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.unableToSignIn)));
+    } catch (error, stackTrace) {
+      // Unexpected/unclassified failure — still recorded (never silently
+      // swallowed) and never left signed-in without a profile.
+      AuthenticationDiagnostics.captureFailure(
+        operation: 'social_auth',
+        error: error,
+        stackTrace: stackTrace,
+        reason: 'social_auth_unexpected_failure',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

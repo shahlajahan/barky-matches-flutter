@@ -3192,6 +3192,30 @@ class AppLocalizationsTr extends AppLocalizations {
   String get businessRegisterAuthorizedSignatureDocument => 'Yetkili İmza Evrakı';
 
   @override
+  String get businessRegisterCompanyTypeQuestion => 'İşletme türünüz nedir?';
+
+  @override
+  String get businessRegisterCompanyTypeHelper => 'Yüklemeniz gereken belgeler işletme türünüze göre belirlenecektir.';
+
+  @override
+  String get businessRegisterCompanyTypeSoleProprietorship => 'Şahıs İşletmesi';
+
+  @override
+  String get businessRegisterCompanyTypeLimitedCompany => 'Limited Şirket';
+
+  @override
+  String get businessRegisterCompanyTypeJointStockCompany => 'Anonim Şirket';
+
+  @override
+  String get businessRegisterCompanyTypeRequired => '• İşletme türünü seçmelisiniz.';
+
+  @override
+  String get businessRegisterCompanyTypeLabel => 'İşletme Türü';
+
+  @override
+  String get businessRegisterCompanyTypeLegacyUnspecified => 'Belirtilmemiş / Legacy';
+
+  @override
   String get businessRegisterTaxNumberVkn => 'Vergi Numarası (VKN)';
 
   @override

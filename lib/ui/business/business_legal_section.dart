@@ -1,11 +1,31 @@
 import 'package:flutter/material.dart';
 import '../admin/admin_section.dart';
+import '../../models/company_type.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
 
 class BusinessLegalSection extends StatelessWidget {
   final Map<String, dynamic> data;
 
   const BusinessLegalSection({super.key, required this.data});
+
+  String _companyTypeLabel(BuildContext context, String? raw) {
+    final l10n = AppLocalizations.of(context)!;
+    final type = CompanyType.fromString(raw);
+    if (type == null) {
+      // Covers both a genuinely legacy record (field absent) and a
+      // tampered/unsupported value — either way, admin sees an explicit
+      // unspecified state rather than a silently-guessed company type.
+      return l10n.businessRegisterCompanyTypeLegacyUnspecified;
+    }
+    switch (type) {
+      case CompanyType.soleProprietorship:
+        return l10n.businessRegisterCompanyTypeSoleProprietorship;
+      case CompanyType.limitedCompany:
+        return l10n.businessRegisterCompanyTypeLimitedCompany;
+      case CompanyType.jointStockCompany:
+        return l10n.businessRegisterCompanyTypeJointStockCompany;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +36,10 @@ class BusinessLegalSection extends StatelessWidget {
 
     final submittedTax = legal['taxNumber']?.toString();
     final submittedMersis = legal['mersisNumber']?.toString();
+    final companyTypeLabel = _companyTypeLabel(
+      context,
+      legal['companyType']?.toString(),
+    );
 
     final ocrData =
         (verification['ocr'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -32,6 +56,42 @@ class BusinessLegalSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          /// 🔷 COMPANY TYPE — shown first/prominently, per admin review
+          /// requirements. Distinct from the business's service-category
+          /// (`businessType`), shown elsewhere on this page.
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.blueGrey.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.apartment, size: 18, color: Colors.black54),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.businessRegisterCompanyTypeLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black54,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    companyTypeLabel,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           /// 🔷 TAX NUMBER
           _ComparisonRow(
             label: "Tax Number",
