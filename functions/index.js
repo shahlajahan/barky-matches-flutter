@@ -13705,6 +13705,7 @@ exports.metricsScheduler =
 
 exports.onSubscriptionChanged = revenue.onSubscriptionChanged;
 exports.onBusinessChanged = revenue.onBusinessChanged;
+exports.onRevenueOrderChanged = revenue.onRevenueOrderChanged;
 exports.reconcileRevenueScheduled = revenue.reconcileRevenueScheduled;
 exports.submitUserFeedback =
   require("./src/feedback/submitUserFeedback")
