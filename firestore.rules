@@ -1051,25 +1051,66 @@ match /dogs/{dogId}/visits/{visitId} {
   // reads only ever see approved + active products; a seller may still
   // read (but not publicly expose) their own pending/rejected products.
 
-  function productProtectedKeysUntouched(data) {
-    return !data.keys().hasAny([
+  // P0.1 correction (docs/audits/marketplace_p1_bulk_compliance_inventory_
+  // architecture_2026-08-21.md, Revision 3 §6): request.resource.data is
+  // ALWAYS the complete post-write document, not a diff — this is true on
+  // update regardless of whether the client used set(), update(), or
+  // set(merge:true). The original productProtectedKeysUntouched() checked
+  // !data.keys().hasAny([blacklist]) against that complete document on
+  // BOTH create and update. On create this is correct (a fresh submission
+  // legitimately must not contain these keys at all). On update it is
+  // wrong: the instant any Admin-SDK writer (functions/src/inventory/*)
+  // sets one of these fields, EVERY subsequent seller edit's resulting
+  // document still legitimately carries it forward unchanged — and the
+  // bare presence check would reject that edit outright, permanently
+  // locking the seller out of their own product, even though they never
+  // touched the field. Harmless today only because the inventory module
+  // is disabled in production (no real document has ever had these
+  // fields set); would fire on the first canary activation.
+  //
+  // Fix: a server-owned field must be part of the closed document schema
+  // (productAllowedFields()) so its mere presence never fails hasOnly(),
+  // while its VALUE remains immutable to any seller write via a diff-based
+  // unchanged-value check (sellerUpdateLeavesServerOwnedFieldsUntouched),
+  // not a blacklist-style absence check. Create keeps a presence check
+  // (sellerCreateHasNoServerOwnedFields) because there is no resource.data
+  // to diff against yet — a fresh submission must omit these entirely.
+  function serverOwnedProductFields() {
+    return [
+      // Already written today by functions/src/inventory/* (mirrors
+      // SERVER_OWNED_INVENTORY_FIELDS in inventoryConstants.js) — inert
+      // in production only because the M3/M5 feature flags are unset.
+      'reservedStock',
+      'inventorySchemaVersion',
+      'inventoryOperationVersion',
+      'inventoryUpdatedAt',
+      // Reserved for a future admin-review write path; no code writes
+      // these yet. Protected the same way now so activating that path
+      // later cannot reintroduce this exact defect.
       'reviewedBy',
       'reviewedAt',
       'rejectionReason',
-      'reservedStock',
       'complianceStatus'
-    ]);
+    ];
+  }
+
+  function sellerCreateHasNoServerOwnedFields(data) {
+    return !data.keys().hasAny(serverOwnedProductFields());
+  }
+
+  function sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing) {
+    return !incoming.diff(existing).affectedKeys().hasAny(serverOwnedProductFields());
   }
 
   // P0 gap review: the exact, closed set of fields Product.toJson()
-  // (lib/models/product.dart) ever writes — every legitimate client
-  // write must be a subset of this list, nothing more. This is the
-  // authoritative defense: an unknown field (approved, published,
-  // publicationStatus, moderation, adminApproved, inventoryOverride,
-  // customStatus, sellerUid, documentUrls, or anything else not in this
-  // list) cannot be injected by any client write, admin excepted. Keep
-  // in sync with toJson() by construction — this list was generated
-  // directly from it, not hand-guessed.
+  // (lib/models/product.dart) ever writes, plus every server-owned field
+  // above — every legitimate client write must be a subset of this list,
+  // nothing more. This is the authoritative defense: an unknown field
+  // (approved, published, publicationStatus, moderation, adminApproved,
+  // inventoryOverride, customStatus, sellerUid, documentUrls, or anything
+  // else not in this list) cannot be injected by any client write, admin
+  // excepted. The seller-facing portion is kept in sync with toJson() by
+  // construction — generated directly from it, not hand-guessed.
   function productAllowedFields() {
     return [
       'allowFreeShipping', 'allowPickup', 'allowReturns', 'allowSameDay',
@@ -1085,7 +1126,7 @@ match /dogs/{dogId}/visits/{visitId} {
       'shippingMode', 'shippingPayer', 'shippingProfile', 'shippingSnapshot',
       'sku', 'stock', 'suggestedMaxPrice', 'suggestedMinPrice', 'suggestedPrice',
       'taxIncluded', 'updatedAt', 'weightKg', 'wholesalePrice', 'widthCm'
-    ];
+    ].concat(serverOwnedProductFields());
   }
 
   function isKnownSafeProductCategory(category) {
@@ -1108,7 +1149,7 @@ match /dogs/{dogId}/visits/{visitId} {
       && isKnownSafeProductCategory(data.category)
       && data.isActive == false
       && data.moderationStatus == 'pending_review'
-      && productProtectedKeysUntouched(data)
+      && sellerCreateHasNoServerOwnedFields(data)
       && data.keys().hasOnly(productAllowedFields());
   }
 
@@ -1124,16 +1165,11 @@ match /dogs/{dogId}/visits/{visitId} {
       && isKnownSafeProductCategory(incoming.category)
       && incoming.isActive == false
       && incoming.moderationStatus == 'pending_review'
-      && productProtectedKeysUntouched(incoming)
+      && sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing)
       && incoming.keys().hasOnly(productAllowedFields())
       && !incoming.diff(existing).affectedKeys().hasAny([
         'businessId',
-        'createdAt',
-        'reviewedBy',
-        'reviewedAt',
-        'rejectionReason',
-        'reservedStock',
-        'complianceStatus'
+        'createdAt'
       ]);
   }
 
