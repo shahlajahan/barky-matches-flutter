@@ -25,6 +25,7 @@ import '../../theme/app_theme.dart';
 import '../../models/business_draft.dart';
 import '../../models/company_type.dart';
 import '../../models/business_document_requirements.dart';
+import 'partner_intake_context.dart';
 
 import '../../data/location_repository.dart';
 import '../../data/location_models.dart';
@@ -96,7 +97,24 @@ This agreement is governed by the laws of the Republic of Türkiye.
 """;
 
 class BusinessRegisterPage extends StatefulWidget {
-  const BusinessRegisterPage({super.key});
+  const BusinessRegisterPage({
+    super.key,
+    this.initialSector,
+    this.partnerIntakeContext,
+  });
+
+  final String? initialSector;
+  final PartnerIntakeContext? partnerIntakeContext;
+
+  static List<String> initialSelectedSectors(String? initialSector) {
+    if (initialSector == null ||
+        !_BusinessRegisterPageState._supportedInitialSectors.contains(
+          initialSector,
+        )) {
+      return <String>[];
+    }
+    return <String>[initialSector];
+  }
 
   @override
   State<BusinessRegisterPage> createState() => _BusinessRegisterPageState();
@@ -202,6 +220,15 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
 
   bool _sectorCompleted = false;
   BusinessDraft? _completedSectorDraft;
+
+  static const Set<String> _supportedInitialSectors = {
+    'veterinary',
+    'pet_shop',
+    'groomer',
+    'pet_hotel',
+    'pet_taxi',
+    'adoption_center',
+  };
 
   List<String> _collectStepErrors() {
     final errors = <String>[];
@@ -346,6 +373,9 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
   @override
   void initState() {
     super.initState();
+    selectedSectors = BusinessRegisterPage.initialSelectedSectors(
+      widget.initialSector,
+    );
     Future.microtask(() => _bootstrapLocations());
     _listenForOcrResults();
   }
@@ -1192,7 +1222,8 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
       debugPrint("LAT => $_lat");
       debugPrint("LNG => $_lng");
 
-      final result = await callable.call({
+      final partnerIntakeContext = widget.partnerIntakeContext;
+      await callable.call({
         "sectors": selectedSectors, // 🔥 مهم (نه _businessKind)
         "draft": draft.toJson(),
         "lat": _lat,
@@ -1200,6 +1231,10 @@ class _BusinessRegisterPageState extends State<BusinessRegisterPage> {
         "countryCode": _selectedCountryCode,
         "admin1Id": _selectedAdmin1?.id,
         "admin2Id": _selectedAdmin2?.id,
+        if (partnerIntakeContext != null && partnerIntakeContext.isValid)
+          "partnerIntake": partnerIntakeContext
+              .forSubmittedSectors(selectedSectors)
+              .toRegisterBusinessPayload(),
       });
 
       if (!mounted) return;

@@ -44,6 +44,8 @@ import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/services/initial_notification_coordinator.dart';
 import 'package:barky_matches_fixed/services/analytics/web_campaign_attribution.dart';
+import 'package:barky_matches_fixed/services/web_auth_browser_info.dart';
+import 'package:barky_matches_fixed/ui/business/business_partner_landing_page.dart';
 import 'package:barky_matches_fixed/services/marketplace_order_notification_types.dart';
 import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
 import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
@@ -988,6 +990,9 @@ Future<void> _retrieveInitialNotificationOnce() {
 
 void main() async {
   final initialUri = kIsWeb ? Uri.base : null;
+  final initialReferrer = kIsWeb
+      ? webRedirectDiagnosticSnapshot()['referrer']?.toString()
+      : null;
 
   // Development diagnostics remain available locally, but the production
   // client must not expose Firestore documents, IDs, or debug state in the
@@ -1017,6 +1022,7 @@ void main() async {
   if (initialUri != null) {
     await WebCampaignAttribution.recordInitialUtmCampaignWithFirebase(
       initialUri,
+      referrer: initialReferrer,
     );
   }
   FcmTokenService.attachRefreshListener();
@@ -1432,6 +1438,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
             _webPaymentReturnPage() ??
             _webCreatorDashboardPage() ??
             _webPostPage() ??
+            _webBusinessPartnerLandingPage() ??
             const WebAuthStartupGate(child: AppEntry()),
       ),
     );
@@ -1492,6 +1499,23 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final postId = SocialPostShare.postIdFromUri(Uri.base);
     if (postId == null) return null;
     return SocialPostRoutePage(postId: postId, openedFromExternalShare: true);
+  }
+
+  Widget? _webBusinessPartnerLandingPage() {
+    if (!kIsWeb) return null;
+    final uri = Uri.base;
+    final partnerCategory = WebCampaignAttribution.partnerCategoryForPath(
+      uri.path,
+    );
+    if (partnerCategory == null) return null;
+    return WebAuthStartupGate(
+      child: BusinessPartnerLandingPage(
+        partnerCategory: partnerCategory,
+        initialSector: WebCampaignAttribution.initialSectorForPartnerCategory(
+          partnerCategory,
+        ),
+      ),
+    );
   }
 
   void handleDeepLink(Uri uri) async {

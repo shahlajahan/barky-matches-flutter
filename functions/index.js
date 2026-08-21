@@ -185,6 +185,9 @@ const {
   requiredTurkeyDocuments,
 } = require("./business/businessDocumentRequirements");
 const {
+  normalizePartnerIntake,
+} = require("./business/partnerIntakeCore");
+const {
   calculateMarketplaceShipping,
 } = require("./shipping/marketplaceShipping");
 const {
@@ -11487,7 +11490,7 @@ exports.registerBusiness = onCall(
       const uid = request.auth.uid;
       const db = admin.firestore();
 
-      const { sectors, draft, lat, lng } = request.data || {};
+      const { sectors, draft, lat, lng, partnerIntake } = request.data || {};
 
       // =========================
       // VALIDATION
@@ -11496,8 +11499,31 @@ exports.registerBusiness = onCall(
         throw new HttpsError("invalid-argument", "Missing sectors or draft");
       }
 
-      const hasValidGold = await loadValidGoldEntitlement({db, uid});
-      if (!hasValidGold) {
+      let acquisition = null;
+      try {
+        acquisition = normalizePartnerIntake(partnerIntake, sectors);
+      } catch (error) {
+        throw new HttpsError(
+          "invalid-argument",
+          String(error.message || "partner-intake-invalid")
+        );
+      }
+
+      if (
+        acquisition &&
+        request.auth.token?.email &&
+        request.auth.token.email_verified === false
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "EMAIL_VERIFICATION_REQUIRED"
+        );
+      }
+
+      const hasValidGold = acquisition
+        ? false
+        : await loadValidGoldEntitlement({db, uid});
+      if (!acquisition && !hasValidGold) {
         throw new HttpsError(
           "failed-precondition",
           "GOLD_SUBSCRIPTION_REQUIRED"
@@ -11845,6 +11871,13 @@ exports.registerBusiness = onCall(
           expiresAt: null,
         },
 
+        ...(acquisition ? {
+          acquisition: {
+            ...acquisition,
+            capturedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        } : {}),
+
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
@@ -11979,6 +12012,12 @@ exports.registerBusiness = onCall(
         images: businessImages,
         clinicPhotoUrls: businessImages,
         sectorData,
+        ...(acquisition ? {
+          acquisition: {
+            ...acquisition,
+            capturedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        } : {}),
       });
 
       // =========================

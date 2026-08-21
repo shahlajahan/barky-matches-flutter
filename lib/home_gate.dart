@@ -38,6 +38,7 @@ import 'package:barky_matches_fixed/upgrade_page.dart';
 import 'package:barky_matches_fixed/ui/profile/change_password_page.dart';
 import 'package:barky_matches_fixed/ui/setting/delete_account_page.dart';
 import 'package:barky_matches_fixed/ui/business/business_register_page.dart';
+import 'package:barky_matches_fixed/ui/business/partner_intake_session_store.dart';
 import 'package:barky_matches_fixed/ui/business/dashboard/business_dashboard_page.dart';
 import 'package:barky_matches_fixed/ui/help/help_center_page.dart';
 
@@ -297,6 +298,31 @@ class _HomeBodyState extends State<_HomeBody> {
     }
 
     // ==========================
+    final restoredPartnerIntakeContext = PartnerIntakeSessionStore.take();
+    final pendingBusinessRegistrationIntent =
+        appState.consumePendingBusinessRegistrationIntent() ??
+        (restoredPartnerIntakeContext == null
+            ? null
+            : BusinessRegistrationIntent(
+                initialSector: restoredPartnerIntakeContext.initialSector,
+                partnerIntakeContext: restoredPartnerIntakeContext,
+              ));
+    if (pendingBusinessRegistrationIntent != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        appState.setCurrentTab(NavTab.profile);
+        if (pendingBusinessRegistrationIntent.isPartnerIntake ||
+            appState.canRegisterBusiness) {
+          appState.openBusinessRegisterWithInitialSector(
+            initialSector: pendingBusinessRegistrationIntent.initialSector,
+            partnerIntakeContext:
+                pendingBusinessRegistrationIntent.partnerIntakeContext,
+          );
+        } else {
+          appState.openProfileSubPage(ProfileSubPage.upgrade);
+        }
+      });
+    }
+
     // 🔥 APPOINTMENT PAYMENT NAVIGATION
     // ==========================
     if (selectedAppointmentId != null) {
@@ -655,7 +681,10 @@ class _ProfileTab extends StatelessWidget {
 
     // 🟢 Business Register
     if (subPage == ProfileSubPage.businessRegister) {
-      return const BusinessRegisterPage();
+      return BusinessRegisterPage(
+        initialSector: appState.businessRegistrationInitialSector,
+        partnerIntakeContext: appState.businessRegistrationPartnerIntakeContext,
+      );
     }
 
     // 🟢 Business Dashboard

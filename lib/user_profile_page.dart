@@ -1309,7 +1309,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
       return AdoptionInboxPage();
     }
     if (appState.profileSubPage == ProfileSubPage.businessRegister) {
-      return const BusinessRegisterPage();
+      return BusinessRegisterPage(
+        initialSector: appState.businessRegistrationInitialSector,
+        partnerIntakeContext: appState.businessRegistrationPartnerIntakeContext,
+      );
     }
     if (appState.profileSubPage == ProfileSubPage.appointments ||
         appState.profileSubPage == ProfileSubPage.myAppointments ||

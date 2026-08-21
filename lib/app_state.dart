@@ -16,6 +16,7 @@ import 'package:barky_matches_fixed/firestore_recovery.dart';
 import 'package:barky_matches_fixed/firebase_options.dart';
 import 'package:barky_matches_fixed/debug/auth_trap.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
+import 'package:barky_matches_fixed/ui/business/partner_intake_context.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'main.dart';
 import 'package:barky_matches_fixed/ui/business/business_card_data.dart';
@@ -125,6 +126,18 @@ enum ProfileSubPage {
 }
 
 enum GlobalRoute { none, feedback, reportProblem, privacy }
+
+class BusinessRegistrationIntent {
+  const BusinessRegistrationIntent({
+    this.initialSector,
+    this.partnerIntakeContext,
+  });
+
+  final String? initialSector;
+  final PartnerIntakeContext? partnerIntakeContext;
+
+  bool get isPartnerIntake => partnerIntakeContext?.isValid == true;
+}
 
 class AppState with ChangeNotifier {
   static const Duration _firestoreReadTimeout = Duration(seconds: 20);
@@ -462,6 +475,42 @@ class AppState with ChangeNotifier {
   }
 
   void openBusinessRegister() {
+    openBusinessRegisterWithInitialSector();
+  }
+
+  String? _businessRegistrationInitialSector;
+  BusinessRegistrationIntent? _pendingBusinessRegistrationIntent;
+
+  String? get businessRegistrationInitialSector =>
+      _businessRegistrationInitialSector;
+
+  void setPendingBusinessRegistrationIntent({
+    String? initialSector,
+    PartnerIntakeContext? partnerIntakeContext,
+  }) {
+    _pendingBusinessRegistrationIntent = BusinessRegistrationIntent(
+      initialSector: initialSector,
+      partnerIntakeContext: partnerIntakeContext,
+    );
+  }
+
+  BusinessRegistrationIntent? consumePendingBusinessRegistrationIntent() {
+    final intent = _pendingBusinessRegistrationIntent;
+    _pendingBusinessRegistrationIntent = null;
+    return intent;
+  }
+
+  PartnerIntakeContext? _businessRegistrationPartnerIntakeContext;
+
+  PartnerIntakeContext? get businessRegistrationPartnerIntakeContext =>
+      _businessRegistrationPartnerIntakeContext;
+
+  void openBusinessRegisterWithInitialSector({
+    String? initialSector,
+    PartnerIntakeContext? partnerIntakeContext,
+  }) {
+    _businessRegistrationInitialSector = initialSector;
+    _businessRegistrationPartnerIntakeContext = partnerIntakeContext;
     _profileSubPage = ProfileSubPage.businessRegister;
     notifyListeners();
   }
