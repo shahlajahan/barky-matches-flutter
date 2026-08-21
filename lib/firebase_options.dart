@@ -41,14 +41,14 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-  apiKey: 'AIzaSyAgrDy5XULhjwxMOsfGWuHdo5hNiepSQjg',
-  appId: '1:188282684447:web:2e04b07cfdc75dcc53412a',
-  messagingSenderId: '188282684447',
-  projectId: 'barkymatches-new',
-  authDomain: 'app.petsupo.com',
-  storageBucket: 'barkymatches-new.firebasestorage.app',
-  measurementId: 'G-H9GWX3C874',
-);
+    apiKey: 'AIzaSyAgrDy5XULhjwxMOsfGWuHdo5hNiepSQjg',
+    appId: '1:188282684447:web:2e04b07cfdc75dcc53412a',
+    messagingSenderId: '188282684447',
+    projectId: 'barkymatches-new',
+    authDomain: 'app.petsupo.com',
+    storageBucket: 'barkymatches-new.firebasestorage.app',
+    measurementId: 'G-0FXJL7LFM6',
+  );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBRuO42-h4sAkkNGYh3zcDLuAl_mtfRgtI',
