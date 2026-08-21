@@ -114,10 +114,18 @@ class _AddProductPageState extends State<AddProductPage> {
     {"code": "DHL", "label": "DHL Express"},
   ];
 
+  // Marketplace product compliance audit, P0 remediation (docs/audits/
+  // marketplace_add_product_compliance_audit_2026-08-20.md, finding
+  // F-07): "Medicine" was an ordinary Health subcategory with no
+  // different handling from a chew toy. Veterinary medicinal products
+  // are not a supported Marketplace category — this list is a
+  // known-safe allowlist (mirrored server-side in firestore.rules'
+  // isKnownSafeProductCategory) rather than a blacklist, so a renamed
+  // or re-added "medicine"-style value cannot slip back in silently.
   final Map<String, List<String>> categories = {
     "Food": ["Dry Food", "Wet Food", "Treats"],
     "Accessories": ["Collar", "Leash", "Clothing"],
-    "Health": ["Vitamins", "Medicine"],
+    "Health": ["Vitamins"],
     "Toys": ["Chew Toy", "Interactive"],
   };
 
@@ -231,6 +239,43 @@ class _AddProductPageState extends State<AddProductPage> {
       default:
         return value;
     }
+  }
+
+  /// Marketplace product compliance audit, P0 remediation (finding F-07):
+  /// veterinary medicinal products are not a supported category (see the
+  /// `categories` map above). Shown under the Health category so a seller
+  /// understands why "Medicine" is no longer selectable, rather than
+  /// silently disappearing.
+  Widget _veterinaryMedicineNotice(AppLocalizations l10n) {
+    if (_mainCategory != 'Health') return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF3E0),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFFB74D)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline, color: Color(0xFFE65100), size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.veterinaryProductsNotSupported,
+                style: const TextStyle(
+                  color: Color(0xFFE65100),
+                  fontSize: 12.5,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   double _computeDesi() {
@@ -945,8 +990,13 @@ class _AddProductPageState extends State<AddProductPage> {
       return false;
     }
 
+    // Marketplace product compliance audit, P0 remediation (finding F-04/
+    // stock-integrity section): a product must declare an exact integer
+    // stock quantity of at least 1 to be submitted. This mirrors the
+    // stock >= 1 requirement enforced server-side in firestore.rules —
+    // this client check is for UX only, not the security boundary.
     final stock = int.tryParse(_stock.text.trim());
-    if (stock == null || stock < 0) {
+    if (stock == null || stock < 1) {
       _snack(l10n.invalidStock);
       return false;
     }
@@ -1353,7 +1403,17 @@ class _AddProductPageState extends State<AddProductPage> {
         brand: _brand.text.trim().isNotEmpty ? _brand.text.trim() : null,
         sku: sku,
         barcode: barcode.isEmpty ? null : barcode,
-        isActive: true,
+        // Marketplace product compliance audit, P0 remediation (findings
+        // F-06/F-02): a product is never directly published by the
+        // client. Every create AND every edit is submitted for review —
+        // there is no material-vs-cosmetic-edit distinction yet (P1), so
+        // an edit to an already-approved product also resets it to
+        // pending review rather than silently preserving approval.
+        // firestore.rules independently enforces this — this is not the
+        // security boundary, it just keeps client intent consistent
+        // with what the server will actually accept.
+        isActive: false,
+        moderationStatus: 'pending_review',
         weightKg: parseNum(_weightKg.text),
         lengthCm: parseNum(_lengthCm.text),
         widthCm: parseNum(_widthCm.text),
@@ -1473,7 +1533,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
       if (!mounted) return;
 
-      _snack(AppLocalizations.of(context)!.productSavedStatus);
+      _snack(AppLocalizations.of(context)!.productSubmittedForReviewStatus);
       context.read<AppState>().closeBusinessSubPage();
     } catch (e, stack) {
       final authUid = FirebaseAuth.instance.currentUser?.uid;
@@ -3292,43 +3352,49 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
         final category = _desktopSection(
           title: l10n.categoryLabel,
           icon: LucideIcons.tags,
-          child: _desktopGrid([
-            _desktopDropdown<String>(
-              label: l10n.mainCategoryLabel,
-              value: _mainCategory,
-              items: categories.keys
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(_categoryLabel(l10n, e)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() {
-                    _mainCategory = v;
-                    _subCategory = categories[v]!.first;
-                  });
-                }
-              },
-            ),
-            _desktopDropdown<String>(
-              label: l10n.subCategoryLabel,
-              value: _subCategory,
-              items: categories[_mainCategory]!
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(_subCategoryLabel(l10n, e)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _subCategory = v);
-              },
-            ),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _desktopGrid([
+                _desktopDropdown<String>(
+                  label: l10n.mainCategoryLabel,
+                  value: _mainCategory,
+                  items: categories.keys
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(_categoryLabel(l10n, e)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() {
+                        _mainCategory = v;
+                        _subCategory = categories[v]!.first;
+                      });
+                    }
+                  },
+                ),
+                _desktopDropdown<String>(
+                  label: l10n.subCategoryLabel,
+                  value: _subCategory,
+                  items: categories[_mainCategory]!
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(_subCategoryLabel(l10n, e)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _subCategory = v);
+                  },
+                ),
+              ]),
+              _veterinaryMedicineNotice(l10n),
+            ],
+          ),
         );
         if (constraints.maxWidth < 1180) {
           return Column(
@@ -4237,6 +4303,8 @@ Future<Map<String, dynamic>?> _getFromMarket(String code) async {
                       }
                     },
                   ),
+
+                  _veterinaryMedicineNotice(l10n),
 
                   const SizedBox(height: 12),
 

@@ -8919,6 +8919,18 @@ abstract class AppLocalizations {
   /// **'Product saved ✅'**
   String get productSavedStatus;
 
+  /// No description provided for @productSubmittedForReviewStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Product submitted for review. It will not be visible until approved.'**
+  String get productSubmittedForReviewStatus;
+
+  /// No description provided for @veterinaryProductsNotSupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Online sale and promotion of veterinary medicinal products is not supported.'**
+  String get veterinaryProductsNotSupported;
+
   /// No description provided for @scanFailed.
   ///
   /// In en, this message translates to:

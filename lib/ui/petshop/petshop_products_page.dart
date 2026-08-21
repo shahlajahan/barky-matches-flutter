@@ -83,6 +83,10 @@ class _PetShopProductsPageState extends State<PetShopProductsPage> {
                   .doc(widget.shopId)
                   .collection('products')
                   .where('isActive', isEqualTo: true)
+                  // P0 gap review item 4: mirror the products read rule
+                  // (moderationStatus=='approved' && isActive==true for a
+                  // non-owner reader), or Firestore rejects the query.
+                  .where('moderationStatus', isEqualTo: 'approved')
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {

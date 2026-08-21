@@ -1079,6 +1079,8 @@
   "returnCarrierIsRequired": "Требуется перевозчик возврата",
   "shippingPayerMismatch": "Несоответствие плательщика доставки",
   "productSavedStatus": "Товар сохранён ✅",
+  "productSubmittedForReviewStatus": "Товар отправлен на проверку. Он не будет виден до одобрения.",
+  "veterinaryProductsNotSupported": "Продажа и продвижение ветеринарных лекарственных препаратов через интернет не поддерживается.",
   "scanFailed": "Сканирование не удалось",
   "estimatedPriceLabel": "Примерная цена: {price} {currency}",
   "loadedFromGlobalApi": "Загружено из глобального API",

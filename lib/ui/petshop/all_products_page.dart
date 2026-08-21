@@ -108,6 +108,10 @@ class _AllProductsPageState extends State<AllProductsPage> {
     });
   }
 
+  // P0 gap review item 4: the products read rule requires
+  // moderationStatus=='approved' in addition to isActive==true for a
+  // non-owner reader — both public product streams must mirror it or
+  // Firestore rejects the whole query.
   Stream<QuerySnapshot<Map<String, dynamic>>> _productsStream() {
     final sellerId = widget.initialSellerId?.trim();
     if (_hasSellerScope) {
@@ -116,11 +120,13 @@ class _AllProductsPageState extends State<AllProductsPage> {
           .doc(sellerId!.isEmpty ? '__invalid_shop__' : sellerId)
           .collection('products')
           .where('isActive', isEqualTo: true)
+          .where('moderationStatus', isEqualTo: 'approved')
           .snapshots();
     }
     return FirebaseFirestore.instance
         .collectionGroup('products')
         .where('isActive', isEqualTo: true)
+        .where('moderationStatus', isEqualTo: 'approved')
         .snapshots();
   }
 
@@ -223,14 +229,25 @@ class _AllProductsPageState extends State<AllProductsPage> {
           productData = Map<String, dynamic>.from(cachedProduct);
         }
         if (shopId.isNotEmpty && productId.isNotEmpty) {
-          final productSnapshot = await FirebaseFirestore.instance
-              .collection('businesses')
-              .doc(shopId)
-              .collection('products')
-              .doc(productId)
-              .get();
-          if (productSnapshot.exists) {
-            productData = productSnapshot.data();
+          // P0 gap review item 4: a product that was pending/rejected/
+          // suspended since being added to the cart is no longer
+          // publicly readable (products read rule requires
+          // moderationStatus=='approved' && isActive==true for a
+          // non-owner). get() throws permission-denied rather than
+          // returning exists:false in that case — treat it the same as
+          // not-found instead of letting it crash cart restoration.
+          try {
+            final productSnapshot = await FirebaseFirestore.instance
+                .collection('businesses')
+                .doc(shopId)
+                .collection('products')
+                .doc(productId)
+                .get();
+            if (productSnapshot.exists) {
+              productData = productSnapshot.data();
+            }
+          } on FirebaseException {
+            productData = productData;
           }
         }
 

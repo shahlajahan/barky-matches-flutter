@@ -45,6 +45,43 @@ service firebase.storage {
         );
     }
 
+    // Marketplace product compliance audit, P0 gap review (docs/audits/
+    // marketplace_add_product_compliance_audit_2026-08-20.md): product
+    // media previously reused hasAllowedMedia(), which also accepts
+    // video/*. Product Storage must accept raster images only — this is
+    // deliberately narrower than hasAllowedMedia() and is used ONLY by
+    // the products/ and products_raw/ paths below; every other path
+    // keeps hasAllowedMedia() unchanged. The exact content types and
+    // extensions below are the ones add_product_page.dart's
+    // _contentTypeFor()/_fileExtension() actually produce for a picked
+    // still image (jpeg default, png, webp, heic/heif) — video/*,
+    // image/svg+xml, text/html, and application/* are all rejected by
+    // omission from the allowlist, not by a blacklist. Rules can only
+    // check the client-declared contentType and the file name/extension
+    // (Firebase Storage Rules cannot inspect file bytes), so both are
+    // required to match together as a defense-in-depth measure against
+    // a spoofed single field; this is the practical limit of what rules
+    // alone can enforce against MIME spoofing.
+    function hasAllowedProductImage() {
+      // Extension check is written with explicit per-letter character
+      // classes (not an inline (?i) flag) so it does not depend on
+      // whether Firebase Storage Rules' RE2 engine honors that flag —
+      // this form is unambiguous in any regex flavor and is verified by
+      // the uppercase-extension tests in
+      // functions/test/marketplaceProductStorageRules.test.js. Uppercase
+      // extensions (e.g. Photo.JPG) are common from iOS/Android camera
+      // rolls and must not be rejected purely on filename casing.
+      return request.resource != null
+        && request.resource.size <= 10485760
+        && request.resource.contentType in [
+          'image/jpeg', 'image/png', 'image/webp', 'image/heic'
+        ]
+        && request.resource.name.matches(
+          '.*\\.([jJ][pP][gG]|[jJ][pP][eE][gG]|[pP][nN][gG]'
+          + '|[wW][eE][bB][pP]|[hH][eE][iI][cC]|[hH][eE][iI][fF])$'
+        );
+    }
+
     function isBusinessOwner(businessId) {
       return isSignedIn()
         && businessId is string
@@ -151,6 +188,41 @@ service firebase.storage {
         && hasAllowedMedia();
       allow delete: if request.auth != null
         && request.auth.uid == userId;
+    }
+
+    // Marketplace product images, P0 remediation
+    // (docs/audits/marketplace_add_product_compliance_audit_2026-08-20.md,
+    // finding F-08 — these paths previously had no matching rule at all and
+    // fell through to the deny-all below). Read/write is scoped to the
+    // owning business (matching the existing dogs/, stories/, and
+    // users/{uid}/profile/ pattern in this file) plus admins; only
+    // raster product images are accepted (hasAllowedProductImage(), not
+    // hasAllowedMedia() — see its definition above). KNOWN GAP: the
+    // Flutter client (_uploadMedia() in add_product_page.dart) can still
+    // pick and attempt to upload video for a product; that upload will
+    // now be rejected here. Video product media is not supported until a
+    // dedicated, reviewed video validator is designed (P1/P2) — this is
+    // a deliberate P0 tradeoff (safety over feature completeness), not
+    // an oversight. Compliance/invoice documents are intentionally out
+    // of scope here — that capability does not exist yet (P1).
+    match /products/{businessId}/{allPaths=**} {
+      allow read: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+      allow create, update: if isSignedIn()
+        && isBusinessOwner(businessId)
+        && hasAllowedProductImage();
+      allow delete: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+    }
+
+    match /products_raw/{businessId}/{allPaths=**} {
+      allow read: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
+      allow create, update: if isSignedIn()
+        && isBusinessOwner(businessId)
+        && hasAllowedProductImage();
+      allow delete: if isSignedIn()
+        && (isBusinessOwner(businessId) || isAdmin());
     }
 
     match /{allPaths=**} {

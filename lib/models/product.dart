@@ -27,7 +27,15 @@ class Product {
   final String? sku;
 
   // 🔥 STATUS
+  // isActive/moderationStatus are server-enforced via firestore.rules for
+  // any non-admin write: a seller can only ever submit isActive:false with
+  // moderationStatus:'pending_review' (see docs/audits/
+  // marketplace_add_product_compliance_audit_2026-08-20.md, P0
+  // remediation). Approval/publication is a P1 admin-only capability that
+  // does not exist yet — until then, every product a seller saves stays
+  // pending review, never publicly visible.
   final bool isActive;
+  final String moderationStatus;
 
   // 🔥 PRICING
   final double? salePrice;
@@ -123,6 +131,7 @@ class Product {
     required this.stock,
     required this.category,
     required this.isActive,
+    this.moderationStatus = 'pending_review',
 
     this.barcode,
     this.brand,
@@ -305,6 +314,14 @@ class Product {
       sku: json['sku'],
 
       isActive: json['isActive'] ?? true,
+      // Backward-compatible default only: a document written before this
+      // field existed had no review step at all, so it is treated as
+      // already-approved if it was active, otherwise pending. New writes
+      // always set this explicitly (see toJson) and are never trusted to
+      // read their own prior value back as an approval.
+      moderationStatus:
+          json['moderationStatus'] ??
+          (json['isActive'] == true ? 'approved' : 'pending_review'),
 
       createdAt: json['createdAt'] is Timestamp ? json['createdAt'] : null,
 
@@ -392,6 +409,7 @@ class Product {
       "sku": sku,
 
       "isActive": isActive,
+      "moderationStatus": moderationStatus,
 
       "shippingSnapshot": shippingSnapshot,
 
@@ -493,7 +511,8 @@ class Product {
       media: [],
       stock: 0,
       category: 'general',
-      isActive: true,
+      isActive: false,
+      moderationStatus: 'pending_review',
     );
   }
 }

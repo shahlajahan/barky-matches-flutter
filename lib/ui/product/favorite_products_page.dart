@@ -81,18 +81,35 @@ class FavoriteProductsPage extends StatelessWidget {
                 child: GestureDetector(
                   onTap: () async {
                     final productId = data["productId"];
+                    final shopId = data["shopId"];
 
-                    final snapshot = await FirebaseFirestore.instance
-                        .collectionGroup("products")
-                        .get();
-
+                    // Marketplace product compliance audit, P0 gap review
+                    // (item 4): this used to be an unfiltered
+                    // collectionGroup("products") scan of every product
+                    // across every business, filtered client-side by ID.
+                    // Besides being a full-collection read on every tap,
+                    // it is incompatible with the new products read rule
+                    // (approved+active OR owner OR admin) — a query with
+                    // no constraint on those fields cannot be proven safe
+                    // and would be rejected outright. A direct, scoped
+                    // get() on the exact known product is both cheaper
+                    // and correctly evaluated per-document: it succeeds
+                    // only if this product is still publicly visible (or
+                    // the caller owns it), which is also the right UX —
+                    // a favorited product that was unpublished should
+                    // show as not found, the same as a deleted one.
                     DocumentSnapshot? found;
-
-                    for (final doc in snapshot.docs) {
-                      if (doc.id == productId) {
-                        found = doc;
-
-                        break;
+                    if (shopId != null && productId != null) {
+                      try {
+                        final doc = await FirebaseFirestore.instance
+                            .collection("businesses")
+                            .doc(shopId)
+                            .collection("products")
+                            .doc(productId)
+                            .get();
+                        if (doc.exists) found = doc;
+                      } on FirebaseException {
+                        found = null;
                       }
                     }
 

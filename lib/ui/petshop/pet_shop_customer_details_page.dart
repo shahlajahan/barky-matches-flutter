@@ -407,6 +407,10 @@ class _ProductsTab extends StatelessWidget {
           .doc(ownerId)
           .collection('products')
           .where('isActive', isEqualTo: true)
+          // P0 gap review item 4: mirror the products read rule
+          // (moderationStatus=='approved' && isActive==true for a
+          // non-owner reader), or Firestore rejects the query.
+          .where('moderationStatus', isEqualTo: 'approved')
           .limit(8)
           .snapshots(),
       builder: (context, snapshot) {

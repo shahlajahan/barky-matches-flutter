@@ -4745,6 +4745,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get productSavedStatus => 'محصول ذخیره شد ✅';
 
   @override
+  String get productSubmittedForReviewStatus => 'محصول برای بررسی ارسال شد. تا زمان تایید نمایش داده نخواهد شد.';
+
+  @override
+  String get veterinaryProductsNotSupported => 'فروش و تبلیغ محصولات دارویی دامپزشکی از طریق اینترنت پشتیبانی نمی‌شود.';
+
+  @override
   String get scanFailed => 'اسکن ناموفق بود';
 
   @override

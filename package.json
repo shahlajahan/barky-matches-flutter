@@ -11,7 +11,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:web": "flutter build web --release --no-wasm-dry-run && node scripts/sync-assetlinks.js",
-    "deploy:hosting": "firebase deploy --only hosting --project barkymatches-new"
+    "deploy:hosting": "firebase deploy --only hosting --project barkymatches-new",
+    "test:marketplace-firestore-rules": "firebase emulators:exec --only firestore --project marketplace-firestore-rules-ci \"node --test functions/test/marketplaceProductRules.test.js\"",
+    "test:marketplace-storage-rules": "firebase emulators:exec --only firestore,storage --project marketplace-storage-rules-ci \"node --test functions/test/marketplaceProductStorageRules.test.js\"",
+    "test:marketplace-rules": "npm run test:marketplace-firestore-rules && npm run test:marketplace-storage-rules"
   },
   "keywords": [],
   "author": "",

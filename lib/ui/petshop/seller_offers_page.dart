@@ -14,9 +14,13 @@ class SellerOffersPage extends StatelessWidget {
     final hasBarcode =
         product.barcode != null && product.barcode!.trim().isNotEmpty;
 
+    // P0 gap review item 4: mirror the products read rule
+    // (moderationStatus=='approved' && isActive==true for a non-owner
+    // reader), or Firestore rejects the query.
     Query query = FirebaseFirestore.instance
         .collectionGroup('products')
-        .where('isActive', isEqualTo: true);
+        .where('isActive', isEqualTo: true)
+        .where('moderationStatus', isEqualTo: 'approved');
 
     if (hasBarcode) {
       query = query.where('barcode', isEqualTo: product.barcode);

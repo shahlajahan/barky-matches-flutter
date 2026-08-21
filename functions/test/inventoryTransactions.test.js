@@ -131,6 +131,86 @@ requireEmulator("only one of two concurrent reservations succeeds", async () => 
   assert.equal(product.reservedStock, 1);
 });
 
+// Marketplace product compliance audit, P0 gap review (docs/audits/
+// marketplace_add_product_compliance_audit_2026-08-20.md, item 3): the
+// two-attempt race above proves the general mechanism, but does not by
+// itself demonstrate the contract at a wider fan-out. This test issues
+// 5 concurrent reservation attempts (1 unit each) against a product with
+// stock=2 and explicitly asserts the inventory invariant that must hold
+// after every settle, however many attempts race: available
+// (stock - reservedStock) is never negative, exactly `stock` worth of
+// attempts succeed, and every remaining attempt is rejected with
+// insufficient_stock rather than silently overselling.
+requireEmulator(
+  "available stock cannot go negative under 5-way concurrent reservation",
+  async () => {
+    const seed = identity("fanout-race-seed");
+    const productRef = await seedLine(seed, { stock: 2 });
+    const attempts = Array.from({ length: 5 }, (_, i) =>
+      identity(`fanout-race-${i}`)
+    ).map((line) => ({
+      ...line,
+      businessId: seed.businessId,
+      productId: seed.productId,
+    }));
+    for (const line of attempts) {
+      await db.collection("orders").doc(line.rootOrderId).set({
+        paymentState: "verified_success",
+        paymentProvider: "isbank",
+        paymentId: `payment-${line.rootOrderId}`,
+        sellerOrderIds: [line.sellerOrderId],
+      });
+      await db.collection("sellerOrders").doc(line.sellerOrderId).set({
+        rootOrderId: line.rootOrderId,
+        businessId: line.businessId,
+        inventoryLines: [
+          {
+            lineId: line.lineId,
+            businessId: line.businessId,
+            productId: line.productId,
+            quantity: 1,
+          },
+        ],
+        payment: {
+          state: "verified_success",
+          provider: "isbank",
+          paymentId: `payment-${line.rootOrderId}`,
+        },
+      });
+    }
+
+    const results = await Promise.allSettled(
+      attempts.map((line) =>
+        reserveInventory({
+          identity: line,
+          quantity: 1,
+          leaseExpiresAt: futureLease(),
+        })
+      )
+    );
+
+    const succeeded = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    assert.equal(
+      succeeded.length,
+      2,
+      "exactly `stock` reservations must succeed, never more"
+    );
+    assert.equal(rejected.length, 3);
+    for (const failure of rejected) {
+      assert.equal(failure.reason.code, "insufficient_stock");
+    }
+
+    const product = (await productRef.get()).data();
+    assert.equal(product.stock, 2, "stock is untouched by reservation alone");
+    assert.equal(product.reservedStock, 2);
+    assert.ok(
+      product.stock - product.reservedStock >= 0,
+      "available stock (stock - reservedStock) must never go negative"
+    );
+  }
+);
+
 requireEmulator("duplicate reserve changes reservedStock once", async () => {
   const line = identity("duplicate-reserve");
   const productRef = await seedLine(line, { stock: 3, lineQuantity: 2 });

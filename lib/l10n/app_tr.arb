@@ -2710,6 +2710,8 @@
   "returnCarrierIsRequired": "İade taşıyıcısı gerekli",
   "shippingPayerMismatch": "Kargo ödeyen uyuşmuyor",
   "productSavedStatus": "Ürün kaydedildi ✅",
+  "productSubmittedForReviewStatus": "Ürün incelemeye gönderildi. Onaylanana kadar yayında olmayacak.",
+  "veterinaryProductsNotSupported": "Veteriner tıbbi ürünlerin internet üzerinden satışı ve tanıtımı desteklenmemektedir.",
   "scanFailed": "Tarama başarısız",
   "estimatedPriceLabel": "Tahmini fiyat: {price} {currency}",
   "loadedFromGlobalApi": "Küresel API'den yüklendi",

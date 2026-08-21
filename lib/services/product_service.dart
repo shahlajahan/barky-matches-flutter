@@ -35,14 +35,19 @@ class ProductService {
   }
 
   // =========================
-  // 📡 GET PRODUCTS
+  // 📡 GET PRODUCTS (seller's own dashboard/inventory — all statuses)
   // =========================
   Stream<List<Product>> getProducts(String businessId) {
+    // Not a public catalog query: intentionally returns every status
+    // (pending_review, approved, rejected, inactive) so the owner can see
+    // and manage their full inventory. The explicit businessId filter is
+    // required for Firestore Rules to prove ownership on a list query, in
+    // addition to the path already being scoped to this business.
     return FirebaseFirestore.instance
         .collection("businesses")
         .doc(businessId)
         .collection("products")
-        .where("isActive", isEqualTo: true)
+        .where("businessId", isEqualTo: businessId)
         .snapshots()
         .handleError((error) {
           debugPrint("🔥 FIRESTORE ERROR: $error");

@@ -2702,6 +2702,8 @@
   "returnCarrierIsRequired": "Return carrier is required",
   "shippingPayerMismatch": "Shipping payer mismatch",
   "productSavedStatus": "Product saved ✅",
+  "productSubmittedForReviewStatus": "Product submitted for review. It will not be visible until approved.",
+  "veterinaryProductsNotSupported": "Online sale and promotion of veterinary medicinal products is not supported.",
   "scanFailed": "Scan failed",
   "estimatedPriceLabel": "Estimated price: {price} {currency}",
   "loadedFromGlobalApi": "Loaded from global API",

@@ -295,6 +295,12 @@ class SellerProfilePage extends StatelessWidget {
                           stream: FirebaseFirestore.instance
                               .collectionGroup('products')
                               .where('isActive', isEqualTo: true)
+                              // P0 gap review item 4: the products read
+                              // rule requires moderationStatus=='approved'
+                              // in addition to isActive==true for a
+                              // non-owner reader — this query must mirror
+                              // it or Firestore rejects the whole query.
+                              .where('moderationStatus', isEqualTo: 'approved')
                               .where('businessId', isEqualTo: sellerId)
                               .snapshots(),
                           builder: (context, snapshot) {
@@ -583,6 +589,12 @@ class SellerProfilePage extends StatelessWidget {
                           stream: FirebaseFirestore.instance
                               .collectionGroup('products')
                               .where('isActive', isEqualTo: true)
+                              // P0 gap review item 4: the products read
+                              // rule requires moderationStatus=='approved'
+                              // in addition to isActive==true for a
+                              // non-owner reader — this query must mirror
+                              // it or Firestore rejects the whole query.
+                              .where('moderationStatus', isEqualTo: 'approved')
                               .where('businessId', isEqualTo: sellerId)
                               .snapshots(),
                           builder: (context, snapshot) {

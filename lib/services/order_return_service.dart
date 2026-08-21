@@ -208,13 +208,25 @@ class OrderReturnService {
 
     final products = <Map<String, dynamic>>[];
     for (final productId in uniqueProductIds) {
-      final snapshot = await _db
-          .collection('businesses')
-          .doc(businessId)
-          .collection('products')
-          .doc(productId)
-          .get();
-      if (!snapshot.exists) {
+      // P0 gap review item 4: the caller here is the buyer requesting a
+      // return, not the product owner. If the product was
+      // unpublished/suspended since the order was placed, the products
+      // read rule (moderationStatus=='approved' && isActive==true for a
+      // non-owner) now makes this get() throw permission-denied instead
+      // of returning exists:false — treat both the same way this method
+      // already treats a missing product.
+      DocumentSnapshot<Map<String, dynamic>>? snapshot;
+      try {
+        snapshot = await _db
+            .collection('businesses')
+            .doc(businessId)
+            .collection('products')
+            .doc(productId)
+            .get();
+      } on FirebaseException {
+        snapshot = null;
+      }
+      if (snapshot == null || !snapshot.exists) {
         return const ReturnShippingPolicyPreview(
           kind: ReturnShippingPolicyKind.buyer,
         );

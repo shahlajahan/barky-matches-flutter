@@ -19671,38 +19671,29 @@ exports.processProductVideo = onObjectFinalized(
 exports.saveGlobalProduct = require("./globalProducts/saveGlobalProduct")
   .saveGlobalProduct;
 
+// Marketplace product compliance audit, P0 remediation
+// (docs/audits/marketplace_add_product_compliance_audit_2026-08-20.md,
+// finding F-01). This callable previously had no auth check at all and
+// spread the raw caller payload — including isActive/moderationStatus/
+// businessId-style fields — directly into a Firestore document, and it
+// wrote to a disconnected top-level `products` collection that no other
+// part of the system reads (the live Add Product flow writes to
+// businesses/{businessId}/products/{productId} directly from the client,
+// confirmed by repo-wide call-site search: nothing in lib/ ever calls
+// this function). It is disabled rather than repaired in P0: a safe
+// server-side creation path belongs with the P1 compliance-document
+// review workflow, not bolted onto this unused, wrong-collection
+// function. Firestore Rules (see firestore.rules) are the authoritative
+// enforcement point for product writes today.
 exports.createProduct = onCall(async (request) => {
-  const data = request.data;
-
-  const sku = data.sku;
-  const businessId = data.businessId;
-
-  if (!sku || !businessId) {
-    throw new HttpsError("invalid-argument", "Missing SKU or businessId");
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Login required");
   }
-
-  // ✅ FIXED
-  const docId = `${businessId}_${sku}`;
-
-  const db = admin.firestore();
-  const ref = db.collection("products").doc(docId);
-
-  await db.runTransaction(async (tx) => {
-    const doc = await tx.get(ref);
-
-    if (doc.exists) {
-      throw new HttpsError("already-exists", "SKU already exists");
-    }
-
-    tx.set(ref, {
-      ...data,
-      id: docId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  });
-
-  return { success: true };
+  throw new HttpsError(
+    "failed-precondition",
+    "Product creation via this endpoint has been disabled. Use the " +
+      "Add Product flow in the app."
+  );
 });
 
 exports.updateGlobalStats = onDocumentWritten("products/{id}", async (event) => {

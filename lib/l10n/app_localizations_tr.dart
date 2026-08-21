@@ -4745,6 +4745,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get productSavedStatus => 'Ürün kaydedildi ✅';
 
   @override
+  String get productSubmittedForReviewStatus => 'Ürün incelemeye gönderildi. Onaylanana kadar yayında olmayacak.';
+
+  @override
+  String get veterinaryProductsNotSupported => 'Veteriner tıbbi ürünlerin internet üzerinden satışı ve tanıtımı desteklenmemektedir.';
+
+  @override
   String get scanFailed => 'Tarama başarısız';
 
   @override

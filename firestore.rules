@@ -993,10 +993,23 @@ match /dogs/{dogId}/visits/{visitId} {
       allow update: if isAdmin() || canOwnerUpdateBusinessDocument(businessId);
       allow delete: if isAdmin() || isCanonicalBusinessOwner(businessId);
 
+      // Marketplace product compliance audit, P0 remediation (docs/audits/
+      // marketplace_add_product_compliance_audit_2026-08-20.md): this
+      // generic subcollection catch-all previously applied to `products`
+      // too, since `{subcollection}` is an unconstrained wildcard — its
+      // unconditional isCanonicalBusinessOwner() grant completely
+      // bypassed the dedicated, hardened validation in the
+      // `{path=**}/products/{productId}` match below (Firestore OR-combines
+      // every matching rule, so the more permissive one always won).
+      // `products` is carved out here and is governed exclusively by that
+      // dedicated block. Every other existing subcollection (patients,
+      // services, etc.) keeps its prior behavior unchanged.
       match /{subcollection}/{document=**} {
-        allow read: if isCanonicalBusinessOwner(businessId) || isAdmin();
+        allow read: if subcollection != 'products' &&
+          (isCanonicalBusinessOwner(businessId) || isAdmin());
         allow create, update, delete:
-          if isAdmin() || isCanonicalBusinessOwner(businessId);
+          if subcollection != 'products' &&
+          (isAdmin() || isCanonicalBusinessOwner(businessId));
       }
     }
 
@@ -1027,16 +1040,118 @@ match /dogs/{dogId}/visits/{visitId} {
 
     match /{path=**}/products/{productId} {
 
-  allow read: if isRegisteredUser() || isAnonymousUser();
+  // Marketplace product compliance audit, P0 remediation
+  // (docs/audits/marketplace_add_product_compliance_audit_2026-08-20.md,
+  // findings F-02/F-03/F-07). Products are never self-approved or
+  // self-published by a seller: every non-admin write is forced into
+  // isActive == false / moderationStatus == 'pending_review', a fixed
+  // known-safe category allowlist (fail-closed — no veterinary-medicine
+  // option, no free-text bypass), an integer stock >= 1, and a lock on
+  // every moderation/reservation field a seller must never touch. Public
+  // reads only ever see approved + active products; a seller may still
+  // read (but not publicly expose) their own pending/rejected products.
 
-  allow create:
-    if isAdmin() ||
-    (
-      request.resource.data.businessId is string &&
-      isBusinessOwner(request.resource.data.businessId)
+  function productProtectedKeysUntouched(data) {
+    return !data.keys().hasAny([
+      'reviewedBy',
+      'reviewedAt',
+      'rejectionReason',
+      'reservedStock',
+      'complianceStatus'
+    ]);
+  }
+
+  // P0 gap review: the exact, closed set of fields Product.toJson()
+  // (lib/models/product.dart) ever writes — every legitimate client
+  // write must be a subset of this list, nothing more. This is the
+  // authoritative defense: an unknown field (approved, published,
+  // publicationStatus, moderation, adminApproved, inventoryOverride,
+  // customStatus, sellerUid, documentUrls, or anything else not in this
+  // list) cannot be injected by any client write, admin excepted. Keep
+  // in sync with toJson() by construction — this list was generated
+  // directly from it, not hand-guessed.
+  function productAllowedFields() {
+    return [
+      'allowFreeShipping', 'allowPickup', 'allowReturns', 'allowSameDay',
+      'allowedCarrierCodes', 'barcode', 'brand', 'businessId', 'businessLogo',
+      'businessName', 'category', 'createdAt', 'currency', 'deliveryType',
+      'description', 'excludedCities', 'fixedDesi', 'freeShippingThreshold',
+      'hasContractedReturnCarrier', 'hasSmartPricing', 'heightCm', 'isActive',
+      'isFragile', 'isOversize', 'isPerishable', 'isShippable', 'kdvRate',
+      'lengthCm', 'marginPercent', 'markupPercent', 'maxDeliveryDays', 'media',
+      'minStock', 'moderationStatus', 'name', 'originCity', 'preparationDays',
+      'price', 'pricePosition', 'productId', 'returnCarrierCode',
+      'returnShippingPayer', 'returnWindowDays', 'salePrice', 'shippingFee',
+      'shippingMode', 'shippingPayer', 'shippingProfile', 'shippingSnapshot',
+      'sku', 'stock', 'suggestedMaxPrice', 'suggestedMinPrice', 'suggestedPrice',
+      'taxIncluded', 'updatedAt', 'weightKg', 'wholesalePrice', 'widthCm'
+    ];
+  }
+
+  function isKnownSafeProductCategory(category) {
+    return category in [
+      'Food > Dry Food', 'Food > Wet Food', 'Food > Treats',
+      'Accessories > Collar', 'Accessories > Leash', 'Accessories > Clothing',
+      'Health > Vitamins',
+      'Toys > Chew Toy', 'Toys > Interactive'
+    ];
+  }
+
+  function isSafeNewProductSubmission() {
+    let data = request.resource.data;
+    return data.businessId is string
+      && isBusinessOwner(data.businessId)
+      && data.name is string && data.name.size() > 0
+      && data.price is number && data.price > 0
+      && data.stock is int && data.stock >= 1
+      && data.category is string
+      && isKnownSafeProductCategory(data.category)
+      && data.isActive == false
+      && data.moderationStatus == 'pending_review'
+      && productProtectedKeysUntouched(data)
+      && data.keys().hasOnly(productAllowedFields());
+  }
+
+  function isSafeProductResubmission() {
+    let incoming = request.resource.data;
+    let existing = resource.data;
+    return incoming.businessId == existing.businessId
+      && isBusinessOwner(existing.businessId)
+      && incoming.name is string && incoming.name.size() > 0
+      && incoming.price is number && incoming.price > 0
+      && incoming.stock is int && incoming.stock >= 1
+      && incoming.category is string
+      && isKnownSafeProductCategory(incoming.category)
+      && incoming.isActive == false
+      && incoming.moderationStatus == 'pending_review'
+      && productProtectedKeysUntouched(incoming)
+      && incoming.keys().hasOnly(productAllowedFields())
+      && !incoming.diff(existing).affectedKeys().hasAny([
+        'businessId',
+        'createdAt',
+        'reviewedBy',
+        'reviewedAt',
+        'rejectionReason',
+        'reservedStock',
+        'complianceStatus'
+      ]);
+  }
+
+  allow read: if isAdmin()
+    || (
+      resource.data.moderationStatus == 'approved' &&
+      resource.data.isActive == true
+    )
+    || (
+      resource.data.businessId is string &&
+      isBusinessOwner(resource.data.businessId)
     );
 
-  allow update, delete:
+  allow create: if isAdmin() || isSafeNewProductSubmission();
+
+  allow update: if isAdmin() || isSafeProductResubmission();
+
+  allow delete:
     if isAdmin() ||
     (
       resource.data.businessId is string &&

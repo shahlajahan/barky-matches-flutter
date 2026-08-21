@@ -2709,6 +2709,8 @@
   "returnCarrierIsRequired": "حمل‌کننده بازگشت لازم است",
   "shippingPayerMismatch": "عدم تطابق پرداخت‌کننده حمل",
   "productSavedStatus": "محصول ذخیره شد ✅",
+  "productSubmittedForReviewStatus": "محصول برای بررسی ارسال شد. تا زمان تایید نمایش داده نخواهد شد.",
+  "veterinaryProductsNotSupported": "فروش و تبلیغ محصولات دارویی دامپزشکی از طریق اینترنت پشتیبانی نمی‌شود.",
   "scanFailed": "اسکن ناموفق بود",
   "estimatedPriceLabel": "قیمت تخمینی: {price} {currency}",
   "loadedFromGlobalApi": "از API جهانی بارگذاری شد",

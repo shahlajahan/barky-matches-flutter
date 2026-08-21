@@ -4747,6 +4747,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get productSavedStatus => 'Товар сохранён ✅';
 
   @override
+  String get productSubmittedForReviewStatus => 'Товар отправлен на проверку. Он не будет виден до одобрения.';
+
+  @override
+  String get veterinaryProductsNotSupported => 'Продажа и продвижение ветеринарных лекарственных препаратов через интернет не поддерживается.';
+
+  @override
   String get scanFailed => 'Сканирование не удалось';
 
   @override

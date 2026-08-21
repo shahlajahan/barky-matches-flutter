@@ -4745,6 +4745,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productSavedStatus => 'Product saved ✅';
 
   @override
+  String get productSubmittedForReviewStatus => 'Product submitted for review. It will not be visible until approved.';
+
+  @override
+  String get veterinaryProductsNotSupported => 'Online sale and promotion of veterinary medicinal products is not supported.';
+
+  @override
   String get scanFailed => 'Scan failed';
 
   @override
