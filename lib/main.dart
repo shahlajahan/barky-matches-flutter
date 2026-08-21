@@ -43,6 +43,7 @@ import 'package:barky_matches_fixed/ui/creator/creator_dashboard_web_page.dart';
 import 'package:barky_matches_fixed/services/firestore_readiness_gate.dart';
 import 'package:barky_matches_fixed/services/fcm_token_service.dart';
 import 'package:barky_matches_fixed/services/initial_notification_coordinator.dart';
+import 'package:barky_matches_fixed/services/analytics/web_campaign_attribution.dart';
 import 'package:barky_matches_fixed/services/marketplace_order_notification_types.dart';
 import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
 import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
@@ -986,6 +987,8 @@ Future<void> _retrieveInitialNotificationOnce() {
 }
 
 void main() async {
+  final initialUri = kIsWeb ? Uri.base : null;
+
   // Development diagnostics remain available locally, but the production
   // client must not expose Firestore documents, IDs, or debug state in the
   // browser/device console.
@@ -1011,6 +1014,11 @@ void main() async {
   GoogleFonts.config.allowRuntimeFetching = true;
   //await waitForInternet();
   await ensureFirebaseInitialized();
+  if (initialUri != null) {
+    await WebCampaignAttribution.recordInitialUtmCampaignWithFirebase(
+      initialUri,
+    );
+  }
   FcmTokenService.attachRefreshListener();
   _authFcmSub ??= FirebaseAuth.instance.authStateChanges().listen((user) {
     if (user == null || user.isAnonymous) {
