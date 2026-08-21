@@ -14,7 +14,11 @@
     "deploy:hosting": "firebase deploy --only hosting --project barkymatches-new",
     "test:marketplace-firestore-rules": "firebase emulators:exec --only firestore --project marketplace-firestore-rules-ci \"node --test functions/test/marketplaceProductRules.test.js\"",
     "test:marketplace-storage-rules": "firebase emulators:exec --only firestore,storage --project marketplace-storage-rules-ci \"node --test functions/test/marketplaceProductStorageRules.test.js\"",
-    "test:marketplace-rules": "npm run test:marketplace-firestore-rules && npm run test:marketplace-storage-rules"
+    "test:marketplace-rules": "npm run test:marketplace-firestore-rules && npm run test:marketplace-storage-rules",
+    "test:p1a-compliance-constants": "node --test functions/test/complianceConstants.test.js",
+    "test:p1a-compliance-firestore-rules": "firebase emulators:exec --only firestore --project p1a-compliance-rules-ci \"node --test functions/test/complianceFoundationRules.test.js\"",
+    "test:p1a-compliance-storage-rules": "firebase emulators:exec --only firestore,storage --project p1a-compliance-storage-ci \"node --test functions/test/complianceStorageFoundation.test.js\"",
+    "test:p1a-slice1": "npm run test:p1a-compliance-constants && npm run test:p1a-compliance-firestore-rules && npm run test:p1a-compliance-storage-rules"
   },
   "keywords": [],
   "author": "",

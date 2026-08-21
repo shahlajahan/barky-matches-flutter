@@ -1903,5 +1903,96 @@ match /stories/{storyId} {
     match /promotion_reconciliation_cases/{caseId} {
       allow read, create, update, delete: if false;
     }
+
+    // =====================================================================
+    // Marketplace P1-A compliance foundation (Slice 1)
+    // (docs/audits/marketplace_p1_bulk_compliance_inventory_architecture_
+    // 2026-08-21.md, docs/plans/marketplace_p1a_compliance_review_
+    // implementation_plan_2026-08-21.md, §9/§16).
+    //
+    // Deny-by-default / server-write-only posture for every collection
+    // below: no writer of any kind exists yet in this slice, so every
+    // `create`/`update`/`delete` is unconditionally denied via Rules —
+    // this is not a placeholder to be loosened casually later, it is the
+    // explicit Slice 1 boundary. Later slices' Admin-SDK server
+    // operations will write these collections directly; Admin SDK
+    // bypasses these Rules entirely, so no `allow` clause here is ever
+    // "for" the server — every read/write posture below describes only
+    // what a signed-in client (seller or admin) may do.
+    //
+    // Read posture is deliberately conservative for three collections
+    // (complianceUploadSessions, complianceDocuments,
+    // complianceReviewEvents): each mixes fields that are safe for the
+    // owning business to see with fields that are not (session/document
+    // internals such as `storagePath`/`contentHash`/`scanResultRef`, or
+    // admin-authored `notes` on a review event) — because Firestore reads
+    // are document-level, not field-level, granting owner read here would
+    // mean granting it to every field. Rather than expose those fields or
+    // invent an un-reviewed field-level split, these three stay
+    // admin-only in Slice 1; a seller-safe server-mediated projection
+    // (omitting the sensitive fields) is left for a later slice, once a
+    // real consuming UI exists to design it against.
+    // =====================================================================
+
+    match /businessInventoryPolicies/{businessId} {
+      allow read: if isBusinessOwner(businessId) || isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /complianceUploadSessions/{sessionId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /complianceDocuments/{documentId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /complianceDocumentScopes/{scopeId} {
+      allow read: if isAdmin() ||
+        (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));
+      allow create, update, delete: if false;
+
+      // Member documents carry no businessId of their own — ownership is
+      // re-checked independently against the parent scope on every read,
+      // never assumed from the parent match block above.
+      match /members/{memberId} {
+        allow read: if isAdmin() ||
+          (
+            get(/databases/$(database)/documents/complianceDocumentScopes/$(scopeId)).data.businessId is string &&
+            isBusinessOwner(
+              get(/databases/$(database)/documents/complianceDocumentScopes/$(scopeId)).data.businessId
+            )
+          );
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /productEvidenceLinks/{linkId} {
+      allow read: if isAdmin() ||
+        (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));
+      allow create, update, delete: if false;
+    }
+
+    match /complianceReviewEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // No client read at all, admin included — mirrors the
+    // promotion_reconciliation_cases precedent for a sensitive,
+    // admin/server-only operational artifact. Sellers must never see
+    // which evidence gaps exist to exploit them; admin's own access is
+    // via a future dedicated, audited operation, not a raw document read.
+    match /compliancePolicyRegistry/{registryVersion} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /productComplianceDecisions/{productId} {
+      allow read: if isAdmin() ||
+        (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));
+      allow create, update, delete: if false;
+    }
   }
 }

@@ -225,6 +225,24 @@ service firebase.storage {
         && (isBusinessOwner(businessId) || isAdmin());
     }
 
+    // Marketplace P1-A compliance foundation (Slice 1) — docs/plans/
+    // marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md
+    // §9/§16. The generic `{allPaths=**}` deny-all below already covers
+    // these prefixes; both blocks are added explicitly anyway — not for
+    // extra protection, but so Slice 2's diff (introducing the real,
+    // session-gated `create` rule as one atomic security boundary with
+    // its upload-session Cloud Functions) changes a single named,
+    // already-tested block instead of inserting a brand-new one ahead of
+    // an unrelated wildcard. No upload path is authorized here: no owner
+    // upload, no admin upload, no signed-URL issuance, nothing.
+    match /compliance_docs/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /compliance_quarantine/{allPaths=**} {
+      allow read, write: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
