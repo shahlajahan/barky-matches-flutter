@@ -186,6 +186,22 @@
         { "fieldPath": "moderationStatus", "order": "ASCENDING" },
         { "fieldPath": "name", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "complianceUploadSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "complianceUploadSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

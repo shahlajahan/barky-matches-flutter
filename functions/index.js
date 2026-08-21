@@ -92,6 +92,16 @@ const IYZICO_SECRET_KEY = defineSecret("IYZICO_SECRET_KEY");
 // restriction for the Directions API; never put it in Flutter or web assets.
 const GOOGLE_MAPS_SERVER_KEY = defineSecret("GOOGLE_MAPS_SERVER_KEY");
 
+// Marketplace P1-A compliance foundation, Slice 2 (docs/plans/
+// marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md).
+// The privately-operated ClamAV Cloud Run service is NOT created or
+// deployed by this change — these params merely declare where a future
+// deploy would point the scanner adapter. Until CLAMAV_CLOUD_RUN_URL is
+// set, complianceScanner.js's resolveComplianceScanner() always returns
+// the fail-closed "not configured" adapter (never "clean").
+const CLAMAV_CLOUD_RUN_URL = defineString("CLAMAV_CLOUD_RUN_URL", { default: "" });
+const CLAMAV_CLOUD_RUN_AUDIENCE = defineString("CLAMAV_CLOUD_RUN_AUDIENCE", { default: "" });
+
 const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
   default: "iyzico",
 });
@@ -226,6 +236,32 @@ const {
   processExpiredInventoryReservations,
   processStaleInventoryLeases,
 } = require("./src/inventory/inventoryExpiryScheduler");
+
+// Marketplace P1-A compliance foundation, Slice 2. Every exports.* wiring
+// for these lives further below, near the other marketplace/product
+// exports — the modules themselves contain all business logic, per
+// "limit functions/index.js changes to explicit export wiring only".
+const {
+  createComplianceUploadSession,
+} = require("./src/marketplace/compliance/complianceUploadSessions");
+const {
+  processComplianceQuarantineUpload,
+} = require("./src/marketplace/compliance/complianceUploadFinalization");
+const {
+  orchestrateComplianceScan,
+} = require("./src/marketplace/compliance/complianceScanOrchestration");
+const {
+  resolveComplianceScanner,
+} = require("./src/marketplace/compliance/complianceScanner");
+const {
+  complianceUploadOrphanCleanup,
+} = require("./src/marketplace/compliance/complianceUploadCleanup");
+const {
+  reconcileStaleComplianceUploadSessions,
+} = require("./src/marketplace/compliance/complianceUploadReconciliation");
+const {
+  COMPLIANCE_UPLOAD_SESSION_STATUS,
+} = require("./src/marketplace/compliance/complianceConstants");
 
 const { Resend } = require("resend");
 const { settlePayable } = require("./settlement/settlementFinalizer");
@@ -19734,6 +19770,166 @@ exports.createProduct = onCall(async (request) => {
       "Add Product flow in the app."
   );
 });
+
+// =====================================================================
+// Marketplace P1-A compliance foundation — Slice 2 (docs/plans/
+// marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md).
+// Thin exports.* wiring only; all business logic lives in
+// functions/src/marketplace/compliance/*.js. Nothing here creates or
+// deploys the ClamAV Cloud Run service — resolveComplianceScanner()
+// returns a fail-closed adapter until CLAMAV_CLOUD_RUN_URL is configured
+// as a real deployment setting, which this change does not do.
+// =====================================================================
+
+const COMPLIANCE_STORAGE_BUCKET_NAME = "barkymatches-new.firebasestorage.app";
+
+// App Check deployment-hardening note (Slice 2 correction, adversarial
+// review 2026-08-21, finding D/I): this callable does NOT set
+// enforceAppCheck. Auth (request.auth.uid required), ownership
+// (assertCallerOwnsBusiness), and per-scope quota (complianceUploadQuota
+// .js) are the mandatory controls actually enforced here. App Check is
+// recommended ADDITIONAL abuse protection on top of those, not a
+// substitute for any of them — but this repository does not yet have a
+// tested, safe, App-Check-enforcing rollout convention (multiple other
+// onCall exports in this file explicitly set enforceAppCheck: false with
+// a "turn on later" TODO), so enabling it only for this one callable
+// would be an untested, isolated change unrelated to this correction's
+// scope. No App Check change is made in this task.
+exports.createComplianceUploadSession = onCall(
+  { region: "europe-west3" },
+  async (request) => {
+    return createComplianceUploadSession({
+      db: admin.firestore(),
+      auth: request.auth,
+      data: request.data,
+    });
+  }
+);
+
+exports.processComplianceQuarantineUpload = onObjectFinalized(
+  {
+    region: "europe-west3",
+    bucket: COMPLIANCE_STORAGE_BUCKET_NAME,
+    memory: "512MiB",
+    timeoutSeconds: 120,
+    // Slice 2 correction (adversarial review 2026-08-21, finding F):
+    // previously unset (defaults to no retry for Eventarc/Storage
+    // triggers in Firebase Functions v2 — confirmed via the installed
+    // firebase-functions package: onObjectFinalized's event trigger
+    // option is `retry` (boolean), NOT `retryCount` (that option belongs
+    // to onSchedule's retryConfig only, per node_modules/firebase-
+    // functions/lib/v2/providers/{storage,scheduler}.js). A crash mid-
+    // pipeline is now retried by the platform. This is a second line of
+    // defense, not the primary one — the reconciler
+    // (complianceUploadReconciliation.js, wired below) is the
+    // authoritative recovery mechanism regardless of whether a retry
+    // actually happens, since Eventarc redelivery is not guaranteed and
+    // is not itself bounded/observable by this system.
+    retry: true,
+  },
+  async (event) => {
+    const object = event.data;
+    if (!object || !object.name || !object.name.startsWith("compliance_quarantine/")) {
+      return null;
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket(COMPLIANCE_STORAGE_BUCKET_NAME);
+
+    const finalizeResult = await processComplianceQuarantineUpload({
+      db,
+      bucket,
+      object,
+      expectedBucket: COMPLIANCE_STORAGE_BUCKET_NAME,
+      logger,
+    });
+
+    if (!finalizeResult.claimed || finalizeResult.status !== COMPLIANCE_UPLOAD_SESSION_STATUS.SCAN_PENDING) {
+      logger.info("compliance_finalize_result", finalizeResult);
+      return finalizeResult;
+    }
+
+    const sessionSnap = await db
+      .collection("complianceUploadSessions")
+      .doc(finalizeResult.sessionId)
+      .get();
+    const session = { ...sessionSnap.data(), sessionId: finalizeResult.sessionId };
+
+    const scanResult = await orchestrateComplianceScan({
+      db,
+      bucket,
+      session,
+      object,
+      scanner: resolveComplianceScanner({
+        env: {
+          CLAMAV_CLOUD_RUN_URL: CLAMAV_CLOUD_RUN_URL.value(),
+          CLAMAV_CLOUD_RUN_AUDIENCE: CLAMAV_CLOUD_RUN_AUDIENCE.value(),
+        },
+        logger,
+      }),
+      logger,
+    });
+
+    logger.info("compliance_scan_result", scanResult);
+    return scanResult;
+  }
+);
+
+exports.complianceUploadOrphanCleanup = onSchedule(
+  {
+    schedule: "every 60 minutes",
+    region: "europe-west3",
+    timeZone: "Europe/Istanbul",
+    retryCount: 2,
+    // Slice 2 correction (finding G/J): explicit, not defaulted — both
+    // cleanup queries are now bounded (.limit()) so this is a generous,
+    // not a load-bearing, ceiling.
+    memory: "256MiB",
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const result = await complianceUploadOrphanCleanup({
+      db: admin.firestore(),
+      bucket: admin.storage().bucket(COMPLIANCE_STORAGE_BUCKET_NAME),
+      now: new Date(),
+      logger,
+    });
+    logger.info("compliance_upload_orphan_cleanup", result);
+    return result;
+  }
+);
+
+// Slice 2 correction (adversarial review 2026-08-21, finding F/B) — the
+// authoritative recovery mechanism for sessions stuck at
+// uploaded/validating/scan_pending/promotion_pending after a crash (see
+// complianceUploadReconciliation.js's module doc comment). Runs far more
+// frequently than the hour-scale cleanup job above because a stuck
+// session should be resumed promptly, not just eventually swept away —
+// this reconciles/resumes, it does not delete.
+exports.complianceUploadReconciliation = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    region: "europe-west3",
+    timeZone: "Europe/Istanbul",
+    retryCount: 2,
+    memory: "256MiB",
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const result = await reconcileStaleComplianceUploadSessions({
+      db: admin.firestore(),
+      bucket: admin.storage().bucket(COMPLIANCE_STORAGE_BUCKET_NAME),
+      now: new Date(),
+      env: {
+        CLAMAV_CLOUD_RUN_URL: CLAMAV_CLOUD_RUN_URL.value(),
+        CLAMAV_CLOUD_RUN_AUDIENCE: CLAMAV_CLOUD_RUN_AUDIENCE.value(),
+      },
+      logger,
+    });
+    logger.info("compliance_upload_reconciliation", result);
+    return result;
+  }
+);
 
 exports.updateGlobalStats = onDocumentWritten("products/{id}", async (event) => {
   const data = event.data.after.data();

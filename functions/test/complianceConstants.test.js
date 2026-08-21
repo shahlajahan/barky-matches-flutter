@@ -163,14 +163,21 @@ test("businessInventoryPolicies allowed-field payload check", () => {
 // complianceUploadSessions
 // ---------------------------------------------------------------------
 
-test("COMPLIANCE_UPLOAD_SESSION_STATUS has 7 unique values", () => {
+test("COMPLIANCE_UPLOAD_SESSION_STATUS has 12 unique values (Slice 2's full state machine)", () => {
+  // Updated from Slice 1's 7-value placeholder to Slice 2's full,
+  // explicit state machine (docs/plans/marketplace_p1a_compliance_
+  // review_implementation_plan_2026-08-21.md, security decision) — this
+  // is the single enum every later file reuses, per "do not duplicate
+  // state enums in multiple files"; see complianceUploadUnit.test.js for
+  // the transition-table coverage.
   const values = allEnumValues(COMPLIANCE_UPLOAD_SESSION_STATUS);
-  assert.equal(values.length, 7);
-  assert.equal(new Set(values).size, 7);
+  assert.equal(values.length, 12);
+  assert.equal(new Set(values).size, 12);
   for (const value of values) {
     assert.equal(isValidComplianceUploadSessionStatus(value), true);
   }
   assert.equal(isValidComplianceUploadSessionStatus("bogus"), false);
+  assert.equal(isValidComplianceUploadSessionStatus("issued"), false, "the retired Slice 1 placeholder name must not remain valid");
 });
 
 test("only PDF/JPEG/PNG are allowed upload MIME types", () => {

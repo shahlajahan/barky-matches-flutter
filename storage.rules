@@ -203,8 +203,9 @@ service firebase.storage {
     // now be rejected here. Video product media is not supported until a
     // dedicated, reviewed video validator is designed (P1/P2) — this is
     // a deliberate P0 tradeoff (safety over feature completeness), not
-    // an oversight. Compliance/invoice documents are intentionally out
-    // of scope here — that capability does not exist yet (P1).
+    // an oversight. Compliance/invoice documents are handled entirely
+    // separately, under compliance_quarantine/ and compliance_docs/
+    // below — never under this products/ path.
     match /products/{businessId}/{allPaths=**} {
       allow read: if isSignedIn()
         && (isBusinessOwner(businessId) || isAdmin());
@@ -239,8 +240,67 @@ service firebase.storage {
       allow read, write: if false;
     }
 
-    match /compliance_quarantine/{allPaths=**} {
-      allow read, write: if false;
+    // Marketplace P1-A compliance foundation — Slice 2 security decision
+    // (docs/plans/marketplace_p1a_compliance_review_implementation_plan_
+    // 2026-08-21.md §9). The upload-session document (Firestore,
+    // complianceUploadSessions/{sessionId}) is the sole source of truth
+    // for whether a create is authorized — every condition below reads
+    // it, never trusts a client-declared value. objectPath is compared
+    // as an EXACT reconstructed-string match against the session's own
+    // recorded objectPath field, not merely a per-segment pattern check,
+    // so no combination of a real session with a substituted businessId/
+    // sessionId/objectId can pass. Create-only: no update, no delete, no
+    // read — matches the "Storage Rules authorize the upload; a trusted
+    // server-side finalization/Storage event validates the resulting
+    // object" boundary this plan explicitly does not ask Rules to close
+    // alone (see functions/src/marketplace/compliance/
+    // complianceUploadFinalization.js for that server-side half).
+    function complianceUploadSessionData(sessionId) {
+      return firestore.get(
+        /databases/(default)/documents/complianceUploadSessions/$(sessionId)
+      ).data;
+    }
+
+    match /compliance_quarantine/{businessId}/{sessionId}/{objectId} {
+      // `resource == null` is checked explicitly, not inferred from the
+      // create/update keyword split alone: a prior write attempt at this
+      // exact path (even one Firebase's own create/update classification
+      // might otherwise treat ambiguously) must never be treated as
+      // authorized just because the session itself is still valid — the
+      // session authorizes exactly one object write, never a
+      // replacement of one that already exists.
+      allow write: if resource == null
+        && isSignedIn()
+        && isBusinessOwner(businessId)
+        && complianceUploadSessionData(sessionId).businessId == businessId
+        && complianceUploadSessionData(sessionId).issuedBy == request.auth.uid
+        && complianceUploadSessionData(sessionId).status == 'upload_authorized'
+        && complianceUploadSessionData(sessionId).expiresAt > request.time
+        && complianceUploadSessionData(sessionId).objectPath ==
+           ('compliance_quarantine/' + businessId + '/' + sessionId + '/' + objectId)
+        && request.resource.size > 0
+        && request.resource.size <= complianceUploadSessionData(sessionId).maxSizeBytes
+        && request.resource.contentType == complianceUploadSessionData(sessionId).declaredMimeType
+        && request.resource.contentType in ['application/pdf', 'image/jpeg', 'image/png']
+        && objectId.matches(
+          '.*\\.([pP][dD][fF]|[jJ][pP][gG]|[jJ][pP][eE][gG]|[pP][nN][gG])$'
+        )
+        // Slice 2 correction (adversarial review 2026-08-21, finding E):
+        // no client custom metadata at all — request.resource.metadata is
+        // always a map (never absent), so requiring it empty denies both
+        // an arbitrary client-set key AND a hand-set
+        // firebaseStorageDownloadTokens value in the same check, with no
+        // exception carved out. Nothing in this upload flow requires the
+        // client to set any custom metadata; the eventual promoted
+        // compliance_docs/ object gets its own closed, server-written
+        // metadata map (see complianceScanOrchestration.js's
+        // performPromotion), never inherited from this one.
+        && request.resource.metadata.size() == 0;
+      // `resource == null` above already makes an update-after-create
+      // (including a metadata-only update, e.g. updateMetadata()) fall
+      // through to this deny — resource is non-null once the object
+      // exists, so the `allow write` condition's own first clause fails.
+      allow read, delete: if false;
     }
 
     match /{allPaths=**} {

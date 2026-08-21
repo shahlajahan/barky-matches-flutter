@@ -8,6 +8,7 @@
 // plan_2026-08-21.md, Slice 1). Later slices' server operations are
 // expected to import these rather than re-deriving equivalent checks.
 
+const crypto = require("node:crypto");
 const {
   STOCK_AUTHORITY_TYPE,
   STOCK_AUTHORITY_TYPE_REACHABLE_IN_P1A,
@@ -15,8 +16,15 @@ const {
   BUSINESS_INVENTORY_POLICY_STATUS_REACHABLE_IN_P1A,
   BUSINESS_INVENTORY_POLICY_ALLOWED_FIELDS,
   COMPLIANCE_UPLOAD_SESSION_STATUS,
+  COMPLIANCE_UPLOAD_SESSION_ALLOWED_TRANSITIONS,
+  COMPLIANCE_UPLOAD_SESSION_TERMINAL_STATUSES,
+  COMPLIANCE_UPLOAD_SESSION_UPLOAD_ELIGIBLE_STATUS,
   COMPLIANCE_UPLOAD_SESSION_ALLOWED_MIME_TYPES,
+  COMPLIANCE_UPLOAD_SESSION_MIME_TO_EXTENSION,
   COMPLIANCE_UPLOAD_SESSION_ALLOWED_FIELDS,
+  COMPLIANCE_UPLOAD_SESSION_REQUEST_ALLOWED_FIELDS,
+  COMPLIANCE_QUARANTINE_PATH_PREFIX,
+  COMPLIANCE_DOCS_PATH_PREFIX,
   COMPLIANCE_DOCUMENT_TYPE,
   SELLER_RELATIONSHIP,
   COMPLIANCE_DOCUMENT_STATUS,
@@ -121,6 +129,109 @@ function isAllowedComplianceUploadMimeType(value) {
 
 function hasOnlyAllowedComplianceUploadSessionFields(payload) {
   return hasOnlyAllowedKeys(payload, COMPLIANCE_UPLOAD_SESSION_ALLOWED_FIELDS);
+}
+
+function hasOnlyAllowedComplianceUploadSessionRequestFields(payload) {
+  return hasOnlyAllowedKeys(payload, COMPLIANCE_UPLOAD_SESSION_REQUEST_ALLOWED_FIELDS);
+}
+
+// Single source of truth for "is this status transition allowed" — used
+// by createComplianceUploadSession, the finalize pipeline, and the scan
+// orchestrator alike, so the transition table in complianceConstants.js
+// is enforced identically everywhere rather than re-checked ad hoc.
+function isAllowedComplianceUploadSessionTransition(fromStatus, toStatus) {
+  const allowedNext = COMPLIANCE_UPLOAD_SESSION_ALLOWED_TRANSITIONS[fromStatus];
+  return Array.isArray(allowedNext) && allowedNext.includes(toStatus);
+}
+
+function isTerminalComplianceUploadSessionStatus(status) {
+  return COMPLIANCE_UPLOAD_SESSION_TERMINAL_STATUSES.includes(status);
+}
+
+function isComplianceUploadSessionUploadEligible(session) {
+  return (
+    session != null &&
+    session.status === COMPLIANCE_UPLOAD_SESSION_UPLOAD_ELIGIBLE_STATUS
+  );
+}
+
+// Server-generated quarantine object path — the single builder every
+// caller (session creation, Storage Rules documentation/tests, the
+// finalize pipeline) must use, so the path shape can never drift between
+// them. Deliberately takes no client-supplied segment.
+function buildComplianceQuarantineObjectPath({ businessId, sessionId, objectId }) {
+  return `${COMPLIANCE_QUARANTINE_PATH_PREFIX}/${businessId}/${sessionId}/${objectId}`;
+}
+
+function buildComplianceDocsObjectPath({ businessId, documentId, objectId }) {
+  return `${COMPLIANCE_DOCS_PATH_PREFIX}/${businessId}/${documentId}/${objectId}`;
+}
+
+// Deterministic, extension-free-of-client-input object ID: a
+// cryptographically unpredictable token plus a server-chosen extension
+// derived only from the already-validated MIME type, never from the
+// client's original filename (prevents path/extension tricks by
+// construction, not by sanitizing an untrusted value).
+function buildComplianceUploadObjectId(randomToken, mimeType) {
+  const extension = COMPLIANCE_UPLOAD_SESSION_MIME_TO_EXTENSION[mimeType];
+  if (!extension) {
+    throw new Error(`No server-chosen extension for MIME type "${mimeType}"`);
+  }
+  return `${randomToken}.${extension}`;
+}
+
+// Immutable request fields an idempotent retry must match exactly against
+// the originally-stored session (Slice 2 correction, finding C/D). Deliberately
+// excludes issuedBy/businessId here — those are checked separately by the
+// caller against auth/request context, not against the stored session's own
+// copy of themselves (which would be a tautology).
+const COMPLIANCE_UPLOAD_SESSION_IDEMPOTENCY_COMPARISON_FIELDS = Object.freeze([
+  "originalFilename",
+  "declaredMimeType",
+  "declaredSizeBytes",
+  "documentType",
+]);
+
+// True only if every immutable field of a retried request matches the
+// originally-stored session exactly. A stricter, non-boolean-blind check
+// than "does a session exist for this key" — a retry with the same
+// clientIdempotencyKey but different file metadata must never silently
+// reuse the original session (docs/plans/... Slice 2 security decision;
+// Slice 2 correction, finding C).
+function doesRequestMatchStoredSession(storedSession, normalizedRequest) {
+  if (!storedSession || !normalizedRequest) return false;
+  return COMPLIANCE_UPLOAD_SESSION_IDEMPOTENCY_COMPARISON_FIELDS.every(
+    (field) => storedSession[field] === normalizedRequest[field]
+  );
+}
+
+// ---------------------------------------------------------------------
+// Upload session quota (Slice 2 correction, finding B)
+// ---------------------------------------------------------------------
+
+// UTC calendar-day bucket key, e.g. "2026-08-21" — the daily quota resets
+// naturally at UTC midnight simply because a new key starts being used;
+// no explicit reset job exists or is needed.
+function getUtcDateKey(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toISOString().slice(0, 10);
+}
+
+// Deterministic, collision-free scope id for a (businessId, uid) pair —
+// same composite-key-hash convention as deriveSessionId in
+// complianceUploadSessions.js, so cross-tenant collision is not possible.
+function buildComplianceUploadQuotaScopeId({ businessId, uid }) {
+  return crypto
+    .createHash("sha256")
+    .update(`compliance_upload_quota_scope:${businessId}:${uid}`)
+    .digest("hex");
+}
+
+function buildComplianceUploadQuotaDailyDocId({ businessId, uid, utcDateKey }) {
+  return crypto
+    .createHash("sha256")
+    .update(`compliance_upload_quota_daily:${businessId}:${uid}:${utcDateKey}`)
+    .digest("hex");
 }
 
 // ---------------------------------------------------------------------
@@ -275,6 +386,17 @@ module.exports = {
   isValidComplianceUploadSessionStatus,
   isAllowedComplianceUploadMimeType,
   hasOnlyAllowedComplianceUploadSessionFields,
+  hasOnlyAllowedComplianceUploadSessionRequestFields,
+  isAllowedComplianceUploadSessionTransition,
+  isTerminalComplianceUploadSessionStatus,
+  isComplianceUploadSessionUploadEligible,
+  buildComplianceQuarantineObjectPath,
+  buildComplianceDocsObjectPath,
+  buildComplianceUploadObjectId,
+  doesRequestMatchStoredSession,
+  getUtcDateKey,
+  buildComplianceUploadQuotaScopeId,
+  buildComplianceUploadQuotaDailyDocId,
 
   isValidComplianceDocumentType,
   isValidSellerRelationship,

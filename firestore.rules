@@ -1949,6 +1949,20 @@ match /stories/{storyId} {
       allow create, update, delete: if false;
     }
 
+    // Slice 2 correction (adversarial review 2026-08-21, finding B) —
+    // upload-session quota counters. Server-only in every respect: no
+    // client of any kind (seller or admin) has any reason to read or
+    // write these directly; the quota decision itself is surfaced to a
+    // seller only as an HttpsError('resource-exhausted', ...) from
+    // createComplianceUploadSession, never as document access.
+    match /complianceUploadQuotaScopes/{scopeId} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /complianceUploadQuotaDaily/{dailyDocId} {
+      allow read, create, update, delete: if false;
+    }
+
     match /complianceDocumentScopes/{scopeId} {
       allow read: if isAdmin() ||
         (resource.data.businessId is string && isBusinessOwner(resource.data.businessId));

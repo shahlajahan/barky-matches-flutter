@@ -67,15 +67,73 @@ const BUSINESS_INVENTORY_POLICY_ALLOWED_FIELDS = Object.freeze([
 // complianceUploadSessions/{sessionId}
 // ---------------------------------------------------------------------
 
+// Slice 2 correction: the Slice 1 draft used a 7-value placeholder enum
+// (issued/uploaded/validating/scan_pending/clean/failed/expired). Slice 2
+// implements the full, explicit state machine docs/plans/...'s security
+// decision requires — this REPLACES the Slice 1 enum in place (single
+// source of truth, per "do not duplicate state enums in multiple
+// files"), it does not add a second, parallel enum anywhere.
+//
+// Slice 2 correction (adversarial review 2026-08-21, finding F —
+// "critical, no crash recovery"): the original one-shot CLEAN status
+// let a clean verdict be persisted only *after* the Storage object had
+// already been copy-then-deleted, so a crash between the Storage
+// promotion and the Firestore transaction stranded the session forever.
+// CLEAN is replaced with PROMOTION_PENDING: a clean scanner verdict is
+// now persisted FIRST (binding bucket/objectPath/generation/hash/size/
+// mime/engine version/signature version/documentId/destinationPath to
+// the session, still fully unusable for evidence/approval), and only
+// THEN does a separate, idempotent, resumable promotion step run. A
+// crash at any point leaves the session in a well-defined, reconciler-
+// recoverable state (see complianceUploadReconciliation.js) instead of a
+// stuck one.
 const COMPLIANCE_UPLOAD_SESSION_STATUS = Object.freeze({
-  ISSUED: "issued",
+  CREATED: "created",
+  UPLOAD_AUTHORIZED: "upload_authorized",
   UPLOADED: "uploaded",
   VALIDATING: "validating",
   SCAN_PENDING: "scan_pending",
-  CLEAN: "clean",
-  FAILED: "failed",
+  PROMOTION_PENDING: "promotion_pending",
   EXPIRED: "expired",
+  VALIDATION_FAILED: "validation_failed",
+  SCAN_FAILED: "scan_failed",
+  INFECTED: "infected",
+  CANCELLED: "cancelled",
+  CONSUMED: "consumed",
 });
+
+// Explicit allowed-transition table (docs/plans/... Slice 2 security
+// decision: "Define and enforce allowed transitions. A consumed or
+// expired session must never authorize another upload."). Every status
+// not listed as a key has no outgoing transitions — i.e. is terminal.
+// `created` is a logical pre-state only: this implementation's
+// createComplianceUploadSession performs every check before writing
+// anything and persists the session directly at `upload_authorized` (see
+// complianceUploadSessions.js) — `created` is never itself observed as a
+// persisted Firestore value, but is kept in the enum/table for schema
+// completeness and to keep the transition graph literally correct.
+const COMPLIANCE_UPLOAD_SESSION_ALLOWED_TRANSITIONS = Object.freeze({
+  created: Object.freeze(["upload_authorized"]),
+  upload_authorized: Object.freeze(["uploaded", "expired", "cancelled"]),
+  uploaded: Object.freeze(["validating"]),
+  validating: Object.freeze(["scan_pending", "validation_failed"]),
+  scan_pending: Object.freeze(["promotion_pending", "scan_failed", "infected"]),
+  promotion_pending: Object.freeze(["consumed", "scan_failed"]),
+});
+
+// Terminal states — present for completeness/iteration, no outgoing
+// transitions exist for any of these in the table above.
+const COMPLIANCE_UPLOAD_SESSION_TERMINAL_STATUSES = Object.freeze([
+  "expired",
+  "validation_failed",
+  "scan_failed",
+  "infected",
+  "cancelled",
+  "consumed",
+]);
+
+// The only status from which a Storage upload may ever be authorized.
+const COMPLIANCE_UPLOAD_SESSION_UPLOAD_ELIGIBLE_STATUS = "upload_authorized";
 
 const COMPLIANCE_UPLOAD_SESSION_ALLOWED_MIME_TYPES = Object.freeze([
   "application/pdf",
@@ -83,29 +141,210 @@ const COMPLIANCE_UPLOAD_SESSION_ALLOWED_MIME_TYPES = Object.freeze([
   "image/png",
 ]);
 
+// Server-chosen extension for each allowed MIME type — used to build the
+// server-generated objectId so no client-supplied filename or extension
+// ever reaches the actual Storage path (docs/plans/... Slice 2 security
+// decision: "Prevent filename/path traversal... case or extension
+// tricks"). Deliberately not a client input.
+const COMPLIANCE_UPLOAD_SESSION_MIME_TO_EXTENSION = Object.freeze({
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+});
+
 const COMPLIANCE_UPLOAD_SESSION_ALLOWED_FIELDS = Object.freeze([
   "businessId",
+  "sessionId",
   "documentId",
+  "objectId",
   "objectPath",
+  "destinationPath",
+  "originalFilename",
+  "declaredMimeType",
+  "declaredSizeBytes",
   "documentType",
   "sellerRelationship",
+  "clientIdempotencyKey",
   "allowedMimeTypes",
   "maxSizeBytes",
   "status",
   "issuedBy",
   "issuedAt",
   "expiresAt",
+  "uploadedAt",
+  "uploadedGeneration",
   "finalizedAt",
   "contentHash",
-  "sizeBytes",
-  "scanResultRef",
+  "actualContentType",
+  "actualSizeBytes",
+  "validationFailureReason",
+  "scanAttempts",
+  "scanVerdict",
+  "scanEngineVersion",
+  "scanSignatureVersion",
+  "scannedAt",
+  "scanFailureReason",
+  "promotedGeneration",
+  "promotedAt",
+  "consumedAt",
+  "consumedByDocumentId",
+  // Reconciliation lease fields (Slice 2 correction, finding B) — every
+  // value here is server-owned; no client request field ever sets one
+  // (see COMPLIANCE_UPLOAD_SESSION_REQUEST_ALLOWED_FIELDS below, which
+  // does not include any of them).
+  "leaseOwner",
+  "leaseExpiresAt",
+  "reconciliationAttempts",
+  "lastReconciledAt",
+  "updatedAt",
 ]);
 
-// Proposed defaults (docs/plans/... §4, §20) — not yet read by any
-// running code in Slice 1; documented here as the single source later
-// slices must use rather than re-deriving their own numbers.
+// Fields a client's createComplianceUploadSession request may supply —
+// deliberately much narrower than the full document schema above. Every
+// other field on the document is server-generated (docs/plans/... Slice
+// 2 security decision: "Never accept a caller-provided Storage path,
+// document status, scan status, reviewer field, approval field, hash
+// result, or server timestamp"). `businessId` is a routing/authorization
+// pointer re-verified server-side against businesses/{businessId}, not
+// blindly trusted metadata.
+const COMPLIANCE_UPLOAD_SESSION_REQUEST_ALLOWED_FIELDS = Object.freeze([
+  "businessId",
+  "originalFilename",
+  "declaredMimeType",
+  "declaredSizeBytes",
+  "documentType",
+  "clientIdempotencyKey",
+]);
+
+// Proposed defaults (docs/plans/... §4, §20).
 const COMPLIANCE_UPLOAD_SESSION_DEFAULT_EXPIRY_MINUTES = 15;
 const COMPLIANCE_UPLOAD_ORPHAN_RETENTION_DAYS = 7;
+const COMPLIANCE_UPLOAD_SESSION_MAX_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
+const COMPLIANCE_UPLOAD_SESSION_MAX_ORIGINAL_FILENAME_LENGTH = 200;
+
+// ---------------------------------------------------------------------
+// Malware scanning boundary
+// ---------------------------------------------------------------------
+
+const MALWARE_SCAN_VERDICT = Object.freeze({
+  CLEAN: "clean",
+  INFECTED: "infected",
+  ERROR: "error",
+});
+
+// Bounded retry policy — used by complianceScanOrchestration.js. A scan
+// that has not produced a CLEAN or INFECTED verdict after this many
+// total attempts transitions to scan_failed; it never falls back to
+// clean (docs/plans/... Slice 2 security decision: "fail-closed
+// ClamAV/Cloud Run integration boundary").
+const MALWARE_SCAN_MAX_ATTEMPTS = 3;
+const MALWARE_SCAN_TIMEOUT_MS = 15000;
+const MALWARE_SCAN_RETRY_BACKOFF_MS = 2000;
+
+// Versioned scanner request/response contract (Slice 2 correction,
+// finding H). Bumping this is a breaking change to the not-yet-built
+// Cloud Run service's contract; the adapter sends it on every request
+// and the response is rejected (fail-closed, never "clean") if the
+// service echoes back anything else or omits it.
+const COMPLIANCE_SCANNER_CONTRACT_VERSION = 1;
+
+// ---------------------------------------------------------------------
+// Reconciliation / lease policy (Slice 2 correction, finding F/B) — a
+// crashed worker must never permanently own a session. A lease is only
+// ever reclaimed after it has expired; staleness thresholds below are
+// deliberately longer than any single realistic attempt (validation
+// download, one scan call, one Storage copy) so a live, still-working
+// invocation is never preempted by the reconciler racing it.
+// ---------------------------------------------------------------------
+
+const COMPLIANCE_RECONCILIATION_LEASE_DURATION_MS = 5 * 60 * 1000; // 5 min
+const COMPLIANCE_RECONCILIATION_MAX_ATTEMPTS = 5;
+const COMPLIANCE_RECONCILIATION_PAGE_SIZE = 50;
+
+// How long a session may sit in each intermediate state before the
+// reconciler will attempt to resume (or, past the attempt budget, fail
+// closed) it. Deliberately uniform and generous — none of these steps is
+// expected to legitimately take this long even under retry/backoff.
+const COMPLIANCE_UPLOADED_STALE_MS = 10 * 60 * 1000;
+const COMPLIANCE_VALIDATING_STALE_MS = 10 * 60 * 1000;
+const COMPLIANCE_SCAN_PENDING_STALE_MS = 10 * 60 * 1000;
+const COMPLIANCE_PROMOTION_PENDING_STALE_MS = 10 * 60 * 1000;
+
+const COMPLIANCE_CLEANUP_PAGE_SIZE = 200;
+
+// ---------------------------------------------------------------------
+// Upload session quota (Slice 2 correction, finding B — "no abuse/cost
+// controls"). Scoped to (businessId, uid) — a business's own owner, not
+// a global cap — so one seller's volume never throttles another.
+// Conservative initial policy per docs/plans/... adversarial-review
+// correction request: high enough that a legitimate seller uploading
+// one document per product is never blocked (a seller would need >50
+// distinct compliance documents in a single UTC day, or >10 concurrently
+// mid-flight, to hit these), low enough to bound abuse cost. Revisit
+// once real seller upload volume is observed; these are deliberately
+// conservative starting values, not a measured ceiling.
+// ---------------------------------------------------------------------
+
+const COMPLIANCE_MAX_ACTIVE_UPLOAD_SESSIONS_PER_SCOPE = 10;
+const COMPLIANCE_MAX_UPLOAD_SESSIONS_PER_SCOPE_PER_UTC_DAY = 50;
+const COMPLIANCE_MAX_UPLOAD_BYTES_PER_SCOPE_PER_UTC_DAY = 300 * 1024 * 1024; // 300MB
+
+const COMPLIANCE_UPLOAD_QUOTA_SCOPE_COLLECTION = "complianceUploadQuotaScopes";
+const COMPLIANCE_UPLOAD_QUOTA_DAILY_COLLECTION = "complianceUploadQuotaDaily";
+
+const COMPLIANCE_UPLOAD_QUOTA_SCOPE_ALLOWED_FIELDS = Object.freeze([
+  "businessId",
+  "uid",
+  "activeSessionCount",
+  "updatedAt",
+]);
+
+const COMPLIANCE_UPLOAD_QUOTA_DAILY_ALLOWED_FIELDS = Object.freeze([
+  "businessId",
+  "uid",
+  "utcDateKey",
+  "createdSessionCount",
+  "declaredBytesCreated",
+  "updatedAt",
+]);
+
+// Closed metadata map written on every promoted compliance_docs/ object —
+// deliberately never a superset of source/quarantine metadata (Slice 2
+// correction, finding H): a copy() call by default forwards the source
+// object's custom metadata, which could otherwise carry forward a rogue
+// firebaseStorageDownloadTokens key or arbitrary client-set value. The
+// promotion step always passes exactly this key set as the destination's
+// metadata, never the source's.
+const COMPLIANCE_DOCS_METADATA_KEYS = Object.freeze([
+  "businessId",
+  "documentId",
+  "sessionId",
+]);
+
+// Magic-byte / file-signature constants, expressed as arrays of expected
+// leading byte values, for the finalize-time structural check (Storage
+// Rules cannot inspect file bytes; this is the server-side check that
+// does). PDF also requires a "%%EOF" marker to appear in the file, a
+// lightweight structural check beyond the header alone — this is not a
+// full PDF parse, and is documented as such rather than overclaimed.
+const COMPLIANCE_FILE_SIGNATURES = Object.freeze({
+  "application/pdf": Object.freeze({
+    magicBytes: Object.freeze([0x25, 0x50, 0x44, 0x46]), // "%PDF"
+  }),
+  "image/jpeg": Object.freeze({
+    magicBytes: Object.freeze([0xff, 0xd8, 0xff]),
+  }),
+  "image/png": Object.freeze({
+    magicBytes: Object.freeze([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  }),
+});
+
+// ---------------------------------------------------------------------
+// Storage path prefixes
+// ---------------------------------------------------------------------
+
+const COMPLIANCE_QUARANTINE_PATH_PREFIX = "compliance_quarantine";
+const COMPLIANCE_DOCS_PATH_PREFIX = "compliance_docs";
 
 // ---------------------------------------------------------------------
 // complianceDocuments/{documentId}
@@ -131,9 +370,12 @@ const SELLER_RELATIONSHIP = Object.freeze({
   RESELLER: "reseller",
 });
 
-// Session-level states (uploaded/validating/scan_pending) are
-// deliberately absent — a complianceDocuments record is never created
-// until its session reaches CLEAN (docs/plans/... §4/§5.0, correction 1).
+// Session-level states (uploaded/validating/scan_pending/
+// promotion_pending) are deliberately absent — a complianceDocuments
+// record is never created until its session's promotion step commits it
+// in the same transaction that marks the session CONSUMED (docs/plans/...
+// §4/§5.0, correction 1; Slice 2 correction, finding A — no earlier
+// placeholder document is ever created for a not-yet-promoted session).
 const COMPLIANCE_DOCUMENT_STATUS = Object.freeze({
   CLEAN: "clean",
   PENDING_REVIEW: "pending_review",
@@ -390,10 +632,45 @@ module.exports = {
   BUSINESS_INVENTORY_POLICY_ALLOWED_FIELDS,
 
   COMPLIANCE_UPLOAD_SESSION_STATUS,
+  COMPLIANCE_UPLOAD_SESSION_ALLOWED_TRANSITIONS,
+  COMPLIANCE_UPLOAD_SESSION_TERMINAL_STATUSES,
+  COMPLIANCE_UPLOAD_SESSION_UPLOAD_ELIGIBLE_STATUS,
   COMPLIANCE_UPLOAD_SESSION_ALLOWED_MIME_TYPES,
+  COMPLIANCE_UPLOAD_SESSION_MIME_TO_EXTENSION,
   COMPLIANCE_UPLOAD_SESSION_ALLOWED_FIELDS,
+  COMPLIANCE_UPLOAD_SESSION_REQUEST_ALLOWED_FIELDS,
   COMPLIANCE_UPLOAD_SESSION_DEFAULT_EXPIRY_MINUTES,
   COMPLIANCE_UPLOAD_ORPHAN_RETENTION_DAYS,
+  COMPLIANCE_UPLOAD_SESSION_MAX_SIZE_BYTES,
+  COMPLIANCE_UPLOAD_SESSION_MAX_ORIGINAL_FILENAME_LENGTH,
+
+  MALWARE_SCAN_VERDICT,
+  MALWARE_SCAN_MAX_ATTEMPTS,
+  MALWARE_SCAN_TIMEOUT_MS,
+  MALWARE_SCAN_RETRY_BACKOFF_MS,
+  COMPLIANCE_FILE_SIGNATURES,
+  COMPLIANCE_SCANNER_CONTRACT_VERSION,
+
+  COMPLIANCE_RECONCILIATION_LEASE_DURATION_MS,
+  COMPLIANCE_RECONCILIATION_MAX_ATTEMPTS,
+  COMPLIANCE_RECONCILIATION_PAGE_SIZE,
+  COMPLIANCE_UPLOADED_STALE_MS,
+  COMPLIANCE_VALIDATING_STALE_MS,
+  COMPLIANCE_SCAN_PENDING_STALE_MS,
+  COMPLIANCE_PROMOTION_PENDING_STALE_MS,
+  COMPLIANCE_CLEANUP_PAGE_SIZE,
+
+  COMPLIANCE_MAX_ACTIVE_UPLOAD_SESSIONS_PER_SCOPE,
+  COMPLIANCE_MAX_UPLOAD_SESSIONS_PER_SCOPE_PER_UTC_DAY,
+  COMPLIANCE_MAX_UPLOAD_BYTES_PER_SCOPE_PER_UTC_DAY,
+  COMPLIANCE_UPLOAD_QUOTA_SCOPE_COLLECTION,
+  COMPLIANCE_UPLOAD_QUOTA_DAILY_COLLECTION,
+  COMPLIANCE_UPLOAD_QUOTA_SCOPE_ALLOWED_FIELDS,
+  COMPLIANCE_UPLOAD_QUOTA_DAILY_ALLOWED_FIELDS,
+  COMPLIANCE_DOCS_METADATA_KEYS,
+
+  COMPLIANCE_QUARANTINE_PATH_PREFIX,
+  COMPLIANCE_DOCS_PATH_PREFIX,
 
   COMPLIANCE_DOCUMENT_TYPE,
   SELLER_RELATIONSHIP,

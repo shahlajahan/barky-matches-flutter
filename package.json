@@ -18,7 +18,12 @@
     "test:p1a-compliance-constants": "node --test functions/test/complianceConstants.test.js",
     "test:p1a-compliance-firestore-rules": "firebase emulators:exec --only firestore --project p1a-compliance-rules-ci \"node --test functions/test/complianceFoundationRules.test.js\"",
     "test:p1a-compliance-storage-rules": "firebase emulators:exec --only firestore,storage --project p1a-compliance-storage-ci \"node --test functions/test/complianceStorageFoundation.test.js\"",
-    "test:p1a-slice1": "npm run test:p1a-compliance-constants && npm run test:p1a-compliance-firestore-rules && npm run test:p1a-compliance-storage-rules"
+    "test:p1a-slice1": "npm run test:p1a-compliance-constants && npm run test:p1a-compliance-firestore-rules && npm run test:p1a-compliance-storage-rules",
+    "test:p1a-slice2-unit": "node --test functions/test/complianceUploadUnit.test.js",
+    "test:p1a-slice2-session-creation": "firebase emulators:exec --only firestore --project p1a-session-creation-ci \"node --test functions/test/complianceUploadSessionCreation.test.js\"",
+    "test:p1a-slice2-storage-rules": "firebase emulators:exec --only firestore,storage --project p1a-quarantine-rules-ci \"node --test functions/test/complianceUploadStorageRules.test.js\"",
+    "test:p1a-slice2-pipeline": "firebase emulators:exec --only firestore,storage --project demo-petsupo \"node --test functions/test/complianceUploadPipeline.test.js\"",
+    "test:p1a-slice2": "npm run test:p1a-slice2-unit && npm run test:p1a-slice2-session-creation && npm run test:p1a-slice2-storage-rules && npm run test:p1a-slice2-pipeline"
   },
   "keywords": [],
   "author": "",
