@@ -102,6 +102,19 @@ const GOOGLE_MAPS_SERVER_KEY = defineSecret("GOOGLE_MAPS_SERVER_KEY");
 const CLAMAV_CLOUD_RUN_URL = defineString("CLAMAV_CLOUD_RUN_URL", { default: "" });
 const CLAMAV_CLOUD_RUN_AUDIENCE = defineString("CLAMAV_CLOUD_RUN_AUDIENCE", { default: "" });
 
+// Slice 2.1 correction (part G) — server-side canary allowlist for
+// createComplianceUploadSession. Default "" parses to zero allowed
+// businesses (see isComplianceUploadCanaryEnabledForBusiness), so
+// production stays fully disabled by default even once this Function is
+// deployed — enabling a specific internal test business later is a
+// config-only change (setting this value at deploy time to a comma-
+// separated businessId list), never a code change, and never a public
+// product-publication-state change for that business.
+const COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS = defineString(
+  "COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS",
+  { default: "" }
+);
+
 const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
   default: "iyzico",
 });
@@ -19802,6 +19815,7 @@ exports.createComplianceUploadSession = onCall(
       db: admin.firestore(),
       auth: request.auth,
       data: request.data,
+      canaryAllowlist: COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS.value(),
     });
   }
 );
@@ -19811,20 +19825,78 @@ exports.processComplianceQuarantineUpload = onObjectFinalized(
     region: "europe-west3",
     bucket: COMPLIANCE_STORAGE_BUCKET_NAME,
     memory: "512MiB",
+    // timeoutSeconds: 120 — re-verified with an itemized, non-optimistic
+    // worst-case budget (Slice 2.1 correction pass, part E; event-
+    // triggered Gen2 functions cap at 540s, confirmed via
+    // firebase.google.com/docs/functions/quotas, so 120s has room to
+    // raise if ever needed, but the itemized total below does not
+    // require it):
+    //   claim transaction                        ~0.5s
+    //   validate: UPLOADED->VALIDATING transaction ~0.5s
+    //   validate: GCS download (up to 15MB)        ~3s   (same-region,
+    //                                                      not assumed
+    //                                                      best-case)
+    //   SHA-256 + magic-byte check                 ~0.3s
+    //   VALIDATING->SCAN_PENDING transaction        ~0.3s
+    //   pre-scan live-generation getMetadata()      ~0.3s
+    //   ONE scanner HTTP attempt (worst case, the    60s  (the dominant
+    //     full client timeout is spent — see           term by a wide
+    //     MALWARE_SCAN_TIMEOUT_MS)                      margin)
+    //   persistCleanScanResult transaction          ~0.5s
+    //   performPromotion: exists()+getMetadata()    ~0.6s
+    //   performPromotion: download+save (~15MB x2)  ~5s
+    //   performPromotion: finalize transaction      ~0.5s
+    //   performPromotion: quarantine delete         ~0.5s
+    //   connection-establishment/jitter buffer      ~2s
+    //   ----------------------------------------------
+    //   itemized worst-case total                  ~74s, against a
+    //                                                120s budget (~46s /
+    //                                                ~38% margin).
+    // Function cold start is NOT counted against timeoutSeconds — that
+    // clock starts once the handler begins executing, not from
+    // container start — so it is deliberately excluded from this sum,
+    // not overlooked.
+    //
+    // The critical property this budget was recalculated specifically
+    // to verify: if the scanner call itself consumes its full 60s worst
+    // case (whether it succeeds slowly or ultimately times out), the
+    // function still has ~55s of budget remaining at that point (120s -
+    // ~4.6s pre-scan overhead - 60s) to persist scanAttempts and, if the
+    // attempt budget is exhausted, the scan_failed transition — nowhere
+    // close to running out before a recoverable/terminal state is
+    // durably written. See complianceUploadPipeline.test.js's "state is
+    // correctly persisted as recoverable even when the scanner call
+    // itself takes real time before erroring" test for a deterministic
+    // (non-Docker) proof of this sequencing.
     timeoutSeconds: 120,
-    // Slice 2 correction (adversarial review 2026-08-21, finding F):
+    // Slice 2 correction (adversarial review 2026-08-21, finding F),
+    // precision-corrected in the Slice 2.1 correction pass (part D):
     // previously unset (defaults to no retry for Eventarc/Storage
     // triggers in Firebase Functions v2 — confirmed via the installed
     // firebase-functions package: onObjectFinalized's event trigger
     // option is `retry` (boolean), NOT `retryCount` (that option belongs
     // to onSchedule's retryConfig only, per node_modules/firebase-
-    // functions/lib/v2/providers/{storage,scheduler}.js). A crash mid-
-    // pipeline is now retried by the platform. This is a second line of
-    // defense, not the primary one — the reconciler
-    // (complianceUploadReconciliation.js, wired below) is the
-    // authoritative recovery mechanism regardless of whether a retry
-    // actually happens, since Eventarc redelivery is not guaranteed and
-    // is not itself bounded/observable by this system.
+    // functions/lib/v2/providers/{storage,scheduler}.js).
+    //
+    // Its role is narrower than "a general retry mechanism for this
+    // pipeline" — do not read it that way. claimUploadedObject's own
+    // transaction (upload_authorized -> uploaded) is consumed exactly
+    // once; a genuine Eventarc redelivery of the SAME finalize event
+    // after that transaction has already committed is correctly rejected
+    // by that same gate (session_not_upload_authorized) and never
+    // re-enters validation or scanning. `retry: true` is useful for
+    // exactly one narrower window: a crash/infrastructure failure
+    // (container OOM, cold-start failure, uncaught exception) occurring
+    // BEFORE the claim transaction commits — in that window no session
+    // state has changed yet, so a redelivered event can still claim
+    // normally, recovering in seconds rather than waiting out the
+    // session's full upload_authorized expiry window before the cleanup
+    // sweep would otherwise reclaim it. It is retained for exactly that
+    // reason. For every state AFTER a successful claim (uploaded,
+    // validating, scan_pending, promotion_pending), the scheduled
+    // reconciler (complianceUploadReconciliation.js, wired below) is the
+    // SOLE authoritative recovery mechanism — not "primary among
+    // several", the only one that can actually reach those states again.
     retry: true,
   },
   async (event) => {

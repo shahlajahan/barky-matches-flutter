@@ -30,9 +30,28 @@ function nextBusinessId() {
   return `compliance-session-test-biz-${seq}`;
 }
 
+// Slice 2.1 correction (part G): createComplianceUploadSession now has a
+// server-side, default-deny canary gate (COMPLIANCE_UPLOAD_CANARY_
+// BUSINESS_IDS). Every OTHER test in this file exercises unrelated
+// mechanics (auth, ownership, idempotency, quota) that must keep passing
+// regardless of the canary boundary's own existence — so every business
+// this helper seeds is automatically appended to the process-wide
+// allowlist env var, keeping this file's existing tests focused on what
+// they actually test. The canary gate's own deny/allow behavior is
+// tested explicitly and in isolation further below, saving/restoring
+// this env var around those specific tests so they never leak into
+// (or depend on) this blanket allow-listing.
+function addToCanaryAllowlist(businessId) {
+  const existing = process.env.COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS || "";
+  const entries = existing.split(",").map((e) => e.trim()).filter(Boolean);
+  entries.push(businessId);
+  process.env.COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS = entries.join(",");
+}
+
 async function seedBusiness(ownerUid) {
   const businessId = nextBusinessId();
   await db.collection("businesses").doc(businessId).set({ ownerUid });
+  addToCanaryAllowlist(businessId);
   return businessId;
 }
 
@@ -480,4 +499,145 @@ itest("expiring a session releases its active quota slot exactly once", async ()
 
   scope = await readQuotaScope(businessId, "seller-1");
   assert.equal(scope.activeSessionCount, 0, "quota must be released exactly once, never double-released");
+});
+
+// ---------------------------------------------------------------------
+// Slice 2.1 correction (part G) — canary allowlist gate. Each test here
+// explicitly controls COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS and restores
+// it afterward, so these tests never depend on (or interfere with) the
+// blanket allow-listing addToCanaryAllowlist() gives every other test in
+// this file.
+// ---------------------------------------------------------------------
+
+async function withCanaryAllowlist(value, fn) {
+  const previous = process.env.COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS;
+  process.env.COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS = value;
+  try {
+    await fn();
+  } finally {
+    process.env.COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS = previous;
+  }
+}
+
+// Seeds a business WITHOUT the blanket allow-listing seedBusiness() does.
+async function seedBusinessWithoutCanary(ownerUid) {
+  const businessId = nextBusinessId();
+  await db.collection("businesses").doc(businessId).set({ ownerUid });
+  return businessId;
+}
+
+itest("default deny: an unset canary allowlist rejects every business, including a real, valid, owned one", async () => {
+  await withCanaryAllowlist(undefined, async () => {
+    const businessId = await seedBusinessWithoutCanary("seller-1");
+    await assert.rejects(
+      functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-1" },
+        data: validRequest(businessId),
+      }),
+      (error) => {
+        assert.equal(error.code, "failed-precondition");
+        return true;
+      }
+    );
+  });
+});
+
+itest("default deny: an empty-string canary allowlist rejects every business", async () => {
+  await withCanaryAllowlist("", async () => {
+    const businessId = await seedBusinessWithoutCanary("seller-1");
+    await assert.rejects(
+      functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-1" },
+        data: validRequest(businessId),
+      }),
+      (error) => {
+        assert.equal(error.code, "failed-precondition");
+        return true;
+      }
+    );
+  });
+});
+
+itest("default deny: a malformed allowlist value (whitespace/commas only) rejects every business", async () => {
+  await withCanaryAllowlist(" , , ,,", async () => {
+    const businessId = await seedBusinessWithoutCanary("seller-1");
+    await assert.rejects(
+      functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-1" },
+        data: validRequest(businessId),
+      })
+    );
+  });
+});
+
+itest("default deny: a business present in the allowlist for a DIFFERENT businessId is still rejected", async () => {
+  const businessId = await seedBusinessWithoutCanary("seller-1");
+  await withCanaryAllowlist("some-other-business-entirely", async () => {
+    await assert.rejects(
+      functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-1" },
+        data: validRequest(businessId),
+      })
+    );
+  });
+});
+
+itest("explicit synthetic allowlist: a business explicitly listed is permitted to create a session", async () => {
+  const businessId = await seedBusinessWithoutCanary("seller-1");
+  await withCanaryAllowlist(businessId, async () => {
+    const result = await functions.createComplianceUploadSession.run({
+      auth: { uid: "seller-1" },
+      data: validRequest(businessId),
+    });
+    assert.equal(result.status, "upload_authorized");
+  });
+});
+
+itest("explicit synthetic allowlist: comma-separated entries with surrounding whitespace are trimmed correctly", async () => {
+  const businessId = await seedBusinessWithoutCanary("seller-1");
+  await withCanaryAllowlist(`  some-unrelated-id ,  ${businessId}  , another-unrelated-id`, async () => {
+    const result = await functions.createComplianceUploadSession.run({
+      auth: { uid: "seller-1" },
+      data: validRequest(businessId),
+    });
+    assert.equal(result.status, "upload_authorized");
+  });
+});
+
+itest("the canary gate is checked after ownership — a non-owner still gets a permission-denied, not a canary-specific error", async () => {
+  const businessId = await seedBusinessWithoutCanary("seller-1");
+  await withCanaryAllowlist(businessId, async () => {
+    await assert.rejects(
+      functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-2" }, // not the owner
+        data: validRequest(businessId),
+      }),
+      (error) => {
+        assert.equal(error.code, "permission-denied");
+        return true;
+      }
+    );
+  });
+});
+
+itest("the canary gate does not bypass quota — an allow-listed business still hits its active-session cap", async () => {
+  const businessId = await seedBusinessWithoutCanary("seller-1");
+  await withCanaryAllowlist(businessId, async () => {
+    for (let i = 0; i < COMPLIANCE_MAX_ACTIVE_UPLOAD_SESSIONS_PER_SCOPE; i += 1) {
+      await functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-1" },
+        data: { ...validRequest(businessId), clientIdempotencyKey: `canary-quota-${i}` },
+      });
+    }
+    await assert.rejects(
+      functions.createComplianceUploadSession.run({
+        auth: { uid: "seller-1" },
+        data: { ...validRequest(businessId), clientIdempotencyKey: "canary-quota-overflow" },
+      }),
+      (error) => {
+        assert.equal(error.code, "resource-exhausted");
+        return true;
+      }
+    );
+  });
 });

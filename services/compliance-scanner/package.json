@@ -1,0 +1,17 @@
+{
+  "name": "compliance-scanner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Petsupo Marketplace P1-A compliance foundation — private ClamAV scanning service for seller compliance documents. Not published, deployed only as a container to Cloud Run.",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.19.0"
+  }
+}

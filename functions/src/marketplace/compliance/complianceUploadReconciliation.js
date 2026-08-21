@@ -5,15 +5,22 @@
 // adversarial review 2026-08-21, finding F/B: "critical, no crash
 // recovery for uploaded/validating/scan_pending/promotion_pending").
 //
-// A Storage-triggered pipeline invocation that crashes mid-flight (or is
-// never retried — see the explicit `retry: true` config this correction
-// also adds to processComplianceQuarantineUpload in functions/index.js)
-// can leave a session parked at one of four intermediate states. This
-// module is the authoritative, idempotent recovery mechanism for all
-// four — Eventarc/Storage redelivery alone is not relied upon (event
-// redelivery is not guaranteed, is not itself bounded/retried by this
-// system's own policy beyond the platform default, and cannot resume a
-// session whose triggering event was never redelivered at all).
+// A Storage-triggered pipeline invocation that crashes mid-flight can
+// leave a session parked at one of four intermediate states. This
+// module is the SOLE authoritative, idempotent recovery mechanism for
+// all four — not one of several, and not merely "the preferred one".
+// Precision correction (Slice 2.1 correction pass, part D): Eventarc/
+// Storage event redelivery of the ORIGINAL finalize event cannot resume
+// any of these four states once claimUploadedObject's own transaction
+// (upload_authorized -> uploaded) has already committed — that gate is
+// consumed exactly once, and a genuine redelivery after it commits is
+// correctly rejected (session_not_upload_authorized) before reaching
+// validation or scanning again. `retry: true` on
+// processComplianceQuarantineUpload (functions/index.js) has a real but
+// much narrower role: recovering from a crash occurring BEFORE that
+// claim transaction commits, where no session state has changed yet. It
+// is not, and must not be described as, a retry mechanism for anything
+// this module itself resumes.
 //
 // Every resume path reuses the SAME functions the fast path calls
 // (validateUploadedObject/performValidation, orchestrateComplianceScan,
@@ -39,6 +46,7 @@ const {
   COMPLIANCE_RECONCILIATION_LEASE_DURATION_MS,
   COMPLIANCE_RECONCILIATION_MAX_ATTEMPTS,
   COMPLIANCE_RECONCILIATION_PAGE_SIZE,
+  COMPLIANCE_RECONCILIATION_SWEEP_DEADLINE_MS,
   COMPLIANCE_UPLOADED_STALE_MS,
   COMPLIANCE_VALIDATING_STALE_MS,
   COMPLIANCE_SCAN_PENDING_STALE_MS,
@@ -204,7 +212,7 @@ const RESUME_ACTION_BY_STATUS = Object.freeze({
 // [status ASC, updatedAt ASC] Firestore index — no new index required).
 // One item's failure (claim error, resume throw) never aborts the rest
 // of the page.
-async function reconcileStateOnce({ db, bucket, status, staleMs, workerId, now, env, logger }) {
+async function reconcileStateOnce({ db, bucket, status, staleMs, workerId, now, env, logger, deadlineAtMs }) {
   const cutoff = new Date(now.getTime() - staleMs);
   const snap = await db
     .collection("complianceUploadSessions")
@@ -217,8 +225,26 @@ async function reconcileStateOnce({ db, bucket, status, staleMs, workerId, now, 
   let resumed = 0;
   let skipped = 0;
   let failedClosed = 0;
+  let deadlineExceeded = false;
 
   for (const doc of snap.docs) {
+    // Slice 2.1 correction (deployment-readiness audit 2026-08-21, part
+    // A): a resumed scan_pending session can now legitimately cost up to
+    // MALWARE_SCAN_TIMEOUT_MS (60s) plus overhead — a full page
+    // (COMPLIANCE_RECONCILIATION_PAGE_SIZE, 50) of those processed
+    // serially could exceed this Function's own timeoutSeconds budget.
+    // `deadlineAtMs` is a SINGLE budget shared across the entire sweep
+    // run (all four states plus the quarantine-duplicate cleanup sub-
+    // sweep — see reconcileStaleComplianceUploadSessions), not reset per
+    // state, so four states each independently taking up to the full
+    // per-state allowance could never compound past the actual Function
+    // timeout. Stopping here is always safe — nothing about not
+    // claiming a candidate changes its state — and the next scheduled
+    // run picks up exactly where this one left off.
+    if (Date.now() >= deadlineAtMs) {
+      deadlineExceeded = true;
+      break;
+    }
     const sessionRef = doc.ref;
     let claim;
     try {
@@ -278,7 +304,7 @@ async function reconcileStateOnce({ db, bucket, status, staleMs, workerId, now, 
     }
   }
 
-  return { status, candidateCount: snap.docs.length, resumed, skipped, failedClosed };
+  return { status, candidateCount: snap.docs.length, resumed, skipped, failedClosed, deadlineExceeded };
 }
 
 // "consumed with quarantine duplicate: delete exact obsolete quarantine
@@ -328,9 +354,18 @@ async function reconcileStaleComplianceUploadSessions({
 }) {
   const nowDate = now instanceof Date ? now : new Date(now || Date.now());
   const effectiveWorkerId = workerId || crypto.randomUUID();
+  // One shared wall-clock budget for the ENTIRE run (all four states
+  // plus the cleanup sub-sweep below) — see reconcileStateOnce's doc
+  // comment. Comfortably below the Function's own timeoutSeconds (300s)
+  // to leave room for function/platform overhead either side of it.
+  const deadlineAtMs = Date.now() + COMPLIANCE_RECONCILIATION_SWEEP_DEADLINE_MS;
 
   const results = [];
   for (const status of Object.keys(STALE_MS_BY_STATUS)) {
+    if (Date.now() >= deadlineAtMs) {
+      results.push({ status, skippedEntirely: true, reason: "sweep_deadline_already_exceeded" });
+      continue;
+    }
     const result = await reconcileStateOnce({
       db,
       bucket,
@@ -340,6 +375,7 @@ async function reconcileStaleComplianceUploadSessions({
       now: nowDate,
       env,
       logger,
+      deadlineAtMs,
     }).catch((err) => {
       logger.error("compliance_reconciliation_state_sweep_failed", { status, message: err && err.message });
       return { status, error: true };
@@ -347,15 +383,18 @@ async function reconcileStaleComplianceUploadSessions({
     results.push(result);
   }
 
-  const quarantineCleanup = await cleanupConsumedQuarantineDuplicates({
-    db,
-    bucket,
-    now: nowDate,
-    logger,
-  }).catch((err) => {
-    logger.error("compliance_reconciliation_quarantine_cleanup_failed", { message: err && err.message });
-    return { error: true };
-  });
+  const quarantineCleanup =
+    Date.now() >= deadlineAtMs
+      ? { skippedEntirely: true, reason: "sweep_deadline_already_exceeded" }
+      : await cleanupConsumedQuarantineDuplicates({
+          db,
+          bucket,
+          now: nowDate,
+          logger,
+        }).catch((err) => {
+          logger.error("compliance_reconciliation_quarantine_cleanup_failed", { message: err && err.message });
+          return { error: true };
+        });
 
   logger.info("compliance_reconciliation_run", { workerId: effectiveWorkerId, results, quarantineCleanup });
   return { workerId: effectiveWorkerId, results, quarantineCleanup };

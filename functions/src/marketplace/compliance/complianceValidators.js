@@ -180,6 +180,31 @@ function buildComplianceUploadObjectId(randomToken, mimeType) {
   return `${randomToken}.${extension}`;
 }
 
+// Slice 2.1 correction (part G) — server-side canary allowlist for
+// compliance upload session creation. `rawAllowlist` is the exact
+// deploy-time string configured via defineString(
+// "COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS") — the same repository
+// convention already used for CLAMAV_CLOUD_RUN_URL/_AUDIENCE (a plain
+// Functions params value, never a Firestore document a client could
+// read or write, never a request field a caller supplies or influences
+// in any way). A comma-separated list of exact businessId values;
+// absence, an empty string, or a value that parses to zero entries all
+// mean "allow nobody" — deny-by-default is the only possible outcome of
+// a missing/malformed/unset config, never an accidental allow-all.
+function parseComplianceUploadCanaryAllowlist(rawAllowlist) {
+  if (typeof rawAllowlist !== "string") return [];
+  return rawAllowlist
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function isComplianceUploadCanaryEnabledForBusiness(businessId, rawAllowlist) {
+  if (typeof businessId !== "string" || businessId.length === 0) return false;
+  const allowlist = parseComplianceUploadCanaryAllowlist(rawAllowlist);
+  return allowlist.includes(businessId);
+}
+
 // Immutable request fields an idempotent retry must match exactly against
 // the originally-stored session (Slice 2 correction, finding C/D). Deliberately
 // excludes issuedBy/businessId here — those are checked separately by the
@@ -393,6 +418,8 @@ module.exports = {
   buildComplianceQuarantineObjectPath,
   buildComplianceDocsObjectPath,
   buildComplianceUploadObjectId,
+  parseComplianceUploadCanaryAllowlist,
+  isComplianceUploadCanaryEnabledForBusiness,
   doesRequestMatchStoredSession,
   getUtcDateKey,
   buildComplianceUploadQuotaScopeId,

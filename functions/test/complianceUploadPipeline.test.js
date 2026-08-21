@@ -345,6 +345,57 @@ itest("duplicate Storage event delivery for the same object is idempotent (item 
   assert.equal(snap.data().status, "scan_pending", "the second delivery must not have altered state");
 });
 
+// Slice 2.1 correction (part D) — explicit, end-to-end proof that a
+// duplicate Storage event redelivered AFTER a successful claim can
+// never reach the scanner a second time, mirroring the exact
+// finalize-then-conditionally-scan wiring functions/index.js actually
+// uses (gated on finalizeResult.claimed).
+itest("a duplicate Storage event redelivered after a successful claim never causes a second scanner invocation", async () => {
+  const { session, sessionRef, objectPath } = await seedSession();
+  const object = await uploadAndBuildEvent({ objectPath, bytes: validPdfBytes, contentType: "application/pdf" });
+
+  let scanCallCount = 0;
+  const countingCleanScanner = {
+    async scan() {
+      scanCallCount += 1;
+      return { verdict: "clean", engineVersion: "test-engine", signatureVersion: "test-sig" };
+    },
+  };
+
+  async function deliverEventLikeIndexJs() {
+    const finalizeResult = await processComplianceQuarantineUpload({
+      db,
+      bucket,
+      object,
+      expectedBucket: BUCKET_NAME,
+      logger: quietLogger,
+    });
+    // Mirrors functions/index.js's exact gate: orchestrateComplianceScan
+    // is only ever called when this delivery itself won the claim.
+    if (!finalizeResult.claimed || finalizeResult.status !== "scan_pending") {
+      return finalizeResult;
+    }
+    const sessionSnap = await sessionRef.get();
+    return orchestrateComplianceScan({
+      db,
+      bucket,
+      session: { ...sessionSnap.data(), sessionId: session.sessionId },
+      object,
+      scanner: countingCleanScanner,
+      logger: quietLogger,
+    });
+  }
+
+  const first = await deliverEventLikeIndexJs();
+  assert.equal(first.outcome, "consumed");
+  assert.equal(scanCallCount, 1);
+
+  // Redeliver the exact same event — Storage triggers are at-least-once.
+  const second = await deliverEventLikeIndexJs();
+  assert.equal(second.claimed, false, "the redelivered event must be rejected at the claim gate, not reach orchestration");
+  assert.equal(scanCallCount, 1, "the scanner must never be invoked a second time for a redelivered event");
+});
+
 // ---------------------------------------------------------------------
 // Scan orchestration
 // ---------------------------------------------------------------------
@@ -466,24 +517,117 @@ itest("an infected verdict deletes the object and blocks all later use", async (
 });
 
 // 33/34/35/38. missing config / timeout / unknown verdict never produce
-// clean; retry policy bounded and idempotent
-itest("a persistently unconfigured/erroring scanner exhausts the bounded retry policy and never produces clean (items 33-35, 38)", async () => {
-  const { session, sessionRef, object } = await advanceToScanPending();
+// clean; attempt budget bounded and idempotent. Slice 2.1 correction
+// (part A): orchestrateComplianceScan now performs exactly ONE scanner
+// attempt per invocation — reaching the exhausted/scan_failed state
+// requires MALWARE_SCAN_MAX_ATTEMPTS SEPARATE invocations (simulating
+// Slice 2.1 correction (part E) — deterministic timeout simulation:
+// proves that even when the scanner call itself takes real, measurable
+// time before ultimately erroring (simulating MALWARE_SCAN_TIMEOUT_MS's
+// real 60s client timeout without a test actually waiting 60 real
+// seconds), the session still ends up in a recoverable state
+// (scan_pending, scanAttempts incremented) — the state write only ever
+// happens AFTER the scan call fully settles, so a slow call delays but
+// never corrupts or skips persisting the recoverable state.
+itest("state is correctly persisted as recoverable even when the scanner call itself takes real time before erroring (part E)", async () => {
+  const { session, sessionRef } = await advanceToScanPending();
+  const slowTimeoutLikeScanner = {
+    async scan() {
+      await new Promise((resolve) => setTimeout(resolve, 200)); // stands in for a real, slow-but-bounded call
+      return { verdict: "error", reason: "timeout" };
+    },
+  };
+
+  const startedAt = Date.now();
+  const result = await orchestrateComplianceScan({
+    db,
+    bucket,
+    session,
+    object: null,
+    scanner: slowTimeoutLikeScanner,
+    logger: quietLogger,
+  });
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.equal(elapsedMs >= 200, true, "the scan call must have genuinely taken time, not been short-circuited");
+  assert.equal(result.outcome, "retry_later");
+  const sessionSnap = await sessionRef.get();
+  assert.equal(sessionSnap.data().status, "scan_pending", "recoverable state must be persisted after the slow call settles");
+  assert.equal(sessionSnap.data().scanAttempts, 1, "the attempt must be counted even though the call was slow");
+});
+
+// Eventarc redelivery / reconciliation resumes), never one call
+// internally retrying three times.
+itest("a single orchestration call with budget remaining leaves the session at scan_pending for later retry, never scan_failed early (part A)", async () => {
+  const { session, sessionRef } = await advanceToScanPending();
 
   const result = await orchestrateComplianceScan({
     db,
     bucket,
     session,
-    object,
+    object: null,
     scanner: createFakeErrorScanner({ reason: "not_configured" }),
     logger: quietLogger,
   });
 
+  assert.equal(result.outcome, "retry_later");
+  assert.notEqual(result.outcome, "scan_failed");
+  const sessionSnap = await sessionRef.get();
+  assert.equal(sessionSnap.data().status, "scan_pending", "budget remains — session must not have moved to a terminal state");
+  assert.equal(sessionSnap.data().scanAttempts, 1);
+});
+
+// Slice 2.1 correction (part D, items 2+3) — a transient scanner failure
+// is recovered by the scheduled reconciler ALONE: this test never
+// redelivers any Storage event, proving Eventarc redelivery is not
+// required (and, per the corrected documentation above, could not help
+// here even if it occurred, since the claim gate was already consumed).
+itest("a transient scanner failure is retried and resolved by reconciliation alone, with no Storage event ever redelivered", async () => {
+  const { session, sessionRef, object } = await advanceToScanPending();
+
+  // Simulate one transient failure via the exact same entry point the
+  // Storage-trigger handler itself calls — never a second finalize
+  // delivery.
+  const transientResult = await orchestrateComplianceScan({
+    db,
+    bucket,
+    session,
+    object,
+    scanner: createFakeErrorScanner({ reason: "transient_network_blip" }),
+    logger: quietLogger,
+  });
+  assert.equal(transientResult.outcome, "retry_later");
+  let sessionSnap = await sessionRef.get();
+  assert.equal(sessionSnap.data().status, "scan_pending");
+  assert.equal(sessionSnap.data().scanAttempts, 1);
+
+  // Now let the scheduled reconciler alone pick it up — no Storage event
+  // of any kind is delivered from this point on.
+  await sessionRef.update({ updatedAt: new Date(Date.now() - 60 * 60 * 1000) });
+  const reconciliation = await reconcileStaleComplianceUploadSessions({ db, bucket, now: new Date(), logger: quietLogger, env: {} });
+  const scanPendingResult = reconciliation.results.find((r) => r.status === "scan_pending");
+  assert.equal(scanPendingResult.resumed, 1);
+
+  sessionSnap = await sessionRef.get();
+  assert.equal(sessionSnap.data().scanAttempts, 2, "reconciliation's resume must count as exactly one more real scanner call, not zero and not more than one");
+});
+
+itest("a persistently erroring scanner exhausts the bounded attempt budget across separate invocations and never produces clean (items 33-35, 38)", async () => {
+  const { session, sessionRef } = await advanceToScanPending();
+  const scanner = createFakeErrorScanner({ reason: "not_configured" });
+
+  let result;
+  let sessionSnap = await sessionRef.get();
+  for (let i = 0; i < 3; i += 1) {
+    const current = { ...sessionSnap.data(), sessionId: session.sessionId };
+    result = await orchestrateComplianceScan({ db, bucket, session: current, object: null, scanner, logger: quietLogger });
+    sessionSnap = await sessionRef.get();
+  }
+
   assert.equal(result.outcome, "scan_failed");
   assert.notEqual(result.outcome, "consumed");
-  const sessionSnap = await sessionRef.get();
   assert.equal(sessionSnap.data().status, "scan_failed");
-  assert.equal(sessionSnap.data().scanAttempts >= 1, true);
+  assert.equal(sessionSnap.data().scanAttempts, 3);
   const docSnap = await db.collection("complianceDocuments").doc(session.documentId).get();
   assert.equal(docSnap.exists, false, "scan_failed must never create a complianceDocuments record");
 });
@@ -809,25 +953,42 @@ itest("a live (unexpired) lease is not reclaimed by a concurrent reconciler pass
   assert.equal(snap.data().leaseOwner, "still-alive-worker");
 });
 
-// 21. stale scan_pending resumes with bounded attempts
-itest("a session stuck at scan_pending is resumed by the reconciler with a fake scanner", async () => {
+// 21. stale scan_pending resumes with bounded attempts. Slice 2.1
+// correction (part A): each reconciliation resume performs exactly ONE
+// scanner attempt (matching orchestrateComplianceScan's new single-
+// attempt contract) — reaching scan_failed requires
+// MALWARE_SCAN_MAX_ATTEMPTS separate resumes, not one.
+itest("each reconciliation resume of a stale scan_pending session performs exactly one scanner attempt", async () => {
   const { session, sessionRef } = await advanceToScanPending();
   await sessionRef.update({ updatedAt: new Date(Date.now() - 60 * 60 * 1000) });
 
-  // The reconciler resolves the REAL (unconfigured, fail-closed)
-  // scanner from env by default; exhausting real attempts would still
-  // never produce clean, but to prove genuine resumption (not just
-  // fail-closed exhaustion) this test only asserts the bounded attempt
-  // count advances and the session leaves scan_pending — it does not
-  // inject a fake scanner (resumeScanPending always resolves the
-  // production scanner), matching production wiring exactly.
+  // The reconciler resolves the REAL (unconfigured, fail-closed) scanner
+  // from env by default — it does not inject a fake scanner
+  // (resumeScanPending always resolves the production scanner), matching
+  // production wiring exactly.
   const result = await reconcileStaleComplianceUploadSessions({ db, bucket, now: new Date(), logger: quietLogger, env: {} });
   const scanPendingResult = result.results.find((r) => r.status === "scan_pending");
   assert.equal(scanPendingResult.resumed, 1);
 
   const snap = await sessionRef.get();
-  assert.equal(snap.data().status, "scan_failed", "an unconfigured scanner must still fail closed, never silently clean, even via reconciliation");
-  assert.equal(snap.data().scanAttempts >= 1, true);
+  assert.equal(snap.data().status, "scan_pending", "budget remains after one resume — must not jump to a terminal state early");
+  assert.equal(snap.data().scanAttempts, 1);
+});
+
+itest("repeated reconciliation resumes of scan_pending exhaust the attempt budget and fail closed, never clean", async () => {
+  const { session, sessionRef } = await advanceToScanPending();
+
+  for (let i = 0; i < 3; i += 1) {
+    await sessionRef.update({ updatedAt: new Date(Date.now() - 60 * 60 * 1000) });
+    // eslint-disable-next-line no-await-in-loop
+    await reconcileStaleComplianceUploadSessions({ db, bucket, now: new Date(), logger: quietLogger, env: {} });
+  }
+
+  const snap = await sessionRef.get();
+  assert.equal(snap.data().status, "scan_failed", "an unconfigured scanner must still fail closed after the full budget, never silently clean");
+  assert.equal(snap.data().scanAttempts, 3);
+  const docSnap = await db.collection("complianceDocuments").doc(session.documentId).get();
+  assert.equal(docSnap.exists, false);
 });
 
 // 22. stale promotion_pending resumes — already proven by item 16's test

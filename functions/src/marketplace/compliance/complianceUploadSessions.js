@@ -28,6 +28,7 @@ const {
   buildComplianceDocsObjectPath,
   buildComplianceUploadObjectId,
   doesRequestMatchStoredSession,
+  isComplianceUploadCanaryEnabledForBusiness,
 } = require("./complianceValidators");
 const { checkAndReserveUploadQuota } = require("./complianceUploadQuota");
 
@@ -133,13 +134,29 @@ function deriveSessionId({ businessId, uid, clientIdempotencyKey }) {
     .digest("hex");
 }
 
-async function createComplianceUploadSession({ db, auth, data, now }) {
+async function createComplianceUploadSession({ db, auth, data, now, canaryAllowlist }) {
   if (!auth || !auth.uid) {
     throw new HttpsError("unauthenticated", "Login required");
   }
 
   const request = assertValidRequestShape(data);
   await assertCallerOwnsBusiness({ db, businessId: request.businessId, uid: auth.uid });
+
+  // Slice 2.1 correction (part G) — server-side, default-deny canary
+  // boundary. Checked AFTER auth/ownership (so a stranger still gets
+  // "not the owner", not a canary-specific error that would leak
+  // whether a given businessId exists as a distinct signal) and BEFORE
+  // any quota/session-creation work — canary eligibility is an
+  // additional gate, never a bypass of anything below it. `canaryAllowlist`
+  // is the raw deploy-time config string; a missing/empty/malformed
+  // value denies every business, including this one, by construction of
+  // isComplianceUploadCanaryEnabledForBusiness itself.
+  if (!isComplianceUploadCanaryEnabledForBusiness(request.businessId, canaryAllowlist)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Compliance document uploads are not yet enabled for this business"
+    );
+  }
 
   const sessionId = deriveSessionId({
     businessId: request.businessId,

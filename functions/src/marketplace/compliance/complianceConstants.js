@@ -232,14 +232,29 @@ const MALWARE_SCAN_VERDICT = Object.freeze({
   ERROR: "error",
 });
 
-// Bounded retry policy — used by complianceScanOrchestration.js. A scan
-// that has not produced a CLEAN or INFECTED verdict after this many
-// total attempts transitions to scan_failed; it never falls back to
-// clean (docs/plans/... Slice 2 security decision: "fail-closed
-// ClamAV/Cloud Run integration boundary").
+// Bounded attempt policy — used by complianceScanOrchestration.js. A scan
+// that has not produced a CLEAN or INFECTED verdict after this many total
+// attempts transitions to scan_failed; it never falls back to clean
+// (docs/plans/... Slice 2 security decision: "fail-closed ClamAV/Cloud
+// Run integration boundary").
+//
+// Slice 2.1 correction (deployment-readiness audit 2026-08-21, part A):
+// the original design performed all MALWARE_SCAN_MAX_ATTEMPTS attempts,
+// with sleep-based backoff between them, INSIDE a single orchestration
+// invocation — 3 x 60s (the corrected per-attempt timeout) plus 2 x
+// backoff could exceed the Storage-trigger Function's own timeout
+// budget, which is unsafe arithmetic. orchestrateComplianceScan now
+// performs exactly ONE scanner HTTP attempt per invocation; the bounded
+// attempt budget is still enforced (via the session's own persisted
+// scanAttempts counter), but spent ACROSS separate invocations — a
+// later Eventarc redelivery or, authoritatively, the scheduled
+// reconciler's periodic resume of a stale scan_pending session — never
+// within one invocation's own sleep loop. MALWARE_SCAN_RETRY_BACKOFF_MS
+// is retired along with the in-process retry loop it existed for; the
+// natural spacing between separate invocations (the reconciler's own
+// 5-minute sweep cadence) is now what stands in its place.
 const MALWARE_SCAN_MAX_ATTEMPTS = 3;
-const MALWARE_SCAN_TIMEOUT_MS = 15000;
-const MALWARE_SCAN_RETRY_BACKOFF_MS = 2000;
+const MALWARE_SCAN_TIMEOUT_MS = 60000;
 
 // Versioned scanner request/response contract (Slice 2 correction,
 // finding H). Bumping this is a breaking change to the not-yet-built
@@ -247,6 +262,16 @@ const MALWARE_SCAN_RETRY_BACKOFF_MS = 2000;
 // and the response is rejected (fail-closed, never "clean") if the
 // service echoes back anything else or omits it.
 const COMPLIANCE_SCANNER_CONTRACT_VERSION = 1;
+
+// Slice 2.1 (scanner contract hardening, part B) — the maximum age a
+// scanner's baked-in signature set may have at decision time. A response
+// bound to signatures older than this is treated identically to a
+// malformed response: fail closed, never "clean" — this is the ONLY
+// place this number is defined; both the deployed scanner's own
+// self-check (services/compliance-scanner) and the Functions-side
+// response verification (complianceScanner.js) must independently
+// enforce it, but neither invents its own value.
+const COMPLIANCE_SIGNATURE_MAX_AGE_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 // ---------------------------------------------------------------------
 // Reconciliation / lease policy (Slice 2 correction, finding F/B) — a
@@ -260,6 +285,20 @@ const COMPLIANCE_SCANNER_CONTRACT_VERSION = 1;
 const COMPLIANCE_RECONCILIATION_LEASE_DURATION_MS = 5 * 60 * 1000; // 5 min
 const COMPLIANCE_RECONCILIATION_MAX_ATTEMPTS = 5;
 const COMPLIANCE_RECONCILIATION_PAGE_SIZE = 50;
+
+// Slice 2.1 correction (part A) — a per-sweep wall-clock budget. The
+// reconciler's onSchedule export has timeoutSeconds: 300; a single
+// scan_pending resume can now legitimately take up to
+// MALWARE_SCAN_TIMEOUT_MS (60s) plus Storage/Firestore overhead, so
+// processing a full COMPLIANCE_RECONCILIATION_PAGE_SIZE (50) worth of
+// scan_pending candidates serially could take far longer than the
+// Function's own timeout. reconcileStateOnce() checks elapsed time
+// against this budget between items and stops (leaving the remainder for
+// the next scheduled run, unclaimed and therefore safe to pick up again)
+// rather than let the Function itself time out mid-item. Set comfortably
+// below the 300s Function timeout to leave room for the final
+// quarantine-duplicate cleanup sub-sweep and function overhead.
+const COMPLIANCE_RECONCILIATION_SWEEP_DEADLINE_MS = 240 * 1000; // 240s
 
 // How long a session may sit in each intermediate state before the
 // reconciler will attempt to resume (or, past the attempt budget, fail
@@ -647,13 +686,14 @@ module.exports = {
   MALWARE_SCAN_VERDICT,
   MALWARE_SCAN_MAX_ATTEMPTS,
   MALWARE_SCAN_TIMEOUT_MS,
-  MALWARE_SCAN_RETRY_BACKOFF_MS,
   COMPLIANCE_FILE_SIGNATURES,
   COMPLIANCE_SCANNER_CONTRACT_VERSION,
+  COMPLIANCE_SIGNATURE_MAX_AGE_MS,
 
   COMPLIANCE_RECONCILIATION_LEASE_DURATION_MS,
   COMPLIANCE_RECONCILIATION_MAX_ATTEMPTS,
   COMPLIANCE_RECONCILIATION_PAGE_SIZE,
+  COMPLIANCE_RECONCILIATION_SWEEP_DEADLINE_MS,
   COMPLIANCE_UPLOADED_STALE_MS,
   COMPLIANCE_VALIDATING_STALE_MS,
   COMPLIANCE_SCAN_PENDING_STALE_MS,

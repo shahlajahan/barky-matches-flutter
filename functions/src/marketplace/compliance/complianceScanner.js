@@ -34,27 +34,127 @@
 // nothing resembling a document location or content ever appears in a
 // scanner request log on the Cloud Functions side.
 
+const crypto = require("node:crypto");
 const { GoogleAuth } = require("google-auth-library");
 const {
   MALWARE_SCAN_VERDICT,
   MALWARE_SCAN_TIMEOUT_MS,
   COMPLIANCE_SCANNER_CONTRACT_VERSION,
+  COMPLIANCE_SIGNATURE_MAX_AGE_MS,
 } = require("./complianceConstants");
 
-// Slice 2 correction (adversarial review 2026-08-21, finding H): the
-// scanner response must declare the exact contract version it was built
-// against. A missing or mismatched contractVersion is treated exactly
-// like a malformed response — fail closed, never "clean" — so a future,
-// not-yet-built Cloud Run service that speaks a different (even
-// superficially compatible-looking) response shape can never be
-// silently trusted.
-function isValidScanResponse(body) {
-  return (
-    body != null &&
-    typeof body === "object" &&
-    body.contractVersion === COMPLIANCE_SCANNER_CONTRACT_VERSION &&
-    Object.values(MALWARE_SCAN_VERDICT).includes(body.verdict)
-  );
+// Slice 2.1 correction (deployment-readiness audit 2026-08-21, part B —
+// "a clean response must be cryptographically/transport-authenticated
+// AND bound to the exact bucket, path, generation, SHA-256, and size
+// that were requested and independently scanned"). The prior contract
+// validated only contractVersion + verdict shape; transport auth (the
+// ID-token audience check) proves the RESPONSE came from the legitimate
+// service, but proves nothing about what that service actually scanned.
+// This is the fix: every response is now checked for EXACT equality,
+// field by field, against what THIS SPECIFIC request asked for — not
+// merely "well-formed", but "provably an answer to this exact question".
+//
+// Closed-schema response: any key beyond this exact set is itself a
+// rejection reason (COMPLIANCE_SCAN_RESPONSE_ALLOWED_KEYS below) — an
+// unexpected extra field is treated as untrusted, not merely ignored.
+const COMPLIANCE_SCAN_RESPONSE_ALLOWED_KEYS = new Set([
+  "contractVersion",
+  "requestId",
+  "verdict",
+  "bucket",
+  "objectPath",
+  "generation",
+  "sha256",
+  "sizeBytes",
+  "engineVersion",
+  "signatureVersion",
+  "signatureBuiltAt",
+  "scannedAt",
+  "errorCode",
+]);
+
+function isValidIsoTimestamp(value) {
+  if (typeof value !== "string" || value.length === 0) return false;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms);
+}
+
+// Verifies the response is provably bound to the exact request that was
+// sent, not merely well-formed. Returns { valid: true } or
+// { valid: false, reason } — the reason is always the same stable, safe
+// code (scanner_response_binding_mismatch) at the call site, per the
+// requirement that a mismatch never leaks which specific field differed
+// (that detail is only ever logged, never returned to the caller).
+function verifyScanResponseBinding(body, request, { now = Date.now() } = {}) {
+  if (body == null || typeof body !== "object" || Array.isArray(body)) {
+    return { valid: false, reason: "not_an_object" };
+  }
+  for (const key of Object.keys(body)) {
+    if (!COMPLIANCE_SCAN_RESPONSE_ALLOWED_KEYS.has(key)) {
+      return { valid: false, reason: "unexpected_field" };
+    }
+  }
+  if (body.contractVersion !== COMPLIANCE_SCANNER_CONTRACT_VERSION) {
+    return { valid: false, reason: "contract_version_mismatch" };
+  }
+  if (typeof body.requestId !== "string" || body.requestId !== request.requestId) {
+    return { valid: false, reason: "request_id_mismatch" };
+  }
+  if (body.bucket !== request.bucket) {
+    return { valid: false, reason: "bucket_mismatch" };
+  }
+  if (body.objectPath !== request.objectPath) {
+    return { valid: false, reason: "object_path_mismatch" };
+  }
+  if (String(body.generation) !== String(request.generation)) {
+    return { valid: false, reason: "generation_mismatch" };
+  }
+  if (body.sha256 !== request.sha256) {
+    return { valid: false, reason: "sha256_mismatch" };
+  }
+  if (Number(body.sizeBytes) !== Number(request.sizeBytes)) {
+    return { valid: false, reason: "size_mismatch" };
+  }
+  if (!Object.values(MALWARE_SCAN_VERDICT).includes(body.verdict)) {
+    return { valid: false, reason: "invalid_verdict" };
+  }
+  if (!isValidIsoTimestamp(body.scannedAt)) {
+    return { valid: false, reason: "invalid_scanned_at" };
+  }
+  const scannedAtMs = Date.parse(body.scannedAt);
+  // A small forward-clock-skew allowance (5s) — beyond that, a scannedAt
+  // "in the future" relative to when the response was received is
+  // itself a sign the response cannot be trusted at face value.
+  if (scannedAtMs > now + 5000) {
+    return { valid: false, reason: "scanned_at_in_future" };
+  }
+  if (!isValidIsoTimestamp(body.signatureBuiltAt)) {
+    return { valid: false, reason: "invalid_signature_built_at" };
+  }
+  const signatureAgeMs = now - Date.parse(body.signatureBuiltAt);
+  if (signatureAgeMs > COMPLIANCE_SIGNATURE_MAX_AGE_MS) {
+    return { valid: false, reason: "stale_signatures" };
+  }
+  if (signatureAgeMs < 0) {
+    return { valid: false, reason: "signature_built_at_in_future" };
+  }
+  if (
+    (body.verdict === MALWARE_SCAN_VERDICT.CLEAN || body.verdict === MALWARE_SCAN_VERDICT.INFECTED) &&
+    (typeof body.engineVersion !== "string" ||
+      body.engineVersion.length === 0 ||
+      typeof body.signatureVersion !== "string" ||
+      body.signatureVersion.length === 0)
+  ) {
+    return { valid: false, reason: "missing_engine_or_signature_version" };
+  }
+  if (
+    body.verdict === MALWARE_SCAN_VERDICT.ERROR &&
+    body.errorCode !== undefined &&
+    (typeof body.errorCode !== "string" || body.errorCode.length === 0)
+  ) {
+    return { valid: false, reason: "invalid_error_code" };
+  }
+  return { valid: true };
 }
 
 // ---------------------------------------------------------------------
@@ -92,9 +192,14 @@ function createClamAvCloudRunScanner({
       // No raw file contents, no document URL, no download token in this
       // request payload — only the coordinates the trusted Cloud Run
       // service needs to fetch the object itself. contractVersion pins
-      // the exact request/response schema the service must honor.
+      // the exact request/response schema the service must honor;
+      // requestId (Slice 2.1, part B) is a fresh, unpredictable
+      // correlation value this exact call expects to see echoed back —
+      // it is what makes response-binding verification meaningful rather
+      // than just checking the response "looks right".
       const requestBody = {
         contractVersion: COMPLIANCE_SCANNER_CONTRACT_VERSION,
+        requestId: crypto.randomUUID(),
         bucket,
         objectPath,
         generation,
@@ -139,14 +244,21 @@ function createClamAvCloudRunScanner({
       }
 
       const body = response && response.data;
-      if (!isValidScanResponse(body)) {
-        logger.error("compliance_scan_malformed_response", {
-          // Log only that the shape was wrong, never the raw body (which
-          // could — in a compromised/misbehaving service — echo back
-          // something derived from the file).
+      const binding = verifyScanResponseBinding(body, requestBody);
+      if (!binding.valid) {
+        // Do not trust transport authentication alone as document-result
+        // binding (Slice 2.1, part B) — this is reached even for a
+        // response that passed ID-token auth, if it isn't ALSO provably
+        // an answer to this exact request. The specific mismatched field
+        // is logged (never the raw body, which could — in a compromised
+        // or misbehaving service — echo back something derived from the
+        // file) but the returned reason is always the same stable, safe
+        // code, never leaking which check failed to the caller.
+        logger.error("compliance_scan_response_binding_mismatch", {
           hasBody: body != null,
+          bindingFailureReason: binding.reason,
         });
-        return { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "malformed_response" };
+        return { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "scanner_response_binding_mismatch" };
       }
 
       return {
@@ -228,4 +340,6 @@ module.exports = {
   createFakeInfectedScanner,
   createFakeErrorScanner,
   createFakeUnknownVerdictScanner,
+  verifyScanResponseBinding,
+  COMPLIANCE_SCAN_RESPONSE_ALLOWED_KEYS,
 };

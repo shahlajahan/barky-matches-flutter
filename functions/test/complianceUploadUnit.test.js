@@ -12,6 +12,8 @@ const {
   isTerminalComplianceUploadSessionStatus,
   buildComplianceUploadObjectId,
   hasOnlyAllowedComplianceUploadSessionRequestFields,
+  parseComplianceUploadCanaryAllowlist,
+  isComplianceUploadCanaryEnabledForBusiness,
 } = require("../src/marketplace/compliance/complianceValidators");
 const {
   COMPLIANCE_UPLOAD_SESSION_STATUS,
@@ -23,7 +25,7 @@ const {
   computeSha256,
 } = require("../src/marketplace/compliance/complianceUploadFinalization");
 const {
-  runScanWithBoundedRetries,
+  performSingleScanAttempt,
 } = require("../src/marketplace/compliance/complianceScanOrchestration");
 const {
   createFakeCleanScanner,
@@ -288,130 +290,271 @@ test("a configured scanner returning a malformed response body reports error, no
   });
   const result = await scanner.scan({ bucket: "b", objectPath: "p", generation: "1", sha256: "x", sizeBytes: 1 });
   assert.equal(result.verdict, "error");
-  assert.equal(result.reason, "malformed_response");
+  assert.equal(result.reason, "scanner_response_binding_mismatch");
 });
 
-test("a configured scanner returning a genuinely valid clean response is honored", async () => {
-  const { createClamAvCloudRunScanner } = require("../src/marketplace/compliance/complianceScanner");
-  const scanner = createClamAvCloudRunScanner({
-    serviceUrl: "https://example-clamav.invalid/scan",
-    logger: { error() {}, warn() {} },
-    authClientFactory: async () => ({
-      async request() {
-        return {
-          data: {
-            contractVersion: 1,
-            verdict: "clean",
-            engineVersion: "clamav-1.2.3",
-            signatureVersion: "sig-9",
-          },
-        };
-      },
-    }),
-  });
-  const result = await scanner.scan({ bucket: "b", objectPath: "p", generation: "1", sha256: "x", sizeBytes: 1 });
-  assert.equal(result.verdict, "clean");
-  assert.equal(result.engineVersion, "clamav-1.2.3");
-});
+// ---------------------------------------------------------------------
+// Response-binding verification (Slice 2.1 correction, part B) — a
+// clean/infected verdict must be provably bound to the exact request
+// that produced it, not merely well-formed. echoValidResponse() builds a
+// fully-correct response for whatever request body the fake transport
+// actually received, so every mutate-one-field test below starts from a
+// genuinely valid baseline and breaks exactly one binding at a time.
+// ---------------------------------------------------------------------
 
-// 28. scanner contract version mismatch fails closed (Slice 2 correction)
-test("a scanner response with a missing or mismatched contractVersion fails closed, not clean", async () => {
-  const { createClamAvCloudRunScanner } = require("../src/marketplace/compliance/complianceScanner");
-  const missingVersion = createClamAvCloudRunScanner({
-    serviceUrl: "https://example-clamav.invalid/scan",
-    logger: { error() {}, warn() {} },
-    authClientFactory: async () => ({
-      async request() {
-        return { data: { verdict: "clean", engineVersion: "clamav-1.2.3" } }; // no contractVersion
-      },
-    }),
-  });
-  const resultMissing = await missingVersion.scan({ bucket: "b", objectPath: "p", generation: "1", sha256: "x", sizeBytes: 1 });
-  assert.equal(resultMissing.verdict, "error");
-  assert.equal(resultMissing.reason, "malformed_response");
+const { COMPLIANCE_SCANNER_CONTRACT_VERSION, COMPLIANCE_SIGNATURE_MAX_AGE_MS } = require("../src/marketplace/compliance/complianceConstants");
 
-  const wrongVersion = createClamAvCloudRunScanner({
-    serviceUrl: "https://example-clamav.invalid/scan",
-    logger: { error() {}, warn() {} },
-    authClientFactory: async () => ({
-      async request() {
-        return { data: { contractVersion: 999, verdict: "clean" } };
-      },
-    }),
-  });
-  const resultWrong = await wrongVersion.scan({ bucket: "b", objectPath: "p", generation: "1", sha256: "x", sizeBytes: 1 });
-  assert.equal(resultWrong.verdict, "error");
-  assert.equal(resultWrong.reason, "malformed_response");
-});
+function echoValidResponse(sentBody, overrides = {}) {
+  return {
+    contractVersion: sentBody.contractVersion,
+    requestId: sentBody.requestId,
+    verdict: "clean",
+    bucket: sentBody.bucket,
+    objectPath: sentBody.objectPath,
+    generation: sentBody.generation,
+    sha256: sentBody.sha256,
+    sizeBytes: sentBody.sizeBytes,
+    engineVersion: "clamav-1.2.3",
+    signatureVersion: "sig-9",
+    signatureBuiltAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1h old, well within budget
+    scannedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
 
-test("the scanner request body always declares the current contractVersion", async () => {
+const SAMPLE_SCAN_REQUEST = { bucket: "b", objectPath: "compliance_quarantine/biz/sess/tok.pdf", generation: "12345", sha256: "a".repeat(64), sizeBytes: 2048 };
+
+async function scanWithEcho(overrides) {
   const { createClamAvCloudRunScanner } = require("../src/marketplace/compliance/complianceScanner");
-  const { COMPLIANCE_SCANNER_CONTRACT_VERSION } = require("../src/marketplace/compliance/complianceConstants");
-  let capturedBody = null;
+  let sentBody = null;
   const scanner = createClamAvCloudRunScanner({
     serviceUrl: "https://example-clamav.invalid/scan",
     logger: { error() {}, warn() {} },
     authClientFactory: async () => ({
       async request(opts) {
-        capturedBody = opts.data;
-        return { data: { contractVersion: COMPLIANCE_SCANNER_CONTRACT_VERSION, verdict: "clean" } };
+        sentBody = opts.data;
+        return { data: echoValidResponse(sentBody, overrides) };
       },
     }),
   });
-  await scanner.scan({ bucket: "b", objectPath: "p", generation: "1", sha256: "x", sizeBytes: 1 });
-  assert.equal(capturedBody.contractVersion, COMPLIANCE_SCANNER_CONTRACT_VERSION);
+  const result = await scanner.scan(SAMPLE_SCAN_REQUEST);
+  return { result, sentBody };
+}
+
+test("a genuinely valid, fully-bound clean response is honored", async () => {
+  const { result } = await scanWithEcho({});
+  assert.equal(result.verdict, "clean");
+  assert.equal(result.engineVersion, "clamav-1.2.3");
+});
+
+test("the scanner request always declares contractVersion and a fresh requestId", async () => {
+  const { sentBody } = await scanWithEcho({});
+  assert.equal(sentBody.contractVersion, COMPLIANCE_SCANNER_CONTRACT_VERSION);
+  assert.equal(typeof sentBody.requestId, "string");
+  assert.ok(sentBody.requestId.length > 0);
+});
+
+test("two separate scan calls use two different requestId values", async () => {
+  const first = await scanWithEcho({});
+  const second = await scanWithEcho({});
+  assert.notEqual(first.sentBody.requestId, second.sentBody.requestId);
+});
+
+// 28. scanner contract version mismatch fails closed (Slice 2 correction)
+test("a mismatched contractVersion fails closed, not clean", async () => {
+  const { result } = await scanWithEcho({ contractVersion: 999 });
+  assert.equal(result.verdict, "error");
+  assert.equal(result.reason, "scanner_response_binding_mismatch");
+});
+
+test("a mismatched requestId fails closed — proves the response is bound to THIS request, not just well-formed", async () => {
+  const { result } = await scanWithEcho({ requestId: "some-other-requests-id" });
+  assert.equal(result.verdict, "error");
+  assert.equal(result.reason, "scanner_response_binding_mismatch");
+});
+
+test("a mismatched bucket in the response fails closed", async () => {
+  const { result } = await scanWithEcho({ bucket: "a-different-bucket" });
+  assert.equal(result.verdict, "error");
+});
+
+test("a mismatched objectPath in the response fails closed", async () => {
+  const { result } = await scanWithEcho({ objectPath: "compliance_quarantine/biz/sess/different.pdf" });
+  assert.equal(result.verdict, "error");
+});
+
+test("a mismatched generation in the response fails closed", async () => {
+  const { result } = await scanWithEcho({ generation: "99999999" });
+  assert.equal(result.verdict, "error");
+});
+
+test("a mismatched sha256 in the response fails closed", async () => {
+  const { result } = await scanWithEcho({ sha256: "b".repeat(64) });
+  assert.equal(result.verdict, "error");
+});
+
+test("a mismatched sizeBytes in the response fails closed", async () => {
+  const { result } = await scanWithEcho({ sizeBytes: 99 });
+  assert.equal(result.verdict, "error");
+});
+
+test("an unexpected extra field in the response fails closed (closed-schema)", async () => {
+  const { result } = await scanWithEcho({ maliciousExtraField: "anything" });
+  assert.equal(result.verdict, "error");
+});
+
+test("a missing or invalid scannedAt fails closed", async () => {
+  const missing = await scanWithEcho({ scannedAt: undefined });
+  assert.equal(missing.result.verdict, "error");
+  const invalid = await scanWithEcho({ scannedAt: "not-a-date" });
+  assert.equal(invalid.result.verdict, "error");
+});
+
+test("a scannedAt impossibly in the future fails closed", async () => {
+  const { result } = await scanWithEcho({ scannedAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() });
+  assert.equal(result.verdict, "error");
+});
+
+test("a missing or invalid signatureBuiltAt fails closed", async () => {
+  const missing = await scanWithEcho({ signatureBuiltAt: undefined });
+  assert.equal(missing.result.verdict, "error");
+  const invalid = await scanWithEcho({ signatureBuiltAt: "garbage" });
+  assert.equal(invalid.result.verdict, "error");
+});
+
+// Signature freshness — the core of part B's "must never return clean"
+// requirement for stale signatures.
+test("signatures exactly at the 48-hour boundary are accepted; one millisecond past it fails closed", async () => {
+  const boundary = await scanWithEcho({
+    signatureBuiltAt: new Date(Date.now() - COMPLIANCE_SIGNATURE_MAX_AGE_MS).toISOString(),
+  });
+  assert.equal(boundary.result.verdict, "clean");
+
+  const pastBoundary = await scanWithEcho({
+    signatureBuiltAt: new Date(Date.now() - COMPLIANCE_SIGNATURE_MAX_AGE_MS - 1000).toISOString(),
+  });
+  assert.equal(pastBoundary.result.verdict, "error");
+});
+
+test("a signatureBuiltAt in the future fails closed", async () => {
+  const { result } = await scanWithEcho({ signatureBuiltAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() });
+  assert.equal(result.verdict, "error");
+});
+
+test("a clean verdict missing engineVersion or signatureVersion fails closed", async () => {
+  const missingEngine = await scanWithEcho({ engineVersion: undefined });
+  assert.equal(missingEngine.result.verdict, "error");
+  const emptyEngine = await scanWithEcho({ engineVersion: "" });
+  assert.equal(emptyEngine.result.verdict, "error");
+  const missingSig = await scanWithEcho({ signatureVersion: undefined });
+  assert.equal(missingSig.result.verdict, "error");
+});
+
+test("an infected verdict also requires engineVersion and signatureVersion", async () => {
+  const { result } = await scanWithEcho({ verdict: "infected", engineVersion: undefined });
+  assert.equal(result.verdict, "error");
+});
+
+test("an error verdict does not require engineVersion/signatureVersion but requires a well-formed errorCode if present", async () => {
+  const clean = await scanWithEcho({
+    verdict: "error",
+    engineVersion: undefined,
+    signatureVersion: undefined,
+    errorCode: "clamd_unavailable",
+  });
+  assert.equal(clean.result.verdict, "error");
+  // Both a genuinely-accepted 'error' verdict AND a rejected/binding-
+  // mismatched response surface as verdict: "error" — the only way to
+  // tell them apart is that a REJECTED response always carries this
+  // specific stable reason (see scan()'s binding-mismatch branch), while
+  // an accepted verdict never sets `reason` at all. Asserting its
+  // absence here is what actually proves this well-formed error
+  // response was honored as-is, not silently rejected-then-coerced.
+  assert.notEqual(clean.result.reason, "scanner_response_binding_mismatch");
+
+  const badCode = await scanWithEcho({ verdict: "error", engineVersion: undefined, signatureVersion: undefined, errorCode: "" });
+  assert.equal(badCode.result.verdict, "error");
+  assert.equal(badCode.result.reason, "scanner_response_binding_mismatch");
 });
 
 // ---------------------------------------------------------------------
-// Bounded retry orchestration loop
+// Single-attempt scan orchestration (Slice 2.1 correction, part A) — no
+// in-process retry loop; performSingleScanAttempt makes exactly one
+// scanner call per invocation, and the attempt budget is enforced by the
+// caller comparing the returned `attempts` against MALWARE_SCAN_MAX_
+// ATTEMPTS across SEPARATE invocations, never inside this function.
 // ---------------------------------------------------------------------
 
-test("a clean verdict on the first attempt stops immediately, no retries", async () => {
-  const scanner = createFakeCleanScanner();
-  const { attempts, result } = await runScanWithBoundedRetries({
+test("a clean verdict on the first attempt is honored, exactly one scanner call", async () => {
+  let callCount = 0;
+  const scanner = { async scan() { callCount += 1; return createFakeCleanScanner().scan(); } };
+  const { attempts, result } = await performSingleScanAttempt({
     scanner,
     request: {},
     startingAttempts: 0,
     logger: { error() {}, warn() {} },
   });
+  assert.equal(callCount, 1);
   assert.equal(attempts, 1);
   assert.equal(result.verdict, "clean");
 });
 
-test("an infected verdict also stops immediately", async () => {
-  const scanner = createFakeInfectedScanner();
-  const { attempts, result } = await runScanWithBoundedRetries({
+test("an infected verdict is honored on the first attempt, exactly one scanner call", async () => {
+  let callCount = 0;
+  const scanner = { async scan() { callCount += 1; return createFakeInfectedScanner().scan(); } };
+  const { attempts, result } = await performSingleScanAttempt({
+    scanner,
+    request: {},
+    startingAttempts: 0,
+    logger: { error() {}, warn() {} },
+  });
+  assert.equal(callCount, 1);
+  assert.equal(attempts, 1);
+  assert.equal(result.verdict, "infected");
+});
+
+test("a single error attempt increments attempts by exactly one and never produces clean", async () => {
+  const scanner = createFakeErrorScanner({ reason: "always_down" });
+  const { attempts, result } = await performSingleScanAttempt({
     scanner,
     request: {},
     startingAttempts: 0,
     logger: { error() {}, warn() {} },
   });
   assert.equal(attempts, 1);
-  assert.equal(result.verdict, "infected");
-});
-
-test("persistent errors exhaust the bounded retry budget and never produce clean", async () => {
-  const scanner = createFakeErrorScanner({ reason: "always_down" });
-  const { attempts, result } = await runScanWithBoundedRetries({
-    scanner,
-    request: {},
-    startingAttempts: 0,
-    logger: { error() {}, warn() {} },
-  });
-  assert.equal(attempts, MALWARE_SCAN_MAX_ATTEMPTS);
   assert.equal(result.verdict, "error");
   assert.notEqual(result.verdict, "clean");
 });
 
+test("repeated single attempts across separate calls advance startingAttempts and reach the bound without ever sleeping in-process", async () => {
+  const scanner = createFakeErrorScanner({ reason: "always_down" });
+  let attempts = 0;
+  const startedAt = Date.now();
+  for (let i = 0; i < MALWARE_SCAN_MAX_ATTEMPTS; i += 1) {
+    ({ attempts } = await performSingleScanAttempt({
+      scanner,
+      request: {},
+      startingAttempts: attempts,
+      logger: { error() {}, warn() {} },
+    }));
+  }
+  const elapsedMs = Date.now() - startedAt;
+  assert.equal(attempts, MALWARE_SCAN_MAX_ATTEMPTS);
+  // No internal backoff/sleep exists anymore — MALWARE_SCAN_MAX_ATTEMPTS
+  // calls to a fake scanner that resolves instantly must complete near-
+  // instantly, proving no sleep-based retry loop remains.
+  assert.equal(elapsedMs < 1000, true, `expected no internal backoff sleep, took ${elapsedMs}ms`);
+});
+
 test("an unknown/malformed verdict string is treated exactly like an error, never clean", async () => {
   const scanner = createFakeUnknownVerdictScanner();
-  const { attempts, result } = await runScanWithBoundedRetries({
+  const { attempts, result } = await performSingleScanAttempt({
     scanner,
     request: {},
     startingAttempts: 0,
     logger: { error() {}, warn() {} },
   });
-  assert.equal(attempts, MALWARE_SCAN_MAX_ATTEMPTS);
+  assert.equal(attempts, 1);
   assert.equal(result.verdict, "error");
 });
 
@@ -421,7 +564,7 @@ test("a scanner that throws is treated as an error, not an unhandled crash", asy
       throw new Error("network exploded");
     },
   };
-  const { result } = await runScanWithBoundedRetries({
+  const { result } = await performSingleScanAttempt({
     scanner: throwingScanner,
     request: {},
     startingAttempts: 0,
@@ -438,7 +581,7 @@ test("startingAttempts already at the bound short-circuits with zero additional 
       return { verdict: "clean" };
     },
   };
-  const { attempts, result } = await runScanWithBoundedRetries({
+  const { attempts, result } = await performSingleScanAttempt({
     scanner: countingScanner,
     request: {},
     startingAttempts: MALWARE_SCAN_MAX_ATTEMPTS,
@@ -447,5 +590,32 @@ test("startingAttempts already at the bound short-circuits with zero additional 
   assert.equal(callCount, 0);
   assert.equal(attempts, MALWARE_SCAN_MAX_ATTEMPTS);
   assert.equal(result.verdict, "error");
-  assert.equal(result.reason, "not_attempted");
+  assert.equal(result.reason, "attempts_already_exhausted");
+});
+
+// ---------------------------------------------------------------------
+// Canary allowlist (Slice 2.1 correction, part G)
+// ---------------------------------------------------------------------
+
+test("parseComplianceUploadCanaryAllowlist parses, trims, and drops empty entries", () => {
+  assert.deepEqual(parseComplianceUploadCanaryAllowlist("biz-1,biz-2"), ["biz-1", "biz-2"]);
+  assert.deepEqual(parseComplianceUploadCanaryAllowlist("  biz-1 , biz-2  "), ["biz-1", "biz-2"]);
+  assert.deepEqual(parseComplianceUploadCanaryAllowlist(""), []);
+  assert.deepEqual(parseComplianceUploadCanaryAllowlist(" , ,, "), []);
+  assert.deepEqual(parseComplianceUploadCanaryAllowlist(undefined), []);
+  assert.deepEqual(parseComplianceUploadCanaryAllowlist(null), []);
+});
+
+test("isComplianceUploadCanaryEnabledForBusiness denies by default (missing/empty/malformed allowlist)", () => {
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("biz-1", undefined), false);
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("biz-1", ""), false);
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("biz-1", " , , "), false);
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("biz-1", "biz-2,biz-3"), false);
+});
+
+test("isComplianceUploadCanaryEnabledForBusiness allows only an exact, explicitly-listed businessId", () => {
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("biz-1", "biz-1"), true);
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("biz-1", "biz-0,biz-1,biz-2"), true);
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("biz-1", "biz-1x"), false, "must be an exact match, not a prefix");
+  assert.equal(isComplianceUploadCanaryEnabledForBusiness("", "biz-1"), false);
 });

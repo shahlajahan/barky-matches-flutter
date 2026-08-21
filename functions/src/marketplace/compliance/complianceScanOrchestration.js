@@ -43,45 +43,43 @@ const {
   COMPLIANCE_DOCUMENT_STATUS,
   MALWARE_SCAN_VERDICT,
   MALWARE_SCAN_MAX_ATTEMPTS,
-  MALWARE_SCAN_RETRY_BACKOFF_MS,
 } = require("./complianceConstants");
 const { releaseActiveUploadQuota } = require("./complianceUploadQuota");
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// Runs the scanner up to MALWARE_SCAN_MAX_ATTEMPTS times (bounded),
-// short backoff between attempts (bounded), stopping early on the first
-// clean or infected verdict — only a run of 'error' results exhausts the
-// full attempt budget.
-async function runScanWithBoundedRetries({ scanner, request, startingAttempts, logger }) {
-  let attempts = startingAttempts;
-  let lastResult = { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "not_attempted" };
-
-  while (attempts < MALWARE_SCAN_MAX_ATTEMPTS) {
-    attempts += 1;
-    try {
-      lastResult = await scanner.scan(request);
-    } catch (err) {
-      logger.error("compliance_scan_threw", { message: err && err.message, attempts });
-      lastResult = { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "scanner_threw" };
-    }
-
-    if (!Object.values(MALWARE_SCAN_VERDICT).includes(lastResult.verdict)) {
-      // Defense in depth even against a scanner implementation bug: an
-      // unrecognized verdict string is treated exactly like 'error'.
-      lastResult = { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "unknown_verdict" };
-    }
-
-    if (lastResult.verdict !== MALWARE_SCAN_VERDICT.ERROR) {
-      return { attempts, result: lastResult };
-    }
-    if (attempts < MALWARE_SCAN_MAX_ATTEMPTS) {
-      await sleep(MALWARE_SCAN_RETRY_BACKOFF_MS);
-    }
+// Slice 2.1 correction (deployment-readiness audit 2026-08-21, part A):
+// performs exactly ONE scanner HTTP attempt — no in-process sleep/retry
+// loop. If the session's already-spent scanAttempts has reached
+// MALWARE_SCAN_MAX_ATTEMPTS, the scanner is not called at all and this
+// returns a synthetic exhausted error immediately (the caller is
+// responsible for transitioning to scan_failed in that case). Otherwise
+// exactly one attempt is made and `attempts` reflects the new total
+// (startingAttempts + 1) regardless of outcome — the caller decides,
+// from `attempts` vs MALWARE_SCAN_MAX_ATTEMPTS, whether this was the
+// exhausting attempt.
+async function performSingleScanAttempt({ scanner, request, startingAttempts, logger }) {
+  if (startingAttempts >= MALWARE_SCAN_MAX_ATTEMPTS) {
+    return {
+      attempts: startingAttempts,
+      result: { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "attempts_already_exhausted" },
+    };
   }
-  return { attempts, result: lastResult };
+
+  const attempts = startingAttempts + 1;
+  let result;
+  try {
+    result = await scanner.scan(request);
+  } catch (err) {
+    logger.error("compliance_scan_threw", { message: err && err.message, attempts });
+    result = { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "scanner_threw" };
+  }
+
+  if (!Object.values(MALWARE_SCAN_VERDICT).includes(result.verdict)) {
+    // Defense in depth even against a scanner implementation bug: an
+    // unrecognized verdict string is treated exactly like 'error'.
+    result = { verdict: MALWARE_SCAN_VERDICT.ERROR, reason: "unknown_verdict" };
+  }
+
+  return { attempts, result };
 }
 
 // Shared terminal-transition helper: transactionally moves a session
@@ -475,11 +473,33 @@ async function handleCleanVerdict({ db, bucket, session, verdict, logger }) {
 }
 
 // Entry point. `session` must already be in scan_pending (the finalize
-// pipeline's job, or a reconciliation resume). Bounded retries happen
-// inside runScanWithBoundedRetries; this function applies exactly one of
-// three outcomes: clean (persist + promote, resumable), infected
-// (delete + mark), or scan_failed (retries exhausted / persistent
-// misconfiguration).
+// pipeline's job, or a reconciliation resume). Slice 2.1 correction: this
+// performs exactly ONE scanner HTTP attempt per invocation (see
+// performSingleScanAttempt's doc comment) — the bounded attempt budget
+// is spent across separate invocations, never inside one. Outcomes:
+// clean (persist + promote, resumable), infected (delete + mark),
+// scan_failed (this was the exhausting attempt — terminal, quota
+// released), or the new non-terminal "retry_later" (an error occurred
+// but budget remains — the session is deliberately left at scan_pending,
+// exactly where it already was; this is NOT a terminal state and must
+// never be confused with scan_failed).
+//
+// Slice 2.1 correction pass (retry/recovery documentation accuracy):
+// a "retry_later" outcome is NOT resumed by a later Eventarc redelivery
+// of the ORIGINAL Storage-finalize event. That event's own claim gate
+// (claimUploadedObject, upload_authorized -> uploaded) already consumed
+// exactly once by the time orchestrateComplianceScan is ever reached at
+// all — a genuine redelivery of the SAME finalize event would hit that
+// gate again, find the session no longer upload_authorized, and be
+// correctly rejected as session_not_upload_authorized before ever
+// reaching this function a second time (see complianceUploadFinalization
+// .js's claimUploadedObject and its own idempotency comment). There is
+// no code path by which redelivering that event resumes a scan_pending
+// session. The scheduled reconciler (complianceUploadReconciliation.js)
+// is therefore the SOLE authoritative recovery mechanism for
+// "retry_later" (and for every other stuck intermediate state) — not a
+// secondary or optional one. See functions/index.js's own comment on
+// `retry: true` for the one, narrower thing that setting actually does.
 async function orchestrateComplianceScan({ db, bucket, session, scanner, object, logger = console }) {
   if (session.status !== COMPLIANCE_UPLOAD_SESSION_STATUS.SCAN_PENDING) {
     return { outcome: "skipped", reason: "session_not_scan_pending" };
@@ -493,16 +513,21 @@ async function orchestrateComplianceScan({ db, bucket, session, scanner, object,
     sizeBytes: session.actualSizeBytes,
   };
 
-  const { attempts, result } = await runScanWithBoundedRetries({
+  const { attempts, result } = await performSingleScanAttempt({
     scanner,
     request,
     startingAttempts: session.scanAttempts || 0,
     logger,
   });
 
-  // Persist the attempt count regardless of outcome, so a later
-  // invocation (if this one is retried by the platform) knows how many
-  // attempts have already been spent against the bounded budget.
+  // Persist the attempt count regardless of outcome, so the next
+  // invocation — in practice, always a reconciliation resume (see this
+  // function's own doc comment above for why Eventarc redelivery cannot
+  // reach here a second time after a successful claim) — knows how many
+  // attempts have already been spent against the bounded budget. A plain
+  // (non-transactional) update is safe here: it never changes `status`,
+  // so it cannot race a status transition performed by another
+  // concurrent invocation's own transactional writes below.
   await db
     .collection("complianceUploadSessions")
     .doc(session.sessionId)
@@ -514,15 +539,28 @@ async function orchestrateComplianceScan({ db, bucket, session, scanner, object,
   if (result.verdict === MALWARE_SCAN_VERDICT.INFECTED) {
     return applyInfectedVerdict({ db, bucket, session, verdict: result, logger });
   }
-  // Every remaining case is 'error' (misconfiguration, timeout, malformed
-  // response, auth failure, unknown verdict) with attempts exhausted —
-  // never a silent pass to clean.
-  return applyScanFailure({ db, session, attempts, reason: result.reason, logger });
+
+  // Every remaining case is 'error' (misconfiguration, timeout,
+  // malformed response, auth failure, unknown verdict, or the budget
+  // already having been exhausted before this call even started) —
+  // never a silent pass to clean. Only exhausting the FULL attempt
+  // budget is a terminal outcome; a transient failure with budget
+  // remaining must not be moved to scan_failed here — reconciliation is
+  // meant to retry it.
+  if (attempts >= MALWARE_SCAN_MAX_ATTEMPTS) {
+    return applyScanFailure({ db, session, attempts, reason: result.reason, logger });
+  }
+  logger.warn("compliance_scan_attempt_failed_will_retry", {
+    sessionId: session.sessionId,
+    attempts,
+    reason: result.reason,
+  });
+  return { outcome: "retry_later", reason: result.reason, attempts };
 }
 
 module.exports = {
   orchestrateComplianceScan,
-  runScanWithBoundedRetries,
+  performSingleScanAttempt,
   persistCleanScanResult,
   performPromotion,
   handleCleanVerdict,
