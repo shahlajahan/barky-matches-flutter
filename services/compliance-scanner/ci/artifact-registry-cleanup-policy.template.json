@@ -1,0 +1,34 @@
+[
+  {
+    "_comment_status": "TEMPLATE ONLY (Slice 2.2, corrected per adversarial review — Mandatory correction 4). Not applied to any repository in this task. Apply later via: gcloud artifacts repositories set-cleanup-policies <repo> --location=<region> --project=<project> --policy=<this-file-with-comment-keys-removed> --dry-run   (always dry-run first, review the affected image list, then re-run without --dry-run). NOTE: real Artifact Registry cleanup-policy JSON does not tolerate unknown/comment keys inside actual rule objects — the _comment_* entries in this file are documentation-only and MUST be stripped before this file is passed to --policy=; they are NOT valid policy fields. This is the correct top-level shape: a BARE JSON ARRAY of rule objects, confirmed against https://docs.cloud.google.com/artifact-registry/docs/repositories/cleanup-policy — the ORIGINAL version of this template incorrectly wrapped the array in a {\"rules\": [...]} object, which is not valid Artifact Registry cleanup-policy syntax."
+  },
+  {
+    "_comment_no_cloud_run_awareness": "CONFIRMED against official documentation: Artifact Registry's cleanup-policy engine has NO native way to detect which digest a Cloud Run revision is currently serving, and no concept of a 'designated rollback target'. Protection here is achieved EXCLUSIVELY through the 'keep-all-promoted-tags' rule below matching the immutable promoted-<commit>-<buildId> tag that cloudbuild.signature-refresh.yaml's ci/promote.sh applies ONLY after verified traffic has actually shifted to that digest (never earlier, never to a candidate that failed verification) — this policy protects EVERY promoted release forever, unconditionally, specifically because there is no safe way to auto-expire promoted tags without external, Cloud-Run-aware reconciliation (see _comment_bounding_promoted_history below). Confirmed precedence rule: when a digest matches both a Keep and a Delete rule, Keep always wins regardless of rule order — this is documented Artifact Registry behavior, not an assumption this template relies on blindly."
+  },
+  {
+    "name": "keep-all-promoted-tags-unconditionally",
+    "action": { "type": "Keep" },
+    "condition": {
+      "tagState": "tagged",
+      "tagPrefixes": ["promoted-"]
+    }
+  },
+  {
+    "_comment_bounding_promoted_history": "This JSON policy deliberately does NOT attempt to age out old promoted- tags on a timer — doing so would risk deleting a digest that is STILL the serving revision or the recorded rollback target if the refresh pipeline has not run recently, and the policy engine has no way to check either fact (see above). Bounding promoted-tag history to ~20 builds / ~30 days safely REQUIRES a separate, Cloud-Run-aware INVENTORY RECONCILIATION process — not implemented in this task — that would: (1) read the Cloud Run service's actual currently-serving digest and the pipeline's own recorded rollback-target digest (ci/deploy-candidate.sh's .previous-traffic-allocation.json, or a persisted equivalent), (2) list promoted- tagged images older than the retention window, (3) delete the tag (never the underlying digest directly, in case another tag still references it) for any image that is NEITHER the current serving digest NOR the recorded rollback target. This is exactly the 'inventory reconciliation' mechanism Mandatory correction 4 asks this template to define — defined here, NOT implemented, and explicitly labeled as requiring its own separate design/review before use."
+  },
+  {
+    "name": "delete-failed-or-unpromoted-candidates",
+    "action": { "type": "Delete" },
+    "condition": {
+      "tagState": "tagged",
+      "tagPrefixes": ["candidate-"],
+      "olderThan": "7d"
+    }
+  },
+  {
+    "_comment_moved_tag_risk": "A tag is a mutable pointer; if a promoted- tag were ever manually moved or reused to point at a DIFFERENT digest than the one it was originally applied to (an operator error this pipeline does not itself perform, but cannot prevent someone else from doing outside it), the OLD digest that tag used to protect would silently lose its Keep-rule protection the moment the tag moves — because this policy protects tags, not digests, exactly as Artifact Registry's own model requires (there is no way to write a policy keyed on a specific digest hash directly). Mitigation: this is precisely why ci/promote.sh applies a FRESH, uniquely-named promoted-<commit>-<buildId> tag on every successful promotion rather than reusing/moving a single shared 'promoted-latest'-style tag — each promoted digest gets its own permanent, never-reused tag name, so no later promotion can ever cause an earlier tag to move and silently un-protect an older still-relevant digest."
+  },
+  {
+    "_comment_untagged_orphans": "Images that lose ALL tags entirely (e.g. a candidate- tag ages out per the rule above, and no promoted- tag was ever applied to that same digest because it failed verification) become untagged. This template does not add an explicit untagged-deletion rule — Artifact Registry's own default repository-level settings for untagged image retention apply instead. Explicitly out of scope for this template; document and configure separately if untagged accumulation becomes a real cost concern, after real staging data shows whether it does."
+  }
+]

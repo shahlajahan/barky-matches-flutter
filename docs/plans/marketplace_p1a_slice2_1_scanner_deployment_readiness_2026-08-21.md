@@ -318,33 +318,243 @@ than the older `functions:config`, set `CLAMAV_CLOUD_RUN_URL` and
 `CLAMAV_CLOUD_RUN_AUDIENCE` via the Functions v2 params mechanism at
 deploy time — whichever matches the deploy pipeline actually in use.)
 
-## 6. Daily signature-refresh build
+## 6. Daily signature-refresh build (Slice 2.2, corrected per adversarial review)
+
+`services/compliance-scanner/cloudbuild.signature-refresh.yaml` now
+exists — a definition only, never submitted, never triggered against
+any project. It is environment-neutral (every project/region/
+repository/service/service-account/bucket value is a substitution, no
+literal `barkymatches-new` or any staging identifier anywhere in the
+file) and implements a 10-stage sequence: acquire-lock →
+verify-fixtures-integrity (mandatory security-fixture gate, runs in
+parallel with build-candidate) → build-candidate → verify-source /
+verify-candidate-container (parallel) → push-candidate → deploy-candidate
+(zero-traffic, tagged) → verify-deployed-candidate → promote (with
+self-contained fenced rollback) → release-lock. Each stage's logic lives
+in its own narrowly-scoped, independently syntax-checked script under
+`services/compliance-scanner/ci/`, not inline in the YAML.
+
+### 6a. Verification-tier classification (Mandatory correction 6 — read before trusting any claim below)
+
+Every claim about this pipeline falls into exactly one of four tiers.
+Conflating them is the specific failure mode this section exists to
+prevent:
+
+- **Locally verified** (deterministic, run and passing on this
+  machine, no live GCP dependency): the fenced-lease decision logic
+  (`ci/signatureRefreshLock.test.js`), the fixture-manifest decision
+  logic (`ci/fixtureManifest.test.js`), and the pipeline's own command
+  construction/dependency-graph properties
+  (`ci/pipelineStatic.test.js` — e.g. every mutating step's script
+  calls lease renewal before its real mutation, no bare
+  `--allow-unauthenticated` on any executable line, `.candidate-digest`
+  is written in exactly one place from a fresh registry query, rollback
+  reconstructs the full prior traffic allocation rather than assuming
+  one revision).
+- **Statically validated** (structurally checked, not executed):
+  `cloudbuild.signature-refresh.yaml` parses as valid YAML and every
+  embedded script passes `sh -n`/`node --check`; the Artifact Registry
+  and GCS lifecycle JSON templates were checked field-by-field against
+  the schemas documented at
+  `docs.cloud.google.com/artifact-registry/docs/repositories/cleanup-policy`
+  and `gcloud storage buckets update --help`'s own worked example
+  respectively (this review caught and fixed two real schema errors —
+  see the Slice 2.2 correction report). None of this proves the YAML is
+  *accepted* by the real Cloud Build API, which validates more than
+  local structural parsing can.
+- **Requires staging execution** (design is complete and reviewed, but
+  unproven without a real project): whether GCS generation-precondition
+  writes are actually atomic under real concurrent load (the DECISION
+  logic that USES that atomicity is locally proven; the atomicity
+  itself is a GCS platform guarantee this repository does not
+  re-verify); whether the chosen builder image
+  (`_CI_BUILDER_IMAGE` substitution) actually provides `gcloud`,
+  `docker`, and `node` together — NOT verified in this review, no
+  network access was used to inspect any image's real contents, and no
+  default is provided specifically so this is never silently assumed;
+  whether Application Default Credentials are reachable from inside the
+  nested Docker container `ci/verify-candidate-container.sh` starts
+  (a known but non-trivial Cloud-Build-in-Docker pattern); the full
+  end-to-end pipeline run itself.
+- **Blocked** (identified, not resolved, requires a decision before
+  this pipeline can run for real): none currently — the earlier
+  "warn-and-skip" fixture gap and the earlier non-renewing 45-minute
+  lease were both corrected into locally-verified/statically-validated
+  designs, not left as approximations. The builder-image gap above is
+  the closest remaining item to a blocker; it is a concrete
+  prerequisite (build and publish a dedicated CI image, or confirm the
+  stock `cloud-sdk` image suffices) rather than an unresolved design
+  question.
+
+**Never state, about this pipeline: that local YAML parsing proves
+Cloud Build acceptance; that local lease tests prove live GCS atomic
+behavior; that a tag alone (mutable, reassignable by anyone with write
+access) protects a deployed digest — protection here is what the tag
+currently points at, reinforced by every promoted digest getting its
+own permanent, never-reused tag name rather than a moved/shared one
+(see `ci/artifact-registry-cleanup-policy.template.json`'s own
+"moved-tag risk" note); that a fixture check being present in the code
+means it ran and passed on any given real execution — only that
+execution's own logs prove that; or that commands appearing in the
+correct order in a script proves the pipeline is safe — the ordering is
+necessary, not sufficient, which is why `ci/pipelineStatic.test.js`
+asserts the ordering AND the fencing AND the digest provenance AND the
+rollback-completeness as separate, independently-failing checks rather
+than inferring safety from readability alone.**
+
+Full architecture, IAM, scheduling, and retention details are in the
+Slice 2.2 correction report; §13 below covers the IAM specification.
+
+### 6b. Three release-blocking corrections resolved (second adversarial review)
+
+1. **ID-token audience.** Every ID token minted against the candidate's
+   traffic-tag URL is audienced for `status.url` (the service's base
+   URL), never the tag URL itself — per
+   `docs.cloud.google.com/run/docs/authenticating/service-to-service`:
+   "the aud value must remain as the URL of the service, even when
+   making requests to a specific traffic tag." `CANDIDATE_URL` (the
+   HTTP request target) and `BASE_SERVICE_URL` (the token audience) are
+   two separate variables in `ci/verify-deployed-candidate.sh`, neither
+   derived from the other, both explicitly fail-closed if empty.
+2. **Builder-image gap resolved, not left open.** Empirical local
+   inspection (pulled and ran `which`/`--version` against the real
+   images, no GCP resource touched) found neither the official Cloud
+   SDK image nor the official Docker builder image includes Node.js.
+   Every step was re-mapped to the minimum single-purpose official
+   image it actually needs; the three steps (`push-candidate`,
+   `deploy-candidate`, `promote`) that must, within one script, both
+   verify the fenced lease (Node-based) and perform a gcloud/docker
+   mutation use `services/compliance-scanner/ci/Dockerfile.ci-builder`
+   — built and its 7 tools (node, npm, gcloud, docker, curl, sha256sum,
+   python3) verified locally in this review, via `COPY --from=` of
+   already-pinned official images (the same technique the main
+   Dockerfile already uses for Node), never a dynamic package install.
+   Not pushed to any registry — `_CI_BUILDER_IMAGE_REF` remains a
+   required substitution until that publishing step is separately
+   authorized.
+3. **Raw EICAR removed from repository storage.** The canonical EICAR
+   bytes are no longer committed in the clear —
+   `services/compliance-scanner/ci/fixtures/eicar.b64` holds a base64
+   encoding instead, decoded and hash-verified exactly once per
+   pipeline run (`ci/verify-fixtures.sh`, Node-based) into
+   `/workspace/.eicar-materialized.bin` (Cloud Build's own ephemeral
+   per-build shared volume), which every later step that needs the
+   real bytes reads read-only. `ci/materializeEicarFixture.js`'s
+   `decodeAndVerify` fails closed on missing/corrupted encoded input or
+   a hash mismatch; the pipeline still proves clamd returns `infected`
+   against the real decoded bytes (confirmed locally via `docker exec`
+   against a real clamd process in this same review).
+
+`gcloud builds triggers create scheduled` (the single-command form
+below) is convenience syntax, not one native resource — it provisions a
+Cloud Scheduler job, a Cloud Build trigger, and wires them together
+using the SCHEDULER INVOCATION IDENTITY (§13), never the Cloud Build
+execution identity or the scanner's own runtime identity. See
+`services/compliance-scanner/ci/scheduler.template.yaml` for the full
+identity chain this actually involves (four distinct identities,
+documented, never conflated) and the freshness-margin reasoning behind
+the daily cadence:
 
 ```
 gcloud builds triggers create scheduled \
-  --project=barkymatches-new \
+  --project=<target project — never hardcoded in the pipeline file itself> \
   --name=compliance-scanner-signature-refresh \
   --schedule="0 3 * * *" \
   --build-config=services/compliance-scanner/cloudbuild.signature-refresh.yaml \
   --repo=<this repository> \
-  --branch-pattern=^integration/mac-windows-2026-07-22$
+  --branch-pattern=^integration/mac-windows-2026-07-22$ \
+  --substitutions=_REGION=...,_REPOSITORY=...,_IMAGE_NAME=...,_SERVICE=...,_SCANNER_RUNTIME_SA=...,_MONITORING_SA=...,_SYNTHETIC_TEST_BUCKET=...,_LOCK_BUCKET=...,_ENVIRONMENT=...
 ```
 
-(The referenced `cloudbuild.signature-refresh.yaml` does not exist yet —
-tracked as a follow-up; its job is exactly "docker build (which re-runs
-`docker/build-signatures.sh` via the Dockerfile's `signatures` stage),
-push, deploy a new Cloud Run revision" — nothing beyond what a normal
-image rebuild already does, run on a schedule instead of on every code
-change.)
+Not executed in this task — creating this trigger is a future, separately-authorized action.
 
 ## 7. Monitoring / alerts
+
+### 7a. `/healthz` vs `/status` — which path does what (Slice 2.2 correction)
+
+Two paths exist on this service, deliberately kept distinct, not
+redundant:
+
+- **`/healthz`** is reserved exclusively for **Cloud Run's own internal
+  startup probe** (`spec.containers[0].startupProbe.httpGet`, configured
+  with `path=/healthz, port=8080`). This is the ONLY consumer of this
+  path. Staging verification confirmed Cloud Run's internal probe
+  mechanism successfully reaches this path and evaluates the real
+  handler (`"STARTUP HTTP probe succeeded... path /healthz"` in Cloud
+  Run's own logs) — but **staging also found that the exact literal
+  path `/healthz` is not reachable through the service's public Cloud
+  Run URL**: every external request to it (authenticated or not, via
+  direct HTTPS, `gcloud run services proxy`, forced HTTP/1.1,
+  cache-busting query params) received a generic Google 404 page and,
+  critically, produced **zero entries in Cloud Run's own request logs**
+  — while every other path tested (`/`, `/v1/scan`, `/HEALTHZ`,
+  `/healthzz`, deliberately-wrong paths) correctly reached Cloud Run's
+  IAM layer and was logged with its real status. A trailing-slash
+  control (`/healthz/`) also correctly reached the IAM layer and was
+  logged. This isolates the effect to the exact literal path,
+  independent of method, query string, or auth state — application
+  routing, Cloud Run IAM, and test methodology were all directly
+  exonerated by this evidence.
+
+  **This behavior's root cause is `UNRESOLVED — NEEDS CONTROLLED
+  FOLLOW-UP`.** An official-documentation search (Cloud Run health-check
+  docs, ingress docs, troubleshooting docs, App Engine's own documented
+  `/_ah/health` reserved-path precedent, issuetracker.google.com, and
+  the GoogleCloudPlatform GitHub org) found no `cloud.google.com` or
+  `docs.cloud.google.com` page that confirms or denies a reserved
+  `/healthz` interception at Cloud Run's edge for fully-managed
+  services. **Do not state that Cloud Run reserves `/healthz`** — no
+  authoritative source establishes this. Cloud Run's troubleshooting
+  documentation does confirm, as a general documented pattern
+  independent of this specific path, that a request blocked before
+  reaching the container "leads to a 404 error" that "you can't find...
+  in Cloud Logging" — structurally consistent with what was observed,
+  but not a citable confirmation of *why* `/healthz` specifically
+  triggers it. A handful of third-party reports (GitHub issues on other
+  projects, one open/unanswered Google Developer Forums thread
+  describing an apparently identical symptom) exist but **are not
+  authoritative platform documentation** and must not be presented as
+  such. Recommended next step: file a report on
+  `issuetracker.google.com` (Cloud Run component) with the reproduction
+  evidence above, since it is more rigorous than the existing
+  unresolved community reports.
+
+- **`/status`** is the **IAM-protected operational monitoring path**
+  (Slice 2.2). It calls the exact same `handleHealthCheck` function and
+  returns the exact same closed response contract as `/healthz`
+  (`{status, checks: {clamdReachable, signaturesLoaded,
+  signaturesFresh}}`) — no application-level authentication code was
+  introduced to build it; it is reached through the identical private
+  Cloud Run IAM boundary that already gates `/v1/scan`. External
+  monitoring (uptime checks, alerting) must call `/status`, never
+  `/healthz`, and must authenticate as a **dedicated monitoring
+  identity** — not `compliance-functions-sa` (whose only granted
+  purpose is invoking `/v1/scan` on behalf of the compliance Functions)
+  and not a human account. See §13 (IAM specification) for the exact
+  role this monitoring identity requires: `roles/run.invoker` on this
+  service only, nothing broader.
+
+  This service's private Cloud Run URL is deliberately **not printed
+  in this document** — retrieve it at operation time via `gcloud run
+  services describe <service> --region=<region> --project=<project>
+  --format="value(status.url)"`, per this repository's existing
+  convention of not committing live infrastructure endpoints to
+  version control.
+
+### 7b. Alerts
 
 - Alert on the scanner's own error rate (Cloud Run built-in request
   metrics, filtered to 5xx and to `verdict: error` response bodies via a
   log-based metric on `scan_error` / `scan_completed` structured log
   lines).
-- Alert on `/healthz` returning unhealthy for more than N consecutive
-  minutes (signature staleness or clamd unreachability).
+- Alert on `/status` (never `/healthz` — see §7a) returning unhealthy
+  for more than N consecutive minutes, called by the dedicated
+  monitoring identity. **This alert must fail closed**: an
+  unreachable/erroring `/status` check (timeout, 5xx, auth failure) must
+  itself be treated as unhealthy for alerting purposes, never
+  interpreted as "no news is good news" — the same fail-closed principle
+  the scanner's own signature-freshness and clamd-availability logic
+  already follows.
 - Alert on the signature-refresh build (§6) failing.
 - Alert on reconciliation backlog size (a log-based metric on
   `compliance_reconciliation_run`'s `candidateCount` fields staying high
@@ -429,3 +639,96 @@ re-verifying current official Cloud Run idle-instance billing rates at
 the time that decision is made (pricing can change; the earlier audit's
 ~$150/month figure was an explicitly-marked upper-bound estimate, not a
 quote).
+
+## 13. Least-privilege IAM for the signature-refresh pipeline (Slice 2.2)
+
+Five distinct identities, never conflated, never reused across roles:
+
+| Identity | Purpose | Roles | Explicitly NOT granted |
+|---|---|---|---|
+| **Scheduler invocation identity** | Fires the Cloud Build trigger on schedule — nothing else | `roles/cloudbuild.builds.editor` scoped to triggering this one build config, or the narrower trigger-invocation permission if the platform exposes one | Any Artifact Registry, Cloud Run, or IAM role — it never touches those services directly |
+| **Cloud Build execution identity** (dedicated, third SA — never `compliance-scanner-sa`, never `compliance-functions-sa`) | Runs every step of `cloudbuild.signature-refresh.yaml`: build, test, push, deploy-candidate, promote | `roles/artifactregistry.writer` scoped to the one repository (§1) where possible; `roles/run.developer` scoped to the one service; `roles/iam.serviceAccountUser` **on `_SCANNER_RUNTIME_SA` only** (needed to deploy Cloud Run revisions running as that identity — this is the one place a token-minting-adjacent permission is required, and it is narrowly scoped to exactly the one SA it must impersonate-as-runtime-identity-for, never a broader `serviceAccountUser` grant); read/write on `_LOCK_BUCKET` and `_SYNTHETIC_TEST_BUCKET` (the latter scoped to `compliance_quarantine/ci-*` and `compliance_quarantine/ci-fixtures/` only, mirroring the existing prefix-condition pattern from §3) | Owner, Editor, Storage Admin, Firebase Admin, Project IAM Admin; `serviceAccountUser` on any SA other than `_SCANNER_RUNTIME_SA`; no role on `compliance-functions-sa` at all |
+| **Scanner runtime identity** (`compliance-scanner-sa`, §2 — unchanged, reused as-is) | What the deployed Cloud Run revision actually runs as | Exactly as already specified in §3: `roles/storage.objectViewer` conditioned to `compliance_quarantine/` only | Everything else, as already documented |
+| **Candidate-verification / monitoring identity** (`_MONITORING_SA`, dedicated — never a human account, never `compliance-functions-sa`) | Mints ID tokens to call the candidate's tag URL (`/status`, `/v1/scan`) during Stage 5, and is the intended identity for ongoing external `/status` monitoring/alerting per §7a | `roles/run.invoker` on this Cloud Run service only | Any Storage, Artifact Registry, or IAM role |
+| **Functions caller identity** (`compliance-functions-sa`, §2/§3 — unchanged) | Invokes `/v1/scan` at real request time, on behalf of the compliance Functions | Exactly as already specified in §3: `roles/run.invoker` only, on this service | Anything related to the refresh pipeline itself — it plays no role in building, testing, or promoting images |
+
+**Human Token Creator access must not be reintroduced.** The Slice 2.1
+staging hardening pass explicitly removed the operator's temporary
+`roles/iam.serviceAccountTokenCreator` grants on both runtime SAs after
+verification concluded (see that report) — none of the identities or
+roles above re-grant any human account impersonation rights on any
+service account. The Cloud Build execution identity's `serviceAccountUser`
+grant is the only impersonation-adjacent permission in this entire
+design, and it is a service-to-service grant (Cloud Build's own runtime
+identity acting as `_SCANNER_RUNTIME_SA` when deploying), not a human
+credential.
+
+## 14. Retention, fixture manifest, and lifecycle templates (Slice 2.2, corrected per adversarial review)
+
+Three declarative artifacts exist, none applied to any real resource:
+
+- `services/compliance-scanner/ci/artifact-registry-cleanup-policy.template.json`
+  — corrected against the real schema at
+  `docs.cloud.google.com/artifact-registry/docs/repositories/cleanup-policy`
+  (an earlier draft incorrectly wrapped the policy in a `{"rules": [...]}`
+  object; the real format is a **bare JSON array**, and `condition`/
+  `mostRecentVersions` are mutually exclusive within one rule — both
+  errors are now fixed). Confirmed via that same source: Artifact
+  Registry's cleanup engine has **no native awareness of Cloud Run
+  serving state** — a Keep rule can only match on tag/age/count, never
+  on "is this digest currently deployed". Protection is therefore: (a)
+  an unconditional Keep rule matching every `promoted-` tag, applied by
+  `ci/promote.sh` only after verified traffic shift, with each promoted
+  digest receiving its own permanent, never-reused tag name (so no
+  later promotion can move an earlier tag and silently un-protect an
+  older digest); and (b) a documented-but-not-implemented periodic
+  inventory-reconciliation process for safely bounding `promoted-` tag
+  growth, since that bounding genuinely requires comparing against real
+  Cloud Run state, which the JSON policy alone cannot do (see the
+  template's own `_comment_bounding_promoted_history` field). Failed
+  candidates (`candidate-` tags) age out automatically after 7 days —
+  they carry no such protection requirement.
+- `services/compliance-scanner/ci/fixtureManifest.json` +
+  `ci/fixtureManifest.js` — the mandatory security-fixture manifest
+  (Mandatory correction 1). Every fixture the pipeline treats as
+  trusted (benign text, the standard EICAR test string, a synthetic
+  encrypted PDF) is pinned here by real, checked-in-repository content
+  hash (`ci/fixtures/*`); the `generation` field for each is the
+  literal sentinel `PENDING_PROVISIONING` until a separate, documented
+  provisioning process uploads each fixture once and records its real
+  GCS generation here. A fixture missing, mismatched, or still carrying
+  that sentinel fails the pipeline outright — see §6a for the exact
+  "never silently skip" guarantee and `ci/fixtureManifest.test.js` for
+  the 20 deterministic tests proving it.
+
+  **Fixture provisioning process (separate, authorized, not performed
+  in this task):** an operator with write access to `_SYNTHETIC_TEST_BUCKET`
+  uploads each `ci/fixtures/*` file, byte-for-byte as checked into this
+  repository, to its manifest-pinned `objectPath` under
+  `compliance_quarantine/ci-fixtures/` — a one-time action per fixture,
+  never repeated by the pipeline itself. Immediately after each upload,
+  the operator records the real GCS generation `gcloud storage objects
+  describe` reports back into `ci/fixtureManifest.json`, replacing that
+  fixture's `PENDING_PROVISIONING` sentinel with the real value, and
+  commits that change through the normal review process — the manifest
+  update is itself a reviewable, auditable code change, not a runtime
+  side effect of any pipeline execution. Re-provisioning (e.g. rotating
+  a fixture's content) means uploading a new object at the same path,
+  recomputing its real sha256/sizeBytes, and updating all four pinned
+  fields (`generation`, `sha256`, `sizeBytes`, and the checked-in
+  `localPath` file itself) together in one reviewed change — never
+  updating only the generation while leaving a stale hash pinned, which
+  `ci/fixtureManifest.test.js`'s "manifest and real file must match"
+  test exists specifically to catch.
+- `services/compliance-scanner/ci/staging-bucket-lifecycle.template.json`
+  — for the dedicated staging synthetic-object bucket only: live
+  fixtures deleted after 7 days, noncurrent generations after 2 days.
+  Schema confirmed against `gcloud storage buckets update --help`'s own
+  worked example (`{"rule": [...]}`, singular — a GENUINELY DIFFERENT
+  top-level shape from Artifact Registry's bare array above; the two
+  were checked separately rather than assumed to match by analogy).
+  Deliberately not parameterized with a bucket name, so it cannot be
+  copy-pasted onto a production bucket without a deliberate, explicit
+  apply step naming the correct one. Production compliance documents
+  are excluded structurally — this policy is only ever attached to a
+  bucket resource that holds nothing but synthetic test fixtures.

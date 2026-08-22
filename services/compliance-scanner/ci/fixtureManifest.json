@@ -1,0 +1,45 @@
+{
+  "_comment": "Petsupo Marketplace P1-A compliance foundation — signature-refresh pipeline, versioned security-fixture manifest (Slice 2.2 adversarial correction, Mandatory correction 1). Every fixture the pipeline treats as trusted MUST be listed here with its real, pinned content hash. The pipeline verifies each fixture's REAL uploaded bytes against this manifest before any candidate is pushed, deployed, or promoted — see ci/fixtureManifest.js's decideFixtureIntegrity/decideVerdictCheck and cloudbuild.signature-refresh.yaml's verify-fixtures step. A fixture missing, mismatched, or still carrying the PENDING_PROVISIONING generation sentinel fails the build outright; it is never treated as skipped-but-passed.",
+
+  "_comment_provisioning": "The generation field for each fixture below is intentionally the literal sentinel string PENDING_PROVISIONING — no fixture has been uploaded to any bucket by this task (uploading is explicitly out of scope here; see docs/plans/marketplace_p1a_slice2_1_scanner_deployment_readiness_2026-08-21.md's fixture-provisioning section for the separate, authorized process this manifest assumes). ci/fixtureManifest.js's validateManifestShape() treats PENDING_PROVISIONING as an invalid/unprovisioned manifest and fails closed — it is not a value real provisioning could ever legitimately produce (real GCS generations are large positive integers), so there is no ambiguity between 'not yet provisioned' and 'a real but small generation number'.",
+
+  "schemaVersion": 1,
+
+  "fixtures": [
+    {
+      "id": "benign-text",
+      "description": "Synthetic, non-sensitive placeholder text — no real business content.",
+      "localPath": "ci/fixtures/benign.txt",
+      "objectPath": "compliance_quarantine/ci-fixtures/benign.txt",
+      "generation": "PENDING_PROVISIONING",
+      "sha256": "0903c6568fa5f60c0c42c3b6cde3707a98495f7b490220e57999a55341f2a828",
+      "sizeBytes": 134,
+      "category": "text/plain",
+      "expectedVerdict": "clean"
+    },
+    {
+      "id": "eicar-standard",
+      "description": "The standard EICAR antivirus test string (https://www.eicar.org/download-anti-malware-testfile/) — a harmless, industry-standard file every AV engine is designed to flag; not malware. Stored ENCODED (base64) in this repository — see localPath/encoding — specifically so the raw, active EICAR bytes are never committed in the clear, which is exactly the content many developer machines' endpoint protection, Git clients, GitHub's own scanning, and backup tools are designed to quarantine. The pinned sha256/sizeBytes below describe the DECODED bytes (what is actually uploaded to objectPath and scanned), not the encoded file on disk. See ci/materializeEicarFixture.js for the decode+verify step every consumer of this fixture must go through before use.",
+      "localPath": "ci/fixtures/eicar.b64",
+      "encoding": "base64",
+      "objectPath": "compliance_quarantine/ci-fixtures/eicar.txt",
+      "generation": "PENDING_PROVISIONING",
+      "sha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+      "sizeBytes": 68,
+      "category": "eicar-standard-test-string",
+      "expectedVerdict": "infected"
+    },
+    {
+      "id": "encrypted-pdf",
+      "description": "A synthetic, content-free PDF encrypted with fixture-only, publicly-known, non-secret passwords ('ci-fixture-owner-pw' / 'ci-fixture-user-pw') via pikepdf — protects nothing of value; exists solely to exercise clamd's Heuristics.Encrypted.PDF detection path deterministically.",
+      "localPath": "ci/fixtures/encrypted.pdf",
+      "objectPath": "compliance_quarantine/ci-fixtures/encrypted.pdf",
+      "generation": "PENDING_PROVISIONING",
+      "sha256": "5ebe8f2d8b4c8c7add06cc392b30fcbf6c88f4d7a1a1a080c9e1a8261691265b",
+      "sizeBytes": 666,
+      "category": "application/pdf",
+      "expectedVerdict": "error",
+      "expectedErrorCode": "encrypted_document_unsupported"
+    }
+  ]
+}

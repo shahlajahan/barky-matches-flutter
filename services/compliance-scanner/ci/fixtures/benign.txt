@@ -1,0 +1,1 @@
+Petsupo Marketplace P1-A compliance-scanner CI fixture — synthetic, non-sensitive, test-only benign document. No real business data.

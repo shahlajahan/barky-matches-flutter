@@ -1,0 +1,26 @@
+{
+  "_comment_status": "TEMPLATE ONLY (Slice 2.2, Phase 9). Not applied to any bucket in this task. Apply later via: gcloud storage buckets update gs://<synthetic-test-bucket> --lifecycle-file=<this-file>",
+
+  "_comment_scope": "This policy is for a STAGING SYNTHETIC-OBJECT bucket ONLY — one that holds nothing but generated test fixtures (EICAR strings, benign placeholder text, hand-built PDFs/PNGs, and a pre-seeded encrypted-PDF fixture for cloudbuild.signature-refresh.yaml's Stage 2b/5) and never a real seller/compliance document. It must never be applied to barkymatches-new's compliance bucket (`compliance_docs/`, `compliance_quarantine/`) or any bucket that ever receives real uploads — this template is intentionally NOT parameterized with a bucket name specifically so it cannot be copy-pasted onto the wrong bucket without a deliberate, explicit apply step naming the correct one.",
+
+  "_comment_production_exclusion": "Production compliance documents are excluded from this policy structurally, not by a rule condition within it: this lifecycle configuration is only ever intended to be attached to the dedicated staging synthetic-object bucket resource itself (a distinct GCS bucket with its own name, its own IAM, and zero production traffic — see the Slice 2.1 staging deployment report). A bucket-level lifecycle policy cannot reach into a different bucket, so there is no rule expressible here that could accidentally affect barkymatches-new's storage regardless of any future edit to this file.",
+
+  "rule": [
+    {
+      "action": { "type": "Delete" },
+      "condition": {
+        "age": 7,
+        "isLive": true
+      }
+    },
+    {
+      "action": { "type": "Delete" },
+      "condition": {
+        "age": 2,
+        "isLive": false
+      }
+    }
+  ],
+
+  "_comment_rules_explained": "Rule 1: any LIVE (current-generation) synthetic fixture older than 7 days is deleted — generous enough for a fixture to be reused across several days of manual/CI testing, short enough that nothing accumulates indefinitely. Rule 2: any NONCURRENT (superseded) generation older than 2 days is deleted — noncurrent generations exist in this bucket only transiently, to prove generation-pinned reads (see the Slice 2.1 staging verification's generation-test-v2.bin example), and are never needed again once that specific test run has completed."
+}

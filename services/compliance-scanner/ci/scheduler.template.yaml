@@ -1,0 +1,88 @@
+# Petsupo Marketplace P1-A compliance foundation — compliance-scanner
+# signature-refresh SCHEDULING template (Slice 2.2, Phase 6).
+#
+# STATUS: declarative template only. This file does not create a Cloud
+# Scheduler job, a Cloud Build trigger, or any other resource — it
+# documents the intended shape so a later, separately-authorized task
+# can apply it. Do not treat this file as evidence any schedule exists.
+#
+# ---------------------------------------------------------------------
+# Why this is NOT "one native Cloud Build scheduled trigger resource"
+# ---------------------------------------------------------------------
+# `gcloud builds triggers create scheduled` (referenced by the original
+# Slice 2.1 readiness doc's §6) is convenience syntax, not a single
+# GCP resource type of its own — under the hood it provisions and wires
+# together THREE separate resources with three separate identities:
+#
+#   1. A Cloud Scheduler job (cloudscheduler.googleapis.com), which
+#      holds the cron schedule and fires an authenticated HTTP call.
+#   2. That HTTP call invokes the Cloud Build API
+#      (cloudbuild.googleapis.com) to start a build from THIS file
+#      (cloudbuild.signature-refresh.yaml).
+#   3. The resulting Cloud Build execution runs as the Cloud Build
+#      execution identity (a dedicated service account — see §13/Phase 7
+#      of the readiness doc — never the scanner runtime identity, never
+#      the Functions caller identity), which in turn deploys the
+#      scanner using the SCANNER's OWN runtime identity
+#      (`_SCANNER_RUNTIME_SA`) — a third, distinct identity again.
+#
+# Four identities are involved end to end, never conflated:
+#   Scheduler invocation identity -> Cloud Build execution identity
+#   -> (deploys as) Scanner runtime identity
+#   (separately) Functions caller identity -> invokes the deployed
+#   scanner's /v1/scan at request time, unrelated to any of the above.
+#
+# See docs/plans/marketplace_p1a_slice2_1_scanner_deployment_readiness_2026-08-21.md
+# §13 for the exact minimum role grant for each.
+#
+# ---------------------------------------------------------------------
+# Freshness margin
+# ---------------------------------------------------------------------
+# The enforced signature ceiling is 48 hours
+# (COMPLIANCE_SIGNATURE_MAX_AGE_MS / SIGNATURE_MAX_AGE_MS / build-
+# signatures.sh's MAX_AGE_HOURS — kept in sync by
+# functions/test/complianceSignatureFreshnessConsistency.test.js). A
+# once-daily schedule (every ~24h) leaves roughly 24h of margin before
+# that ceiling is ever approached by a SUCCESSFUL run. The real risk is
+# consecutive FAILURES: if today's refresh fails outright (any of
+# build-signatures.sh's fail-closed conditions, or a later pipeline
+# stage), the previously-deployed image's signatures continue aging
+# toward 48h with no new attempt until tomorrow's scheduled run. A
+# single missed day is still within budget (24h scheduled interval + 24h
+# margin < 48h ceiling) but leaves zero slack for a second consecutive
+# failure. The monitoring alert below is what closes this gap — it must
+# fire on the FIRST failure, not the second, so an operator can
+# intervene manually well before the 48h ceiling is ever reached.
+
+schedule:
+  cron: "0 3 * * *" # daily at 03:00 in the job's configured timezone — matches the original Slice 2.1 readiness doc's own reference
+  timeZone: "Etc/UTC" # explicit, never left to project/account default
+
+target:
+  type: cloud_build_trigger_or_api_invocation
+  # Either mechanism is acceptable; both must be authenticated as the
+  # SCHEDULER INVOCATION IDENTITY (§13), which itself has no permission
+  # beyond starting this specific build — it is not the Cloud Build
+  # execution identity, and never receives Artifact Registry, Cloud Run,
+  # or IAM roles directly.
+  cloudBuildConfigPath: "services/compliance-scanner/cloudbuild.signature-refresh.yaml"
+  substitutions:
+    _REGION: "<set at trigger-creation time, per environment>"
+    _REPOSITORY: "<set at trigger-creation time, per environment>"
+    _IMAGE_NAME: "<set at trigger-creation time, per environment>"
+    _SERVICE: "<set at trigger-creation time, per environment>"
+    _SCANNER_RUNTIME_SA: "<set at trigger-creation time, per environment>"
+    _MONITORING_SA: "<set at trigger-creation time, per environment>"
+    _SYNTHETIC_TEST_BUCKET: "<set at trigger-creation time, per environment>"
+    _LOCK_BUCKET: "<set at trigger-creation time, per environment>"
+    _ENVIRONMENT: "<e.g. staging — logging label only>"
+
+alerting:
+  # Must fire BEFORE the currently-deployed scanner's signatures cross
+  # the 48h ceiling — i.e. on the FIRST failed/missed run, not after a
+  # second consecutive one.
+  onBuildFailure: "alert immediately — see readiness doc §7b, same
+    log-based-metric convention as the scanner's own error-rate alert"
+  onScheduleMiss: "alert if no successful build has completed within
+    30h of the previous successful build's timestamp (24h schedule +
+    6h grace, still comfortably inside the 48h ceiling)"

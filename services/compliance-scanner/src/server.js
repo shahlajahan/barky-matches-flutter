@@ -79,6 +79,28 @@ function createServer({ config, gcsReader, clamdScanner, logger = createLogger()
         return;
       }
 
+      // Second, IAM-authenticated health surface (Slice 2.2). Staging
+      // investigation found the literal path "/healthz" unreachable
+      // through Cloud Run's public URL — application, IAM, and test
+      // methodology were all ruled out as the cause; the platform-level
+      // reason remains UNRESOLVED — NEEDS CONTROLLED FOLLOW-UP (see the
+      // readiness doc). /healthz itself is left completely unchanged
+      // and is still what Cloud Run's own internal startup probe uses.
+      // /status is byte-for-byte identical in behavior and
+      // authorization to /healthz — no new application-level auth code
+      // exists here or anywhere in this file (see this file's own
+      // top-of-file comment on why); it is reached through the exact
+      // same IAM-gated request path as /v1/scan, and returns the exact
+      // same closed field set handleHealthCheck already produces
+      // (status + three booleans) — never bucket names, object paths,
+      // socket paths, environment variables, or any other internal
+      // detail.
+      if (req.method === "GET" && req.url === "/status") {
+        const result = await handleHealthCheck({ config, clamdScanner });
+        sendJson(res, result.status, result.body);
+        return;
+      }
+
       if (req.method === "POST" && req.url === "/v1/scan") {
         const contentType = String(req.headers["content-type"] || "");
         if (!contentType.toLowerCase().startsWith("application/json")) {

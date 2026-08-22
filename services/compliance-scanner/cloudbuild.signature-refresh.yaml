@@ -1,0 +1,323 @@
+# Petsupo Marketplace P1-A compliance foundation — compliance-scanner
+# daily ClamAV signature-refresh pipeline (Slice 2.2, corrected per two
+# rounds of adversarial review — see the Slice 2.2 correction reports
+# for the full rationale behind every change from earlier versions).
+#
+# STATUS: definition only. This file has never been used to create a
+# Cloud Build trigger, has never been run against any project, and does
+# not itself grant any permission or create any resource.
+#
+# Environment-neutral: every project/region/repository/service/
+# service-account/bucket value is a substitution, never a literal —
+# nothing in this file hardcodes barkymatches-new, petsupo-platform-
+# staging, or any bucket/service-account/URL.
+#
+# Every step's script body lives in a narrowly-scoped, independently
+# syntax-checked file under services/compliance-scanner/ci/ (not inline
+# YAML `args`). Each Cloud Build ${_SUBSTITUTION} is resolved ONLY in
+# this file's `env:` lists below, into a plain shell environment
+# variable the script then reads with ordinary POSIX `$VAR` syntax —
+# Cloud Build's substitution syntax and the script's own shell syntax
+# never share the same text, so there is no `$` / `${...}` / `$$`
+# collision class to reason about.
+#
+# ---------------------------------------------------------------------
+# BUILDER-IMAGE INVENTORY (Slice 2.2 final correction — resolved, not
+# left as a gap). Every image below was PULLED AND EMPIRICALLY INSPECTED
+# during this review (`docker run --rm --entrypoint sh <image> -c
+# 'which <tool>'` / `<tool> --version`, all local, no GCP resource
+# touched) — this is not an assumption about vendor image contents.
+# ---------------------------------------------------------------------
+#
+# Per-step tool need -> image mapping:
+#   acquire-lock              node only            -> node:20.18.1-bookworm-slim
+#   verify-fixtures-integrity node only             -> node:20.18.1-bookworm-slim
+#   build-candidate           docker only           -> gcr.io/cloud-builders/docker
+#   verify-source             node only             -> node:20.18.1-bookworm-slim
+#   verify-candidate-container docker + curl        -> gcr.io/cloud-builders/docker (has curl too, confirmed)
+#   push-candidate            docker + node         -> ci-builder (see below — combined, unavoidable)
+#   resolve-digest            gcloud only           -> gcr.io/google.com/cloudsdktool/cloud-sdk:531.0.0-slim
+#   deploy-candidate          gcloud + node         -> ci-builder
+#   verify-deployed-candidate gcloud + curl + sha256sum -> cloud-sdk:531.0.0-slim (has all three, confirmed)
+#   promote                   gcloud + python3 + node   -> ci-builder
+#   release-lock              node only             -> node:20.18.1-bookworm-slim
+#
+# Why three steps (push-candidate, deploy-candidate, promote) need a
+# COMBINED image: each must, within ONE script, both (a) verify via
+# ci/signatureRefreshLock.js that it still holds the fenced concurrency
+# lease and (b) perform its own gcloud/docker mutation immediately
+# after. Cloud Build has no conditional/"finally" step mechanism that
+# could run the lease check in a separate step's image only when the
+# mutating step is about to run — the check and the mutation must be in
+# the SAME script. Empirical inspection confirmed NEITHER
+# gcr.io/google.com/cloudsdktool/cloud-sdk NOR gcr.io/cloud-builders/
+# docker includes a Node.js runtime, so Option A (separate official
+# images per step) cannot cover these three steps alone.
+#
+# Resolution: services/compliance-scanner/ci/Dockerfile.ci-builder —
+# built and its tool contents verified LOCALLY in this same review
+# (`docker build` succeeded; its own baked-in sanity-check RUN step
+# printed real version strings for node v20.18.1, npm 10.8.2, gcloud
+# 531.0.0, docker 20.10.24, curl 7.88.1, sha256sum 9.1, python3 3.11.2 —
+# all present, all working, in one image). Built via COPY --from= from
+# two other already-pinned, already-inspected official images (the same
+# node-binary-copy technique services/compliance-scanner/Dockerfile
+# itself already uses) — never a dynamic `apt-get install`. NOT pushed
+# to any registry in this task. `_CI_BUILDER_IMAGE_REF` below is
+# therefore a REQUIRED substitution with no default: publishing
+# ci/Dockerfile.ci-builder to a real Artifact Registry repository and
+# pinning that real resulting digest here is a separate, later,
+# explicitly-authorized action — a concrete, disclosed prerequisite,
+# not an assumption this file makes silently.
+#
+# Every OTHER image below is pinned by the exact digest resolved during
+# this same local inspection — no floating `latest` tag anywhere.
+#
+# ---------------------------------------------------------------------
+# Cross-step failure semantics: Cloud Build aborts the whole build the
+# moment any step exits non-zero and does not run later steps — there is
+# no native "finally" block spanning multiple steps. The fenced lease
+# (ci/signatureRefreshLock.js) is therefore NOT proactively released on
+# every possible mid-pipeline failure; it is designed to expire on its
+# own after LOCK_LEASE_SECONDS (900s / 15 minutes), after which the next
+# scheduled run safely reclaims it. Every MUTATING step (push, deploy,
+# promote/rollback, release) independently renews this lease as its own
+# first action via ci/renew-lease-or-fail.sh and fails closed immediately
+# if renewal is refused — see that script and ci/signatureRefreshLock.js
+# for the full fencing design. Every such step also has an EXPLICIT
+# `timeout:` of 600s (10 minutes), strictly less than the 900s lease
+# window a successful renewal grants at that step's own start — this is
+# the "explicitly proven relationship" between lease duration, renewal
+# checkpoints, and step timeout the design requires, not an assumption.
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  # No substitution below is a secret (service-account EMAILS are
+  # identifiers, not credentials; no token/key substitution exists
+  # anywhere in this file or the scripts it calls) — stated explicitly
+  # per the requirement not to print access tokens or secrets. No
+  # script under ci/ ever echoes a minted ID token; every use is
+  # confined to an `-H "Authorization: Bearer ${TOKEN}"` argument.
+
+substitutions:
+  _CI_BUILDER_IMAGE_REF: "" # REQUIRED, no default — see the builder-image inventory above. Must point to a published, digest-pinned build of services/compliance-scanner/ci/Dockerfile.ci-builder.
+  _REGION: "" # e.g. europe-west1 — required, no default (fail loud, not silently assume a region)
+  _REPOSITORY: "" # Artifact Registry repository name, e.g. compliance-scanner
+  _IMAGE_NAME: "" # image name within the repository, e.g. compliance-scanner
+  _SERVICE: "" # Cloud Run service name, e.g. compliance-scanner
+  _SCANNER_RUNTIME_SA: "" # full email of the scanner's OWN Cloud Run runtime identity — never the build identity, never the Functions caller identity
+  _MONITORING_SA: "" # full email of the dedicated candidate-verification/monitoring identity — never a human account, never compliance-functions-sa
+  _SYNTHETIC_TEST_BUCKET: "" # a bucket the build identity may read compliance_quarantine/ci-fixtures/ and compliance_quarantine/ci-*/ from/to — never a production document bucket
+  _LOCK_BUCKET: "" # bucket holding the concurrency-lock object — may be the same as _SYNTHETIC_TEST_BUCKET or a dedicated small bucket
+  _LOCK_OBJECT: "ci-locks/signature-refresh.lock.json"
+  _LOCK_LEASE_SECONDS: "900" # 15 minutes — see the timing-relationship note above
+  _ENVIRONMENT: "" # free-text label only (e.g. "staging") — logged/tagged for operator clarity, must never branch security-relevant behavior
+
+steps:
+  # -----------------------------------------------------------------
+  # Stage 0 — acquire the concurrency lock. Node only.
+  # -----------------------------------------------------------------
+  - id: acquire-lock
+    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/acquire-lock.sh"]
+    env:
+      - "LOCK_BUCKET=${_LOCK_BUCKET}"
+      - "LOCK_OBJECT=${_LOCK_OBJECT}"
+      - "LOCK_LEASE_SECONDS=${_LOCK_LEASE_SECONDS}"
+      # BUILD_ID is a Cloud Build built-in substitution, resolved here
+      # exactly like every custom _-prefixed one — see the top-of-file
+      # note distinguishing built-in vs custom substitutions.
+      - "BUILD_ID=${BUILD_ID}"
+    timeout: 120s
+
+  # -----------------------------------------------------------------
+  # Stage 1 — mandatory security-fixture integrity gate (runs in
+  # parallel with build-candidate; both depend only on the lock). Node
+  # only. Also materializes the EICAR fixture and writes
+  # /workspace/.fixtures.env for later, node-free steps.
+  # -----------------------------------------------------------------
+  - id: verify-fixtures-integrity
+    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    waitFor: ["acquire-lock"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/verify-fixtures.sh"]
+    env:
+      - "SYNTHETIC_TEST_BUCKET=${_SYNTHETIC_TEST_BUCKET}"
+    timeout: 180s
+
+  # -----------------------------------------------------------------
+  # Stage 2 — build candidate image (non-mutating, no lease renewal).
+  # Docker only.
+  # -----------------------------------------------------------------
+  - id: build-candidate
+    name: "gcr.io/cloud-builders/docker@sha256:2e8d40d8e48dc14fab4213d5e532d74f63fd403d9e8d7f6463096a75820286c3"
+    waitFor: ["acquire-lock"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/build-candidate.sh"]
+    env:
+      - "COMMIT_SHA=${COMMIT_SHA}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "IMAGE_NAME=${_IMAGE_NAME}"
+    timeout: 900s
+
+  # -----------------------------------------------------------------
+  # Stage 3a — source-level unit tests and static checks (parallel,
+  # does not need the built image). Node only.
+  # -----------------------------------------------------------------
+  - id: verify-source
+    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    waitFor: ["acquire-lock"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/verify-source.sh"]
+    timeout: 600s
+
+  # -----------------------------------------------------------------
+  # Stage 3b — local candidate container verification, using the
+  # manifest-pinned, already-integrity-checked fixtures. Encrypted-
+  # document verification is MANDATORY here, never skipped. Docker +
+  # curl only (both present in the docker builder image).
+  # -----------------------------------------------------------------
+  - id: verify-candidate-container
+    name: "gcr.io/cloud-builders/docker@sha256:2e8d40d8e48dc14fab4213d5e532d74f63fd403d9e8d7f6463096a75820286c3"
+    waitFor: ["build-candidate", "verify-fixtures-integrity"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/verify-candidate-container.sh"]
+    env:
+      - "SYNTHETIC_TEST_BUCKET=${_SYNTHETIC_TEST_BUCKET}"
+      - "BUILD_ID=${BUILD_ID}"
+    timeout: 600s
+
+  # -----------------------------------------------------------------
+  # Stage 4 — push candidate (MUTATING — fenced by lease renewal).
+  # Docker + node, combined image (see inventory note above).
+  # -----------------------------------------------------------------
+  - id: push-candidate
+    name: "${_CI_BUILDER_IMAGE_REF}"
+    waitFor: ["verify-source", "verify-candidate-container", "verify-fixtures-integrity"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/push-candidate.sh"]
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+      - "REGION=${_REGION}"
+      - "REPOSITORY=${_REPOSITORY}"
+      - "IMAGE_NAME=${_IMAGE_NAME}"
+      - "COMMIT_SHA=${COMMIT_SHA}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "LOCK_BUCKET=${_LOCK_BUCKET}"
+      - "LOCK_OBJECT=${_LOCK_OBJECT}"
+      - "LOCK_LEASE_SECONDS=${_LOCK_LEASE_SECONDS}"
+    timeout: 600s
+
+  # -----------------------------------------------------------------
+  # Stage 4b — resolve the pushed image's real digest. Read-only, no
+  # lease fencing required. gcloud only.
+  # -----------------------------------------------------------------
+  - id: resolve-digest
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:73906ef0503c3f0d7f32eae1ceb855cae80774d0fafcead5097f42285a8a86d9"
+    waitFor: ["push-candidate"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/resolve-digest.sh"]
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+    timeout: 120s
+
+  # -----------------------------------------------------------------
+  # Stage 5 — deploy a zero-traffic candidate revision (MUTATING —
+  # fenced by lease renewal). Records the FULL pre-existing traffic
+  # allocation for rollback. gcloud + node, combined image.
+  # -----------------------------------------------------------------
+  - id: deploy-candidate
+    name: "${_CI_BUILDER_IMAGE_REF}"
+    waitFor: ["resolve-digest"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/deploy-candidate.sh"]
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+      - "REGION=${_REGION}"
+      - "REPOSITORY=${_REPOSITORY}"
+      - "IMAGE_NAME=${_IMAGE_NAME}"
+      - "SERVICE=${_SERVICE}"
+      - "SCANNER_RUNTIME_SA=${_SCANNER_RUNTIME_SA}"
+      - "COMMIT_SHA=${COMMIT_SHA}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "LOCK_BUCKET=${_LOCK_BUCKET}"
+      - "LOCK_OBJECT=${_LOCK_OBJECT}"
+      - "LOCK_LEASE_SECONDS=${_LOCK_LEASE_SECONDS}"
+    timeout: 600s
+
+  # -----------------------------------------------------------------
+  # Stage 6 — verify the deployed candidate (non-mutating against
+  # Cloud Run/Artifact Registry; writes only to the synthetic bucket).
+  # gcloud + curl + sha256sum — all present in the plain cloud-sdk
+  # image, no node needed (fixture metadata sourced from
+  # /workspace/.fixtures.env; EICAR bytes read from
+  # /workspace/.eicar-materialized.bin, both written by
+  # verify-fixtures-integrity).
+  # -----------------------------------------------------------------
+  - id: verify-deployed-candidate
+    name: "gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:73906ef0503c3f0d7f32eae1ceb855cae80774d0fafcead5097f42285a8a86d9"
+    waitFor: ["deploy-candidate"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/verify-deployed-candidate.sh"]
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+      - "REGION=${_REGION}"
+      - "SERVICE=${_SERVICE}"
+      - "MONITORING_SA=${_MONITORING_SA}"
+      - "SYNTHETIC_TEST_BUCKET=${_SYNTHETIC_TEST_BUCKET}"
+      - "SCANNER_RUNTIME_SA=${_SCANNER_RUNTIME_SA}"
+      - "BUILD_ID=${BUILD_ID}"
+    timeout: 600s
+
+  # -----------------------------------------------------------------
+  # Stage 7 — promote, with fenced self-contained rollback (MUTATING
+  # — fenced by lease renewal, separately, before EACH traffic shift).
+  # gcloud + python3 + node, combined image.
+  # -----------------------------------------------------------------
+  - id: promote
+    name: "${_CI_BUILDER_IMAGE_REF}"
+    waitFor: ["verify-deployed-candidate"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/promote.sh"]
+    env:
+      - "PROJECT_ID=${PROJECT_ID}"
+      - "REGION=${_REGION}"
+      - "REPOSITORY=${_REPOSITORY}"
+      - "IMAGE_NAME=${_IMAGE_NAME}"
+      - "SERVICE=${_SERVICE}"
+      - "SCANNER_RUNTIME_SA=${_SCANNER_RUNTIME_SA}"
+      - "COMMIT_SHA=${COMMIT_SHA}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "LOCK_BUCKET=${_LOCK_BUCKET}"
+      - "LOCK_OBJECT=${_LOCK_OBJECT}"
+      - "LOCK_LEASE_SECONDS=${_LOCK_LEASE_SECONDS}"
+    timeout: 600s
+
+  # -----------------------------------------------------------------
+  # Stage 8 — release the lock (MUTATING — renews/fences before
+  # releasing; cannot run under a lost lease). Node only —
+  # ci/signatureRefreshLock.js uses @google-cloud/storage directly, no
+  # gcloud CLI needed.
+  # -----------------------------------------------------------------
+  - id: release-lock
+    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    waitFor: ["promote"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/release-lock.sh"]
+    env:
+      - "LOCK_BUCKET=${_LOCK_BUCKET}"
+      - "LOCK_OBJECT=${_LOCK_OBJECT}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "LOCK_LEASE_SECONDS=${_LOCK_LEASE_SECONDS}"
+    timeout: 120s
+
+images:
+  # Recorded for Cloud Build's own provenance/build-record metadata —
+  # the actual push happens explicitly inside ci/push-candidate.sh
+  # (Stage 4), which is the digest this pipeline actually trusts (via
+  # ci/resolve-digest.sh, Stage 4b); this entry does not itself perform
+  # or replace that push.
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_IMAGE_NAME}:${COMMIT_SHA}-${BUILD_ID}"
+
+timeout: 3600s # 60 minutes overall — comfortably covers every per-step timeout above with margin

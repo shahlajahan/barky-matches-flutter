@@ -198,6 +198,133 @@ test("POST /v1/scan with an invalid request body (unknown field) is rejected wit
   }
 });
 
+// ---------------------------------------------------------------------
+// GET /status (Slice 2.2) — must behave identically to GET /healthz in
+// every respect: same handler, same response contract, same IAM-gated
+// route path (no application-level auth code introduced anywhere), and
+// must never leak any field beyond the existing safe
+// {status, checks: {clamdReachable, signaturesLoaded, signaturesFresh}}
+// shape.
+// ---------------------------------------------------------------------
+
+test("GET /status returns the same safe healthy result as GET /healthz", async () => {
+  const server = await startTestServer();
+  try {
+    const { port } = server.address();
+    const healthz = await request({ port, method: "GET", path: "/healthz" });
+    const status = await request({ port, method: "GET", path: "/status" });
+    assert.equal(status.status, 200);
+    assert.deepEqual(status.body, healthz.body);
+  } finally {
+    server.close();
+  }
+});
+
+test("GET /status returns 503/unhealthy when clamd is unreachable", async () => {
+  const server = await startTestServer({ clamdScanner: createFakeClamdScanner({ reachable: false }) });
+  try {
+    const { port } = server.address();
+    const res = await request({ port, method: "GET", path: "/status" });
+    assert.equal(res.status, 503);
+    assert.equal(res.body.status, "unhealthy");
+    assert.equal(res.body.checks.clamdReachable, false);
+  } finally {
+    server.close();
+  }
+});
+
+test("GET /status returns 503/unhealthy when signature metadata is missing", async () => {
+  const server = await startTestServer({
+    config: baseConfig({ signatureBuiltAt: null, engineVersion: null, signatureVersion: null }),
+  });
+  try {
+    const { port } = server.address();
+    const res = await request({ port, method: "GET", path: "/status" });
+    assert.equal(res.status, 503);
+    assert.equal(res.body.checks.signaturesLoaded, false);
+  } finally {
+    server.close();
+  }
+});
+
+test("GET /status returns 503/unhealthy when signatures are stale", async () => {
+  const server = await startTestServer({
+    config: baseConfig({ signatureBuiltAt: new Date(Date.now() - 49 * 60 * 60 * 1000).toISOString() }),
+  });
+  try {
+    const { port } = server.address();
+    const res = await request({ port, method: "GET", path: "/status" });
+    assert.equal(res.status, 503);
+    assert.equal(res.body.checks.signaturesFresh, false);
+  } finally {
+    server.close();
+  }
+});
+
+test("GET /status response contains no sensitive fields", async () => {
+  const server = await startTestServer();
+  try {
+    const { port } = server.address();
+    const res = await request({ port, method: "GET", path: "/status" });
+    const serialized = JSON.stringify(res.body);
+    const forbidden = [
+      "bucket",
+      "objectPath",
+      "compliance_quarantine",
+      "sha256",
+      "generation",
+      "project",
+      "socket",
+      "/var/run",
+      "token",
+      "credential",
+      "PORT",
+      "env",
+    ];
+    for (const term of forbidden) {
+      assert.equal(
+        serialized.toLowerCase().includes(term.toLowerCase()),
+        false,
+        `/status output must not mention "${term}"`
+      );
+    }
+    // Closed field set — nothing beyond status/checks and the three
+    // named booleans inside checks.
+    assert.deepEqual(Object.keys(res.body).sort(), ["checks", "status"]);
+    assert.deepEqual(
+      Object.keys(res.body.checks).sort(),
+      ["clamdReachable", "signaturesFresh", "signaturesLoaded"]
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test("POST /status does not succeed — falls through to the standard 404, not the health handler", async () => {
+  const server = await startTestServer();
+  try {
+    const { port } = server.address();
+    const res = await request({ port, method: "POST", path: "/status" });
+    assert.notEqual(res.status, 200);
+    assert.equal(res.status, 404);
+  } finally {
+    server.close();
+  }
+});
+
+test("/status/ (trailing slash), /STATUS (uppercase), and /statuss do not accidentally match the health handler", async () => {
+  const server = await startTestServer();
+  try {
+    const { port } = server.address();
+    for (const path of ["/status/", "/STATUS", "/statuss", "/Status"]) {
+      const res = await request({ port, method: "GET", path });
+      assert.equal(res.status, 404, `${path} must not match the /status handler`);
+    }
+  } finally {
+    server.close();
+  }
+});
+
 test("an unknown route returns 404", async () => {
   const server = await startTestServer();
   try {
@@ -217,6 +344,35 @@ test("GET /v1/scan (wrong method) does not route to the scan handler", async () 
     const res = await request({ port, method: "GET", path: "/v1/scan" });
     assert.notEqual(res.status, 200);
     assert.equal(gcsReader.calls.length, 0);
+  } finally {
+    server.close();
+  }
+});
+
+test("/v1/scan behavior is unchanged by the addition of /status (Slice 2.2 regression check)", async () => {
+  const content = Buffer.from("a safe synthetic test document, unaffected by /status");
+  const sha256 = crypto.createHash("sha256").update(content).digest("hex");
+  const server = await startTestServer({ gcsReader: createFakeGcsReader({ content }) });
+  try {
+    const { port } = server.address();
+    const body = JSON.stringify({
+      contractVersion: CONTRACT_VERSION,
+      requestId: "req-status-regression",
+      bucket: ALLOWED_BUCKET,
+      objectPath: "compliance_quarantine/biz-1/sess-1/tok.pdf",
+      generation: "111",
+      sha256,
+      sizeBytes: content.length,
+    });
+    const res = await request({
+      port,
+      method: "POST",
+      path: "/v1/scan",
+      headers: { "content-type": "application/json", "content-length": Buffer.byteLength(body) },
+      body,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.verdict, "clean");
   } finally {
     server.close();
   }

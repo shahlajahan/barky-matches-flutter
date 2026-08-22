@@ -1,0 +1,79 @@
+# Petsupo Marketplace P1-A compliance foundation — signature-refresh
+# pipeline, dedicated CI builder image (Slice 2.2 final correction,
+# Option B — used ONLY for the specific pipeline steps that genuinely
+# need gcloud/docker AND node together in the same step: push-candidate,
+# deploy-candidate, promote, release-lock. Every other step uses a
+# single-purpose official/pinned image directly — see
+# cloudbuild.signature-refresh.yaml's own per-step image comments).
+#
+# STATUS: built and its tool contents verified LOCALLY in this review
+# (`docker build` + `which`/`--version` checks against the real
+# resulting image, all on this machine, no GCP resource touched). NOT
+# pushed to any registry, NOT referenced by digest from
+# cloudbuild.signature-refresh.yaml yet — publishing this image to a
+# real Artifact Registry repository and pinning that real digest is a
+# separate, later, explicitly-authorized action, tracked as a
+# prerequisite in the Slice 2.2 correction report.
+#
+# Why this exists instead of an unverified third-party combined image:
+# empirical inspection (this same review) of
+# gcr.io/google.com/cloudsdktool/cloud-sdk:531.0.0-slim and
+# gcr.io/cloud-builders/docker found NEITHER includes a Node.js runtime
+# — Option A (separate official images per step) cannot cover a step
+# that must, within one script, both verify it still holds the
+# fenced concurrency lease (ci/signatureRefreshLock.js, Node-based) AND
+# perform its own gcloud/docker mutation, because Cloud Build has no
+# conditional/"finally" step that could run a lease check only when a
+# later step is about to execute — the check and the mutation must be
+# in the SAME step. This is a deliberate, reviewed exception, not an
+# unreviewed bulk addition of tooling.
+#
+# No dynamically-installed, unpinned packages: Node.js is added via
+# COPY --from=, from the OFFICIAL, digest-pinned node image — the exact
+# same technique services/compliance-scanner/Dockerfile itself already
+# uses to add Node onto the clamav/clamav base image (see that file's
+# own "Node version pinning" comment) — never `apt-get install nodejs`
+# or any other dynamic, version-floating install.
+
+FROM node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc AS node-source
+
+# gcr.io/cloud-builders/docker has no meaningful version tag of its own
+# (Google publishes it effectively as a floating "latest") — pinned
+# here by the exact digest resolved and inspected during this review,
+# never by a bare tag.
+FROM gcr.io/cloud-builders/docker@sha256:2e8d40d8e48dc14fab4213d5e532d74f63fd403d9e8d7f6463096a75820286c3 AS docker-source
+
+FROM gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:73906ef0503c3f0d7f32eae1ceb855cae80774d0fafcead5097f42285a8a86d9
+
+# Copy only the real Node binary and the actual node_modules/npm
+# package tree (never the pre-existing npm/npx symlinks themselves,
+# which dereference-copy incorrectly across images — see the main
+# Dockerfile's own "second real build failure" comment for the exact
+# failure mode this avoids), then recreate the symlinks at their
+# correct relative depth explicitly.
+COPY --from=node-source /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-source /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# Copy only the docker CLI binary itself (not the daemon — Cloud Build's
+# own execution environment provides the daemon via a shared socket;
+# every step in a Cloud Build build already talks to the SAME host
+# daemon regardless of which step's own image happens to bundle the
+# `docker` binary). Both source images are glibc-based with only
+# standard, always-present shared library dependencies (libc, libdl,
+# libpthread — confirmed via `ldd` during this review), so a plain
+# binary copy is portable across them without reinstalling anything.
+COPY --from=docker-source /usr/bin/docker /usr/bin/docker
+
+# Sanity checks baked into the build itself — the build FAILS outright
+# if any expected tool is missing or unusable, rather than silently
+# producing a broken image (same fail-closed philosophy as the rest of
+# this pipeline).
+RUN node --version \
+    && npm --version \
+    && gcloud --version \
+    && docker --version \
+    && curl --version \
+    && sha256sum --version \
+    && python3 --version
