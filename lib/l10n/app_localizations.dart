@@ -9321,6 +9321,24 @@ abstract class AppLocalizations {
   /// **'Appointment not found'**
   String get appointmentNotFound;
 
+  /// No description provided for @appointmentNoLongerAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This appointment is no longer available.'**
+  String get appointmentNoLongerAvailable;
+
+  /// No description provided for @appointmentAvailabilityChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking appointment availability...'**
+  String get appointmentAvailabilityChecking;
+
+  /// No description provided for @appointmentAvailabilityCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t check this appointment. Please try again.'**
+  String get appointmentAvailabilityCheckFailed;
+
   /// No description provided for @petLabel.
   ///
   /// In en, this message translates to:

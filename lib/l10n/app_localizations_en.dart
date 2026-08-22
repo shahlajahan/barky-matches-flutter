@@ -4968,6 +4968,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appointmentNotFound => 'Appointment not found';
 
   @override
+  String get appointmentNoLongerAvailable => 'This appointment is no longer available.';
+
+  @override
+  String get appointmentAvailabilityChecking => 'Checking appointment availability...';
+
+  @override
+  String get appointmentAvailabilityCheckFailed => 'We couldn\'t check this appointment. Please try again.';
+
+  @override
   String get petLabel => 'Pet';
 
   @override

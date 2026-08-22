@@ -49,6 +49,7 @@ import 'package:barky_matches_fixed/ui/business/business_partner_landing_page.da
 import 'package:barky_matches_fixed/services/marketplace_order_notification_types.dart';
 import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
 import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
+import 'package:barky_matches_fixed/services/appointment_notification_navigation_guard.dart';
 import 'package:barky_matches_fixed/services/mobile_advertising_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -567,7 +568,7 @@ Future<void> setupFCM() async {
 
     _fcmMessageOpenedSub ??= FirebaseMessaging.onMessageOpenedApp.listen((
       message,
-    ) {
+    ) async {
       final context = navigatorKey.currentContext;
 
       if (context == null) return;
@@ -585,19 +586,23 @@ Future<void> setupFCM() async {
 
         debugPrint("💰 BACKGROUND TAP → $appointmentId");
 
-        appState.setSelectedAppointmentId(appointmentId);
-        appState.setCurrentTab(NavTab.profile);
-        appState.openProfileSubPage(ProfileSubPage.businessDashboard);
+        await _handleNotificationTapGuarded(
+          appState,
+          Map<String, dynamic>.from(data),
+        );
 
         return;
       }
 
       if (type.startsWith('groomy_appointment_')) {
-        appState.handleNotificationTap(Map<String, dynamic>.from(data));
+        await _handleNotificationTapGuarded(
+          appState,
+          Map<String, dynamic>.from(data),
+        );
         return;
       }
 
-      _handleRemoteMessage(message);
+      await _handleRemoteMessage(message);
     });
 
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -642,6 +647,16 @@ Future<void> setupFCM() async {
             return;
           }
 
+          if (AppointmentNotificationNavigationGuard.isAppointmentPayload(
+            Map<String, dynamic>.from(payload),
+          )) {
+            await _handleNotificationTapGuarded(
+              appState,
+              Map<String, dynamic>.from(payload),
+            );
+            return;
+          }
+
           // ───────────────── APPOINTMENT PAID TAP 🔥 ─────────────────
           if (type == 'appointment_paid' && payload['appointmentId'] != null) {
             final appointmentId = payload['appointmentId'].toString();
@@ -649,17 +664,19 @@ Future<void> setupFCM() async {
             debugPrint("💰 TAP → OPEN APPOINTMENT $appointmentId");
 
             final appState = context.read<AppState>();
-
-            appState.setSelectedAppointmentId(appointmentId);
-
-            appState.setCurrentTab(NavTab.profile);
-            appState.openProfileSubPage(ProfileSubPage.businessDashboard);
+            await _handleNotificationTapGuarded(
+              appState,
+              Map<String, dynamic>.from(payload),
+            );
 
             return;
           }
 
           if (type.startsWith('groomy_appointment_')) {
-            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            await _handleNotificationTapGuarded(
+              appState,
+              Map<String, dynamic>.from(payload),
+            );
             return;
           }
 
@@ -682,20 +699,32 @@ Future<void> setupFCM() async {
           ];
 
           if (petTaxiTypes.contains(type)) {
-            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            await _handleNotificationTapGuarded(
+              appState,
+              Map<String, dynamic>.from(payload),
+            );
             return;
           }
 
           if (isMarketplaceOrderNotificationType(type)) {
-            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            await _handleNotificationTapGuarded(
+              appState,
+              Map<String, dynamic>.from(payload),
+            );
             return;
           }
           if (isBusinessFinanceNotificationType(type)) {
-            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            await _handleNotificationTapGuarded(
+              appState,
+              Map<String, dynamic>.from(payload),
+            );
             return;
           }
           if (isMarketplaceServiceNotificationType(type)) {
-            appState.handleNotificationTap(Map<String, dynamic>.from(payload));
+            await _handleNotificationTapGuarded(
+              appState,
+              Map<String, dynamic>.from(payload),
+            );
             return;
           }
           /*
@@ -868,7 +897,34 @@ Future<void> _handleRemoteMessage(RemoteMessage message) async {
   await _handleRemoteMessageData(Map<String, dynamic>.from(message.data));
 }
 
-Future<void> _handleRemoteMessageData(Map<String, dynamic> data) async {
+Future<AppointmentNotificationNavigationDecision> _handleNotificationTapGuarded(
+  AppState appState,
+  Map<String, dynamic> payload,
+) {
+  final context = navigatorKey.currentContext;
+  final l10n = context == null ? null : AppLocalizations.of(context);
+  void showMessage(String? message) {
+    if (context == null || message == null) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  return appState.handleNotificationTapGuarded(
+    payload,
+    onMissingOrMalformed: () {
+      showMessage(l10n?.appointmentNoLongerAvailable);
+    },
+    onLookupFailedOrUnresolved: () {
+      showMessage(l10n?.appointmentAvailabilityCheckFailed);
+    },
+  );
+}
+
+Future<void> _handleRemoteMessageData(
+  Map<String, dynamic> data, {
+  bool retryUnresolvedAppointment = false,
+}) async {
   final type = (data['type'] ?? '').toString();
 
   debugPrint("🟨 HANDLE REMOTE MESSAGE: $data");
@@ -892,6 +948,24 @@ Future<void> _handleRemoteMessageData(Map<String, dynamic> data) async {
     await _openChatFromPayload(Map<String, dynamic>.from(data));
     return;
   }
+
+  Future<void> guardAppointmentTap(Map<String, dynamic> payload) async {
+    final decision = await _handleNotificationTapGuarded(appState, payload);
+    if (retryUnresolvedAppointment &&
+        decision ==
+            AppointmentNotificationNavigationDecision
+                .lookupFailedOrUnresolved) {
+      throw const InitialNotificationRetryableFailure(
+        'appointment_lookup_unresolved',
+      );
+    }
+  }
+
+  if (AppointmentNotificationNavigationGuard.isAppointmentPayload(data)) {
+    await guardAppointmentTap(Map<String, dynamic>.from(data));
+    return;
+  }
+
   // ───────────────── APPOINTMENT PAID 🔥 ─────────────────
   if (type == 'appointment_paid' && data['appointmentId'] != null) {
     final appointmentId = data['appointmentId'].toString();
@@ -900,16 +974,13 @@ Future<void> _handleRemoteMessageData(Map<String, dynamic> data) async {
 
     appState.ignoreNextNotificationTap();
 
-    appState.setSelectedAppointmentId(appointmentId);
-
-    appState.setCurrentTab(NavTab.profile);
-    appState.openProfileSubPage(ProfileSubPage.businessDashboard);
+    await guardAppointmentTap(Map<String, dynamic>.from(data));
 
     return;
   }
 
   if (type.startsWith('groomy_appointment_')) {
-    appState.handleNotificationTap(Map<String, dynamic>.from(data));
+    await guardAppointmentTap(Map<String, dynamic>.from(data));
     return;
   }
 
@@ -929,22 +1000,22 @@ Future<void> _handleRemoteMessageData(Map<String, dynamic> data) async {
   ];
 
   if (petTaxiTypes.contains(type)) {
-    appState.handleNotificationTap(data);
+    await guardAppointmentTap(Map<String, dynamic>.from(data));
     return;
   }
 
   if (isMarketplaceOrderNotificationType(type)) {
-    appState.handleNotificationTap(Map<String, dynamic>.from(data));
+    await guardAppointmentTap(Map<String, dynamic>.from(data));
     return;
   }
 
   if (isBusinessFinanceNotificationType(type)) {
-    appState.handleNotificationTap(Map<String, dynamic>.from(data));
+    await guardAppointmentTap(Map<String, dynamic>.from(data));
     return;
   }
 
   if (isMarketplaceServiceNotificationType(type)) {
-    appState.handleNotificationTap(Map<String, dynamic>.from(data));
+    await guardAppointmentTap(Map<String, dynamic>.from(data));
     return;
   }
 }
@@ -966,7 +1037,8 @@ InitialNotificationReadiness _initialNotificationReadiness() {
 Future<void> _processPendingInitialNotification() {
   return _initialNotificationCoordinator.processPendingIfReady(
     readiness: _initialNotificationReadiness(),
-    handle: _handleRemoteMessageData,
+    handle: (data) =>
+        _handleRemoteMessageData(data, retryUnresolvedAppointment: true),
   );
 }
 
@@ -981,7 +1053,8 @@ Future<void> _retrieveInitialNotificationOnce() {
       );
     },
     readiness: _initialNotificationReadiness(),
-    handle: _handleRemoteMessageData,
+    handle: (data) =>
+        _handleRemoteMessageData(data, retryUnresolvedAppointment: true),
   );
 }
 

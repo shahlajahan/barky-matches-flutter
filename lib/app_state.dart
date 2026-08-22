@@ -40,6 +40,7 @@ import 'package:barky_matches_fixed/services/analytics/analytics_values.dart';
 import 'package:barky_matches_fixed/services/marketplace_order_notification_types.dart';
 import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
 import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
+import 'package:barky_matches_fixed/services/appointment_notification_navigation_guard.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_service.dart';
 import 'package:barky_matches_fixed/appointments/models/appointment_status.dart';
 import 'package:barky_matches_fixed/ui/appointments/hotel_booking_notification_route.dart';
@@ -4095,6 +4096,33 @@ class AppState with ChangeNotifier {
       collection: collection,
       appointmentId: appointmentId,
     );
+  }
+
+  Future<AppointmentNotificationNavigationDecision> handleNotificationTapGuarded(
+    Map<String, dynamic> payload, {
+    AppointmentAvailabilityResolver? resolveAvailability,
+    void Function()? onMissingOrMalformed,
+    void Function()? onLookupFailedOrUnresolved,
+  }) async {
+    final decision = await AppointmentNotificationNavigationGuard.evaluate(
+      payload,
+      resolveAvailability: resolveAvailability,
+    );
+
+    switch (decision) {
+      case AppointmentNotificationNavigationDecision.notAppointment:
+      case AppointmentNotificationNavigationDecision.available:
+        handleNotificationTap(payload);
+        break;
+      case AppointmentNotificationNavigationDecision.missingOrMalformed:
+        onMissingOrMalformed?.call();
+        break;
+      case AppointmentNotificationNavigationDecision.lookupFailedOrUnresolved:
+        onLookupFailedOrUnresolved?.call();
+        break;
+    }
+
+    return decision;
   }
 
   void handleNotificationTap(Map<String, dynamic> payload) {

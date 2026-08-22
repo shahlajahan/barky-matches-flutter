@@ -14,6 +14,8 @@ import '../models/lost_dog.dart';
 import '../models/found_dog.dart';
 
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/appointment_notification_contract.dart';
+import 'package:barky_matches_fixed/widgets/appointment_notification_display.dart';
 import 'play_date_requests_page_new.dart';
 
 class AllNotificationsPage extends StatefulWidget {
@@ -145,6 +147,53 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
     }
   }
 
+  Future<bool> _appointmentReferenceIsAvailable(
+    BuildContext context,
+    Map<String, dynamic> payload,
+    String rawType,
+  ) async {
+    final data = <String, dynamic>{
+      ...payload,
+      if (!payload.containsKey('type')) 'type': rawType,
+    };
+    final rawCollection = data['appointmentCollection']?.toString().trim();
+    final hasAppointmentContract =
+        AppointmentNotificationContract.isAppointmentNotificationType(
+          rawType,
+        ) ||
+        AppointmentNotificationContract.supportedCollections.contains(
+          rawCollection,
+        );
+
+    if (!hasAppointmentContract) {
+      return true;
+    }
+
+    final availability = await AppointmentNotificationContract.availability(
+      FirebaseFirestore.instance,
+      data,
+    );
+
+    if (availability == AppointmentNotificationAvailability.available) {
+      return true;
+    }
+
+    if (!context.mounted) return false;
+
+    final message =
+        availability == AppointmentNotificationAvailability.missing ||
+            availability == AppointmentNotificationAvailability.malformed
+        ? AppLocalizations.of(context)!.appointmentNoLongerAvailable
+        : AppLocalizations.of(context)!.appointmentAvailabilityCheckFailed;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -237,35 +286,42 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
                       _iconForType(rawType),
                       color: _iconColorForType(rawType),
                     ),
-                    title: Text(
-                      notification.title ?? '',
-                      style: TextStyle(
-                        color: Colors.pink[900],
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w600,
-                      ),
+                    title: AppointmentNotificationDisplay(
+                      notificationId: notification.id,
+                      rawType: rawType,
+                      title: notification.title ?? '',
+                      body: notification.body ?? '',
+                      notificationData: payload,
+                      builder: (context, title, body) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                color: Colors.pink[900],
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              body,
+                              style: TextStyle(
+                                color: Colors.pink[700],
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          notification.body ?? '',
-                          style: TextStyle(
-                            color: Colors.pink[700],
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat(
-                            'yyyy-MM-dd – kk:mm',
-                          ).format(notification.timestamp),
-                          style: TextStyle(
-                            color: Colors.pink[400],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    subtitle: Text(
+                      DateFormat(
+                        'yyyy-MM-dd – kk:mm',
+                      ).format(notification.timestamp),
+                      style: TextStyle(color: Colors.pink[400], fontSize: 12),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.redAccent),
@@ -289,6 +345,15 @@ class _AllNotificationsPageState extends State<AllNotificationsPage> {
 
                       final title = notification.title?.toLowerCase() ?? '';
                       final body = notification.body?.toLowerCase() ?? '';
+
+                      if (!context.mounted) return;
+                      if (!await _appointmentReferenceIsAvailable(
+                        context,
+                        payload,
+                        rawType,
+                      )) {
+                        return;
+                      }
 
                       /// ✅ تشخیص امن Playdate (FIX قطعی)
                       final isPlaydate =

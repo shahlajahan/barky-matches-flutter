@@ -52,6 +52,9 @@ const {
   normalizeOptionalBusinessLogo,
   sanitizeBusinessSectorLogoFields,
 } = require("./src/business/logo_fields");
+const {
+  cleanupAppointmentDataForDeletedAccount,
+} = require("./business/appointmentDeletionCleanup");
 const { approvalPublicationPatch } = require("./src/businessPublication");
 const {
   reviewPetTaxiDocument,
@@ -20331,6 +20334,13 @@ exports.deleteUserAccount = onCall(
     const bucket = admin.storage().bucket();
 
     try {
+      const ownedBusinessSnapForAppointmentCleanup = await db
+        .collection("businesses")
+        .where("ownerUid", "==", uid)
+        .get();
+      const ownedBusinessIdsForAppointmentCleanup =
+        ownedBusinessSnapForAppointmentCleanup.docs.map((doc) => doc.id);
+
       // --------------------------------------------------
       // 1) delete dogs owned by user
       // --------------------------------------------------
@@ -20366,19 +20376,15 @@ exports.deleteUserAccount = onCall(
       await db.collection("users").doc(uid).delete().catch(() => null);
 
       // --------------------------------------------------
-      // 3) delete notifications related to user
+      // 3) delete appointment source documents and dependent notifications
       // --------------------------------------------------
-      await deleteByQuery(
-        db.collection("notifications").where("userId", "==", uid)
-      );
-
-      await deleteByQuery(
-        db.collection("notifications").where("targetUserId", "==", uid)
-      );
-
-      await deleteByQuery(
-        db.collection("notifications").where("fromUserId", "==", uid)
-      );
+      await cleanupAppointmentDataForDeletedAccount({
+        db,
+        uid,
+        businessIds: ownedBusinessIdsForAppointmentCleanup,
+        logger,
+        reason: "delete_user_account",
+      });
 
       await deleteByQuery(
         db.collection("scheduled_notifications").where("userId", "==", uid)
@@ -20396,12 +20402,6 @@ exports.deleteUserAccount = onCall(
         db.collection("lost_pets").where("ownerId", "==", uid)
       );
 
-      // --------------------------------------------------
-      // vet apoinment
-      // --------------------------------------------------
-      await deleteByQuery(
-        db.collection("vet_appointments").where("userId", "==", uid)
-      );
       // --------------------------------------------------
       // subscribtion
       // --------------------------------------------------
@@ -20496,10 +20496,7 @@ exports.deleteUserAccount = onCall(
       // --------------------------------------------------
       // 8) delete owned businesses and related storage/docs
       // --------------------------------------------------
-      const businessSnap = await db
-        .collection("businesses")
-        .where("ownerUid", "==", uid)
-        .get();
+      const businessSnap = ownedBusinessSnapForAppointmentCleanup;
 
       for (const bizDoc of businessSnap.docs) {
         const businessId = bizDoc.id;

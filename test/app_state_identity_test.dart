@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:barky_matches_fixed/app_state.dart';
 import 'package:barky_matches_fixed/dog.dart';
 import 'package:barky_matches_fixed/notification_service.dart';
+import 'package:barky_matches_fixed/services/appointment_notification_contract.dart';
+import 'package:barky_matches_fixed/services/appointment_notification_navigation_guard.dart';
 import 'package:barky_matches_fixed/ui/shell/nav_tab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -223,6 +225,83 @@ void main() {
     expect(appState.profileSubPage, ProfileSubPage.myOrders);
     expect(appState.pendingBuyerOrdersRootOrderId, 'root-order-4');
   });
+
+  test(
+    'guarded valid appointment notification reaches existing router',
+    () async {
+      final appState = _buildAppState(currentUserId: 'user-a');
+
+      final decision = await appState.handleNotificationTapGuarded(
+        {'type': 'pet_taxi_status_update', 'bookingId': 'taxi-1'},
+        resolveAvailability: (_) async =>
+            AppointmentNotificationAvailability.available,
+      );
+
+      expect(decision, AppointmentNotificationNavigationDecision.available);
+      expect(appState.pendingUserAppointmentCollection, 'pet_taxi_bookings');
+      expect(appState.pendingUserAppointmentId, 'taxi-1');
+    },
+  );
+
+  test('guarded missing appointment notification does not navigate', () async {
+    final appState = _buildAppState(currentUserId: 'user-a');
+    var missingCallback = 0;
+
+    final decision = await appState.handleNotificationTapGuarded(
+      {'type': 'hotel_booking_response', 'bookingId': 'hotel-1'},
+      resolveAvailability: (_) async =>
+          AppointmentNotificationAvailability.missing,
+      onMissingOrMalformed: () => missingCallback += 1,
+    );
+
+    expect(
+      decision,
+      AppointmentNotificationNavigationDecision.missingOrMalformed,
+    );
+    expect(missingCallback, 1);
+    expect(appState.pendingUserAppointmentId, isNull);
+    expect(appState.profileSubPage, ProfileSubPage.none);
+  });
+
+  test('guarded transient appointment failure remains unresolved', () async {
+    final appState = _buildAppState(currentUserId: 'user-a');
+    var failureCallback = 0;
+
+    final decision = await appState.handleNotificationTapGuarded(
+      {'type': 'vet_appointment_response', 'appointmentId': 'vet-1'},
+      resolveAvailability: (_) async =>
+          AppointmentNotificationAvailability.unknown,
+      onLookupFailedOrUnresolved: () => failureCallback += 1,
+    );
+
+    expect(
+      decision,
+      AppointmentNotificationNavigationDecision.lookupFailedOrUnresolved,
+    );
+    expect(failureCallback, 1);
+    expect(appState.selectedAppointmentId, isNull);
+    expect(appState.profileSubPage, ProfileSubPage.none);
+  });
+
+  test(
+    'guarded non-appointment notification preserves existing routing',
+    () async {
+      final appState = _buildAppState(currentUserId: 'buyer-1');
+
+      final decision = await appState.handleNotificationTapGuarded({
+        'type': 'order_paid',
+        'orderId': 'root-order-5',
+      });
+
+      expect(
+        decision,
+        AppointmentNotificationNavigationDecision.notAppointment,
+      );
+      expect(appState.currentTab, NavTab.profile);
+      expect(appState.profileSubPage, ProfileSubPage.myOrders);
+      expect(appState.pendingBuyerOrdersRootOrderId, 'root-order-5');
+    },
+  );
 
   test('seller order payload preserves direct detail path', () async {
     final appState = _buildAppState(currentUserId: 'buyer-1');

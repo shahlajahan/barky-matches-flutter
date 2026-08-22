@@ -21,6 +21,7 @@ class AnalyticsEvents {
   // Veterinary
   static const vetProfileViewed = 'vet_profile_viewed';
   static const vetBookingStarted = 'vet_booking_started';
+  static const vetBookingCreated = 'vet_booking_created';
   static const vetBookingCompleted = 'vet_booking_completed';
   static const vetBookingCancelled = 'vet_booking_cancelled';
   static const vetReviewAdded = 'vet_review_added';

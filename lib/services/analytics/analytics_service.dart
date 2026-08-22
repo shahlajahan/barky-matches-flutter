@@ -168,6 +168,23 @@ static Future<void> vetBookingCompleted({
   );
 }
 
+static Future<void> vetBookingCreated({
+  required String vetId,
+  String? appointmentType,
+  double? price,
+}) async {
+  await logEvent(
+    AnalyticsEvents.vetBookingCreated,
+    parameters: {
+      AnalyticsParameters.vetId: vetId,
+      if (appointmentType != null)
+        AnalyticsParameters.appointmentType: appointmentType,
+      if (price != null)
+        AnalyticsParameters.price: price,
+    },
+  );
+}
+
 static Future<void> vetBookingCancelled({
   required String vetId,
 }) async {

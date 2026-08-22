@@ -11,8 +11,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:barky_matches_fixed/ui/chat/chat_detail_page.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/appointment_notification_contract.dart';
 import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
 import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
+import 'package:barky_matches_fixed/widgets/appointment_notification_display.dart';
 
 class NotificationsPage extends StatefulWidget {
   final String? currentUserId;
@@ -33,6 +35,7 @@ class _NotificationsPageState extends State<NotificationsPage>
   static const Color _cardColor = Color(0xFF9E1B4F);
   static const Color _vaccineReminderColor = Color(0xFF5A9E9B);
   final Map<String, String> _notificationTypes = {};
+  final Map<String, Map<String, dynamic>> _notificationData = {};
 
   IconData _iconForType(String rawType) {
     if (rawType == 'vaccine_reminder') {
@@ -48,6 +51,49 @@ class _NotificationsPageState extends State<NotificationsPage>
     }
 
     return Colors.amber;
+  }
+
+  Future<bool> _appointmentReferenceIsAvailable(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) async {
+    final rawType = data['type']?.toString();
+    final rawCollection = data['appointmentCollection']?.toString().trim();
+    final hasAppointmentContract =
+        AppointmentNotificationContract.isAppointmentNotificationType(
+          rawType,
+        ) ||
+        AppointmentNotificationContract.supportedCollections.contains(
+          rawCollection,
+        );
+
+    if (!hasAppointmentContract) {
+      return true;
+    }
+
+    final availability = await AppointmentNotificationContract.availability(
+      FirebaseFirestore.instance,
+      data,
+    );
+
+    if (availability == AppointmentNotificationAvailability.available) {
+      return true;
+    }
+
+    if (!context.mounted) return false;
+
+    final message =
+        availability == AppointmentNotificationAvailability.missing ||
+            availability == AppointmentNotificationAvailability.malformed
+        ? AppLocalizations.of(context)!.appointmentNoLongerAvailable
+        : AppLocalizations.of(context)!.appointmentAvailabilityCheckFailed;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+    return false;
   }
 
   @override
@@ -104,6 +150,7 @@ class _NotificationsPageState extends State<NotificationsPage>
           final docs = snapshot.data!.docs;
 
           _notificationTypes.clear();
+          _notificationData.clear();
 
           if (docs.isEmpty) {
             return Center(
@@ -124,6 +171,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                 if (rawType.isNotEmpty) {
                   _notificationTypes[doc.id] = rawType;
                 }
+                _notificationData[doc.id] = data;
                 return AppNotification.fromMap(doc.id, data);
               })
               .whereType<AppNotification>()
@@ -170,6 +218,14 @@ class _NotificationsPageState extends State<NotificationsPage>
                             .trim();
 
                         debugPrint("🔔 Notification tapped → type=$rawType");
+
+                        if (!context.mounted) return;
+                        if (!await _appointmentReferenceIsAvailable(
+                          context,
+                          data,
+                        )) {
+                          return;
+                        }
 
                         if (isBusinessFinanceNotificationType(rawType)) {
                           Future.microtask(() {
@@ -532,23 +588,40 @@ class _NotificationsPageState extends State<NotificationsPage>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  notification.title,
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                  ),
-                                ),
-
-                                const SizedBox(height: 4),
-
-                                Text(
-                                  notification.body,
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                  ),
+                                AppointmentNotificationDisplay(
+                                  notificationId: notification.id,
+                                  rawType:
+                                      _notificationTypes[notification.id ??
+                                          ''] ??
+                                      '',
+                                  title: notification.title,
+                                  body: notification.body,
+                                  notificationData:
+                                      _notificationData[notification.id ?? ''],
+                                  builder: (context, title, body) {
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          title,
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          body,
+                                          style: GoogleFonts.poppins(
+                                            color: Colors.white70,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
 
                                 const SizedBox(height: 6),

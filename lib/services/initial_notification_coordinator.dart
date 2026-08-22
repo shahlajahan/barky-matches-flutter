@@ -4,6 +4,12 @@ typedef InitialNotificationGetter =
 typedef InitialNotificationHandler =
     Future<void> Function(Map<String, dynamic> data);
 
+class InitialNotificationRetryableFailure implements Exception {
+  const InitialNotificationRetryableFailure([this.reason = 'retryable']);
+
+  final String reason;
+}
+
 class InitialNotificationMessage {
   const InitialNotificationMessage({required this.data, this.messageId});
 
@@ -109,6 +115,7 @@ class InitialNotificationCoordinator {
       return;
     }
 
+    _pendingMessage = message;
     _processing = true;
     try {
       await handle(Map<String, dynamic>.from(message.data));

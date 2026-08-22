@@ -4968,6 +4968,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get appointmentNotFound => 'نوبت پیدا نشد';
 
   @override
+  String get appointmentNoLongerAvailable => 'این نوبت دیگر در دسترس نیست.';
+
+  @override
+  String get appointmentAvailabilityChecking => 'در حال بررسی وضعیت نوبت...';
+
+  @override
+  String get appointmentAvailabilityCheckFailed => 'امکان بررسی این نوبت وجود نداشت. لطفاً دوباره تلاش کنید.';
+
+  @override
   String get petLabel => 'Pet';
 
   @override

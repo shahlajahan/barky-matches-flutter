@@ -122,20 +122,13 @@ void main() {
     expect(source, contains('FirebaseMessaging.onMessageOpenedApp.listen'));
     expect(source, contains('onDidReceiveNotificationResponse'));
     expect(source, contains('isMarketplaceOrderNotificationType(type)'));
+    expect(source, contains('await _handleNotificationTapGuarded('));
     expect(
       source,
-      contains(
-        'appState.handleNotificationTap(Map<String, dynamic>.from(payload))',
-      ),
-    );
-    expect(
-      source,
-      contains(
-        'appState.handleNotificationTap(Map<String, dynamic>.from(data))',
-      ),
+      contains('await guardAppointmentTap(Map<String, dynamic>.from(data))'),
     );
     expect(source, contains('_initialNotificationCoordinator.retrieveOnce'));
-    expect(source, contains('handle: _handleRemoteMessageData'));
+    expect(source, contains('retryUnresolvedAppointment: true'));
   });
 
   test(

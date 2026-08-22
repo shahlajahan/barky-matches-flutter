@@ -47,13 +47,20 @@ void main() {
     () {
       final main = File('lib/main.dart').readAsStringSync();
       final appState = File('lib/app_state.dart').readAsStringSync();
+      final handlerStart = appState.indexOf(
+        'void _handleBusinessFinanceNotification',
+      );
+      final handlerEnd = appState.indexOf(
+        'void _handleMarketplaceBusinessDelayedNotification',
+      );
+      final financeHandler = appState.substring(handlerStart, handlerEnd);
 
       expect(main, contains('isBusinessFinanceNotificationType(type)'));
       expect(main, contains('_initialNotificationCoordinator.retrieveOnce'));
-      expect(appState, contains('navigatorKey.currentState?.push'));
-      expect(appState, isNot(contains('releasePayout')));
-      expect(appState, isNot(contains('updatePayout')));
-      expect(appState, isNot(contains('httpsCallable')));
+      expect(financeHandler, contains('navigatorKey.currentState?.push'));
+      expect(financeHandler, isNot(contains('releasePayout')));
+      expect(financeHandler, isNot(contains('updatePayout')));
+      expect(financeHandler, isNot(contains('httpsCallable')));
     },
   );
 

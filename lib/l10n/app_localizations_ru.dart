@@ -4970,6 +4970,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appointmentNotFound => 'Запись не найдена';
 
   @override
+  String get appointmentNoLongerAvailable => 'Эта запись больше недоступна.';
+
+  @override
+  String get appointmentAvailabilityChecking => 'Проверяем доступность записи...';
+
+  @override
+  String get appointmentAvailabilityCheckFailed => 'Не удалось проверить эту запись. Попробуйте еще раз.';
+
+  @override
   String get petLabel => 'Pet';
 
   @override

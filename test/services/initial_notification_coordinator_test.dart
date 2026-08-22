@@ -91,6 +91,54 @@ void main() {
     expect(handled.single['chatId'], 'chat-1');
   });
 
+  test('retryable handler failure keeps initial appointment pending', () async {
+    final coordinator = InitialNotificationCoordinator();
+    var attempts = 0;
+    final handled = <String>[];
+
+    await expectLater(
+      coordinator.retrieveOnce(
+        getInitialMessage: () async => const InitialNotificationMessage(
+          messageId: 'appointment-message-1',
+          data: {
+            'type': 'pet_taxi_status_update',
+            'bookingId': 'taxi-1',
+            'recipientUserId': 'user-a',
+          },
+        ),
+        readiness: readyFor('user-a'),
+        handle: (data) async {
+          attempts += 1;
+          throw const InitialNotificationRetryableFailure(
+            'appointment_lookup_unresolved',
+          );
+        },
+      ),
+      throwsA(isA<InitialNotificationRetryableFailure>()),
+    );
+
+    expect(coordinator.hasPendingMessage, isTrue);
+
+    await coordinator.processPendingIfReady(
+      readiness: readyFor('user-a'),
+      handle: (data) async {
+        attempts += 1;
+        handled.add(data['bookingId'].toString());
+      },
+    );
+    await coordinator.processPendingIfReady(
+      readiness: readyFor('user-a'),
+      handle: (data) async {
+        attempts += 1;
+        handled.add(data['bookingId'].toString());
+      },
+    );
+
+    expect(attempts, 2);
+    expect(handled, ['taxi-1']);
+    expect(coordinator.hasPendingMessage, isFalse);
+  });
+
   test('pending message waits until startup is ready', () async {
     final coordinator = InitialNotificationCoordinator();
     final handled = <String>[];
@@ -203,6 +251,10 @@ void main() {
     expect(main, contains('_firebaseMessagingForegroundHandler'));
     expect(main, contains('FirebaseMessaging.onMessageOpenedApp.listen'));
     expect(main, contains('_handleRemoteMessage(message)'));
+    expect(
+      main,
+      contains('AppointmentNotificationNavigationGuard.isAppointmentPayload'),
+    );
     expect(main, contains('isMarketplaceOrderNotificationType(type)'));
     expect(main, contains("type == 'chat_message'"));
     expect(main, contains('ChatDetailPage('));

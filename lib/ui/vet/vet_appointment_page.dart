@@ -284,8 +284,6 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
-    final authUid =
-        FirebaseAuth.instance.currentUser?.uid ?? appState.currentUserId ?? '';
 
     debugPrint('🩺 VetAppointmentPage build');
 
@@ -803,13 +801,22 @@ class _VetAppointmentPageState extends State<VetAppointmentPage> {
       }
 
       /// 🔥 CALL CLOUD FUNCTION (به‌جای Firestore مستقیم)
-      await FirebaseFunctions.instanceFor(
+      final createResult = await FirebaseFunctions.instanceFor(
         region: 'europe-west3',
       ).httpsCallable('createVetAppointment').call(appointmentPayload);
+      final createData = createResult.data is Map
+          ? Map<String, dynamic>.from(createResult.data as Map)
+          : <String, dynamic>{};
+      final createdAppointmentId = createData['appointmentId']
+          ?.toString()
+          .trim();
+      if (createdAppointmentId == null || createdAppointmentId.isEmpty) {
+        throw StateError('createVetAppointment returned no appointmentId');
+      }
 
       debugPrint("✅ FUNCTION SUCCESS");
 
-      await AnalyticsService.vetBookingCompleted(
+      await AnalyticsService.vetBookingCreated(
         vetId: widget.vet.id,
         appointmentType: selectedService?['title']?.toString(),
         price: (selectedService?['price'] as num?)?.toDouble(),

@@ -4968,6 +4968,15 @@ class AppLocalizationsTr extends AppLocalizations {
   String get appointmentNotFound => 'Randevu bulunamadı';
 
   @override
+  String get appointmentNoLongerAvailable => 'Bu randevu artık mevcut değil.';
+
+  @override
+  String get appointmentAvailabilityChecking => 'Randevu durumu kontrol ediliyor...';
+
+  @override
+  String get appointmentAvailabilityCheckFailed => 'Bu randevu kontrol edilemedi. Lütfen tekrar deneyin.';
+
+  @override
   String get petLabel => 'Pet';
 
   @override
