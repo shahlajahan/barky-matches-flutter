@@ -18,6 +18,19 @@
 # exactly once by a separate, documented process (see the readiness
 # doc); this step only proves what is ALREADY there still matches.
 #
+# Runtime-manifest correction (Slice 2.2): this step validates against
+# RUNTIME_FIXTURE_MANIFEST_PATH — the environment-specific manifest
+# ci/materialize-runtime-manifest.sh downloads (real, non-sentinel GCS
+# generations) and writes to a fixed /workspace location BEFORE this
+# step runs (see this pipeline's own waitFor graph in
+# cloudbuild.signature-refresh.yaml) — never the committed,
+# environment-neutral ci/fixtureManifest.json, which stays
+# environment-neutral and would fail closed on its own
+# PENDING_PROVISIONING sentinels if ever used for a real run.
+# RUNTIME_FIXTURE_MANIFEST_PATH is always set by this pipeline's own
+# fixed `env:` literal (never a Cloud Build substitution), so it can
+# never be redirected to an arbitrary caller-supplied path.
+#
 # The VERDICT half of fixture verification (does this fixture actually
 # scan the way the manifest expects) requires a running scanner and
 # therefore happens later, as part of ci/verify-candidate-container.sh
@@ -34,9 +47,10 @@
 set -eu
 
 : "${SYNTHETIC_TEST_BUCKET:?SYNTHETIC_TEST_BUCKET is required}"
+: "${RUNTIME_FIXTURE_MANIFEST_PATH:?RUNTIME_FIXTURE_MANIFEST_PATH is required}"
 
 cd "$(dirname "$0")/.."
 
 node ci/fixtureManifest.js \
   --bucket="$SYNTHETIC_TEST_BUCKET" \
-  --manifest=ci/fixtureManifest.json
+  --manifest="$RUNTIME_FIXTURE_MANIFEST_PATH"

@@ -112,13 +112,42 @@ substitutions:
   _LOCK_OBJECT: "ci-locks/signature-refresh.lock.json"
   _LOCK_LEASE_SECONDS: "900" # 15 minutes — see the timing-relationship note above
   _ENVIRONMENT: "" # free-text label only (e.g. "staging") — logged/tagged for operator clarity, must never branch security-relevant behavior
+  _RUNTIME_FIXTURE_MANIFEST_GCS_URI: "" # REQUIRED, no default (runtime-manifest correction). The gs:// URI of the environment-specific runtime fixture manifest — same schema as ci/fixtureManifest.json but with REAL, non-sentinel GCS generations — produced once by the separate fixture-provisioning process (see the readiness doc) and never checked into this repository. Must reference the SAME bucket as _SYNTHETIC_TEST_BUCKET and the ci-runtime-manifests/ prefix exactly; validated structurally by ci/materializeRuntimeManifest.js before any download is attempted — never an arbitrary local filesystem path.
+  _RUNTIME_FIXTURE_MANIFEST_GENERATION: "" # REQUIRED, no default. The exact GCS object generation of the runtime manifest above, captured once by the provisioning process at upload time. The download always pins this exact generation, never "latest" — a manifest overwritten mid-flight (accidentally, or by a second concurrent provisioning run) cannot silently change what this build validates against.
 
 steps:
+  # -----------------------------------------------------------------
+  # Stage -1 — install the scanner service's own Node dependencies
+  # (runtime-manifest correction, dependency-provisioning fix). The
+  # very first step, before the lock is even acquired: acquire-lock
+  # (next), materialize-runtime-manifest, verify-fixtures-integrity,
+  # release-lock, and — via ci/renew-lease-or-fail.sh — push-candidate,
+  # deploy-candidate, and promote (on the ci-builder image, which does
+  # NOT bake in this service's own node_modules either — confirmed by
+  # inspecting its Dockerfile) all `require("@google-cloud/storage")`
+  # directly. Nothing before this step guaranteed node_modules existed
+  # in /workspace. Every one of those steps is already a transitive
+  # descendant of acquire-lock in this graph, so gating ONLY
+  # acquire-lock on this step (below) is sufficient to guarantee the
+  # dependency exists for every one of them — no separate edge needed
+  # to each. verify-source.sh's own, separate `npm ci` is preserved
+  # unchanged (out of this correction's scope) and — because it too is
+  # a descendant of acquire-lock — always runs strictly after this
+  # step finishes, never concurrently with it, so the two `npm ci`
+  # invocations can never race on the same node_modules directory.
+  # -----------------------------------------------------------------
+  - id: install-dependencies
+    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/install-dependencies.sh"]
+    timeout: 300s
+
   # -----------------------------------------------------------------
   # Stage 0 — acquire the concurrency lock. Node only.
   # -----------------------------------------------------------------
   - id: acquire-lock
     name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    waitFor: ["install-dependencies"]
     entrypoint: bash
     args: ["services/compliance-scanner/ci/acquire-lock.sh"]
     env:
@@ -132,18 +161,52 @@ steps:
     timeout: 120s
 
   # -----------------------------------------------------------------
+  # Stage 0b — materialize the environment-specific runtime fixture
+  # manifest (runtime-manifest correction). Node only. Downloads the
+  # REAL, environment-specific fixture manifest (real, non-sentinel GCS
+  # generations) from a validated gs:// URI at an exact, pinned
+  # generation, and writes it to a FIXED, pipeline-owned /workspace
+  # path — never the committed, environment-neutral
+  # services/compliance-scanner/ci/fixtureManifest.json, which stays
+  # untouched and keeps failing closed on its own PENDING_PROVISIONING
+  # sentinels for exactly this reason (see that file's own comments).
+  # Must complete before verify-fixtures-integrity, which reads the
+  # fixed path this step produces.
+  # -----------------------------------------------------------------
+  - id: materialize-runtime-manifest
+    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    waitFor: ["acquire-lock"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/materialize-runtime-manifest.sh"]
+    env:
+      - "RUNTIME_FIXTURE_MANIFEST_GCS_URI=${_RUNTIME_FIXTURE_MANIFEST_GCS_URI}"
+      - "RUNTIME_FIXTURE_MANIFEST_GENERATION=${_RUNTIME_FIXTURE_MANIFEST_GENERATION}"
+      - "SYNTHETIC_TEST_BUCKET=${_SYNTHETIC_TEST_BUCKET}"
+      # Fixed, pipeline-owned output path — a plain literal, never a
+      # Cloud Build substitution, so no operator- or substitution-
+      # controlled value can redirect where this gets written.
+      - "RUNTIME_FIXTURE_MANIFEST_OUT=/workspace/.runtime-fixture-manifest.json"
+    timeout: 120s
+
+  # -----------------------------------------------------------------
   # Stage 1 — mandatory security-fixture integrity gate (runs in
-  # parallel with build-candidate; both depend only on the lock). Node
-  # only. Also materializes the EICAR fixture and writes
-  # /workspace/.fixtures.env for later, node-free steps.
+  # parallel with build-candidate; depends on the lock AND the
+  # materialized runtime manifest). Node only. Also materializes the
+  # EICAR fixture and writes /workspace/.fixtures.env for later,
+  # node-free steps.
   # -----------------------------------------------------------------
   - id: verify-fixtures-integrity
     name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
-    waitFor: ["acquire-lock"]
+    waitFor: ["materialize-runtime-manifest"]
     entrypoint: bash
     args: ["services/compliance-scanner/ci/verify-fixtures.sh"]
     env:
       - "SYNTHETIC_TEST_BUCKET=${_SYNTHETIC_TEST_BUCKET}"
+      # Fixed, pipeline-owned path — matches materialize-runtime-
+      # manifest's own RUNTIME_FIXTURE_MANIFEST_OUT literal above
+      # exactly. Never the committed ci/fixtureManifest.json, never a
+      # Cloud Build substitution.
+      - "RUNTIME_FIXTURE_MANIFEST_PATH=/workspace/.runtime-fixture-manifest.json"
     timeout: 180s
 
   # -----------------------------------------------------------------

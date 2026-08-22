@@ -463,10 +463,91 @@ gcloud builds triggers create scheduled \
   --build-config=services/compliance-scanner/cloudbuild.signature-refresh.yaml \
   --repo=<this repository> \
   --branch-pattern=^integration/mac-windows-2026-07-22$ \
-  --substitutions=_REGION=...,_REPOSITORY=...,_IMAGE_NAME=...,_SERVICE=...,_SCANNER_RUNTIME_SA=...,_MONITORING_SA=...,_SYNTHETIC_TEST_BUCKET=...,_LOCK_BUCKET=...,_ENVIRONMENT=...
+  --substitutions=_REGION=...,_REPOSITORY=...,_IMAGE_NAME=...,_SERVICE=...,_SCANNER_RUNTIME_SA=...,_MONITORING_SA=...,_SYNTHETIC_TEST_BUCKET=...,_LOCK_BUCKET=...,_ENVIRONMENT=...,_RUNTIME_FIXTURE_MANIFEST_GCS_URI=...,_RUNTIME_FIXTURE_MANIFEST_GENERATION=...
 ```
 
 Not executed in this task — creating this trigger is a future, separately-authorized action.
+
+### 6c. Environment-specific runtime fixture manifest (runtime-manifest correction)
+
+`services/compliance-scanner/ci/fixtureManifest.json` (§14) is
+deliberately environment-neutral and ships with fail-closed
+`PENDING_PROVISIONING` generation sentinels — it must never carry a
+real staging or production GCS generation, since it is one shared file
+committed to a branch every environment builds from. But
+`ci/fixtureManifest.js`'s `validateManifestShape()` requires real,
+non-sentinel numeric generations before any build can proceed. This
+correction supplies those real, environment-specific values without
+ever writing them into that shared file.
+
+**Flow (Stage 0b, new — runs before the fixture-integrity gate):**
+
+1. A separate, documented provisioning process (same one §14 already
+   describes for the three fixture objects themselves) additionally
+   uploads a **runtime manifest** — same JSON schema as
+   `ci/fixtureManifest.json`, but with the three fixtures' REAL GCS
+   generations filled in — to
+   `gs://<the configured _SYNTHETIC_TEST_BUCKET>/ci-runtime-manifests/<immutable-name>.json`,
+   and records the exact GCS generation that upload produced.
+2. Those two values — the `gs://` URI and the generation — are passed
+   into the pipeline as the two new required substitutions
+   `_RUNTIME_FIXTURE_MANIFEST_GCS_URI` and
+   `_RUNTIME_FIXTURE_MANIFEST_GENERATION`. Neither has a default; both
+   fail the build immediately if missing.
+3. The new `materialize-runtime-manifest` step
+   (`ci/materialize-runtime-manifest.sh` / `ci/materializeRuntimeManifest.js`)
+   runs first (`waitFor: [acquire-lock]`), before
+   `verify-fixtures-integrity` (`waitFor: [materialize-runtime-manifest]`).
+   It validates the URI (scheme must be exactly `gs://`; bucket must
+   equal `_SYNTHETIC_TEST_BUCKET` exactly; object path must start with
+   the one approved prefix `ci-runtime-manifests/` and end in `.json`;
+   no `..`/`.` path segments, no `//`, no leading/trailing slash
+   irregularities, no `?`/`#`/control characters/backslashes/wildcards,
+   and every character in the object path must match a strict
+   allowlist — which is what actually closes "ambiguous normalization"
+   rather than trying to enumerate every bad encoding) and the
+   generation (must be a canonical positive integer string — no
+   leading zero, no decimal, no negative, no missing value; `"0"` is
+   rejected specifically because it is GCS's own reserved
+   ifGenerationMatch sentinel for "must not exist", never a real
+   generation).
+4. Only after both validate does it download — addressing the GCS
+   `File` handle with that exact `generation` value, so the download
+   itself is pinned to that one generation, never "latest" — parse the
+   result as JSON, and validate it with the exact same
+   `validateManifestShape()` the committed manifest is held to (no
+   separate, weaker schema check exists for the runtime manifest).
+5. On success, it writes the downloaded bytes to a single **fixed**
+   `/workspace` path (`/workspace/.runtime-fixture-manifest.json`) —
+   this path is a plain literal in `cloudbuild.signature-refresh.yaml`'s
+   own `env:` list for both this step and `verify-fixtures-integrity`,
+   never a Cloud Build substitution, so no operator- or
+   substitution-controlled value can redirect it. It never logs the
+   manifest's own contents (fixture object paths / sha256 / generation
+   values) — only its own provisioning coordinates (bucket, object
+   path, generation) and a pass/fail summary.
+6. `ci/verify-fixtures.sh` then reads `RUNTIME_FIXTURE_MANIFEST_PATH`
+   (that same fixed path, passed as an internal pipeline-owned env var,
+   never exposed as a generic substitution) instead of
+   `ci/fixtureManifest.json` — so a real pipeline run always validates
+   against the real, environment-specific manifest, and can never fall
+   back to the committed sentinel manifest (which would fail closed
+   immediately if it somehow tried, since its generations are still
+   `PENDING_PROVISIONING`).
+
+**What this deliberately does NOT do:** it does not accept an arbitrary
+local filesystem path from a substitution (Mandatory correction 7 of
+the runtime-manifest task); it does not weaken
+`ci/fixtureManifest.js`'s existing validation in any way — the runtime
+manifest must pass the identical shape check; and it does not write
+anything back into `ci/fixtureManifest.json`, which remains exactly as
+committed, still environment-neutral, still failing closed on its own
+sentinels.
+
+**Production's own runtime manifest, when that environment is
+provisioned, must be a separate object at its own `gs://` URI with its
+own generation** — never the same object staging uses, and never
+derived by copying staging's.
 
 ## 7. Monitoring / alerts
 
@@ -647,7 +728,7 @@ Five distinct identities, never conflated, never reused across roles:
 | Identity | Purpose | Roles | Explicitly NOT granted |
 |---|---|---|---|
 | **Scheduler invocation identity** | Fires the Cloud Build trigger on schedule — nothing else | `roles/cloudbuild.builds.editor` scoped to triggering this one build config, or the narrower trigger-invocation permission if the platform exposes one | Any Artifact Registry, Cloud Run, or IAM role — it never touches those services directly |
-| **Cloud Build execution identity** (dedicated, third SA — never `compliance-scanner-sa`, never `compliance-functions-sa`) | Runs every step of `cloudbuild.signature-refresh.yaml`: build, test, push, deploy-candidate, promote | `roles/artifactregistry.writer` scoped to the one repository (§1) where possible; `roles/run.developer` scoped to the one service; `roles/iam.serviceAccountUser` **on `_SCANNER_RUNTIME_SA` only** (needed to deploy Cloud Run revisions running as that identity — this is the one place a token-minting-adjacent permission is required, and it is narrowly scoped to exactly the one SA it must impersonate-as-runtime-identity-for, never a broader `serviceAccountUser` grant); read/write on `_LOCK_BUCKET` and `_SYNTHETIC_TEST_BUCKET` (the latter scoped to `compliance_quarantine/ci-*` and `compliance_quarantine/ci-fixtures/` only, mirroring the existing prefix-condition pattern from §3) | Owner, Editor, Storage Admin, Firebase Admin, Project IAM Admin; `serviceAccountUser` on any SA other than `_SCANNER_RUNTIME_SA`; no role on `compliance-functions-sa` at all |
+| **Cloud Build execution identity** (dedicated, third SA — never `compliance-scanner-sa`, never `compliance-functions-sa`) | Runs every step of `cloudbuild.signature-refresh.yaml`: build, test, push, deploy-candidate, promote | `roles/artifactregistry.writer` scoped to the one repository (§1) where possible; `roles/run.developer` scoped to the one service; `roles/iam.serviceAccountUser` **on `_SCANNER_RUNTIME_SA` only** (needed to deploy Cloud Run revisions running as that identity — this is the one place a token-minting-adjacent permission is required, and it is narrowly scoped to exactly the one SA it must impersonate-as-runtime-identity-for, never a broader `serviceAccountUser` grant); read/write on `_LOCK_BUCKET` and `_SYNTHETIC_TEST_BUCKET` (the latter scoped to `compliance_quarantine/ci-*` and `compliance_quarantine/ci-fixtures/` only, mirroring the existing prefix-condition pattern from §3); **read-only, via an IAM Condition — never `roles/storage.objectViewer` bound alone** — on `_SYNTHETIC_TEST_BUCKET`'s `ci-runtime-manifests/` prefix specifically, needed by the new `materialize-runtime-manifest` step (§6c) to download the environment-specific runtime fixture manifest at its pinned generation. `roles/storage.objectViewer` is a bucket/project-scoped predefined role — bound by itself, it grants read access to every object in the bucket, not just this one prefix; it becomes prefix-limited only when the binding includes an IAM Condition, exactly mirroring §3's already-documented pattern: `--role="roles/storage.objectViewer" --condition='expression=resource.name.startsWith("projects/_/buckets/<bucket>/objects/ci-runtime-manifests/"),title=ci-runtime-manifest-read-only'` (placeholders only — see §3 for the real, bucket-specific command form). This is a read of one object family, never write/delete, and never broader than that one prefix | Owner, Editor, Storage Admin, Firebase Admin, Project IAM Admin; `serviceAccountUser` on any SA other than `_SCANNER_RUNTIME_SA`; no role on `compliance-functions-sa` at all; no bucket-level Storage Admin; **no unconditioned `roles/storage.objectViewer` grant** — binding that role without an IAM Condition is bucket-wide read access, not prefix-scoped, and must never be used for the `ci-runtime-manifests/` grant above; bucket-wide `objectViewer` access (conditioned or not) must not be granted to this identity |
 | **Scanner runtime identity** (`compliance-scanner-sa`, §2 — unchanged, reused as-is) | What the deployed Cloud Run revision actually runs as | Exactly as already specified in §3: `roles/storage.objectViewer` conditioned to `compliance_quarantine/` only | Everything else, as already documented |
 | **Candidate-verification / monitoring identity** (`_MONITORING_SA`, dedicated — never a human account, never `compliance-functions-sa`) | Mints ID tokens to call the candidate's tag URL (`/status`, `/v1/scan`) during Stage 5, and is the intended identity for ongoing external `/status` monitoring/alerting per §7a | `roles/run.invoker` on this Cloud Run service only | Any Storage, Artifact Registry, or IAM role |
 | **Functions caller identity** (`compliance-functions-sa`, §2/§3 — unchanged) | Invokes `/v1/scan` at real request time, on behalf of the compliance Functions | Exactly as already specified in §3: `roles/run.invoker` only, on this service | Anything related to the refresh pipeline itself — it plays no role in building, testing, or promoting images |

@@ -67,12 +67,14 @@ function transitiveDependsOn(stepId, target, visited = new Set()) {
 // verification step succeeds"
 // ---------------------------------------------------------------------
 
-test("pipeline structure: exactly the 11 expected steps exist", () => {
+test("pipeline structure: exactly the 13 expected steps exist", () => {
   const ids = steps.map((s) => s.id).sort();
   assert.deepEqual(ids, [
     "acquire-lock",
     "build-candidate",
     "deploy-candidate",
+    "install-dependencies",
+    "materialize-runtime-manifest",
     "promote",
     "push-candidate",
     "release-lock",
@@ -99,7 +101,9 @@ const CLOUD_SDK_IMAGE = "gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:73906ef
 const CI_BUILDER_IMAGE = "${_CI_BUILDER_IMAGE_REF}";
 
 const EXPECTED_IMAGE_BY_STEP = {
+  "install-dependencies": NODE_IMAGE,
   "acquire-lock": NODE_IMAGE,
+  "materialize-runtime-manifest": NODE_IMAGE,
   "verify-fixtures-integrity": NODE_IMAGE,
   "verify-source": NODE_IMAGE,
   "release-lock": NODE_IMAGE,
@@ -170,7 +174,7 @@ function invokesCommand(text, tool) {
 }
 
 test("no step's script under ci/ uses a tool its assigned image does not have: node-only steps never call gcloud/docker; docker-only steps never call gcloud/node; cloud-sdk steps never call docker/node", () => {
-  const nodeOnlySteps = ["acquire-lock.sh", "verify-fixtures.sh", "verify-source.sh", "release-lock.sh"];
+  const nodeOnlySteps = ["install-dependencies.sh", "acquire-lock.sh", "materialize-runtime-manifest.sh", "verify-fixtures.sh", "verify-source.sh", "release-lock.sh"];
   for (const fname of nodeOnlySteps) {
     const text = scriptText(fname);
     assert.ok(!invokesCommand(text, "gcloud"), `${fname} (node-only image) must not invoke gcloud`);
@@ -200,9 +204,55 @@ test("sanity: invokesCommand actually detects real invocations (proves the helpe
   assert.ok(!invokesCommand(scriptText("verify-candidate-container.sh"), "node"));
 });
 
-test("promote transitively depends on verify-deployed-candidate, verify-candidate-container, verify-source, and verify-fixtures-integrity", () => {
-  for (const required of ["verify-deployed-candidate", "verify-candidate-container", "verify-source", "verify-fixtures-integrity"]) {
+test("promote transitively depends on verify-deployed-candidate, verify-candidate-container, verify-source, verify-fixtures-integrity, and materialize-runtime-manifest", () => {
+  for (const required of [
+    "verify-deployed-candidate",
+    "verify-candidate-container",
+    "verify-source",
+    "verify-fixtures-integrity",
+    "materialize-runtime-manifest",
+  ]) {
     assert.ok(transitiveDependsOn("promote", required), `promote must transitively depend on ${required}`);
+  }
+});
+
+// ---------------------------------------------------------------------
+// Runtime-manifest correction — dependency graph, substitutions, fixed
+// output path.
+// ---------------------------------------------------------------------
+
+test("runtime-manifest: materialize-runtime-manifest depends only on acquire-lock", () => {
+  assert.deepEqual(stepsById["materialize-runtime-manifest"].waitFor, ["acquire-lock"]);
+});
+
+test("runtime-manifest: verify-fixtures-integrity now waits for materialize-runtime-manifest, not directly for acquire-lock (materialization precedes fixture verification)", () => {
+  assert.deepEqual(stepsById["verify-fixtures-integrity"].waitFor, ["materialize-runtime-manifest"]);
+});
+
+test("runtime-manifest: the two new substitutions exist with no production-looking default (both empty string)", () => {
+  const subsSectionMatch = yamlText.match(/\nsubstitutions:\n([\s\S]*?)\nsteps:/);
+  assert.ok(subsSectionMatch, "could not locate substitutions: section");
+  const subsText = subsSectionMatch[1];
+  assert.ok(/_RUNTIME_FIXTURE_MANIFEST_GCS_URI:\s*""/.test(subsText));
+  assert.ok(/_RUNTIME_FIXTURE_MANIFEST_GENERATION:\s*""/.test(subsText));
+});
+
+test("runtime-manifest: materialize-runtime-manifest's env wires the two new substitutions through (not hardcoded literal values)", () => {
+  const step = stepsById["materialize-runtime-manifest"];
+  assert.ok(step, "materialize-runtime-manifest step must exist");
+  const blockMatch = yamlText.match(/- id: materialize-runtime-manifest[\s\S]*?(?=\n  - id: |\nimages:)/);
+  assert.ok(blockMatch);
+  const block = blockMatch[0];
+  assert.ok(block.includes("RUNTIME_FIXTURE_MANIFEST_GCS_URI=${_RUNTIME_FIXTURE_MANIFEST_GCS_URI}"));
+  assert.ok(block.includes("RUNTIME_FIXTURE_MANIFEST_GENERATION=${_RUNTIME_FIXTURE_MANIFEST_GENERATION}"));
+});
+
+test("runtime-manifest: the materialized-manifest output/input path is a single fixed literal in both steps' env, never a Cloud Build substitution", () => {
+  const outLines = yamlText.match(/RUNTIME_FIXTURE_MANIFEST_(OUT|PATH)=[^"\n]*/g) || [];
+  assert.ok(outLines.length >= 2, "expected both the writer (OUT) and reader (PATH) steps to set this literal");
+  for (const line of outLines) {
+    assert.ok(!/\$\{_/.test(line), `path literal must not reference a substitution: ${line}`);
+    assert.ok(line.includes("/workspace/.runtime-fixture-manifest.json"), `expected the one fixed path, got: ${line}`);
   }
 });
 
@@ -216,6 +266,109 @@ test("push-candidate directly depends on verify-fixtures-integrity, verify-sourc
 test("release-lock is the terminal step — nothing depends on it, and it depends on promote", () => {
   assert.deepEqual(stepsById["release-lock"].waitFor, ["promote"]);
   assert.ok(!steps.some((s) => s.waitFor.includes("release-lock")), "no step should wait for release-lock");
+});
+
+// ---------------------------------------------------------------------
+// Dependency-provisioning correction — install-dependencies must run
+// before every step whose script resolves a non-builtin npm package
+// (acquire-lock, materialize-runtime-manifest, verify-fixtures-
+// integrity, push-candidate, deploy-candidate, promote, release-lock —
+// all reach ci/signatureRefreshLock.js and/or ci/fixtureManifest.js /
+// ci/materializeRuntimeManifest.js, each of which requires
+// @google-cloud/storage inside its own `require.main === module` CLI
+// block), and must never run concurrently with verify-source.sh's own,
+// separate `npm ci`.
+// ---------------------------------------------------------------------
+
+test("dependency-provisioning: exactly one install-dependencies step exists", () => {
+  const matches = steps.filter((s) => s.id === "install-dependencies");
+  assert.equal(matches.length, 1);
+});
+
+test("dependency-provisioning: install-dependencies uses the same digest-pinned Node image as every other node-only step", () => {
+  assert.equal(stepsById["install-dependencies"].name, NODE_IMAGE);
+});
+
+test("dependency-provisioning: install-dependencies invokes exactly ci/install-dependencies.sh, no inline shell implementation", () => {
+  const blockMatch = yamlText.match(/- id: install-dependencies[\s\S]*?(?=\n  - id: |\nimages:)/);
+  assert.ok(blockMatch, "could not locate the install-dependencies step block");
+  const block = blockMatch[0];
+  assert.ok(/args:\s*\["services\/compliance-scanner\/ci\/install-dependencies\.sh"\]/.test(block));
+});
+
+test("dependency-provisioning: install-dependencies.sh uses `npm ci`, never `npm install`", () => {
+  const text = scriptText("install-dependencies.sh");
+  assert.ok(/\bnpm ci\b/.test(text), "must use npm ci");
+  assert.ok(!/\bnpm install\b/.test(text), "must not use npm install anywhere, including in comments describing behavior");
+});
+
+test("dependency-provisioning: install-dependencies.sh never writes to package.json or package-lock.json", () => {
+  const text = scriptText("install-dependencies.sh");
+  assert.ok(!/>\s*package(-lock)?\.json/.test(text), "must not redirect output into either manifest file");
+  assert.ok(!/npm (version|pkg|init)\b/.test(text), "must not invoke any npm subcommand that mutates package.json");
+});
+
+test("dependency-provisioning: acquire-lock depends directly on install-dependencies", () => {
+  assert.deepEqual(stepsById["acquire-lock"].waitFor, ["install-dependencies"]);
+});
+
+test("dependency-provisioning: verify-source cannot run concurrently with install-dependencies (transitively sequenced behind it via acquire-lock, never a parallel/no-waitFor step)", () => {
+  assert.ok(transitiveDependsOn("verify-source", "install-dependencies"), "verify-source must transitively depend on install-dependencies");
+  assert.ok(stepsById["verify-source"].waitFor.length > 0, "verify-source must not be a root (no-waitFor) step");
+});
+
+test("dependency-provisioning: materialize-runtime-manifest transitively depends on install-dependencies", () => {
+  assert.ok(transitiveDependsOn("materialize-runtime-manifest", "install-dependencies"));
+});
+
+test("dependency-provisioning: every step whose script resolves @google-cloud/storage transitively depends on install-dependencies", () => {
+  // acquire-lock, materialize-runtime-manifest, verify-fixtures-integrity,
+  // and release-lock invoke it directly on the plain node image;
+  // push-candidate, deploy-candidate, and promote reach it indirectly
+  // via `sh ci/renew-lease-or-fail.sh` on the ci-builder image, which
+  // (confirmed by inspecting ci/Dockerfile.ci-builder) does not bake in
+  // this service's own node_modules either.
+  const dependents = [
+    "acquire-lock",
+    "materialize-runtime-manifest",
+    "verify-fixtures-integrity",
+    "push-candidate",
+    "deploy-candidate",
+    "promote",
+    "release-lock",
+  ];
+  for (const id of dependents) {
+    assert.ok(transitiveDependsOn(id, "install-dependencies"), `${id} must transitively depend on install-dependencies`);
+  }
+});
+
+test("dependency-provisioning: install-dependencies and verify-source's own npm ci cannot overlap — install-dependencies has no waitFor of its own (runs first) and verify-source only starts once acquire-lock (which itself waits for install-dependencies) has fully completed", () => {
+  assert.deepEqual(stepsById["install-dependencies"].waitFor, []);
+  assert.deepEqual(stepsById["acquire-lock"].waitFor, ["install-dependencies"]);
+  assert.deepEqual(stepsById["verify-source"].waitFor, ["acquire-lock"]);
+});
+
+test("dependency-provisioning: promote still transitively depends on verify-fixtures-integrity (fixture verification gate unweakened by this correction)", () => {
+  assert.ok(transitiveDependsOn("promote", "verify-fixtures-integrity"));
+});
+
+test("dependency-provisioning: the existing fencing graph is unchanged — promote still transitively depends on acquire-lock, materialize-runtime-manifest, verify-deployed-candidate, and verify-candidate-container", () => {
+  for (const required of ["acquire-lock", "materialize-runtime-manifest", "verify-deployed-candidate", "verify-candidate-container"]) {
+    assert.ok(transitiveDependsOn("promote", required), `promote must still transitively depend on ${required}`);
+  }
+});
+
+test("dependency-provisioning: no other step's args contain an inline `npm ci`/`npm install` — every dependency install is confined to the one dedicated install-dependencies.sh script", () => {
+  for (const step of steps) {
+    if (step.id === "install-dependencies") continue;
+    const blockMatch = yamlText.match(new RegExp(`- id: ${step.id}[\\s\\S]*?(?=\\n  - id: |\\nimages:)`));
+    assert.ok(blockMatch, `could not locate block for ${step.id}`);
+    assert.ok(!/npm (ci|install)\b/.test(blockMatch[0]), `${step.id}'s YAML block must not contain an inline npm ci/install`);
+  }
+});
+
+test("dependency-provisioning: install-dependencies' image is digest-pinned, not a floating tag", () => {
+  assert.ok(stepsById["install-dependencies"].name.includes("@sha256:"));
 });
 
 // ---------------------------------------------------------------------
