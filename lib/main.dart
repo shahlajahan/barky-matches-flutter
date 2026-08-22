@@ -49,6 +49,7 @@ import 'package:barky_matches_fixed/ui/business/business_partner_landing_page.da
 import 'package:barky_matches_fixed/services/marketplace_order_notification_types.dart';
 import 'package:barky_matches_fixed/services/business_finance_notification_types.dart';
 import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
+import 'package:barky_matches_fixed/services/mobile_advertising_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -65,7 +66,6 @@ import 'ui/appointments/my_appointments_page.dart';
 import 'ui/business/dashboard/vet/appointment_payment_page.dart';
 import 'ui/orders/order_detail_page.dart';
 import 'ui/chat/chat_detail_page.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
 
 late Box<Dog> dogsBox;
 late Box<Dog> favoritesBox;
@@ -316,9 +316,6 @@ Future<T> retry<T>(Future<T> Function() run) async {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await ensureFirebaseInitialized();
-  if (!kIsWeb) {
-    await MobileAds.instance.initialize();
-  }
   WidgetsBinding.instance.addPostFrameCallback((_) {
     FirestoreReadinessGate.instance.markFirstFrameReady();
   });
@@ -1019,6 +1016,13 @@ void main() async {
   GoogleFonts.config.allowRuntimeFetching = true;
   //await waitForInternet();
   await ensureFirebaseInitialized();
+  if (!kIsWeb) {
+    unawaited(
+      MobileAdvertisingService.instance.initialize(
+        source: 'foreground_startup',
+      ),
+    );
+  }
   if (initialUri != null) {
     await WebCampaignAttribution.recordInitialUtmCampaignWithFirebase(
       initialUri,
@@ -1204,56 +1208,63 @@ void main() async {
   } // 👈 فقط برای تست
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) {
-        final appState = AppState(
-          favoriteDogs: favoriteDogs,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<MobileAdvertisingService>.value(
+          value: MobileAdvertisingService.instance,
+        ),
+        ChangeNotifierProvider<AppState>(
+          create: (context) {
+            final appState = AppState(
+              favoriteDogs: favoriteDogs,
 
-          favoriteDogsNotifier: ValueNotifier<List<Dog>>(favoriteDogs),
+              favoriteDogsNotifier: ValueNotifier<List<Dog>>(favoriteDogs),
 
-          likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
+              likesNotifier: ValueNotifier<Map<String, List<String>>>({}),
 
-          onToggleFavorite: (Dog dog) async {
-            await Provider.of<AppState>(
-              context,
-              listen: false,
-            ).toggleFavorite(dog);
+              onToggleFavorite: (Dog dog) async {
+                await Provider.of<AppState>(
+                  context,
+                  listen: false,
+                ).toggleFavorite(dog);
+              },
+
+              notificationService: NotificationService(),
+            );
+
+            if (!kIsWeb) {
+              IapService.instance.setSubscriptionActivatedCallback(() async {
+                await appState.loadSubscriptionFromFirestore();
+
+                debugPrint('🔄 UI refreshed');
+
+                await Future.delayed(const Duration(milliseconds: 500));
+
+                appState.openProfileSubPage(ProfileSubPage.businessRegister);
+              });
+            }
+
+            appState.markFirebaseInitialized();
+
+            // ❗️ خیلی مهم: فقط این
+            if (kIsWeb) {
+              scheduleMicrotask(appState.startAuthListener);
+            } else {
+              appState.startAuthListener();
+            }
+            // AuthTrap.start();
+            // AuthTrap.scheduleTokenDiagnostics();
+            if (!kIsWeb) {
+              IapService.instance.setSubscriptionActivatedCallback(() async {
+                await appState.loadSubscriptionFromFirestore();
+                debugPrint('🔄 UI refreshed');
+              });
+            }
+
+            return appState;
           },
-
-          notificationService: NotificationService(),
-        );
-
-        if (!kIsWeb) {
-          IapService.instance.setSubscriptionActivatedCallback(() async {
-            await appState.loadSubscriptionFromFirestore();
-
-            debugPrint('🔄 UI refreshed');
-
-            await Future.delayed(const Duration(milliseconds: 500));
-
-            appState.openProfileSubPage(ProfileSubPage.businessRegister);
-          });
-        }
-
-        appState.markFirebaseInitialized();
-
-        // ❗️ خیلی مهم: فقط این
-        if (kIsWeb) {
-          scheduleMicrotask(appState.startAuthListener);
-        } else {
-          appState.startAuthListener();
-        }
-        // AuthTrap.start();
-        // AuthTrap.scheduleTokenDiagnostics();
-        if (!kIsWeb) {
-          IapService.instance.setSubscriptionActivatedCallback(() async {
-            await appState.loadSubscriptionFromFirestore();
-            debugPrint('🔄 UI refreshed');
-          });
-        }
-
-        return appState;
-      },
+        ),
+      ],
       child: const MyApp(),
     ),
   );

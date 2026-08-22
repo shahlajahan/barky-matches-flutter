@@ -10151,4 +10151,10 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get petTaxiVehicleLargeAnimalTransport => 'خودروی حمل حیوانات بزرگ';
+
+  @override
+  String get adPrivacyOptionsTitle => 'گزینه‌های حریم خصوصی';
+
+  @override
+  String get adPrivacyOptionsSubtitle => 'رضایت تبلیغات و انتخاب‌های حریم خصوصی را مدیریت کنید.';
 }

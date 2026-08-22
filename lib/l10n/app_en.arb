@@ -4512,4 +4512,6 @@
 ,"petTaxiVehicleVan": "Van"
 ,"petTaxiVehiclePetTransportVan": "Pet transport van"
 ,"petTaxiVehicleLargeAnimalTransport": "Large animal transport"
+,"adPrivacyOptionsTitle": "Privacy options"
+,"adPrivacyOptionsSubtitle": "Manage advertising consent and privacy choices."
 }

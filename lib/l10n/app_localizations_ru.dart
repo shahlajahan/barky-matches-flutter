@@ -10153,4 +10153,10 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get petTaxiVehicleLargeAnimalTransport => 'Транспорт для крупных животных';
+
+  @override
+  String get adPrivacyOptionsTitle => 'Параметры конфиденциальности';
+
+  @override
+  String get adPrivacyOptionsSubtitle => 'Управляйте согласием на рекламу и настройками конфиденциальности.';
 }

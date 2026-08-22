@@ -3,8 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'blocked_users_page.dart';
 import 'package:barky_matches_fixed/l10n/app_localizations.dart';
+import 'package:barky_matches_fixed/services/mobile_advertising_service.dart';
 
 class PrivacySettingsPage extends StatefulWidget {
   const PrivacySettingsPage({super.key});
@@ -122,7 +124,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.pink.withOpacity(.22),
+                      color: Colors.pink.withValues(alpha: .22),
                       blurRadius: 18,
                       offset: const Offset(0, 8),
                     ),
@@ -154,7 +156,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                     Text(
                       l10n.privacySecurityDescription,
                       style: GoogleFonts.poppins(
-                        color: Colors.white.withOpacity(.9),
+                        color: Colors.white.withValues(alpha: .9),
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -243,6 +245,22 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 
               const SizedBox(height: 12),
 
+              if (context
+                  .watch<MobileAdvertisingService>()
+                  .privacyOptionsRequired) ...[
+                _ActionTile(
+                  title: l10n.adPrivacyOptionsTitle,
+                  subtitle: l10n.adPrivacyOptionsSubtitle,
+                  icon: LucideIcons.badgeInfo,
+                  onTap: () {
+                    context
+                        .read<MobileAdvertisingService>()
+                        .openPrivacyOptions();
+                  },
+                ),
+                const SizedBox(height: 14),
+              ],
+
               _ActionTile(
                 title: "Blocked users",
 
@@ -330,7 +348,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                   height: 72,
 
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(.12),
+                    color: Colors.red.withValues(alpha: .12),
 
                     shape: BoxShape.circle,
                   ),
@@ -492,7 +510,7 @@ class _ToggleTile extends StatelessWidget {
 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.04),
+            color: Colors.black.withValues(alpha: .04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -506,7 +524,7 @@ class _ToggleTile extends StatelessWidget {
             height: 52,
 
             decoration: BoxDecoration(
-              color: const Color(0xFF9E1B4F).withOpacity(.1),
+              color: const Color(0xFF9E1B4F).withValues(alpha: .1),
 
               borderRadius: BorderRadius.circular(16),
             ),
@@ -560,12 +578,14 @@ class _ToggleTile extends StatelessWidget {
 
 class _ActionTile extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final IconData icon;
   final VoidCallback onTap;
   final bool danger;
 
   const _ActionTile({
     required this.title,
+    this.subtitle,
     required this.icon,
     required this.onTap,
     this.danger = false,
@@ -586,7 +606,7 @@ class _ActionTile extends StatelessWidget {
 
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.04),
+              color: Colors.black.withValues(alpha: .04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -601,8 +621,8 @@ class _ActionTile extends StatelessWidget {
 
               decoration: BoxDecoration(
                 color: danger
-                    ? Colors.red.withOpacity(.1)
-                    : const Color(0xFF9E1B4F).withOpacity(.1),
+                    ? Colors.red.withValues(alpha: .1)
+                    : const Color(0xFF9E1B4F).withValues(alpha: .1),
 
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -616,13 +636,29 @@ class _ActionTile extends StatelessWidget {
             const SizedBox(width: 16),
 
             Expanded(
-              child: Text(
-                title,
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: danger ? Colors.red : Colors.black87,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: danger ? Colors.red : Colors.black87,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle!,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 

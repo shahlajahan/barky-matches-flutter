@@ -3304,4 +3304,6 @@
 ,"petTaxiVehicleVan": "Фургон"
 ,"petTaxiVehiclePetTransportVan": "Фургон для перевозки животных"
 ,"petTaxiVehicleLargeAnimalTransport": "Транспорт для крупных животных"
+,"adPrivacyOptionsTitle": "Параметры конфиденциальности"
+,"adPrivacyOptionsSubtitle": "Управляйте согласием на рекламу и настройками конфиденциальности."
 }

@@ -10151,4 +10151,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get petTaxiVehicleLargeAnimalTransport => 'Large animal transport';
+
+  @override
+  String get adPrivacyOptionsTitle => 'Privacy options';
+
+  @override
+  String get adPrivacyOptionsSubtitle => 'Manage advertising consent and privacy choices.';
 }

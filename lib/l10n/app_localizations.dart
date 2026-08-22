@@ -19046,6 +19046,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Large animal transport'**
   String get petTaxiVehicleLargeAnimalTransport;
+
+  /// No description provided for @adPrivacyOptionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy options'**
+  String get adPrivacyOptionsTitle;
+
+  /// No description provided for @adPrivacyOptionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage advertising consent and privacy choices.'**
+  String get adPrivacyOptionsSubtitle;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
