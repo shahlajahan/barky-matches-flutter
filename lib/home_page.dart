@@ -35,6 +35,7 @@ import 'package:barky_matches_fixed/services/business_query_diagnostics.dart';
 
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:barky_matches_fixed/widgets/ads/banner_ad_widget.dart';
+import 'package:barky_matches_fixed/widgets/ads/web_ad_slot.dart';
 import 'package:barky_matches_fixed/models/featured_deal.dart';
 import 'package:barky_matches_fixed/promotion/services/promotion_analytics_service.dart';
 import 'package:barky_matches_fixed/promotion/services/promotion_featured_deal_refresh_policy.dart';
@@ -2030,6 +2031,14 @@ class _HomePageState extends State<HomePage>
                   const SizedBox(height: 20),
 
                   const BannerAdWidget(),
+                  Consumer<app.AppState>(
+                    builder: (context, appState, _) {
+                      return WebAdSlot(
+                        placementKey: 'home_footer_banner',
+                        shouldShowAds: appState.shouldShowAds,
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: 80),
                 ],

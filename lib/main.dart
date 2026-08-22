@@ -51,6 +51,7 @@ import 'package:barky_matches_fixed/services/business_finance_notification_types
 import 'package:barky_matches_fixed/services/marketplace_service_notification_types.dart';
 import 'package:barky_matches_fixed/services/appointment_notification_navigation_guard.dart';
 import 'package:barky_matches_fixed/services/mobile_advertising_service.dart';
+import 'package:barky_matches_fixed/services/web_advertising_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -1285,6 +1286,9 @@ void main() async {
       providers: [
         ChangeNotifierProvider<MobileAdvertisingService>.value(
           value: MobileAdvertisingService.instance,
+        ),
+        ChangeNotifierProvider<WebAdvertisingService>.value(
+          value: WebAdvertisingService.instance,
         ),
         ChangeNotifierProvider<AppState>(
           create: (context) {

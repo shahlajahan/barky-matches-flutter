@@ -162,7 +162,7 @@ class AppState with ChangeNotifier {
   int unreadChatsCount = 0;
 
   bool get shouldShowAds {
-    return !_subscription.hasValidPaidAccess;
+    return !_subscription.hasValidPaidAccess && !isAdmin;
   }
 
   bool showGuestFeatureGate = false;
