@@ -892,7 +892,22 @@ test("candidate network: no localhost/127.0.0.1/host.docker.internal URL is ever
 
 test("candidate network: every real HTTP request the verifier sends (healthz, status, and every fixture scan) targets ${CANDIDATE_BASE_URL}, never a separately constructed address", () => {
   const text = scriptText("verify-candidate-container.sh");
-  const requestLines = text.split("\n").filter((l) => /curl[^\n]*"\$\{CANDIDATE_BASE_URL\}/.test(l) || (/curl\b/.test(l) && !l.trim().startsWith("#") && !l.includes("-v -s -o /dev/null -m 5")));
+  // Join backslash-continued lines first — the scan request's curl
+  // invocation wraps its flags across two physical lines, and
+  // ${CANDIDATE_BASE_URL} only appears on the continuation line.
+  const lines = text.split("\n");
+  const joinedLines = [];
+  for (let i = 0; i < lines.length; i++) {
+    let block = lines[i];
+    let j = i;
+    while (block.trimEnd().endsWith("\\") && j + 1 < lines.length) {
+      j += 1;
+      block += "\n" + lines[j];
+    }
+    joinedLines.push(block);
+    i = j;
+  }
+  const requestLines = joinedLines.filter((l) => /curl\b/.test(l) && !l.trim().startsWith("#") && !l.includes("-v -s -o /dev/null -m 5"));
   // Sanity: at least the four real requests (healthz, status, and — via
   // the shared scan_fixture() body — the scan endpoint) must exist.
   assert.ok(requestLines.length >= 3, `expected at least 3 real request lines, found ${requestLines.length}`);
@@ -963,6 +978,112 @@ test("candidate network: every fixture verdict check remains mandatory, unaffect
   assert.ok(text.includes('scan_fixture "benign-text" "FIXTURE_BENIGN_TEXT" "clean"'));
   assert.ok(text.includes('scan_fixture "eicar-standard" "FIXTURE_EICAR_STANDARD" "infected"'));
   assert.ok(text.includes('scan_fixture "encrypted-pdf" "FIXTURE_ENCRYPTED_PDF" "error" "encrypted_document_unsupported"'));
+});
+
+// ---------------------------------------------------------------------
+// scan_fixture() diagnostic correction (Slice 2.2, closing a real
+// staging build failure — build bcf1e1fa-28a2-42d4-a910-651e873bf4ac,
+// fixture "benign-text": a real HTTP 400 invalid_object_path response
+// from the candidate was silently swallowed because
+// `result=$(curl -fs ...)` failing under `set -e` aborted the script
+// before the MANDATORY FIXTURE FAILED diagnostic could ever print).
+// Root cause was a real fixture-path/production-validation shape
+// mismatch (fixed separately, out of this file's scope, by
+// re-provisioning the staging fixtures under the production-compatible
+// three-segment path — see contract.js's own isSafeQuarantineObjectPath
+// tests below), not a defect in this script; this section closes the
+// SEPARATE diagnostic-visibility gap the real failure exposed.
+// ---------------------------------------------------------------------
+
+test("scan_fixture diagnostic fix: the scan request's exit code and HTTP status are captured explicitly (set +e/-e bracketing around the curl call), not left to mask a failure under set -e — the exact class of bug that swallowed the real staging failure in build bcf1e1fa-28a2-42d4-a910-651e873bf4ac", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const fnMatch = text.match(/scan_fixture\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch, "could not locate the scan_fixture() function body");
+  const body = fnMatch[0];
+  assert.ok(/ {2}set \+e\n {2}scan_http_code=\$\(curl/.test(body), "the scan curl call must be bracketed by set +e immediately before it");
+  assert.ok(/scan_curl_exit=\$\?/.test(body), "the scan curl call's own exit code must be captured explicitly via $?");
+  assert.ok(/ {2}scan_curl_exit=\$\?\n {2}set -e/.test(body), "set -e must be restored immediately after capturing the exit code");
+  assert.ok(/set -e\n\n {2}if \[ "\$scan_curl_exit" -ne 0 \]/.test(body), "the failure branch must be checked right after set -e is restored");
+});
+
+test("scan_fixture diagnostic fix: a failed scan request (non-zero curl exit OR non-200 HTTP status) is never silently swallowed — it prints a bounded diagnostic (fixture id, curl exit code, HTTP status, and a safely-extracted classification) and exits non-zero, exactly like every other mandatory-fixture failure path", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const fnMatch = text.match(/scan_fixture\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch, "could not locate the scan_fixture() function body");
+  const body = fnMatch[0];
+  assert.ok(/if \[ "\$scan_curl_exit" -ne 0 \] \|\| \[ "\$scan_http_code" != "200" \]; then/.test(body), "must branch on either a non-zero curl exit or a non-200 HTTP status");
+  const failureBranchMatch = body.match(/if \[ "\$scan_curl_exit" -ne 0 \][\s\S]*?\n {2}fi\n/);
+  assert.ok(failureBranchMatch, "could not locate the scan-request failure branch");
+  assert.ok(/MANDATORY FIXTURE FAILED \(\$\{fixture_id\}\)/.test(failureBranchMatch[0]), "the failure diagnostic must identify the fixture by id");
+  assert.ok(/curl_exit=\$\{scan_curl_exit\}/.test(failureBranchMatch[0]), "the diagnostic must include the captured curl exit code");
+  assert.ok(/http_status=\$\{scan_http_code:-none\}/.test(failureBranchMatch[0]), "the diagnostic must include the captured HTTP status");
+  assert.ok(/exit 1/.test(failureBranchMatch[0]), "a failed scan request must exit non-zero, never continue to the verdict check");
+});
+
+test("scan_fixture diagnostic fix: the failure-path diagnostic never prints the raw response body — only a narrow, safely-extracted classification (error/reason/errorCode, the same closed field set RESPONSE_ALLOWED_KEYS documents), and never prints the request body, an Authorization header, or any credential", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const fnMatch = text.match(/scan_fixture\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch, "could not locate the scan_fixture() function body");
+  const body = fnMatch[0];
+  const failureBranchMatch = body.match(/if \[ "\$scan_curl_exit" -ne 0 \][\s\S]*?\n {2}fi\n/);
+  assert.ok(failureBranchMatch, "could not locate the scan-request failure branch");
+  assert.ok(/grep -oE '"\(error\|reason\|errorCode\)":"\[\^"\]\*"'/.test(failureBranchMatch[0]), "must extract only the error/reason/errorCode fields, never the body verbatim");
+  assert.ok(!/cat \/tmp\/scan-fixture-response\.json/.test(failureBranchMatch[0]), "the failure branch must never cat the raw response body");
+  // Restrict the Authorization/Bearer check to the actual EXECUTABLE
+  // diagnostic line, not the surrounding prose comments (which
+  // legitimately explain, in English, that no such header is ever
+  // sent — a comment mentioning the word is not a leak).
+  const echoLineMatch = failureBranchMatch[0].match(/echo "MANDATORY FIXTURE FAILED[^\n]*"/);
+  assert.ok(echoLineMatch, "could not locate the failure diagnostic echo line");
+  assert.ok(!/Authorization|Bearer/.test(echoLineMatch[0]), "the failure diagnostic's actual printed message must never reference an Authorization header or bearer token — this script sends none");
+});
+
+test("scan_fixture diagnostic fix: on success (HTTP 200), the response body is read from the same file the status code was captured from — no separate, potentially-inconsistent second request", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const fnMatch = text.match(/scan_fixture\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch, "could not locate the scan_fixture() function body");
+  assert.ok(/result="\$\(cat \/tmp\/scan-fixture-response\.json\)"/.test(fnMatch[0]), "the success-path result must be read from the captured response file, not re-fetched");
+});
+
+// ---------------------------------------------------------------------
+// Fixture-path/production-validation contract (Slice 2.2, closing the
+// real staging root cause: the previously-provisioned staging fixture
+// paths had only two segments after compliance_quarantine/, while
+// src/contract.js's isSafeQuarantineObjectPath requires exactly three,
+// mirroring the production {businessId}/{sessionId}/{objectId} shape).
+// These tests invoke the REAL, unmodified production validator
+// directly — proving no relaxation was introduced anywhere, and that
+// the newly-provisioned three-segment staging paths are exactly what
+// it already required, not a new allowance carved out for them.
+// ---------------------------------------------------------------------
+
+test("production validation unchanged: isSafeQuarantineObjectPath still requires EXACTLY three segments after compliance_quarantine/ — no relaxation, no CI-specific exception, invoked directly against the real, unmodified src/contract.js", () => {
+  const { isSafeQuarantineObjectPath } = require(path.join(REPO_ROOT, "src", "contract.js"));
+
+  // The newly-provisioned, production-compatible staging paths must
+  // pass — this is the actual fix (fixture re-provisioning), not a
+  // validator change.
+  assert.equal(isSafeQuarantineObjectPath("compliance_quarantine/ci-fixtures/ci-run/benign.txt"), true);
+  assert.equal(isSafeQuarantineObjectPath("compliance_quarantine/ci-fixtures/ci-run/eicar.txt"), true);
+  assert.equal(isSafeQuarantineObjectPath("compliance_quarantine/ci-fixtures/ci-run/encrypted.pdf"), true);
+
+  // The OLD, broken two-segment staging paths (the real root cause of
+  // build bcf1e1fa's failure) must still be rejected — proving no
+  // two-segment CI exception was carved into production validation as
+  // an alternative fix.
+  assert.equal(isSafeQuarantineObjectPath("compliance_quarantine/ci-fixtures/benign.txt"), false);
+  assert.equal(isSafeQuarantineObjectPath("compliance_quarantine/ci-fixtures/eicar.txt"), false);
+  assert.equal(isSafeQuarantineObjectPath("compliance_quarantine/ci-fixtures/encrypted.pdf"), false);
+
+  // A four-segment path must also still be rejected — the requirement
+  // is EXACTLY three, not "at least three" or "at most three".
+  assert.equal(isSafeQuarantineObjectPath("compliance_quarantine/a/b/c/d.txt"), false);
+});
+
+test("production validation unchanged: src/contract.js's isSafeQuarantineObjectPath source still contains the exact `parts.length !== 3` shape check — a textual regression guard alongside the behavioral one above", () => {
+  const contractText = fs.readFileSync(path.join(REPO_ROOT, "src", "contract.js"), "utf8");
+  assert.ok(/parts\.length !== 3/.test(contractText), "the three-segment shape requirement must remain exactly as written, unweakened");
+  assert.ok(!/ci-fixtures/.test(contractText), "production validation code must never special-case a CI-only path fragment");
 });
 
 // ---------------------------------------------------------------------

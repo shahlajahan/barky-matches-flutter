@@ -285,7 +285,36 @@ scan_fixture() {
 
   body=$(printf '{"contractVersion":1,"requestId":"ci-%s-%s","bucket":"%s","objectPath":"%s","generation":"%s","sha256":"%s","sizeBytes":%s}' \
     "$BUILD_ID" "$fixture_id" "$SYNTHETIC_TEST_BUCKET" "$object_path" "$generation" "$sha256" "$size_bytes")
-  result=$(curl -fs -X POST -H "content-type: application/json" -d "$body" "${CANDIDATE_BASE_URL}/v1/scan")
+
+  # set +e/-e bracketing required here for the same reason documented
+  # above the healthz loop: under set -e, an assignment whose value is
+  # a failing command substitution (curl -f exiting non-zero on a 4xx/
+  # 5xx response) aborts the script immediately at this line, before
+  # the MANDATORY FIXTURE FAILED diagnostic below could ever run —
+  # exactly what silently masked the real staging failure this
+  # correction closes (build bcf1e1fa-28a2-42d4-a910-651e873bf4ac,
+  # fixture "benign-text", a real HTTP 400 invalid_object_path response
+  # that this function never got the chance to report).
+  set +e
+  scan_http_code=$(curl -s -o /tmp/scan-fixture-response.json -w '%{http_code}' \
+    -X POST -H "content-type: application/json" -d "$body" "${CANDIDATE_BASE_URL}/v1/scan")
+  scan_curl_exit=$?
+  set -e
+
+  if [ "$scan_curl_exit" -ne 0 ] || [ "$scan_http_code" != "200" ]; then
+    # Bounded, redacted diagnostic: never the raw response body
+    # verbatim (defensive — RESPONSE_ALLOWED_KEYS is a production-side
+    # guarantee this script does not itself re-verify), never the
+    # request body, never any credential/Authorization header (this
+    # script sends none). Only the same closed field set
+    # RESPONSE_ALLOWED_KEYS documents (error/reason/errorCode) is
+    # extracted via a narrow grep — never the body verbatim — and only
+    # on this failure path.
+    classification=$(grep -oE '"(error|reason|errorCode)":"[^"]*"' /tmp/scan-fixture-response.json 2>/dev/null | tr '\n' ' ')
+    echo "MANDATORY FIXTURE FAILED (${fixture_id}): request failed — curl_exit=${scan_curl_exit} ($(curl_exit_category "$scan_curl_exit")) http_status=${scan_http_code:-none} classification=${classification:-none}" >&2
+    exit 1
+  fi
+  result="$(cat /tmp/scan-fixture-response.json)"
 
   echo "$result" | grep -q "\"verdict\":\"${expect_verdict}\"" \
     || { echo "MANDATORY FIXTURE FAILED (${fixture_id}): expected verdict ${expect_verdict}, got: $result"; exit 1; }
