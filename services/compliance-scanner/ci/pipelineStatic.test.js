@@ -1256,9 +1256,9 @@ test("production validation unchanged: src/contract.js's isSafeQuarantineObjectP
 // separate variables, neither derived from the other.
 // ---------------------------------------------------------------------
 
-test("verify-deployed-candidate.sh declares CANDIDATE_URL and BASE_SERVICE_URL as two separate variables, from two separate gcloud describe calls", () => {
+test("verify-deployed-candidate.sh declares CANDIDATE_URL and BASE_SERVICE_URL as two separately-sourced variables — CANDIDATE_URL from the resolved candidate traffic entry (Slice 2.2 correction: ci/resolveCandidateTrafficEntry.py, not a raw gcloud --format expression), BASE_SERVICE_URL from its own independent gcloud describe call", () => {
   const text = scriptText("verify-deployed-candidate.sh");
-  assert.ok(/CANDIDATE_URL=\$\(gcloud run services describe/.test(text));
+  assert.ok(/CANDIDATE_URL=\$\(printf '%s\\n' "\$CANDIDATE_TRAFFIC_RESOLVED" \| sed -n '1p'\)/.test(text), "CANDIDATE_URL must be read from line 1 of the resolved-traffic-entry output");
   assert.ok(/BASE_SERVICE_URL=\$\(gcloud run services describe/.test(text));
   // Must not be textually derived from each other (e.g. string
   // substitution/sed on one to produce the other).
@@ -1305,10 +1305,438 @@ test("every HTTP request (curl ... /status or /v1/scan, possibly wrapped across 
   }
 });
 
-test("both CANDIDATE_URL and BASE_SERVICE_URL fail closed (explicit non-empty check + exit) if gcloud resolves them to empty", () => {
+test("CANDIDATE_URL, CANDIDATE_REVISION, and BASE_SERVICE_URL all fail closed (explicit non-empty check + exit) if resolution produces empty", () => {
   const text = scriptText("verify-deployed-candidate.sh");
   assert.ok(/\[ -n "\$CANDIDATE_URL" \] \|\| \{ echo[^}]*exit 1; \}/.test(text), "CANDIDATE_URL must fail closed if empty");
+  assert.ok(/\[ -n "\$CANDIDATE_REVISION" \] \|\| \{ echo[^}]*exit 1; \}/.test(text), "CANDIDATE_REVISION must fail closed if empty (Slice 2.2 correction — previously had no such check at all)");
   assert.ok(/\[ -n "\$BASE_SERVICE_URL" \] \|\| \{ echo[^}]*exit 1; \}/.test(text), "BASE_SERVICE_URL must fail closed if empty");
+});
+
+// ---------------------------------------------------------------------
+// Candidate traffic-entry resolution correction (Slice 2.2, closing a
+// real staging failure — build aa407156-0dea-4ed0-9e85-47354d3bbf3e,
+// step verify-deployed-candidate: "could not resolve candidate tag
+// URL"). Root cause: gcloud's --format resource-key language does not
+// support the JMESPath-style embedded predicate
+// `status.traffic[?tag=='...']` this step's two gcloud describe calls
+// previously used — confirmed empirically (live, read-only) against
+// the real deployed candidate, whose matching entry genuinely existed
+// and was trivially resolvable via a plain JSON read. Fixed via
+// ci/resolveCandidateTrafficEntry.py, a small, independently-testable
+// helper this suite exercises directly (spawning the real python3
+// script, not a hand-duplicated reimplementation of its logic).
+// ---------------------------------------------------------------------
+
+const RESOLVE_SCRIPT_PATH = path.join(REPO_ROOT, "ci", "resolveCandidateTrafficEntry.py");
+
+function runResolveCandidateTrafficEntry({ trafficJson, tag }) {
+  return spawnSync("python3", [RESOLVE_SCRIPT_PATH], {
+    input: trafficJson,
+    env: { ...process.env, CANDIDATE_TRAFFIC_TAG: tag },
+    encoding: "utf8",
+  });
+}
+
+// The exact traffic array captured live from the real deployed
+// candidate in build aa407156-0dea-4ed0-9e85-47354d3bbf3e.
+const REAL_CAPTURED_TRAFFIC_JSON = JSON.stringify({
+  status: {
+    traffic: [
+      { percent: 100, revisionName: "compliance-scanner-00002-h9h" },
+      {
+        revisionName: "compliance-scanner-00003-wof",
+        tag: "candidate-580e47e8-aa407156",
+        url: "https://candidate-580e47e8-aa407156---compliance-scanner-k2hhuwvftq-ew.a.run.app",
+      },
+    ],
+  },
+});
+
+test("resolveCandidateTrafficEntry.py: the REAL captured traffic structure from build aa407156 resolves the exact expected tag, URL, and revision", () => {
+  const result = runResolveCandidateTrafficEntry({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-580e47e8-aa407156" });
+  assert.equal(result.status, 0, `expected success, stderr: ${result.stderr}`);
+  const [url, revisionName] = result.stdout.trim().split("\n");
+  assert.equal(url, "https://candidate-580e47e8-aa407156---compliance-scanner-k2hhuwvftq-ew.a.run.app");
+  assert.ok(url.endsWith(".a.run.app"), "URL must end in .a.run.app");
+  assert.equal(revisionName, "compliance-scanner-00003-wof");
+});
+
+test("resolveCandidateTrafficEntry.py: the 100%-traffic untagged baseline entry is never selected, even when it is the only entry present (no fallback)", () => {
+  const onlyBaseline = JSON.stringify({ status: { traffic: [{ percent: 100, revisionName: "compliance-scanner-00002-h9h" }] } });
+  const result = runResolveCandidateTrafficEntry({ trafficJson: onlyBaseline, tag: "candidate-580e47e8-aa407156" });
+  assert.notEqual(result.status, 0, "must fail rather than silently fall back to the untagged baseline entry");
+  assert.equal(result.stdout, "", "no output may be printed on failure");
+});
+
+test("resolveCandidateTrafficEntry.py: no matching tag fails closed with a clear diagnostic", () => {
+  const result = runResolveCandidateTrafficEntry({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-does-not-exist-00000000" });
+  assert.notEqual(result.status, 0);
+  assert.ok(result.stderr.includes("no traffic entry has tag"), `expected a no-match diagnostic, got: ${result.stderr}`);
+});
+
+test("resolveCandidateTrafficEntry.py: duplicate matching tags fail closed rather than picking either one arbitrarily", () => {
+  const duplicateTag = JSON.stringify({
+    status: {
+      traffic: [
+        { revisionName: "compliance-scanner-00003-wof", tag: "candidate-dup", url: "https://a.a.run.app" },
+        { revisionName: "compliance-scanner-00004-xyz", tag: "candidate-dup", url: "https://b.a.run.app" },
+      ],
+    },
+  });
+  const result = runResolveCandidateTrafficEntry({ trafficJson: duplicateTag, tag: "candidate-dup" });
+  assert.notEqual(result.status, 0);
+  assert.ok(result.stderr.includes("2 traffic entries"), `expected a duplicate-match diagnostic, got: ${result.stderr}`);
+});
+
+test("resolveCandidateTrafficEntry.py: a matched entry with a missing or empty url fails closed", () => {
+  for (const badUrl of [undefined, ""]) {
+    const entry = { revisionName: "compliance-scanner-00003-wof", tag: "candidate-x" };
+    if (badUrl !== undefined) entry.url = badUrl;
+    const trafficJson = JSON.stringify({ status: { traffic: [entry] } });
+    const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
+    assert.notEqual(result.status, 0, `expected failure for url=${JSON.stringify(badUrl)}`);
+    assert.ok(result.stderr.includes("url"), `expected a url-specific diagnostic, got: ${result.stderr}`);
+  }
+});
+
+test("resolveCandidateTrafficEntry.py: a matched entry with a missing or empty revisionName fails closed", () => {
+  for (const badRevision of [undefined, ""]) {
+    const entry = { tag: "candidate-x", url: "https://x.a.run.app" };
+    if (badRevision !== undefined) entry.revisionName = badRevision;
+    const trafficJson = JSON.stringify({ status: { traffic: [entry] } });
+    const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
+    assert.notEqual(result.status, 0, `expected failure for revisionName=${JSON.stringify(badRevision)}`);
+    assert.ok(result.stderr.includes("revisionName"), `expected a revisionName-specific diagnostic, got: ${result.stderr}`);
+  }
+});
+
+test("resolveCandidateTrafficEntry.py: malformed JSON on stdin fails closed", () => {
+  const result = runResolveCandidateTrafficEntry({ trafficJson: "{not valid json", tag: "candidate-x" });
+  assert.notEqual(result.status, 0);
+  assert.ok(result.stderr.includes("not valid JSON"), `expected a JSON-parse diagnostic, got: ${result.stderr}`);
+});
+
+test("resolveCandidateTrafficEntry.py: absent or non-array status.traffic fails closed", () => {
+  for (const badTraffic of [
+    JSON.stringify({ status: {} }),
+    JSON.stringify({ status: { traffic: "not-an-array" } }),
+    JSON.stringify({ status: { traffic: { tag: "x" } } }),
+    JSON.stringify({}),
+  ]) {
+    const result = runResolveCandidateTrafficEntry({ trafficJson: badTraffic, tag: "candidate-x" });
+    assert.notEqual(result.status, 0, `expected failure for traffic JSON: ${badTraffic}`);
+  }
+});
+
+test("resolveCandidateTrafficEntry.py: a non-HTTPS (e.g. plain http) URL fails closed", () => {
+  const trafficJson = JSON.stringify({ status: { traffic: [{ tag: "candidate-x", revisionName: "compliance-scanner-00003-wof", url: "http://insecure.a.run.app" }] } });
+  const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
+  assert.notEqual(result.status, 0);
+  assert.ok(result.stderr.includes("HTTPS"), `expected an HTTPS-specific diagnostic, got: ${result.stderr}`);
+});
+
+test("resolveCandidateTrafficEntry.py: a URL containing whitespace or a control character fails closed", () => {
+  for (const badUrl of ["https://evil.a.run.app extra-arg", "https://evil.a.run.app\nInjected-Header: x", "https://evil.a.run.app\t"]) {
+    const trafficJson = JSON.stringify({ status: { traffic: [{ tag: "candidate-x", revisionName: "compliance-scanner-00003-wof", url: badUrl }] } });
+    const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
+    assert.notEqual(result.status, 0, `expected failure for url=${JSON.stringify(badUrl)}`);
+    assert.ok(result.stderr.includes("whitespace or control"), `expected a whitespace/control-character diagnostic, got: ${result.stderr}`);
+  }
+});
+
+test("resolveCandidateTrafficEntry.py: a malformed (non-Cloud-Run-safe) revision name fails closed", () => {
+  for (const badRevision of ["UPPERCASE-not-allowed", "-starts-with-hyphen", "ends-with-hyphen-", "has spaces", "has_underscore", "semi;colon"]) {
+    const trafficJson = JSON.stringify({ status: { traffic: [{ tag: "candidate-x", revisionName: badRevision, url: "https://x.a.run.app" }] } });
+    const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
+    assert.notEqual(result.status, 0, `expected failure for revisionName=${JSON.stringify(badRevision)}`);
+    assert.ok(result.stderr.includes("Cloud Run-safe shape"), `expected a shape-specific diagnostic, got: ${result.stderr}`);
+  }
+});
+
+test("resolveCandidateTrafficEntry.py: CANDIDATE_TRAFFIC_TAG is read only from the environment — never interpolated into the script's own Python source, never taken from argv", () => {
+  const pyText = fs.readFileSync(RESOLVE_SCRIPT_PATH, "utf8");
+  assert.ok(pyText.includes('os.environ.get("CANDIDATE_TRAFFIC_TAG"'), "the tag must be read via os.environ, not embedded as a literal");
+  assert.ok(!/sys\.argv\[1\]/.test(pyText), "the tag must not be taken from argv");
+  // Sanity: the calling shell script passes it as an env-var prefix on
+  // the python3 invocation, never as a command-line argument or
+  // interpolated into a -c string.
+  const shText = scriptText("verify-deployed-candidate.sh");
+  assert.ok(/CANDIDATE_TRAFFIC_TAG="\$CANDIDATE_TRAFFIC_TAG" python3 ci\/resolveCandidateTrafficEntry\.py/.test(shText), "the shell caller must pass the tag as an environment variable prefix, not an argv value");
+  assert.ok(!/python3 -c/.test(shText), "verify-deployed-candidate.sh must never embed Python source inline with an interpolated tag");
+});
+
+test("resolveCandidateTrafficEntry.py: shell metacharacters and command-substitution-shaped strings in a tag are treated as inert data — they cannot execute code or alter which entry matches", () => {
+  const maliciousTag = "$(rm -rf /); echo pwned `id`";
+  const trafficJson = JSON.stringify({
+    status: {
+      traffic: [
+        { percent: 100, revisionName: "compliance-scanner-00002-h9h" },
+        { tag: maliciousTag, revisionName: "compliance-scanner-00003-wof", url: "https://x.a.run.app" },
+      ],
+    },
+  });
+  const result = runResolveCandidateTrafficEntry({ trafficJson, tag: maliciousTag });
+  assert.equal(result.status, 0, `expected the malicious-looking tag to be matched safely as plain data, stderr: ${result.stderr}`);
+  const [url, revisionName] = result.stdout.trim().split("\n");
+  assert.equal(url, "https://x.a.run.app");
+  assert.equal(revisionName, "compliance-scanner-00003-wof");
+  // The mere fact this test process is still running (nothing was
+  // deleted, no subshell executed) is itself part of the proof; the
+  // matched-value assertions above additionally confirm the string was
+  // compared, not evaluated.
+});
+
+test("verify-deployed-candidate.sh calls gcloud run services describe exactly once to build the traffic JSON that supplies BOTH CANDIDATE_URL and CANDIDATE_REVISION — no second, separate traffic-fetching call exists", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+  const trafficDescribeCalls = (text.match(/gcloud run services describe "\$\{SERVICE\}"[\s\S]*?--format="json\(status\.traffic\)"/g) || []).length;
+  assert.equal(trafficDescribeCalls, 1, "exactly one gcloud describe call must fetch the traffic JSON");
+  assert.ok(/CANDIDATE_URL=\$\(printf '%s\\n' "\$CANDIDATE_TRAFFIC_RESOLVED"/.test(text), "CANDIDATE_URL must come from the single resolved-traffic output");
+  assert.ok(/CANDIDATE_REVISION=\$\(printf '%s\\n' "\$CANDIDATE_TRAFFIC_RESOLVED"/.test(text), "CANDIDATE_REVISION must come from the SAME single resolved-traffic output");
+});
+
+test("no repository-wide occurrence of the unsupported [?tag==...] predicate syntax remains in executable code — verify-deployed-candidate.sh AND promote.sh both closed (each file's own correction comment legitimately quotes it once, for documentation, explaining the historical defect; promote.sh's other status.traffic[0] numeric-index reads are a different, valid, unrelated construction and are not affected by this check)", () => {
+  for (const fname of ["verify-deployed-candidate.sh", "promote.sh"]) {
+    const text = scriptText(fname);
+    assert.ok(
+      !nonCommentLines(text).some((l) => l.includes("[?tag==")),
+      `${fname}: no executable line may contain the unsupported [?tag==...] predicate syntax`
+    );
+  }
+});
+
+test("verify-deployed-candidate.sh's downstream checks (image digest, runtime SA, HTTP requests, final summary) consistently use the SAME resolved CANDIDATE_REVISION/CANDIDATE_URL — never a re-derived or separately fetched value", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+  assert.ok(text.includes('ACTUAL_IMAGE=$(gcloud run revisions describe "$CANDIDATE_REVISION"'), "digest check must use the resolved CANDIDATE_REVISION");
+  assert.ok(text.includes('ACTUAL_SA=$(gcloud run revisions describe "$CANDIDATE_REVISION"'), "runtime SA check must use the resolved CANDIDATE_REVISION");
+  assert.ok(text.includes('echo "verify-deployed-candidate: all checks passed for revision ${CANDIDATE_REVISION} at digest ${DIGEST}"'), "the final summary must report the same resolved CANDIDATE_REVISION");
+});
+
+test("verify-deployed-candidate.sh: the traffic-resolution call fails closed via an explicit || exit 1 — never left to a bare, unguarded command substitution under set -e (the exact class of bug already fixed elsewhere in this pipeline for curl calls)", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+  assert.ok(
+    /CANDIDATE_TRAFFIC_RESOLVED=\$\([\s\S]*?\) \\\n\s*\|\| \{ echo "could not resolve candidate tag URL\/revision"; exit 1; \}/.test(text),
+    "the resolveCandidateTrafficEntry.py call must be explicitly guarded with || { ...; exit 1; }"
+  );
+});
+
+test("deploy-candidate.sh is byte-for-byte unchanged by either the verify-deployed-candidate.sh or the promote.sh traffic-query correction (verified against git, not merely 'still contains expected strings')", () => {
+  const { execFileSync } = require("node:child_process");
+  const relPath = "services/compliance-scanner/ci/deploy-candidate.sh";
+  let diffOutput = "";
+  try {
+    diffOutput = execFileSync("git", ["diff", "--stat", "--", relPath], { cwd: REPO_ROOT, encoding: "utf8" });
+  } catch (err) {
+    assert.fail(`git diff failed for deploy-candidate.sh: ${err.message}`);
+  }
+  assert.equal(diffOutput.trim(), "", `deploy-candidate.sh must be byte-for-byte unchanged by this correction, but git reports: ${diffOutput}`);
+});
+
+// ---------------------------------------------------------------------
+// promote.sh candidate-revision resolution correction (Slice 2.2,
+// eliminating the IDENTICAL [?tag==...] defect confirmed present in
+// promote.sh — the same root cause and the same
+// ci/resolveCandidateTrafficEntry.py fix already applied and tested
+// above for verify-deployed-candidate.sh. Never exercised in a real
+// build (no build has ever reached promote.sh), but the construction
+// is byte-identical to the one proven broken there. These tests
+// extract and BEHAVIORALLY RUN the real corrected block from
+// promote.sh against a fake `gcloud` on PATH and the REAL, unmocked
+// resolveCandidateTrafficEntry.py helper — the same
+// extract-and-execute technique this file's own acquire-lock.sh and
+// deploy-candidate.sh Correction/behavioral tests already use.
+// ---------------------------------------------------------------------
+
+function extractPromoteCandidateResolutionBlock() {
+  const text = scriptText("promote.sh");
+  const match = text.match(/CANDIDATE_TRAFFIC_JSON=\$\(gcloud run services describe[\s\S]*?\[ -n "\$CANDIDATE_REVISION" \] \|\| \{ echo "could not resolve candidate revision name"; exit 1; \}\n/);
+  assert.ok(match, "could not extract the candidate-resolution block from promote.sh");
+  return match[0];
+}
+
+function runPromoteCandidateResolution({ trafficJson, tag }) {
+  const block = extractPromoteCandidateResolutionBlock();
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "promote-resolve-sim-"));
+  const fakeBinDir = path.join(tmpDir, "bin");
+  fs.mkdirSync(fakeBinDir);
+  // A fake `gcloud` that ignores its arguments and always emits the
+  // supplied traffic JSON for a `services describe` call — this test
+  // exercises the SHELL WIRING (pipe into the real resolver, env-var
+  // tag passing, sed line extraction, fail-closed guards), not
+  // gcloud's own argument handling, which is identical to the
+  // already-proven verify-deployed-candidate.sh pattern.
+  fs.writeFileSync(path.join(fakeBinDir, "gcloud"), `#!/bin/sh\ncat <<'TRAFFIC_JSON_EOF'\n${trafficJson}\nTRAFFIC_JSON_EOF\n`, { mode: 0o755 });
+  const result = spawnSync(
+    "sh",
+    ["-c", `set -eu\n${block}\necho "RESOLVED_CANDIDATE_REVISION=$CANDIDATE_REVISION"\necho "RESOLVED_CANDIDATE_URL=$CANDIDATE_URL"`],
+    {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        PATH: `${fakeBinDir}:${process.env.PATH}`,
+        PROJECT_ID: "fake-project",
+        REGION: "fake-region",
+        SERVICE: "compliance-scanner",
+        CANDIDATE_TRAFFIC_TAG: tag,
+      },
+      encoding: "utf8",
+    }
+  );
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  return result;
+}
+
+test("promote.sh uses the shared ci/resolveCandidateTrafficEntry.py helper — never a second, parallel parser or a weaker ad hoc lookup", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(text.includes("python3 ci/resolveCandidateTrafficEntry.py"), "promote.sh must invoke the shared resolver helper");
+  const otherPyFiles = fs.readdirSync(path.join(REPO_ROOT, "ci")).filter((f) => f.endsWith(".py") && f !== "resolveCandidateTrafficEntry.py");
+  assert.deepEqual(otherPyFiles, [], "no second Python resolver/parser file may exist alongside the shared one");
+});
+
+test("promote.sh makes exactly one structured (json) gcloud describe call FOR CANDIDATE RESOLUTION specifically (CANDIDATE_TRAFFIC_JSON=...) — no second, separate candidate-traffic-fetching call exists. (A second, later --format=\"json(status.traffic)\" call does legitimately exist for an entirely different purpose — RESTORED=..., the rollback-verification read — and is correctly excluded by matching the CANDIDATE_TRAFFIC_JSON variable name specifically, not just the shared format string.)", () => {
+  const text = scriptText("promote.sh");
+  const candidateTrafficJsonAssignments = (text.match(/CANDIDATE_TRAFFIC_JSON=\$\(gcloud run services describe/g) || []).length;
+  assert.equal(candidateTrafficJsonAssignments, 1, "exactly one gcloud describe call must fetch the traffic JSON for candidate resolution");
+  // Sanity: the OTHER, unrelated json(status.traffic) read (rollback
+  // verification) is confirmed to still exist too, proving this test
+  // isn't accidentally passing because that read was removed.
+  assert.ok(text.includes('RESTORED=$(gcloud run services describe "${SERVICE}"'), "the separate rollback-verification traffic read must still exist, unchanged");
+});
+
+test("promote.sh behavioral: the real captured traffic structure from build aa407156 resolves CANDIDATE_REVISION to the unique tag-matching entry, run through promote.sh's own extracted block and the REAL resolver — not a reimplementation", () => {
+  const result = runPromoteCandidateResolution({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-580e47e8-aa407156" });
+  assert.equal(result.status, 0, `expected success, stderr: ${result.stderr}`);
+  assert.ok(result.stdout.includes("RESOLVED_CANDIDATE_REVISION=compliance-scanner-00003-wof"), `expected the candidate revision, got: ${result.stdout}`);
+  assert.ok(result.stdout.includes("RESOLVED_CANDIDATE_URL=https://candidate-580e47e8-aa407156"), `expected the candidate url, got: ${result.stdout}`);
+});
+
+test("promote.sh behavioral: the untagged 100%-traffic baseline entry can never be selected as the candidate revision, even when it is the only entry present", () => {
+  const onlyBaseline = JSON.stringify({ status: { traffic: [{ percent: 100, revisionName: "compliance-scanner-00002-h9h" }] } });
+  const result = runPromoteCandidateResolution({ trafficJson: onlyBaseline, tag: "candidate-580e47e8-aa407156" });
+  assert.notEqual(result.status, 0, "must fail rather than silently promote the untagged baseline");
+  assert.ok(!result.stdout.includes("RESOLVED_CANDIDATE_REVISION="), "must exit before ever assigning CANDIDATE_REVISION");
+});
+
+test("promote.sh behavioral: duplicate matching tags fail closed rather than picking either candidate arbitrarily", () => {
+  const duplicateTag = JSON.stringify({
+    status: {
+      traffic: [
+        { revisionName: "compliance-scanner-00003-wof", tag: "candidate-dup", url: "https://a.a.run.app" },
+        { revisionName: "compliance-scanner-00004-xyz", tag: "candidate-dup", url: "https://b.a.run.app" },
+      ],
+    },
+  });
+  const result = runPromoteCandidateResolution({ trafficJson: duplicateTag, tag: "candidate-dup" });
+  assert.notEqual(result.status, 0);
+  assert.ok(result.stderr.includes("2 traffic entries"), `expected a duplicate-match diagnostic, got: ${result.stderr}`);
+});
+
+test("promote.sh behavioral: no matching tag fails closed with a clear diagnostic, before any traffic mutation could ever be attempted", () => {
+  const result = runPromoteCandidateResolution({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-does-not-exist-00000000" });
+  assert.notEqual(result.status, 0);
+  assert.ok(result.stderr.includes("no traffic entry has tag"), `expected a no-match diagnostic, got: ${result.stderr}`);
+});
+
+test("promote.sh behavioral: malformed traffic JSON fails closed", () => {
+  const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), "promote-resolve-badjson-"));
+  fs.writeFileSync(path.join(fakeBinDir, "gcloud"), "#!/bin/sh\necho '{not valid json'\n", { mode: 0o755 });
+  const block = extractPromoteCandidateResolutionBlock();
+  const result = spawnSync("sh", ["-c", `set -eu\n${block}`], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, PATH: `${fakeBinDir}:${process.env.PATH}`, PROJECT_ID: "fake-project", REGION: "fake-region", SERVICE: "compliance-scanner", CANDIDATE_TRAFFIC_TAG: "candidate-x" },
+    encoding: "utf8",
+  });
+  fs.rmSync(fakeBinDir, { recursive: true, force: true });
+  assert.notEqual(result.status, 0);
+});
+
+test("promote.sh behavioral: shell-metacharacter-shaped tag content remains inert — matched only as plain string data, never executed, never able to alter which entry resolves", () => {
+  const maliciousTag = "$(rm -rf /); echo pwned `id`";
+  const trafficJson = JSON.stringify({
+    status: {
+      traffic: [
+        { percent: 100, revisionName: "compliance-scanner-00002-h9h" },
+        { tag: maliciousTag, revisionName: "compliance-scanner-00003-wof", url: "https://x.a.run.app" },
+      ],
+    },
+  });
+  const result = runPromoteCandidateResolution({ trafficJson, tag: maliciousTag });
+  assert.equal(result.status, 0, `expected the malicious-looking tag to be matched safely as plain data, stderr: ${result.stderr}`);
+  assert.ok(result.stdout.includes("RESOLVED_CANDIDATE_REVISION=compliance-scanner-00003-wof"), `expected the correct revision despite the malicious tag, got: ${result.stdout}`);
+});
+
+test("verify-deployed-candidate.sh and promote.sh integrate with the SAME resolver semantics — identical gcloud call shape, identical env-var tag passing, identical output-parsing (sed -n '1p'/'2p'), identical fail-closed guard wording pattern", () => {
+  const verifyText = scriptText("verify-deployed-candidate.sh");
+  const promoteText = scriptText("promote.sh");
+  for (const text of [verifyText, promoteText]) {
+    assert.ok(text.includes('--format="json(status.traffic)"'));
+    assert.ok(text.includes('CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" python3 ci/resolveCandidateTrafficEntry.py'));
+    assert.ok(text.includes("CANDIDATE_URL=$(printf '%s\\n' \"$CANDIDATE_TRAFFIC_RESOLVED\" | sed -n '1p')"));
+    assert.ok(text.includes("CANDIDATE_REVISION=$(printf '%s\\n' \"$CANDIDATE_TRAFFIC_RESOLVED\" | sed -n '2p')"));
+    assert.ok(text.includes('[ -n "$CANDIDATE_URL" ] || { echo "could not resolve candidate tag URL"; exit 1; }'));
+    assert.ok(text.includes('[ -n "$CANDIDATE_REVISION" ] || { echo "could not resolve candidate revision name"; exit 1; }'));
+  }
+});
+
+test("promote.sh: the resolved CANDIDATE_REVISION is the exact value passed into the promotion traffic-shift command (--to-revisions) and every subsequent verification/critical-failure message — never re-derived or separately fetched", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(text.includes('--to-revisions="${CANDIDATE_REVISION}=100"'), "the promotion shift must target the resolved CANDIDATE_REVISION");
+  assert.ok(text.includes('if [ "$SERVING_REVISION" != "$CANDIDATE_REVISION" ]'), "post-promotion verification must compare against the resolved CANDIDATE_REVISION");
+  assert.ok(text.includes('echo "# Candidate revision: ${CANDIDATE_REVISION} (digest ${DIGEST})" >&2'), "critical_terminal_failure must report the resolved CANDIDATE_REVISION");
+  // Only ONE assignment to CANDIDATE_REVISION exists in the whole file
+  // — no second, later reassignment that could silently diverge from
+  // the resolved value.
+  const assignments = (text.match(/^CANDIDATE_REVISION=/gm) || []).length;
+  assert.equal(assignments, 1, "CANDIDATE_REVISION must be assigned exactly once in the entire file");
+});
+
+test("promote.sh: pre-promotion traffic capture (PREVIOUS_TO_REVISIONS, the full captured allocation) is unchanged by this correction — still reconstructed from /workspace/.previous-traffic-allocation.json, still refuses to promote without a provable rollback target", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(text.includes("/workspace/.previous-traffic-allocation.json"), "must still read the full captured allocation deploy-candidate.sh wrote");
+  assert.ok(text.includes("no prior traffic allocation captured — refusing to promote without a provable rollback target"), "must still fail closed with no captured allocation");
+  assert.ok(text.includes('PREVIOUS_TO_REVISIONS=$(python3 -c "'), "the reconstruction must still use the existing python3 -c block, unchanged");
+});
+
+test("promote.sh: rollback still reconstructs and restores the COMPLETE original traffic allocation (never a simplified single-revision guess), and rollback verification (RESTORED_OK) remains mandatory", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(text.includes('--to-revisions="${PREVIOUS_TO_REVISIONS}"'), "rollback must restore the full captured allocation, unchanged");
+  assert.ok(text.includes("RESTORED_OK"), "rollback verification (RESTORED_OK) must still exist, unchanged");
+  assert.ok(text.includes('if [ "$RESTORED_OK" != "true" ]'), "a rollback that did not verifiably restore traffic must still be treated as critical, unchanged");
+});
+
+test("promote.sh: lease renewal still occurs immediately before EACH of the three real mutations (promotion shift, conditional rollback shift, promoted-tag mutation) — unchanged, still three separate fence checks, none inherited from the candidate-resolution step above (which performs no mutation and does not renew the lease at all)", () => {
+  const text = scriptText("promote.sh");
+  const renewalCount = (text.match(/renew-lease-or-fail\.sh/g) || []).length;
+  assert.ok(renewalCount >= 3, `expected at least 3 renewal calls, found ${renewalCount} (unchanged from before this correction)`);
+  // The candidate-resolution block itself must never call the lease
+  // renewal script — it is read-only and must not be treated as, or
+  // confused with, a fenced mutating phase.
+  const resolutionBlock = extractPromoteCandidateResolutionBlock();
+  assert.ok(!resolutionBlock.includes("renew-lease-or-fail"), "candidate resolution must not renew the lease itself — it is read-only, unlike the three real mutations below it");
+});
+
+test("promote.sh: candidate-resolution failure occurs strictly before the first lease renewal and the first traffic mutation — the resolution block is fully textually positioned before 'sh ci/renew-lease-or-fail.sh' and before 'gcloud run services update-traffic'", () => {
+  const text = scriptText("promote.sh");
+  const resolutionEndIndex = text.indexOf('[ -n "$CANDIDATE_REVISION" ] || { echo "could not resolve candidate revision name"; exit 1; }');
+  const firstRenewIndex = text.indexOf("sh ci/renew-lease-or-fail.sh");
+  const firstMutationIndex = text.indexOf("gcloud run services update-traffic");
+  assert.ok(resolutionEndIndex !== -1 && firstRenewIndex !== -1 && firstMutationIndex !== -1);
+  assert.ok(resolutionEndIndex < firstRenewIndex, "candidate resolution must complete before the first lease renewal");
+  assert.ok(resolutionEndIndex < firstMutationIndex, "candidate resolution must complete before the first traffic mutation");
+});
+
+test("promote.sh: the promoted Artifact Registry tag block is completely unaffected by this correction — still uses the full COMMIT_SHA/BUILD_ID, still gated behind its own third, independent lease renewal, still runs only after traffic promotion is already verified serving", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(text.includes('PROMOTED_TAG="promoted-${COMMIT_SHA:?COMMIT_SHA is required}-${BUILD_ID:?BUILD_ID is required}"'), "promoted tag construction must be unchanged");
+  assert.ok(text.includes("gcloud artifacts docker tags add"), "the promoted-tag mutation must still exist, unchanged");
+  const promotedTagIndex = text.indexOf('PROMOTED_TAG="promoted-');
+  const lastRenewIndex = text.lastIndexOf("renew-lease-or-fail.sh");
+  assert.ok(lastRenewIndex < promotedTagIndex, "the third, independent lease renewal must still precede the promoted-tag mutation");
+});
+
+test("promote.sh: no public-access or IAM behavior is introduced or changed by this correction — the file still contains no --allow-unauthenticated anywhere, and still never touches IAM policy bindings", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(!/--allow-unauthenticated/.test(text), "promote.sh must never reference --allow-unauthenticated");
+  assert.ok(!/set-iam-policy|add-iam-policy-binding|remove-iam-policy-binding/.test(text), "promote.sh must never touch IAM policy bindings");
 });
 
 // =======================================================================

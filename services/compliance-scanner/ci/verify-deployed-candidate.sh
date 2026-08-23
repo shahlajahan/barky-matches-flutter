@@ -41,11 +41,45 @@ cd "$(dirname "$0")/.."
 CANDIDATE_TRAFFIC_TAG="$(cat /workspace/.candidate-traffic-tag)"
 DIGEST="$(cat /workspace/.candidate-digest)"
 
-CANDIDATE_URL=$(gcloud run services describe "${SERVICE}" \
+# Candidate URL/revision resolution (Slice 2.2 correction, closing a
+# real staging failure — build aa407156-0dea-4ed0-9e85-47354d3bbf3e,
+# step verify-deployed-candidate: "could not resolve candidate tag
+# URL"). The previous two separate queries each embedded a
+# JMESPath-style predicate — `status.traffic[?tag=='...']` — directly
+# inside gcloud's own --format resource-key expression. gcloud's
+# resource-key language does not support that predicate syntax at all;
+# every variant (with or without --flatten) silently resolved to an
+# empty string (exit 0, no error) rather than failing loudly — proven
+# empirically against the real deployed candidate from build aa407156,
+# whose matching traffic entry genuinely existed and was trivially
+# resolvable via a plain `--format=json(status.traffic)` read. This
+# defect was invisible until now because no earlier build had ever
+# reached this step.
+#
+# Fixed by calling gcloud exactly once for the structured JSON traffic
+# array, then resolving BOTH the url and the revisionName from the
+# SAME matched entry via ci/resolveCandidateTrafficEntry.py — a
+# small, independently-testable helper (see its own doc comment for
+# the full validation contract: exactly-one-match required, url must
+# be HTTPS with no whitespace/control characters, revisionName must
+# match Cloud Run's own safe shape, and the untagged 100%-traffic
+# baseline entry is never treated as a fallback). CANDIDATE_TRAFFIC_TAG
+# is passed to that helper via the environment, never interpolated
+# into Python source or shell-quoted into a command line — a
+# maliciously- or accidentally-crafted tag value can only ever be
+# compared as inert string data, never alter the match logic or
+# execute as code.
+CANDIDATE_TRAFFIC_JSON=$(gcloud run services describe "${SERVICE}" \
   --project="${PROJECT_ID}" --region="${REGION}" \
-  --format="value(status.traffic[?tag=='${CANDIDATE_TRAFFIC_TAG}'].url)" \
-  --flatten="status.traffic[]" | head -n1)
+  --format="json(status.traffic)")
+
+CANDIDATE_TRAFFIC_RESOLVED=$(printf '%s' "$CANDIDATE_TRAFFIC_JSON" \
+  | CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" python3 ci/resolveCandidateTrafficEntry.py) \
+  || { echo "could not resolve candidate tag URL/revision"; exit 1; }
+CANDIDATE_URL=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '1p')
+CANDIDATE_REVISION=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '2p')
 [ -n "$CANDIDATE_URL" ] || { echo "could not resolve candidate tag URL"; exit 1; }
+[ -n "$CANDIDATE_REVISION" ] || { echo "could not resolve candidate revision name"; exit 1; }
 
 # Kept as a SEPARATE variable from CANDIDATE_URL, deliberately never
 # derived from it (Slice 2.2 final correction, Mandatory correction 1
@@ -62,10 +96,9 @@ BASE_SERVICE_URL=$(gcloud run services describe "${SERVICE}" \
   --format="value(status.url)")
 [ -n "$BASE_SERVICE_URL" ] || { echo "could not resolve base service URL"; exit 1; }
 
-CANDIDATE_REVISION=$(gcloud run services describe "${SERVICE}" \
-  --project="${PROJECT_ID}" --region="${REGION}" \
-  --format="value(status.traffic[?tag=='${CANDIDATE_TRAFFIC_TAG}'].revisionName)" \
-  --flatten="status.traffic[]" | head -n1)
+# CANDIDATE_REVISION is already resolved above, together with
+# CANDIDATE_URL, from the same single gcloud describe call and the
+# same matched traffic entry — not re-derived here.
 
 # --- digest and runtime service account verified BEFORE any traffic
 #     decision is made, not assumed from the deploy command's own

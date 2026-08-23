@@ -38,10 +38,35 @@ cd "$(dirname "$0")/.."
 
 DIGEST="$(cat /workspace/.candidate-digest)"
 CANDIDATE_TRAFFIC_TAG="$(cat /workspace/.candidate-traffic-tag)"
-CANDIDATE_REVISION=$(gcloud run services describe "${SERVICE}" \
+
+# Candidate revision resolution (Slice 2.2 correction — shares the
+# exact same fix and root cause as ci/verify-deployed-candidate.sh's
+# own correction; see that file's doc comment for the full defect
+# history: build aa407156-0dea-4ed0-9e85-47354d3bbf3e proved gcloud's
+# --format resource-key language does not support the JMESPath-style
+# embedded predicate `status.traffic[?tag=='...']` this script
+# previously used here too. Never exercised in a real build — no build
+# had ever reached promote.sh — but it is the IDENTICAL construction,
+# confirmed via the same live read-only reproduction). Reuses the SAME
+# ci/resolveCandidateTrafficEntry.py helper verify-deployed-candidate.sh
+# already uses — never a second, parallel parser or a weaker lookup.
+# CANDIDATE_TRAFFIC_TAG is passed via the environment, never
+# interpolated into Python source or a command line. The helper also
+# returns the matched entry's url; this script has no further use for
+# it beyond the resolution itself, but both lines are read and
+# validated here so a malformed or partially-invalid resolver response
+# can never silently supply only a "looks fine" revisionName.
+CANDIDATE_TRAFFIC_JSON=$(gcloud run services describe "${SERVICE}" \
   --project="${PROJECT_ID}" --region="${REGION}" \
-  --format="value(status.traffic[?tag=='${CANDIDATE_TRAFFIC_TAG}'].revisionName)" \
-  --flatten="status.traffic[]" | head -n1)
+  --format="json(status.traffic)")
+
+CANDIDATE_TRAFFIC_RESOLVED=$(printf '%s' "$CANDIDATE_TRAFFIC_JSON" \
+  | CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" python3 ci/resolveCandidateTrafficEntry.py) \
+  || { echo "could not resolve candidate tag URL/revision"; exit 1; }
+CANDIDATE_URL=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '1p')
+CANDIDATE_REVISION=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '2p')
+[ -n "$CANDIDATE_URL" ] || { echo "could not resolve candidate tag URL"; exit 1; }
+[ -n "$CANDIDATE_REVISION" ] || { echo "could not resolve candidate revision name"; exit 1; }
 
 # Convert the captured full traffic allocation JSON into a
 # --to-revisions=rev1=pct1,rev2=pct2,... argument, exactly restoring
