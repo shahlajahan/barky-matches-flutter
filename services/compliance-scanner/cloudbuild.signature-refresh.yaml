@@ -125,15 +125,66 @@ steps:
   # NOT bake in this service's own node_modules either — confirmed by
   # inspecting its Dockerfile) all `require("@google-cloud/storage")`
   # directly. Nothing before this step guaranteed node_modules existed
-  # in /workspace. Every one of those steps is already a transitive
-  # descendant of acquire-lock in this graph, so gating ONLY
-  # acquire-lock on this step (below) is sufficient to guarantee the
-  # dependency exists for every one of them — no separate edge needed
-  # to each. verify-source.sh's own, separate `npm ci` is preserved
-  # unchanged (out of this correction's scope) and — because it too is
-  # a descendant of acquire-lock — always runs strictly after this
-  # step finishes, never concurrently with it, so the two `npm ci`
-  # invocations can never race on the same node_modules directory.
+  # in /workspace.
+  #
+  # Dependency-graph correction (Slice 2.2, closing a real staging
+  # build failure — build 940e4f3a-2eb5-4e04-9568-6ad9d2059c1a, step
+  # verify-fixtures-integrity, "Cannot find module '@google-cloud/
+  # storage'"). The previous version of this comment claimed that being
+  # a transitive descendant of acquire-lock ALONE was sufficient to
+  # guarantee no node_modules-consuming step could race verify-
+  # source.sh's own, separate `npm ci` (which — like every `npm ci` —
+  # deletes node_modules before reinstalling it). That claim was FALSE:
+  # materialize-runtime-manifest and verify-source were both direct,
+  # sibling children of acquire-lock (each independently `waitFor:
+  # ["acquire-lock"]`), so Cloud Build could and did start them
+  # concurrently — nothing ordered materialize-runtime-manifest (and
+  # therefore verify-fixtures-integrity, chained after it) relative to
+  # verify-source's npm ci at all. "Transitive descendant of
+  # acquire-lock" only proves a step starts after install-dependencies'
+  # FIRST npm ci; it says nothing about verify-source's SECOND one.
+  #
+  # The actual invariant this pipeline now enforces, edge by edge:
+  #   1. install-dependencies (this step's own npm ci) completes before
+  #      acquire-lock starts (waitFor: ["install-dependencies"]).
+  #   2. acquire-lock completes before verify-source starts (waitFor:
+  #      ["acquire-lock"]).
+  #   3. verify-source — and therefore its own, second `npm ci`, which
+  #      is the FIRST thing verify-source.sh runs — completes before
+  #      materialize-runtime-manifest starts (waitFor: ["verify-source"],
+  #      not merely ["acquire-lock"]).
+  #   4. Every other node_modules-consuming step (verify-fixtures-
+  #      integrity, and — via ci/renew-lease-or-fail.sh — push-candidate,
+  #      deploy-candidate, promote, and release-lock) is already a
+  #      waitFor-transitive descendant of materialize-runtime-manifest
+  #      (verify-fixtures-integrity directly; the rest via the
+  #      push-candidate -> resolve-digest -> deploy-candidate ->
+  #      verify-deployed-candidate -> promote -> release-lock chain,
+  #      each of which also lists verify-fixtures-integrity and/or
+  #      verify-source directly in its own waitFor), so no additional
+  #      edge is needed for them individually.
+  # Because Cloud Build only starts a step once EVERY step in its
+  # waitFor list has reported success — and a step is not "success"
+  # until its entire script (not just its first command) exits 0 —
+  # edge 3 guarantees verify-source.sh's npm ci has fully completed,
+  # not merely started, before materialize-runtime-manifest's own
+  # require("@google-cloud/storage") ever runs. The two `npm ci`
+  # invocations (install-dependencies', then verify-source's) are
+  # therefore strictly sequential, never concurrent, and no
+  # node_modules-consuming step can observe a mid-reinstall directory.
+  #
+  # build-candidate is deliberately NOT included in this chain: it
+  # remains waitFor: ["acquire-lock"] and runs in parallel with
+  # verify-source. Proven safe because `docker build` in
+  # services/compliance-scanner/ci/build-candidate.sh runs against a
+  # build context filtered by services/compliance-scanner/.dockerignore,
+  # which excludes `node_modules` outright — the Docker daemon never
+  # reads the host's node_modules directory at all — and the
+  # Dockerfile's own "deps" stage installs its OWN, separate copy inside
+  # the image (`COPY package.json package-lock.json ./` then
+  # `RUN npm ci --omit=dev`), never `COPY`-ing the host node_modules.
+  # build-candidate therefore cannot observe or be affected by
+  # verify-source's npm ci regardless of timing.
   # -----------------------------------------------------------------
   - id: install-dependencies
     name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
@@ -171,10 +222,24 @@ steps:
   # sentinels for exactly this reason (see that file's own comments).
   # Must complete before verify-fixtures-integrity, which reads the
   # fixed path this step produces.
+  #
+  # waitFor: ["verify-source"], not merely ["acquire-lock"] (Slice 2.2
+  # dependency-graph correction — see the Stage -1 comment above for the
+  # full invariant). This step's own script
+  # (ci/materializeRuntimeManifest.js) requires @google-cloud/storage
+  # from the shared services/compliance-scanner/node_modules directory.
+  # verify-source.sh performs its OWN, separate second dependency
+  # install in that same directory (see the Stage -1 comment above),
+  # which always deletes node_modules before reinstalling.
+  # Before this fix, this step and verify-source were DAG siblings
+  # (both waitFor: ["acquire-lock"] only), so Cloud Build could start
+  # them concurrently and this step's require() could execute during
+  # verify-source's npm-ci deletion window — the confirmed root cause
+  # of staging build 940e4f3a-2eb5-4e04-9568-6ad9d2059c1a's failure.
   # -----------------------------------------------------------------
   - id: materialize-runtime-manifest
     name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
-    waitFor: ["acquire-lock"]
+    waitFor: ["verify-source"]
     entrypoint: bash
     args: ["services/compliance-scanner/ci/materialize-runtime-manifest.sh"]
     env:

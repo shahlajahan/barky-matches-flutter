@@ -221,8 +221,16 @@ test("promote transitively depends on verify-deployed-candidate, verify-candidat
 // output path.
 // ---------------------------------------------------------------------
 
-test("runtime-manifest: materialize-runtime-manifest depends only on acquire-lock", () => {
-  assert.deepEqual(stepsById["materialize-runtime-manifest"].waitFor, ["acquire-lock"]);
+test("runtime-manifest: materialize-runtime-manifest depends on verify-source, not merely acquire-lock (Slice 2.2 dependency-graph correction, closing the real staging build failure 940e4f3a-2eb5-4e04-9568-6ad9d2059c1a — verify-fixtures-integrity: \"Cannot find module '@google-cloud/storage'\")", () => {
+  assert.deepEqual(stepsById["materialize-runtime-manifest"].waitFor, ["verify-source"]);
+});
+
+test("dependency-graph race regression guard: materialize-runtime-manifest must never again be a direct, acquire-lock-only sibling of verify-source — that exact relationship let Cloud Build start both concurrently and is the confirmed root cause of build 940e4f3a-2eb5-4e04-9568-6ad9d2059c1a's failure", () => {
+  assert.notDeepEqual(stepsById["materialize-runtime-manifest"].waitFor, ["acquire-lock"]);
+  assert.ok(
+    !stepsById["materialize-runtime-manifest"].waitFor.includes("acquire-lock"),
+    "materialize-runtime-manifest must not directly waitFor acquire-lock — it must be gated behind verify-source instead"
+  );
 });
 
 test("runtime-manifest: verify-fixtures-integrity now waits for materialize-runtime-manifest, not directly for acquire-lock (materialization precedes fixture verification)", () => {
@@ -369,6 +377,140 @@ test("dependency-provisioning: no other step's args contain an inline `npm ci`/`
 
 test("dependency-provisioning: install-dependencies' image is digest-pinned, not a floating tag", () => {
   assert.ok(stepsById["install-dependencies"].name.includes("@sha256:"));
+});
+
+// ---------------------------------------------------------------------
+// Dependency-graph race fix (Slice 2.2, closing the real staging build
+// failure 940e4f3a-2eb5-4e04-9568-6ad9d2059c1a — verify-fixtures-
+// integrity: "Cannot find module '@google-cloud/storage'"). These
+// tests inspect the ACTUAL extracted YAML graph and the ACTUAL
+// ci/*.sh script contents — never a hand-duplicated imaginary graph —
+// so a future edit that reintroduces the race fails these tests
+// automatically, the same way the real build failed.
+// ---------------------------------------------------------------------
+
+// Every step whose own script (directly, or indirectly via
+// ci/renew-lease-or-fail.sh) resolves @google-cloud/storage from the
+// shared services/compliance-scanner/node_modules directory —
+// i.e. every step that could, in principle, observe verify-source's
+// npm ci mid-reinstall if the graph did not order it away.
+const NODE_MODULES_CONSUMERS = [
+  "acquire-lock",
+  "materialize-runtime-manifest",
+  "verify-fixtures-integrity",
+  "push-candidate",
+  "deploy-candidate",
+  "promote",
+  "release-lock",
+];
+
+test("dependency-graph race fix: every node_modules-consuming step is strictly ordered relative to verify-source's own npm ci — either it is an ancestor of verify-source (runs, and fully finishes, before verify-source even starts) or a waitFor-transitive descendant of verify-source (cannot start until verify-source, and therefore its npm ci, has fully finished) — never neither, which is exactly the sibling relationship that let materialize-runtime-manifest race verify-source in the real failure", () => {
+  for (const id of NODE_MODULES_CONSUMERS) {
+    const isAncestor = transitiveDependsOn("verify-source", id);
+    const isDescendant = transitiveDependsOn(id, "verify-source");
+    assert.ok(
+      isAncestor || isDescendant,
+      `${id} must be either an ancestor or a waitFor-transitive descendant of verify-source, but is neither — it could run concurrently with verify-source's npm ci`
+    );
+    assert.ok(
+      !(isAncestor && isDescendant),
+      `${id} cannot be both an ancestor and a descendant of verify-source — the graph would contain a cycle`
+    );
+  }
+});
+
+test("dependency-graph race fix: acquire-lock (and, transitively, install-dependencies) precede verify-source — they are the ONE node_modules consumer that is safe by preceding the second npm ci, not by following it", () => {
+  assert.ok(transitiveDependsOn("verify-source", "acquire-lock"));
+  assert.ok(transitiveDependsOn("verify-source", "install-dependencies"));
+  assert.ok(!transitiveDependsOn("acquire-lock", "verify-source"), "acquire-lock must not depend on verify-source — it runs first, using install-dependencies' npm ci");
+});
+
+test("dependency-graph race fix: materialize-runtime-manifest, verify-fixtures-integrity, push-candidate, deploy-candidate, promote, and release-lock are all waitFor-transitive descendants of verify-source (they follow its npm ci, they do not precede it)", () => {
+  const mustFollowVerifySource = [
+    "materialize-runtime-manifest",
+    "verify-fixtures-integrity",
+    "push-candidate",
+    "deploy-candidate",
+    "promote",
+    "release-lock",
+  ];
+  for (const id of mustFollowVerifySource) {
+    assert.ok(transitiveDependsOn(id, "verify-source"), `${id} must transitively depend on verify-source`);
+  }
+});
+
+test("dependency-graph race fix: exactly two ci/*.sh scripts invoke `npm ci` (install-dependencies.sh and verify-source.sh) — no third, undiscovered npm ci exists anywhere that this graph analysis could have missed", () => {
+  const ciDir = __dirname;
+  const writers = [];
+  for (const fname of fs.readdirSync(ciDir)) {
+    if (!fname.endsWith(".sh")) continue;
+    const text = fs.readFileSync(path.join(ciDir, fname), "utf8");
+    if (nonCommentLines(text).some((l) => /\bnpm ci\b/.test(l))) writers.push(fname);
+  }
+  assert.deepEqual(writers.sort(), ["install-dependencies.sh", "verify-source.sh"]);
+});
+
+test("dependency-graph race fix: the two npm ci invocations cannot overlap because verify-source is a waitFor-transitive descendant of install-dependencies (via acquire-lock), and a step only starts once every step in its waitFor list has fully completed", () => {
+  assert.ok(transitiveDependsOn("verify-source", "install-dependencies"));
+  assert.deepEqual(stepsById["install-dependencies"].waitFor, [], "install-dependencies must have no predecessor — it is the first npm ci to ever run");
+});
+
+test("dependency-graph race fix: build-candidate is proven independent of the shared, host-side services/compliance-scanner/node_modules directory, so it may safely remain parallel with verify-source", () => {
+  const dockerignorePath = path.join(REPO_ROOT, ".dockerignore");
+  assert.ok(fs.existsSync(dockerignorePath), "services/compliance-scanner/.dockerignore must exist");
+  const dockerignore = fs.readFileSync(dockerignorePath, "utf8");
+  assert.ok(
+    nonCommentLines(dockerignore).some((l) => l.trim() === "node_modules"),
+    "the Docker build context must exclude node_modules, so the daemon never reads the host's copy at all"
+  );
+
+  const dockerfile = fs.readFileSync(path.join(REPO_ROOT, "Dockerfile"), "utf8");
+  // The "deps" build stage must install its OWN node_modules from the
+  // lockfile inside the image, never COPY the host build-context's
+  // node_modules into any stage.
+  assert.ok(/FROM[^\n]*AS deps/.test(dockerfile), "expected a dedicated deps stage");
+  assert.ok(/RUN npm ci --omit=dev/.test(dockerfile), "the deps stage must run its own npm ci, not reuse a host copy");
+  assert.ok(
+    !/COPY\s+(?!--from=)[^\n]*node_modules/.test(dockerfile),
+    "no Dockerfile stage may COPY node_modules directly from the build context (only COPY --from=deps, an internal multi-stage copy, is allowed)"
+  );
+
+  const buildCandidateText = scriptText("build-candidate.sh");
+  assert.ok(/docker build --platform linux\/amd64/.test(buildCandidateText), "build-candidate.sh must invoke docker build");
+  assert.ok(!/node_modules/.test(buildCandidateText), "build-candidate.sh itself must never reference node_modules");
+});
+
+test("dependency-graph race fix: build-candidate's waitFor is unchanged (still just acquire-lock) — proven safe to remain parallel with verify-source, not sequenced behind it", () => {
+  assert.deepEqual(stepsById["build-candidate"].waitFor, ["acquire-lock"]);
+  assert.ok(!transitiveDependsOn("build-candidate", "verify-source"), "build-candidate must not be forced to wait for verify-source — it does not need to be, since it never reads shared node_modules");
+});
+
+test("dependency-graph race fix: promote remains transitively dependent on every required gate — acquire-lock, verify-source, materialize-runtime-manifest, verify-fixtures-integrity, verify-candidate-container (candidate verification), and verify-deployed-candidate (deployed-candidate verification)", () => {
+  for (const required of [
+    "acquire-lock",
+    "verify-source",
+    "materialize-runtime-manifest",
+    "verify-fixtures-integrity",
+    "verify-candidate-container",
+    "verify-deployed-candidate",
+  ]) {
+    assert.ok(transitiveDependsOn("promote", required), `promote must transitively depend on ${required}`);
+  }
+});
+
+test("dependency-graph race fix: the YAML's own Stage -1 comment states the real invariant and no longer claims transitive descent from acquire-lock alone prevents the race", () => {
+  assert.ok(
+    yamlText.includes("940e4f3a-2eb5-4e04-9568-6ad9d2059c1a"),
+    "the corrected comment must reference the real staging build that exposed this defect"
+  );
+  assert.ok(
+    !yamlText.includes("so gating ONLY\n  # acquire-lock on this step"),
+    "the old, disproven claim (gating only on acquire-lock is sufficient) must not remain in the file"
+  );
+  assert.ok(
+    yamlText.includes('waitFor: ["verify-source"], not merely ["acquire-lock"]'),
+    "the corrected comment must state the real fix explicitly"
+  );
 });
 
 // ---------------------------------------------------------------------
