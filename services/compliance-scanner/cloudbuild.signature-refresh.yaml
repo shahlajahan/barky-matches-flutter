@@ -111,7 +111,6 @@ substitutions:
   _LOCK_BUCKET: "" # bucket holding the concurrency-lock object — may be the same as _SYNTHETIC_TEST_BUCKET or a dedicated small bucket
   _LOCK_OBJECT: "ci-locks/signature-refresh.lock.json"
   _LOCK_LEASE_SECONDS: "900" # 15 minutes — see the timing-relationship note above
-  _ENVIRONMENT: "" # free-text label only (e.g. "staging") — logged/tagged for operator clarity, must never branch security-relevant behavior
   _RUNTIME_FIXTURE_MANIFEST_GCS_URI: "" # REQUIRED, no default (runtime-manifest correction). The gs:// URI of the environment-specific runtime fixture manifest — same schema as ci/fixtureManifest.json but with REAL, non-sentinel GCS generations — produced once by the separate fixture-provisioning process (see the readiness doc) and never checked into this repository. Must reference the SAME bucket as _SYNTHETIC_TEST_BUCKET and the ci-runtime-manifests/ prefix exactly; validated structurally by ci/materializeRuntimeManifest.js before any download is attempted — never an arbitrary local filesystem path.
   _RUNTIME_FIXTURE_MANIFEST_GENERATION: "" # REQUIRED, no default. The exact GCS object generation of the runtime manifest above, captured once by the provisioning process at upload time. The download always pins this exact generation, never "latest" — a manifest overwritten mid-flight (accidentally, or by a second concurrent provisioning run) cannot silently change what this build validates against.
 

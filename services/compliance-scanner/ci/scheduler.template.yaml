@@ -75,7 +75,6 @@ target:
     _MONITORING_SA: "<set at trigger-creation time, per environment>"
     _SYNTHETIC_TEST_BUCKET: "<set at trigger-creation time, per environment>"
     _LOCK_BUCKET: "<set at trigger-creation time, per environment>"
-    _ENVIRONMENT: "<e.g. staging — logging label only>"
 
 alerting:
   # Must fire BEFORE the currently-deployed scanner's signatures cross

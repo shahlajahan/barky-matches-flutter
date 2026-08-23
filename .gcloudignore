@@ -1,0 +1,71 @@
+# Cloud Build source-upload allowlist for the compliance-scanner
+# signature-refresh pipeline (services/compliance-scanner/cloudbuild.signature-refresh.yaml).
+#
+# Root cause this fixes: this is a Flutter monorepo. Every
+# `gcloud builds submit` from the repository root previously uploaded
+# the ENTIRE working tree — ~1 GiB, dominated by committed native
+# CocoaPods/Gradle SDK binaries under ios/, ios_backup/, macos/,
+# windows/, linux/ (GoogleMaps, Google-Mobile-Ads-SDK,
+# RecaptchaEnterpriseSDK, GoogleAppMeasurement frameworks — ~893 MiB /
+# 87% of the total, none of it gitignored) plus marketing/demo assets
+# (assets/, *.gif, *.mp4) — none of which this pipeline ever reads.
+#
+# Every step in cloudbuild.signature-refresh.yaml, every services/compliance-scanner/ci/*.sh
+# and ci/*.js file, and services/compliance-scanner/Dockerfile were traced directly (grep
+# across the full pipeline for any path reference) and confirmed to
+# read ONLY files under services/compliance-scanner/ — nothing at the
+# repository root, nothing under lib/, functions/, ios/, android/,
+# macos/, windows/, linux/, assets/, docs/, or any other top-level
+# directory. services/compliance-scanner/ci/verify-source.sh in
+# particular never reads .git — it only runs `npm ci`, the local test
+# suite, and node/sh syntax checks, all confined to
+# services/compliance-scanner/ (confirmed by reading its own source).
+#
+# This is therefore a narrow ALLOWLIST, not a denylist of individually
+# observed large directories — a denylist would need to be updated
+# every time someone adds a new large asset anywhere else in this
+# monorepo; an allowlist scoped to the one subtree this pipeline
+# actually touches cannot regress that way.
+#
+# Uses the standard, documented gitignore technique for allowlisting one
+# nested directory (see `git help gitignore`, NOTES section: a parent
+# directory excluded by a wildcard must be re-included explicitly
+# before its own contents can be re-included — this is documented,
+# well-known git/gcloudignore behavior, not an undocumented ordering
+# dependency). Verified empirically after writing this file via
+# `gcloud meta list-files-for-upload` (local-only, no network/project
+# access) to confirm the actual resulting file set, not merely assumed
+# from reading this pattern.
+
+# 1. Ignore everything at the repository root by default.
+/*
+
+# 2. Re-include the one top-level directory this pipeline needs...
+!/services
+
+# 3. ...but ignore everything one level inside it again (services/ has
+#    exactly one child today — compliance-scanner — confirmed via `ls
+#    services/` — this line is what makes the allowlist safe against a
+#    future unrelated services/<other-service>/ directory being
+#    silently swept in).
+/services/*
+
+# 4. ...then re-include the exact one subtree the pipeline reads,
+#    recursively (gitignore's `!dir` after a parent `!` re-inclusion
+#    correctly re-includes the directory AND everything inside it).
+!/services/compliance-scanner
+
+# .git is never needed by this pipeline (verify-source.sh confirmed to
+# never touch it) and is excluded explicitly rather than relied upon as
+# an implicit default.
+/.git
+
+# Local node_modules (present on this machine from local testing, not
+# from any pipeline requirement): install-dependencies.sh installs its
+# own fresh copy from package-lock.json inside Cloud Build every run
+# (`npm ci`, which always deletes and reinstalls regardless of what
+# already exists) — uploading a local copy would be redundant, and
+# node_modules is explicitly the kind of local build output this
+# allowlist must not sweep in just because it happens to sit inside the
+# one directory being re-included above.
+/services/compliance-scanner/node_modules/

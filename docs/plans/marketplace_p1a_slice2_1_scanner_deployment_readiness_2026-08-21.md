@@ -463,7 +463,7 @@ gcloud builds triggers create scheduled \
   --build-config=services/compliance-scanner/cloudbuild.signature-refresh.yaml \
   --repo=<this repository> \
   --branch-pattern=^integration/mac-windows-2026-07-22$ \
-  --substitutions=_REGION=...,_REPOSITORY=...,_IMAGE_NAME=...,_SERVICE=...,_SCANNER_RUNTIME_SA=...,_MONITORING_SA=...,_SYNTHETIC_TEST_BUCKET=...,_LOCK_BUCKET=...,_ENVIRONMENT=...,_RUNTIME_FIXTURE_MANIFEST_GCS_URI=...,_RUNTIME_FIXTURE_MANIFEST_GENERATION=...
+  --substitutions=_REGION=...,_REPOSITORY=...,_IMAGE_NAME=...,_SERVICE=...,_SCANNER_RUNTIME_SA=...,_MONITORING_SA=...,_SYNTHETIC_TEST_BUCKET=...,_LOCK_BUCKET=...,_RUNTIME_FIXTURE_MANIFEST_GCS_URI=...,_RUNTIME_FIXTURE_MANIFEST_GENERATION=...
 ```
 
 Not executed in this task — creating this trigger is a future, separately-authorized action.
