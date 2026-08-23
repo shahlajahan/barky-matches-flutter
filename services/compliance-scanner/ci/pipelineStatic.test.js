@@ -1878,6 +1878,63 @@ test("verify-deployed-candidate.sh: the traffic-resolution call fails closed via
 });
 
 // ---------------------------------------------------------------------
+// Generation-pinning direct-object correction (single-authoritative-
+// execution-identity correction, closing a real staging failure —
+// build 9cb468c3-2401-403a-8ed6-e4afabfa9f9a, step verify-deployed-
+// candidate: "does not have storage.objects.list access to the Google
+// Cloud Storage bucket"). `gcloud storage cp` internally performs a
+// bucket-level LIST call the dedicated CI service account intentionally
+// does not have; ci/verifyGenerationPinning.js replaces the entire GCS
+// create/read/overwrite/read/cleanup sequence with direct
+// @google-cloud/storage object-API calls instead (see that file's own
+// tests, verifyGenerationPinning.test.js, for the full behavioral
+// proof against a fake, list-free adapter). These checks are local to
+// verify-deployed-candidate.sh's own integration with that helper —
+// proving it is invoked exactly once, and that every OTHER previously-
+// verified check in this script (resolver, digest, runtime SA, private
+// IAM assumptions, health/status, fixture verdicts) remains textually
+// unchanged by this correction.
+// ---------------------------------------------------------------------
+
+test("verify-deployed-candidate.sh invokes ci/verifyGenerationPinning.js exactly once, and no gcloud storage cp/ls/rm or wildcard storage operation remains anywhere in the file", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+  const invocations = (text.match(/node ci\/verifyGenerationPinning\.js/g) || []).length;
+  assert.equal(invocations, 1, "the generation-pinning helper must be invoked exactly once");
+  assert.ok(
+    !nonCommentLines(text).some((l) => /gcloud storage (cp|ls|rm)\b/.test(l)),
+    "no executable line may contain gcloud storage cp/ls/rm"
+  );
+  assert.ok(
+    !nonCommentLines(text).some((l) => /gcloud storage objects describe/.test(l)),
+    "no executable line may contain gcloud storage objects describe"
+  );
+});
+
+test("verify-deployed-candidate.sh: the generation-pinning helper invocation passes PROJECT_ID, SYNTHETIC_TEST_BUCKET, and BUILD_ID as environment data, and its 3-line stdout (object path, gen1, gen2) is fail-closed non-empty-checked before use", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+  assert.ok(text.includes("PROJECT_ID=\"$PROJECT_ID\" SYNTHETIC_TEST_BUCKET=\"$SYNTHETIC_TEST_BUCKET\" BUILD_ID=\"$BUILD_ID\""), "the helper invocation must pass these three env vars through verbatim");
+  assert.ok(text.includes('|| { echo "generation-pinning verification failed"; exit 1; }'), "the helper invocation must be explicitly guarded, fail-closed, under set -e");
+  assert.ok(text.includes('[ -n "$GEN_PATH" ] || { echo "generation-pinning: missing object path"; exit 1; }'));
+  assert.ok(text.includes('[ -n "$GEN1" ] || { echo "generation-pinning: missing first generation"; exit 1; }'));
+  assert.ok(text.includes('[ -n "$GEN2" ] || { echo "generation-pinning: missing second generation"; exit 1; }'));
+});
+
+test("verify-deployed-candidate.sh: every previously-verified check remains unchanged by the generation-pinning correction — resolver invocation, digest verification, runtime-SA verification, authenticated/unauthenticated/invalid-auth checks, and all three mandatory fixture verdicts are all still present, textually unaffected", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+  assert.ok(text.includes("node ci/resolveCandidateTrafficEntry.js"), "the shared resolver invocation must be unchanged");
+  assert.ok(text.includes('echo "$ACTUAL_IMAGE" | grep -qF "$DIGEST"'), "digest verification must be unchanged");
+  assert.ok(text.includes('[ "$ACTUAL_SA" = "${SCANNER_RUNTIME_SA}" ]'), "runtime-SA verification must be unchanged");
+  assert.ok(text.includes('[ "$STATUS_CODE" = "200" ]'), "authenticated /status check must be unchanged");
+  assert.ok(text.includes('[ "$NOAUTH_CODE" = "403" ]'), "unauthenticated-rejected check must be unchanged");
+  assert.ok(text.includes('[ "$BADAUTH_CODE" = "401" ]'), "invalid-auth-rejected check must be unchanged");
+  assert.ok(text.includes('scan_fixture "benign-text" "FIXTURE_BENIGN_TEXT" "clean"'));
+  assert.ok(text.includes('scan_fixture "eicar-standard" "FIXTURE_EICAR_STANDARD" "infected"'));
+  assert.ok(text.includes('scan_fixture "encrypted-pdf" "FIXTURE_ENCRYPTED_PDF" "error" "encrypted_document_unsupported"'));
+  // No IAM command was introduced by this correction.
+  assert.ok(!/add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy\b/.test(text));
+});
+
+// ---------------------------------------------------------------------
 // deploy-candidate.sh invariant checks (Slice 2.2, replacing a
 // git-dependent "byte-for-byte unchanged" test — build
 // ea9bad30-d2e2-4aa1-9fdb-a765bde94372, step verify-source: "spawnSync

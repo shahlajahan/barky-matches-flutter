@@ -229,19 +229,40 @@ sha256_of() {
 #     verification: same object path, two generations, pinned reads
 #     must distinguish them. Synthetic, build-scoped, cleaned up below.
 #
+# Single-authoritative-execution-identity correction (closing a real
+# staging failure — build 9cb468c3-2401-403a-8ed6-e4afabfa9f9a, step
+# verify-deployed-candidate: "does not have storage.objects.list
+# access to the Google Cloud Storage bucket"): the GCS-side create/
+# read/overwrite/read/cleanup sequence below previously used
+# `gcloud storage cp`/`objects describe`/`rm -a`, all of which the
+# gcloud CLI itself internally resolves via a bucket-level LIST call
+# even for one fully-qualified destination path — a capability the
+# dedicated CI service account intentionally does NOT have (it holds
+# only IAM-Condition PATH-SCOPED object permissions on this bucket,
+# never bucket-wide list). Replaced with
+# ci/verifyGenerationPinning.js, which performs the identical
+# create/verify/overwrite/verify/cleanup lifecycle via direct
+# @google-cloud/storage object-API calls, each addressed by its own
+# exact, already-known object name — never a list, never a wildcard.
+# No IAM change was made or is needed; this is a pure client-behavior
+# substitution.
+#
 # v1's content is the canonical EICAR bytes — already decoded and
 # hash-verified once, earlier, by ci/verify-fixtures.sh's node-based
 # step (Mandatory correction 3), and reused here read-only from
 # /workspace/.eicar-materialized.bin. This step never decodes anything
 # itself and never contains a raw EICAR literal in its own source.
-PREFIX="compliance_quarantine/ci-${BUILD_ID}/deployed-verify"
-GEN_PATH="${PREFIX}/generation-test.bin"
 cp /workspace/.eicar-materialized.bin /tmp/v1.bin
-gcloud storage cp /tmp/v1.bin "gs://${SYNTHETIC_TEST_BUCKET}/${GEN_PATH}"
-GEN1=$(gcloud storage objects describe "gs://${SYNTHETIC_TEST_BUCKET}/${GEN_PATH}" --format="value(generation)")
 printf 'synthetic benign replacement content' > /tmp/v2.bin
-gcloud storage cp /tmp/v2.bin "gs://${SYNTHETIC_TEST_BUCKET}/${GEN_PATH}"
-GEN2=$(gcloud storage objects describe "gs://${SYNTHETIC_TEST_BUCKET}/${GEN_PATH}" --format="value(generation)")
+
+GENERATION_PINNING_RESULT=$(PROJECT_ID="$PROJECT_ID" SYNTHETIC_TEST_BUCKET="$SYNTHETIC_TEST_BUCKET" BUILD_ID="$BUILD_ID" V1_PAYLOAD_PATH=/tmp/v1.bin V2_PAYLOAD_PATH=/tmp/v2.bin node ci/verifyGenerationPinning.js) \
+  || { echo "generation-pinning verification failed"; exit 1; }
+GEN_PATH=$(printf '%s\n' "$GENERATION_PINNING_RESULT" | sed -n '1p')
+GEN1=$(printf '%s\n' "$GENERATION_PINNING_RESULT" | sed -n '2p')
+GEN2=$(printf '%s\n' "$GENERATION_PINNING_RESULT" | sed -n '3p')
+[ -n "$GEN_PATH" ] || { echo "generation-pinning: missing object path"; exit 1; }
+[ -n "$GEN1" ] || { echo "generation-pinning: missing first generation"; exit 1; }
+[ -n "$GEN2" ] || { echo "generation-pinning: missing second generation"; exit 1; }
 
 SHA1="$(sha256_of /tmp/v1.bin)" || exit 1
 SIZE1=$(wc -c < /tmp/v1.bin | tr -d ' ')
@@ -257,6 +278,13 @@ BODY2=$(printf '{"contractVersion":1,"requestId":"ci-%s-gen2","bucket":"%s","obj
 RESULT2=$(curl -fs -X POST -H "Authorization: Bearer ${TOKEN}" -H "content-type: application/json" -d "$BODY2" "${CANDIDATE_URL}/v1/scan")
 echo "$RESULT2" | grep -q '"verdict":"clean"' || { echo "generation-pinned read of new (benign) generation failed: $RESULT2"; exit 1; }
 
-gcloud storage rm -a "gs://${SYNTHETIC_TEST_BUCKET}/${GEN_PATH}" || true
+# No cleanup call here: ci/verifyGenerationPinning.js already deleted
+# both generations it created (GEN1 and GEN2, each by its own exact
+# generation precondition) in its own finally-block cleanup, before
+# ever returning the object path/generations above. A separate
+# `gcloud storage rm -a` here would be both redundant and would
+# reintroduce the same bucket-level list dependency this correction
+# removes (`rm -a` "all generations of this name" requires enumerating
+# them).
 
 echo "verify-deployed-candidate: all checks passed for revision ${CANDIDATE_REVISION} at digest ${DIGEST}"
