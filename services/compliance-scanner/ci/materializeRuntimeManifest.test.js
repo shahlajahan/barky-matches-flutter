@@ -248,22 +248,38 @@ test("writeManifestAtomic: rename replaces an existing regular destination atomi
   assert.deepEqual(fs.readFileSync(dest), newContent);
 });
 
-test("writeManifestAtomic: a write failure (deterministic — directory made unwritable before the call) does not touch an existing destination file", () => {
+test("writeManifestAtomic: a write failure (deterministic — fs.writeSync mocked to throw) does not touch an existing destination file", (t) => {
   const dir = mkTmpDir();
   const dest = path.join(dir, "manifest.json");
   fs.writeFileSync(dest, "OLD CONTENT", { mode: 0o600 });
 
-  // Deterministic, non-timing-based failure: make the directory
-  // unwritable so temp-file CREATION itself fails (EACCES) before
-  // `dest` is ever touched.
-  fs.chmodSync(dir, 0o500);
-  try {
-    assert.throws(() => writeManifestAtomic(dest, Buffer.from("ATTACKER CONTENT")));
-  } finally {
-    fs.chmodSync(dir, 0o700);
-  }
+  // Deterministic, UID-independent failure: mocks the exact fs
+  // primitive writeManifestAtomic uses to perform the real data write
+  // (fs.writeSync(fd, buf) — see ci/materializeRuntimeManifest.js) to
+  // throw a realistic write-failure error, regardless of the calling
+  // process's UID/permissions. Directory-permission-bit tricks
+  // (chmod 0o500) are not usable here: root (e.g. Cloud Build's
+  // node:20.18.1-bookworm-slim step, which runs as root by default)
+  // ignores permission bits entirely, so that approach silently
+  // stopped failing under staging execution. t.mock.method's mock is
+  // scoped to this TestContext and is automatically reset once this
+  // test finishes (Node's test runner resets each test's own
+  // MockTracker after that test completes), so no manual restore is
+  // needed and no other test ever observes the mocked fs.writeSync.
+  const writeError = Object.assign(new Error("EIO: i/o error, write"), { code: "EIO" });
+  t.mock.method(fs, "writeSync", () => {
+    throw writeError;
+  });
 
-  assert.equal(fs.readFileSync(dest, "utf8"), "OLD CONTENT");
+  assert.throws(
+    () => writeManifestAtomic(dest, Buffer.from("ATTACKER CONTENT")),
+    /failed to write temporary file/,
+    "a mocked fs.writeSync failure must propagate as writeManifestAtomic's own write-failure error, never be swallowed"
+  );
+
+  assert.equal(fs.readFileSync(dest, "utf8"), "OLD CONTENT", "the pre-existing destination must remain byte-for-byte unchanged");
+  assert.equal(tmpEntries(dir).length, 0, "the temporary file must be removed after a failed write, never left behind");
+  assert.deepEqual(fs.readdirSync(dir), ["manifest.json"], "no unrelated file may exist in the directory after a failed write");
 });
 
 test("writeManifestAtomic: rename failure (deterministic — destination path is an existing directory) cleans up the temporary file and leaves no partial destination", () => {

@@ -50,9 +50,31 @@ test("unhealthy when signatures are older than the 48-hour maximum, even with cl
   assert.equal(result.body.checks.signaturesFresh, false);
 });
 
-test("healthy right at the 48-hour signature-age boundary", async () => {
+test("healthy right at the 48-hour signature-age boundary", async (t) => {
+  // Deterministic, timing-independent boundary proof: contract.js's
+  // isSignatureFresh(signatureBuiltAtIso, { now = Date.now(), ... })
+  // resolves `now` from its OWN, LATER Date.now() call inside
+  // handleHealthCheck — a genuinely separate call from the Date.now()
+  // used below to construct signatureBuiltAt. Any real wall-clock time
+  // elapsing between the two (more likely, and larger, under a shared
+  // CI container than on a quiet local machine) pushes the actual age
+  // past SIGNATURE_MAX_AGE_MS, flipping this exact-boundary case from
+  // healthy to unhealthy — precisely the flake real staging execution
+  // exposed. handleHealthCheck/isSignatureFresh are production code
+  // (out of this correction's scope) and are not modified to accept an
+  // injected clock; instead, the global Date.now is mocked for the
+  // duration of this test so BOTH call sites — this test's own
+  // signatureBuiltAt construction below and isSignatureFresh's default
+  // `now` parameter inside handleHealthCheck — observe the exact same
+  // frozen epoch. No real time elapses, and no arbitrary tolerance is
+  // introduced: the boundary remains bit-for-bit exact. t.mock.method's
+  // mock is scoped to this TestContext and is automatically reset once
+  // this test finishes, so no other test ever observes a frozen clock.
+  const FROZEN_NOW = Date.now();
+  t.mock.method(Date, "now", () => FROZEN_NOW);
+
   const boundaryConfig = freshConfig({
-    signatureBuiltAt: new Date(Date.now() - SIGNATURE_MAX_AGE_MS).toISOString(),
+    signatureBuiltAt: new Date(FROZEN_NOW - SIGNATURE_MAX_AGE_MS).toISOString(),
   });
   const result = await handleHealthCheck({ config: boundaryConfig, clamdScanner: createFakeClamdScanner({ reachable: true }) });
   assert.equal(result.status, 200);
