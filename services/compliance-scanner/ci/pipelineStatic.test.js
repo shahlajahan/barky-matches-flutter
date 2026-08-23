@@ -823,6 +823,149 @@ test("verify-fixtures.sh's node invocation exits non-zero on any integrity failu
 });
 
 // ---------------------------------------------------------------------
+// Candidate network correction (Slice 2.2, closing a real staging build
+// failure — build eb02b226-1f41-4029-a748-1a7d69810a4b, step
+// verify-candidate-container: "candidate container never became
+// healthy"). Root cause: 127.0.0.1 inside the step container that runs
+// this script never reliably reached a -p-published port on the
+// candidate, a SIBLING container under Cloud Build's nested-Docker
+// model. Fix: run the candidate on Cloud Build's predefined `cloudbuild`
+// network and address it only by container name. These tests inspect
+// the ACTUAL script content, never a hand-duplicated imaginary version.
+// ---------------------------------------------------------------------
+
+test("candidate network: docker run attaches the candidate to --network=cloudbuild, a fixed literal, never a substitution", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  assert.ok(/CLOUDBUILD_NETWORK="cloudbuild"/.test(text), "the network name must be the fixed literal \"cloudbuild\"");
+  const runBlockMatch = text.match(/docker run -d --name[\s\S]*?"\$IMAGE_LOCAL"/);
+  assert.ok(runBlockMatch, "could not locate the candidate's docker run invocation");
+  assert.ok(/--network="\$CLOUDBUILD_NETWORK"/.test(runBlockMatch[0]), "docker run must attach the candidate via --network=\"$CLOUDBUILD_NETWORK\"");
+});
+
+test("candidate network: docker run never uses --network=host anywhere in the file", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  assert.ok(!/--network[= ]host\b/.test(text), "must never use --network=host");
+});
+
+test("candidate network: the candidate has an explicit, Docker-safe --name derived from a sanitized BUILD_ID, unique per build", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  assert.ok(/SAFE_BUILD_ID=\$\(printf '%s' "\$BUILD_ID" \| tr -c 'a-zA-Z0-9_\.-' '-'\)/.test(text), "BUILD_ID must be sanitized to Docker's safe container-name character class before use");
+  assert.ok(/CONTAINER_NAME="verify-candidate-\$\{SAFE_BUILD_ID\}"/.test(text), "the container name must be built from the sanitized value, unique per build");
+  const runBlockMatch = text.match(/docker run -d --name[\s\S]*?"\$IMAGE_LOCAL"/);
+  assert.ok(runBlockMatch, "could not locate the candidate's docker run invocation");
+  assert.ok(/--name "\$CONTAINER_NAME"/.test(runBlockMatch[0]), "docker run must pass --name \"$CONTAINER_NAME\" explicitly");
+});
+
+test("candidate network: no -p host-port publishing remains on any executable line — specifically no 18080, and no generic -p NUM:NUM flag at all (the correction's own comment legitimately quotes the old \"-p 18080:8080\" for documentation)", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const execLines = nonCommentLines(text);
+  assert.ok(!execLines.some((l) => l.includes("18080")), "the old host-published port must not remain on any real command line");
+  assert.ok(!execLines.some((l) => /(^|\s)-p\s+\d+:\d+/.test(l)), "no docker run invocation may publish a host port");
+});
+
+test("candidate network: the internal port is 8080, and CANDIDATE_BASE_URL is the single place the candidate's address is constructed", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  assert.ok(/CANDIDATE_BASE_URL="http:\/\/\$\{CONTAINER_NAME\}:8080"/.test(text), "CANDIDATE_BASE_URL must be built from the container name and internal port 8080, in exactly one place");
+  const assignments = text.match(/CANDIDATE_BASE_URL=/g) || [];
+  assert.equal(assignments.length, 1, "CANDIDATE_BASE_URL must be assigned exactly once — no per-request drift");
+});
+
+test("candidate network: no localhost/127.0.0.1/host.docker.internal URL is ever actually constructed or requested over the network by the verifier (the diagnostic in-container `docker exec ... 127.0.0.1` probe, which runs INSIDE the candidate's own namespace rather than over the network, is explicitly excluded; English prose — comments and echoed diagnostic messages that merely mention \"localhost\" while explaining behavior — is not a URL construction and is excluded too)", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  // Only real, non-comment lines that actually build a URL (an http://
+  // literal) or invoke curl/wget are real address-construction sites;
+  // prose (comments, including ones quoting a URL for documentation
+  // purposes, and echoed human-readable diagnostic strings) merely
+  // mentioning the word "localhost" while explaining behavior is not.
+  const addressConstructionPattern = /https?:\/\/|curl\b|wget\b/;
+  const forbiddenHostPattern = /127\.0\.0\.1|localhost|host\.docker\.internal/;
+  for (const line of nonCommentLines(text)) {
+    if (!forbiddenHostPattern.test(line)) continue;
+    if (!addressConstructionPattern.test(line)) continue; // prose, not a request
+    const isInContainerExecProbe = line.includes("docker exec");
+    assert.ok(
+      isInContainerExecProbe,
+      `a real address-construction line referencing a forbidden host must only be the documented in-container docker-exec probe, found: ${line}`
+    );
+  }
+});
+
+test("candidate network: every real HTTP request the verifier sends (healthz, status, and every fixture scan) targets ${CANDIDATE_BASE_URL}, never a separately constructed address", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const requestLines = text.split("\n").filter((l) => /curl[^\n]*"\$\{CANDIDATE_BASE_URL\}/.test(l) || (/curl\b/.test(l) && !l.trim().startsWith("#") && !l.includes("-v -s -o /dev/null -m 5")));
+  // Sanity: at least the four real requests (healthz, status, and — via
+  // the shared scan_fixture() body — the scan endpoint) must exist.
+  assert.ok(requestLines.length >= 3, `expected at least 3 real request lines, found ${requestLines.length}`);
+  for (const line of requestLines) {
+    assert.ok(line.includes("${CANDIDATE_BASE_URL}"), `every real request must target \${CANDIDATE_BASE_URL}: ${line}`);
+  }
+});
+
+test("candidate network: a missing cloudbuild network fails closed with a precise diagnostic before any candidate container is created — never falls back silently", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const checkMatch = text.match(/if ! docker network inspect "\$CLOUDBUILD_NETWORK"[\s\S]*?fi\n/);
+  assert.ok(checkMatch, "could not locate the network-existence fail-closed check");
+  assert.ok(/exit 1/.test(checkMatch[0]), "a missing network must exit 1");
+  assert.ok(/does not exist/i.test(checkMatch[0]), "the diagnostic message must clearly state the network is missing");
+  assert.ok(/refusing to fall back/i.test(checkMatch[0]), "the diagnostic must state no fallback is attempted");
+  // This check must appear textually before the candidate's docker run
+  // invocation — no container may be created before the network is
+  // confirmed to exist.
+  const checkIndex = text.indexOf(checkMatch[0]);
+  const runIndex = text.indexOf("docker run -d --name");
+  assert.ok(checkIndex !== -1 && runIndex !== -1 && checkIndex < runIndex, "the network-existence check must run before the candidate container is created");
+});
+
+test("candidate cleanup: the trap removes ONLY the exact named candidate container — never a broader match, never an image, on every exit path including signals", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  assert.ok(/trap cleanup EXIT INT TERM/.test(text), "cleanup must be trapped on EXIT, INT, and TERM");
+  const cleanupFnMatch = text.match(/cleanup\(\) \{[\s\S]*?\n\}/);
+  assert.ok(cleanupFnMatch, "could not locate the cleanup() function body");
+  assert.ok(/docker rm -f "\$CONTAINER_NAME"/.test(cleanupFnMatch[0]), "cleanup must remove exactly $CONTAINER_NAME, the exact named candidate — not a wildcard or prefix match");
+  assert.ok(!/docker rm -f \$\(docker ps/.test(cleanupFnMatch[0]), "cleanup must never derive its target from a broader docker ps query");
+  assert.ok(!/docker rmi/.test(cleanupFnMatch[0]), "cleanup must never delete an image");
+});
+
+test("candidate diagnostics: the final verbose connectivity probe filters out Authorization headers, Bearer tokens, and cookies before being logged, and never prints a response body", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const diagFnMatch = text.match(/dump_candidate_diagnostics\(\) \{[\s\S]*?\n\}/);
+  assert.ok(diagFnMatch, "could not locate the dump_candidate_diagnostics() function body");
+  assert.ok(/grep -viE 'Authorization:\|Bearer \|set-cookie:'/.test(diagFnMatch[0]), "the verbose curl diagnostic must filter Authorization/Bearer/set-cookie lines");
+  assert.ok(/-o \/dev\/null/.test(diagFnMatch[0]), "the diagnostic curl call must discard the response body (-o /dev/null)");
+  // The in-container reachability probe must report only its exit
+  // status, never print the response body.
+  const probeMatch = diagFnMatch[0].match(/docker exec "\$CONTAINER_NAME" wget[\s\S]*?fi/);
+  assert.ok(probeMatch, "could not locate the in-container reachability probe");
+  assert.ok(/-O \/dev\/null/.test(probeMatch[0]), "the in-container wget probe must discard its response body (-O /dev/null)");
+});
+
+test("candidate diagnostics: per-attempt healthz diagnostics are compact (attempt number, curl exit code, HTTP status, derived category) and never include a response body", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  const echoLineMatch = text.match(/echo "verify-candidate-container: healthz attempt[^\n]*"/);
+  assert.ok(echoLineMatch, "could not locate the per-attempt diagnostic echo line");
+  const line = echoLineMatch[0];
+  assert.ok(line.includes("attempt"), "must include the attempt number");
+  assert.ok(line.includes("curl_exit"), "must include curl's own exit code");
+  assert.ok(line.includes("http_status"), "must include the HTTP status when available");
+  assert.ok(!/healthz\.json/.test(line), "the per-attempt diagnostic must never include the response body file");
+});
+
+test("candidate network: every loop in the script is explicitly bounded — the healthz wait loop iterates a fixed 30 times, and the server_started log-visibility retry iterates a fixed 3 times — neither is unbounded, and neither was widened as a way to paper over the network defect", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  assert.ok(/for _ in \$\(seq 1 30\); do/.test(text), "the healthz wait loop must remain bounded to exactly 30 attempts");
+  assert.ok(/for _ in 1 2 3; do/.test(text), "the server_started retry loop must remain bounded to exactly 3 attempts");
+  // Sanity: no unbounded `while true`/`while :` loop exists anywhere.
+  assert.ok(!/while (true|:)/.test(text), "no unbounded loop may exist in this script");
+});
+
+test("candidate network: every fixture verdict check remains mandatory, unaffected by the network correction (regression guard on the pre-existing Mandatory correction 1 test above)", () => {
+  const text = scriptText("verify-candidate-container.sh");
+  assert.ok(text.includes('scan_fixture "benign-text" "FIXTURE_BENIGN_TEXT" "clean"'));
+  assert.ok(text.includes('scan_fixture "eicar-standard" "FIXTURE_EICAR_STANDARD" "infected"'));
+  assert.ok(text.includes('scan_fixture "encrypted-pdf" "FIXTURE_ENCRYPTED_PDF" "error" "encrypted_document_unsupported"'));
+});
+
+// ---------------------------------------------------------------------
 // ID-token audience correctness (Slice 2.2 final correction). Per
 // https://docs.cloud.google.com/run/docs/authenticating/service-to-service:
 // "the aud value must remain as the URL of the service, even when
