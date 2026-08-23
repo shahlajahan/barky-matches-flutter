@@ -801,6 +801,167 @@ test("promote.sh verifies runtime service account before treating promotion as s
 });
 
 // ---------------------------------------------------------------------
+// Candidate traffic-tag length correction (Slice 2.2, closing a real
+// staging deploy failure — build c90ebe89-5c04-424b-abaa-16bb25e7db6f:
+// "traffic tag 'candidate-<40-char COMMIT_SHA>-<8-char BUILD_ID>' and
+// service name 'compliance-scanner' together are too long. Combined
+// traffic tag and service name cannot exceed 46 characters"). These
+// tests extract and BEHAVIORALLY RUN the actual corrected block from
+// deploy-candidate.sh (not a hand-duplicated imaginary version), the
+// same technique acquire-lock.sh's own Correction A behavioral test
+// already uses in this file.
+// ---------------------------------------------------------------------
+
+function extractCandidateTagBlock() {
+  const text = scriptText("deploy-candidate.sh");
+  const match = text.match(/case "\$COMMIT_SHA" in[\s\S]*?\necho "\$CANDIDATE_TRAFFIC_TAG" > \/workspace\/\.candidate-traffic-tag\n/);
+  assert.ok(match, "could not extract the candidate-tag block from deploy-candidate.sh");
+  return match[0];
+}
+
+function runCandidateTagBlock({ commitSha, buildId, service }) {
+  const block = extractCandidateTagBlock().replace(/\/workspace\//g, "./");
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "candidate-tag-sim-"));
+  const result = spawnSync("sh", ["-c", `cd ${JSON.stringify(tmpDir)} && set -eu\n${block}`], {
+    env: { ...process.env, COMMIT_SHA: commitSha, BUILD_ID: buildId, SERVICE: service },
+    encoding: "utf8",
+  });
+  let writtenTag = null;
+  const tagFile = path.join(tmpDir, ".candidate-traffic-tag");
+  if (fs.existsSync(tagFile)) writtenTag = fs.readFileSync(tagFile, "utf8").trim();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  return { ...result, writtenTag };
+}
+
+const REAL_FAILING_COMMIT_SHA = "43364ccb168ec47f6c7a4a0988e4e470151febec";
+const REAL_FAILING_BUILD_ID = "c90ebe89-5c04-424b-abaa-16bb25e7db6f";
+const REAL_SERVICE_NAME = "compliance-scanner";
+
+test("candidate traffic tag: the real service name plus the generated tag is within Cloud Run's 46-character combined limit, proven by actually running the real corrected block", () => {
+  const { status, stderr, writtenTag } = runCandidateTagBlock({
+    commitSha: REAL_FAILING_COMMIT_SHA,
+    buildId: REAL_FAILING_BUILD_ID,
+    service: REAL_SERVICE_NAME,
+  });
+  assert.equal(status, 0, `expected success, got status ${status}, stderr: ${stderr}`);
+  assert.ok(writtenTag, "expected a tag to be written");
+  assert.ok(REAL_SERVICE_NAME.length + writtenTag.length <= 46, `combined length ${REAL_SERVICE_NAME.length + writtenTag.length} exceeds 46`);
+});
+
+test("candidate traffic tag: the EXACT previously-failing COMMIT_SHA/BUILD_ID pair from build c90ebe89 now produces the expected short, safe tag", () => {
+  const { status, writtenTag } = runCandidateTagBlock({
+    commitSha: REAL_FAILING_COMMIT_SHA,
+    buildId: REAL_FAILING_BUILD_ID,
+    service: REAL_SERVICE_NAME,
+  });
+  assert.equal(status, 0);
+  assert.equal(writtenTag, "candidate-43364ccb-c90ebe89");
+});
+
+test("candidate traffic tag: a malformed or missing COMMIT_SHA fails closed (never silently truncated into a plausible-looking fragment)", () => {
+  const badCommitShas = [
+    "",
+    "short",
+    "43364CCB168EC47F6C7A4A0988E4E470151FEBEC", // uppercase — real git SHAs are always lowercase
+    "43364ccb168ec47f6c7a4a0988e4e470151febe", // 39 chars — one short
+    "43364ccb168ec47f6c7a4a0988e4e470151febecc", // 41 chars — one too many
+    "43364ccb168ec47f6c7a4a0988e4e470151feb$", // non-hex character
+    "not-a-sha-at-all-not-a-sha-at-all-not-a",
+  ];
+  for (const badSha of badCommitShas) {
+    const { status, stderr, writtenTag } = runCandidateTagBlock({
+      commitSha: badSha,
+      buildId: REAL_FAILING_BUILD_ID,
+      service: REAL_SERVICE_NAME,
+    });
+    assert.notEqual(status, 0, `expected failure for COMMIT_SHA=${JSON.stringify(badSha)}`);
+    assert.ok(stderr.includes("COMMIT_SHA"), `expected a COMMIT_SHA-specific error, got: ${stderr}`);
+    assert.equal(writtenTag, null, `no tag file should be written for a rejected COMMIT_SHA=${JSON.stringify(badSha)}`);
+  }
+});
+
+test("candidate traffic tag: a malformed or missing BUILD_ID fails closed (never silently truncated into a plausible-looking fragment)", () => {
+  const badBuildIds = [
+    "",
+    "short",
+    "C90EBE89-5C04-424B-ABAA-16BB25E7DB6F", // uppercase — Cloud Build's own BUILD_ID is always lowercase
+    "c90ebe895c04424babaa16bb25e7db6f", // missing hyphens
+    "not-a-uuid-at-all-not-a-uuid-at-al",
+  ];
+  for (const badBuildId of badBuildIds) {
+    const { status, stderr, writtenTag } = runCandidateTagBlock({
+      commitSha: REAL_FAILING_COMMIT_SHA,
+      buildId: badBuildId,
+      service: REAL_SERVICE_NAME,
+    });
+    assert.notEqual(status, 0, `expected failure for BUILD_ID=${JSON.stringify(badBuildId)}`);
+    assert.ok(stderr.includes("BUILD_ID"), `expected a BUILD_ID-specific error, got: ${stderr}`);
+    assert.equal(writtenTag, null, `no tag file should be written for a rejected BUILD_ID=${JSON.stringify(badBuildId)}`);
+  }
+});
+
+test("candidate traffic tag: the generated tag uses only Cloud Run tag-safe lowercase characters (letters, digits, hyphens)", () => {
+  const { writtenTag } = runCandidateTagBlock({
+    commitSha: REAL_FAILING_COMMIT_SHA,
+    buildId: REAL_FAILING_BUILD_ID,
+    service: REAL_SERVICE_NAME,
+  });
+  assert.ok(/^[a-z0-9-]+$/.test(writtenTag), `tag contains a disallowed character: ${writtenTag}`);
+});
+
+test("candidate traffic tag: no collision-prone constant-only tag is used — two different commit/build pairs produce two different tags", () => {
+  const first = runCandidateTagBlock({ commitSha: REAL_FAILING_COMMIT_SHA, buildId: REAL_FAILING_BUILD_ID, service: REAL_SERVICE_NAME });
+  const second = runCandidateTagBlock({
+    commitSha: "9d4a441a70809012f701f7ec99cf3acba0f5f764",
+    buildId: "eb02b226-1f41-4029-a748-1a7d69810a4b",
+    service: REAL_SERVICE_NAME,
+  });
+  assert.notEqual(first.writtenTag, second.writtenTag, "different commit/build pairs must never produce the same tag");
+});
+
+test("candidate traffic tag: the full, untruncated COMMIT_SHA and BUILD_ID remain available in this step's own audit log line, even though the traffic tag itself is shortened", () => {
+  const text = scriptText("deploy-candidate.sh");
+  const auditLineMatch = text.match(/echo "deploy-candidate: full COMMIT_SHA=[^\n]*"/);
+  assert.ok(auditLineMatch, "could not locate the audit log line");
+  assert.ok(auditLineMatch[0].includes("${COMMIT_SHA}"), "the audit line must include the full, untruncated COMMIT_SHA variable");
+  assert.ok(auditLineMatch[0].includes("${BUILD_ID}"), "the audit line must include the full, untruncated BUILD_ID variable");
+});
+
+test("candidate traffic tag: gcloud run deploy receives the validated, shortened CANDIDATE_TRAFFIC_TAG variable via --tag=, never a separately reconstructed value", () => {
+  const text = scriptText("deploy-candidate.sh");
+  const deployBlockMatch = text.match(/gcloud run deploy "\$\{SERVICE\}"[\s\S]*?--tag="\$\{CANDIDATE_TRAFFIC_TAG\}"/);
+  assert.ok(deployBlockMatch, "gcloud run deploy must pass --tag=\"${CANDIDATE_TRAFFIC_TAG}\"");
+});
+
+test("candidate traffic tag: verify-deployed-candidate.sh derives CANDIDATE_URL from the exact same tag file deploy-candidate.sh writes — no separate reconstruction of the tag anywhere downstream", () => {
+  const deployText = scriptText("deploy-candidate.sh");
+  const verifyText = scriptText("verify-deployed-candidate.sh");
+  assert.ok(deployText.includes('echo "$CANDIDATE_TRAFFIC_TAG" > /workspace/.candidate-traffic-tag'), "deploy-candidate.sh must still write the single shared tag file");
+  assert.ok(verifyText.includes('CANDIDATE_TRAFFIC_TAG="$(cat /workspace/.candidate-traffic-tag)"'), "verify-deployed-candidate.sh must still read the tag back from that same shared file, unmodified by this correction");
+});
+
+test("candidate traffic tag: push-candidate.sh's image tag and promote.sh's promoted Artifact Registry tag remain fully unmodified by this correction — both still use the FULL, untruncated COMMIT_SHA and BUILD_ID, which is safe because Artifact Registry's docker-tag length limit (128 chars) is far more permissive than Cloud Run's 46-character combined limit", () => {
+  const pushText = scriptText("push-candidate.sh");
+  assert.ok(pushText.includes('REMOTE_TAG="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${COMMIT_SHA}-${BUILD_ID}"'), "push-candidate.sh's image tag must still use the full COMMIT_SHA and BUILD_ID, unchanged");
+
+  const promoteText = scriptText("promote.sh");
+  assert.ok(promoteText.includes('PROMOTED_TAG="promoted-${COMMIT_SHA:?COMMIT_SHA is required}-${BUILD_ID:?BUILD_ID is required}"'), "promote.sh's promoted tag must still use the full COMMIT_SHA and BUILD_ID, unchanged");
+
+  // Sanity: even the longest realistic promoted tag stays far under
+  // Artifact Registry's 128-character docker-tag limit.
+  const longestPlausiblePromotedTag = `promoted-${REAL_FAILING_COMMIT_SHA}-${REAL_FAILING_BUILD_ID}`;
+  assert.ok(longestPlausiblePromotedTag.length < 128, `promoted tag (${longestPlausiblePromotedTag.length} chars) unexpectedly approaches the Artifact Registry limit`);
+});
+
+test("candidate traffic tag correction: no change to public access, digest pinning, or rollback behavior — deploy-candidate.sh still passes --no-allow-unauthenticated, still deploys the resolved DIGEST, and still captures the full traffic allocation before mutating anything (public-access-on-any-executable-line is exhaustively covered file-wide by the existing 'no --allow-unauthenticated on any EXECUTABLE line' test above, not duplicated here)", () => {
+  const text = scriptText("deploy-candidate.sh");
+  assert.ok(text.includes("--no-allow-unauthenticated"), "must still deploy with no unauthenticated access");
+  assert.ok(text.includes('DIGEST="$(cat /workspace/.candidate-digest)"'), "must still deploy the digest resolved by resolve-digest.sh, unchanged");
+  assert.ok(text.includes('--image="${IMAGE_REF}"'), "must still deploy by digest-pinned image reference");
+  assert.ok(text.includes('--format="json(status.traffic)"'), "must still capture the full pre-existing traffic allocation before deploying, unchanged (regression guard alongside the Rollback correctness tests above)");
+});
+
+// ---------------------------------------------------------------------
 // Fixture mandatory-ness — Mandatory correction 1: no silent skip
 // ---------------------------------------------------------------------
 
