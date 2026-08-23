@@ -170,6 +170,157 @@ test("Cloud Build declaration-order regression: the expected physical sequence b
 });
 
 // ---------------------------------------------------------------------
+// Cloud Build execution identity (single-authoritative-execution-
+// identity correction, closing a real staging failure — build
+// f3caf298-6996-4585-a05b-38a48452c124, step verify-deployed-
+// candidate: "PERMISSION_DENIED: Failed to impersonate
+// [compliance-scanner-monitor-sa@...]", root-caused to the build
+// having silently executed as the project's default Compute Engine
+// service account because this file never specified an execution
+// identity of its own). These are the LOCAL, repository-level defense
+// in depth this correction's own YAML comment promises: if a future
+// edit accidentally deletes or corrupts the top-level serviceAccount:
+// field, these tests fail closed rather than letting the pipeline
+// silently fall back to the default Compute SA again. Cloud Build's
+// own build-submission API independently validates and rejects a
+// malformed/absent value at submission time — these tests do not
+// replace that, they catch the regression before it ever reaches
+// Cloud Build at all.
+// ---------------------------------------------------------------------
+
+function extractTopLevelServiceAccount(text) {
+  const match = text.match(/\nserviceAccount:\s*"([^"]*)"/);
+  return match ? match[1] : null;
+}
+
+const RESOLVED_SERVICE_ACCOUNT = extractTopLevelServiceAccount(yamlText).replace(/\$\{PROJECT_ID\}/g, "petsupo-platform-staging");
+
+test("Cloud Build execution identity: a top-level serviceAccount: field exists and is not empty", () => {
+  const raw = extractTopLevelServiceAccount(yamlText);
+  assert.ok(raw !== null, "a top-level serviceAccount: field must exist in cloudbuild.signature-refresh.yaml");
+  assert.ok(raw.length > 0, "the top-level serviceAccount: field must not be empty");
+});
+
+test("Cloud Build execution identity: serviceAccount uses the full projects/.../serviceAccounts/... resource-name format, never a bare email", () => {
+  const raw = extractTopLevelServiceAccount(yamlText);
+  assert.ok(
+    /^projects\/[^/]+\/serviceAccounts\/[^/]+$/.test(raw),
+    `serviceAccount must be the full resource-name form "projects/<project>/serviceAccounts/<email>", got: ${raw}`
+  );
+});
+
+test("Cloud Build execution identity: serviceAccount uses Cloud Build's own built-in ${PROJECT_ID} substitution, never a hardcoded project id — portable to any project without a repository edit", () => {
+  const raw = extractTopLevelServiceAccount(yamlText);
+  assert.ok(raw.includes("${PROJECT_ID}"), "serviceAccount must reference ${PROJECT_ID}, not a literal project id");
+  const occurrences = (raw.match(/\$\{PROJECT_ID\}/g) || []).length;
+  assert.equal(occurrences, 2, "PROJECT_ID must appear exactly twice: once in the projects/ segment, once in the email's domain");
+});
+
+test("Cloud Build execution identity: resolves (with PROJECT_ID substituted) to exactly the dedicated staging CI service account", () => {
+  assert.equal(
+    RESOLVED_SERVICE_ACCOUNT,
+    "projects/petsupo-platform-staging/serviceAccounts/compliance-scanner-ci-sa@petsupo-platform-staging.iam.gserviceaccount.com"
+  );
+});
+
+test("Cloud Build execution identity: the account id component is exactly compliance-scanner-ci-sa — no other account name", () => {
+  const raw = extractTopLevelServiceAccount(yamlText);
+  const accountIdMatch = raw.match(/\/serviceAccounts\/([^@]+)@/);
+  assert.ok(accountIdMatch, "could not extract the service account id from serviceAccount:");
+  assert.equal(accountIdMatch[1], "compliance-scanner-ci-sa");
+});
+
+test("Cloud Build execution identity: cannot resolve to the default Compute Engine service account (604995650954-compute@developer.gserviceaccount.com) — the exact identity build f3caf298 actually ran as", () => {
+  assert.ok(!RESOLVED_SERVICE_ACCOUNT.includes("604995650954-compute@developer.gserviceaccount.com"));
+  assert.ok(!RESOLVED_SERVICE_ACCOUNT.includes("-compute@developer.gserviceaccount.com"), "must never resolve to ANY project's default Compute SA, not just this one project's numeric id");
+});
+
+test("Cloud Build execution identity: cannot resolve to the Cloud Build default builder identity (604995650954@cloudbuild.gserviceaccount.com)", () => {
+  assert.ok(!RESOLVED_SERVICE_ACCOUNT.includes("604995650954@cloudbuild.gserviceaccount.com"));
+  assert.ok(!/^\d+@cloudbuild\.gserviceaccount\.com$/.test(RESOLVED_SERVICE_ACCOUNT.split("/").pop()), "must never resolve to the bare numeric Cloud Build builder identity");
+});
+
+test("Cloud Build execution identity: cannot resolve to the Cloud Build service AGENT (service-604995650954@gcp-sa-cloudbuild.iam.gserviceaccount.com) — a distinct, GCP-managed identity that must never be used as the execution identity itself", () => {
+  assert.ok(!RESOLVED_SERVICE_ACCOUNT.includes("gcp-sa-cloudbuild.iam.gserviceaccount.com"));
+  assert.ok(!RESOLVED_SERVICE_ACCOUNT.includes("service-604995650954@"));
+});
+
+test("Cloud Build execution identity: options.logging remains exactly CLOUD_LOGGING_ONLY — required for a custom build service account, and unchanged by this correction", () => {
+  const optionsSectionMatch = yamlText.match(/\noptions:\n([\s\S]*?)\n(?:serviceAccount:|substitutions:)/);
+  assert.ok(optionsSectionMatch, "could not locate options: section");
+  assert.ok(/^\s*logging:\s*CLOUD_LOGGING_ONLY\s*$/m.test(optionsSectionMatch[1]), "options.logging must remain exactly CLOUD_LOGGING_ONLY");
+});
+
+test("Cloud Build execution identity: no logsBucket field is introduced anywhere in the file — this correction relies on the standard project Cloud Logging destination, never a new bucket", () => {
+  assert.ok(!/\blogsBucket\s*:/.test(yamlText), "logsBucket: must never appear in this file");
+});
+
+test("Cloud Build execution identity: all 13 steps remain present, unchanged in id/name/waitFor/args/env/timeout by this correction (the serviceAccount: addition touches only build-level configuration, never step bodies)", () => {
+  assert.equal(steps.length, 13, "step count must remain exactly 13");
+  const stepIds = steps.map((s) => s.id);
+  assert.deepEqual(
+    stepIds,
+    [
+      "install-dependencies", "acquire-lock", "verify-source", "materialize-runtime-manifest",
+      "verify-fixtures-integrity", "build-candidate", "verify-candidate-container", "push-candidate",
+      "resolve-digest", "deploy-candidate", "verify-deployed-candidate", "promote", "release-lock",
+    ],
+    "step id list/order must be byte-identical to before this correction"
+  );
+});
+
+test("Cloud Build execution identity: the waitFor dependency graph remains fully valid — every waitFor target exists, is unique, and is declared at a strictly lower physical index (regression guard, duplicating the file-wide DAG check locally to this correction's own section)", () => {
+  for (const step of steps) {
+    for (const dep of step.waitFor) {
+      if (dep === "-") continue;
+      assert.ok(stepIndexById[dep] !== undefined, `${step.id} waits for undeclared step ${dep}`);
+      assert.ok(stepIndexById[dep] < stepIndexById[step.id], `${step.id} must be declared after its dependency ${dep}`);
+    }
+  }
+});
+
+test("Cloud Build execution identity: the scanner runtime SA substitution (_SCANNER_RUNTIME_SA) and monitoring SA substitution (_MONITORING_SA) remain wired exactly as before — never hardcoded to a literal SA email, never renamed, never pointed at the new CI execution identity itself", () => {
+  const subsSectionMatch = yamlText.match(/\nsubstitutions:\n([\s\S]*?)\nsteps:/);
+  assert.ok(subsSectionMatch);
+  const subsText = subsSectionMatch[1];
+  assert.ok(/^\s*_SCANNER_RUNTIME_SA:\s*""/m.test(subsText), "_SCANNER_RUNTIME_SA must remain a required, no-default substitution");
+  assert.ok(/^\s*_MONITORING_SA:\s*""/m.test(subsText), "_MONITORING_SA must remain a required, no-default substitution");
+  assert.ok(!nonCommentLines(yamlText).some((l) => l.includes("compliance-scanner-sa@") || l.includes("compliance-scanner-monitor-sa@")), "no executable line may hardcode either runtime SA's real email — both remain substitution-only");
+  const deployText = scriptText("deploy-candidate.sh");
+  assert.ok(deployText.includes('--service-account="${SCANNER_RUNTIME_SA}"'), "deploy-candidate.sh must still deploy using the SCANNER_RUNTIME_SA env var, unchanged");
+  const verifyText = scriptText("verify-deployed-candidate.sh");
+  assert.ok(verifyText.includes('--impersonate-service-account="${MONITORING_SA}"'), "verify-deployed-candidate.sh must still impersonate via the MONITORING_SA env var, unchanged");
+});
+
+test("Cloud Build execution identity: no IAM mutation command (add-iam-policy-binding / set-iam-policy / remove-iam-policy-binding) is introduced anywhere in the YAML or any ci/*.sh script — this correction is execution-identity configuration only, never a runtime IAM change performed BY the pipeline itself", () => {
+  const iamMutationPattern = /add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy\b/;
+  assert.ok(!iamMutationPattern.test(yamlText), "cloudbuild.signature-refresh.yaml must never contain an IAM mutation command");
+  for (const fname of fs.readdirSync(path.join(REPO_ROOT, "ci"))) {
+    if (!fname.endsWith(".sh")) continue;
+    const text = fs.readFileSync(path.join(REPO_ROOT, "ci", fname), "utf8");
+    assert.ok(!iamMutationPattern.test(text), `${fname} must never contain an IAM mutation command`);
+  }
+});
+
+test("Cloud Build execution identity: no --allow-unauthenticated is introduced by this correction (regression guard, local to this correction's own diff)", () => {
+  assert.ok(
+    !nonCommentLines(yamlText).some((l) => /(?<!--no-)--allow-unauthenticated/.test(l)),
+    "no executable line in the YAML may contain a bare --allow-unauthenticated"
+  );
+});
+
+test("Cloud Build execution identity: no project literal 'barkymatches-new' (or any other hardcoded project id) is ever introduced on any EXECUTABLE line — every project reference remains the built-in ${PROJECT_ID} substitution or a ${_...} custom substitution (the file's own top-of-file doc comment legitimately names barkymatches-new once, as a negative example of what it does NOT hardcode)", () => {
+  const executable = nonCommentLines(yamlText).join("\n");
+  assert.ok(!executable.includes("barkymatches-new"), "the forbidden production project id must never appear on an executable line in this file");
+  assert.ok(!/petsupo-platform-staging/.test(executable), "the staging project id must never be hardcoded on an executable line either — the whole point of ${PROJECT_ID} is environment portability");
+});
+
+test("Cloud Build execution identity: an absent or malformed serviceAccount: field would be caught by the static checks above, not silently accepted (meta-check — proves the regex-based extractor itself cannot silently return a false positive for a missing field)", () => {
+  assert.equal(extractTopLevelServiceAccount("options:\n  logging: CLOUD_LOGGING_ONLY\nsubstitutions:\n"), null, "sanity: the extractor must return null when no serviceAccount: field exists, not an empty string or a stale match");
+  assert.equal(extractTopLevelServiceAccount('options:\n  logging: CLOUD_LOGGING_ONLY\nserviceAccount: ""\n'), "", "sanity: the extractor must return an empty string (which the non-empty test above would then reject) for a present-but-empty field, not null");
+});
+
+// ---------------------------------------------------------------------
 // Builder-image assignment (Slice 2.2 final correction, then the
 // single-authoritative-resolver correction). Each step's actual
 // `name:` image must match what that step's own script actually needs

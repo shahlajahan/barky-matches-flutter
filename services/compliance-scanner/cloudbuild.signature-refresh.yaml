@@ -132,6 +132,61 @@ options:
   # per the requirement not to print access tokens or secrets. No
   # script under ci/ ever echoes a minted ID token; every use is
   # confined to an `-H "Authorization: Bearer ${TOKEN}"` argument.
+  #
+  # logging: CLOUD_LOGGING_ONLY is also a REQUIREMENT, not just a
+  # preference, given the serviceAccount: field below — Cloud Build
+  # rejects a build config that specifies a user-managed service
+  # account under the default LEGACY logging mode (which writes to a
+  # Cloud-Build-owned bucket the custom SA has no access to); a
+  # non-default logging mode compatible with a custom build SA must be
+  # selected explicitly, which this already was, before this
+  # correction. No logsBucket is introduced — CLOUD_LOGGING_ONLY writes
+  # to the project's standard Cloud Logging destination, the same one
+  # every earlier (default-Compute-SA) build already used, requiring
+  # only that the custom SA hold roles/logging.logWriter (granted
+  # out-of-band, staging-only, verified manually — not performed by
+  # this repository).
+
+# Durable Cloud Build execution identity (single-authoritative-
+# execution-identity correction, closing a real staging failure —
+# build f3caf298-6996-4585-a05b-38a48452c124, step
+# verify-deployed-candidate: "PERMISSION_DENIED: Failed to impersonate
+# [compliance-scanner-monitor-sa@...]"). Root cause: this file never
+# specified WHO runs it, so both a prior manual `gcloud builds submit`
+# (no --service-account flag) and any future scheduler/API submission
+# consuming this same file would silently fall back to the project's
+# default Compute Engine service account — broadly privileged
+# (roles/editor, confirmed via direct IAM inspection) but deliberately
+# NOT granted the narrow, monitoring-SA-specific
+# roles/iam.serviceAccountTokenCreator the dedicated CI identity
+# already correctly holds (and which must never be granted to the
+# default Compute SA — see the readiness doc's §13 "Explicitly NOT
+# granted" column).
+#
+# Fixed by committing the execution identity HERE, as a top-level
+# field of the versioned pipeline definition itself, rather than
+# relying on a submission-command flag that has to be remembered
+# correctly every single time (manual retry, a future Scheduler
+# invocation, or any other caller) and silently degrades to the
+# unsafe default the moment it is omitted. `${PROJECT_ID}` is Cloud
+# Build's own built-in substitution — already used six times elsewhere
+# in this exact file (five step `env:` entries and the top-level
+# `images:` list below), proving it resolves correctly outside step
+# bodies too — so this field never hardcodes any project id, staging
+# or otherwise, and is portable to any project this pipeline is ever
+# run against without a repository edit.
+#
+# If this field is absent or malformed, Cloud Build's own build-
+# submission API validates and REJECTS the build outright (a
+# resource-name-shaped field, not a best-effort hint) — it does not
+# silently substitute the default Compute SA; silent fallback to that
+# default is Cloud Build's documented behavior only when this field is
+# missing ENTIRELY, which committing it here forecloses. Local,
+# repository-level defense in depth against a future regression
+# (someone accidentally deleting or corrupting this field) is provided
+# by ci/pipelineStatic.test.js's own static assertions — see that
+# file's "Cloud Build execution identity" test section.
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/compliance-scanner-ci-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 
 substitutions:
   _CI_BUILDER_IMAGE_REF: "" # REQUIRED, no default — see the builder-image inventory above. Must point to a published, digest-pinned build of services/compliance-scanner/ci/Dockerfile.ci-builder.
