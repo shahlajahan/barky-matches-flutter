@@ -13,15 +13,29 @@
 # one of the five lease-fenced mutating phases Mandatory correction 2
 # enumerates.
 #
-# Builder-image note (Slice 2.2 final correction): this script uses
-# ONLY gcloud, curl, and sha256sum — no node, no docker. Fixture
-# metadata comes from sourcing /workspace/.fixtures.env, and the
-# EICAR fixture's real bytes come from the already-decoded,
+# Builder-image note (single-authoritative-resolver correction): this
+# script uses gcloud, curl, sha256sum, AND node — it now runs on the
+# ci-builder image (${_CI_BUILDER_IMAGE_REF}), the same combined image
+# push-candidate.sh/deploy-candidate.sh/promote.sh already use. It
+# previously ran on the plain, single-purpose Cloud SDK image
+# (gcloud+curl+sha256sum, no node) and invoked a separate Python port
+# of the candidate-traffic resolver (ci/resolveCandidateTrafficEntry.py)
+# so it would not need node at all. That created a real semantic-drift
+# risk: two independently-maintained implementations of the same
+# fail-closed security check (exactly-one-match, HTTPS-only,
+# control-character rejection, Cloud Run revision-name shape), with
+# nothing proving they stayed in sync. This step now invokes the SAME
+# ci/resolveCandidateTrafficEntry.js every other consumer uses — no
+# second implementation exists anywhere in this repository. Confirmed
+# via local Docker inspection that ci-builder already contains
+# everything this script needs: its own Dockerfile
+# (ci/Dockerfile.ci-builder) builds FROM the identical cloud-sdk image
+# this step used before (gcloud+curl+sha256sum unchanged), with node
+# added on top — nothing this script already relied on was removed.
+# Fixture metadata comes from sourcing /workspace/.fixtures.env, and
+# the EICAR fixture's real bytes come from the already-decoded,
 # already-hash-verified /workspace/.eicar-materialized.bin — both
-# written earlier by ci/verify-fixtures.sh's node-based step. This
-# lets this step run on the pinned official Cloud SDK builder image
-# (gcloud+curl+sha256sum, no Node) rather than requiring a
-# combined-tool image.
+# written earlier by ci/verify-fixtures.sh's node-based step.
 set -eu
 
 : "${PROJECT_ID:?PROJECT_ID is required}"
@@ -58,15 +72,15 @@ DIGEST="$(cat /workspace/.candidate-digest)"
 #
 # Fixed by calling gcloud exactly once for the structured JSON traffic
 # array, then resolving BOTH the url and the revisionName from the
-# SAME matched entry via ci/resolveCandidateTrafficEntry.py — a
-# small, independently-testable helper (see its own doc comment for
-# the full validation contract: exactly-one-match required, url must
-# be HTTPS with no whitespace/control characters, revisionName must
-# match Cloud Run's own safe shape, and the untagged 100%-traffic
-# baseline entry is never treated as a fallback). CANDIDATE_TRAFFIC_TAG
-# is passed to that helper via the environment, never interpolated
-# into Python source or shell-quoted into a command line — a
-# maliciously- or accidentally-crafted tag value can only ever be
+# SAME matched entry via ci/resolveCandidateTrafficEntry.js — the one
+# canonical resolver every consumer in this pipeline invokes (see its
+# own doc comment for the full validation contract: exactly-one-match
+# required, url must be HTTPS with no whitespace/control characters,
+# revisionName must match Cloud Run's own safe shape, and the untagged
+# 100%-traffic baseline entry is never treated as a fallback).
+# CANDIDATE_TRAFFIC_TAG is passed to that helper via the environment,
+# never interpolated into source or shell-quoted into a command line —
+# a maliciously- or accidentally-crafted tag value can only ever be
 # compared as inert string data, never alter the match logic or
 # execute as code.
 CANDIDATE_TRAFFIC_JSON=$(gcloud run services describe "${SERVICE}" \
@@ -74,7 +88,7 @@ CANDIDATE_TRAFFIC_JSON=$(gcloud run services describe "${SERVICE}" \
   --format="json(status.traffic)")
 
 CANDIDATE_TRAFFIC_RESOLVED=$(printf '%s' "$CANDIDATE_TRAFFIC_JSON" \
-  | CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" python3 ci/resolveCandidateTrafficEntry.py) \
+  | CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" node ci/resolveCandidateTrafficEntry.js) \
   || { echo "could not resolve candidate tag URL/revision"; exit 1; }
 CANDIDATE_URL=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '1p')
 CANDIDATE_REVISION=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '2p')

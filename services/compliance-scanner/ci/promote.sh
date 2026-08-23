@@ -19,15 +19,17 @@
 # altering the serving revision.
 #
 # Builder-image note (Slice 2.2 final correction): this script uses
-# gcloud and python3 — both present in the pinned official Cloud SDK
-# builder image — never node, never docker. The two small JSON
-# manipulations below (reconstructing --to-revisions from the captured
-# full allocation, and verifying a rollback actually restored it) use
-# python3's stdlib json module rather than node specifically so this
-# step does not need a combined gcloud+docker image. It still needs
-# gcloud AND node together, though (the inline, twice-called lease
-# renewal check) — runs on ci/Dockerfile.ci-builder's image, same
-# reasoning as ci/push-candidate.sh and ci/deploy-candidate.sh.
+# gcloud, python3, AND node — never docker. Runs on the combined
+# ci-builder image (ci/Dockerfile.ci-builder), the same reasoning as
+# ci/push-candidate.sh and ci/deploy-candidate.sh: it must verify the
+# fenced concurrency lease (node, via ci/renew-lease-or-fail.sh) and
+# perform its own gcloud mutation within the same script. The two
+# small JSON manipulations below (reconstructing --to-revisions from
+# the captured full allocation, and verifying a rollback actually
+# restored it) use python3's stdlib json module — unrelated to, and
+# unaffected by, the candidate-traffic resolver correction elsewhere in
+# this file, which uses the canonical Node resolver
+# (ci/resolveCandidateTrafficEntry.js — see below).
 set -eu
 
 : "${PROJECT_ID:?PROJECT_ID is required}"
@@ -47,21 +49,44 @@ CANDIDATE_TRAFFIC_TAG="$(cat /workspace/.candidate-traffic-tag)"
 # embedded predicate `status.traffic[?tag=='...']` this script
 # previously used here too. Never exercised in a real build — no build
 # had ever reached promote.sh — but it is the IDENTICAL construction,
-# confirmed via the same live read-only reproduction). Reuses the SAME
-# ci/resolveCandidateTrafficEntry.py helper verify-deployed-candidate.sh
-# already uses — never a second, parallel parser or a weaker lookup.
+# confirmed via the same live read-only reproduction).
+#
+# Uses ci/resolveCandidateTrafficEntry.js (Node) — the ONE canonical
+# candidate-traffic resolver this entire pipeline uses; no second
+# implementation exists anywhere in this repository (single-
+# authoritative-resolver correction). This step already runs on the
+# combined ci-builder image (needed here for the inline lease-renewal
+# check, which requires node), which is confirmed to bundle node —
+# so this consumer, like verify-deployed-candidate.sh, invokes the
+# canonical Node resolver rather than maintaining a separate port.
+# An earlier version of this correction rewrote this logic in Node
+# specifically so it could be behaviorally tested with zero process
+# spawns from pipelineStatic.test.js (which runs on the node-only
+# node:20.18.1-bookworm-slim image verify-source uses), while
+# verify-deployed-candidate.sh temporarily kept a separate Python port
+# because its own image at the time lacked node. That split was a
+# real semantic-drift risk — two independently-maintained
+# implementations of the same fail-closed security check, with
+# nothing proving they stayed in sync — so verify-deployed-candidate.sh
+# was moved onto this same ci-builder image instead, and its Python
+# port was deleted. The resolver's validation contract (exactly-one-
+# match required, url must be HTTPS with no whitespace/control
+# characters, revisionName must match Cloud Run's own safe shape, no
+# fallback to the untagged baseline or any other entry) now exists in
+# exactly one place.
+#
 # CANDIDATE_TRAFFIC_TAG is passed via the environment, never
-# interpolated into Python source or a command line. The helper also
-# returns the matched entry's url; this script has no further use for
-# it beyond the resolution itself, but both lines are read and
-# validated here so a malformed or partially-invalid resolver response
-# can never silently supply only a "looks fine" revisionName.
+# interpolated into source or a command line. The helper also returns
+# the matched entry's url; this script has no further use for it
+# beyond the resolution itself, but both lines are read and validated
+# here so a malformed or partially-invalid resolver response can never
+# silently supply only a "looks fine" revisionName.
 CANDIDATE_TRAFFIC_JSON=$(gcloud run services describe "${SERVICE}" \
   --project="${PROJECT_ID}" --region="${REGION}" \
   --format="json(status.traffic)")
 
 CANDIDATE_TRAFFIC_RESOLVED=$(printf '%s' "$CANDIDATE_TRAFFIC_JSON" \
-  | CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" python3 ci/resolveCandidateTrafficEntry.py) \
+  | CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" node ci/resolveCandidateTrafficEntry.js) \
   || { echo "could not resolve candidate tag URL/revision"; exit 1; }
 CANDIDATE_URL=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '1p')
 CANDIDATE_REVISION=$(printf '%s\n' "$CANDIDATE_TRAFFIC_RESOLVED" | sed -n '2p')

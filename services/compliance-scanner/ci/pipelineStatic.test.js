@@ -170,12 +170,21 @@ test("Cloud Build declaration-order regression: the expected physical sequence b
 });
 
 // ---------------------------------------------------------------------
-// Builder-image assignment (Slice 2.2 final correction). Each step's
-// actual `name:` image must match what that step's own script actually
-// needs — proven per-step, not asserted only in a prose comment. The
-// three genuinely combined-tool steps use the digest-pinned
-// ci-builder image; every other step uses a single-purpose official
-// image, pinned by the exact digest resolved during this review.
+// Builder-image assignment (Slice 2.2 final correction, then the
+// single-authoritative-resolver correction). Each step's actual
+// `name:` image must match what that step's own script actually needs
+// — proven per-step, not asserted only in a prose comment. FOUR steps
+// now use the ci-builder substitution image: push-candidate,
+// deploy-candidate, and promote need it for combined lease-fencing +
+// mutation (node + gcloud/docker in one script); verify-deployed-
+// candidate needs it for a different reason — it is non-mutating and
+// never renews the lease, but now invokes the single canonical
+// ci/resolveCandidateTrafficEntry.js resolver (node) instead of a
+// second, independently-maintained Python port, closing a real
+// semantic-drift risk between two implementations of the same
+// fail-closed security check. Every other step uses a single-purpose
+// official image, pinned by the exact digest resolved during this
+// review.
 // ---------------------------------------------------------------------
 
 const NODE_IMAGE = "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc";
@@ -193,7 +202,7 @@ const EXPECTED_IMAGE_BY_STEP = {
   "build-candidate": DOCKER_IMAGE,
   "verify-candidate-container": DOCKER_IMAGE,
   "resolve-digest": CLOUD_SDK_IMAGE,
-  "verify-deployed-candidate": CLOUD_SDK_IMAGE,
+  "verify-deployed-candidate": CI_BUILDER_IMAGE,
   "push-candidate": CI_BUILDER_IMAGE,
   "deploy-candidate": CI_BUILDER_IMAGE,
   "promote": CI_BUILDER_IMAGE,
@@ -213,9 +222,49 @@ test("no image reference uses a floating tag alone — every image is pinned by 
   }
 });
 
-test("only the three genuinely combined-tool steps (push-candidate, deploy-candidate, promote) use the ci-builder image — every other step uses a single-purpose official image", () => {
+test("only the four combined-tool steps (push-candidate, deploy-candidate, promote, verify-deployed-candidate) use the ci-builder image — every other step uses a single-purpose official image", () => {
   const usingCiBuilder = steps.filter((s) => s.name === CI_BUILDER_IMAGE).map((s) => s.id).sort();
-  assert.deepEqual(usingCiBuilder, ["deploy-candidate", "promote", "push-candidate"]);
+  assert.deepEqual(usingCiBuilder, ["deploy-candidate", "promote", "push-candidate", "verify-deployed-candidate"]);
+});
+
+test("verify-deployed-candidate's step uses the SAME `${_CI_BUILDER_IMAGE_REF}` substitution literal every other combined-tool step uses — not a second, separately-spelled reference to the same image, and not a hardcoded digest", () => {
+  assert.equal(stepsById["verify-deployed-candidate"].name, "${_CI_BUILDER_IMAGE_REF}");
+  assert.equal(stepsById["verify-deployed-candidate"].name, stepsById["promote"].name);
+  assert.equal(stepsById["verify-deployed-candidate"].name, stepsById["deploy-candidate"].name);
+  assert.equal(stepsById["verify-deployed-candidate"].name, stepsById["push-candidate"].name);
+});
+
+test("_CI_BUILDER_IMAGE_REF is already a REQUIRED substitution (no default) — verify-deployed-candidate's move onto it introduces no new substitution and does not relax its no-default requirement", () => {
+  const subsSectionMatch = yamlText.match(/\nsubstitutions:\n([\s\S]*?)\nsteps:/);
+  assert.ok(subsSectionMatch, "could not locate substitutions: section");
+  const subsText = subsSectionMatch[1];
+  assert.ok(/_CI_BUILDER_IMAGE_REF:\s*""/.test(subsText), "_CI_BUILDER_IMAGE_REF must exist with an empty-string (no production-looking) default");
+  assert.equal((subsText.match(/^\s*_CI_BUILDER_IMAGE_REF:/gm) || []).length, 1, "_CI_BUILDER_IMAGE_REF must be declared exactly once");
+});
+
+test("verify-deployed-candidate's step identity — id, waitFor, args, env, and timeout — is unchanged by the image switch; only its name: (image) changed", () => {
+  const blockMatch = yamlText.match(/- id: verify-deployed-candidate[\s\S]*?(?=\n  - id: |\nimages:)/);
+  assert.ok(blockMatch, "could not locate the verify-deployed-candidate step block");
+  const block = blockMatch[0];
+  assert.ok(block.startsWith("- id: verify-deployed-candidate\n"), "step id must be unchanged");
+  assert.ok(block.includes('waitFor: ["deploy-candidate"]'), "waitFor must remain exactly [\"deploy-candidate\"] — unchanged by the image switch");
+  assert.ok(block.includes('args: ["services/compliance-scanner/ci/verify-deployed-candidate.sh"]'), "args must be unchanged");
+  for (const envVar of ["PROJECT_ID", "REGION", "SERVICE", "MONITORING_SA", "SYNTHETIC_TEST_BUCKET", "SCANNER_RUNTIME_SA", "BUILD_ID"]) {
+    assert.ok(block.includes(`"${envVar}=`), `env var ${envVar} must remain wired through, unchanged`);
+  }
+  assert.equal((block.match(/^\s*- "[A-Z_]+=/gm) || []).length, 7, "exactly 7 env entries — no env entry added or removed by the image switch");
+  assert.ok(block.includes("timeout: 600s"), "timeout must remain 600s — unchanged by the image switch");
+});
+
+test("ci-builder's own Dockerfile bakes in a sanity check for every tool verify-deployed-candidate.sh needs (gcloud, curl, sha256sum, node) — a build-time guarantee, not just an assumption this test suite makes; and it is built FROM the identical cloud-sdk base verify-deployed-candidate.sh used before, so gcloud/curl/sha256sum are provably unchanged, not re-derived", () => {
+  const dockerfileText = fs.readFileSync(path.join(REPO_ROOT, "ci", "Dockerfile.ci-builder"), "utf8");
+  assert.ok(
+    /^FROM gcr\.io\/google\.com\/cloudsdktool\/cloud-sdk@sha256:73906ef0503c3f0d7f32eae1ceb855cae80774d0fafcead5097f42285a8a86d9$/m.test(dockerfileText),
+    "ci-builder must be built FROM the exact same digest-pinned cloud-sdk image verify-deployed-candidate.sh used before the image switch — proves gcloud/curl/sha256sum are inherited unchanged, not a different/re-verified version"
+  );
+  for (const tool of ["node --version", "gcloud --version", "curl --version", "sha256sum --version"]) {
+    assert.ok(dockerfileText.includes(tool), `Dockerfile.ci-builder's own build-time sanity check must verify ${tool.split(" ")[0]} is present and working`);
+  }
 });
 
 test("resolve-digest is a separate, non-mutating, gcloud-only step between push-candidate and deploy-candidate", () => {
@@ -271,12 +320,27 @@ test("no step's script under ci/ uses a tool its assigned image does not have: n
     assert.ok(!invokesCommand(text, "node"), `${fname} (docker-only image) must not invoke node`);
   }
 
-  const cloudSdkOnlySteps = ["resolve-digest.sh", "verify-deployed-candidate.sh"];
+  const cloudSdkOnlySteps = ["resolve-digest.sh"];
   for (const fname of cloudSdkOnlySteps) {
     const text = scriptText(fname);
     assert.ok(!invokesCommand(text, "docker"), `${fname} (cloud-sdk-only image) must not invoke docker`);
     assert.ok(!invokesCommand(text, "node"), `${fname} (cloud-sdk-only image) must not invoke node`);
   }
+
+  // verify-deployed-candidate.sh now runs on the ci-builder image
+  // (single-authoritative-resolver correction) and DOES legitimately
+  // invoke node (for the shared resolver) — it is intentionally
+  // excluded from cloudSdkOnlySteps above. It still has no reason to
+  // invoke docker, which this check confirms.
+  assert.ok(!invokesCommand(scriptText("verify-deployed-candidate.sh"), "docker"), "verify-deployed-candidate.sh (ci-builder image) must still never invoke docker — it does not need it");
+  // Plain substring check, not invokesCommand: node is invoked here
+  // via the `VAR=value node ...` env-var-prefix shell form (piped
+  // after an env-var assignment), which invokesCommand's command-
+  // position regex does not match by design (it looks for a tool at
+  // the start of a line or after a shell separator, not after a
+  // leading `NAME=value` token) — the exact same shape already proven
+  // for promote.sh's own resolver invocation elsewhere in this file.
+  assert.ok(scriptText("verify-deployed-candidate.sh").includes("node ci/resolveCandidateTrafficEntry.js"), "sanity: verify-deployed-candidate.sh must invoke node — it now runs the shared JS resolver");
 });
 
 test("sanity: invokesCommand actually detects real invocations (proves the helper isn't accidentally always-false)", () => {
@@ -1256,7 +1320,7 @@ test("production validation unchanged: src/contract.js's isSafeQuarantineObjectP
 // separate variables, neither derived from the other.
 // ---------------------------------------------------------------------
 
-test("verify-deployed-candidate.sh declares CANDIDATE_URL and BASE_SERVICE_URL as two separately-sourced variables — CANDIDATE_URL from the resolved candidate traffic entry (Slice 2.2 correction: ci/resolveCandidateTrafficEntry.py, not a raw gcloud --format expression), BASE_SERVICE_URL from its own independent gcloud describe call", () => {
+test("verify-deployed-candidate.sh declares CANDIDATE_URL and BASE_SERVICE_URL as two separately-sourced variables — CANDIDATE_URL from the resolved candidate traffic entry (Slice 2.2 correction: ci/resolveCandidateTrafficEntry.js, not a raw gcloud --format expression), BASE_SERVICE_URL from its own independent gcloud describe call", () => {
   const text = scriptText("verify-deployed-candidate.sh");
   assert.ok(/CANDIDATE_URL=\$\(printf '%s\\n' "\$CANDIDATE_TRAFFIC_RESOLVED" \| sed -n '1p'\)/.test(text), "CANDIDATE_URL must be read from line 1 of the resolved-traffic-entry output");
   assert.ok(/BASE_SERVICE_URL=\$\(gcloud run services describe/.test(text));
@@ -1321,16 +1385,61 @@ test("CANDIDATE_URL, CANDIDATE_REVISION, and BASE_SERVICE_URL all fail closed (e
 // `status.traffic[?tag=='...']` this step's two gcloud describe calls
 // previously used — confirmed empirically (live, read-only) against
 // the real deployed candidate, whose matching entry genuinely existed
-// and was trivially resolvable via a plain JSON read. Fixed via
-// ci/resolveCandidateTrafficEntry.py, a small, independently-testable
-// helper this suite exercises directly (spawning the real python3
-// script, not a hand-duplicated reimplementation of its logic).
+// and was trivially resolvable via a plain JSON read.
+//
+// SECOND correction layered on top (build ea9bad30-d2e2-4aa1-9fdb-a765bde94372,
+// step verify-source: "spawnSync git ENOENT" / python3 spawn
+// failures): the original fix was a single Python helper,
+// ci/resolveCandidateTrafficEntry.py, spawned by BOTH shell consumers.
+// That broke verify-source, which runs `node --test test/ ci/*.test.js`
+// — i.e. THIS FILE — on node:20.18.1-bookworm-slim, a minimal image
+// with node but neither python3 nor git; every test here that spawned
+// python3 failed with a null exit status (ENOENT), not a resolver
+// logic failure. The fix at that point kept TWO independently-
+// maintained resolver implementations: a canonical .js file (used by
+// promote.sh, whose ci-builder image had node) and an UNCHANGED .py
+// port (used by verify-deployed-candidate.sh, whose plain cloud-sdk
+// image had python3 but not node, confirmed via local Docker
+// inspection of that exact digest-pinned image).
+//
+// THIRD correction (this one — single-authoritative-resolver
+// correction): that two-implementation split was accepted at the time
+// as the only way to keep every consumer running on an image that
+// actually had the interpreter it needed, but it left a real
+// semantic-drift risk in place — two independently-maintained
+// implementations of the same fail-closed security check (exactly-
+// one-match, HTTPS-only, control-character rejection, Cloud Run
+// revision-name shape), with nothing proving they stayed in sync if
+// either was edited alone. Rather than accept that risk indefinitely,
+// verify-deployed-candidate.sh was moved onto the SAME ci-builder
+// image push-candidate.sh/deploy-candidate.sh/promote.sh already use
+// (confirmed via local Docker inspection to already contain
+// gcloud/curl/sha256sum — because ci-builder's own base IS the
+// identical cloud-sdk image this step used before — plus node, added
+// on top; no new image was built or published), and
+// ci/resolveCandidateTrafficEntry.py was DELETED. Exactly one resolver
+// implementation exists now:
+//   - ci/resolveCandidateTrafficEntry.js — canonical, and the ONLY
+//     candidate-traffic resolver in this repository. Fully
+//     BEHAVIORALLY tested below via process.execPath (the exact Node
+//     binary running this test suite — always present, can never
+//     ENOENT). Invoked identically by BOTH verify-deployed-candidate.sh
+//     and promote.sh, and directly required here for pure-function-
+//     level tests.
 // ---------------------------------------------------------------------
 
-const RESOLVE_SCRIPT_PATH = path.join(REPO_ROOT, "ci", "resolveCandidateTrafficEntry.py");
+const JS_RESOLVE_MODULE_PATH = path.join(REPO_ROOT, "ci", "resolveCandidateTrafficEntry.js");
+const { resolveCandidateTrafficEntry } = require(JS_RESOLVE_MODULE_PATH);
 
+// Behavioral CLI test: spawns the ACTUAL Node binary running this test
+// suite (process.execPath, never the bare string "node" — this can
+// never ENOENT, by construction, since it IS the interpreter currently
+// executing) against the real .js file's CLI entrypoint, exercising
+// stdin reading, environment-variable reading, exit codes, and
+// stdout/stderr framing exactly as the shell scripts invoke it — not
+// merely the exported pure function.
 function runResolveCandidateTrafficEntry({ trafficJson, tag }) {
-  return spawnSync("python3", [RESOLVE_SCRIPT_PATH], {
+  return spawnSync(process.execPath, [JS_RESOLVE_MODULE_PATH], {
     input: trafficJson,
     env: { ...process.env, CANDIDATE_TRAFFIC_TAG: tag },
     encoding: "utf8",
@@ -1352,7 +1461,7 @@ const REAL_CAPTURED_TRAFFIC_JSON = JSON.stringify({
   },
 });
 
-test("resolveCandidateTrafficEntry.py: the REAL captured traffic structure from build aa407156 resolves the exact expected tag, URL, and revision", () => {
+test("resolveCandidateTrafficEntry.js (spawned via process.execPath): the REAL captured traffic structure from build aa407156 resolves the exact expected tag, URL, and revision", () => {
   const result = runResolveCandidateTrafficEntry({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-580e47e8-aa407156" });
   assert.equal(result.status, 0, `expected success, stderr: ${result.stderr}`);
   const [url, revisionName] = result.stdout.trim().split("\n");
@@ -1361,20 +1470,50 @@ test("resolveCandidateTrafficEntry.py: the REAL captured traffic structure from 
   assert.equal(revisionName, "compliance-scanner-00003-wof");
 });
 
-test("resolveCandidateTrafficEntry.py: the 100%-traffic untagged baseline entry is never selected, even when it is the only entry present (no fallback)", () => {
+test("resolveCandidateTrafficEntry.js: stdout is EXACTLY two lines on success (url, then revisionName) — nothing else, no trailing blank lines, no logging noise", () => {
+  const result = runResolveCandidateTrafficEntry({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-580e47e8-aa407156" });
+  assert.equal(result.status, 0);
+  const lines = result.stdout.split("\n");
+  assert.equal(lines.length, 3, `expected exactly 2 content lines + trailing newline, got: ${JSON.stringify(result.stdout)}`);
+  assert.equal(lines[2], "", "stdout must end with a single trailing newline, no extra content");
+  assert.equal(result.stderr, "", "nothing may be printed to stderr on success");
+});
+
+test("resolveCandidateTrafficEntry.js: every failure path prints its diagnostic to stderr ONLY — stdout stays empty", () => {
+  const result = runResolveCandidateTrafficEntry({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-does-not-exist-00000000" });
+  assert.notEqual(result.status, 0);
+  assert.equal(result.stdout, "", "stdout must stay empty on failure");
+  assert.ok(result.stderr.length > 0, "a diagnostic must be printed to stderr");
+});
+
+test("resolveCandidateTrafficEntry.js: the 100%-traffic untagged baseline entry is never selected, even when it is the only entry present (no fallback)", () => {
   const onlyBaseline = JSON.stringify({ status: { traffic: [{ percent: 100, revisionName: "compliance-scanner-00002-h9h" }] } });
   const result = runResolveCandidateTrafficEntry({ trafficJson: onlyBaseline, tag: "candidate-580e47e8-aa407156" });
   assert.notEqual(result.status, 0, "must fail rather than silently fall back to the untagged baseline entry");
   assert.equal(result.stdout, "", "no output may be printed on failure");
 });
 
-test("resolveCandidateTrafficEntry.py: no matching tag fails closed with a clear diagnostic", () => {
+test("resolveCandidateTrafficEntry.js: a previously-deployed, now-stale zero-percent candidate (a different tag) is never selected for a NEW candidate's tag", () => {
+  const staleAndNew = JSON.stringify({
+    status: {
+      traffic: [
+        { percent: 100, revisionName: "compliance-scanner-00002-h9h" },
+        { revisionName: "compliance-scanner-00003-wof", tag: "candidate-580e47e8-aa407156", url: "https://old.a.run.app" },
+      ],
+    },
+  });
+  const result = runResolveCandidateTrafficEntry({ trafficJson: staleAndNew, tag: "candidate-93b0e305-newbuild1" });
+  assert.notEqual(result.status, 0, "must fail rather than silently select an old candidate with a different tag");
+  assert.ok(result.stderr.includes("no traffic entry has tag"), `expected a no-match diagnostic, got: ${result.stderr}`);
+});
+
+test("resolveCandidateTrafficEntry.js: no matching tag fails closed with a clear diagnostic", () => {
   const result = runResolveCandidateTrafficEntry({ trafficJson: REAL_CAPTURED_TRAFFIC_JSON, tag: "candidate-does-not-exist-00000000" });
   assert.notEqual(result.status, 0);
   assert.ok(result.stderr.includes("no traffic entry has tag"), `expected a no-match diagnostic, got: ${result.stderr}`);
 });
 
-test("resolveCandidateTrafficEntry.py: duplicate matching tags fail closed rather than picking either one arbitrarily", () => {
+test("resolveCandidateTrafficEntry.js: duplicate matching tags fail closed rather than picking either one arbitrarily", () => {
   const duplicateTag = JSON.stringify({
     status: {
       traffic: [
@@ -1388,7 +1527,7 @@ test("resolveCandidateTrafficEntry.py: duplicate matching tags fail closed rathe
   assert.ok(result.stderr.includes("2 traffic entries"), `expected a duplicate-match diagnostic, got: ${result.stderr}`);
 });
 
-test("resolveCandidateTrafficEntry.py: a matched entry with a missing or empty url fails closed", () => {
+test("resolveCandidateTrafficEntry.js: a matched entry with a missing or empty url fails closed", () => {
   for (const badUrl of [undefined, ""]) {
     const entry = { revisionName: "compliance-scanner-00003-wof", tag: "candidate-x" };
     if (badUrl !== undefined) entry.url = badUrl;
@@ -1399,7 +1538,7 @@ test("resolveCandidateTrafficEntry.py: a matched entry with a missing or empty u
   }
 });
 
-test("resolveCandidateTrafficEntry.py: a matched entry with a missing or empty revisionName fails closed", () => {
+test("resolveCandidateTrafficEntry.js: a matched entry with a missing or empty revisionName fails closed", () => {
   for (const badRevision of [undefined, ""]) {
     const entry = { tag: "candidate-x", url: "https://x.a.run.app" };
     if (badRevision !== undefined) entry.revisionName = badRevision;
@@ -1410,13 +1549,13 @@ test("resolveCandidateTrafficEntry.py: a matched entry with a missing or empty r
   }
 });
 
-test("resolveCandidateTrafficEntry.py: malformed JSON on stdin fails closed", () => {
+test("resolveCandidateTrafficEntry.js: malformed JSON on stdin fails closed", () => {
   const result = runResolveCandidateTrafficEntry({ trafficJson: "{not valid json", tag: "candidate-x" });
   assert.notEqual(result.status, 0);
   assert.ok(result.stderr.includes("not valid JSON"), `expected a JSON-parse diagnostic, got: ${result.stderr}`);
 });
 
-test("resolveCandidateTrafficEntry.py: absent or non-array status.traffic fails closed", () => {
+test("resolveCandidateTrafficEntry.js: absent or non-array status.traffic fails closed", () => {
   for (const badTraffic of [
     JSON.stringify({ status: {} }),
     JSON.stringify({ status: { traffic: "not-an-array" } }),
@@ -1428,14 +1567,14 @@ test("resolveCandidateTrafficEntry.py: absent or non-array status.traffic fails 
   }
 });
 
-test("resolveCandidateTrafficEntry.py: a non-HTTPS (e.g. plain http) URL fails closed", () => {
+test("resolveCandidateTrafficEntry.js: a non-HTTPS (e.g. plain http) URL fails closed", () => {
   const trafficJson = JSON.stringify({ status: { traffic: [{ tag: "candidate-x", revisionName: "compliance-scanner-00003-wof", url: "http://insecure.a.run.app" }] } });
   const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
   assert.notEqual(result.status, 0);
   assert.ok(result.stderr.includes("HTTPS"), `expected an HTTPS-specific diagnostic, got: ${result.stderr}`);
 });
 
-test("resolveCandidateTrafficEntry.py: a URL containing whitespace or a control character fails closed", () => {
+test("resolveCandidateTrafficEntry.js: a URL containing whitespace or a control character fails closed", () => {
   for (const badUrl of ["https://evil.a.run.app extra-arg", "https://evil.a.run.app\nInjected-Header: x", "https://evil.a.run.app\t"]) {
     const trafficJson = JSON.stringify({ status: { traffic: [{ tag: "candidate-x", revisionName: "compliance-scanner-00003-wof", url: badUrl }] } });
     const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
@@ -1444,7 +1583,7 @@ test("resolveCandidateTrafficEntry.py: a URL containing whitespace or a control 
   }
 });
 
-test("resolveCandidateTrafficEntry.py: a malformed (non-Cloud-Run-safe) revision name fails closed", () => {
+test("resolveCandidateTrafficEntry.js: a malformed (non-Cloud-Run-safe) revision name fails closed", () => {
   for (const badRevision of ["UPPERCASE-not-allowed", "-starts-with-hyphen", "ends-with-hyphen-", "has spaces", "has_underscore", "semi;colon"]) {
     const trafficJson = JSON.stringify({ status: { traffic: [{ tag: "candidate-x", revisionName: badRevision, url: "https://x.a.run.app" }] } });
     const result = runResolveCandidateTrafficEntry({ trafficJson, tag: "candidate-x" });
@@ -1453,19 +1592,23 @@ test("resolveCandidateTrafficEntry.py: a malformed (non-Cloud-Run-safe) revision
   }
 });
 
-test("resolveCandidateTrafficEntry.py: CANDIDATE_TRAFFIC_TAG is read only from the environment — never interpolated into the script's own Python source, never taken from argv", () => {
-  const pyText = fs.readFileSync(RESOLVE_SCRIPT_PATH, "utf8");
-  assert.ok(pyText.includes('os.environ.get("CANDIDATE_TRAFFIC_TAG"'), "the tag must be read via os.environ, not embedded as a literal");
-  assert.ok(!/sys\.argv\[1\]/.test(pyText), "the tag must not be taken from argv");
-  // Sanity: the calling shell script passes it as an env-var prefix on
-  // the python3 invocation, never as a command-line argument or
-  // interpolated into a -c string.
-  const shText = scriptText("verify-deployed-candidate.sh");
-  assert.ok(/CANDIDATE_TRAFFIC_TAG="\$CANDIDATE_TRAFFIC_TAG" python3 ci\/resolveCandidateTrafficEntry\.py/.test(shText), "the shell caller must pass the tag as an environment variable prefix, not an argv value");
-  assert.ok(!/python3 -c/.test(shText), "verify-deployed-candidate.sh must never embed Python source inline with an interpolated tag");
+test("resolveCandidateTrafficEntry.js: CANDIDATE_TRAFFIC_TAG is read only from the environment — never interpolated into source, never taken from argv, no eval/Function usage anywhere in the module", () => {
+  const jsText = fs.readFileSync(JS_RESOLVE_MODULE_PATH, "utf8");
+  assert.ok(jsText.includes('process.env.CANDIDATE_TRAFFIC_TAG'), "the tag must be read via process.env, not embedded as a literal");
+  assert.ok(!/process\.argv\[/.test(jsText), "the tag must not be taken from argv");
+  assert.ok(!/\beval\s*\(/.test(jsText), "the module must never call eval()");
+  assert.ok(!/new Function\s*\(/.test(jsText), "the module must never construct a Function from a string");
+  assert.ok(
+    !nonCommentLines(jsText).some((l) => /child_process|execSync|spawnSync|exec\(/.test(l)),
+    "the module must never shell out to anything on any executable line (its own doc comment legitimately quotes 'spawnSync' once, describing the historical bug this file closes)"
+  );
+  // Sanity: the calling shell scripts pass it as an env-var prefix on
+  // the invocation, never as a command-line argument.
+  const promoteText = scriptText("promote.sh");
+  assert.ok(/CANDIDATE_TRAFFIC_TAG="\$CANDIDATE_TRAFFIC_TAG" node ci\/resolveCandidateTrafficEntry\.js/.test(promoteText), "promote.sh must pass the tag as an environment variable prefix, not an argv value");
 });
 
-test("resolveCandidateTrafficEntry.py: shell metacharacters and command-substitution-shaped strings in a tag are treated as inert data — they cannot execute code or alter which entry matches", () => {
+test("resolveCandidateTrafficEntry.js: shell metacharacters and command-substitution-shaped strings in a tag are treated as inert data — they cannot execute code or alter which entry matches", () => {
   const maliciousTag = "$(rm -rf /); echo pwned `id`";
   const trafficJson = JSON.stringify({
     status: {
@@ -1484,6 +1627,70 @@ test("resolveCandidateTrafficEntry.py: shell metacharacters and command-substitu
   // deleted, no subshell executed) is itself part of the proof; the
   // matched-value assertions above additionally confirm the string was
   // compared, not evaluated.
+});
+
+test("resolveCandidateTrafficEntry.js: the pure exported function (require()d directly, zero process spawns) agrees exactly with the CLI-spawned behavior above for the same inputs — proving the CLI wrapper does not alter the underlying decision logic", () => {
+  const direct = resolveCandidateTrafficEntry(JSON.parse(REAL_CAPTURED_TRAFFIC_JSON), "candidate-580e47e8-aa407156");
+  assert.deepEqual(direct, {
+    ok: true,
+    url: "https://candidate-580e47e8-aa407156---compliance-scanner-k2hhuwvftq-ew.a.run.app",
+    revisionName: "compliance-scanner-00003-wof",
+  });
+});
+
+// ---------------------------------------------------------------------
+// Single-authoritative-resolver correction: exactly one candidate-
+// traffic resolver implementation exists in this repository. The
+// earlier ci/resolveCandidateTrafficEntry.py port (kept only because
+// verify-deployed-candidate.sh's old image lacked node) is DELETED —
+// verify-deployed-candidate.sh now runs on ci-builder and invokes the
+// same ci/resolveCandidateTrafficEntry.js every other consumer uses.
+// These checks are spawn-free and fs-only: they prove the .py file is
+// gone and no reference to it survives anywhere in this repository's
+// executable code or documentation, without ever launching python3
+// (which is not present on the node:20.18.1-bookworm-slim image
+// verify-source runs this test suite on).
+// ---------------------------------------------------------------------
+
+test("exactly one candidate-traffic resolver implementation exists: ci/resolveCandidateTrafficEntry.js is present; ci/resolveCandidateTrafficEntry.py does not exist anywhere in the repository", () => {
+  assert.ok(fs.existsSync(JS_RESOLVE_MODULE_PATH), "the canonical .js resolver must exist");
+  assert.ok(!fs.existsSync(path.join(REPO_ROOT, "ci", "resolveCandidateTrafficEntry.py")), "the .py resolver port must be deleted — single-authoritative-resolver correction");
+
+  const resolverFilesInCiDir = fs.readdirSync(path.join(REPO_ROOT, "ci")).filter((f) => f.toLowerCase().includes("resolvecandidatetraffic"));
+  assert.deepEqual(resolverFilesInCiDir, ["resolveCandidateTrafficEntry.js"], "exactly one resolver file (the canonical .js) may exist in ci/ — no second implementation, no leftover .py, no .pyc, no __pycache__ entry");
+});
+
+test("no .pyc or __pycache__ artifact from the deleted Python resolver remains anywhere under services/compliance-scanner", () => {
+  const found = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === ".git") continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "__pycache__") found.push(full);
+        else walk(full);
+      } else if (entry.name.endsWith(".pyc")) {
+        found.push(full);
+      }
+    }
+  }
+  walk(REPO_ROOT);
+  assert.deepEqual(found, [], `no __pycache__/.pyc artifact may remain: ${JSON.stringify(found)}`);
+});
+
+test("no executable line anywhere under ci/*.sh or the cloudbuild YAML references resolveCandidateTrafficEntry.py — no script or doc claims the deleted Python resolver is still authoritative on any EXECUTABLE line (comment-only historical mentions explaining the correction's own history are expected and excluded)", () => {
+  for (const fname of fs.readdirSync(path.join(REPO_ROOT, "ci"))) {
+    if (!fname.endsWith(".sh")) continue;
+    const text = fs.readFileSync(path.join(REPO_ROOT, "ci", fname), "utf8");
+    assert.ok(
+      !nonCommentLines(text).some((l) => l.includes("resolveCandidateTrafficEntry.py")),
+      `${fname}: no executable line may reference the deleted Python resolver`
+    );
+  }
+  assert.ok(
+    !nonCommentLines(yamlText).some((l) => l.includes("resolveCandidateTrafficEntry.py")),
+    "cloudbuild.signature-refresh.yaml: no executable line may reference the deleted Python resolver"
+  );
 });
 
 test("verify-deployed-candidate.sh calls gcloud run services describe exactly once to build the traffic JSON that supplies BOTH CANDIDATE_URL and CANDIDATE_REVISION — no second, separate traffic-fetching call exists", () => {
@@ -1515,33 +1722,89 @@ test("verify-deployed-candidate.sh: the traffic-resolution call fails closed via
   const text = scriptText("verify-deployed-candidate.sh");
   assert.ok(
     /CANDIDATE_TRAFFIC_RESOLVED=\$\([\s\S]*?\) \\\n\s*\|\| \{ echo "could not resolve candidate tag URL\/revision"; exit 1; \}/.test(text),
-    "the resolveCandidateTrafficEntry.py call must be explicitly guarded with || { ...; exit 1; }"
+    "the resolveCandidateTrafficEntry.js call must be explicitly guarded with || { ...; exit 1; }"
   );
 });
 
-test("deploy-candidate.sh is byte-for-byte unchanged by either the verify-deployed-candidate.sh or the promote.sh traffic-query correction (verified against git, not merely 'still contains expected strings')", () => {
-  const { execFileSync } = require("node:child_process");
-  const relPath = "services/compliance-scanner/ci/deploy-candidate.sh";
-  let diffOutput = "";
-  try {
-    diffOutput = execFileSync("git", ["diff", "--stat", "--", relPath], { cwd: REPO_ROOT, encoding: "utf8" });
-  } catch (err) {
-    assert.fail(`git diff failed for deploy-candidate.sh: ${err.message}`);
-  }
-  assert.equal(diffOutput.trim(), "", `deploy-candidate.sh must be byte-for-byte unchanged by this correction, but git reports: ${diffOutput}`);
+// ---------------------------------------------------------------------
+// deploy-candidate.sh invariant checks (Slice 2.2, replacing a
+// git-dependent "byte-for-byte unchanged" test — build
+// ea9bad30-d2e2-4aa1-9fdb-a765bde94372, step verify-source: "spawnSync
+// git ENOENT". A runtime `git diff` check was invalid on two counts:
+// the minimal node:20.18.1-bookworm-slim image has no git binary at
+// all, AND the Cloud Build source archive itself excludes .git
+// entirely — even a hypothetical git-equipped image would have no
+// repository history to diff against once uploaded. Replaced with
+// deterministic, spawn-free fs.readFileSync-based checks (via the
+// existing scriptText() helper) that verify the SPECIFIC invariants
+// this correction must not disturb, rather than a blunt
+// "nothing changed" proxy for them.
+// ---------------------------------------------------------------------
+
+test("deploy-candidate.sh: candidate-tag validation and the 46-character combined length enforcement remain present and unweakened (unaffected by the traffic-resolver correction in the other two files)", () => {
+  const text = scriptText("deploy-candidate.sh");
+  assert.ok(/case "\$COMMIT_SHA" in/.test(text), "COMMIT_SHA shape validation must still exist");
+  assert.ok(/case "\$BUILD_ID" in/.test(text), "BUILD_ID shape validation must still exist");
+  assert.ok(text.includes('CANDIDATE_TRAFFIC_TAG="candidate-${SHORT_COMMIT_SHA}-${SHORT_BUILD_ID}"'), "the short-tag construction must be unchanged");
+  assert.ok(/CANDIDATE_TAG_COMBINED_LENGTH="?\$\(\(\$\{#SERVICE\} \+ \$\{#CANDIDATE_TRAFFIC_TAG\}\)\)/.test(text), "the combined-length calculation must be unchanged");
+  assert.ok(/if \[ "\$CANDIDATE_TAG_COMBINED_LENGTH" -gt 46 \]; then/.test(text), "the 46-character limit enforcement must be unchanged");
+});
+
+test("deploy-candidate.sh: the deploy command uses the persisted, validated candidate tag — the SAME variable the length check above validated, never a re-derived value", () => {
+  const text = scriptText("deploy-candidate.sh");
+  assert.ok(text.includes('echo "$CANDIDATE_TRAFFIC_TAG" > /workspace/.candidate-traffic-tag'), "the validated tag must still be persisted for downstream consumers");
+  assert.ok(text.includes('--tag="${CANDIDATE_TRAFFIC_TAG}"'), "gcloud run deploy must still use the same validated tag variable");
+  const tagAssignments = (text.match(/^CANDIDATE_TRAFFIC_TAG=/gm) || []).length;
+  assert.equal(tagAssignments, 1, "CANDIDATE_TRAFFIC_TAG must be assigned exactly once — no second, re-derived value");
+});
+
+test("deploy-candidate.sh: the immutable, digest-pinned image reference remains used for the deploy — never a mutable tag", () => {
+  const text = scriptText("deploy-candidate.sh");
+  assert.ok(text.includes('DIGEST="$(cat /workspace/.candidate-digest)"'), "must still deploy the digest resolved by resolve-digest.sh");
+  assert.ok(text.includes('IMAGE_REF="${REGION_HOST}/${PROJECT_ID}/${REPOSITORY:?REPOSITORY is required}/${IMAGE_NAME:?IMAGE_NAME is required}@${DIGEST}"'), "the image reference must still be digest-pinned (@DIGEST, not a :tag)");
+  assert.ok(text.includes('--image="${IMAGE_REF}"'), "gcloud run deploy must still deploy by the digest-pinned image reference");
+});
+
+test("deploy-candidate.sh: the expected scanner runtime service account is still supplied to the deploy command, unchanged", () => {
+  const text = scriptText("deploy-candidate.sh");
+  assert.ok(text.includes('--service-account="${SCANNER_RUNTIME_SA}"'), "gcloud run deploy must still supply the runtime service account");
+});
+
+test("deploy-candidate.sh: no --allow-unauthenticated behavior exists — --no-allow-unauthenticated is still present, and no bare --allow-unauthenticated appears anywhere", () => {
+  const text = scriptText("deploy-candidate.sh");
+  assert.ok(text.includes("--no-allow-unauthenticated"), "must still deploy with no unauthenticated access");
+  assert.ok(
+    !nonCommentLines(text).some((l) => /(?<!--no-)--allow-unauthenticated/.test(l)),
+    "must never introduce a bare --allow-unauthenticated on an executable line"
+  );
+});
+
+test("deploy-candidate.sh: no unrelated traffic mutation was added — --no-traffic is still present (the candidate must receive zero traffic at deploy time), and this file still contains no `gcloud run services update-traffic` call (that mutation belongs to promote.sh alone)", () => {
+  const text = scriptText("deploy-candidate.sh");
+  assert.ok(text.includes("--no-traffic"), "the candidate deploy must still request zero traffic");
+  assert.ok(!text.includes("update-traffic"), "deploy-candidate.sh must never itself shift traffic — that is promote.sh's sole responsibility");
 });
 
 // ---------------------------------------------------------------------
 // promote.sh candidate-revision resolution correction (Slice 2.2,
 // eliminating the IDENTICAL [?tag==...] defect confirmed present in
-// promote.sh — the same root cause and the same
-// ci/resolveCandidateTrafficEntry.py fix already applied and tested
-// above for verify-deployed-candidate.sh. Never exercised in a real
-// build (no build has ever reached promote.sh), but the construction
-// is byte-identical to the one proven broken there. These tests
-// extract and BEHAVIORALLY RUN the real corrected block from
-// promote.sh against a fake `gcloud` on PATH and the REAL, unmocked
-// resolveCandidateTrafficEntry.py helper — the same
+// promote.sh — the same root cause as verify-deployed-candidate.sh's
+// own correction. Never exercised in a real build (no build has ever
+// reached promote.sh), but the construction was byte-identical to the
+// one proven broken there.
+//
+// promote.sh uses ci/resolveCandidateTrafficEntry.**js** (node) — the
+// SAME single authoritative resolver verify-deployed-candidate.sh now
+// also uses (single-authoritative-resolver correction; see the large
+// section comment above this file's other resolver tests for the full
+// history). This means `sh`-spawned tests below, which run promote.sh's
+// own extracted block (which itself invokes bare `node` on PATH,
+// exactly as production does), work correctly here in verify-source's
+// own node-only image.
+//
+// These tests extract and BEHAVIORALLY RUN the real corrected block
+// from promote.sh against a fake `gcloud` on PATH and the REAL,
+// unmocked resolveCandidateTrafficEntry.js helper — the same
 // extract-and-execute technique this file's own acquire-lock.sh and
 // deploy-candidate.sh Correction/behavioral tests already use.
 // ---------------------------------------------------------------------
@@ -1585,11 +1848,22 @@ function runPromoteCandidateResolution({ trafficJson, tag }) {
   return result;
 }
 
-test("promote.sh uses the shared ci/resolveCandidateTrafficEntry.py helper — never a second, parallel parser or a weaker ad hoc lookup", () => {
-  const text = scriptText("promote.sh");
-  assert.ok(text.includes("python3 ci/resolveCandidateTrafficEntry.py"), "promote.sh must invoke the shared resolver helper");
-  const otherPyFiles = fs.readdirSync(path.join(REPO_ROOT, "ci")).filter((f) => f.endsWith(".py") && f !== "resolveCandidateTrafficEntry.py");
-  assert.deepEqual(otherPyFiles, [], "no second Python resolver/parser file may exist alongside the shared one");
+test("both shell consumers — promote.sh AND verify-deployed-candidate.sh — invoke the SAME single authoritative resolver, ci/resolveCandidateTrafficEntry.js via node; neither references a Python resolver anywhere in executable code, and no second resolver file of any kind exists", () => {
+  const promoteText = scriptText("promote.sh");
+  const verifyText = scriptText("verify-deployed-candidate.sh");
+  assert.ok(promoteText.includes("node ci/resolveCandidateTrafficEntry.js"), "promote.sh must invoke the canonical Node resolver helper");
+  assert.ok(verifyText.includes("node ci/resolveCandidateTrafficEntry.js"), "verify-deployed-candidate.sh must invoke the SAME canonical Node resolver helper");
+  for (const [fname, text] of [["promote.sh", promoteText], ["verify-deployed-candidate.sh", verifyText]]) {
+    assert.ok(
+      !nonCommentLines(text).some((l) => l.includes("resolveCandidateTrafficEntry.py") || l.includes("python3 ci/resolveCandidateTrafficEntry")),
+      `${fname} must never reference a Python resolver on any executable line — no python3 dependency remains for candidate traffic resolution`
+    );
+  }
+
+  const otherJsResolvers = fs.readdirSync(path.join(REPO_ROOT, "ci")).filter((f) => f.endsWith(".js") && f.toLowerCase().includes("resolvecandidatetraffic") && f !== "resolveCandidateTrafficEntry.js");
+  assert.deepEqual(otherJsResolvers, [], "no second Node resolver/parser file may exist alongside the canonical one");
+  const anyPyResolvers = fs.readdirSync(path.join(REPO_ROOT, "ci")).filter((f) => f.endsWith(".py") && f.toLowerCase().includes("resolvecandidatetraffic"));
+  assert.deepEqual(anyPyResolvers, [], "no Python resolver file may exist at all — single-authoritative-resolver correction");
 });
 
 test("promote.sh makes exactly one structured (json) gcloud describe call FOR CANDIDATE RESOLUTION specifically (CANDIDATE_TRAFFIC_JSON=...) — no second, separate candidate-traffic-fetching call exists. (A second, later --format=\"json(status.traffic)\" call does legitimately exist for an entirely different purpose — RESTORED=..., the rollback-verification read — and is correctly excluded by matching the CANDIDATE_TRAFFIC_JSON variable name specifically, not just the shared format string.)", () => {
@@ -1664,18 +1938,87 @@ test("promote.sh behavioral: shell-metacharacter-shaped tag content remains iner
   assert.ok(result.stdout.includes("RESOLVED_CANDIDATE_REVISION=compliance-scanner-00003-wof"), `expected the correct revision despite the malicious tag, got: ${result.stdout}`);
 });
 
-test("verify-deployed-candidate.sh and promote.sh integrate with the SAME resolver semantics — identical gcloud call shape, identical env-var tag passing, identical output-parsing (sed -n '1p'/'2p'), identical fail-closed guard wording pattern", () => {
+test("verify-deployed-candidate.sh and promote.sh integrate with the resolver IDENTICALLY — same gcloud call shape, same env-var tag passing, same output-parsing (sed -n '1p'/'2p'), same fail-closed guard wording, and the EXACT SAME invocation line (interpreter, file, and env-var passing all identical — no divergence of any kind remains between the two consumers)", () => {
   const verifyText = scriptText("verify-deployed-candidate.sh");
   const promoteText = scriptText("promote.sh");
   for (const text of [verifyText, promoteText]) {
     assert.ok(text.includes('--format="json(status.traffic)"'));
-    assert.ok(text.includes('CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" python3 ci/resolveCandidateTrafficEntry.py'));
     assert.ok(text.includes("CANDIDATE_URL=$(printf '%s\\n' \"$CANDIDATE_TRAFFIC_RESOLVED\" | sed -n '1p')"));
     assert.ok(text.includes("CANDIDATE_REVISION=$(printf '%s\\n' \"$CANDIDATE_TRAFFIC_RESOLVED\" | sed -n '2p')"));
     assert.ok(text.includes('[ -n "$CANDIDATE_URL" ] || { echo "could not resolve candidate tag URL"; exit 1; }'));
     assert.ok(text.includes('[ -n "$CANDIDATE_REVISION" ] || { echo "could not resolve candidate revision name"; exit 1; }'));
   }
+  const CANONICAL_INVOCATION = 'CANDIDATE_TRAFFIC_TAG="$CANDIDATE_TRAFFIC_TAG" node ci/resolveCandidateTrafficEntry.js';
+  assert.ok(verifyText.includes(CANONICAL_INVOCATION), "verify-deployed-candidate.sh must use the exact canonical resolver invocation");
+  assert.ok(promoteText.includes(CANONICAL_INVOCATION), "promote.sh must use the exact canonical resolver invocation");
 });
+
+// ---------------------------------------------------------------------
+// Self-referential guards (Slice 2.2, closing build
+// ea9bad30-d2e2-4aa1-9fdb-a765bde94372's verify-source failure at its
+// root: THIS TEST FILE itself must never spawn python3 or git, since
+// neither exists on the node:20.18.1-bookworm-slim image verify-source
+// runs this file on). Scans this file's OWN source text — the
+// strongest possible proof a future edit cannot silently reintroduce
+// the exact class of bug this correction closes.
+// ---------------------------------------------------------------------
+
+const THIS_TEST_FILE_TEXT = fs.readFileSync(__filename, "utf8");
+
+test("pipelineStatic.test.js never spawns python3 anywhere in its own source — the exact defect that broke verify-source in build ea9bad30", () => {
+  assert.ok(
+    !/spawnSync\(\s*["']python3["']|execFileSync\(\s*["']python3["']|execSync\(\s*["']python3/.test(THIS_TEST_FILE_TEXT),
+    "this test file must never spawn a python3 process — python3 is not present on the node:20.18.1-bookworm-slim image verify-source runs it on"
+  );
+});
+
+test("pipelineStatic.test.js never spawns git anywhere in its own source — the exact defect that broke verify-source in build ea9bad30", () => {
+  assert.ok(
+    !/spawnSync\(\s*["']git["']|execFileSync\(\s*["']git["']|execSync\(\s*["']git/.test(THIS_TEST_FILE_TEXT),
+    "this test file must never spawn a git process — git is not present on the node:20.18.1-bookworm-slim image verify-source runs it on, and .git is excluded from the Cloud Build source archive regardless"
+  );
+});
+
+test("this correction introduced no environment-dependent conditional test exclusion of any kind — every resolver test always runs and always asserts real behavior; process.execPath is used precisely so that no availability probe or conditional guard is ever needed", () => {
+  // A conditional exclusion based on tool availability (the exact
+  // anti-pattern this correction explicitly rejects) would surface as
+  // one of a small number of Node test-runner option/method spellings.
+  // This check excludes ITS OWN source lines from the scan (this test
+  // necessarily discusses those spellings, so a naive whole-file scan
+  // would self-match its own prose — a real trap this test itself
+  // tripped over while being written, which is exactly why the
+  // exclusion below exists rather than rewording around it forever).
+  const ownTestNameFragment = "this correction introduced no environment-dependent conditional test exclusion";
+  const bodyStart = THIS_TEST_FILE_TEXT.indexOf(ownTestNameFragment);
+  const bodyEnd = THIS_TEST_FILE_TEXT.indexOf("\n});", bodyStart) + 4;
+  const scanned = THIS_TEST_FILE_TEXT.slice(0, bodyStart) + THIS_TEST_FILE_TEXT.slice(bodyEnd);
+  assert.ok(!/\{\s*skip\s*:/.test(scanned), "no test elsewhere in this file may declare a skip option");
+  assert.ok(!/\.skip\(/.test(scanned), "no test elsewhere in this file may call the skip method");
+  assert.ok(!/\btodo\s*:/.test(scanned), "no test elsewhere in this file may declare a todo option");
+  // Sanity: confirm the actual resolver tests are real `test(...)`
+  // calls that will run and assert, not accidentally excluded — a
+  // representative sample, not exhaustive.
+  assert.ok(THIS_TEST_FILE_TEXT.includes('test("resolveCandidateTrafficEntry.js (spawned via process.execPath): the REAL captured traffic structure'));
+});
+
+// NOTE: an earlier version of this correction included a test here that
+// read the repo-root .gcloudignore file (two levels up from REPO_ROOT) to
+// confirm both resolver files are included in the Cloud Build upload set.
+// That test was REMOVED after local Docker reproduction (mirroring the
+// real verify-source environment) proved it can never pass inside the
+// actual pipeline: .gcloudignore governs what gets uploaded to
+// /workspace, and under its own allowlist rules (`/*` then
+// `!/services/compliance-scanner`), .gcloudignore itself is NOT part of
+// the set it governs — so it is never present at the uploaded source
+// root, in Cloud Build or in any faithful local reproduction of it. This
+// was a genuine test design defect (assuming file content available at
+// runtime that is structurally excluded by design), not an
+// environment-dependent skip: the check has been moved out of this
+// runtime test suite entirely and is instead performed as a manual,
+// local, pre-submission verification (`gcloud meta list-files-for-upload`
+// against the repo root), which is where such a check belongs — outside
+// the uploaded source itself. See the final report for this correction's
+// manual re-confirmation of that command's output.
 
 test("promote.sh: the resolved CANDIDATE_REVISION is the exact value passed into the promotion traffic-shift command (--to-revisions) and every subsequent verification/critical-failure message — never re-derived or separately fetched", () => {
   const text = scriptText("promote.sh");

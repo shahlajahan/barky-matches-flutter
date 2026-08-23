@@ -38,21 +38,55 @@
 #   push-candidate            docker + node         -> ci-builder (see below — combined, unavoidable)
 #   resolve-digest            gcloud only           -> gcr.io/google.com/cloudsdktool/cloud-sdk:531.0.0-slim
 #   deploy-candidate          gcloud + node         -> ci-builder
-#   verify-deployed-candidate gcloud + curl + sha256sum -> cloud-sdk:531.0.0-slim (has all three, confirmed)
+#   verify-deployed-candidate gcloud + curl + sha256sum + node -> ci-builder (single-authoritative-resolver correction, below)
 #   promote                   gcloud + python3 + node   -> ci-builder
 #   release-lock              node only             -> node:20.18.1-bookworm-slim
 #
-# Why three steps (push-candidate, deploy-candidate, promote) need a
-# COMBINED image: each must, within ONE script, both (a) verify via
-# ci/signatureRefreshLock.js that it still holds the fenced concurrency
-# lease and (b) perform its own gcloud/docker mutation immediately
-# after. Cloud Build has no conditional/"finally" step mechanism that
-# could run the lease check in a separate step's image only when the
-# mutating step is about to run — the check and the mutation must be in
-# the SAME script. Empirical inspection confirmed NEITHER
-# gcr.io/google.com/cloudsdktool/cloud-sdk NOR gcr.io/cloud-builders/
-# docker includes a Node.js runtime, so Option A (separate official
-# images per step) cannot cover these three steps alone.
+# Why FOUR steps (push-candidate, deploy-candidate, promote,
+# verify-deployed-candidate) need a COMBINED image — two distinct
+# reasons, not one:
+#
+#   1. push-candidate, deploy-candidate, and promote each must, within
+#      ONE script, both (a) verify via ci/signatureRefreshLock.js that
+#      it still holds the fenced concurrency lease and (b) perform its
+#      own gcloud/docker mutation immediately after. Cloud Build has no
+#      conditional/"finally" step mechanism that could run the lease
+#      check in a separate step's image only when the mutating step is
+#      about to run — the check and the mutation must be in the SAME
+#      script. Empirical inspection confirmed NEITHER
+#      gcr.io/google.com/cloudsdktool/cloud-sdk NOR gcr.io/cloud-builders/
+#      docker includes a Node.js runtime, so Option A (separate official
+#      images per step) cannot cover these three steps alone.
+#
+#   2. verify-deployed-candidate is DIFFERENT: it is non-mutating (see
+#      its own step comment below) and never renews the lease, so lease
+#      fencing is not why it needs a combined image. It moved onto
+#      ci-builder for the single-authoritative-resolver correction: this
+#      pipeline previously ran TWO independent implementations of the
+#      security-critical candidate-traffic resolver — a Python port
+#      (ci/resolveCandidateTrafficEntry.py, spawned by this step on the
+#      plain cloud-sdk image) and a Node original
+#      (ci/resolveCandidateTrafficEntry.js, spawned by promote.sh on
+#      ci-builder) — purely because no single image had both node and
+#      whatever verify-deployed-candidate.sh's own image lacked. Two
+#      independently-maintained implementations of a fail-closed
+#      security check is a semantic-drift risk in its own right: any
+#      future edit to one file's validation contract (e.g. the HTTPS
+#      check, the exactly-one-match rule, the revision-name shape) could
+#      silently diverge from the other's, with nothing in either
+#      language proving they still agree. Rather than accept that risk,
+#      verify-deployed-candidate now runs on the SAME already-existing,
+#      already-required ci-builder image the other three combined steps
+#      use — confirmed by local Docker inspection (`docker run --rm
+#      --entrypoint sh <ci-builder image> -c 'which gcloud curl
+#      sha256sum node'`) to already contain every tool this step needs
+#      (gcloud, curl, sha256sum — because ci-builder's own base IS the
+#      identical cloud-sdk image this step used before, per
+#      ci/Dockerfile.ci-builder's own `FROM
+#      gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:73906ef0...`
+#      line — plus node, added on top). No new image was built or
+#      published for this; ci-builder already existed and was already a
+#      required substitution for three other steps.
 #
 # Resolution: services/compliance-scanner/ci/Dockerfile.ci-builder —
 # built and its tool contents verified LOCALLY in this same review
@@ -376,14 +410,20 @@ steps:
   # -----------------------------------------------------------------
   # Stage 6 — verify the deployed candidate (non-mutating against
   # Cloud Run/Artifact Registry; writes only to the synthetic bucket).
-  # gcloud + curl + sha256sum — all present in the plain cloud-sdk
-  # image, no node needed (fixture metadata sourced from
-  # /workspace/.fixtures.env; EICAR bytes read from
+  # gcloud + curl + sha256sum + node (single-authoritative-resolver
+  # correction — see the builder-image inventory note above for the
+  # full rationale: this step now runs on the same ci-builder image
+  # push-candidate/deploy-candidate/promote already use, SOLELY so it
+  # can invoke the one canonical ci/resolveCandidateTrafficEntry.js
+  # resolver instead of maintaining a second, independent Python port.
+  # Still non-mutating and still does NOT renew the concurrency lease —
+  # running on ci-builder does not change that; fixture metadata
+  # sourced from /workspace/.fixtures.env; EICAR bytes read from
   # /workspace/.eicar-materialized.bin, both written by
   # verify-fixtures-integrity).
   # -----------------------------------------------------------------
   - id: verify-deployed-candidate
-    name: "gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:73906ef0503c3f0d7f32eae1ceb855cae80774d0fafcead5097f42285a8a86d9"
+    name: "${_CI_BUILDER_IMAGE_REF}"
     waitFor: ["deploy-candidate"]
     entrypoint: bash
     args: ["services/compliance-scanner/ci/verify-deployed-candidate.sh"]
