@@ -211,6 +211,17 @@ steps:
     timeout: 120s
 
   # -----------------------------------------------------------------
+  # Stage 3a — source-level unit tests and static checks (parallel,
+  # does not need the built image). Node only.
+  # -----------------------------------------------------------------
+  - id: verify-source
+    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
+    waitFor: ["acquire-lock"]
+    entrypoint: bash
+    args: ["services/compliance-scanner/ci/verify-source.sh"]
+    timeout: 600s
+
+  # -----------------------------------------------------------------
   # Stage 0b — materialize the environment-specific runtime fixture
   # manifest (runtime-manifest correction). Node only. Downloads the
   # REAL, environment-specific fixture manifest (real, non-sentinel GCS
@@ -287,17 +298,6 @@ steps:
       - "BUILD_ID=${BUILD_ID}"
       - "IMAGE_NAME=${_IMAGE_NAME}"
     timeout: 900s
-
-  # -----------------------------------------------------------------
-  # Stage 3a — source-level unit tests and static checks (parallel,
-  # does not need the built image). Node only.
-  # -----------------------------------------------------------------
-  - id: verify-source
-    name: "node:20.18.1-bookworm-slim@sha256:b2c8e0eb8a6aeeae33b2711f8f516003e27ee45804e270468d937b3214f2f0cc"
-    waitFor: ["acquire-lock"]
-    entrypoint: bash
-    args: ["services/compliance-scanner/ci/verify-source.sh"]
-    timeout: 600s
 
   # -----------------------------------------------------------------
   # Stage 3b — local candidate container verification, using the

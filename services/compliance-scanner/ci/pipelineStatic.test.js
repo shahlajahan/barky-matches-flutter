@@ -52,6 +52,17 @@ function extractSteps(text) {
 
 const steps = extractSteps(yamlText);
 const stepsById = Object.fromEntries(steps.map((s) => [s.id, s]));
+// Physical declaration order — steps[i]'s index in the real YAML `steps:`
+// list, exactly as Cloud Build itself reads it. Cloud Build's own
+// validator (proven empirically against the real staging build attempt
+// following commit 8c2acce, source archive
+// source/1787463438.281026-aa64df9f6b8344df973248ef793b6adc.tgz — the
+// submission was rejected with "invalid .steps field: build step #2 -
+// 'materialize-runtime-manifest' depends on 'verify-source', which has
+// not been defined" before any Build ID was created) requires every
+// waitFor target to be declared at a strictly lower index than the step
+// referencing it — a purely logical DAG is not sufficient.
+const stepIndexById = Object.fromEntries(steps.map((s, i) => [s.id, i]));
 
 function transitiveDependsOn(stepId, target, visited = new Set()) {
   if (visited.has(stepId)) return false;
@@ -84,6 +95,78 @@ test("pipeline structure: exactly the 13 expected steps exist", () => {
     "verify-fixtures-integrity",
     "verify-source",
   ]);
+});
+
+// ---------------------------------------------------------------------
+// Step identity integrity — guards the physical reorder (Slice 2.2
+// declaration-order correction) against accidentally adding, dropping,
+// or duplicating a step while moving the verify-source block.
+// ---------------------------------------------------------------------
+
+test("step identity integrity: every step id in the physical steps: list is unique — no duplicate id anywhere, and specifically no duplicate verify-source or materialize-runtime-manifest", () => {
+  const ids = steps.map((s) => s.id);
+  const seen = new Set();
+  const duplicates = [];
+  for (const id of ids) {
+    if (seen.has(id)) duplicates.push(id);
+    seen.add(id);
+  }
+  assert.deepEqual(duplicates, [], `duplicate step id(s) found: ${duplicates.join(", ")}`);
+  assert.equal(ids.filter((id) => id === "verify-source").length, 1, "exactly one verify-source step must exist");
+  assert.equal(ids.filter((id) => id === "materialize-runtime-manifest").length, 1, "exactly one materialize-runtime-manifest step must exist");
+});
+
+test("step identity integrity: the physical step count is exactly 13, unchanged by the reorder (no step was added, removed, or duplicated while moving the verify-source block)", () => {
+  assert.equal(steps.length, 13);
+});
+
+// ---------------------------------------------------------------------
+// Cloud Build declaration-order regression guard (Slice 2.2, closing
+// the real staging submission rejection following commit 8c2acce:
+// "invalid .steps field: build step #2 - 'materialize-runtime-manifest'
+// depends on 'verify-source', which has not been defined"). Cloud
+// Build requires every waitFor target to be declared at a strictly
+// lower physical index than the step referencing it — a logically
+// correct DAG is not sufficient if a target is declared later in the
+// file. This walks the REAL extracted YAML step list and its REAL
+// waitFor arrays; it does not hardcode a duplicate imaginary pipeline,
+// so it applies to every current and future step, not only
+// verify-source/materialize-runtime-manifest.
+// ---------------------------------------------------------------------
+
+test("Cloud Build declaration-order regression: for every step and every explicit waitFor target (excluding Cloud Build's special root sentinel \"-\"), the target step id exists, is declared exactly once, and is declared at a strictly lower physical index than the dependent step", () => {
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    for (const target of step.waitFor) {
+      if (target === "-") continue; // Cloud Build's special root sentinel — marks "no dependency", not a real step id
+      const occurrences = steps.filter((s) => s.id === target).length;
+      assert.equal(occurrences, 1, `${step.id}'s waitFor target "${target}" must exist and be declared exactly once, found ${occurrences} times`);
+      const targetIndex = stepIndexById[target];
+      assert.ok(
+        targetIndex < i,
+        `${step.id} (declared at index ${i}) has waitFor target "${target}" declared at index ${targetIndex} — Cloud Build requires the target to be declared strictly earlier in the file`
+      );
+    }
+  }
+});
+
+test("Cloud Build declaration-order regression, focused: verify-source is physically declared strictly before materialize-runtime-manifest (this exact ordering is what the real staging submission was missing)", () => {
+  assert.ok(
+    stepIndexById["verify-source"] < stepIndexById["materialize-runtime-manifest"],
+    `expected verify-source (index ${stepIndexById["verify-source"]}) to be declared before materialize-runtime-manifest (index ${stepIndexById["materialize-runtime-manifest"]})`
+  );
+});
+
+test("Cloud Build declaration-order regression: the expected physical sequence begins install-dependencies, acquire-lock, verify-source, materialize-runtime-manifest, verify-fixtures-integrity, in that exact order", () => {
+  const expectedPrefix = [
+    "install-dependencies",
+    "acquire-lock",
+    "verify-source",
+    "materialize-runtime-manifest",
+    "verify-fixtures-integrity",
+  ];
+  const actualPrefix = steps.slice(0, expectedPrefix.length).map((s) => s.id);
+  assert.deepEqual(actualPrefix, expectedPrefix);
 });
 
 // ---------------------------------------------------------------------
