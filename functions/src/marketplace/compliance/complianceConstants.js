@@ -469,6 +469,40 @@ const COMPLIANCE_DOCUMENT_ALLOWED_FIELDS = Object.freeze([
   ...COMPLIANCE_DOCUMENT_SERVER_OWNED_FIELDS,
 ]);
 
+// Slice 3 — explicit allowed-transition table, same convention as
+// COMPLIANCE_UPLOAD_SESSION_ALLOWED_TRANSITIONS above (single source of
+// truth; every status not listed as a key is terminal). `clean` is the
+// status the Slice 2 scan-result handler creates a document at;
+// `pending_review -> pending_review` (requestComplianceInformation) is
+// deliberately NOT modeled here — it never changes `status`, so it is
+// checked by complianceDocumentOperations.js as a direct status
+// equality, not through this transition table. `rejected` has no
+// outgoing transition: COMPLIANCE_DOCUMENT_IMMUTABLE_FIELDS locks
+// sellerRelationship/issuedAt/validFrom/validUntil the instant
+// submitComplianceDocument first sets them, so a rejected document can
+// never be corrected and resubmitted in place — a seller must upload a
+// fresh document (a new Slice 2 session) instead.
+const COMPLIANCE_DOCUMENT_ALLOWED_TRANSITIONS = Object.freeze({
+  clean: Object.freeze(["pending_review"]),
+  pending_review: Object.freeze(["approved", "rejected"]),
+  approved: Object.freeze(["revoked", "superseded"]),
+});
+
+const COMPLIANCE_DOCUMENT_TERMINAL_STATUSES = Object.freeze([
+  "rejected",
+  "revoked",
+  "expired",
+  "superseded",
+]);
+
+// Slice 3 correction (adversarial review, TOCTOU finding) — the single
+// positive allowlist of document statuses `addComplianceScope` may act
+// against, re-checked fresh inside its own transaction (never a plain
+// pre-transaction read alone). A positive allowlist, not a `!==`
+// negative check, so an unknown/future status value fails closed by
+// construction rather than by remembering to exclude it.
+const COMPLIANCE_SCOPE_CREATION_ELIGIBLE_DOCUMENT_STATUSES = Object.freeze(["approved"]);
+
 // ---------------------------------------------------------------------
 // complianceDocumentScopes/{scopeId}
 // ---------------------------------------------------------------------
@@ -503,6 +537,53 @@ const COMPLIANCE_SCOPE_ALLOWED_FIELDS = Object.freeze([
   "verifiedBrandId",
 ]);
 
+// Slice 3 — reviewComplianceScope's sole transition. No further
+// transition out of approved/rejected exists in Slice 3 (no scope-level
+// "revoke" operation is documented anywhere in the master plan's §8
+// operation table, unlike documents and members — a scope's own status
+// enum has only 3 values, with no `revoked` member at all).
+const COMPLIANCE_SCOPE_ALLOWED_TRANSITIONS = Object.freeze({
+  pending_review: Object.freeze(["approved", "rejected"]),
+});
+
+const COMPLIANCE_SCOPE_TERMINAL_STATUSES = Object.freeze(["approved", "rejected"]);
+
+// Slice 3 correction (adversarial review, Correction A/B) — the
+// positive allowlist of scope statuses under which member records may
+// be added (addComplianceScopeMembers), or APPROVED
+// (reviewComplianceScopeMembers's `approve` decision only — see the
+// separate rejection-eligible allowlist immediately below for the
+// `reject` decision). `rejected` — and any unknown/future status — is
+// excluded by construction (positive allowlist, not a
+// `!== 'rejected'` negative check): **no member may become `active`
+// beneath a rejected scope, without exception** — this is the one
+// invariant that must never be relaxed. reviewComplianceScopeMembers
+// re-reads the parent scope fresh inside its own transaction to
+// enforce this, never trusting a pre-transaction read alone.
+const COMPLIANCE_SCOPE_MEMBER_LIFECYCLE_ELIGIBLE_SCOPE_STATUSES = Object.freeze([
+  "pending_review",
+  "approved",
+]);
+
+// Slice 3 correction (second adversarial review pass, explicit product
+// decision) — a decision-specific, WIDER allowlist for
+// reviewComplianceScopeMembers's `reject` decision only. Rejecting a
+// member never grants trust (it only ever narrows what's active), so a
+// pending member beneath an already-`rejected` parent scope may still
+// be explicitly rejected — closing the "permanently stranded at
+// pending_review, no legal exit" defect found by adversarial review —
+// without introducing any new state, transition, or automatic cascade.
+// `rejected` is the ONLY addition versus the allowlist above; any
+// other unknown/future status still fails closed for both decisions.
+// Never used for `approve` — see COMPLIANCE_SCOPE_MEMBER_LIFECYCLE_
+// ELIGIBLE_SCOPE_STATUSES above, which remains the sole gate for that
+// decision and is deliberately NOT widened.
+const COMPLIANCE_SCOPE_MEMBER_REJECTION_ELIGIBLE_SCOPE_STATUSES = Object.freeze([
+  "pending_review",
+  "approved",
+  "rejected",
+]);
+
 // ---------------------------------------------------------------------
 // complianceDocumentScopes/{scopeId}/members/{memberId}
 // ---------------------------------------------------------------------
@@ -529,6 +610,26 @@ const COMPLIANCE_SCOPE_MEMBER_ALLOWED_FIELDS = Object.freeze([
   "reviewedAt",
   "revokedAt",
   "revokedBy",
+]);
+
+// Slice 3 — reviewComplianceScopeMembers's sole transition.
+// `active -> revoked` is deliberately NOT included: no named member-
+// revocation operation exists anywhere in the master plan's §8
+// operation table (only addComplianceScope/addComplianceScopeMembers/
+// reviewComplianceScopeMembers are listed for the member lifecycle), so
+// Slice 3 leaves `revoked` a defined-but-unreachable enum value here,
+// exactly like COMPLIANCE_UPLOAD_SESSION's `created` pre-state — the
+// revokedAt/revokedBy fields already reserved in
+// COMPLIANCE_SCOPE_MEMBER_ALLOWED_FIELDS remain for a later slice to
+// wire an explicit revoke operation against, not invented here.
+const COMPLIANCE_SCOPE_MEMBER_ALLOWED_TRANSITIONS = Object.freeze({
+  pending_review: Object.freeze(["active", "rejected"]),
+});
+
+const COMPLIANCE_SCOPE_MEMBER_TERMINAL_STATUSES = Object.freeze([
+  "active",
+  "rejected",
+  "revoked",
 ]);
 
 // ---------------------------------------------------------------------
@@ -718,14 +819,23 @@ module.exports = {
   COMPLIANCE_DOCUMENT_SERVER_OWNED_FIELDS,
   COMPLIANCE_DOCUMENT_IMMUTABLE_FIELDS,
   COMPLIANCE_DOCUMENT_ALLOWED_FIELDS,
+  COMPLIANCE_DOCUMENT_ALLOWED_TRANSITIONS,
+  COMPLIANCE_DOCUMENT_TERMINAL_STATUSES,
+  COMPLIANCE_SCOPE_CREATION_ELIGIBLE_DOCUMENT_STATUSES,
 
   COMPLIANCE_SCOPE_TYPE,
   COMPLIANCE_SCOPE_STATUS,
   COMPLIANCE_SCOPE_ALLOWED_FIELDS,
+  COMPLIANCE_SCOPE_ALLOWED_TRANSITIONS,
+  COMPLIANCE_SCOPE_TERMINAL_STATUSES,
+  COMPLIANCE_SCOPE_MEMBER_LIFECYCLE_ELIGIBLE_SCOPE_STATUSES,
+  COMPLIANCE_SCOPE_MEMBER_REJECTION_ELIGIBLE_SCOPE_STATUSES,
 
   COMPLIANCE_SCOPE_MEMBER_IDENTIFIER_TYPE,
   COMPLIANCE_SCOPE_MEMBER_STATUS,
   COMPLIANCE_SCOPE_MEMBER_ALLOWED_FIELDS,
+  COMPLIANCE_SCOPE_MEMBER_ALLOWED_TRANSITIONS,
+  COMPLIANCE_SCOPE_MEMBER_TERMINAL_STATUSES,
 
   COMPLIANCE_EVIDENCE_LINK_MATCH_TYPE,
   PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS,

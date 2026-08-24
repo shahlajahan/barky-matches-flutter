@@ -31,12 +31,21 @@ const {
   COMPLIANCE_DOCUMENT_SERVER_OWNED_FIELDS,
   COMPLIANCE_DOCUMENT_IMMUTABLE_FIELDS,
   COMPLIANCE_DOCUMENT_ALLOWED_FIELDS,
+  COMPLIANCE_DOCUMENT_ALLOWED_TRANSITIONS,
+  COMPLIANCE_DOCUMENT_TERMINAL_STATUSES,
+  COMPLIANCE_SCOPE_CREATION_ELIGIBLE_DOCUMENT_STATUSES,
   COMPLIANCE_SCOPE_TYPE,
   COMPLIANCE_SCOPE_STATUS,
   COMPLIANCE_SCOPE_ALLOWED_FIELDS,
+  COMPLIANCE_SCOPE_ALLOWED_TRANSITIONS,
+  COMPLIANCE_SCOPE_TERMINAL_STATUSES,
+  COMPLIANCE_SCOPE_MEMBER_LIFECYCLE_ELIGIBLE_SCOPE_STATUSES,
+  COMPLIANCE_SCOPE_MEMBER_REJECTION_ELIGIBLE_SCOPE_STATUSES,
   COMPLIANCE_SCOPE_MEMBER_IDENTIFIER_TYPE,
   COMPLIANCE_SCOPE_MEMBER_STATUS,
   COMPLIANCE_SCOPE_MEMBER_ALLOWED_FIELDS,
+  COMPLIANCE_SCOPE_MEMBER_ALLOWED_TRANSITIONS,
+  COMPLIANCE_SCOPE_MEMBER_TERMINAL_STATUSES,
   COMPLIANCE_REVIEW_EVENT_TARGET_TYPE,
   COMPLIANCE_REVIEW_EVENT_ACTION,
   COMPLIANCE_REVIEW_EVENT_ACTOR_ROLE,
@@ -301,6 +310,23 @@ function isSafeComplianceDocumentSellerUpdate(beforeDoc, afterDoc) {
   );
 }
 
+// Slice 3 — same single-source-of-truth convention as
+// isAllowedComplianceUploadSessionTransition.
+function isAllowedComplianceDocumentTransition(fromStatus, toStatus) {
+  const allowedNext = COMPLIANCE_DOCUMENT_ALLOWED_TRANSITIONS[fromStatus];
+  return Array.isArray(allowedNext) && allowedNext.includes(toStatus);
+}
+
+function isTerminalComplianceDocumentStatus(status) {
+  return COMPLIANCE_DOCUMENT_TERMINAL_STATUSES.includes(status);
+}
+
+// Slice 3 correction (TOCTOU finding) — the positive allowlist
+// addComplianceScope's own transaction re-checks fresh via tx.get.
+function isDocumentEligibleForScopeCreation(status) {
+  return COMPLIANCE_SCOPE_CREATION_ELIGIBLE_DOCUMENT_STATUSES.includes(status);
+}
+
 // ---------------------------------------------------------------------
 // complianceDocumentScopes
 // ---------------------------------------------------------------------
@@ -317,6 +343,35 @@ function hasOnlyAllowedComplianceScopeFields(payload) {
   return hasOnlyAllowedKeys(payload, COMPLIANCE_SCOPE_ALLOWED_FIELDS);
 }
 
+function isAllowedComplianceScopeTransition(fromStatus, toStatus) {
+  const allowedNext = COMPLIANCE_SCOPE_ALLOWED_TRANSITIONS[fromStatus];
+  return Array.isArray(allowedNext) && allowedNext.includes(toStatus);
+}
+
+function isTerminalComplianceScopeStatus(status) {
+  return COMPLIANCE_SCOPE_TERMINAL_STATUSES.includes(status);
+}
+
+// Slice 3 correction (adversarial review, Correction A/B) — the positive
+// allowlist addComplianceScopeMembers and reviewComplianceScopeMembers's
+// `approve` decision both re-check fresh, inside their own
+// transactions, against the PARENT scope's status. Never a
+// `!== 'rejected'` negative check. NEVER used for `reject` — see
+// isScopeEligibleForMemberRejection below.
+function isScopeEligibleForMemberLifecycle(status) {
+  return COMPLIANCE_SCOPE_MEMBER_LIFECYCLE_ELIGIBLE_SCOPE_STATUSES.includes(status);
+}
+
+// Second adversarial-review pass — the decision-specific, wider
+// allowlist for reviewComplianceScopeMembers's `reject` decision only.
+// Rejecting never grants trust, so it remains legal even beneath an
+// already-`rejected` parent scope (closing the "stranded pending
+// member" defect) — while approval remains gated exclusively by
+// isScopeEligibleForMemberLifecycle above, unchanged and unwidened.
+function isScopeEligibleForMemberRejection(status) {
+  return COMPLIANCE_SCOPE_MEMBER_REJECTION_ELIGIBLE_SCOPE_STATUSES.includes(status);
+}
+
 // ---------------------------------------------------------------------
 // complianceDocumentScopes/{scopeId}/members
 // ---------------------------------------------------------------------
@@ -331,6 +386,15 @@ function isValidComplianceScopeMemberStatus(value) {
 
 function hasOnlyAllowedComplianceScopeMemberFields(payload) {
   return hasOnlyAllowedKeys(payload, COMPLIANCE_SCOPE_MEMBER_ALLOWED_FIELDS);
+}
+
+function isAllowedComplianceScopeMemberTransition(fromStatus, toStatus) {
+  const allowedNext = COMPLIANCE_SCOPE_MEMBER_ALLOWED_TRANSITIONS[fromStatus];
+  return Array.isArray(allowedNext) && allowedNext.includes(toStatus);
+}
+
+function isTerminalComplianceScopeMemberStatus(status) {
+  return COMPLIANCE_SCOPE_MEMBER_TERMINAL_STATUSES.includes(status);
 }
 
 // ---------------------------------------------------------------------
@@ -432,14 +496,23 @@ module.exports = {
   isServerOwnedComplianceDocumentField,
   isImmutableComplianceDocumentField,
   isSafeComplianceDocumentSellerUpdate,
+  isAllowedComplianceDocumentTransition,
+  isTerminalComplianceDocumentStatus,
+  isDocumentEligibleForScopeCreation,
 
   isValidComplianceScopeType,
   isValidComplianceScopeStatus,
   hasOnlyAllowedComplianceScopeFields,
+  isAllowedComplianceScopeTransition,
+  isTerminalComplianceScopeStatus,
+  isScopeEligibleForMemberLifecycle,
+  isScopeEligibleForMemberRejection,
 
   isValidComplianceScopeMemberIdentifierType,
   isValidComplianceScopeMemberStatus,
   hasOnlyAllowedComplianceScopeMemberFields,
+  isAllowedComplianceScopeMemberTransition,
+  isTerminalComplianceScopeMemberStatus,
 
   isValidComplianceReviewEventTargetType,
   isValidComplianceReviewEventAction,

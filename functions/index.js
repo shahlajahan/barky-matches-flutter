@@ -276,6 +276,17 @@ const {
   reconcileStaleComplianceUploadSessions,
 } = require("./src/marketplace/compliance/complianceUploadReconciliation");
 const {
+  submitComplianceDocument,
+  reviewComplianceDocument,
+  requestComplianceInformation,
+  revokeComplianceDocument,
+  supersedeComplianceDocument,
+  addComplianceScope,
+  addComplianceScopeMembers,
+  reviewComplianceScopeMembers,
+  reviewComplianceScope,
+} = require("./src/marketplace/compliance/complianceDocumentOperations");
+const {
   COMPLIANCE_UPLOAD_SESSION_STATUS,
 } = require("./src/marketplace/compliance/complianceConstants");
 
@@ -20004,6 +20015,51 @@ exports.complianceUploadReconciliation = onSchedule(
     logger.info("compliance_upload_reconciliation", result);
     return result;
   }
+);
+
+// =====================================================================
+// Marketplace P1-A compliance foundation, Slice 3 (docs/plans/
+// marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md,
+// §8/§13/§16) — document/scope/member review lifecycle. Thin exports.*
+// wiring only; all business logic lives in
+// functions/src/marketplace/compliance/complianceDocumentOperations.js.
+// Same region as every other compliance callable in this file.
+// =====================================================================
+
+exports.submitComplianceDocument = onCall({ region: "europe-west3" }, async (request) =>
+  submitComplianceDocument({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.reviewComplianceDocument = onCall({ region: "europe-west3" }, async (request) =>
+  reviewComplianceDocument({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.requestComplianceInformation = onCall({ region: "europe-west3" }, async (request) =>
+  requestComplianceInformation({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.revokeComplianceDocument = onCall({ region: "europe-west3" }, async (request) =>
+  revokeComplianceDocument({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.supersedeComplianceDocument = onCall({ region: "europe-west3" }, async (request) =>
+  supersedeComplianceDocument({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.addComplianceScope = onCall({ region: "europe-west3" }, async (request) =>
+  addComplianceScope({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.addComplianceScopeMembers = onCall({ region: "europe-west3" }, async (request) =>
+  addComplianceScopeMembers({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.reviewComplianceScopeMembers = onCall({ region: "europe-west3" }, async (request) =>
+  reviewComplianceScopeMembers({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+exports.reviewComplianceScope = onCall({ region: "europe-west3" }, async (request) =>
+  reviewComplianceScope({ db: admin.firestore(), auth: request.auth, data: request.data })
 );
 
 exports.updateGlobalStats = onDocumentWritten("products/{id}", async (event) => {
