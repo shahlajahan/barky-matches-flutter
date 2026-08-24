@@ -136,21 +136,84 @@ gcloud run services update-traffic "${SERVICE}" \
   --project="${PROJECT_ID}" --region="${REGION}" \
   --to-revisions="${CANDIDATE_REVISION}=100"
 
-# Re-verify the SERVING state, not just the update-traffic command's
-# own success message.
-SERVING_REVISION=$(gcloud run services describe "${SERVICE}" \
+# Re-verify the SERVING state from the COMPLETE traffic array, never a
+# fixed array index (traffic-array-ordering correction, closing a real
+# staging failure — build c2fdcda9-1b0a-4e88-8f90-760a6ad32a5b, step
+# promote: "PROMOTION VERIFICATION FAILED", despite the just-promoted
+# revision's own digest and runtime SA both being independently
+# confirmed correct). Root cause: the previous version of this check
+# read `status.traffic[0].revisionName` / `.percent` — a fixed numeric
+# index — to identify "the currently serving revision". Cloud Run's own
+# API does NOT guarantee the newly-100%-revision appears at index 0
+# once other tagged, zero-percent entries also exist in the array; this
+# defect was invisible until this exact build because no earlier build
+# had ever reached promote.sh with more than a trivial one-entry
+# traffic array (5 pre-existing tagged candidates were present at the
+# time, and gcloud's own human-readable traffic listing that build
+# printed the 100% entry LAST, not first — direct empirical
+# confirmation the index assumption was wrong).
+#
+# Fixed by fetching status.traffic ONCE as structured JSON (the same
+# `--format="json(status.traffic)"` shape already used above for the
+# candidate resolver, and already proven safe — gcloud's own --format
+# resource-key language does not support embedded predicates like
+# `[?tag==...]`, so this is a plain, unfiltered structural read, not a
+# query), then verifying SEMANTIC IDENTITY — never array position — via
+# a small inline Node check: exactly one traffic entry has percent==100
+# AND that entry's revisionName equals CANDIDATE_REVISION, AND no other
+# entry has positive (>0) traffic. This introduces no new interpreter,
+# package, or file: promote.sh already runs on the combined ci-builder
+# image and already invokes `node` for the candidate resolver and the
+# fenced lease check above. CANDIDATE_REVISION and the traffic JSON are
+# passed as separate argv values (process.argv[1]/[2]), never
+# interpolated into the script source, exactly like
+# ci/resolveCandidateTrafficEntry.js's own env-var-only input
+# discipline elsewhere in this pipeline.
+SERVING_TRAFFIC_JSON=$(gcloud run services describe "${SERVICE}" \
   --project="${PROJECT_ID}" --region="${REGION}" \
-  --format="value(status.traffic[0].revisionName)")
-SERVING_PERCENT=$(gcloud run services describe "${SERVICE}" \
-  --project="${PROJECT_ID}" --region="${REGION}" \
-  --format="value(status.traffic[0].percent)")
-SERVING_IMAGE=$(gcloud run revisions describe "$SERVING_REVISION" \
-  --project="${PROJECT_ID}" --region="${REGION}" --format="value(spec.containers[0].image)")
-SERVING_SA=$(gcloud run revisions describe "$SERVING_REVISION" \
-  --project="${PROJECT_ID}" --region="${REGION}" --format="value(spec.serviceAccountName)")
+  --format="json(status.traffic)")
 
 PROMOTION_OK=1
-if [ "$SERVING_REVISION" != "$CANDIDATE_REVISION" ] || [ "$SERVING_PERCENT" != "100" ]; then PROMOTION_OK=0; fi
+if ! PROMOTION_TRAFFIC_CHECK=$(node -e '
+"use strict";
+let parsed;
+try {
+  parsed = JSON.parse(process.argv[1]);
+} catch (err) {
+  console.error("status.traffic is not valid JSON");
+  process.exit(1);
+}
+const candidateRevision = process.argv[2] || "";
+if (!candidateRevision) {
+  console.error("CANDIDATE_REVISION argument is required");
+  process.exit(1);
+}
+const traffic = parsed && parsed.status && Array.isArray(parsed.status.traffic) ? parsed.status.traffic : null;
+if (!traffic) {
+  console.error("status.traffic is missing or not an array");
+  process.exit(1);
+}
+const positive = traffic.filter((t) => t && typeof t === "object" && typeof t.percent === "number" && t.percent > 0);
+const servingCandidate = positive.filter((t) => t.percent === 100 && t.revisionName === candidateRevision);
+const otherPositive = positive.filter((t) => !(t.percent === 100 && t.revisionName === candidateRevision));
+if (servingCandidate.length !== 1) {
+  console.error("expected exactly one traffic entry at 100% for " + candidateRevision + ", found " + servingCandidate.length);
+  process.exit(1);
+}
+if (otherPositive.length !== 0) {
+  console.error("unexpected additional positive-traffic entries: " + JSON.stringify(otherPositive));
+  process.exit(1);
+}
+' -- "$SERVING_TRAFFIC_JSON" "$CANDIDATE_REVISION" 2>&1); then
+  PROMOTION_OK=0
+  echo "promotion traffic verification failed: ${PROMOTION_TRAFFIC_CHECK}" >&2
+fi
+
+SERVING_IMAGE=$(gcloud run revisions describe "$CANDIDATE_REVISION" \
+  --project="${PROJECT_ID}" --region="${REGION}" --format="value(spec.containers[0].image)")
+SERVING_SA=$(gcloud run revisions describe "$CANDIDATE_REVISION" \
+  --project="${PROJECT_ID}" --region="${REGION}" --format="value(spec.serviceAccountName)")
+
 if ! echo "$SERVING_IMAGE" | grep -qF "$DIGEST"; then PROMOTION_OK=0; fi
 if [ "$SERVING_SA" != "${SCANNER_RUNTIME_SA:?SCANNER_RUNTIME_SA is required}" ]; then PROMOTION_OK=0; fi
 
@@ -196,7 +259,7 @@ print('true' if matches else 'false')
   exit 1
 fi
 
-echo "promoted: ${SERVICE} now serving ${SERVING_REVISION} at ${SERVING_IMAGE} (SA ${SERVING_SA})"
+echo "promoted: ${SERVICE} now serving ${CANDIDATE_REVISION} at ${SERVING_IMAGE} (SA ${SERVING_SA})"
 echo "rollback target preserved (not deleted): ${PREVIOUS_TO_REVISIONS}"
 
 # Correction C (read-only review, second pass): the promoted-tag

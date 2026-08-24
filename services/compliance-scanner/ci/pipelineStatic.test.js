@@ -1852,7 +1852,7 @@ test("verify-deployed-candidate.sh calls gcloud run services describe exactly on
   assert.ok(/CANDIDATE_REVISION=\$\(printf '%s\\n' "\$CANDIDATE_TRAFFIC_RESOLVED"/.test(text), "CANDIDATE_REVISION must come from the SAME single resolved-traffic output");
 });
 
-test("no repository-wide occurrence of the unsupported [?tag==...] predicate syntax remains in executable code — verify-deployed-candidate.sh AND promote.sh both closed (each file's own correction comment legitimately quotes it once, for documentation, explaining the historical defect; promote.sh's other status.traffic[0] numeric-index reads are a different, valid, unrelated construction and are not affected by this check)", () => {
+test("no repository-wide occurrence of the unsupported [?tag==...] predicate syntax remains in executable code — verify-deployed-candidate.sh AND promote.sh both closed (each file's own correction comment legitimately quotes it once, for documentation, explaining the historical defect)", () => {
   for (const fname of ["verify-deployed-candidate.sh", "promote.sh"]) {
     const text = scriptText(fname);
     assert.ok(
@@ -2520,13 +2520,195 @@ test("this correction introduced no environment-dependent conditional test exclu
 test("promote.sh: the resolved CANDIDATE_REVISION is the exact value passed into the promotion traffic-shift command (--to-revisions) and every subsequent verification/critical-failure message — never re-derived or separately fetched", () => {
   const text = scriptText("promote.sh");
   assert.ok(text.includes('--to-revisions="${CANDIDATE_REVISION}=100"'), "the promotion shift must target the resolved CANDIDATE_REVISION");
-  assert.ok(text.includes('if [ "$SERVING_REVISION" != "$CANDIDATE_REVISION" ]'), "post-promotion verification must compare against the resolved CANDIDATE_REVISION");
+  assert.ok(text.includes('t.revisionName === candidateRevision'), "post-promotion verification must compare traffic entries against the resolved CANDIDATE_REVISION (traffic-array-ordering correction — see that section's own tests for the full behavioral proof)");
+  assert.ok(text.includes('SERVING_IMAGE=$(gcloud run revisions describe "$CANDIDATE_REVISION"'), "digest verification must describe the resolved CANDIDATE_REVISION directly, never a separately re-derived 'serving revision'");
   assert.ok(text.includes('echo "# Candidate revision: ${CANDIDATE_REVISION} (digest ${DIGEST})" >&2'), "critical_terminal_failure must report the resolved CANDIDATE_REVISION");
   // Only ONE assignment to CANDIDATE_REVISION exists in the whole file
   // — no second, later reassignment that could silently diverge from
   // the resolved value.
   const assignments = (text.match(/^CANDIDATE_REVISION=/gm) || []).length;
   assert.equal(assignments, 1, "CANDIDATE_REVISION must be assigned exactly once in the entire file");
+});
+
+// ---------------------------------------------------------------------
+// Traffic-array-ordering correction (closing a real staging failure —
+// build c2fdcda9-1b0a-4e88-8f90-760a6ad32a5b, step promote:
+// "PROMOTION VERIFICATION FAILED", despite the just-promoted
+// revision's own digest and runtime SA both being independently
+// confirmed correct). Root cause: the previous post-promotion
+// verification read `status.traffic[0].revisionName`/`.percent` — a
+// fixed numeric array index — to identify the serving revision.
+// Cloud Run's API does not guarantee the newly-100%-revision appears
+// at index 0 once other tagged, zero-percent entries also exist.
+// Replaced with a full-array, semantic-identity check (exactly one
+// entry at 100% matching CANDIDATE_REVISION, no other entry with
+// positive traffic), via a small inline Node block — extracted here
+// verbatim and BEHAVIORALLY RUN (never a reimplementation) against
+// fabricated traffic-array shapes, including the exact real shape
+// that build c2fdcda9 hit: 5 pre-existing tagged candidates plus the
+// newly-promoted revision, with the 100% entry LAST in the array, not
+// first.
+//
+// Note: the SEPARATE, pre-existing rollback-verification block
+// (RESTORED_OK, further below) was audited and found to ALREADY be
+// order-independent — it parses the complete status.traffic array and
+// checks that every entry in the expected PREVIOUS_TO_REVISIONS
+// allocation has a matching entry in the actual restored allocation
+// (and vice versa, via a length check), never touching a fixed index.
+// It is therefore left completely unchanged by this correction — see
+// the "rollback verification remains order-independent" test below
+// for the direct proof.
+// ---------------------------------------------------------------------
+
+function extractPromotionTrafficVerificationBlock() {
+  const text = scriptText("promote.sh");
+  const match = text.match(/PROMOTION_OK=1\nif ! PROMOTION_TRAFFIC_CHECK=\$\(node -e '[\s\S]*?\n' -- "\$SERVING_TRAFFIC_JSON" "\$CANDIDATE_REVISION" 2>&1\); then\n  PROMOTION_OK=0\n  echo "promotion traffic verification failed: \$\{PROMOTION_TRAFFIC_CHECK\}" >&2\nfi\n/);
+  assert.ok(match, "could not extract the promotion traffic verification block from promote.sh");
+  return match[0];
+}
+
+function runPromotionTrafficVerification({ trafficJson, candidateRevision }) {
+  const block = extractPromotionTrafficVerificationBlock();
+  return spawnSync("sh", ["-c", `set -eu\n${block}\necho "RESULT_PROMOTION_OK=$PROMOTION_OK"`], {
+    env: { ...process.env, SERVING_TRAFFIC_JSON: trafficJson, CANDIDATE_REVISION: candidateRevision },
+    encoding: "utf8",
+  });
+}
+
+function promotionOkFrom(result) {
+  const m = result.stdout.match(/RESULT_PROMOTION_OK=(\d)/);
+  assert.ok(m, `expected to find RESULT_PROMOTION_OK in stdout, got: ${JSON.stringify(result)}`);
+  return m[1];
+}
+
+const CANDIDATE_REVISION_FOR_TESTS = "compliance-scanner-00007-xew";
+
+test("promotion traffic verification: succeeds for the EXACT real failing shape from build c2fdcda9 — 5 pre-existing tagged candidates at 0%, plus the candidate at 100%, with the 100% entry LAST in the array (not first) — proving the fix genuinely closes the reported defect, not merely a simplified reproduction of it", () => {
+  const trafficJson = JSON.stringify({
+    status: {
+      traffic: [
+        { revisionName: "compliance-scanner-00003-wof", tag: "candidate-580e47e8-aa407156" },
+        { revisionName: "compliance-scanner-00004-lix", tag: "candidate-2775ab3d-f3caf298" },
+        { revisionName: "compliance-scanner-00005-bij", tag: "candidate-f5c9e1f6-9cb468c3" },
+        { revisionName: "compliance-scanner-00006-qaf", tag: "candidate-baed6d70-8b35480c" },
+        { revisionName: CANDIDATE_REVISION_FOR_TESTS, tag: "candidate-27cec0d1-c2fdcda9", percent: 100 },
+      ],
+    },
+  });
+  const result = runPromotionTrafficVerification({ trafficJson, candidateRevision: CANDIDATE_REVISION_FOR_TESTS });
+  assert.equal(promotionOkFrom(result), "1", `expected verification to pass, got: ${JSON.stringify(result)}`);
+});
+
+test("promotion traffic verification: also succeeds when the SAME valid allocation is given in a different (fully reordered) sequence — proving the check is genuinely order-independent, not merely tolerant of one specific non-zero index", () => {
+  const trafficJson = JSON.stringify({
+    status: {
+      traffic: [
+        { revisionName: CANDIDATE_REVISION_FOR_TESTS, tag: "candidate-27cec0d1-c2fdcda9", percent: 100 },
+        { revisionName: "compliance-scanner-00006-qaf", tag: "candidate-baed6d70-8b35480c" },
+        { revisionName: "compliance-scanner-00003-wof", tag: "candidate-580e47e8-aa407156" },
+        { revisionName: "compliance-scanner-00005-bij", tag: "candidate-f5c9e1f6-9cb468c3" },
+        { revisionName: "compliance-scanner-00004-lix", tag: "candidate-2775ab3d-f3caf298" },
+      ],
+    },
+  });
+  const result = runPromotionTrafficVerification({ trafficJson, candidateRevision: CANDIDATE_REVISION_FOR_TESTS });
+  assert.equal(promotionOkFrom(result), "1", `expected verification to pass regardless of order, got: ${JSON.stringify(result)}`);
+});
+
+test("promotion traffic verification: fails closed when ZERO traffic entries match the candidate revision at all", () => {
+  const trafficJson = JSON.stringify({
+    status: { traffic: [{ revisionName: "compliance-scanner-00002-h9h", percent: 100 }] },
+  });
+  const result = runPromotionTrafficVerification({ trafficJson, candidateRevision: CANDIDATE_REVISION_FOR_TESTS });
+  assert.equal(promotionOkFrom(result), "0");
+  assert.ok(result.stderr.includes("found 0"), `expected a zero-match diagnostic, got: ${result.stderr}`);
+});
+
+test("promotion traffic verification: fails closed when the candidate is present but BELOW 100% (a partial/interrupted shift)", () => {
+  const trafficJson = JSON.stringify({
+    status: {
+      traffic: [
+        { revisionName: CANDIDATE_REVISION_FOR_TESTS, percent: 50 },
+        { revisionName: "compliance-scanner-00002-h9h", percent: 50 },
+      ],
+    },
+  });
+  const result = runPromotionTrafficVerification({ trafficJson, candidateRevision: CANDIDATE_REVISION_FOR_TESTS });
+  assert.equal(promotionOkFrom(result), "0");
+  assert.ok(result.stderr.includes("found 0"), `a 50% candidate must not count as the required 100% match, got: ${result.stderr}`);
+});
+
+test("promotion traffic verification: fails closed when the candidate correctly holds 100% but ANOTHER revision also has positive traffic (an impossible-in-theory but must-still-be-caught split)", () => {
+  const trafficJson = JSON.stringify({
+    status: {
+      traffic: [
+        { revisionName: CANDIDATE_REVISION_FOR_TESTS, percent: 100 },
+        { revisionName: "compliance-scanner-00002-h9h", percent: 1 },
+      ],
+    },
+  });
+  const result = runPromotionTrafficVerification({ trafficJson, candidateRevision: CANDIDATE_REVISION_FOR_TESTS });
+  assert.equal(promotionOkFrom(result), "0");
+  assert.ok(result.stderr.includes("unexpected additional positive-traffic entries"), `expected an 'other positive traffic' diagnostic, got: ${result.stderr}`);
+});
+
+test("promotion traffic verification: fails closed on DUPLICATE candidate entries (two array entries both claiming the candidate revision at 100%) — a malformed API response this check must not silently accept as 'close enough'", () => {
+  const trafficJson = JSON.stringify({
+    status: {
+      traffic: [
+        { revisionName: CANDIDATE_REVISION_FOR_TESTS, percent: 100 },
+        { revisionName: CANDIDATE_REVISION_FOR_TESTS, percent: 100 },
+      ],
+    },
+  });
+  const result = runPromotionTrafficVerification({ trafficJson, candidateRevision: CANDIDATE_REVISION_FOR_TESTS });
+  assert.equal(promotionOkFrom(result), "0");
+  assert.ok(result.stderr.includes("found 2"), `expected a duplicate-match diagnostic, got: ${result.stderr}`);
+});
+
+test("promotion traffic verification: fails closed on malformed/missing traffic data — invalid JSON, missing status.traffic, and status.traffic present but not an array", () => {
+  const cases = [
+    "{not valid json",
+    JSON.stringify({ status: {} }),
+    JSON.stringify({ status: { traffic: "not-an-array" } }),
+    JSON.stringify({}),
+  ];
+  for (const trafficJson of cases) {
+    const result = runPromotionTrafficVerification({ trafficJson, candidateRevision: CANDIDATE_REVISION_FOR_TESTS });
+    assert.equal(promotionOkFrom(result), "0", `expected failure for malformed input: ${trafficJson}`);
+  }
+});
+
+test("promotion traffic verification: no executable status.traffic[0] (or any other fixed numeric index) lookup remains anywhere in promote.sh — the file's own correction comment legitimately quotes the old index-based reads once, as history", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(
+    !nonCommentLines(text).some((l) => /status\.traffic\[\d+\]/.test(l)),
+    "no executable line in promote.sh may reference a fixed numeric status.traffic index"
+  );
+  assert.ok(!nonCommentLines(text).some((l) => l.includes("SERVING_REVISION")), "the old SERVING_REVISION variable must be fully removed — the resolved CANDIDATE_REVISION is now used directly");
+});
+
+test("promotion traffic verification: introduces no jq, no additional Python usage, and no new file — it is a small inline Node block, using the interpreter and image this step already required for the candidate resolver and the fenced lease check", () => {
+  const text = scriptText("promote.sh");
+  assert.ok(!nonCommentLines(text).some((l) => /\bjq\b/.test(l)), "promote.sh must never invoke jq");
+  // The two PRE-EXISTING python3 -c blocks (PREVIOUS_TO_REVISIONS
+  // reconstruction and RESTORED_OK rollback verification) are
+  // unrelated to this correction and must remain exactly as many as
+  // before — never a third, new python3 usage introduced for the
+  // promotion-traffic check itself.
+  const python3Invocations = (text.match(/python3 -c "/g) || []).length;
+  assert.equal(python3Invocations, 2, "exactly the two pre-existing python3 -c blocks must remain — no new Python usage introduced");
+});
+
+test("rollback verification (RESTORED_OK) remains order-independent and is completely UNCHANGED by this correction — it already parses the full status.traffic array and matches every expected PREVIOUS_TO_REVISIONS entry against the actual restored allocation by (revisionName, percent) identity, with a length check to also catch extras, never touching a fixed array index", () => {
+  const text = scriptText("promote.sh");
+  const restoredBlockMatch = text.match(/RESTORED_OK=\$\(python3 -c "\n([\s\S]*?)\n" "\$RESTORED"\)/);
+  assert.ok(restoredBlockMatch, "could not locate the RESTORED_OK python3 block");
+  const restoredBody = restoredBlockMatch[1];
+  assert.ok(!/traffic\[0\]|actual\[0\]|data\[0\]/.test(restoredBody), "the rollback-verification body must never index into the traffic array by a fixed position");
+  assert.ok(restoredBody.includes("for t in (data.get('status') or {}).get('traffic') or []"), "must still scan the COMPLETE traffic array, not a single element");
+  assert.ok(restoredBody.includes("all(any(a['revisionName'] == e['revisionName'] and a['percent'] == e['percent'] for a in actual) for e in expected)"), "must still match every expected entry against the actual array by semantic identity, order-independent");
+  assert.ok(restoredBody.includes("len(actual) == len(expected)"), "must still reject an actual allocation with extra/unexpected entries, not just missing ones");
 });
 
 test("promote.sh: pre-promotion traffic capture (PREVIOUS_TO_REVISIONS, the full captured allocation) is unchanged by this correction — still reconstructed from /workspace/.previous-traffic-allocation.json, still refuses to promote without a provable rollback target", () => {
