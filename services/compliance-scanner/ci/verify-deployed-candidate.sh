@@ -227,25 +227,44 @@ sha256_of() {
 # --- generation-pinning re-verification against the REAL deployed
 #     candidate — same technique proven in the Slice 2.1 staging
 #     verification: same object path, two generations, pinned reads
-#     must distinguish them. Synthetic, build-scoped, cleaned up below.
+#     must distinguish them. Synthetic, build-scoped.
 #
-# Single-authoritative-execution-identity correction (closing a real
-# staging failure — build 9cb468c3-2401-403a-8ed6-e4afabfa9f9a, step
-# verify-deployed-candidate: "does not have storage.objects.list
-# access to the Google Cloud Storage bucket"): the GCS-side create/
-# read/overwrite/read/cleanup sequence below previously used
-# `gcloud storage cp`/`objects describe`/`rm -a`, all of which the
-# gcloud CLI itself internally resolves via a bucket-level LIST call
-# even for one fully-qualified destination path — a capability the
-# dedicated CI service account intentionally does NOT have (it holds
-# only IAM-Condition PATH-SCOPED object permissions on this bucket,
-# never bucket-wide list). Replaced with
-# ci/verifyGenerationPinning.js, which performs the identical
-# create/verify/overwrite/verify/cleanup lifecycle via direct
-# @google-cloud/storage object-API calls, each addressed by its own
-# exact, already-known object name — never a list, never a wildcard.
-# No IAM change was made or is needed; this is a pure client-behavior
-# substitution.
+# Sequencing correction (closing a real staging failure — build
+# 8b35480c-b19f-4aad-a0dd-9779a42d8b49, step verify-deployed-candidate:
+# "generation-pinned read of old (EICAR) generation failed ...
+# gcs_download_failed"). The prior version of this section called a
+# single-shot helper that created BOTH generations, verified them
+# LOCALLY, then deleted both — all before the /v1/scan calls below ever
+# asked the DEPLOYED CANDIDATE (a separate service, its own separate
+# runtime identity) to read them. By the time those requests arrived,
+# both generations were already gone: a real regression, not a
+# permission error (the single-authoritative-execution-identity
+# correction's own list-permission fix already worked correctly).
+#
+# Fixed by splitting ci/verifyGenerationPinning.js into `prepare` (create
+# + local verify + overwrite + local verify — deliberately does NOT
+# delete anything, and persists a local ownership-transfer receipt
+# instead) and `cleanup` (reads that receipt, deletes exactly the two
+# generations it names, by exact generation precondition, never a
+# list/prefix/broad delete). This script now runs `prepare`, THEN the
+# unchanged /v1/scan checks below against the real deployed candidate
+# for BOTH generations, and only calls `cleanup` AFTER both of those
+# checks have already passed.
+#
+# Trap-lifecycle adversarial correction: covering the window between
+# `prepare` and the explicit post-verification cleanup uses TWO
+# separate handlers (generation_pinning_exit_trap for ordinary
+# EXIT-only termination, generation_pinning_signal_trap for
+# SIGINT/SIGTERM specifically — see each function's own doc comment
+# just below for the full reasoning), not one shared `trap CMD EXIT
+# INT TERM`. A single shared trap cannot correctly satisfy both "a
+# caught signal must actually terminate this step, with the
+# conventional 128+signal exit status" AND "cleanup must never run
+# twice, recursively, as a side effect of a signal handler's own
+# `exit` call re-triggering the EXIT trap" at the same time — this
+# split is what makes both properties hold simultaneously, proven by
+# a real shell-process test harness (not merely inspected as text) in
+# pipelineStatic.test.js.
 #
 # v1's content is the canonical EICAR bytes — already decoded and
 # hash-verified once, earlier, by ci/verify-fixtures.sh's node-based
@@ -255,8 +274,69 @@ sha256_of() {
 cp /workspace/.eicar-materialized.bin /tmp/v1.bin
 printf 'synthetic benign replacement content' > /tmp/v2.bin
 
-GENERATION_PINNING_RESULT=$(PROJECT_ID="$PROJECT_ID" SYNTHETIC_TEST_BUCKET="$SYNTHETIC_TEST_BUCKET" BUILD_ID="$BUILD_ID" V1_PAYLOAD_PATH=/tmp/v1.bin V2_PAYLOAD_PATH=/tmp/v2.bin node ci/verifyGenerationPinning.js) \
-  || { echo "generation-pinning verification failed"; exit 1; }
+generation_pinning_cleanup() {
+  PROJECT_ID="$PROJECT_ID" SYNTHETIC_TEST_BUCKET="$SYNTHETIC_TEST_BUCKET" BUILD_ID="$BUILD_ID" node ci/verifyGenerationPinning.js cleanup
+}
+
+# Two SEPARATE handlers, deliberately not one shared `trap CMD EXIT
+# INT TERM` (adversarial correction — a single shared trap has two
+# real defects: (a) a plain signal trap that never itself calls `exit`
+# does NOT terminate a non-interactive shell — POSIX/sh/bash resume
+# normal execution after the trap returns, which would let this step
+# silently continue past an operator- or Cloud-Build-issued
+# SIGINT/SIGTERM instead of stopping with the conventional 128+signal
+# status; and (b) if a signal handler DOES call `exit` to fix that, and
+# EXIT is trapped by the SAME command, that `exit` call re-triggers the
+# EXIT trap too — a second, redundant cleanup attempt on every signal).
+#
+# generation_pinning_exit_trap fires on every ORDINARY shell
+# termination this script itself causes (falling off the end normally,
+# or any `exit N` from an explicit check failure or from `set -eu`
+# catching a failing command) — never as a direct consequence of a
+# caught signal, which is handled separately below. It never calls
+# `exit` itself, which is what lets the shell's already-determined
+# exit status propagate through completely untouched: a cleanup
+# failure here is reported to stderr as a DISTINCT diagnostic, never
+# allowed to replace the real primary failure/status.
+generation_pinning_exit_trap() {
+  generation_pinning_cleanup || echo "generation-pinning: cleanup failed while handling script exit — any primary error above takes precedence" >&2
+}
+
+# generation_pinning_signal_trap handles SIGINT/SIGTERM explicitly:
+#   1. disarms EXIT/INT/TERM FIRST — before doing anything else. This
+#      is what prevents the `exit 130`/`exit 143` call at the end of
+#      THIS same handler from re-triggering the EXIT trap and running
+#      cleanup a second, recursive time.
+#   2. runs cleanup exactly once.
+#   3. exits with the conventional 128+signal status (130 for SIGINT,
+#      143 for SIGTERM) UNCONDITIONALLY — the correct signal exit
+#      status must never depend on cleanup's own outcome; a cleanup
+#      failure here is still reported, as a distinct diagnostic, but
+#      this step still terminates with the signal-specific code either
+#      way, and execution never continues past this function.
+generation_pinning_signal_trap() {
+  trap - EXIT INT TERM
+  generation_pinning_cleanup || echo "generation-pinning: cleanup failed while handling signal ${1} — this step is terminating regardless" >&2
+  case "$1" in
+    INT) exit 130 ;;
+    TERM) exit 143 ;;
+  esac
+}
+
+# Armed BEFORE prepare runs, so any failure or signal from this point
+# forward — including one that occurs mid-prepare, before a receipt
+# even exists — is covered. `cleanup` is itself idempotent/safe to call
+# with nothing to clean up (it looks for its own receipt and no-ops if
+# absent), so arming this early never risks a spurious failure; a
+# genuine mid-prepare failure is separately self-cleaned by
+# ci/verifyGenerationPinning.js's own `prepare` command before it ever
+# returns control here.
+trap generation_pinning_exit_trap EXIT
+trap 'generation_pinning_signal_trap INT' INT
+trap 'generation_pinning_signal_trap TERM' TERM
+
+GENERATION_PINNING_RESULT=$(PROJECT_ID="$PROJECT_ID" SYNTHETIC_TEST_BUCKET="$SYNTHETIC_TEST_BUCKET" BUILD_ID="$BUILD_ID" V1_PAYLOAD_PATH=/tmp/v1.bin V2_PAYLOAD_PATH=/tmp/v2.bin node ci/verifyGenerationPinning.js prepare) \
+  || { echo "generation-pinning prepare failed"; exit 1; }
 GEN_PATH=$(printf '%s\n' "$GENERATION_PINNING_RESULT" | sed -n '1p')
 GEN1=$(printf '%s\n' "$GENERATION_PINNING_RESULT" | sed -n '2p')
 GEN2=$(printf '%s\n' "$GENERATION_PINNING_RESULT" | sed -n '3p')
@@ -278,13 +358,17 @@ BODY2=$(printf '{"contractVersion":1,"requestId":"ci-%s-gen2","bucket":"%s","obj
 RESULT2=$(curl -fs -X POST -H "Authorization: Bearer ${TOKEN}" -H "content-type: application/json" -d "$BODY2" "${CANDIDATE_URL}/v1/scan")
 echo "$RESULT2" | grep -q '"verdict":"clean"' || { echo "generation-pinned read of new (benign) generation failed: $RESULT2"; exit 1; }
 
-# No cleanup call here: ci/verifyGenerationPinning.js already deleted
-# both generations it created (GEN1 and GEN2, each by its own exact
-# generation precondition) in its own finally-block cleanup, before
-# ever returning the object path/generations above. A separate
-# `gcloud storage rm -a` here would be both redundant and would
-# reintroduce the same bucket-level list dependency this correction
-# removes (`rm -a` "all generations of this name" requires enumerating
-# them).
+# Both cross-service checks above have now passed — only NOW does
+# cleanup run, explicitly (not merely left to the exit trap), and its
+# own exit status is checked: if verification succeeded but cleanup
+# itself fails, this step must still fail overall rather than silently
+# reporting success with two orphaned generations left behind. The
+# trap is disarmed immediately afterward — before this script's own
+# normal fall-through exit — specifically so a SUCCESSFUL explicit
+# cleanup here is never redundantly repeated by the EXIT trap when the
+# script completes normally: exactly the "successful cleanup run
+# twice" risk this correction closes.
+generation_pinning_cleanup || { echo "generation-pinning cleanup failed after successful verification"; exit 1; }
+trap - EXIT INT TERM
 
 echo "verify-deployed-candidate: all checks passed for revision ${CANDIDATE_REVISION} at digest ${DIGEST}"

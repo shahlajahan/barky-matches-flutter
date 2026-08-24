@@ -15,7 +15,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+const { spawnSync, spawn } = require("node:child_process");
 const os = require("node:os");
 const crypto = require("node:crypto");
 
@@ -1878,28 +1878,34 @@ test("verify-deployed-candidate.sh: the traffic-resolution call fails closed via
 });
 
 // ---------------------------------------------------------------------
-// Generation-pinning direct-object correction (single-authoritative-
-// execution-identity correction, closing a real staging failure —
-// build 9cb468c3-2401-403a-8ed6-e4afabfa9f9a, step verify-deployed-
-// candidate: "does not have storage.objects.list access to the Google
-// Cloud Storage bucket"). `gcloud storage cp` internally performs a
-// bucket-level LIST call the dedicated CI service account intentionally
-// does not have; ci/verifyGenerationPinning.js replaces the entire GCS
-// create/read/overwrite/read/cleanup sequence with direct
-// @google-cloud/storage object-API calls instead (see that file's own
-// tests, verifyGenerationPinning.test.js, for the full behavioral
-// proof against a fake, list-free adapter). These checks are local to
-// verify-deployed-candidate.sh's own integration with that helper —
-// proving it is invoked exactly once, and that every OTHER previously-
-// verified check in this script (resolver, digest, runtime SA, private
-// IAM assumptions, health/status, fixture verdicts) remains textually
-// unchanged by this correction.
+// Generation-pinning SEQUENCING correction (closing a real staging
+// failure — build 8b35480c-b19f-4aad-a0dd-9779a42d8b49, step
+// verify-deployed-candidate: "generation-pinned read of old (EICAR)
+// generation failed ... gcs_download_failed"). The prior version of
+// this correction (direct-object GCS calls, replacing gcloud storage
+// cp's own implicit bucket-list dependency) worked correctly, but
+// bundled create+verify+cleanup into ONE invocation that ran BEFORE
+// this script's own /v1/scan calls ever asked the deployed candidate
+// to read the same generations — so cleanup deleted them first. Fixed
+// Fixed by splitting ci/verifyGenerationPinning.js into `prepare` (creates
+// both generations, verifies them locally, does NOT delete anything)
+// and `cleanup` (reads a local receipt `prepare` wrote and deletes
+// exactly those two generations). These checks prove the SHELL's own
+// integration is correctly ordered: `prepare` runs once, before both
+// HTTP verdict checks; `cleanup` is invoked (via one named function)
+// only after both checks pass, with an EXIT/INT/TERM trap covering the
+// window in between; and every OTHER previously-verified check in this
+// script remains textually unaffected.
 // ---------------------------------------------------------------------
 
-test("verify-deployed-candidate.sh invokes ci/verifyGenerationPinning.js exactly once, and no gcloud storage cp/ls/rm or wildcard storage operation remains anywhere in the file", () => {
+test("verify-deployed-candidate.sh: prepare is invoked exactly once, cleanup is invoked via exactly one named function (never duplicated inline), and no gcloud storage cp/ls/rm/describe or wildcard storage operation remains anywhere in the file", () => {
   const text = scriptText("verify-deployed-candidate.sh");
-  const invocations = (text.match(/node ci\/verifyGenerationPinning\.js/g) || []).length;
-  assert.equal(invocations, 1, "the generation-pinning helper must be invoked exactly once");
+  const prepareInvocations = (text.match(/node ci\/verifyGenerationPinning\.js prepare\b/g) || []).length;
+  assert.equal(prepareInvocations, 1, "prepare must be invoked exactly once");
+  const cleanupFunctionDefinitions = (text.match(/generation_pinning_cleanup\(\)\s*\{/g) || []).length;
+  assert.equal(cleanupFunctionDefinitions, 1, "the cleanup function must be defined exactly once");
+  const cleanupInvocationsInsideFunction = (text.match(/node ci\/verifyGenerationPinning\.js cleanup\b/g) || []).length;
+  assert.equal(cleanupInvocationsInsideFunction, 1, "the underlying `cleanup` subcommand must appear exactly once in the file — inside the named function, never duplicated inline elsewhere");
   assert.ok(
     !nonCommentLines(text).some((l) => /gcloud storage (cp|ls|rm)\b/.test(l)),
     "no executable line may contain gcloud storage cp/ls/rm"
@@ -1910,16 +1916,81 @@ test("verify-deployed-candidate.sh invokes ci/verifyGenerationPinning.js exactly
   );
 });
 
-test("verify-deployed-candidate.sh: the generation-pinning helper invocation passes PROJECT_ID, SYNTHETIC_TEST_BUCKET, and BUILD_ID as environment data, and its 3-line stdout (object path, gen1, gen2) is fail-closed non-empty-checked before use", () => {
+test("verify-deployed-candidate.sh: prepare passes PROJECT_ID, SYNTHETIC_TEST_BUCKET, and BUILD_ID as environment data, and its 3-line stdout (object path, gen1, gen2) is fail-closed non-empty-checked before use", () => {
   const text = scriptText("verify-deployed-candidate.sh");
-  assert.ok(text.includes("PROJECT_ID=\"$PROJECT_ID\" SYNTHETIC_TEST_BUCKET=\"$SYNTHETIC_TEST_BUCKET\" BUILD_ID=\"$BUILD_ID\""), "the helper invocation must pass these three env vars through verbatim");
-  assert.ok(text.includes('|| { echo "generation-pinning verification failed"; exit 1; }'), "the helper invocation must be explicitly guarded, fail-closed, under set -e");
+  assert.ok(text.includes('PROJECT_ID="$PROJECT_ID" SYNTHETIC_TEST_BUCKET="$SYNTHETIC_TEST_BUCKET" BUILD_ID="$BUILD_ID" V1_PAYLOAD_PATH=/tmp/v1.bin V2_PAYLOAD_PATH=/tmp/v2.bin node ci/verifyGenerationPinning.js prepare'), "prepare must be invoked with these exact env vars");
+  assert.ok(text.includes('|| { echo "generation-pinning prepare failed"; exit 1; }'), "the prepare invocation must be explicitly guarded, fail-closed, under set -e");
   assert.ok(text.includes('[ -n "$GEN_PATH" ] || { echo "generation-pinning: missing object path"; exit 1; }'));
   assert.ok(text.includes('[ -n "$GEN1" ] || { echo "generation-pinning: missing first generation"; exit 1; }'));
   assert.ok(text.includes('[ -n "$GEN2" ] || { echo "generation-pinning: missing second generation"; exit 1; }'));
 });
 
-test("verify-deployed-candidate.sh: every previously-verified check remains unchanged by the generation-pinning correction — resolver invocation, digest verification, runtime-SA verification, authenticated/unauthenticated/invalid-auth checks, and all three mandatory fixture verdicts are all still present, textually unaffected", () => {
+test("verify-deployed-candidate.sh: EXIT and INT/TERM use TWO SEPARATE handlers (adversarial correction) — a shared single trap cannot correctly satisfy both 'a caught signal must actually terminate the step' and 'cleanup must never run twice recursively' at once. The EXIT-only handler never calls exit itself (so it can never override a real primary failure's exit status); the signal handler disarms all three traps as its OWN first action (preventing its own exit call from recursively re-triggering the EXIT trap) before running cleanup and exiting with the conventional 128+signal status", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+
+  // Two distinct handler functions exist, each defined exactly once.
+  assert.equal((text.match(/generation_pinning_exit_trap\(\) \{/g) || []).length, 1);
+  assert.equal((text.match(/generation_pinning_signal_trap\(\) \{/g) || []).length, 1);
+
+  // The EXIT-only handler's body never calls exit.
+  const exitTrapBodyMatch = text.match(/generation_pinning_exit_trap\(\) \{\n([\s\S]*?)\n\}/);
+  assert.ok(exitTrapBodyMatch, "could not locate generation_pinning_exit_trap's body");
+  // Command-position only — the handler's own echoed diagnostic text
+  // legitimately contains the WORD "exit" (e.g. "...handling script
+  // exit..."), which a naive \bexit\b scan would wrongly flag.
+  assert.ok(
+    !/(?:^|\n|;|&&|\|\|)\s*exit(?:\s|$)/.test(exitTrapBodyMatch[1]),
+    "the EXIT-only handler must never call exit itself, or it would override the real primary exit status"
+  );
+  assert.ok(/generation_pinning_cleanup \|\| echo "[^"]*" >&2/.test(exitTrapBodyMatch[1]), "the EXIT-only handler must invoke cleanup and, on its own failure, only echo a diagnostic");
+
+  // The signal handler disarms first, then cleans up, then exits with
+  // the exact conventional signal-specific status for each case.
+  const signalTrapBodyMatch = text.match(/generation_pinning_signal_trap\(\) \{\n([\s\S]*?)\n\}/);
+  assert.ok(signalTrapBodyMatch, "could not locate generation_pinning_signal_trap's body");
+  const signalBody = signalTrapBodyMatch[1];
+  assert.ok(signalBody.trim().startsWith("trap - EXIT INT TERM"), "the signal handler must disarm all three traps as its very first statement");
+  assert.ok(signalBody.includes("INT) exit 130"), "SIGINT must exit with status 130 (128+2)");
+  assert.ok(signalBody.includes("TERM) exit 143"), "SIGTERM must exit with status 143 (128+15)");
+
+  // Arming: EXIT bound to the EXIT-only handler; INT/TERM each bound
+  // to the signal handler with their own signal name argument.
+  assert.ok(text.includes("trap generation_pinning_exit_trap EXIT"));
+  assert.ok(text.includes("trap 'generation_pinning_signal_trap INT' INT"));
+  assert.ok(text.includes("trap 'generation_pinning_signal_trap TERM' TERM"));
+
+  const armIndex = text.indexOf("trap generation_pinning_exit_trap EXIT");
+  const prepareIndex = text.indexOf("node ci/verifyGenerationPinning.js prepare");
+  assert.ok(armIndex !== -1 && prepareIndex !== -1 && armIndex < prepareIndex, "all three traps must be armed before prepare runs");
+
+  const disarmIndex = text.lastIndexOf("trap - EXIT INT TERM");
+  assert.ok(disarmIndex > armIndex, "the success-path disarm must occur after arming");
+  const explicitCleanupCallIndex = text.lastIndexOf('generation_pinning_cleanup || { echo "generation-pinning cleanup failed after successful verification"; exit 1; }');
+  assert.ok(explicitCleanupCallIndex !== -1 && explicitCleanupCallIndex < disarmIndex, "on the success path, the trap must be disarmed only AFTER the explicit cleanup call — never before, per the required ordering: verification -> explicit cleanup succeeds -> traps disarmed -> exit 0");
+});
+
+test("verify-deployed-candidate.sh: prepare occurs strictly before BOTH /v1/scan generation-pinned HTTP verdict checks, and the explicit cleanup call occurs strictly AFTER both of them — the exact ordering this correction exists to fix (positions computed over EXECUTABLE lines only — the file's own doc comment legitimately quotes the historical failure message once, earlier in the file, as history)", () => {
+  const text = nonCommentLines(scriptText("verify-deployed-candidate.sh")).join("\n");
+  const prepareIndex = text.indexOf("node ci/verifyGenerationPinning.js prepare");
+  const gen1CheckIndex = text.indexOf('generation-pinned read of old (EICAR) generation failed');
+  const gen2CheckIndex = text.indexOf('generation-pinned read of new (benign) generation failed');
+  const explicitCleanupIndex = text.indexOf('generation_pinning_cleanup || { echo "generation-pinning cleanup failed after successful verification"');
+
+  assert.ok(prepareIndex !== -1 && gen1CheckIndex !== -1 && gen2CheckIndex !== -1 && explicitCleanupIndex !== -1, "all four anchors must be present on executable lines");
+  assert.ok(prepareIndex < gen1CheckIndex, "prepare must occur before the GEN1/EICAR verdict check");
+  assert.ok(gen1CheckIndex < gen2CheckIndex, "the GEN1 check must occur before the GEN2 check (unchanged order)");
+  assert.ok(gen2CheckIndex < explicitCleanupIndex, "the explicit cleanup call must occur AFTER both HTTP verdict checks — never before, which was this correction's exact defect");
+});
+
+test("verify-deployed-candidate.sh: on normal success, cleanup's own exit status is explicitly checked and treated as fatal if it fails — success of the HTTP verification checks alone is never sufficient to report step success", () => {
+  const text = scriptText("verify-deployed-candidate.sh");
+  assert.ok(
+    text.includes('generation_pinning_cleanup || { echo "generation-pinning cleanup failed after successful verification"; exit 1; }'),
+    "the post-verification cleanup call must be guarded with || { ...; exit 1; }, not left unchecked"
+  );
+});
+
+test("verify-deployed-candidate.sh: every previously-verified check remains unchanged by the generation-pinning sequencing correction — resolver invocation, digest verification, runtime-SA verification, authenticated/unauthenticated/invalid-auth checks, and all three mandatory fixture verdicts are all still present, textually unaffected; and promotion/rollback/fencing files remain untouched by this correction", () => {
   const text = scriptText("verify-deployed-candidate.sh");
   assert.ok(text.includes("node ci/resolveCandidateTrafficEntry.js"), "the shared resolver invocation must be unchanged");
   assert.ok(text.includes('echo "$ACTUAL_IMAGE" | grep -qF "$DIGEST"'), "digest verification must be unchanged");
@@ -1932,11 +2003,229 @@ test("verify-deployed-candidate.sh: every previously-verified check remains unch
   assert.ok(text.includes('scan_fixture "encrypted-pdf" "FIXTURE_ENCRYPTED_PDF" "error" "encrypted_document_unsupported"'));
   // No IAM command was introduced by this correction.
   assert.ok(!/add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy\b/.test(text));
+  // promote.sh untouched by this correction.
+  const promoteText = scriptText("promote.sh");
+  assert.ok(!promoteText.includes("verifyGenerationPinning"), "promote.sh must never reference the generation-pinning helper — promotion/rollback/fencing logic is unrelated to this correction");
 });
 
 // ---------------------------------------------------------------------
-// deploy-candidate.sh invariant checks (Slice 2.2, replacing a
-// git-dependent "byte-for-byte unchanged" test — build
+// Generation-pinning trap-lifecycle adversarial correction. Unlike
+// every other test in this file, these EXECUTE the real, extracted
+// trap-definition shell code (verbatim substrings of the committed
+// verify-deployed-candidate.sh, not a reimplementation) as REAL child
+// processes — including sending REAL SIGINT/SIGTERM signals — because
+// signal-exit-status/recursion-prevention behavior cannot be proven by
+// inspecting source text alone. A fake `node` binary on PATH intercepts
+// `node ci/verifyGenerationPinning.js cleanup` calls (recording each
+// invocation to a log file and exiting with a controllable code) so
+// these tests never touch a real bucket or receipt file.
+// ---------------------------------------------------------------------
+
+function extractGenerationPinningTrapDefinitions() {
+  const text = scriptText("verify-deployed-candidate.sh");
+  const match = text.match(/generation_pinning_cleanup\(\) \{[\s\S]*?trap 'generation_pinning_signal_trap TERM' TERM\n/);
+  assert.ok(match, "could not extract the generation-pinning trap-definition block");
+  return match[0];
+}
+
+function extractGenerationPinningSuccessCleanupBlock() {
+  const text = scriptText("verify-deployed-candidate.sh");
+  const match = text.match(/generation_pinning_cleanup \|\| \{ echo "generation-pinning cleanup failed after successful verification"; exit 1; \}\ntrap - EXIT INT TERM\n/);
+  assert.ok(match, 'could not extract the explicit success-path "cleanup then disarm" block');
+  return match[0];
+}
+
+function buildTrapHarnessScript() {
+  return [
+    "#!/bin/sh",
+    "set -eu",
+    extractGenerationPinningTrapDefinitions(),
+    'case "$TEST_SCENARIO" in',
+    "  success)",
+    extractGenerationPinningSuccessCleanupBlock(),
+    '    echo "HARNESS_SUCCEEDED"',
+    "    exit 0",
+    "    ;;",
+    "  command_failure)",
+    '    echo "SIMULATED PRIMARY FAILURE" >&2',
+    "    exit 17",
+    "    ;;",
+    "  await_signal)",
+    '    echo "HARNESS_READY"',
+    "    i=0",
+    "    while [ \"$i\" -lt 60 ]; do",
+    "      sleep 1",
+    "      i=$((i + 1))",
+    "    done",
+    '    echo "UNEXPECTED: harness was not interrupted by a signal" >&2',
+    "    exit 99",
+    "    ;;",
+    "  *)",
+    '    echo "unknown TEST_SCENARIO: $TEST_SCENARIO" >&2',
+    "    exit 98",
+    "    ;;",
+    "esac",
+    "",
+  ].join("\n");
+}
+
+// Real, spawned (async) subprocess harness — never a real bucket, never
+// a real receipt on disk (the fake `node` intercepts the one command
+// that would otherwise touch either). `signalToSend`, when supplied, is
+// delivered shortly after the harness prints "HARNESS_READY" (the
+// `await_signal` scenario's own readiness marker).
+function runTrapHarness({ scenario, cleanupExitCode = 0, signalToSend = null, signalDelayMs = 200 }) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "generation-pinning-trap-test-"));
+  const fakeBinDir = path.join(tmpDir, "bin");
+  fs.mkdirSync(fakeBinDir);
+  const cleanupLogPath = path.join(tmpDir, "cleanup.log");
+  fs.writeFileSync(cleanupLogPath, "");
+  fs.writeFileSync(
+    path.join(fakeBinDir, "node"),
+    [
+      "#!/bin/sh",
+      'case "$1" in',
+      "  *verifyGenerationPinning.js)",
+      '    if [ "$2" = "cleanup" ]; then',
+      '      echo "cleanup-invoked" >> "$CLEANUP_LOG_PATH"',
+      '      exit "$FAKE_CLEANUP_EXIT_CODE"',
+      "    fi",
+      "    ;;",
+      "esac",
+      "exit 0",
+      "",
+    ].join("\n"),
+    { mode: 0o755 }
+  );
+  const harnessPath = path.join(tmpDir, "harness.sh");
+  fs.writeFileSync(harnessPath, buildTrapHarnessScript(), { mode: 0o755 });
+
+  return new Promise((resolve, reject) => {
+    const child = spawn("sh", [harnessPath], {
+      cwd: tmpDir,
+      env: {
+        ...process.env,
+        PATH: `${fakeBinDir}:${process.env.PATH}`,
+        // The extracted generation_pinning_cleanup() body references
+        // these three under `set -eu` — the real script always has
+        // them (its own required-args guard, earlier in the file,
+        // fails closed first if they're missing); the fake `node`
+        // above ignores their values entirely, but the shell itself
+        // still needs them bound to avoid an "unbound variable" abort.
+        PROJECT_ID: "fake-project",
+        SYNTHETIC_TEST_BUCKET: "fake-bucket",
+        BUILD_ID: "00000000-0000-0000-0000-000000000000",
+        CLEANUP_LOG_PATH: cleanupLogPath,
+        FAKE_CLEANUP_EXIT_CODE: String(cleanupExitCode),
+        TEST_SCENARIO: scenario,
+      },
+    });
+
+    let stdout = "";
+    let stderr = "";
+    let signalSent = false;
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+      if (!signalSent && signalToSend && stdout.includes("HARNESS_READY")) {
+        signalSent = true;
+        setTimeout(() => child.kill(signalToSend), signalDelayMs);
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("close", (code, signal) => {
+      let cleanupInvocations = 0;
+      try {
+        cleanupInvocations = fs
+          .readFileSync(cleanupLogPath, "utf8")
+          .split("\n")
+          .filter((l) => l === "cleanup-invoked").length;
+      } catch (err) {
+        // leave at 0
+      }
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      resolve({ code, signal, stdout, stderr, cleanupInvocations });
+    });
+  });
+}
+
+test("trap harness: normal success runs the extracted real trap-definition + explicit-cleanup code, performs cleanup exactly ONCE, and exits 0 — proving the trap is correctly disarmed before the script's own normal completion (a bug here would show cleanupInvocations === 2)", async () => {
+  const result = await runTrapHarness({ scenario: "success", cleanupExitCode: 0 });
+  assert.equal(result.code, 0, `expected exit 0, got: ${JSON.stringify(result)}`);
+  assert.equal(result.signal, null);
+  assert.ok(result.stdout.includes("HARNESS_SUCCEEDED"));
+  assert.equal(result.cleanupInvocations, 1, "cleanup must run exactly once on the normal success path");
+});
+
+test("trap harness: a primary command failure (exit 17) is preserved exactly — the EXIT trap runs cleanup exactly once, its handler never calls exit itself, so the original status is never overwritten", async () => {
+  const result = await runTrapHarness({ scenario: "command_failure", cleanupExitCode: 0 });
+  assert.equal(result.code, 17, `expected the primary exit status 17 to be preserved, got: ${JSON.stringify(result)}`);
+  assert.equal(result.signal, null);
+  assert.equal(result.cleanupInvocations, 1);
+});
+
+test("trap harness: primary exit 17 remains 17 even when the EXIT trap's OWN cleanup attempt also fails — both the primary failure diagnostic and the cleanup-failure diagnostic are visible on stderr, and the cleanup failure never replaces the primary exit status", async () => {
+  const result = await runTrapHarness({ scenario: "command_failure", cleanupExitCode: 1 });
+  assert.equal(result.code, 17, `the primary status must survive a failing cleanup attempt, got: ${JSON.stringify(result)}`);
+  assert.ok(result.stderr.includes("SIMULATED PRIMARY FAILURE"), "the primary failure's own diagnostic must be visible");
+  assert.ok(result.stderr.includes("generation-pinning: cleanup failed while handling script exit"), "the cleanup-failure diagnostic must ALSO be visible, as a distinct report");
+  assert.equal(result.cleanupInvocations, 1);
+});
+
+test("trap harness: a cleanup failure AFTER otherwise-successful verification makes the step fail overall — the explicit post-verification cleanup call's own exit 1 is what the script reports, not exit 0", async () => {
+  const result = await runTrapHarness({ scenario: "success", cleanupExitCode: 1 });
+  assert.equal(result.code, 1, `success + failing cleanup must fail the step, got: ${JSON.stringify(result)}`);
+  assert.ok(!result.stdout.includes("HARNESS_SUCCEEDED"), "the script must never reach its own success marker when cleanup itself fails");
+  assert.ok(result.stdout.includes("generation-pinning cleanup failed after successful verification"), "this specific diagnostic is echoed to stdout (no >&2) in the real script, unlike the trap handlers' own echoes");
+  // The explicit call fails before the trap is ever disarmed, so the
+  // still-armed EXIT trap legitimately retries cleanup once more as a
+  // best-effort second attempt (itself idempotent/safe against the
+  // real Node helper) — this is a retry of a FAILED attempt, not a
+  // repeat of a SUCCESSFUL one, and is therefore not the "successful
+  // cleanup repeated" defect this correction closes.
+  assert.equal(result.cleanupInvocations, 2, "the failed explicit attempt plus the EXIT trap's own best-effort retry");
+});
+
+test("trap harness: SIGINT performs cleanup exactly once, exits 130 (the conventional 128+SIGINT status), and execution never continues past the signal — the harness's own 'was not interrupted' fallback message never appears", async () => {
+  const result = await runTrapHarness({ scenario: "await_signal", cleanupExitCode: 0, signalToSend: "SIGINT" });
+  assert.equal(result.code, 130, `expected 130, got: ${JSON.stringify(result)}`);
+  assert.equal(result.signal, null, "the shell's OWN trap must translate the signal into a controlled exit — the process must not be reported as raw-signal-killed");
+  assert.equal(result.cleanupInvocations, 1);
+  assert.ok(!result.stderr.includes("UNEXPECTED: harness was not interrupted"), "execution must never continue past the signal handler");
+});
+
+test("trap harness: SIGTERM performs cleanup exactly once, exits 143 (the conventional 128+SIGTERM status), and execution never continues past the signal", async () => {
+  const result = await runTrapHarness({ scenario: "await_signal", cleanupExitCode: 0, signalToSend: "SIGTERM" });
+  assert.equal(result.code, 143, `expected 143, got: ${JSON.stringify(result)}`);
+  assert.equal(result.signal, null);
+  assert.equal(result.cleanupInvocations, 1);
+  assert.ok(!result.stderr.includes("UNEXPECTED: harness was not interrupted"));
+});
+
+test("trap harness: a SIGINT/SIGTERM cleanup failure does not change the signal's own exit status — 130/143 are reported unconditionally, with the cleanup failure only additionally visible as a distinct diagnostic", async () => {
+  const intResult = await runTrapHarness({ scenario: "await_signal", cleanupExitCode: 1, signalToSend: "SIGINT" });
+  assert.equal(intResult.code, 130);
+  assert.ok(intResult.stderr.includes("generation-pinning: cleanup failed while handling signal INT"));
+  assert.equal(intResult.cleanupInvocations, 1, "the signal handler disarms all traps before calling cleanup, so a failing cleanup here is never retried — it exits with the signal status regardless");
+
+  const termResult = await runTrapHarness({ scenario: "await_signal", cleanupExitCode: 1, signalToSend: "SIGTERM" });
+  assert.equal(termResult.code, 143);
+  assert.ok(termResult.stderr.includes("generation-pinning: cleanup failed while handling signal TERM"));
+  assert.equal(termResult.cleanupInvocations, 1);
+});
+
+test("trap harness: source-level proof that the signal handler disarms EXIT/INT/TERM as its OWN first action, before calling cleanup or exit — this is what prevents the handler's own exit call from recursively re-triggering the EXIT trap (no recursive trap execution)", () => {
+  const block = extractGenerationPinningTrapDefinitions();
+  const signalFnMatch = block.match(/generation_pinning_signal_trap\(\) \{\n([\s\S]*?)\n\}/);
+  assert.ok(signalFnMatch, "could not locate generation_pinning_signal_trap's own body");
+  const body = signalFnMatch[1];
+  const disarmLine = body.indexOf("trap - EXIT INT TERM");
+  const cleanupCallLine = body.indexOf("generation_pinning_cleanup");
+  const exitCaseLine = body.indexOf("case \"$1\" in");
+  assert.ok(disarmLine !== -1 && disarmLine < cleanupCallLine && disarmLine < exitCaseLine, "the disarm must be the first statement in the signal handler, before cleanup and before the exit case");
+});
 // ea9bad30-d2e2-4aa1-9fdb-a765bde94372, step verify-source: "spawnSync
 // git ENOENT". A runtime `git diff` check was invalid on two counts:
 // the minimal node:20.18.1-bookworm-slim image has no git binary at
