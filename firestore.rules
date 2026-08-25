@@ -1091,6 +1091,27 @@ match /dogs/{dogId}/visits/{visitId} {
       'reviewedAt',
       'rejectionReason',
       'complianceStatus'
+    ].concat(complianceServerOwnedProductFields());
+  }
+
+  // Marketplace P1-A Slice 4.2 (docs/plans/marketplace_p1a_compliance_
+  // review_implementation_plan_2026-08-21.md §9/§11, Revision 5 correction
+  // 30-33): the exact, committed five-field server-owned compliance
+  // output set — dormant today (no code writes these yet, §9's "Rollout
+  // consequence" note), protected now via the identical create-absence/
+  // update-immutability mechanism already proven above for the inventory/
+  // moderation fields, so the real writer (Slice 4.3+) activating later
+  // cannot reintroduce the exact defect this file's own P0.1 history
+  // already fixed once. Distinct from productInputRevision, which is
+  // seller-writable (see isValidTransitionalProductInputRevisionCreate/
+  // Update below) and therefore deliberately NOT included in this list.
+  function complianceServerOwnedProductFields() {
+    return [
+      'complianceEffectiveStatus',
+      'complianceValidUntil',
+      'evidenceRevision',
+      'complianceUpdatedAt',
+      'complianceReasonCode'
     ];
   }
 
@@ -1121,7 +1142,8 @@ match /dogs/{dogId}/visits/{visitId} {
       'isFragile', 'isOversize', 'isPerishable', 'isShippable', 'kdvRate',
       'lengthCm', 'marginPercent', 'markupPercent', 'maxDeliveryDays', 'media',
       'minStock', 'moderationStatus', 'name', 'originCity', 'preparationDays',
-      'price', 'pricePosition', 'productId', 'returnCarrierCode',
+      'price', 'pricePosition', 'productId', 'productInputRevision',
+      'returnCarrierCode',
       'returnShippingPayer', 'returnWindowDays', 'salePrice', 'shippingFee',
       'shippingMode', 'shippingPayer', 'shippingProfile', 'shippingSnapshot',
       'sku', 'stock', 'suggestedMaxPrice', 'suggestedMinPrice', 'suggestedPrice',
@@ -1138,6 +1160,89 @@ match /dogs/{dogId}/visits/{visitId} {
     ];
   }
 
+  // Marketplace P1-A Slice 4.2 (docs/plans/marketplace_p1a_compliance_
+  // review_implementation_plan_2026-08-21.md §9, Revision 5 correction
+  // 30-33): productInputRevision's Phase A (dormant-compatibility)
+  // transitional contract. The live Add Product write path
+  // (add_product_page.dart, Product.toJson()) does not send this field
+  // yet and performs a full-document set() with no merge on every create
+  // AND edit, so this must tolerate absence on both create and update
+  // while making adoption monotonic once the field appears, and making
+  // deletion of an already-adopted value structurally impossible via any
+  // client write. Phase B (Slice 4.9) tightens this to unconditional
+  // presence — this is not that; do not weaken create/update below to
+  // require presence before Slice 4.9's own, separate Rules change.
+  function isValidProductInputRevisionValue(v) {
+    // 9007199254740991 == Number.MAX_SAFE_INTEGER (2^53 - 1). `is int`
+    // is false for a JS float like 1.0 (a Firestore double), which is
+    // exactly the rejection the plan's create/update tables require for
+    // "float/double, including 0.0".
+    return v is int && v >= 0 && v < 9007199254740991;
+  }
+
+  function productInputRevisionMatchingFields() {
+    return ['category', 'brand', 'barcode', 'sku'];
+  }
+
+  // diff().affectedKeys() is already this file's established mechanism
+  // for "which fields changed" (sellerUpdateLeavesServerOwnedFieldsUntouched
+  // above) — it is safe against a key being absent on either side (never
+  // throws), so it also safely and correctly covers every absent/null/
+  // value transition for the four nullable-or-required matching fields
+  // without a separate per-field access.
+  function productInputRevisionMatchingFieldsChanged(incoming, existing) {
+    return incoming.diff(existing).affectedKeys()
+      .hasAny(productInputRevisionMatchingFields());
+  }
+
+  // Transitional create contract (§9 table): absent is allowed; present
+  // must be the exact int 0; every other present value (nonzero,
+  // negative, float, string, null, map, list, oversized) is rejected.
+  function isValidTransitionalProductInputRevisionCreate(data) {
+    return !('productInputRevision' in data)
+      || (
+        data.productInputRevision is int
+        && data.productInputRevision == 0
+      );
+  }
+
+  // Transitional update matrix (§9, cases A-E).
+  //   A (absent -> absent): allowed unconditionally below, including a
+  //     matching-field edit — an explicitly acknowledged, temporary
+  //     dormant gap, not an oversight (§9).
+  //   B (absent -> present): the missing old value is treated as
+  //     baseline 0.
+  //   C (present -> present): the full +0/+1 invariant.
+  //   D (present -> absent) and E (any malformed present value) are
+  //     never matched by either allowed branch below and therefore
+  //     always fall through to reject. This is intentional: row D is
+  //     the single most important row in the whole matrix — it is what
+  //     stops an old, unmigrated client's full-document set() from
+  //     silently deleting an adopted revision — and it must never gain
+  //     an exception here.
+  function isValidTransitionalProductInputRevisionUpdate(incoming, existing) {
+    let matchingChanged =
+      productInputRevisionMatchingFieldsChanged(incoming, existing);
+    return (
+        !('productInputRevision' in existing)
+        && !('productInputRevision' in incoming)
+      )
+      || (
+        !('productInputRevision' in existing)
+        && ('productInputRevision' in incoming)
+        && isValidProductInputRevisionValue(incoming.productInputRevision)
+        && incoming.productInputRevision == (matchingChanged ? 1 : 0)
+      )
+      || (
+        ('productInputRevision' in existing)
+        && isValidProductInputRevisionValue(existing.productInputRevision)
+        && ('productInputRevision' in incoming)
+        && isValidProductInputRevisionValue(incoming.productInputRevision)
+        && incoming.productInputRevision
+          == existing.productInputRevision + (matchingChanged ? 1 : 0)
+      );
+  }
+
   function isSafeNewProductSubmission() {
     let data = request.resource.data;
     return data.businessId is string
@@ -1150,6 +1255,7 @@ match /dogs/{dogId}/visits/{visitId} {
       && data.isActive == false
       && data.moderationStatus == 'pending_review'
       && sellerCreateHasNoServerOwnedFields(data)
+      && isValidTransitionalProductInputRevisionCreate(data)
       && data.keys().hasOnly(productAllowedFields());
   }
 
@@ -1166,6 +1272,7 @@ match /dogs/{dogId}/visits/{visitId} {
       && incoming.isActive == false
       && incoming.moderationStatus == 'pending_review'
       && sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing)
+      && isValidTransitionalProductInputRevisionUpdate(incoming, existing)
       && incoming.keys().hasOnly(productAllowedFields())
       && !incoming.diff(existing).affectedKeys().hasAny([
         'businessId',

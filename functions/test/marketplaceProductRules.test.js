@@ -256,6 +256,24 @@ const SERVER_OWNED_FIELD_CASES = [
   ["reviewedAt", 1700000000000, 1800000000000],
   ["rejectionReason", "missing evidence", "changed reason"],
   ["complianceStatus", "under_review", "cleared"],
+  // Marketplace P1-A Slice 4.2 (docs/plans/marketplace_p1a_compliance_
+  // review_implementation_plan_2026-08-21.md §9/§11, Revision 5 correction
+  // 30-33): the five dormant compliance output fields, protected by the
+  // exact same generalized mechanism as the fields above — this loop
+  // gives them the identical create/change/preserve coverage for free.
+  ["complianceEffectiveStatus", "verified_valid", "verified_expiring_soon"],
+  ["complianceValidUntil", 1700000000000, 1800000000000],
+  ["evidenceRevision", 1, 2],
+  ["complianceUpdatedAt", 1700000000000, 1800000000000],
+  ["complianceReasonCode", "evidence_missing", "evidence_expired"],
+];
+
+const COMPLIANCE_SERVER_OWNED_FIELDS = [
+  "complianceEffectiveStatus",
+  "complianceValidUntil",
+  "evidenceRevision",
+  "complianceUpdatedAt",
+  "complianceReasonCode",
 ];
 
 async function seedProductWithServerOwnedField(fieldName, value) {
@@ -1016,3 +1034,782 @@ async function rulesEnvGetRaw(path) {
   });
   return data;
 }
+
+// ---------------------------------------------------------------------
+// Marketplace P1-A Slice 4.2 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §9, Revision 5 correction
+// 30-33): productInputRevision's Phase A dormant-compatibility contract
+// and the five dormant compliance server-owned fields. These tests prove
+// the transitional create contract, the 5-case (A-E) update matrix, the
+// matching-field (category/brand/barcode/sku) comparison semantics, and
+// that an old, unmigrated client's full-document set() — the exact live
+// shape of add_product_page.dart today — cannot silently delete an
+// already-adopted productInputRevision or any compliance field.
+// ---------------------------------------------------------------------
+
+async function seedProductWithRevision(revision, overrides = {}, productId = "piv") {
+  const rulesEnv = await env();
+  await rulesEnv.withSecurityRulesDisabled(async (context) => {
+    const payload = safeProduct(overrides);
+    if (revision !== undefined) payload.productInputRevision = revision;
+    await setDoc(
+      doc(context.firestore(), `businesses/biz-1/products/${productId}`),
+      payload
+    );
+  });
+  return productId;
+}
+
+// --- Transitional create contract (§9 table) ---
+
+rulesTest("4.2-create-1. absent productInputRevision is allowed on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertSucceeds(
+    setDoc(doc(db, "businesses/biz-1/products/piv-c1"), safeProduct())
+  );
+});
+
+rulesTest("4.2-create-2. present productInputRevision 0 is allowed on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertSucceeds(
+    setDoc(
+      doc(db, "businesses/biz-1/products/piv-c2"),
+      safeProduct({ productInputRevision: 0 })
+    )
+  );
+});
+
+rulesTest("4.2-create-3. present productInputRevision 1 is rejected on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/piv-c3"),
+      safeProduct({ productInputRevision: 1 })
+    )
+  );
+});
+
+rulesTest("4.2-create-4. negative productInputRevision is rejected on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/piv-c4"),
+      safeProduct({ productInputRevision: -1 })
+    )
+  );
+});
+
+// Note: a genuinely whole-number "double" (e.g. 0.0) cannot be
+// constructed through the JS Firestore client SDK used by this test
+// harness — Number.isInteger(0.0) is true in JS, so the SDK always
+// serializes it as an integerValue, never a doubleValue. This is a
+// pre-existing limitation of this exact file, already reflected in
+// test "7b. seller cannot submit decimal stock" using 3.5 rather than
+// 3.0. This test uses a genuinely fractional value for the same reason.
+rulesTest("4.2-create-5. float productInputRevision is rejected on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/piv-c5"),
+      safeProduct({ productInputRevision: 0.5 })
+    )
+  );
+});
+
+rulesTest("4.2-create-6. string productInputRevision is rejected on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/piv-c6"),
+      safeProduct({ productInputRevision: "0" })
+    )
+  );
+});
+
+rulesTest("4.2-create-7. null productInputRevision is rejected on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/piv-c7"),
+      safeProduct({ productInputRevision: null })
+    )
+  );
+});
+
+rulesTest("4.2-create-8. boolean productInputRevision is rejected on create", async () => {
+  await resetSeed();
+  const db = (await env()).authenticatedContext("seller-1").firestore();
+  await assertFails(
+    setDoc(
+      doc(db, "businesses/biz-1/products/piv-c8"),
+      safeProduct({ productInputRevision: true })
+    )
+  );
+});
+
+rulesTest(
+  "4.2-create-9. an integer at the Number.MAX_SAFE_INTEGER bound is rejected on create",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c9"),
+        safeProduct({ productInputRevision: Number.MAX_SAFE_INTEGER })
+      )
+    );
+  }
+);
+
+// Note: the create contract's only valid present value is the exact int
+// 0, so isValidProductInputRevisionValue's upper bound is not actually
+// exercised by any create-time test — any nonzero present value is
+// already rejected by the "== 0" check alone, regardless of magnitude.
+// The bound is instead evaluated on Case C's existing/incoming values,
+// where a legitimate non-zero revision can occur — see 4.2-updateC-26c/
+// 26d/26e immediately below the case-C block, which test the boundary
+// immediately below, at, and above Number.MAX_SAFE_INTEGER directly
+// against isValidProductInputRevisionValue.
+
+// --- Update matrix case A: old absent / new absent ---
+
+rulesTest(
+  "4.2-updateA-10. unrelated-only update, absent->absent, is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-a10");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-a10"),
+        safeProduct({ price: 25 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateA-11. category change, absent->absent, is allowed (untracked dormant gap)",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-a11");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-a11"),
+        safeProduct({ category: "Toys > Chew Toy" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateA-12. brand change (absent->value), absent->absent revision, is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-a12");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-a12"),
+        safeProduct({ brand: "Acme" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateA-13. barcode change (absent->value), absent->absent revision, is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-a13");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-a13"),
+        safeProduct({ barcode: "1234567890123" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateA-14. sku change (absent->value), absent->absent revision, is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-a14");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-a14"),
+        safeProduct({ sku: "SKU-1" })
+      )
+    );
+  }
+);
+
+// --- Update matrix case B: old absent / new present ---
+
+rulesTest(
+  "4.2-updateB-15. unrelated-only update with incoming revision 0 is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-b15");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b15"),
+        safeProduct({ price: 25, productInputRevision: 0 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateB-16. unrelated-only update with incoming revision 1 is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-b16");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b16"),
+        safeProduct({ price: 25, productInputRevision: 1 })
+      )
+    );
+  }
+);
+
+const MATCHING_FIELD_CHANGES = [
+  ["category", "Toys > Chew Toy"],
+  ["brand", "Acme"],
+  ["barcode", "1234567890123"],
+  ["sku", "SKU-1"],
+];
+
+for (const [field, value] of MATCHING_FIELD_CHANGES) {
+  rulesTest(
+    `4.2-updateB-17. ${field} change with incoming revision 1, absent->present, is allowed`,
+    async () => {
+      await resetSeed();
+      await seedProductWithRevision(undefined, {}, `piv-b17-${field}`);
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        setDoc(
+          doc(db, `businesses/biz-1/products/piv-b17-${field}`),
+          safeProduct({ [field]: value, productInputRevision: 1 })
+        )
+      );
+    }
+  );
+}
+
+rulesTest(
+  "4.2-updateB-18. matching-field change with incoming revision 0, absent->present, is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-b18");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b18"),
+        safeProduct({ category: "Toys > Chew Toy", productInputRevision: 0 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateB-19. matching-field change with incoming revision >1, absent->present, is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-b19");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b19"),
+        safeProduct({ category: "Toys > Chew Toy", productInputRevision: 2 })
+      )
+    );
+  }
+);
+
+// --- Update matrix case C: old present / new present ---
+
+rulesTest(
+  "4.2-updateC-20. unrelated-only update with unchanged revision is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-c20");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c20"),
+        safeProduct({ price: 25, productInputRevision: 5 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateC-21. unrelated-only update with an incremented revision is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-c21");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c21"),
+        safeProduct({ price: 25, productInputRevision: 6 })
+      )
+    );
+  }
+);
+
+for (const [field, value] of MATCHING_FIELD_CHANGES) {
+  rulesTest(
+    `4.2-updateC-22. ${field} change with exact +1, present->present, is allowed`,
+    async () => {
+      await resetSeed();
+      await seedProductWithRevision(5, {}, `piv-c22-${field}`);
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        setDoc(
+          doc(db, `businesses/biz-1/products/piv-c22-${field}`),
+          safeProduct({ [field]: value, productInputRevision: 6 })
+        )
+      );
+    }
+  );
+}
+
+rulesTest(
+  "4.2-updateC-23. matching-field change with unchanged revision, present->present, is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-c23");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c23"),
+        safeProduct({ category: "Toys > Chew Toy", productInputRevision: 5 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateC-24. matching-field change with a jump greater than +1, present->present, is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-c24");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c24"),
+        safeProduct({ category: "Toys > Chew Toy", productInputRevision: 7 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateC-25. a decrement, present->present, is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-c25");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c25"),
+        safeProduct({ price: 25, productInputRevision: 4 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateC-26a. a malformed incoming revision (string) over a valid existing one is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-c26a");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c26a"),
+        safeProduct({ price: 25, productInputRevision: "5" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateC-26b. a valid-shaped update over a pre-existing malformed revision (data anomaly) is rejected",
+  async () => {
+    await resetSeed();
+    // Simulates a pre-existing data anomaly outside this matrix's scope
+    // (§9): the existing value itself is malformed. No branch of
+    // isValidTransitionalProductInputRevisionUpdate matches this shape,
+    // so it fails closed rather than accepting a guessed recovery value.
+    await seedProductWithRevision("not-an-int", {}, "piv-c26b");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c26b"),
+        safeProduct({ price: 25, productInputRevision: 5 })
+      )
+    );
+  }
+);
+
+// isValidProductInputRevisionValue's own upper bound, exercised directly:
+// the create contract never reaches it (any nonzero present value is
+// already rejected by "== 0" alone), so Case C — where a legitimate
+// non-zero existing/incoming value actually occurs — is where "immediately
+// below / at / above Number.MAX_SAFE_INTEGER" has to be proven.
+
+rulesTest(
+  "4.2-updateC-26c. an existing revision immediately below the safe-integer bound is valid (unrelated-only, unchanged)",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      Number.MAX_SAFE_INTEGER - 1,
+      {},
+      "piv-c26c"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c26c"),
+        safeProduct({
+          price: 25,
+          productInputRevision: Number.MAX_SAFE_INTEGER - 1,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateC-26d. an existing revision exactly at the safe-integer bound is invalid, rejecting even an unrelated-only, unchanged-value update",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      Number.MAX_SAFE_INTEGER,
+      {},
+      "piv-c26d"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c26d"),
+        safeProduct({
+          price: 25,
+          productInputRevision: Number.MAX_SAFE_INTEGER,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-updateC-26e. an incoming revision landing exactly at the safe-integer bound is rejected even when it is the arithmetically correct existing+1",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      Number.MAX_SAFE_INTEGER - 1,
+      {},
+      "piv-c26e"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-c26e"),
+        safeProduct({
+          category: "Toys > Chew Toy",
+          productInputRevision: Number.MAX_SAFE_INTEGER,
+        })
+      )
+    );
+  }
+);
+
+// --- Update matrix case D: old present / new absent (the critical
+// anti-regression case, closing the exact live full-document set() risk
+// of add_product_page.dart) ---
+
+rulesTest(
+  "4.2-updateD-27. present->absent is always rejected, including the real full-document set() shape",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-d27");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // safeProduct() with no productInputRevision override is exactly the
+    // shape Product.toJson() produces today — a full-document set() that
+    // simply has no knowledge of the field at all.
+    await assertFails(
+      setDoc(doc(db, "businesses/biz-1/products/piv-d27"), safeProduct())
+    );
+  }
+);
+
+// --- Matching-field boundaries ---
+
+rulesTest(
+  "4.2-boundary-28a. multiple matching fields changed in one write still requires exactly +1",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-b28a");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b28a"),
+        safeProduct({
+          category: "Toys > Chew Toy",
+          brand: "Acme",
+          productInputRevision: 6,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-boundary-28b. multiple matching fields changed in one write rejects a double-counted +2",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, {}, "piv-b28b");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b28b"),
+        safeProduct({
+          category: "Toys > Chew Toy",
+          brand: "Acme",
+          productInputRevision: 7,
+        })
+      )
+    );
+  }
+);
+
+// Item 29 (non-matching-only change requires +0) is exactly tests
+// 4.2-updateC-20/21 above — reused, not duplicated.
+
+rulesTest(
+  "4.2-boundary-30a. nullable brand null->value counts as a matching-field change",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, { brand: null }, "piv-b30a");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b30a"),
+        safeProduct({ brand: "Acme", productInputRevision: 6 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-boundary-30b. nullable brand value->null counts as a matching-field change",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, { brand: "Acme" }, "piv-b30b");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b30b"),
+        safeProduct({ brand: null, productInputRevision: 6 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-boundary-30c. nullable brand null->null is not a change and must not require +1",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(5, { brand: null }, "piv-b30c");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b30c"),
+        safeProduct({ brand: null, price: 25, productInputRevision: 6 })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b30c"),
+        safeProduct({ brand: null, price: 30, productInputRevision: 5 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-boundary-31. absent-key matching-field comparisons evaluate without throwing",
+  async () => {
+    await resetSeed();
+    // existing has no brand/barcode/sku keys at all (never set, not even
+    // to null) — proves the diff-based comparison tolerates genuine key
+    // absence on both sides, not merely an explicit null value.
+    await seedProductWithRevision(undefined, {}, "piv-b31");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-b31"),
+        safeProduct({ price: 40 })
+      )
+    );
+  }
+);
+
+// --- Server-owned compliance fields: add-on-create / add-on-update
+// (items 32/33 — 34/36 are already covered by the shared
+// SERVER_OWNED_FIELD_CASES loop above, extended with these five fields) ---
+
+for (const fieldName of COMPLIANCE_SERVER_OWNED_FIELDS) {
+  rulesTest(
+    `4.2-compliance-32. seller cannot create a product with ${fieldName}`,
+    async () => {
+      await resetSeed();
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertFails(
+        setDoc(
+          doc(db, `businesses/biz-1/products/piv-compliance-create-${fieldName}`),
+          safeProduct({ [fieldName]: "anything" })
+        )
+      );
+    }
+  );
+
+  rulesTest(
+    `4.2-compliance-33. seller cannot add ${fieldName} via update when previously absent`,
+    async () => {
+      await resetSeed();
+      const productId = `piv-compliance-add-${fieldName}`;
+      const rulesEnv = await env();
+      await rulesEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(
+          doc(context.firestore(), `businesses/biz-1/products/${productId}`),
+          safeProduct()
+        );
+      });
+      const db = rulesEnv.authenticatedContext("seller-1").firestore();
+      await assertFails(
+        updateDoc(doc(db, `businesses/biz-1/products/${productId}`), {
+          [fieldName]: "anything",
+        })
+      );
+    }
+  );
+
+  rulesTest(
+    `4.2-compliance-35/37. an old full-document set() that omits an existing ${fieldName} is rejected (fail-closed, not silent strip)`,
+    async () => {
+      await resetSeed();
+      const productId = `piv-compliance-strip-${fieldName}`;
+      const rulesEnv = await env();
+      await rulesEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(
+          doc(context.firestore(), `businesses/biz-1/products/${productId}`),
+          safeProduct({ [fieldName]: "existing-value" })
+        );
+      });
+      const db = rulesEnv.authenticatedContext("seller-1").firestore();
+      // Exactly the current live add_product_page.dart shape: a full
+      // document set() built from a Product model with no knowledge of
+      // this field at all.
+      await assertFails(
+        setDoc(doc(db, `businesses/biz-1/products/${productId}`), safeProduct())
+      );
+    }
+  );
+}
+
+// --- Regression protection ---
+
+rulesTest(
+  "4.2-regression-38a. an ordinary create with no productInputRevision still succeeds during dormancy",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses/biz-1/products/piv-reg-38a"), safeProduct())
+    );
+  }
+);
+
+rulesTest(
+  "4.2-regression-38b. an ordinary edit with no productInputRevision on either side still succeeds during dormancy",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "piv-reg-38b");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "businesses/biz-1/products/piv-reg-38b"), {
+        stock: 9,
+      })
+    );
+  }
+);
+
+rulesTest(
+  "4.2-regression-39. unauthorized create is still rejected even when a valid productInputRevision is included",
+  async () => {
+    await resetSeed();
+    const db = (await env()).unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-reg-39"),
+        safeProduct({ productInputRevision: 0 })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-regression-40. an unsafe category is still rejected even with a valid productInputRevision",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/piv-reg-40"),
+        safeProduct({
+          category: "Health > Medicine",
+          productInputRevision: 0,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2-regression-41. public read of an approved+active product is unaffected — no compliance read gate introduced",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/piv-reg-41"),
+        safeProduct({ isActive: true, moderationStatus: "approved" })
+      );
+    });
+    // No complianceEffectiveStatus field exists on this document at all —
+    // if a read gate had been introduced, this would now be expected to
+    // fail; it must still succeed, exactly as before Slice 4.2.
+    const db = rulesEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(
+      getDoc(doc(db, "businesses/biz-1/products/piv-reg-41"))
+    );
+  }
+);
