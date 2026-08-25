@@ -535,12 +535,26 @@ const COMPLIANCE_SCOPE_STATUS = Object.freeze({
 // actually touch, the same established convention already governing
 // `documentId`/`businessId`/`scopeType`/`scopeValue`/`createdAt`/
 // `createdBy` in this same list.
+//
+// `documentType`/`validUntil` (master plan Revision 9 correction 49, same
+// document/§13.1 third prerequisite Slice 3 sub-pass): denormalized
+// server-side onto every scope from the source `complianceDocuments`
+// record at `addComplianceScope` creation time, exactly like
+// `sellerRelationship` above — never client-suppliable, never touched by
+// `reviewComplianceScope` or any other operation once set. Both source
+// fields are already immutable (`COMPLIANCE_DOCUMENT_IMMUTABLE_FIELDS`),
+// so these copies can never drift. Exist solely so the future Slice 4.3
+// matching engine can pre-filter candidates before spending a bounded
+// source-document read — the source document remains the sole authority;
+// these copies are never trusted for final eligibility.
 const COMPLIANCE_SCOPE_ALLOWED_FIELDS = Object.freeze([
   "documentId",
   "businessId",
   "scopeType",
   "scopeValue",
   "sellerRelationship",
+  "documentType",
+  "validUntil",
   "memberCount",
   "status",
   "createdAt",

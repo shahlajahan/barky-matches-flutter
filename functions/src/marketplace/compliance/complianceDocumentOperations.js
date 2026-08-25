@@ -82,6 +82,7 @@ const {
 const {
   hasOnlyAllowedKeys,
   isValidSellerRelationship,
+  isValidComplianceDocumentType,
   isAllowedComplianceDocumentTransition,
   isDocumentEligibleForScopeCreation,
   isValidComplianceScopeType,
@@ -810,7 +811,39 @@ async function supersedeComplianceDocument({ db, auth, data }) {
 //    Immutable thereafter: reviewComplianceScope's own update touches
 //    only `status`/`reviewedBy`/`reviewedAt`/`verifiedBrandId`, never
 //    this field.
+//
+//    Revision 9 correction 49 (master plan §4/§13.1, third prerequisite
+//    Slice 3 sub-pass): the created scope also carries `documentType`/
+//    `validUntil`, denormalized server-side from this same authoritative
+//    in-transaction read — never caller-suppliable, never defaulted,
+//    never inferred, exactly mirroring `sellerRelationship` immediately
+//    above. `documentType` is always a valid `COMPLIANCE_DOCUMENT_TYPE`
+//    value on an eligible (`approved`) source document, by the same
+//    "immutable, set once at Slice 2 creation" reasoning already
+//    established for `sellerRelationship`. `validUntil` is nullable on
+//    the source schema (§4) — accepted here as either a valid
+//    Timestamp-like value or exactly `null`; `undefined` (a genuinely
+//    missing key) is not a legal source state and fails closed, same as
+//    a malformed value. Neither value is ever recomputed, normalized, or
+//    repaired — copied verbatim. Immutable thereafter: no scope update
+//    call in this module touches either field.
 // ---------------------------------------------------------------------
+
+function isTimestampLike(value) {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    typeof value.toMillis === "function"
+  );
+}
+
+// `null` is a legal source value (§4: `validUntil` is nullable); a
+// genuinely missing key (`undefined`) is not — the source document
+// always carries this key, one way or the other, once it exists.
+function isValidSourceValidUntil(value) {
+  return value === null || isTimestampLike(value);
+}
 
 async function addComplianceScope({ db, auth, data }) {
   if (!auth || !auth.uid) {
@@ -870,6 +903,21 @@ async function addComplianceScope({ db, auth, data }) {
         "Source document does not carry a valid sellerRelationship"
       );
     }
+    // Revision 9 correction 49: documentType/validUntil, same fail-closed
+    // treatment as sellerRelationship immediately above — checked before
+    // any write, generic message, never echoing the stored value back.
+    if (!isValidComplianceDocumentType(current.documentType)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Source document does not carry a valid documentType"
+      );
+    }
+    if (!("validUntil" in current) || !isValidSourceValidUntil(current.validUntil)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Source document does not carry a valid validUntil"
+      );
+    }
 
     tx.create(scopeRef, {
       documentId,
@@ -877,6 +925,8 @@ async function addComplianceScope({ db, auth, data }) {
       scopeType,
       scopeValue,
       sellerRelationship: current.sellerRelationship,
+      documentType: current.documentType,
+      validUntil: current.validUntil,
       memberCount: 0,
       status: COMPLIANCE_SCOPE_STATUS.PENDING_REVIEW,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

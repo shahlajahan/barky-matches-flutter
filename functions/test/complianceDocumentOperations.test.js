@@ -1831,6 +1831,417 @@ itest("addScope+relationship: verifiedBrandId approval behavior is unaffected �
   assert.equal(after.sellerRelationship, "authorized_distributor");
 });
 
+// ---------------------------------------------------------------------
+// Revision 9 correction 49 (master plan §4/§13.1, third prerequisite
+// Slice 3 sub-pass) — documentType/validUntil denormalized onto the
+// scope at creation time, exactly mirroring sellerRelationship
+// immediately above: source-derived, never caller-suppliable, never
+// touched by any operation other than addComplianceScope's own
+// tx.create().
+// ---------------------------------------------------------------------
+
+const { COMPLIANCE_DOCUMENT_TYPE } = require("../src/marketplace/compliance/complianceConstants");
+
+// Seeds an approved complianceDocuments record with explicit control
+// over documentType/validUntil, for constructing both valid and
+// deliberately-anomalous source states — mirrors
+// seedApprovedDocumentWithRelationship above. When a key is present in
+// `overrides` (including as admin.firestore.FieldValue.delete(), to
+// simulate a missing field), it replaces the corresponding default;
+// when absent, a valid default is used instead.
+async function seedApprovedDocumentWithDocMeta(businessId, overrides = {}) {
+  const documentId = await seedCleanDocument({ businessId });
+  const payload = {
+    status: "approved",
+    reviewedBy: "admin-anomaly-seed",
+    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    sellerRelationship: "authorized_distributor",
+    documentType: "purchase_invoice",
+    validUntil: new Date("2027-01-01T00:00:00.000Z"),
+  };
+  if ("documentType" in overrides) payload.documentType = overrides.documentType;
+  if ("validUntil" in overrides) payload.validUntil = overrides.validUntil;
+  await db.collection("complianceDocuments").doc(documentId).update(payload);
+  return documentId;
+}
+
+// Directly seeds a scope carrying explicit (possibly anomalous)
+// documentType/validUntil values, bypassing addComplianceScope
+// entirely — mirrors seedScopeDirectly above.
+async function seedScopeDirectlyWithDocMeta({
+  businessId,
+  documentId,
+  documentTypeValue,
+  validUntilValue,
+  status = "pending_review",
+}) {
+  const scopeId = nextId("s3-scope-dm");
+  const payload = {
+    documentId,
+    businessId,
+    scopeType: "category",
+    scopeValue: "Health > Vitamins",
+    sellerRelationship: "authorized_distributor",
+    memberCount: 0,
+    status,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: "seller-1",
+    reviewedBy: null,
+    reviewedAt: null,
+    verifiedBrandId: null,
+  };
+  if (documentTypeValue !== undefined) payload.documentType = documentTypeValue;
+  if (validUntilValue !== undefined) payload.validUntil = validUntilValue;
+  await db.collection("complianceDocumentScopes").doc(scopeId).set(payload);
+  return scopeId;
+}
+
+for (const documentType of Object.values(COMPLIANCE_DOCUMENT_TYPE)) {
+  itest(`addScope+docMeta: source document declared documentType "${documentType}" is copied exactly onto the new scope`, async () => {
+    const businessId = await seedBusiness("seller-1");
+    const documentId = await seedApprovedDocumentWithDocMeta(businessId, { documentType });
+    const { scopeId } = await functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: { documentId, scopeType: "category", scopeValue: "Toys > Chew Toy" },
+    });
+    const snap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+    assert.equal(snap.data().documentType, documentType);
+  });
+}
+
+itest("addScope+docMeta: a Timestamp-valued source validUntil is copied onto the scope with the identical instant", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const validUntilDate = new Date("2028-06-15T00:00:00.000Z");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, { validUntil: validUntilDate });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "category", scopeValue: "Toys > Chew Toy" },
+  });
+  const snap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+  const sourceSnap = await db.collection("complianceDocuments").doc(documentId).get();
+  assert.equal(typeof snap.data().validUntil.toMillis, "function");
+  assert.equal(snap.data().validUntil.toMillis(), sourceSnap.data().validUntil.toMillis());
+  assert.equal(snap.data().validUntil.toMillis(), validUntilDate.getTime());
+});
+
+itest("addScope+docMeta: a null source validUntil (schema-nullable per §4) is copied onto the scope as null, never defaulted or treated as expired/eligible", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, { validUntil: null });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "category", scopeValue: "Toys > Chew Toy" },
+  });
+  const snap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+  assert.equal(snap.data().validUntil, null);
+});
+
+itest("addScope+docMeta: caller omitting documentType/validUntil still succeeds — both fields are server-derived, never required request inputs", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId);
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "brand", scopeValue: "Acme" },
+  });
+  const snap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+  assert.equal(snap.data().documentType, "purchase_invoice");
+  assert.equal(snap.data().validUntil.toMillis(), new Date("2027-01-01T00:00:00.000Z").getTime());
+});
+
+itest("addScope+docMeta: a caller-supplied documentType is rejected as an unrecognized request field, zero scopes written", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId);
+  await assert.rejects(
+    functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: { documentId, scopeType: "brand", scopeValue: "Acme", documentType: "purchase_invoice" },
+    }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+  const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+  assert.equal(scopesSnap.size, 0);
+});
+
+itest("addScope+docMeta: a caller-supplied validUntil is rejected as an unrecognized request field, zero scopes written", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId);
+  await assert.rejects(
+    functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: { documentId, scopeType: "brand", scopeValue: "Acme", validUntil: "2099-01-01T00:00:00.000Z" },
+    }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+  const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+  assert.equal(scopesSnap.size, 0);
+});
+
+itest("addScope+docMeta: caller-supplied documentType and validUntil together are both rejected, never partially applied", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId);
+  await assert.rejects(
+    functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: {
+        documentId,
+        scopeType: "brand",
+        scopeValue: "Acme",
+        documentType: "supplier_agreement",
+        validUntil: "2099-01-01T00:00:00.000Z",
+      },
+    }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+  const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+  assert.equal(scopesSnap.size, 0);
+});
+
+const MALFORMED_SOURCE_DOCTYPE_CASES = [
+  ["missing (field entirely absent)", admin.firestore.FieldValue.delete()],
+  ["unknown string outside the enum", "not_a_real_document_type"],
+  ["wrong type — number", 7],
+  ["wrong type — object", { type: "purchase_invoice" }],
+  ["wrong type — array", ["purchase_invoice"]],
+];
+
+for (const [label, badValue] of MALFORMED_SOURCE_DOCTYPE_CASES) {
+  itest(`addScope+docMeta: source document with ${label} documentType fails closed with zero writes`, async () => {
+    const businessId = await seedBusiness("seller-1");
+    const documentId = await seedApprovedDocumentWithDocMeta(businessId, { documentType: badValue });
+    await assert.rejects(
+      functions.addComplianceScope.run({
+        auth: { uid: "seller-1" },
+        data: { documentId, scopeType: "category", scopeValue: "Health > Vitamins" },
+      }),
+      (err) => {
+        assert.equal(err.code, "failed-precondition");
+        assert.equal(/not_a_real_document_type/.test(err.message), false);
+        return true;
+      }
+    );
+    const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+    assert.equal(scopesSnap.size, 0);
+    const eventCount = await countReviewEvents({ targetType: "scope", targetId: documentId });
+    assert.equal(eventCount, 0);
+  });
+}
+
+const MALFORMED_SOURCE_VALIDUNTIL_CASES = [
+  ["missing (field entirely absent)", admin.firestore.FieldValue.delete()],
+  ["wrong type — string", "2027-01-01T00:00:00.000Z"],
+  ["wrong type — number", 1_800_000_000_000],
+  ["wrong type — plain object", { seconds: 1_800_000_000, nanoseconds: 0 }],
+  ["wrong type — array", []],
+  ["wrong type — boolean", false],
+];
+
+for (const [label, badValue] of MALFORMED_SOURCE_VALIDUNTIL_CASES) {
+  itest(`addScope+docMeta: source document with ${label} validUntil fails closed with zero writes`, async () => {
+    const businessId = await seedBusiness("seller-1");
+    const documentId = await seedApprovedDocumentWithDocMeta(businessId, { validUntil: badValue });
+    await assert.rejects(
+      functions.addComplianceScope.run({
+        auth: { uid: "seller-1" },
+        data: { documentId, scopeType: "category", scopeValue: "Health > Vitamins" },
+      }),
+      (err) => {
+        assert.equal(err.code, "failed-precondition");
+        return true;
+      }
+    );
+    const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+    assert.equal(scopesSnap.size, 0);
+    const eventCount = await countReviewEvents({ targetType: "scope", targetId: documentId });
+    assert.equal(eventCount, 0);
+  });
+}
+
+itest("addScope+docMeta: sellerRelationship, documentType, and validUntil are all copied together correctly in a single call", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const validUntilDate = new Date("2029-03-01T00:00:00.000Z");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, {
+    documentType: "manufacturer_evidence",
+    validUntil: validUntilDate,
+  });
+  await db.collection("complianceDocuments").doc(documentId).update({ sellerRelationship: "manufacturer" });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "brand", scopeValue: "Acme" },
+  });
+  const snap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+  assert.equal(snap.data().sellerRelationship, "manufacturer");
+  assert.equal(snap.data().documentType, "manufacturer_evidence");
+  assert.equal(snap.data().validUntil.toMillis(), validUntilDate.getTime());
+  // verifiedBrandId approval behavior for brand-type scopes is entirely
+  // unaffected — already exhaustively covered by the sellerRelationship
+  // section's own "verifiedBrandId approval behavior is unaffected"
+  // test above; not duplicated here.
+});
+
+// Nonexistent-documentId and cross-tenant source-document rejection
+// paths are unaffected by this correction — both already fail before
+// any field on the source document is read at all (fetch/ownership
+// checks run first), and are already covered by the
+// sellerRelationship section's own "nonexistent documentId" test and
+// the unauthenticated/non-owner tests at the top of this file; not
+// duplicated here.
+
+itest("addScope+docMeta: reviewComplianceScope (approve) preserves the scope's documentType/validUntil exactly, alongside every other unrelated field", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const validUntilDate = new Date("2027-01-01T00:00:00.000Z");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, { validUntil: validUntilDate });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "category", scopeValue: "Health > Vitamins" },
+  });
+  const before = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+
+  await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "approve" },
+  });
+
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.documentType, before.documentType);
+  assert.equal(after.documentType, "purchase_invoice");
+  assert.equal(after.validUntil.toMillis(), before.validUntil.toMillis());
+  assert.equal(after.validUntil.toMillis(), validUntilDate.getTime());
+});
+
+itest("addScope+docMeta: reviewComplianceScope (reject) preserves the scope's documentType/validUntil exactly", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, { documentType: "authorization_letter" });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "category", scopeValue: "Toys > Chew Toy" },
+  });
+
+  await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "reject" },
+  });
+
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.status, "rejected");
+  assert.equal(after.documentType, "authorization_letter");
+  assert.equal(after.validUntil.toMillis(), new Date("2027-01-01T00:00:00.000Z").getTime());
+});
+
+itest("addScope+docMeta: an idempotent re-approve replay preserves documentType/validUntil exactly", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, { documentType: "importer_evidence" });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "product", scopeValue: "prod-123" },
+  });
+  await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "approve" },
+  });
+  const replay = await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "approve" },
+  });
+  assert.equal(replay.idempotent, true);
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.documentType, "importer_evidence");
+  assert.equal(after.validUntil.toMillis(), new Date("2027-01-01T00:00:00.000Z").getTime());
+});
+
+itest("addScope+docMeta: addComplianceScopeMembers' memberCount update preserves documentType/validUntil exactly", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const validUntilDate = new Date("2027-01-01T00:00:00.000Z");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, { validUntil: validUntilDate });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "sku_set", scopeValue: "sku-set-1" },
+  });
+  await functions.reviewComplianceScope.run({ auth: { uid: adminUid }, data: { scopeId, decision: "approve" } });
+  const before = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  await functions.addComplianceScopeMembers.run({
+    auth: { uid: "seller-1" },
+    data: { scopeId, members: [{ identifierType: "sku", identifierValue: "SKU-1" }] },
+  });
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.memberCount, 1);
+  assert.equal(after.documentType, before.documentType);
+  assert.equal(after.validUntil.toMillis(), before.validUntil.toMillis());
+});
+
+itest("addScope+docMeta: no operation repairs, accepts, or silently overwrites a pre-existing scope's documentType/validUntil, regardless of its state", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId);
+
+  const missingScope = await seedScopeDirectlyWithDocMeta({
+    businessId,
+    documentId,
+    documentTypeValue: undefined,
+    validUntilValue: undefined,
+  });
+  const malformedScope = await seedScopeDirectlyWithDocMeta({
+    businessId,
+    documentId,
+    documentTypeValue: "not_a_real_document_type",
+    validUntilValue: "not-a-timestamp",
+  });
+  const mismatchedScope = await seedScopeDirectlyWithDocMeta({
+    businessId,
+    documentId,
+    documentTypeValue: "supplier_agreement", // source is "purchase_invoice"
+    validUntilValue: null,
+  });
+
+  for (const scopeId of [missingScope, malformedScope, mismatchedScope]) {
+    const before = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+    const result = await functions.reviewComplianceScope.run({
+      auth: { uid: adminUid },
+      data: { scopeId, decision: "approve" },
+    });
+    assert.equal(result.status, "approved");
+    const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+    assert.equal(after.documentType, before.documentType); // byte-identical, including undefined/malformed
+    assert.equal(after.validUntil, before.validUntil);
+    assert.equal(after.status, "approved");
+  }
+});
+
+itest("addScope+docMeta: repeated independent calls against the same unchanged source document always derive identical documentType/validUntil, though scopeIds differ", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const validUntilDate = new Date("2030-01-01T00:00:00.000Z");
+  const documentId = await seedApprovedDocumentWithDocMeta(businessId, {
+    documentType: "trademark_evidence",
+    validUntil: validUntilDate,
+  });
+  const first = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "sku_set", scopeValue: "set-a" },
+  });
+  const second = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "sku_set", scopeValue: "set-b" },
+  });
+  assert.notEqual(first.scopeId, second.scopeId); // distinct scopes, by design (see module doc comment)
+  const firstSnap = await db.collection("complianceDocumentScopes").doc(first.scopeId).get();
+  const secondSnap = await db.collection("complianceDocumentScopes").doc(second.scopeId).get();
+  assert.equal(firstSnap.data().documentType, "trademark_evidence");
+  assert.equal(secondSnap.data().documentType, "trademark_evidence");
+  assert.equal(firstSnap.data().validUntil.toMillis(), validUntilDate.getTime());
+  assert.equal(secondSnap.data().validUntil.toMillis(), validUntilDate.getTime());
+});
+
 // =====================================================================
 // 7. addComplianceScopeMembers
 // =====================================================================
@@ -2648,4 +3059,22 @@ test("static: sellerRelationship is written onto complianceDocumentScopes only b
   const scopeCreateCalls = EXECUTABLE_TEXT.match(/tx\.create\(scopeRef[^;]*\)/g) || [];
   assert.equal(scopeCreateCalls.length, 1, "expected exactly one scope tx.create() call");
   assert.ok(scopeCreateCalls[0].includes("sellerRelationship"));
+});
+
+// Revision 9 correction 49 — same static proof, extended to
+// documentType/validUntil: written onto complianceDocumentScopes only
+// by addComplianceScope's own tx.create(scopeRef, ...), never by any
+// tx.update(scopeRef, ...) call (reviewComplianceScope's or
+// addComplianceScopeMembers').
+test("static: documentType/validUntil are written onto complianceDocumentScopes only by addComplianceScope's tx.create(scopeRef, ...), never by any tx.update(scopeRef, ...)", () => {
+  const scopeUpdateCalls = EXECUTABLE_TEXT.match(/tx\.update\(scopeRef[^;]*\)/g) || [];
+  assert.ok(scopeUpdateCalls.length >= 1, "expected at least one tx.update(scopeRef, ...) call");
+  for (const call of scopeUpdateCalls) {
+    assert.equal(call.includes("documentType"), false, `tx.update(scopeRef, ...) must never touch documentType: ${call}`);
+    assert.equal(call.includes("validUntil"), false, `tx.update(scopeRef, ...) must never touch validUntil: ${call}`);
+  }
+  const scopeCreateCalls = EXECUTABLE_TEXT.match(/tx\.create\(scopeRef[^;]*\)/g) || [];
+  assert.equal(scopeCreateCalls.length, 1, "expected exactly one scope tx.create() call");
+  assert.ok(scopeCreateCalls[0].includes("documentType"));
+  assert.ok(scopeCreateCalls[0].includes("validUntil"));
 });

@@ -319,11 +319,20 @@ test("COMPLIANCE_SCOPE_STATUS has exactly 3 values", () => {
 test("COMPLIANCE_SCOPE_ALLOWED_FIELDS contains sellerRelationship exactly once, alongside every pre-existing field unchanged", () => {
   const occurrences = COMPLIANCE_SCOPE_ALLOWED_FIELDS.filter((f) => f === "sellerRelationship");
   assert.equal(occurrences.length, 1);
+  assert.ok(Object.isFrozen(COMPLIANCE_SCOPE_ALLOWED_FIELDS));
+});
+
+test("COMPLIANCE_SCOPE_ALLOWED_FIELDS contains documentType and validUntil exactly once each (Revision 9 correction 49), every prior field preserved", () => {
+  for (const field of ["documentType", "validUntil"]) {
+    const occurrences = COMPLIANCE_SCOPE_ALLOWED_FIELDS.filter((f) => f === field);
+    assert.equal(occurrences.length, 1, `${field} must appear exactly once`);
+  }
   assert.deepEqual(COMPLIANCE_SCOPE_ALLOWED_FIELDS.slice().sort(), [
     "businessId",
     "createdAt",
     "createdBy",
     "documentId",
+    "documentType",
     "memberCount",
     "reviewedAt",
     "reviewedBy",
@@ -331,9 +340,35 @@ test("COMPLIANCE_SCOPE_ALLOWED_FIELDS contains sellerRelationship exactly once, 
     "scopeValue",
     "sellerRelationship",
     "status",
+    "validUntil",
     "verifiedBrandId",
   ]);
   assert.ok(Object.isFrozen(COMPLIANCE_SCOPE_ALLOWED_FIELDS));
+});
+
+test("hasOnlyAllowedComplianceScopeFields accepts a stored scope carrying documentType/validUntil and rejects an unknown field alongside them", () => {
+  const validScope = {
+    documentId: "doc-1",
+    businessId: "biz-1",
+    scopeType: "brand",
+    scopeValue: "Acme",
+    sellerRelationship: "reseller",
+    documentType: "purchase_invoice",
+    validUntil: { toMillis: () => 1_800_000_000_000 },
+    memberCount: 0,
+    status: "pending_review",
+  };
+  assert.equal(hasOnlyAllowedComplianceScopeFields(validScope), true);
+  assert.equal(hasOnlyAllowedComplianceScopeFields({ ...validScope, notAllowed: true }), false);
+});
+
+test("valid COMPLIANCE_DOCUMENT_TYPE values are each accepted by isValidComplianceDocumentType, unaffected by the scope-schema correction", () => {
+  for (const value of Object.values(COMPLIANCE_DOCUMENT_TYPE)) {
+    assert.equal(isValidComplianceDocumentType(value), true);
+  }
+  assert.equal(isValidComplianceDocumentType("not_a_real_type"), false);
+  assert.equal(isValidComplianceDocumentType(null), false);
+  assert.equal(isValidComplianceDocumentType(undefined), false);
 });
 
 test("hasOnlyAllowedComplianceScopeFields accepts a stored scope document carrying sellerRelationship and rejects one with an unknown field", () => {
