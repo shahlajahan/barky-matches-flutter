@@ -18,12 +18,21 @@
      merge, so a strict-presence Rule would break the current seller flow
      immediately, not just at some future edge case. Revision 5 defines the
      exact two-phase (Slice 4.2 dormant / Slice 4.9 strict) transitional
-     contract this requires, without weakening the final invariant. Slice
-     1-3 records remain historical and unchanged throughout. -->
+     contract this requires, without weakening the final invariant. Revision
+     6 (2026-08-25) freezes Slice 4.3's complete matching/index/link
+     contract (§0.4): a contract-resolution audit found the productEvidenceLinks
+     schema disagreed with the already-shipped complianceConstants.js
+     constant, the complianceDocumentScopes composite indexes the frozen
+     matching algorithm requires were never declared, and the §13.1/§16
+     sub-slice dependency columns disagreed with each other. Revision 6
+     resolves all three, plus corrects §9's factually-incorrect claim of an
+     explicit Rules-closure for compliancePolicyRegistryPointer and
+     businessComplianceEpochs. Slice 1-4.2 records remain historical and
+     unchanged throughout. -->
 
-# Petsupo Marketplace P1-A — Compliance & Review Foundation: Implementation Plan (Revision 5)
+# Petsupo Marketplace P1-A — Compliance & Review Foundation: Implementation Plan (Revision 6)
 
-**Date:** 2026-08-21 (Revision 2). **Revision 3:** 2026-08-25 — Slice 4 architecture corrected; see §0.1. **Revision 4:** 2026-08-25 — Slice 4.1 contract completed; see §0.2. **Revision 5:** 2026-08-25 — Slice 4.2 dormant-compatibility contract added; see §0.3.
+**Date:** 2026-08-21 (Revision 2). **Revision 3:** 2026-08-25 — Slice 4 architecture corrected; see §0.1. **Revision 4:** 2026-08-25 — Slice 4.1 contract completed; see §0.2. **Revision 5:** 2026-08-25 — Slice 4.2 dormant-compatibility contract added; see §0.3. **Revision 6:** 2026-08-25 — Slice 4.3 matching/index/link contract frozen; see §0.4.
 **Baseline:** branch `integration/mac-windows-2026-07-22`, HEAD `f2048cf25681d714ba562037604116ec42a80101` ("Fix server-owned product field protection (P0.1)"), parent `9238a528fcd267b6d24b3a589e94c93939d1cf3e` (P0). Working tree clean, upstream in sync, no deployment performed.
 **Source architecture:** `docs/audits/marketplace_p1_bulk_compliance_inventory_architecture_2026-08-21.md` (Revision 3, with one field-level cross-reference addendum pointing back to this plan — see that document's status box).
 **Status:** PLAN ONLY. Nothing in this document has been implemented, staged, committed, deployed, or pushed as a result of this plan.
@@ -88,6 +97,17 @@ Before writing Slice 4.2's `firestore.rules` change, a read-only preflight audit
 | 31 | Slice 4.2 was described only as "live but inert," with no boundary between what it does and does not enforce — risking either an unenforceable no-op or an accidental strict rule that breaks production | Split into two named phases: **Phase A (Slice 4.2, dormant compatibility)** — absence tolerated only under an exact transitional matrix, monotonic adoption enforced once the field appears, deletion of an existing value always rejected; **Phase B (Slice 4.9, strict steady state)** — presence, exact typing, and +0/+1 semantics unconditionally required, absence rejected (§9) |
 | 32 | No exact create/update matrix existed for the absent-field transitional window, risking an implementer inventing one silently | Frozen exactly: create allows absent or exact `0`, rejects everything else; update is defined by a 5-case matrix (existing/incoming absent-or-present) — most importantly, *existing present + incoming absent is always rejected*, closing the "old client silently deletes an adopted revision" gap (§9) |
 | 33 | The deployment sequence did not state that server-owned compliance-field writes and any revision backfill must wait for the Flutter write path to stop performing destructive full-document overwrites | Explicit ordering added (§17): Flutter migration (writing the field, preserving server-owned fields) must land and be verified in staging *before* any backfill or recompute write — migrating data into a write path that immediately strips it back out is worse than not migrating at all |
+
+### 0.4 Revision 6 change log — Slice 4.3 matching/index/link contract frozen (2026-08-25)
+
+A read-only contract-resolution audit, performed before writing any Slice 4.3 code, traced the exact query shapes §10's frozen matching algorithm requires against the actual `complianceDocumentScopes` schema and the actual already-shipped `complianceConstants.js`, and found three defects that would have forced an implementer to invent unauthorized structure. This revision resolves all three, documentation-only. It does not touch `firestore.rules`, any test file, any index file, `complianceConstants.js`, or any Flutter file — those are implemented separately, under their own authorization, against this now-complete contract. It does not touch any Slice 1–4.2 record, note, or deployment gate.
+
+| # | Defect found in the pre-Revision-6 Slice 4.3 contract | Fix |
+|---|---|---|
+| 34 | §4's `productEvidenceLinks` schema (`scopeType`, `matchReasonCode`) contradicted the already-committed `PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS` constant (`matchedVia`, `linkedBy`), shipped four days earlier at Slice 1 and never reconciled against the plan text written later, at Revision 3 correction 16 | §4 below is corrected to the single field `matchedVia` (aliased to the existing `COMPLIANCE_SCOPE_TYPE` enum), which is provably non-redundant with the plan's two proposed fields under the current 1:1 lookup-type↔scope-type mapping; `scopeType` and `matchReasonCode` are retired from this collection's schema; `linkedBy` is removed as having no defined provenance semantics under this collection's single-system-writer design and zero existing writer/reader/test dependency (verified: `git grep` for `productEvidenceLinks` across `functions/src/` returns only the schema comment itself; `complianceConstants.test.js` has zero assertions on this constant) |
+| 35 | §10 froze an exact deterministic tie-break (`status=='approved' THEN approvedAt ASC THEN documentId ASC`) for the seven bounded `complianceDocumentScopes` lookups, but no composite index existed anywhere for this collection, and §14 never analyzed what index the algorithm needs — a Firestore query combining equality filters with an `orderBy()` on fields outside that equality set fails outright at runtime without one, so the ≤42-read bound was unachievable as stated, not merely undocumented | §10/§14 below freeze the exact seven-query mapping and the exact minimum two-index composite-index set, cross-checked against official Firestore index-behavior documentation |
+| 36 | §13.1/§16 disagreed on Slice 4.3's own dependency column (`4.1` only vs. `Slice 4.1, 4.2`), and neither table authorized `complianceConstants.js` or `firestore.indexes.json` as files Slice 4.3 would need to modify, despite the algorithm structurally requiring changes to both | §13.1 below is corrected to `Slice 4.1, 4.2` (matching §16, which was already correct) and gains two new file rows for the eventual implementation |
+| 37 | §9's Firestore posture table claimed `compliancePolicyRegistryPointer` and `businessComplianceEpochs` are each closed via an explicit `allow read, write: if false` Rules block; independently verified false — no match block for either collection name exists anywhere in `firestore.rules`, so both rely purely on Firestore's implicit deny-by-default | §9 below is corrected to state the actual, implicit-deny posture; this does not change either collection's real security properties (Admin-SDK-only access either way) and does not block Slice 4.3, which never performs a client-Rules-mediated read of either collection |
 
 ---
 
@@ -173,18 +193,40 @@ Gains `verifiedBrandId` for `scopeType: 'brand'` scopes.
 
 Unchanged from the prior plan revision — deterministic full-SHA-256 member IDs with post-lookup `identifierValue` verification; `complianceReviewEvents` remains append-only with `targetType` covering `document|scope|scope_member_batch|product`.
 
-### `productEvidenceLinks/{linkId}` — reclassified (Revision 3 correction 16)
+### `productEvidenceLinks/{linkId}` — reclassified (Revision 3 correction 16); final schema frozen (Revision 6 correction 34)
 
-**Not the authoritative gate for any read path.** It is a performance/reconciliation reverse index only — it drives the async cache-repair trigger, the scheduled sweep's prioritization, and admin/ops tooling ("what products does revoking this document affect"). No live-eligibility check (§10.1) ever queries this collection; a stale or missing link may only degrade performance, never admit an ineligible product. As of this revision it has no writer anywhere in the codebase — it is schema-defined only; Slice 4.3/4.7 (§16) give it its first writer.
+**Not the authoritative gate for any read path.** It is a performance/reconciliation reverse index only — it drives the async cache-repair trigger, the scheduled sweep's prioritization, and admin/ops tooling ("what products does revoking this document affect"). No live-eligibility check (§10.1) ever queries this collection; a stale or missing link may only degrade performance, never admit an ineligible product. As of this revision it has no writer anywhere in the codebase — it is schema-defined only; Slice 4.3/4.7 (§16) give it its first writer. Written **only** by `recomputeProductComplianceStatus` (single system writer, §9), capped at 10 links per product, server-only.
+
+**Revision 6 correction 34 — the field-name contradiction is resolved.** Revision 3 correction 16's original table (below, superseded) named fields `scopeType`/`matchReasonCode`; the already-shipped (2026-08-21, four days before that text was written) `PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS` constant instead used `matchedVia`/`linkedBy`, and the two were never reconciled. Resolution, by semantics not preference:
+- `matchedVia` is kept: `COMPLIANCE_EVIDENCE_LINK_MATCH_TYPE = COMPLIANCE_SCOPE_TYPE` already aliases its value domain to the correct 7-value enum, and since §10's seven lookup types map 1:1 onto `complianceDocumentScopes.scopeType`'s own values by construction, a link's `scopeType` and `matchReasonCode` would always hold identical values under this architecture — the two proposed fields are provably redundant with each other. `matchedVia` is the single, non-redundant field that already correctly identifies which of the seven matching paths produced the link.
+- `scopeType` and `matchReasonCode` are removed from this collection's schema (both retired in favor of the single `matchedVia` field above).
+- `linkedBy` is removed: this collection has exactly one system writer (`recomputeProductComplianceStatus`) by design, so a "written by" field would be a compile-time constant with no diagnostic value, and no field in this schema table ever defined distinct provenance semantics for it.
+- No migration or backfill is required for any of the three removals: `productEvidenceLinks` has no writer anywhere in the codebase today (verified independently, `functions/src/` grep), so no document — real or test-fixture — has ever been written under either the old or the new field names.
+
+**Final frozen schema:**
 
 | Field | Type | Required | Writer | Notes |
 |---|---|---|---|---|
-| `linkId` (doc ID) | string | yes | Server, `deriveEvidenceLinkId({documentId, scopeId, productId})` — deterministic sha256, domain-separated, matching this codebase's established deterministic-ID convention | — |
-| `productId`, `businessId`, `documentId`, `scopeId`, `scopeType` | string ×5 | yes | Server, `recomputeProductComplianceStatus` only | `businessId` is denormalized onto every link — every link is business-scoped by construction, since it is only ever written from within one product's own recompute |
-| `linkedAt` | timestamp | yes | Server | — |
-| `matchReasonCode` | string | yes | Server | Which of the 7 lookup types (§10) produced this link |
+| `linkId` (doc ID) | string | yes | Server, `deriveEvidenceLinkId({productId, documentId, scopeId})` | See exact ID formula below |
+| `businessId` | string, non-empty | yes | Server, `recomputeProductComplianceStatus` only | Denormalized onto every link — every link is business-scoped by construction, since it is only ever written from within one product's own recompute |
+| `productId` | string, non-empty | yes | Server | — |
+| `documentId` | string, non-empty | yes | Server | — |
+| `scopeId` | string, non-empty | yes | Server | — |
+| `matchedVia` | string, exactly one of `COMPLIANCE_SCOPE_TYPE`'s 7 values: `business`, `supplier`, `brand`, `category`, `product_family`, `sku_set`, `product` | yes | Server | Which of the seven matching paths (§10) produced this link |
+| `linkedAt` | server `Timestamp` | yes | Server | — |
 
-**Writer and cleanup:** each recompute performs a full delete-then-recreate of that product's own link set, bounded at the same cap as `activeEvidenceRefs` (10) — never an unbounded accumulation. Product deletion removes its link set in the same operation. A never-recomputed product has no link entry (harmless: it is also absent from `productComplianceDecisions`, so the live evaluator already excludes it). Removed/revoked evidence leaves a stale link until that product's own next recompute — harmless, since the live evaluator's freshness check (epoch/revision equality) already excludes the product regardless of link staleness. Policy-version changes are **not** this table's concern at all — they are global, not scoped to any one document/scope, and are caught purely by the `policyVersion` equality check in the live evaluator.
+**Exact deterministic `linkId` formula (Revision 6 correction 34).** Random or auto-generated IDs are forbidden. `deriveEvidenceLinkId({productId, documentId, scopeId})` is computed exactly as:
+1. If `productId`, `documentId`, or `scopeId` contains the literal delimiter character (`\n`, U+000A), reject — do not derive an ID. (Firestore document IDs are not structurally guaranteed delimiter-free — only forward slashes, `.`/`..`, and the `__*__` pattern are disallowed by Firestore itself — so this check cannot be skipped as unreachable.)
+2. Build the canonical UTF-8 byte string, matching this codebase's established domain-separated composite-key convention (`deriveScopeMemberId`/`deriveInfoRequestEventId`, `complianceDocumentOperations.js`): the literal domain tag `compliance_evidence_link`, followed by `\n`, followed by `productId`, `\n`, `documentId`, `\n`, `scopeId`, in that exact field order — i.e. `` `compliance_evidence_link\n${productId}\n${documentId}\n${scopeId}` ``.
+3. Compute the SHA-256 digest of that UTF-8 byte string.
+4. Encode the digest as lowercase hexadecimal (Node's `crypto.createHash("sha256").update(...).digest("hex")` already produces this format; no additional case-folding step is needed).
+5. The resulting 64-character lowercase hex string is `linkId`.
+
+This is a pure function of `{productId, documentId, scopeId}` — a transaction retry recomputing the same matched-candidate set (deterministic per §10's own tie-break) always re-derives the identical `linkId` set, which is what makes cleanup-and-recreate idempotent across retries (§10, prior-link cleanup).
+
+**Writer and cleanup:** each recompute performs a full delete-then-recreate of that product's own link set, bounded at the same cap as `activeEvidenceRefs` (10) — never an unbounded accumulation. Prior links are discovered for deletion **without querying this collection**: the prior `productComplianceDecisions/{productId}`'s `activeEvidenceRefs` array (already one of the operation's own bounded reads) supplies each prior link's `documentId`/`scopeId` pair directly, from which the prior `linkId` is re-derived via the same formula above and deleted by known ID — see §10's transaction-ordering note. Product deletion removes its link set in the same operation. A never-recomputed product has no link entry (harmless: it is also absent from `productComplianceDecisions`, so the live evaluator already excludes it). Removed/revoked evidence leaves a stale link until that product's own next recompute — harmless, since the live evaluator's freshness check (epoch/revision equality) already excludes the product regardless of link staleness. Policy-version changes are **not** this table's concern at all — they are global, not scoped to any one document/scope, and are caught purely by the `policyVersion` equality check in the live evaluator.
+
+> **Superseded by Revision 6 correction 34 — historical only, do not implement:** the original Revision 3 correction 16 schema named fields `productId`, `businessId`, `documentId`, `scopeId`, `scopeType` (string ×5) and a separate `matchReasonCode` (string, "Which of the 7 lookup types (§10) produced this link") in place of the single `matchedVia` field above. This wording is retained here only as a historical record of what Revision 3 originally proposed before the Revision 6 reconciliation against the already-shipped constant; it is not live and must not be implemented.
 
 ### `compliancePolicyRegistryPointer/current` — NEW (Revision 3 correction 17; caching permission retracted in Revision 4 correction 27)
 
@@ -453,8 +495,8 @@ Unchanged in shape from the prior revision, extended to the two new collections,
 | `complianceUploadSessions` | Own only | None (all via server operations) | All | None |
 | `productComplianceDecisions` | Own products' decisions | None (system-only writer) | All | None |
 | `compliancePolicyRegistry` | **None** (server-internal read only, via an admin-facing operation — sellers must not see which evidence gaps exist to exploit them) | None | Admin-only display via a dedicated read path, write via a dedicated operation, never a raw Firestore write | None |
-| `compliancePolicyRegistryPointer` (**new, Revision 3**) | None | None | None via raw Rules write — only via the activation transaction (Admin SDK) | None. `allow read, write: if false`, matching `compliancePolicyRegistry`'s existing closed posture — every reader (recompute, live evaluator, approval callable) resolves it via Admin SDK, never a client Rules-mediated read |
-| `businessComplianceEpochs` (**new, Revision 3**) | None | None | None via raw Rules write | None. Closed via Rules, same posture as above — only Slice 3's existing server operations (Admin SDK) increment it |
+| `compliancePolicyRegistryPointer` (**new, Revision 3; Rules-posture wording corrected Revision 6 correction 37**) | None | None | None via raw Rules write — only via the activation transaction (Admin SDK) | None. **Corrected (Revision 6):** no explicit `match` block for this collection exists in `firestore.rules` today — it is closed purely by Firestore's implicit deny-by-default, not an explicit `allow read, write: if false` rule as earlier revisions of this table claimed. The real security property is unchanged either way (every reader — recompute, live evaluator, approval callable — resolves it via Admin SDK, never a client Rules-mediated read), and this is sufficient for Slice 4.3, which never performs a client-Rules-mediated read of this collection. Adding an explicit block is not part of Slice 4.3 unless separately authorized |
+| `businessComplianceEpochs` (**new, Revision 3; Rules-posture wording corrected Revision 6 correction 37**) | None | None | None via raw Rules write | None. **Corrected (Revision 6):** same as above — no explicit `match` block exists; closed only by implicit deny-by-default. Sufficient for Slice 4.3's Admin-SDK-only access; only Slice 3's existing server operations (Admin SDK) increment it |
 | `productEvidenceLinks` (**role reclassified, Rules posture unchanged, Revision 3**) | Own (business-scoped) — unchanged from Slice 1's already-implemented Rules posture (see the Slice 1 note below); Revision 3 only corrects what this collection is *for* (§4, §10.1), not who may read it | None (system-only writer) | All | None |
 
 ### `products` Rules — corrected for Slice 4 (Revision 3)
@@ -587,6 +629,53 @@ normalizeBrand(raw, version = 1):
 
 **Category/supplier/product_family dimensions.** The 9 category strings are provably stable canonical identifiers, not display labels — they are enforced as a closed allowlist by the live, deployed P0.1 Rules on every product write, so any value ever stored is already one of the 9. `supplierId`/`familyId` do not exist on any product as of this revision; whether Turkish legal policy requires supplier- or family-level evidence for particular categories remains the sole open, externally-unresolved question in this plan (§19) — the *mechanism* does not wait on that answer: a required evidence slot whose `acceptedScopeTypes` names only dimensions the product schema cannot populate resolves to `policy_unresolved` (§4), never silently to `evidence_missing`.
 
+### Exact seven-query mapping (Revision 6 correction 35)
+
+Every one of the seven lookups queries `complianceDocumentScopes` (a top-level collection). Every query is pure equality (`==`) plus the shared deterministic tie-break suffix `orderBy(approvedAt ASC).orderBy(documentId ASC).limit(LOOKUP_LIMIT)`, `LOOKUP_LIMIT = 3` — no query in this table uses `array-contains`, `in`, or a range operator. `complianceDocumentScopes`'s own schema (§4) stores every scope type's matched value under one shared field, `scopeValue`, except `brand`'s authoritative gate, which is the separate admin-set `verifiedBrandId` field (§4) — `scopeValue` there is a candidate-narrowing signal only, never authoritative (see the existing "candidate-matching signal only" paragraph above, unchanged).
+
+| # | Lookup | `scopeType` filter | `businessId` filter | `status` filter | Matched product-side value | Scope-doc field compared | Scalar/array | Operator | orderBy | limit | Max docs returned | Member point-reads | Cross-tenant protection | Tie-break |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | business | `=='business'` | `==product.businessId` | `=='approved'` | `product.businessId` | `scopeValue` | scalar | `==` | `approvedAt ASC, documentId ASC` | 3 | 3 | none | required | `status THEN approvedAt ASC THEN documentId ASC` |
+| 2 | supplier | `=='supplier'` | `==product.businessId` | `=='approved'` | `product.supplierId` — **structurally unavailable on any product today**; see below | `scopeValue` | scalar | `==` | same | 3 | 3 | none | required | same |
+| 3 | brand | `=='brand'` | `==product.businessId` | `=='approved'` | candidate narrowing: `normalizedBrandId(product.brand)`; authoritative gate: the scope's confirmed brand identity | candidate: `scopeValue`; authoritative: `verifiedBrandId` | scalar | `==` | same | 3 | 3 | none | required | same |
+| 4 | category | `=='category'` | `==product.businessId` | `=='approved'` | `product.category` (one of the 9 closed-allowlist strings) | `scopeValue` | scalar | `==` | same | 3 | 3 | none | required | same |
+| 5 | product_family | `=='product_family'` | `==product.businessId` | `=='approved'` | `product.familyId` — **structurally unavailable on any product today**; see below | `scopeValue` | scalar | `==` | same | 3 | 3 | none | required | same |
+| 6 | product | `=='product'` | `==product.businessId` | `=='approved'` | `productId` (the product's own document ID) | `scopeValue` | scalar | `==` | same | 3 | 3 | none | required | same |
+| 7 | sku_set candidates | `=='sku_set'` | `==product.businessId` | `=='approved'` | N/A — this query carries no `scopeValue` equality filter at all (exactly 3 filters: `scopeType`, `businessId`, `status`) | N/A | N/A | `==` | same | 3 | 3 | ≤2 per candidate (row 8) | required | same |
+| 8 | sku_set member resolution | N/A — not a `complianceDocumentScopes` query | implicit (nested under an already tenant-checked `scopeId` from row 7) | N/A | `product.barcode` / `product.sku` | member doc ID = deterministic hash of `(scopeId, identifierType, identifierValue)` (§4, `complianceDocumentScopes/{scopeId}/members`) | N/A | **point read by known ID, not a query** | none | none | ≤2 per row-7 candidate (≤6 total across ≤3 candidates) | inherited from row 7's tenant check | N/A — a point read has no ties |
+
+**Brand candidate narrowing and `verifiedBrandId` are never conflated.** Row 3's `scopeValue` equality filter only narrows *which* brand-type scope documents are worth resolving further, within the caller's own business; it never by itself admits a match. A brand-type scope only becomes match-eligible once its `verifiedBrandId` (§4, admin-set during `reviewComplianceScope`) equals the product's confirmed brand identity — this is the unchanged rule stated earlier in this section ("candidate-matching signal only").
+
+**Null/missing product-input handling.** A lookup whose matched product-side field is structurally unavailable (rows 2 and 5 today — `supplierId`/`familyId` do not exist on any product) must **not** issue an equality query with a missing or `undefined` value; the corresponding required policy slot instead resolves directly to `policy_unresolved` (§4, §19), exactly as already specified — never silently to `evidence_missing`, and never treated as eligible. This is not a new rule; it is the existing §19/§4 `policy_unresolved` behavior, restated here to close the query-shape gap explicitly. Evidence that goes unmatched for an *optional* (not policy-required) dimension never broadens eligibility — it is simply absent from `activeEvidenceRefs`.
+
+### Reconciled ≤8-operation / ≤42-read calculation (Revision 6 correction 35)
+
+"8 matching operations" means the seven candidate queries (rows 1–7 above) plus **one** combined sku_set member-resolution operation (row 8) — not an eighth query. The four initial point reads (product, pointer, version, epoch), the matched-scope document resolution, and the prior-decision read are billed-read accounting, not additional "matching operations":
+
+| Operation | Type | Max docs returned | Max billed reads | Running total |
+|---|---|---|---|---|
+| `products/{productId}` | point read | 1 | 1 | 1 |
+| Policy pointer | point read | 1 | 1 | 2 |
+| Policy version | point read | 1 | 1 | 3 |
+| `businessComplianceEpochs/{businessId}` | point read | 1 | 1 | 4 |
+| Lookups 1–7 (7 × `.limit(3)` query) | query | 3 each | 3 each | 25 |
+| Lookup 8 (sku_set member resolution) | point reads | ≤6 | ≤6 | 31 |
+| Matched-scope document resolution (`MATCHED_SCOPE_CAP=10`) | point reads | 10 | 10 | 41 |
+| Prior decision record | point read | 1 | 1 | **42** |
+
+Every one of the seven queries carries an explicit `.limit(LOOKUP_LIMIT)` (`=3`) — **no query may fetch beyond this limit and truncate candidates in memory afterward**; the deterministic tie-break (`status THEN approvedAt ASC THEN documentId ASC`) must be expressed as the query's own `orderBy`, so Firestore itself returns only the correct top-3 server-side. This is why the two composite indexes below (§14) are a hard runtime prerequisite for this bound to be achievable at all, not merely an optimization — without them, the required `orderBy` combined with the equality filters above fails outright at query time.
+
+### Prior-link cleanup and transaction ordering (Revision 6 correction 34/35)
+
+`recomputeProductComplianceStatus` performs its complete bounded read set, then writes `productComplianceDecisions/{productId}` and up to 10 `productEvidenceLinks` documents (delete-then-recreate) in one transaction, in this exact order:
+1. All reads first: the bounded lookups/point-reads above, **including** the prior `productComplianceDecisions/{productId}` (already counted as "prior decision record" above) — its `activeEvidenceRefs` array supplies each prior link's `documentId`/`scopeId` pair.
+2. Re-derive each prior link's `linkId` via `deriveEvidenceLinkId({productId, documentId, scopeId})` (§4) from the pairs read in step 1 — **`productEvidenceLinks` is never queried to discover prior links; no unbounded or `where('productId','==',...)`-style cleanup query is permitted, and none is needed**, since the deterministic ID formula makes every prior link's ID directly computable from data already read.
+3. `tx.delete()` up to 10 old link documents by the IDs derived in step 2 — a delete by already-known document ID is a write, not a read, and requires no prior `tx.get()` on that document; this does not violate Firestore's reads-before-writes transaction rule.
+4. `tx.set()` the new `productComplianceDecisions` document.
+5. `tx.create()`/`tx.set()` up to 10 new `productEvidenceLinks` documents, IDs computed by the same deterministic formula.
+
+**Retry determinism:** `deriveEvidenceLinkId` is a pure function of `{productId, documentId, scopeId}`, and the matching algorithm's own tie-break is fully deterministic — a transaction retry re-running the same bounded reads against unchanged underlying data selects the identical candidate set and re-derives the identical link IDs, closing the idempotency loop without any random or auto-generated ID anywhere in this path. `linkedAt` and any other time-dependent value follow this plan's already-established injected/server-time convention (§4, `resolveActivePolicy`'s `now` parameter) and never affect which candidates are selected or which link IDs are derived across a retry. A missing prior link (already deleted, or never created) may be deleted idempotently — `tx.delete()` on a nonexistent document is not an error.
+
 ---
 
 ## 10.1 Live eligibility evaluation and Marketplace read architecture (Revision 3)
@@ -649,16 +738,18 @@ Additions to the prior plan revision's file list (same directory conventions, sa
 
 The remainder of the prior plan revision's 22-file list is unchanged; this is an additive correction, not a restructure. Slice 1-3 rows above are historical and implemented (Slice 3 committed as `f95275859ccf869e573e38527eb747737d58b200`, not deployed) — §13.1 below is the current, exact Slice 4 file plan and supersedes any Slice-4-related row above where the two differ.
 
-### 13.1 Exact Slice 4 file plan — sub-slices 4.1-4.9 (Revision 3; Slice 4.1 row completed in Revision 4)
+### 13.1 Exact Slice 4 file plan — sub-slices 4.1-4.9 (Revision 3; Slice 4.1 row completed in Revision 4; Slice 4.3 rows completed in Revision 6)
 
 | Sub-slice | # | File | Purpose | Depends on |
 |---|---|---|---|---|
 | 4.1 | New | `functions/src/marketplace/compliance/compliancePolicyRegistryOperations.js` | **Create, resolve, bootstrap, and subsequent activation** (Revision 4 — not "registry CRUD," which named no creation operation): `createCompliancePolicyVersion`, `resolveActivePolicy`, `bootstrapCompliancePolicyRegistry`, `activatePolicyVersion`, and the shared `validateCompliancePolicyVersionDocument` (§4) | `complianceConstants.js` (status/pointer constants, additive per Revision 4) |
 | 4.2 | Modified | `firestore.rules` | 6 product fields (§11) + `productInputRevision` **Phase A dormant-compatibility contract** (transitional absent-or-versioned matrix, §9 Revision 5) — **not** Phase B strict presence (deployed later, at 4.9), and **not** the read-gate/approval-lock (also deployed later, at 4.9) | none |
-| 4.3 | New | `functions/src/marketplace/compliance/complianceMatching.js` | The 8-operation/42-read bounded lookup (§10), `productEvidenceLinks` writer | 4.1 |
-| 4.3 | New | `functions/src/marketplace/compliance/complianceProductRecompute.js` | `recomputeProductComplianceStatus` | `complianceMatching.js` |
+| 4.3 | New | `functions/src/marketplace/compliance/complianceMatching.js` | The 8-operation/42-read bounded lookup, exact seven-query mapping (§10), `productEvidenceLinks` writer using the frozen `deriveEvidenceLinkId` formula (§4) | **Slice 4.1, 4.2** (corrected Revision 6 — was `4.1` only, disagreeing with §16) |
+| 4.3 | New | `functions/src/marketplace/compliance/complianceProductRecompute.js` | `recomputeProductComplianceStatus`, including the prior-link cleanup/transaction-ordering contract (§10, Revision 6) | `complianceMatching.js` |
 | 4.3 | New | `functions/src/marketplace/compliance/complianceEligibilityEvaluator.js` | Shared `evaluateLiveProductEligibility` (§10.1), used by 4.4/4.5/reservation/checkout | `complianceProductRecompute.js` |
 | 4.3 | New | `functions/src/marketplace/compliance/complianceBrandNormalizer.js` | Frozen `normalizeBrand()` (§10) | none |
+| 4.3 | **Modified (new row, Revision 6)** | `functions/src/marketplace/compliance/complianceConstants.js` | Add `LOOKUP_LIMIT = 3`, `MATCHED_SCOPE_CAP = 10`; correct `PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS` to the Revision 6 §4 schema (`matchedVia` in place of `scopeType`/`matchReasonCode`; `linkedBy` removed) | `complianceMatching.js` (constants consumed by it) |
+| 4.3 | **Modified (new row, Revision 6)** | `firestore.indexes.json` | Add exactly the two composite indexes frozen in §14 below | `complianceMatching.js` (indexes the queries it issues) |
 | 4.4 | New | `functions/src/marketplace/compliance/productModeration.js` | `reviewProductModeration` (§8, §9) | `complianceEligibilityEvaluator.js` |
 | 4.5 | New | `functions/src/marketplace/publicCatalog/marketplaceListing.js` | `getMarketplaceProductList`, `getMarketplaceProductDetail` (§10.1) | `complianceEligibilityEvaluator.js` |
 | 4.6 | Modified | `functions/src/marketplace/compliance/complianceDocumentOperations.js` (Slice 3, committed) | Add the 5 exact epoch-bump call sites (§8) | 4.1 |
@@ -666,11 +757,11 @@ The remainder of the prior plan revision's 22-file list is unchanged; this is an
 | 4.7 | New | `functions/src/marketplace/compliance/complianceProductRecomputeSweep.js` | Bounded scheduled sweep + async repair trigger, mirroring `complianceUploadOrphanCleanup`'s pattern; also invoked as the post-activation ops-triggered bulk pass (§17) | `complianceProductRecompute.js` |
 | 4.8 | — | Marketplace browse/detail Flutter data-source class(es) | **Not located/verified in this revision** — named as the Slice 7-adjacent target, not guessed | `marketplaceListing.js` |
 | 4.9 | Modified | `firestore.rules` | Read-gate defense-in-depth predicate + approval-transition lock (§9), deployed only after 4.8 ships | 4.2, 4.4, 4.8 |
-| 4.1-4.9 | New | `functions/test/compliancePolicyRegistryOperations.test.js` (creation-contract, requirement-group, zero-evidence, version-ID, timestamp/clock, bootstrap success/failure/concurrency, subsequent-activation, and resolver test matrices — §15), `complianceMatching.test.js` (includes the 3-category read-count test, §10/§15), `productModeration.test.js`, `marketplaceListing.test.js`, `complianceProductRecomputeSweep.test.js` | Test coverage for each new module above | Corresponding modules |
+| 4.1-4.9 | New/Modified | `functions/test/compliancePolicyRegistryOperations.test.js` (creation-contract, requirement-group, zero-evidence, version-ID, timestamp/clock, bootstrap success/failure/concurrency, subsequent-activation, and resolver test matrices — §15), `complianceMatching.test.js` (**new, Revision 6 scope confirmed:** covers matching, recompute, evaluator, normalizer, transaction, bound, freshness, and link-cleanup behavior in one file — §10/§15; no additional test file is authorized beyond this and `complianceConstants.test.js` below), `functions/test/complianceConstants.test.js` (**modified, new row, Revision 6:** extend for the corrected `PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS`/new constants above), `productModeration.test.js`, `marketplaceListing.test.js`, `complianceProductRecomputeSweep.test.js` | Test coverage for each new/modified module above | Corresponding modules |
 
 ---
 
-## 14. Indexes — corrected additions (correction 1, 6)
+## 14. Indexes — corrected additions (correction 1, 6); Slice 4.3 composite indexes frozen (Revision 6 correction 35)
 
 Additions to the prior plan revision's 10-index list:
 
@@ -679,8 +770,41 @@ Additions to the prior plan revision's 10-index list:
 | 11 | `complianceUploadSessions` | `[status, expiresAt]` | Orphan-cleanup scheduler's query for stuck/expired sessions | **Required** — inequality (`expiresAt`) combined with equality (`status`) always needs a composite |
 | 12 | `complianceUploadSessions` | `[businessId, status]` | Seller's own in-progress upload list | Verification pending (may be auto-indexed) |
 | 13 | `productComplianceDecisions` | `[businessId, effectiveStatus]` | Admin's "which of this business's products are non-compliant" view | Verification pending — not required for checkout itself (which is a point read by `productId`), only for this admin convenience view; may be deferred if that view isn't built in P1-A's admin UI slice |
+| 14 | `complianceDocumentScopes` | `[businessId, scopeType, scopeValue, status, approvedAt]` | Lookup types 1–6 (business/supplier/brand/category/product_family/product, §10) — one shared index, since all six queries filter the same four equality fields and sort by the same `approvedAt` | **Required** — equality filters combined with an `orderBy` on a field outside that equality set always needs a composite (Firestore's own rule: "if you need to sort by a different field, you must create a manual index," firebase.google.com/docs/firestore/query-data/index-overview). `documentId` is the tie-break's final ascending field; `__name__` needs no explicit entry — Firestore defaults it to match the direction of the last explicit field (`approvedAt: ASCENDING`), consistent with this file's existing convention of never declaring `__name__`. No `array-contains` mode is needed anywhere in this index — every filter above is pure equality or sort |
+| 15 | `complianceDocumentScopes` | `[businessId, scopeType, status, approvedAt]` | Lookup type 7 (sku_set candidates, §10) only — cannot reuse index #14, since this query has no `scopeValue` equality filter at all | **Required**, same rule as #14. `documentId` tie-break/`__name__` handling identical to #14 |
 
 No duplicate/conflict with any existing index, verified by name — none targets these two new collections. **Revision 3 note:** `getMarketplaceProductList`/`getMarketplaceProductDetail` (§10.1) reuse the same composite indexes the direct client query already required — the query shape moves server-side, it does not change; no new index is needed for the server-mediated endpoints themselves. `compliancePolicyRegistryPointer` and `businessComplianceEpochs` are both single-document point reads (§4) and need no index.
+
+**Revision 6 correction 35 — indexes #14/#15 are a hard runtime prerequisite, not an optimization.** Without them, every one of §10's seven lookup queries fails outright at query time (Firestore rejects an unindexable equality+orderBy combination, it does not silently degrade to an in-memory sort or a full scan) — the ≤42-read bound in §10 is achievable only once both indexes exist. Exact JSON, matching this file's existing format conventions (`collectionGroup`/`queryScope: "COLLECTION"` — `complianceDocumentScopes` is a top-level collection, not nested — /`fields[{fieldPath, order}]`, no `arrayConfig` needed):
+
+```json
+{
+  "collectionGroup": "complianceDocumentScopes",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "businessId", "order": "ASCENDING" },
+    { "fieldPath": "scopeType", "order": "ASCENDING" },
+    { "fieldPath": "scopeValue", "order": "ASCENDING" },
+    { "fieldPath": "status", "order": "ASCENDING" },
+    { "fieldPath": "approvedAt", "order": "ASCENDING" }
+  ]
+}
+```
+
+```json
+{
+  "collectionGroup": "complianceDocumentScopes",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "businessId", "order": "ASCENDING" },
+    { "fieldPath": "scopeType", "order": "ASCENDING" },
+    { "fieldPath": "status", "order": "ASCENDING" },
+    { "fieldPath": "approvedAt", "order": "ASCENDING" }
+  ]
+}
+```
+
+Index creation/deployment itself remains outside this documentation task and outside Slice 4.3's own "unexported internal modules" posture (§16, §17) — declaring these in `firestore.indexes.json` (§13.1) is part of the later, separately-authorized implementation; `firebase deploy`/index-build is a deployment-phase action, not part of writing or testing Slice 4.3's code.
 
 ---
 
@@ -695,6 +819,24 @@ Unchanged in structure from the prior plan revision, with corrections-specific a
 *Create:* absent allowed; exact int `0` allowed; nonzero allowed value rejected; negative rejected; float/double including `0.0` rejected; string/`null`/map/list rejected; unsafe integer rejected; forged server-owned compliance field (any of the five, §11) rejected on create.
 
 *Update — transitional matrix cases A–E:* absent→absent, unrelated fields only, allowed and explicitly asserted/labeled as the transitional/untracked case (row A); absent→absent with a matching-field change also allowed under row A, with an explicit test proving revision tracking is *not* enforced for this specific case (the row's own stated limitation, not a silent gap); absent→`0`, unrelated field change, allowed (row B); absent→`1`, matching field changed, allowed (row B); absent→`1`, unrelated field only, rejected (row B's own-field-change requirement); absent→`0`, matching field changed, rejected (row B); present→absent, rejected unconditionally regardless of which fields changed (row D — the regression-prevention case); present→same value, unrelated edit, allowed (row C); present→`+1`, matching field changed, allowed (row C); present, free bump/decrement/jump, rejected (row C/E); multiple matching fields changed in one write still requires exactly `+1`, never more (row C); nullable `brand`/`barcode`/`sku` transitioning to/from `null` are covered as ordinary field-value changes for the matching-field comparison (§9); server-owned compliance field add/change/delete on update rejected, and an *existing* server-owned field must be preserved byte-for-byte by an otherwise-unrelated edit (§9's dormant-update rule); public reads unchanged from pre-Slice-4.2 behavior; approval/`moderationStatus` transition behavior unchanged from pre-Slice-4.2 behavior (both proven by dormant-posture regression tests, not merely assumed).
+
+**Revision 6 additions (Slice 4.3, §10's frozen matching/index/link contract) — required in `complianceMatching.test.js` (§13.1):**
+
+- Exact seven-query-shape tests, one per lookup type (business/supplier/brand/category/product_family/product/sku_set-candidates), each asserting its own equality filters, `orderBy`, and `limit(3)` against a seeded `complianceDocumentScopes` fixture — not collapsed into one generic case.
+- Cross-tenant isolation, tested for **every** one of the seven lookup types individually (not only brand, §10's Revision 3 cross-tenant test): a business cannot match another business's scope of any type via matching text alone.
+- Deterministic `limit`/tie-break tests: with more than `LOOKUP_LIMIT` candidates, the correct 3 are returned in `status THEN approvedAt ASC THEN documentId ASC` order, proven against a fixture with more than 3 approved candidates for at least one lookup type.
+- The exact reconciled ≤8-operation/≤42-read bound test (§10's table above), asserting the 3 distinct counters (point reads / query operations / returned documents) against the frozen ceilings — the pre-existing Revision 3 bounded-read counter test description above is superseded by this exact table, not duplicated.
+- Both `firestore.indexes.json` composite-index declarations (§14, indexes #14/#15) exist and match the exact field order/direction frozen there — a structural/static check, not a runtime emulator assertion (index creation itself is a deployment-phase action, §14).
+- Fresh-pointer evaluation on consecutive calls (unchanged Revision 3 requirement, restated for Slice 4.3's own module boundary): a policy activation mid-test is reflected on the very next `evaluateLiveProductEligibility` call, no caching exception.
+- `evidenceRevision`/`policyVersion`/`productInputRevision`/`validUntil`(expiry)/`activeEvidenceRefs` freshness-equality validation (§10.1), each proven to fail closed independently on mismatch.
+- An explicit test proving `productEvidenceLinks` is never read anywhere in `evaluateLiveProductEligibility`'s code path (§10.1) — a static/structural assertion, mirroring this codebase's established "production code path never resolves to X" convention (e.g. the fake-scanner-never-in-production test, Slice 2).
+- Deterministic `linkId` tests: the exact `deriveEvidenceLinkId` formula (§4) reproduces the same ID across repeated calls with the same `{productId, documentId, scopeId}`; the delimiter-rejection rule fires when a component contains `\n`.
+- Prior-link delete/recreate tests proving no query against `productEvidenceLinks` is ever issued for cleanup (§10) — links are deleted purely by IDs re-derived from the prior decision's `activeEvidenceRefs`.
+- Cap-10 behavior: 11+ candidate evidence links truncated to 10 with an audit event (already named above as a `productComplianceDecisions` bound test — the same test doubles as `productEvidenceLinks`' own cap-10 proof, per §4's "same cap as `activeEvidenceRefs`" rule).
+- Transaction reads-before-writes: an explicit test (or structural assertion) proving every read in `recomputeProductComplianceStatus` occurs before its first write.
+- Retry determinism: re-running the same matching computation against unchanged data yields identical selected candidates and identical derived link IDs.
+- A static assertion that none of Slice 4.3's four modules are exported from `functions/index.js` (mirroring Slice 4.1's own established "genuinely unexported" test pattern).
+- A static assertion that no activation, migration, backfill, Rules-gate, or Slice 4.4+ behavior (`reviewProductModeration`, `getMarketplaceProductList`/`Detail`, checkout/reservation, the read-gate/approval-lock) is invoked anywhere in Slice 4.3's own code.
 
 ---
 
@@ -723,7 +865,7 @@ The diagram is illustrative; the "Depends on" column below is authoritative.
 | **3** | `complianceDocumentOperations.js` (document/scope/member lifecycle: submit, review, request-info, revoke, supersede) — **implemented and committed** (`f95275859ccf869e573e38527eb747737d58b200`, not deployed) | Slice 2 (a real, `clean` document must exist to submit/review) | Yes | Document/scope/member state machines (§5.1–5.3) fully tested against sessions produced by Slice 2's fake scanner |
 | **4.1** | Policy registry foundation: `compliancePolicyRegistryOperations.js` — **create, resolve, bootstrap, and subsequent activation** (Revision 4; not "registry CRUD"): `createCompliancePolicyVersion`, `resolveActivePolicy`, `bootstrapCompliancePolicyRegistry`, `activatePolicyVersion`, the shared `validateCompliancePolicyVersionDocument` (§4), plus the additive `RETIRED` status and pointer constants in `complianceConstants.js` | Slice 3 | Yes — unexported, no runtime surface | Creation-contract, requirement-group, zero-evidence, version-ID, timestamp/clock, bootstrap success/failure/concurrency, subsequent-activation, and resolver tests all pass; fail-closed missing-pointer test passes; malformed-current-version-aborts-activation test passes |
 | **4.2** | Dormant schema/Rules: 6 product fields + `productInputRevision` **Phase A** transitional matrix (absent-or-`0` on create; the 5-case A–E update matrix, §9) — not Phase B strict presence, not the read-gate/approval-lock | Slice 4.1 | Yes — live but inert; compatible with the exact current live-write shape (full-document `set()`, no `productInputRevision` in payload, §9) | Rules-emulator transitional matrix (create absent/0/reject, update cases A–E, §9/§15) passes; existing live create/edit flow unaffected, proven against the actual current payload shape, not merely "should be fine" |
-| **4.3** | Matching/evaluator engine: `complianceMatching.js`, `complianceProductRecompute.js`, `complianceEligibilityEvaluator.js`, `complianceBrandNormalizer.js` | Slice 4.1, 4.2 | Yes — unexported internal modules | 3-category read-count test confirms ≤8 operations/≤42 reads (§10); cross-tenant brand test; epoch/revision equality-freshness test; expiry boundary test |
+| **4.3** | Matching/evaluator engine: `complianceMatching.js`, `complianceProductRecompute.js`, `complianceEligibilityEvaluator.js`, `complianceBrandNormalizer.js`, plus additive constants (`complianceConstants.js`) and the two required composite indexes (`firestore.indexes.json`, §14) — **contract completed in Revision 6**: exact seven-query mapping, exact `productEvidenceLinks` schema (`matchedVia`, §4), exact deterministic link-ID/cleanup design, and the exact index pair, all frozen | Slice 4.1, 4.2 (reconciled Revision 6 — §13.1 previously disagreed, naming `4.1` only) | Yes — unexported internal modules | Full Revision 6 test list (§15): exact seven-query-shape tests; cross-tenant isolation per lookup type; deterministic limit/tie-break tests; ≤8-operation/≤42-read bound test; both composite-index declarations verified; fresh-pointer evaluation on consecutive calls; epoch/policyVersion/productInputRevision/expiry/activeEvidenceRefs freshness validation; `productEvidenceLinks` never read by the evaluator; deterministic link-ID tests; prior-link delete/recreate without a discovery query; cap-10 behavior; transaction reads-before-writes; retry determinism; no `functions/index.js` export; no activation/migration/backfill/Rules-gate/Slice-4.4+ behavior |
 | **4.4** | Product approval callable: `productModeration.js` (`reviewProductModeration`) | Slice 4.3 | Yes — exported, disabled feature flag | Forged-marker rejection test; transition-predicate matrix; live-gated approval test; transactional audit test |
 | **4.5** | Server-mediated Marketplace eligibility API: `marketplaceListing.js` | Slice 4.3 | Yes — exported, disabled feature flag | Page-size clamp; sparse-page ceiling (≤120 candidates); live-freshness exclusion; response-projection allowlist; rate-limit rejection |
 | **4.6** | Slice 3 epoch/policy integration: 5 exact epoch-bump call sites added to the already-committed `complianceDocumentOperations.js` | Slice 4.1 | Yes — inert until 4.3 is also live | Exact-five-transitions bump test; no-bump-on-idempotent/non-matchable test; Slice 3's existing 96-test suite stays green |
@@ -821,5 +963,7 @@ Unchanged in substance from the prior plan revision — every slice is an indepe
 **Slice 4.2 GO means:** the current live seller create/edit flow remains fully compatible, verified against the actual current write shape (`Product.toJson()`, full-document `set()`, no `productInputRevision` in any current payload) rather than assumed compatible in the abstract; `productInputRevision` adoption is monotonic — once present on a document, it can only move forward by the correct +0/+1 rule; once present, it can never disappear again through any client write (§9, row D); a seller cannot forge any of the five server-owned compliance fields at create or update time; and no authoritative Marketplace-eligibility behavior of any kind is enabled by this slice.
 
 **Slice 4.2 GO must not be read to claim:** that every product already has a `productInputRevision` (most do not, until the Slice 4.8/4.9 sequence in §17 completes); that every matching-field edit is already being tracked (row A of §9's matrix is an explicit, acknowledged exception, not a claim of completeness); that migration is complete (it has not started — §17 forbids it from starting before Slice 4.8's write-side change ships); or that the strict, unconditional steady state is active (that is Slice 4.9's gate, not this one's).
+
+**Revision 6 additionally confirms, for Slice 4.3 specifically:** the matching/index/link contract is now complete and internally consistent — the seven-query mapping is frozen exactly, with no "unspecified product field" remaining for any of the seven lookup types that the plan itself doesn't already explicitly leave open (rows 2/5's `supplierId`/`familyId` gap resolves to the pre-existing `policy_unresolved` behavior, §4/§19, not a new gap); brand candidate-narrowing (`scopeValue`) and the authoritative `verifiedBrandId` gate are kept distinct, never conflated; the ≤8-operation/≤42-read arithmetic is independently re-derived and matches exactly; the two composite indexes the algorithm structurally requires are specified exactly (§14, indexes #14/#15) and confirmed as a hard runtime prerequisite, not an optimization; prior-link cleanup is fully specified as a query-free, deterministic-ID re-derivation from `productComplianceDecisions.activeEvidenceRefs`, never a `productEvidenceLinks` discovery query; the `productEvidenceLinks` field-name contradiction between §4 and the already-shipped `complianceConstants.js` is resolved in favor of the non-redundant `matchedVia` field, with no migration/backfill required since no writer or data has ever existed under either naming scheme; and the §13.1/§16 dependency disagreement is reconciled to `Slice 4.1, 4.2` in both places. Slice 4.3's own posture is unchanged by this revision: still unexported internal modules, still no authoritative Marketplace-eligibility behavior enabled, still gated on nothing beyond Slices 4.1 and 4.2 (both already committed).
 
 No application code, Rules, indexes, Functions, or Flutter files have been modified to produce this revision — only this Markdown file at `docs/plans/` was touched, and nothing has been staged, committed, pushed, or deployed.
