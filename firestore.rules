@@ -1144,7 +1144,8 @@ match /dogs/{dogId}/visits/{visitId} {
       'minStock', 'moderationStatus', 'name', 'originCity', 'preparationDays',
       'price', 'pricePosition', 'productId', 'productInputRevision',
       'returnCarrierCode',
-      'returnShippingPayer', 'returnWindowDays', 'salePrice', 'shippingFee',
+      'returnShippingPayer', 'returnWindowDays', 'salePrice',
+      'sellerRelationship', 'shippingFee',
       'shippingMode', 'shippingPayer', 'shippingProfile', 'shippingSnapshot',
       'sku', 'stock', 'suggestedMaxPrice', 'suggestedMinPrice', 'suggestedPrice',
       'taxIncluded', 'updatedAt', 'weightKg', 'wholesalePrice', 'widthCm'
@@ -1180,8 +1181,16 @@ match /dogs/{dogId}/visits/{visitId} {
     return v is int && v >= 0 && v < 9007199254740991;
   }
 
+  // Marketplace P1-A Revision 7 correction 43 (docs/plans/marketplace_p1a_
+  // compliance_review_implementation_plan_2026-08-21.md §9): sellerRelationship
+  // joins the matching-field set as the fifth field. productInputRevision's
+  // own +0/+1 invariant below is unchanged in shape — matchingChanged stays
+  // a single boolean OR across all five fields, never a per-field count, so
+  // multiple simultaneous matching-field changes (including a
+  // sellerRelationship change alongside category/brand/barcode/sku) still
+  // require exactly +1, never more.
   function productInputRevisionMatchingFields() {
-    return ['category', 'brand', 'barcode', 'sku'];
+    return ['category', 'brand', 'barcode', 'sku', 'sellerRelationship'];
   }
 
   // diff().affectedKeys() is already this file's established mechanism
@@ -1243,6 +1252,70 @@ match /dogs/{dogId}/visits/{visitId} {
       );
   }
 
+  // Marketplace P1-A Revision 7 correction 43/45 (docs/plans/marketplace_
+  // p1a_compliance_review_implementation_plan_2026-08-21.md §9/§11,
+  // §13.1 Slice 4.2 correction): sellerRelationship's own dormant
+  // create/update contract, structurally identical in shape to
+  // productInputRevision's own contract above, applied to this field
+  // itself. It is a seller-owned matching input (not server-owned, not a
+  // compliance output), closed to exactly the six SELLER_RELATIONSHIP
+  // enum values, never defaulted or inferred. This section governs only
+  // the field's own presence/absence/value legality; its contribution to
+  // productInputRevision's required delta is handled entirely by
+  // productInputRevisionMatchingFields() above — the two compose, neither
+  // replaces the other.
+  function isValidSellerRelationshipValue(v) {
+    return v is string && v in [
+      'brand_owner', 'manufacturer', 'authorized_distributor',
+      'authorized_dealer', 'importer', 'reseller'
+    ];
+  }
+
+  // Transitional create contract: absent is allowed (row A); present must
+  // be one of the six exact enum values (row B); any other present value
+  // is rejected (row E — malformed values are never accepted, dormant or
+  // strict).
+  function isValidTransitionalSellerRelationshipCreate(data) {
+    return !('sellerRelationship' in data)
+      || isValidSellerRelationshipValue(data.sellerRelationship);
+  }
+
+  // Transitional update matrix, sellerRelationship's own A-E:
+  //   A (absent -> absent): allowed unconditionally below.
+  //   B (absent -> valid enum): allowed — relationship adoption.
+  //   C/C' (valid -> valid, same or different): allowed — whether this
+  //     counts as a matching-field change (and therefore requires
+  //     productInputRevision's own +1) is decided separately, by
+  //     productInputRevisionMatchingFieldsChanged's diff-based comparison,
+  //     not by this function.
+  //   D (valid -> absent) and E (any malformed present value, on either
+  //     side) are never matched by any branch below and therefore always
+  //     fall through to reject — including the case where the EXISTING
+  //     stored value is already malformed (a pre-existing data anomaly):
+  //     the third branch requires the existing value to itself be valid,
+  //     so a malformed existing value fails closed unconditionally,
+  //     regardless of what the incoming write attempts (absent, valid, or
+  //     also malformed) — never silently repaired, never allowed to be
+  //     deleted. This mirrors isValidTransitionalProductInputRevisionUpdate's
+  //     identical fail-closed-on-malformed-existing behavior exactly.
+  function isValidTransitionalSellerRelationshipUpdate(incoming, existing) {
+    return (
+        !('sellerRelationship' in existing)
+        && !('sellerRelationship' in incoming)
+      )
+      || (
+        !('sellerRelationship' in existing)
+        && ('sellerRelationship' in incoming)
+        && isValidSellerRelationshipValue(incoming.sellerRelationship)
+      )
+      || (
+        ('sellerRelationship' in existing)
+        && isValidSellerRelationshipValue(existing.sellerRelationship)
+        && ('sellerRelationship' in incoming)
+        && isValidSellerRelationshipValue(incoming.sellerRelationship)
+      );
+  }
+
   function isSafeNewProductSubmission() {
     let data = request.resource.data;
     return data.businessId is string
@@ -1256,6 +1329,7 @@ match /dogs/{dogId}/visits/{visitId} {
       && data.moderationStatus == 'pending_review'
       && sellerCreateHasNoServerOwnedFields(data)
       && isValidTransitionalProductInputRevisionCreate(data)
+      && isValidTransitionalSellerRelationshipCreate(data)
       && data.keys().hasOnly(productAllowedFields());
   }
 
@@ -1273,6 +1347,7 @@ match /dogs/{dogId}/visits/{visitId} {
       && incoming.moderationStatus == 'pending_review'
       && sellerUpdateLeavesServerOwnedFieldsUntouched(incoming, existing)
       && isValidTransitionalProductInputRevisionUpdate(incoming, existing)
+      && isValidTransitionalSellerRelationshipUpdate(incoming, existing)
       && incoming.keys().hasOnly(productAllowedFields())
       && !incoming.diff(existing).affectedKeys().hasAny([
         'businessId',

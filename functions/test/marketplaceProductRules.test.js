@@ -1813,3 +1813,865 @@ rulesTest(
     );
   }
 );
+
+// =====================================================================
+// Marketplace P1-A Revision 7 correction 43/45 (docs/plans/marketplace_
+// p1a_compliance_review_implementation_plan_2026-08-21.md §9/§11,
+// §13.1 Slice 4.2 correction): sellerRelationship's own dormant
+// create/update contract and its integration as productInputRevision's
+// fifth matching field. Composes with every 4.2-* test above, none of
+// which is modified or replaced — they are re-run unchanged alongside
+// these.
+// =====================================================================
+
+const SELLER_RELATIONSHIP_VALUES = [
+  "brand_owner",
+  "manufacturer",
+  "authorized_distributor",
+  "authorized_dealer",
+  "importer",
+  "reseller",
+];
+
+// --- Create: legacy compatibility (items 1-2) ---
+
+rulesTest(
+  "4.2r7-create-1. legacy create with both sellerRelationship and productInputRevision absent remains allowed",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses/biz-1/products/r7-c1"), safeProduct())
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-create-2. legacy create with sellerRelationship absent and productInputRevision 0 remains allowed",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-c2"),
+        safeProduct({ productInputRevision: 0 })
+      )
+    );
+  }
+);
+
+// --- Create: each valid relationship, exact revision requirement (item
+// 3). Per §9's create-contract table, productInputRevision's own create
+// legality (absent or exactly 0) is unconditional and does not vary with
+// sellerRelationship's presence — there is no "must be 1 on create when
+// adopting a relationship" rule; that adoption-requires-+1 rule applies
+// only to UPDATE (§9's own-field row B), where a genuine "existing"
+// baseline exists to diff against. Create has no such baseline, so it is
+// governed solely by the separate, unconditional create table. ---
+
+for (const relationship of SELLER_RELATIONSHIP_VALUES) {
+  rulesTest(
+    `4.2r7-create-3a. ${relationship}: valid relationship with absent productInputRevision is allowed on create`,
+    async () => {
+      await resetSeed();
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-c3a-${relationship}`),
+          safeProduct({ sellerRelationship: relationship })
+        )
+      );
+    }
+  );
+
+  rulesTest(
+    `4.2r7-create-3b. ${relationship}: valid relationship with productInputRevision 0 is allowed on create`,
+    async () => {
+      await resetSeed();
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-c3b-${relationship}`),
+          safeProduct({
+            sellerRelationship: relationship,
+            productInputRevision: 0,
+          })
+        )
+      );
+    }
+  );
+
+  rulesTest(
+    `4.2r7-create-3c. ${relationship}: valid relationship with productInputRevision 1 is rejected on create (create's own contract is unconditional, not relationship-dependent)`,
+    async () => {
+      await resetSeed();
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertFails(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-c3c-${relationship}`),
+          safeProduct({
+            sellerRelationship: relationship,
+            productInputRevision: 1,
+          })
+        )
+      );
+    }
+  );
+}
+
+// --- Create: invalid values rejected (item 4) ---
+
+const INVALID_SELLER_RELATIONSHIP_CASES = [
+  ["null", null],
+  ["empty-string", ""],
+  ["unknown-string", "not_a_real_relationship"],
+  ["number", 42],
+  ["float", 4.5],
+  ["boolean", true],
+  ["list", ["reseller"]],
+  ["map", { relationship: "reseller" }],
+];
+
+for (const [label, value] of INVALID_SELLER_RELATIONSHIP_CASES) {
+  rulesTest(
+    `4.2r7-create-4. ${label} sellerRelationship is rejected on create`,
+    async () => {
+      await resetSeed();
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertFails(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-c4-${label}`),
+          safeProduct({ sellerRelationship: value })
+        )
+      );
+    }
+  );
+}
+
+// --- Create: no default is ever written by Rules (item 5) ---
+
+rulesTest(
+  "4.2r7-create-5. an ordinary create with no sellerRelationship stores no key at all, never a default",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "businesses/biz-1/products/r7-c5"), safeProduct())
+    );
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(
+        doc(context.firestore(), "businesses/biz-1/products/r7-c5")
+      );
+      assert.equal("sellerRelationship" in snap.data(), false);
+    });
+  }
+);
+
+// --- Create: sellerRelationship is seller-owned, not server-owned (item
+// 6) — a seller MAY supply it, unlike the five real server-owned
+// compliance fields (still rejected above, unchanged, by the
+// COMPLIANCE_SERVER_OWNED_FIELDS loop) ---
+
+rulesTest(
+  "4.2r7-create-6. seller CAN supply sellerRelationship on create, unlike the five real server-owned compliance fields",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-c6"),
+        safeProduct({ sellerRelationship: "reseller" })
+      )
+    );
+  }
+);
+
+// --- Update matrix: absent -> absent (items 7-8) ---
+
+rulesTest(
+  "4.2r7-matrix-7. absent -> absent, unrelated-only edit, is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "r7-m7");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m7"),
+        safeProduct({ price: 25 })
+      )
+    );
+  }
+);
+
+for (const [field, value] of MATCHING_FIELD_CHANGES) {
+  rulesTest(
+    `4.2r7-matrix-8. absent -> absent sellerRelationship, ${field} change (existing 4.2 dormant gap unaffected), is allowed`,
+    async () => {
+      await resetSeed();
+      await seedProductWithRevision(undefined, {}, `r7-m8-${field}`);
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-m8-${field}`),
+          safeProduct({ [field]: value })
+        )
+      );
+    }
+  );
+}
+
+// --- Update matrix: absent -> valid (adoption), items 9-11, 22 ---
+
+for (const oldRevision of [undefined, 0]) {
+  const oldLabel = oldRevision === undefined ? "absent" : String(oldRevision);
+
+  rulesTest(
+    `4.2r7-matrix-9. absent -> valid relationship adoption, existing revision ${oldLabel}, incoming revision 1, is allowed`,
+    async () => {
+      await resetSeed();
+      await seedProductWithRevision(oldRevision, {}, `r7-m9-${oldLabel}`);
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-m9-${oldLabel}`),
+          safeProduct({
+            sellerRelationship: "reseller",
+            productInputRevision: 1,
+          })
+        )
+      );
+    }
+  );
+
+  rulesTest(
+    `4.2r7-matrix-10. absent -> valid relationship adoption, existing revision ${oldLabel}, incoming revision unchanged from baseline, is rejected`,
+    async () => {
+      await resetSeed();
+      await seedProductWithRevision(oldRevision, {}, `r7-m10a-${oldLabel}`);
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertFails(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-m10a-${oldLabel}`),
+          safeProduct({
+            sellerRelationship: "reseller",
+            productInputRevision: oldRevision === undefined ? 0 : oldRevision,
+          })
+        )
+      );
+    }
+  );
+}
+
+rulesTest(
+  "4.2r7-matrix-10b. absent -> valid relationship adoption with an incorrect jump (+2) is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "r7-m10b");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m10b"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          productInputRevision: 2,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-matrix-11. absent -> invalid sellerRelationship is always rejected, regardless of revision",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "r7-m11");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m11"),
+        safeProduct({
+          sellerRelationship: "not_a_real_relationship",
+          productInputRevision: 1,
+        })
+      )
+    );
+  }
+);
+
+// Item 22 (old revision absent or 0 during relationship adoption) is
+// exactly the [undefined, 0] loop in 4.2r7-matrix-9/10 above — reused,
+// not duplicated.
+
+// --- Update matrix: valid -> same valid (items 12-13) ---
+
+rulesTest(
+  "4.2r7-matrix-12a. valid -> same valid, unrelated-only edit, +0 is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m12a"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m12a"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          price: 25,
+          productInputRevision: 5,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-matrix-12b. valid -> same valid, unrelated-only edit, a free +1 bump is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m12b"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m12b"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          price: 25,
+          productInputRevision: 6,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-matrix-13. valid -> same valid, another matching field also changes, +1 is required and allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m13"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m13"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          category: "Toys > Chew Toy",
+          productInputRevision: 6,
+        })
+      )
+    );
+  }
+);
+
+// --- Update matrix: valid -> different valid (items 14-16) ---
+
+rulesTest(
+  "4.2r7-matrix-14. valid -> different valid, +1 is allowed",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m14"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m14"),
+        safeProduct({
+          sellerRelationship: "importer",
+          productInputRevision: 6,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-matrix-15. valid -> different valid, +0 is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m15"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m15"),
+        safeProduct({
+          sellerRelationship: "importer",
+          productInputRevision: 5,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-matrix-16. valid -> different valid, a jump greater than +1 is rejected",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m16"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m16"),
+        safeProduct({
+          sellerRelationship: "importer",
+          productInputRevision: 7,
+        })
+      )
+    );
+  }
+);
+
+// --- Update matrix: valid -> absent, always rejected (items 17, 25, 27)
+// --- the real full-document set() shape: sellerRelationship simply
+// omitted, exactly like add_product_page.dart's current Product.toJson()
+// output.
+
+rulesTest(
+  "4.2r7-matrix-17. valid -> absent sellerRelationship is always rejected, regardless of revision value attempted (also proves items 25/27: an adopted relationship cannot be deleted by a legacy full-document write)",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m17"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m17"),
+        safeProduct({ productInputRevision: 6 })
+      )
+    );
+  }
+);
+
+// --- Update matrix: malformed existing value fails closed (item 18) ---
+
+rulesTest(
+  "4.2r7-matrix-18. a malformed pre-existing sellerRelationship (data anomaly) fails closed on any subsequent write",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "not_a_real_relationship" },
+      "r7-m18"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    // Even an otherwise-ordinary, unrelated-only edit that leaves the
+    // malformed value untouched must fail — no branch of
+    // isValidTransitionalSellerRelationshipUpdate matches an invalid
+    // existing value, so it is never silently repaired or carried
+    // forward.
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m18"),
+        safeProduct({
+          sellerRelationship: "not_a_real_relationship",
+          price: 25,
+          productInputRevision: 5,
+        })
+      )
+    );
+  }
+);
+
+// --- Multiple simultaneous matching-field changes still require exactly
+// +1 (items 19-21) ---
+
+rulesTest(
+  "4.2r7-matrix-19a. relationship change plus category change together requires exactly +1 (allowed)",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m19a"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m19a"),
+        safeProduct({
+          sellerRelationship: "importer",
+          category: "Toys > Chew Toy",
+          productInputRevision: 6,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-matrix-19b. relationship change plus category change together rejects a double-counted +2",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m19b"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m19b"),
+        safeProduct({
+          sellerRelationship: "importer",
+          category: "Toys > Chew Toy",
+          productInputRevision: 7,
+        })
+      )
+    );
+  }
+);
+
+for (const [field, value] of [
+  ["brand", "Acme"],
+  ["barcode", "1234567890123"],
+  ["sku", "SKU-1"],
+]) {
+  rulesTest(
+    `4.2r7-matrix-20. relationship change plus ${field} change together requires exactly +1`,
+    async () => {
+      await resetSeed();
+      await seedProductWithRevision(
+        5,
+        { sellerRelationship: "reseller" },
+        `r7-m20-${field}`
+      );
+      const db = (await env()).authenticatedContext("seller-1").firestore();
+      await assertSucceeds(
+        setDoc(
+          doc(db, `businesses/biz-1/products/r7-m20-${field}`),
+          safeProduct({
+            sellerRelationship: "importer",
+            [field]: value,
+            productInputRevision: 6,
+          })
+        )
+      );
+    }
+  );
+}
+
+rulesTest(
+  "4.2r7-matrix-21a. relationship unchanged plus multiple other matching-field changes together requires exactly +1 (allowed)",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m21a"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m21a"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          category: "Toys > Chew Toy",
+          brand: "Acme",
+          productInputRevision: 6,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-matrix-21b. relationship unchanged plus multiple other matching-field changes rejects a double-counted +2",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-m21b"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-m21b"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          category: "Toys > Chew Toy",
+          brand: "Acme",
+          productInputRevision: 7,
+        })
+      )
+    );
+  }
+);
+
+// --- Safe-integer boundary composes correctly with a relationship-driven
+// change (item 23) ---
+
+rulesTest(
+  "4.2r7-boundary-23. the safe-integer bound still applies correctly when the triggering matching-field change is a sellerRelationship adoption",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      Number.MAX_SAFE_INTEGER - 1,
+      {},
+      "r7-b23"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-b23"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          productInputRevision: Number.MAX_SAFE_INTEGER,
+        })
+      )
+    );
+  }
+);
+
+// --- An already-adopted productInputRevision cannot be deleted by a
+// write that otherwise keeps sellerRelationship present (item 24) ---
+
+rulesTest(
+  "4.2r7-regression-24. an already-adopted productInputRevision cannot be deleted by a write that otherwise keeps sellerRelationship present",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-reg24"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-reg24"),
+        safeProduct({ sellerRelationship: "reseller" })
+      )
+    );
+  }
+);
+
+// Item 25 (an already-adopted sellerRelationship cannot be deleted) is
+// exactly test 4.2r7-matrix-17 above — reused, not duplicated.
+
+// --- The real full-document set() shape (both dormant fields absent)
+// remains fully compatible on an ordinary edit (item 26) ---
+
+rulesTest(
+  "4.2r7-regression-26. the real full-document set() shape (both fields absent) remains fully compatible on an ordinary edit",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(undefined, {}, "r7-reg26");
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-reg26"),
+        safeProduct({ stock: 9 })
+      )
+    );
+  }
+);
+
+// Item 27 (a full-document legacy write that would remove an adopted
+// relationship) is exactly test 4.2r7-matrix-17 above, which already uses
+// the real safeProduct() full-document shape — reused, not duplicated.
+
+// --- Every six-value pair transition (items 28-29) ---
+
+for (const oldRel of SELLER_RELATIONSHIP_VALUES) {
+  for (const newRel of SELLER_RELATIONSHIP_VALUES) {
+    const isSame = oldRel === newRel;
+    rulesTest(
+      `4.2r7-pair-28. ${oldRel} -> ${newRel}: ${
+        isSame ? "+0 required (unrelated edit)" : "+1 required (matching change)"
+      }`,
+      async () => {
+        await resetSeed();
+        const id = `r7-pair-${oldRel}-${newRel}`;
+        await seedProductWithRevision(5, { sellerRelationship: oldRel }, id);
+        const db = (await env()).authenticatedContext("seller-1").firestore();
+        const correctRevision = isSame ? 5 : 6;
+        await assertSucceeds(
+          setDoc(
+            doc(db, `businesses/biz-1/products/${id}`),
+            safeProduct({
+              sellerRelationship: newRel,
+              productInputRevision: correctRevision,
+            })
+          )
+        );
+      }
+    );
+  }
+}
+
+// Item 29 (no relationship treated as stronger/weaker, no automatic
+// substitution) is proven directly by the symmetric 6x6 loop above: every
+// pair — including B->A alongside A->B — is governed by the identical
+// +0/+1 rule with no ordering or precedence, and every succeeding write
+// above asserts the exact stored value it supplied, so a silent
+// substitution would fail the write assertion itself.
+
+// --- No inference from category/brand/evidence/business (item 30) ---
+
+rulesTest(
+  "4.2r7-inference-30. sellerRelationship is never inferred from category — an unrelated category-only change leaves an existing value exactly unchanged",
+  async () => {
+    await resetSeed();
+    await seedProductWithRevision(
+      5,
+      { sellerRelationship: "reseller" },
+      "r7-inf30"
+    );
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-inf30"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          category: "Toys > Chew Toy",
+          productInputRevision: 6,
+        })
+      )
+    );
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(
+        doc(context.firestore(), "businesses/biz-1/products/r7-inf30")
+      );
+      assert.equal(snap.data().sellerRelationship, "reseller");
+    });
+  }
+);
+
+// --- Regression: unauthorized writes, server-owned protection,
+// category safety, and public read remain unchanged (items 31-35) ---
+
+rulesTest(
+  "4.2r7-regression-32. unauthorized create is still rejected even with a valid sellerRelationship included",
+  async () => {
+    await resetSeed();
+    const db = (await env()).unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-reg32"),
+        safeProduct({ sellerRelationship: "reseller" })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-regression-33. the five real server-owned compliance fields remain forbidden even alongside a valid sellerRelationship",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-reg33"),
+        safeProduct({
+          sellerRelationship: "reseller",
+          complianceEffectiveStatus: "verified_valid",
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-regression-34. an unsafe category is still rejected even with a valid sellerRelationship and correct revision",
+  async () => {
+    await resetSeed();
+    const db = (await env()).authenticatedContext("seller-1").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "businesses/biz-1/products/r7-reg34"),
+        safeProduct({
+          category: "Health > Medicine",
+          sellerRelationship: "reseller",
+          productInputRevision: 0,
+        })
+      )
+    );
+  }
+);
+
+rulesTest(
+  "4.2r7-regression-35. public read of an approved+active product carrying a valid sellerRelationship is unaffected — no compliance read gate introduced",
+  async () => {
+    await resetSeed();
+    const rulesEnv = await env();
+    await rulesEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), "businesses/biz-1/products/r7-reg35"),
+        safeProduct({
+          isActive: true,
+          moderationStatus: "approved",
+          sellerRelationship: "reseller",
+        })
+      );
+    });
+    const db = rulesEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(
+      getDoc(doc(db, "businesses/biz-1/products/r7-reg35"))
+    );
+  }
+);
+
+// --- Static: no new cross-document read, gate, lock, callable, trigger,
+// migration, or Slice 4.9 behavior was introduced (item 36). Plain
+// test(), not rulesTest() — this is a pure source-text scan of the
+// already-loaded `rules` string and needs no emulator. ---
+
+test(
+  "4.2r7-static-36. no new get()/exists()-shaped call was introduced by the sellerRelationship functions",
+  () => {
+    const startMarker = "function isValidSellerRelationshipValue";
+    const endMarker = "function isSafeNewProductSubmission";
+    const startIdx = rules.indexOf(startMarker);
+    const endIdx = rules.indexOf(endMarker);
+    assert.ok(
+      startIdx >= 0 && endIdx > startIdx,
+      "sellerRelationship block not found in firestore.rules"
+    );
+    const block = rules.slice(startIdx, endIdx);
+    assert.equal(/\bget\s*\(/.test(block), false, "no get() call expected");
+    assert.equal(
+      /\bexists\s*\(/.test(block),
+      false,
+      "no exists() call expected"
+    );
+    assert.equal(
+      /\bexistsAfter\s*\(/.test(block),
+      false,
+      "no existsAfter() call expected"
+    );
+    assert.equal(
+      /\bgetAfter\s*\(/.test(block),
+      false,
+      "no getAfter() call expected"
+    );
+  }
+);
+
+// Item 37 (no skip/todo/environment bypass) is a property of this file's
+// own authorship — no .skip()/.todo() call was added anywhere above; it
+// is not separately re-asserted here.
