@@ -523,11 +523,24 @@ const COMPLIANCE_SCOPE_STATUS = Object.freeze({
   REJECTED: "rejected",
 });
 
+// `sellerRelationship` (master plan Revision 7 correction 40, docs/plans/
+// marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md
+// §4/§13.1): denormalized server-side onto every scope from its source
+// `complianceDocuments.sellerRelationship` at `addComplianceScope`
+// creation time — never a client-suppliable field, never touched by
+// `reviewComplianceScope` or any other Slice 3 operation once set. No
+// separate "immutable fields" constant exists for this collection (unlike
+// `complianceDocuments`' `COMPLIANCE_DOCUMENT_IMMUTABLE_FIELDS` split) —
+// immutability here is enforced by which fields the module's write paths
+// actually touch, the same established convention already governing
+// `documentId`/`businessId`/`scopeType`/`scopeValue`/`createdAt`/
+// `createdBy` in this same list.
 const COMPLIANCE_SCOPE_ALLOWED_FIELDS = Object.freeze([
   "documentId",
   "businessId",
   "scopeType",
   "scopeValue",
+  "sellerRelationship",
   "memberCount",
   "status",
   "createdAt",

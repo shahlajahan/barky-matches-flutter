@@ -798,6 +798,18 @@ async function supersedeComplianceDocument({ db, auth, data }) {
 //    non-authoritative preparation (a fast 404/permission-denied before
 //    ever opening a transaction); it is never the sole gate on the
 //    actual write.
+//
+//    Revision 7 correction 40 (master plan §4/§13.1): the created scope
+//    also carries `sellerRelationship`, denormalized server-side from
+//    this same authoritative in-transaction read of the source document
+//    — never caller-suppliable (absent from ADD_SCOPE_REQUEST_ALLOWED_
+//    FIELDS), never defaulted, never inferred. A missing/malformed value
+//    on the source document (a stored-data anomaly — unreachable via any
+//    correct write path, since submitComplianceDocument already gates
+//    this field) fails the whole transaction closed before any write.
+//    Immutable thereafter: reviewComplianceScope's own update touches
+//    only `status`/`reviewedBy`/`reviewedAt`/`verifiedBrandId`, never
+//    this field.
 // ---------------------------------------------------------------------
 
 async function addComplianceScope({ db, auth, data }) {
@@ -838,12 +850,33 @@ async function addComplianceScope({ db, auth, data }) {
         `Cannot add a scope to a document in status "${current.status}"`
       );
     }
+    // Revision 7 correction 40 (docs/plans/marketplace_p1a_compliance_
+    // review_implementation_plan_2026-08-21.md §4/§13.1): sellerRelationship
+    // is denormalized onto the scope from this same authoritative,
+    // in-transaction read of the source document — never from caller
+    // data (ADD_SCOPE_REQUEST_ALLOWED_FIELDS has no such key, so a
+    // caller-supplied value is already rejected before this point by the
+    // closed request-shape check above), never a fallback default, never
+    // inferred. A document eligible for scope creation is always
+    // `approved`, which is only reachable via submitComplianceDocument's
+    // own isValidSellerRelationship gate — so a missing/malformed value
+    // here is a stored-data anomaly, not an ordinary caller error; it
+    // fails the whole transaction closed, before any write, exactly like
+    // the eligibility check immediately above. The generic message below
+    // never echoes the document's own field values.
+    if (!isValidSellerRelationship(current.sellerRelationship)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Source document does not carry a valid sellerRelationship"
+      );
+    }
 
     tx.create(scopeRef, {
       documentId,
       businessId: current.businessId,
       scopeType,
       scopeValue,
+      sellerRelationship: current.sellerRelationship,
       memberCount: 0,
       status: COMPLIANCE_SCOPE_STATUS.PENDING_REVIEW,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

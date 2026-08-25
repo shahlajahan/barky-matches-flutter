@@ -26,6 +26,7 @@ const {
   COMPLIANCE_DOCUMENT_ALLOWED_FIELDS,
   COMPLIANCE_SCOPE_TYPE,
   COMPLIANCE_SCOPE_STATUS,
+  COMPLIANCE_SCOPE_ALLOWED_FIELDS,
   COMPLIANCE_SCOPE_MEMBER_IDENTIFIER_TYPE,
   COMPLIANCE_SCOPE_MEMBER_STATUS,
   COMPLIANCE_REVIEW_EVENT_TARGET_TYPE,
@@ -61,6 +62,7 @@ const {
   isSafeComplianceDocumentSellerUpdate,
   isValidComplianceScopeType,
   isValidComplianceScopeStatus,
+  hasOnlyAllowedComplianceScopeFields,
   isValidComplianceScopeMemberIdentifierType,
   isValidComplianceScopeMemberStatus,
   isValidComplianceReviewEventTargetType,
@@ -305,6 +307,66 @@ test("COMPLIANCE_SCOPE_STATUS has exactly 3 values", () => {
   assert.equal(allEnumValues(COMPLIANCE_SCOPE_STATUS).length, 3);
   assert.equal(isValidComplianceScopeStatus("approved"), true);
   assert.equal(isValidComplianceScopeStatus("active"), false);
+});
+
+// Revision 7 correction 40/45 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §4/§13.1): sellerRelationship
+// is denormalized onto every scope from its immutable source document.
+// This proves the schema itself, not the writer (complianceDocumentOperations.js,
+// tested separately, emulator-backed) — sellerRelationship appears exactly
+// once, every other field is unchanged, and the exact prior list (Revision
+// 6 and earlier) is updated here intentionally, not silently.
+test("COMPLIANCE_SCOPE_ALLOWED_FIELDS contains sellerRelationship exactly once, alongside every pre-existing field unchanged", () => {
+  const occurrences = COMPLIANCE_SCOPE_ALLOWED_FIELDS.filter((f) => f === "sellerRelationship");
+  assert.equal(occurrences.length, 1);
+  assert.deepEqual(COMPLIANCE_SCOPE_ALLOWED_FIELDS.slice().sort(), [
+    "businessId",
+    "createdAt",
+    "createdBy",
+    "documentId",
+    "memberCount",
+    "reviewedAt",
+    "reviewedBy",
+    "scopeType",
+    "scopeValue",
+    "sellerRelationship",
+    "status",
+    "verifiedBrandId",
+  ]);
+  assert.ok(Object.isFrozen(COMPLIANCE_SCOPE_ALLOWED_FIELDS));
+});
+
+test("hasOnlyAllowedComplianceScopeFields accepts a stored scope document carrying sellerRelationship and rejects one with an unknown field", () => {
+  const validScope = {
+    documentId: "doc-1",
+    businessId: "biz-1",
+    scopeType: "brand",
+    scopeValue: "Acme",
+    sellerRelationship: "authorized_distributor",
+    memberCount: 0,
+    status: "pending_review",
+    createdAt: null,
+    createdBy: "seller-1",
+    reviewedBy: null,
+    reviewedAt: null,
+    verifiedBrandId: null,
+  };
+  assert.equal(hasOnlyAllowedComplianceScopeFields(validScope), true);
+  assert.equal(
+    hasOnlyAllowedComplianceScopeFields({ ...validScope, unexpectedField: "x" }),
+    false
+  );
+  // A scope carrying a valid sellerRelationship value from every one of
+  // the 6 enum members remains structurally acceptable — the field-set
+  // check is schema-shape only, not a value-domain check (that is
+  // isValidSellerRelationship's job, already exercised elsewhere in this
+  // file).
+  for (const relationship of allEnumValues(SELLER_RELATIONSHIP)) {
+    assert.equal(
+      hasOnlyAllowedComplianceScopeFields({ ...validScope, sellerRelationship: relationship }),
+      true
+    );
+  }
 });
 
 test("scope member identifier type is barcode or sku only", () => {

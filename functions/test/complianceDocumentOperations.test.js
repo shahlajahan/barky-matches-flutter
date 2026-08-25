@@ -1403,6 +1403,9 @@ itest("addScope: a valid call creates a pending_review scope", async () => {
   const snap = await db.collection("complianceDocumentScopes").doc(result.scopeId).get();
   assert.equal(snap.data().memberCount, 0);
   assert.equal(snap.data().businessId, businessId);
+  // Revision 7 correction 40 — denormalized from the source document,
+  // which submitAndApprove/validSubmitRequest sets to "authorized_distributor".
+  assert.equal(snap.data().sellerRelationship, "authorized_distributor");
 });
 
 // ---------------------------------------------------------------------
@@ -1474,6 +1477,358 @@ itest("addScope (Correction B): concurrent duplicate calls create no duplicate s
 
   const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
   assert.equal(scopesSnap.size, attempts); // exactly one scope per successful call, no duplicates, no loss
+});
+
+// =====================================================================
+// 6b. addComplianceScope — sellerRelationship denormalization (Revision
+// 7 correction 40, docs/plans/marketplace_p1a_compliance_review_
+// implementation_plan_2026-08-21.md §4/§13.1)
+//
+// Note on "idempotency" test coverage: addComplianceScope has NO
+// request-level idempotency by explicit, already-committed design (see
+// its own doc comment above and the "Correction B: concurrent duplicate
+// calls..." test above — scopeId is a fresh random UUID every call,
+// never content-derived, so there is no "existing scope to retry
+// against" to compare a repeated call's relationship value to). Tests
+// below cover the equivalent, real properties instead: (a) the copy is
+// a pure, deterministic function of the unchanged source document, so
+// repeated independent calls always derive the identical value, and (b)
+// no operation anywhere in this module — under any pre-existing scope
+// state, including a directly-seeded data anomaly — can add, change, or
+// remove a scope's sellerRelationship once created.
+// =====================================================================
+
+async function seedApprovedDocumentWithRelationship(businessId, sellerRelationshipValue) {
+  const documentId = await seedCleanDocument({ businessId });
+  await db.collection("complianceDocuments").doc(documentId).update({
+    status: "approved",
+    validUntil: new Date("2027-01-01T00:00:00.000Z"),
+    reviewedBy: "admin-anomaly-seed",
+    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    sellerRelationship: sellerRelationshipValue,
+  });
+  return documentId;
+}
+
+// Directly seeds a scope document, bypassing addComplianceScope entirely
+// — used only to construct pre-existing scope states (including data
+// anomalies) that no correct write path through this module can produce,
+// exactly mirroring this file's established seedCleanDocument/direct-set
+// convention for constructing anomalous fixtures.
+async function seedScopeDirectly({ businessId, documentId, sellerRelationshipValue, status = "pending_review" }) {
+  const scopeId = nextId("s3-scope");
+  const payload = {
+    documentId,
+    businessId,
+    // Deliberately "category", not "brand" — this fixture is used for
+    // generic relationship-immutability tests, unrelated to brand-type
+    // scopes' own separate verifiedBrandId requirement (tested on its
+    // own, below).
+    scopeType: "category",
+    scopeValue: "Health > Vitamins",
+    memberCount: 0,
+    status,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: "seller-1",
+    reviewedBy: null,
+    reviewedAt: null,
+    verifiedBrandId: null,
+  };
+  if (sellerRelationshipValue !== undefined) {
+    payload.sellerRelationship = sellerRelationshipValue;
+  }
+  await db.collection("complianceDocumentScopes").doc(scopeId).set(payload);
+  return scopeId;
+}
+
+const ALL_SELLER_RELATIONSHIPS = [
+  "brand_owner",
+  "manufacturer",
+  "authorized_distributor",
+  "authorized_dealer",
+  "importer",
+  "reseller",
+];
+
+for (const relationship of ALL_SELLER_RELATIONSHIPS) {
+  itest(`addScope+relationship: source document declared "${relationship}" is copied exactly onto the new scope`, async () => {
+    const businessId = await seedBusiness("seller-1");
+    const adminUid = await seedAdmin();
+    const documentId = await seedCleanDocument({ businessId });
+    await functions.submitComplianceDocument.run({
+      auth: { uid: "seller-1" },
+      data: validSubmitRequest(documentId, { sellerRelationship: relationship }),
+    });
+    await functions.reviewComplianceDocument.run({
+      auth: { uid: adminUid },
+      data: { documentId, decision: "approve" },
+    });
+    const { scopeId } = await functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: { documentId, scopeType: "category", scopeValue: "Toys > Chew Toy" },
+    });
+    const snap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+    assert.equal(snap.data().sellerRelationship, relationship);
+  });
+}
+
+itest("addScope+relationship: caller omitting sellerRelationship still succeeds — the field is server-derived, never a required request input", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+  // The request shape below is deliberately exactly the pre-existing,
+  // unchanged ADD_SCOPE_REQUEST_ALLOWED_FIELDS set — no sellerRelationship
+  // key anywhere in it.
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "brand", scopeValue: "Acme" },
+  });
+  const snap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+  assert.equal(snap.data().sellerRelationship, "authorized_distributor");
+});
+
+itest("addScope+relationship: a caller-supplied sellerRelationship is rejected as an unrecognized request field", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+  await assert.rejects(
+    functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: { documentId, scopeType: "brand", scopeValue: "Acme", sellerRelationship: "authorized_distributor" },
+    }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+  const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+  assert.equal(scopesSnap.size, 0);
+});
+
+itest("addScope+relationship: a caller-supplied sellerRelationship that differs from the source document's is still rejected, never used to override it", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  // Source document is "authorized_distributor" (validSubmitRequest's default).
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+  await assert.rejects(
+    functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: { documentId, scopeType: "brand", scopeValue: "Acme", sellerRelationship: "reseller" },
+    }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+  const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+  assert.equal(scopesSnap.size, 0);
+});
+
+const MALFORMED_SOURCE_RELATIONSHIP_CASES = [
+  ["missing (field entirely absent)", admin.firestore.FieldValue.delete()],
+  ["null", null],
+  ["unknown string outside the enum", "not_a_real_relationship"],
+  ["wrong type — number", 42],
+  ["wrong type — object", { relationship: "reseller" }],
+];
+
+for (const [label, badValue] of MALFORMED_SOURCE_RELATIONSHIP_CASES) {
+  itest(`addScope+relationship: source document with ${label} sellerRelationship fails closed with zero writes`, async () => {
+    const businessId = await seedBusiness("seller-1");
+    const documentId = await seedApprovedDocumentWithRelationship(businessId, badValue);
+    await assert.rejects(
+      functions.addComplianceScope.run({
+        auth: { uid: "seller-1" },
+        data: { documentId, scopeType: "brand", scopeValue: "Acme" },
+      }),
+      (err) => {
+        assert.equal(err.code, "failed-precondition");
+        // Never echoes document field values back in the error.
+        assert.equal(/not_a_real_relationship/.test(err.message), false);
+        return true;
+      }
+    );
+    const scopesSnap = await db.collection("complianceDocumentScopes").where("documentId", "==", documentId).get();
+    assert.equal(scopesSnap.size, 0);
+    const eventCount = await countReviewEvents({ targetType: "scope", targetId: documentId });
+    assert.equal(eventCount, 0);
+  });
+}
+
+itest("addScope+relationship: a nonexistent documentId still fails not-found (existing behavior, unaffected)", async () => {
+  await assert.rejects(
+    functions.addComplianceScope.run({
+      auth: { uid: "seller-1" },
+      data: { documentId: "does-not-exist", scopeType: "brand", scopeValue: "Acme" },
+    }),
+    (err) => {
+      assert.equal(err.code, "not-found");
+      return true;
+    }
+  );
+});
+// Cross-tenant source-document rejection is already covered by "addScope:
+// unauthenticated/non-owner rejected" above (the "random-user" case) —
+// reused, not duplicated; assertCallerOwnsBusiness runs before
+// sellerRelationship is ever read, so that existing coverage already
+// proves a non-owner cannot reach this code path at all.
+
+itest("addScope+relationship: repeated independent calls against the same unchanged source document always derive the identical relationship value", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await functions.submitComplianceDocument.run({
+    auth: { uid: "seller-1" },
+    data: validSubmitRequest(documentId, { sellerRelationship: "importer" }),
+  });
+  await functions.reviewComplianceDocument.run({
+    auth: { uid: adminUid },
+    data: { documentId, decision: "approve" },
+  });
+  const first = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "sku_set", scopeValue: "set-a" },
+  });
+  const second = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "sku_set", scopeValue: "set-b" },
+  });
+  assert.notEqual(first.scopeId, second.scopeId); // distinct scopes, by design (see module doc comment)
+  const firstSnap = await db.collection("complianceDocumentScopes").doc(first.scopeId).get();
+  const secondSnap = await db.collection("complianceDocumentScopes").doc(second.scopeId).get();
+  assert.equal(firstSnap.data().sellerRelationship, "importer");
+  assert.equal(secondSnap.data().sellerRelationship, "importer");
+});
+
+itest("addScope+relationship: no operation repairs, accepts, or silently overwrites a pre-existing scope's relationship, regardless of its state", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+
+  const missingRelScope = await seedScopeDirectly({ businessId, documentId, sellerRelationshipValue: undefined });
+  const malformedRelScope = await seedScopeDirectly({ businessId, documentId, sellerRelationshipValue: "not_a_real_relationship" });
+  const mismatchedRelScope = await seedScopeDirectly({ businessId, documentId, sellerRelationshipValue: "reseller" }); // source is "authorized_distributor"
+
+  // reviewComplianceScope (approve) has no path that reads, validates, or
+  // writes sellerRelationship at all — it must succeed identically
+  // regardless of the scope's pre-existing relationship state, and must
+  // never repair, add, or change it.
+  for (const scopeId of [missingRelScope, malformedRelScope, mismatchedRelScope]) {
+    const before = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+    const result = await functions.reviewComplianceScope.run({
+      auth: { uid: adminUid },
+      data: { scopeId, decision: "approve" },
+    });
+    assert.equal(result.status, "approved");
+    const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+    assert.equal(after.sellerRelationship, before.sellerRelationship); // byte-identical, including undefined/malformed
+    assert.equal(after.status, "approved");
+  }
+});
+
+itest("addScope+relationship: approval preserves the scope's sellerRelationship exactly, alongside every other unrelated field", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "category", scopeValue: "Health > Vitamins" },
+  });
+  const before = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+
+  await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "approve" },
+  });
+
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.sellerRelationship, before.sellerRelationship);
+  assert.equal(after.sellerRelationship, "authorized_distributor");
+  // Every other pre-existing field is unchanged except the ones this
+  // operation is documented to touch.
+  assert.equal(after.documentId, before.documentId);
+  assert.equal(after.businessId, before.businessId);
+  assert.equal(after.scopeType, before.scopeType);
+  assert.equal(after.scopeValue, before.scopeValue);
+  assert.equal(after.memberCount, before.memberCount);
+  assert.equal(after.createdBy, before.createdBy);
+});
+
+itest("addScope+relationship: rejection preserves the scope's sellerRelationship exactly", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "category", scopeValue: "Toys > Chew Toy" },
+  });
+
+  await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "reject" },
+  });
+
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.status, "rejected");
+  assert.equal(after.sellerRelationship, "authorized_distributor");
+});
+
+itest("addScope+relationship: an idempotent re-approve replay preserves sellerRelationship exactly", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "product", scopeValue: "prod-123" },
+  });
+  await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "approve" },
+  });
+  const replay = await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "approve" },
+  });
+  assert.equal(replay.idempotent, true);
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.sellerRelationship, "authorized_distributor");
+});
+
+itest("addScope+relationship: verifiedBrandId approval behavior is unaffected — both fields are set/preserved correctly together", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "brand", scopeValue: "Acme" },
+  });
+
+  await assert.rejects(
+    functions.reviewComplianceScope.run({
+      auth: { uid: adminUid },
+      data: { scopeId, decision: "approve" },
+    }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument"); // verifiedBrandId still required for brand-type approval
+      return true;
+    }
+  );
+
+  await functions.reviewComplianceScope.run({
+    auth: { uid: adminUid },
+    data: { scopeId, decision: "approve", verifiedBrandId: "acme-verified-1" },
+  });
+  const after = (await db.collection("complianceDocumentScopes").doc(scopeId).get()).data();
+  assert.equal(after.verifiedBrandId, "acme-verified-1");
+  assert.equal(after.sellerRelationship, "authorized_distributor");
 });
 
 // =====================================================================
@@ -2261,4 +2616,36 @@ test("static: every Firestore write in this module uses admin.firestore.FieldVal
   // observation timestamps, and are explicitly documented as such.
   assert.equal(/new Date\(\s*\)/.test(EXECUTABLE_TEXT), false);
   assert.ok(EXECUTABLE_TEXT.includes("admin.firestore.FieldValue.serverTimestamp()"));
+});
+
+// Revision 7 correction 40 — static proof that sellerRelationship is
+// written exactly once anywhere in this module: inside addComplianceScope's
+// own tx.create() call. No tx.update() call anywhere in this file (the
+// only other write verb ever used against complianceDocumentScopes,
+// exercised by reviewComplianceScope) may reference it — that is the
+// exact, complete list of every mutation reviewComplianceScope is
+// permitted to perform (status/reviewedBy/reviewedAt/verifiedBrandId),
+// unchanged from before this correction.
+test("static: sellerRelationship is written onto complianceDocumentScopes only by addComplianceScope's tx.create(scopeRef, ...), never by reviewComplianceScope's tx.update(scopeRef, ...)", () => {
+  // Scoped specifically to writes against `scopeRef` — submitComplianceDocument's
+  // own, entirely separate, pre-existing tx.update(documentRef, {...
+  // sellerRelationship ...}) legitimately sets this field on the SOURCE
+  // complianceDocuments record and is correctly out of scope for this
+  // assertion, which is only about the complianceDocumentScopes writer.
+  // Two legitimate tx.update(scopeRef, ...) call sites exist today:
+  // reviewComplianceScope's own (status/reviewedBy/reviewedAt/verifiedBrandId)
+  // and addComplianceScopeMembers' unrelated memberCount increment —
+  // neither may ever reference sellerRelationship.
+  const scopeUpdateCalls = EXECUTABLE_TEXT.match(/tx\.update\(scopeRef[^;]*\)/g) || [];
+  assert.ok(scopeUpdateCalls.length >= 1, "expected at least one tx.update(scopeRef, ...) call");
+  for (const call of scopeUpdateCalls) {
+    assert.equal(
+      call.includes("sellerRelationship"),
+      false,
+      `tx.update(scopeRef, ...) must never touch sellerRelationship: ${call}`
+    );
+  }
+  const scopeCreateCalls = EXECUTABLE_TEXT.match(/tx\.create\(scopeRef[^;]*\)/g) || [];
+  assert.equal(scopeCreateCalls.length, 1, "expected exactly one scope tx.create() call");
+  assert.ok(scopeCreateCalls[0].includes("sellerRelationship"));
 });
