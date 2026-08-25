@@ -696,10 +696,20 @@ const COMPLIANCE_REVIEW_EVENT_ALLOWED_FIELDS = Object.freeze([
 // compliancePolicyRegistry/{registryVersion}
 // ---------------------------------------------------------------------
 
+// `RETIRED` added (Slice 4.1, master plan Revision 3 correction 17):
+// distinct from `INACTIVE`. `inactive` is a version that was never named
+// by the pointer at all (a dormant placeholder/test version, correction
+// 8) — preserved unchanged. `retired` is a version that WAS previously
+// named `active` by the pointer and has since been superseded by a
+// successful activation of a different version — only the activation
+// transaction (compliancePolicyRegistryOperations.js) ever writes it.
+// The two are never interchangeable and neither may substitute for the
+// other.
 const COMPLIANCE_POLICY_REGISTRY_STATUS = Object.freeze({
   DRAFT: "draft",
   ACTIVE: "active",
   INACTIVE: "inactive",
+  RETIRED: "retired",
 });
 
 const COMPLIANCE_POLICY_REGISTRY_ALLOWED_FIELDS = Object.freeze([
@@ -710,6 +720,23 @@ const COMPLIANCE_POLICY_REGISTRY_ALLOWED_FIELDS = Object.freeze([
   "createdAt",
   "changeNote",
 ]);
+
+// ---------------------------------------------------------------------
+// compliancePolicyRegistryPointer/current (Slice 4.1, master plan
+// Revision 3 correction 17) — singleton document; the SOLE authoritative
+// source of which compliancePolicyRegistry version is active. No reader
+// may ever resolve "the active policy" by querying compliancePolicyRegistry
+// for status=='active' — only by reading this document's activeVersionId.
+// Written only by compliancePolicyRegistryOperations.js's activation
+// transaction. Deliberately minimal: only the field the committed plan
+// actually specifies (§4) — no timestamps, audit fields, or Slice 4.2+
+// content are added speculatively here.
+// ---------------------------------------------------------------------
+
+const COMPLIANCE_POLICY_REGISTRY_POINTER_COLLECTION = "compliancePolicyRegistryPointer";
+const COMPLIANCE_POLICY_REGISTRY_POINTER_DOC_ID = "current";
+
+const COMPLIANCE_POLICY_REGISTRY_POINTER_ALLOWED_FIELDS = Object.freeze(["activeVersionId"]);
 
 // ---------------------------------------------------------------------
 // productComplianceDecisions/{productId}
@@ -847,6 +874,10 @@ module.exports = {
 
   COMPLIANCE_POLICY_REGISTRY_STATUS,
   COMPLIANCE_POLICY_REGISTRY_ALLOWED_FIELDS,
+
+  COMPLIANCE_POLICY_REGISTRY_POINTER_COLLECTION,
+  COMPLIANCE_POLICY_REGISTRY_POINTER_DOC_ID,
+  COMPLIANCE_POLICY_REGISTRY_POINTER_ALLOWED_FIELDS,
 
   PRODUCT_COMPLIANCE_EFFECTIVE_STATUS,
   PRODUCT_COMPLIANCE_ELIGIBLE_STATUSES,

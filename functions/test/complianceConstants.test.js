@@ -32,6 +32,9 @@ const {
   COMPLIANCE_REVIEW_EVENT_ACTION,
   COMPLIANCE_REVIEW_EVENT_ACTOR_ROLE,
   COMPLIANCE_POLICY_REGISTRY_STATUS,
+  COMPLIANCE_POLICY_REGISTRY_POINTER_COLLECTION,
+  COMPLIANCE_POLICY_REGISTRY_POINTER_DOC_ID,
+  COMPLIANCE_POLICY_REGISTRY_POINTER_ALLOWED_FIELDS,
   PRODUCT_COMPLIANCE_EFFECTIVE_STATUS,
   PRODUCT_COMPLIANCE_ELIGIBLE_STATUSES,
   PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS,
@@ -356,14 +359,47 @@ test("complianceReviewEvents action/actorRole enums are valid", () => {
 // compliancePolicyRegistry
 // ---------------------------------------------------------------------
 
-test("compliancePolicyRegistry status is draft/active/inactive, only one ever active by convention", () => {
+test("compliancePolicyRegistry status is draft/active/inactive/retired, only one ever active by convention", () => {
+  // `retired` added Slice 4.1 (master plan Revision 3 correction 17) —
+  // additive only; `draft`/`active`/`inactive` are unchanged from Slice 1.
   assert.deepEqual(allEnumValues(COMPLIANCE_POLICY_REGISTRY_STATUS).sort(), [
     "active",
     "draft",
     "inactive",
+    "retired",
   ]);
+  assert.equal(isValidCompliancePolicyRegistryStatus("draft"), true);
+  assert.equal(isValidCompliancePolicyRegistryStatus("active"), true);
   assert.equal(isValidCompliancePolicyRegistryStatus("inactive"), true);
+  assert.equal(isValidCompliancePolicyRegistryStatus("retired"), true);
   assert.equal(isValidCompliancePolicyRegistryStatus("archived"), false);
+});
+
+test("inactive and retired are distinct values — neither substitutes for the other", () => {
+  // `inactive`: a version never named by the pointer (dormant placeholder,
+  // correction 8). `retired`: a version that WAS active and was
+  // superseded by a successful activation (correction 17). Conflating
+  // them would misrepresent registry history.
+  assert.notEqual(COMPLIANCE_POLICY_REGISTRY_STATUS.INACTIVE, COMPLIANCE_POLICY_REGISTRY_STATUS.RETIRED);
+  assert.equal(COMPLIANCE_POLICY_REGISTRY_STATUS.INACTIVE, "inactive");
+  assert.equal(COMPLIANCE_POLICY_REGISTRY_STATUS.RETIRED, "retired");
+});
+
+test("compliancePolicyRegistry status enum did not lose any prior Slice 1 value", () => {
+  const values = new Set(allEnumValues(COMPLIANCE_POLICY_REGISTRY_STATUS));
+  for (const priorValue of ["draft", "active", "inactive"]) {
+    assert.equal(values.has(priorValue), true, `${priorValue} must still be present`);
+  }
+});
+
+// ---------------------------------------------------------------------
+// compliancePolicyRegistryPointer/current (Slice 4.1)
+// ---------------------------------------------------------------------
+
+test("compliancePolicyRegistryPointer collection/doc-id/allowed-fields match the committed plan exactly", () => {
+  assert.equal(COMPLIANCE_POLICY_REGISTRY_POINTER_COLLECTION, "compliancePolicyRegistryPointer");
+  assert.equal(COMPLIANCE_POLICY_REGISTRY_POINTER_DOC_ID, "current");
+  assert.deepEqual(COMPLIANCE_POLICY_REGISTRY_POINTER_ALLOWED_FIELDS, ["activeVersionId"]);
 });
 
 // ---------------------------------------------------------------------
