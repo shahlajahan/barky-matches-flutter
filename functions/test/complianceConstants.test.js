@@ -40,6 +40,11 @@ const {
   PRODUCT_COMPLIANCE_ELIGIBLE_STATUSES,
   PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS,
   PRODUCT_COMPLIANCE_DECISION_MAX_REQUIRED_SLOTS,
+  PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS,
+  COMPLIANCE_EVIDENCE_LINK_MATCH_TYPE,
+  PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS,
+  LOOKUP_LIMIT,
+  MATCHED_SCOPE_CAP,
 } = constants;
 
 const {
@@ -579,6 +584,117 @@ test("hasOnlyAllowedProductComplianceDecisionFields rejects an out-of-schema fie
     }),
     false
   );
+});
+
+// ---------------------------------------------------------------------
+// Slice 4.3 (Revision 6 correction 35, Revision 8): LOOKUP_LIMIT/
+// MATCHED_SCOPE_CAP, the corrected productEvidenceLinks schema, and the
+// productComplianceDecisions allowlist's pre-existing
+// productInputRevisionSnapshot gap.
+// ---------------------------------------------------------------------
+
+test("LOOKUP_LIMIT is exactly 3 and MATCHED_SCOPE_CAP is exactly 10", () => {
+  assert.equal(LOOKUP_LIMIT, 3);
+  assert.equal(MATCHED_SCOPE_CAP, 10);
+});
+
+test("PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS is exactly the six frozen fields, no more", () => {
+  assert.deepEqual(
+    [...PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS].sort(),
+    ["businessId", "documentId", "linkedAt", "matchedVia", "productId", "scopeId"]
+  );
+  assert.equal(Object.isFrozen(PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS), true);
+});
+
+test("PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS no longer contains linkedBy, scopeType, or matchReasonCode", () => {
+  for (const obsolete of ["linkedBy", "scopeType", "matchReasonCode"]) {
+    assert.equal(PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS.includes(obsolete), false, `${obsolete} must be removed`);
+  }
+});
+
+test("COMPLIANCE_EVIDENCE_LINK_MATCH_TYPE is preserved, aliasing COMPLIANCE_SCOPE_TYPE's 7 values unchanged", () => {
+  assert.deepEqual(COMPLIANCE_EVIDENCE_LINK_MATCH_TYPE, COMPLIANCE_SCOPE_TYPE);
+});
+
+test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS includes productInputRevisionSnapshot (pre-existing schema gap corrected)", () => {
+  assert.ok(PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS.includes("productInputRevisionSnapshot"));
+  assert.equal(
+    hasOnlyAllowedProductComplianceDecisionFields({
+      businessId: "biz-1",
+      productInputRevisionSnapshot: 3,
+      effectiveStatus: "verified_valid",
+    }),
+    true
+  );
+});
+
+// ---------------------------------------------------------------------
+// Revision 9 correction 51 (master plan §4/§10.1) —
+// sellerRelationshipSnapshot added to productComplianceDecisions,
+// independent of productInputRevisionSnapshot.
+// ---------------------------------------------------------------------
+
+test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS contains sellerRelationshipSnapshot exactly once, in Revision 9 order immediately after productInputRevisionSnapshot", () => {
+  const fields = PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS;
+  assert.equal(fields.filter((f) => f === "sellerRelationshipSnapshot").length, 1);
+  const revisionIndex = fields.indexOf("productInputRevisionSnapshot");
+  const snapshotIndex = fields.indexOf("sellerRelationshipSnapshot");
+  assert.equal(snapshotIndex, revisionIndex + 1);
+});
+
+test("PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS is exactly the 12 Revision 9 fields, no alias, no extra field", () => {
+  assert.deepEqual(
+    [...PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS],
+    [
+      "businessId",
+      "policyVersion",
+      "evidenceRevision",
+      "productInputRevisionSnapshot",
+      "sellerRelationshipSnapshot",
+      "requiredEvidenceSlots",
+      "satisfiedEvidenceSlots",
+      "activeEvidenceRefs",
+      "computedAt",
+      "validUntil",
+      "effectiveStatus",
+      "decisionHash",
+    ]
+  );
+  assert.equal(Object.isFrozen(PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS), true);
+});
+
+test("hasOnlyAllowedProductComplianceDecisionFields accepts a decision carrying sellerRelationshipSnapshot alongside productInputRevisionSnapshot and rejects an unknown field", () => {
+  const validDecision = {
+    businessId: "biz-1",
+    policyVersion: "v1",
+    evidenceRevision: 2,
+    productInputRevisionSnapshot: 3,
+    sellerRelationshipSnapshot: "reseller",
+    requiredEvidenceSlots: [],
+    satisfiedEvidenceSlots: [],
+    activeEvidenceRefs: [],
+    computedAt: { toMillis: () => 1_800_000_000_000 },
+    validUntil: null,
+    effectiveStatus: "verified_valid",
+    decisionHash: "a".repeat(64),
+  };
+  assert.equal(hasOnlyAllowedProductComplianceDecisionFields(validDecision), true);
+  assert.equal(
+    hasOnlyAllowedProductComplianceDecisionFields({ ...validDecision, unknownField: "x" }),
+    false
+  );
+});
+
+test("SELLER_RELATIONSHIP and COMPLIANCE_SCOPE_TYPE remain exactly the six/seven documented values, unchanged by Slice 4.3", () => {
+  assert.deepEqual(
+    Object.values(SELLER_RELATIONSHIP).sort(),
+    ["authorized_dealer", "authorized_distributor", "brand_owner", "importer", "manufacturer", "reseller"]
+  );
+  assert.equal(Object.values(COMPLIANCE_SCOPE_TYPE).length, 7);
+});
+
+test("COMPLIANCE_SCOPE_ALLOWED_FIELDS still carries sellerRelationship, unaffected by the Slice 4.3 correction", () => {
+  assert.ok(constants.COMPLIANCE_SCOPE_ALLOWED_FIELDS.includes("sellerRelationship"));
 });
 
 // ---------------------------------------------------------------------

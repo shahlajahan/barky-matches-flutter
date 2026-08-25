@@ -667,6 +667,17 @@ const COMPLIANCE_SCOPE_MEMBER_TERMINAL_STATUSES = Object.freeze([
 // discovered through.
 const COMPLIANCE_EVIDENCE_LINK_MATCH_TYPE = COMPLIANCE_SCOPE_TYPE;
 
+// Revision 6 correction 34 (master plan §4): the field-name contradiction
+// between the original Revision 3 correction 16 table (`scopeType`/
+// `matchReasonCode`) and this already-shipped constant is resolved in
+// favor of the single, non-redundant `matchedVia` field — `scopeType`/
+// `matchReasonCode` are provably redundant with it (§10's seven lookup
+// types map 1:1 onto scopeType by construction) and are never added.
+// `linkedBy` is removed: this collection has exactly one system writer
+// (`recomputeProductComplianceStatus`) by design, so a "written by"
+// field is a compile-time constant with no diagnostic value. No
+// migration/backfill needed for either removal — this collection has
+// never had a writer, so no document exists under either field set.
 const PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS = Object.freeze([
   "businessId",
   "productId",
@@ -674,7 +685,6 @@ const PRODUCT_EVIDENCE_LINK_ALLOWED_FIELDS = Object.freeze([
   "scopeId",
   "matchedVia",
   "linkedAt",
-  "linkedBy",
 ]);
 
 // ---------------------------------------------------------------------
@@ -803,10 +813,41 @@ const PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS = 10;
 // (docs/plans/... §4 — "array, max 5 entries").
 const PRODUCT_COMPLIANCE_DECISION_MAX_REQUIRED_SLOTS = 5;
 
+// ---------------------------------------------------------------------
+// complianceMatching.js (Slice 4.3, master plan §10, Revision 6
+// correction 35 / Revision 7 correction 41-42) — the two frozen bounds
+// the seven-query matching engine and source-document verification are
+// built around. LOOKUP_LIMIT caps every one of the seven
+// complianceDocumentScopes candidate queries; MATCHED_SCOPE_CAP caps how
+// many matched scopes' source documents are resolved/verified in one
+// recompute. Together with the four initial point reads (product,
+// pointer, version, epoch), the sku_set member point-reads (≤2 per
+// candidate), and the prior-decision read, these two bounds are what
+// make the ≤42-billed-read / ≤8-operation ceiling (§10) exact and
+// reproducible rather than merely a description.
+// ---------------------------------------------------------------------
+
+const LOOKUP_LIMIT = 3;
+const MATCHED_SCOPE_CAP = 10;
+
+// Slice 4.3 correction: `productInputRevisionSnapshot` (master plan §4,
+// "NEW, Revision 3") was added to the productComplianceDecisions schema
+// table before this constant existed, but this constant was never
+// updated to include it — a pre-existing gap, not a Revision 8 change.
+// Corrected here since it is required for
+// hasOnlyAllowedProductComplianceDecisionFields to accept the real
+// schema recomputeProductComplianceStatus (Slice 4.3) writes.
+// `sellerRelationshipSnapshot` (Revision 9 correction 51, master plan §4/
+// §10.1) — added alongside productInputRevisionSnapshot, independent of
+// it: closes the dormant-window gap where a product's sellerRelationship
+// can change while productInputRevision stays absent on both sides
+// (firestore.rules row A), which revision-equality alone cannot detect.
 const PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS = Object.freeze([
   "businessId",
   "policyVersion",
   "evidenceRevision",
+  "productInputRevisionSnapshot",
+  "sellerRelationshipSnapshot",
   "requiredEvidenceSlots",
   "satisfiedEvidenceSlots",
   "activeEvidenceRefs",
@@ -911,4 +952,7 @@ module.exports = {
   PRODUCT_COMPLIANCE_DECISION_MAX_ACTIVE_EVIDENCE_REFS,
   PRODUCT_COMPLIANCE_DECISION_MAX_REQUIRED_SLOTS,
   PRODUCT_COMPLIANCE_DECISION_ALLOWED_FIELDS,
+
+  LOOKUP_LIMIT,
+  MATCHED_SCOPE_CAP,
 };
