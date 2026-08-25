@@ -45,11 +45,26 @@
      rollout sequence that never guesses or backfills an existing
      product's relationship. Slice 1-4.2 records remain historical and
      unchanged throughout; the Revision 6 productEvidenceLinks/index/
-     dependency corrections are extended, not reopened. -->
+     dependency corrections are extended, not reopened. Revision 8
+     (2026-08-25) resolves a genuine textual contradiction a final
+     independent review found in §9 (§0.6): a table headed
+     "sellerRelationship's own dormant create/update contract" stated an
+     update-only adoption rule (existing absent -> baseline 0, so incoming
+     productInputRevision must be 1) that, if its own heading were taken
+     literally as covering create, directly contradicted the separate,
+     unconditional productInputRevision create table (absent or exactly 0
+     only, 1 always rejected). Revision 8 resolves this in favor of the
+     create table's unconditional reading -- the reading the already-
+     uncommitted firestore.rules/marketplaceProductRules.test.js Slice 4.2
+     correction already implements and tests -- by splitting §9 into an
+     explicitly separate create contract (§9.B, governing both fields
+     independently, no delta ever computed) and an explicitly retitled,
+     existing-document-only update contract (§9.C). No code or test change
+     is required; this is documentation-only. -->
 
-# Petsupo Marketplace P1-A — Compliance & Review Foundation: Implementation Plan (Revision 7)
+# Petsupo Marketplace P1-A — Compliance & Review Foundation: Implementation Plan (Revision 8)
 
-**Date:** 2026-08-21 (Revision 2). **Revision 3:** 2026-08-25 — Slice 4 architecture corrected; see §0.1. **Revision 4:** 2026-08-25 — Slice 4.1 contract completed; see §0.2. **Revision 5:** 2026-08-25 — Slice 4.2 dormant-compatibility contract added; see §0.3. **Revision 6:** 2026-08-25 — Slice 4.3 matching/index/link contract frozen; see §0.4. **Revision 7:** 2026-08-25 — product-level sellerRelationship architecture frozen; see §0.5.
+**Date:** 2026-08-21 (Revision 2). **Revision 3:** 2026-08-25 — Slice 4 architecture corrected; see §0.1. **Revision 4:** 2026-08-25 — Slice 4.1 contract completed; see §0.2. **Revision 5:** 2026-08-25 — Slice 4.2 dormant-compatibility contract added; see §0.3. **Revision 6:** 2026-08-25 — Slice 4.3 matching/index/link contract frozen; see §0.4. **Revision 7:** 2026-08-25 — product-level sellerRelationship architecture frozen; see §0.5. **Revision 8:** 2026-08-25 — create/update contract heading contradiction resolved, documentation-only; see §0.6.
 **Baseline:** branch `integration/mac-windows-2026-07-22`, HEAD `f2048cf25681d714ba562037604116ec42a80101` ("Fix server-owned product field protection (P0.1)"), parent `9238a528fcd267b6d24b3a589e94c93939d1cf3e` (P0). Working tree clean, upstream in sync, no deployment performed.
 **Source architecture:** `docs/audits/marketplace_p1_bulk_compliance_inventory_architecture_2026-08-21.md` (Revision 3, with one field-level cross-reference addendum pointing back to this plan — see that document's status box).
 **Status:** PLAN ONLY. Nothing in this document has been implemented, staged, committed, deployed, or pushed as a result of this plan.
@@ -141,6 +156,32 @@ A second read-only contract-resolution audit, prompted by a Slice 4.3 implementa
 | 44 | §14's two Revision 6 composite indexes did not include `sellerRelationship`, and could not, since the field did not exist on `complianceDocumentScopes` yet | §14 below replaces both Revision 6 indexes with Revision 7 forms, each gaining `sellerRelationship` as an additional equality field ahead of `scopeType` |
 | 45 | Denormalizing `sellerRelationship` onto `complianceDocumentScopes` requires modifying `addComplianceScope` (Slice 3, already committed) and extending Slice 4.2's Rules/matching-field set (already committed) — neither is Slice 4.3's own file, and folding either correction invisibly into a future Slice 4.3 implementation pass would mean modifying already-committed, already-reviewed slices without their own dedicated review | §13.1/§16 below name two new, explicit, separately-reviewed-and-committed corrective sub-passes (a Slice 3 scope-schema/writer correction and a Slice 4.2 Rules correction) that must land *before* Slice 4.3 resumes — never bundled into it |
 | 46 | Nothing stated what happens to a product that predates this field once Slice 4.9's strict Rules eventually require it, or who may supply the missing value for such a product | §17 below freezes an explicit rollout sequence: existing products lacking `sellerRelationship` remain `policy_unresolved` indefinitely; no default (e.g. `reseller`), no evidence-based inference, and no unverified admin backfill is ever permitted — only a seller/admin-supplied, authorized declaration through the normal product-edit flow (or a future, separately-authorized backfill operation, not proposed here) resolves it |
+
+---
+
+### 0.6 Revision 8 change log — create/update contract heading contradiction resolved (2026-08-25)
+
+A final independent review of the (uncommitted) Slice 4.2 Revision 7 correction found a genuine textual contradiction in §9, not merely an inference gap. Two passages disagreed on the exact same hybrid case — a product `create` that simultaneously sets a valid `sellerRelationship` while `productInputRevision` is absent or `0`:
+
+- The plain "Transitional create contract (Phase A)" table for `productInputRevision` states, unconditionally: absent allowed, exactly `0` allowed, `1` or any other nonzero rejected — with no column or condition referencing `sellerRelationship` at all.
+- A second table, headed **"`sellerRelationship`'s own dormant create/update contract"** — a heading that explicitly claims to cover both operations — stated in its row B: "existing absent → baseline `0`, so incoming `productInputRevision` must be `1`." Taken at face value for `create` (where "existing" is, by definition, always absent), this row directly requires `productInputRevision == 1` on exactly the case the first table unconditionally rejects.
+- §11's own summary sentence ("any write that changes `sellerRelationship` must increment `productInputRevision` by exactly `+1`") compounded the ambiguity by not distinguishing `create` from `update`.
+
+| # | Contradiction | Resolution |
+|---|---|---|
+| 47 | §9's `sellerRelationship` table was headed "create/update contract" and its row B, read literally for `create`, contradicted the separate, unconditional `productInputRevision` create table for the hybrid case (relationship adopted, revision absent/0, on create) | §9 is restructured below into an explicitly separate **create contract (§9.B)**, governing both fields together but independently of each other with no delta ever computed, and an explicitly retitled **existing-document update contract (§9.C)**, which alone carries the delta/adoption rules. The ambiguous "create/update" heading is retired |
+| 48 | §11's "any write that changes `sellerRelationship` must increment `productInputRevision` by exactly `+1`" did not distinguish `create` from `update`, reading as though it could govern create too | §11 below is corrected to state explicitly that this rule governs *existing-product updates only* (§9.C), cross-referencing the new heading |
+
+**The resolution, stated once, precisely:** `productInputRevision` and `sellerRelationship` are both persisted **product state**, not request parameters computed by diffing against a synthetic prior value. Document *creation* initializes that state from nothing — it is never modeled as an update transitioning from an implicit "existing absent" document, and no delta is ever computed on create: Rules validate only the `incoming` value directly, never diffing it against an `existing` one that does not exist. Every delta-based rule (the `productInputRevision` +0/+1 invariant, "baseline `0` for a previously-absent field," "adoption requires `+1`") therefore applies **only when `resource.data` already exists** — i.e., only on `update`, never on `create`.
+
+This revision resolves the contradiction in favor of the create table's unconditional reading — the reading the already-uncommitted `firestore.rules`/`functions/test/marketplaceProductRules.test.js` Slice 4.2 correction files already implement and test, and which requires **no code or test change** to match:
+
+- On create, `sellerRelationship` and `productInputRevision` are validated **independently** of each other (§9.B below states this exhaustively, including an explicit four-combination table). Neither field's create-time legality depends on the other's presence or value. Adopting a relationship on create never requires `productInputRevision` to be present or equal to `1` — `productInputRevision`'s create legality remains exactly what the unconditional create table always said: absent, or exactly `0`.
+- `sellerRelationship`'s adoption-requires-`+1` rule (the former row B) is, and was only ever intended as, an **update-only** rule — it governs the transition of an *existing* document's *existing* value, which by construction cannot apply to a document that does not yet exist. The table carrying this rule is retitled "existing-product update contract" (§9.C) to state this unambiguously.
+- `isValidTransitionalProductInputRevisionCreate` (`firestore.rules`) is untouched by the Slice 4.2 Revision 7 correction and remains unconditional, exactly matching this resolution. The corresponding tests (`4.2r7-create-3a/3b/3c` × all six relationship values, `functions/test/marketplaceProductRules.test.js`) already assert `productInputRevision: 1` is *rejected* on create even when a valid relationship is supplied, and that `productInputRevision` absent or `0` is *allowed* on create regardless of `sellerRelationship`'s presence. **No code or test change is required by this revision.**
+- Slice 4.9's strict steady-state end state (§9.D below, reconfirmed) is unchanged in substance: both fields required and exactly typed on create (`sellerRelationship` a valid enum value, `productInputRevision` exactly `0`), no dormant absence permitted once strict Rules deploy, deletion of either field on update always rejected, matching-field changes (including a `sellerRelationship` change) requiring exactly `+1`.
+
+Revision 1–7 records remain historical and unchanged; this revision restructures §9's presentation (splitting create and update into explicitly separate, correctly-headed contracts) without reopening or weakening any prior substantive rule.
 
 ---
 
@@ -557,21 +598,32 @@ The public-read Rule's compliance-status condition (§11's existing third condit
 - **Phase A — Slice 4.2, dormant compatibility.** `productInputRevision` may be absent, under the exact transitional matrix below, and only for the reasons that matrix states. Where present, it is always fully validated (integer, bounded, correct delta).
 - **Phase B — Slice 4.9, strict steady state.** `create` requires exactly `0`; every `update` requires the field to already exist as an integer; +0/+1 semantics apply unconditionally; absence is rejected outright, on both create and update. This is the invariant bullet 2 (above) describes.
 
-**Transitional create contract (Phase A).**
+**Revision 8 correction — the create/update distinction.** `productInputRevision` and `sellerRelationship` are both persisted **product state**, not request parameters computed by diffing against a synthetic prior value. Document *creation* initializes that state from nothing — it is never modeled as an update transitioning from an implicit "existing absent" document, and no delta is ever computed on create: there is only an `incoming` value to validate directly, never an `existing` one to diff against. Every delta-based rule below (the `productInputRevision` +0/+1 invariant, "baseline `0` for a previously-absent field," "adoption requires `+1`") applies **only when `resource.data` already exists** — i.e., only on `update`. The two contracts below (§9.B, §9.C) are therefore stated separately, and neither heading claims to cover both operations.
 
-| Incoming value | Result |
-|---|---|
-| absent | **allowed** |
-| exactly `0` (int) | **allowed** |
-| `1` or any other nonzero integer | rejected |
-| negative | rejected |
-| float/double, including `0.0` | rejected |
-| string / `null` / map / list | rejected |
-| unsafe integer (`>= Number.MAX_SAFE_INTEGER`) | rejected |
+**§9.B — Dormant create contract (Phase A, Revision 8 correction).** Governs `sellerRelationship` and `productInputRevision` together, on `create` only. The two fields are validated **independently of each other** — neither field's create-time legality depends on the other's presence or value:
 
-Once Slice 4.9's strict Rules deploy, "absent" moves from the allowed row to rejected — no other row changes.
+| `sellerRelationship` | `productInputRevision` | Dormant create result |
+|---|---|---|
+| absent | absent | **allowed** (temporarily, dormant compatibility) |
+| absent | `0` (exact int) | **allowed** |
+| valid enum value | absent | **allowed** (temporarily, dormant compatibility) |
+| valid enum value | `0` (exact int) | **allowed** |
 
-**Transitional update matrix (Phase A).** `oldRevision` is defined only when the existing document's `productInputRevision` field is present and passes the same integer/bound check as the create contract; "existing absent" means the field is missing, not present-and-invalid (a present-but-invalid existing value is a pre-existing data anomaly outside this matrix's scope, and is not specified here — it does not arise from any client write path this contract governs, since every prior write that set it was already validated).
+Governing rules, exhaustively:
+
+1. `sellerRelationship` absent: temporarily allowed (dormant compatibility).
+2. `sellerRelationship` present: must be exactly one of the six `SELLER_RELATIONSHIP` enum values (`brand_owner`, `manufacturer`, `authorized_distributor`, `authorized_dealer`, `importer`, `reseller`) — any other present value (`null`, empty string, unknown string, number, float, boolean, list, map, timestamp, reference) is always rejected, regardless of `productInputRevision`'s state.
+3. `productInputRevision` absent: temporarily allowed (dormant compatibility) — **independently of whether `sellerRelationship` is absent or a valid enum value.** Adopting a relationship on create never requires `productInputRevision` to be present.
+4. `productInputRevision` present: must be the exact integer `0` — independently of `sellerRelationship`'s state.
+5. `productInputRevision` equal to `1`, any other nonzero value, negative, float/double (including `0.0`), string, `null`, map, list, or unsafe integer (`>= Number.MAX_SAFE_INTEGER`): **always rejected on create**, unconditionally — including when `sellerRelationship` is simultaneously being set to a valid value for the first time. There is no create-time "adoption" concept for `productInputRevision`: adoption (baseline `0` → `1`) is an **update-only** transition (§9.C row B below), because it requires an *existing* document to adopt relative to. No create operation is ever modeled as "old relationship absent → new relationship valid, therefore old revision baseline `0` → incoming revision `1`" — that framing presupposes an existing document, which create, by definition, does not have.
+6. No default, inference, or backfilled value for either field is ever written by Rules on create.
+7. Server-owned compliance-field prohibition (below) is unchanged and applies identically regardless of either field's state.
+
+Once Slice 4.9's strict Rules deploy, rows 1 and 3 (temporary absence, for `sellerRelationship` and `productInputRevision` respectively) move from allowed to rejected — no other row changes (§9.D below).
+
+**§9.C — Existing-product update contract (Phase A).** Governs `productInputRevision` and `sellerRelationship` together, on `update` only — i.e., only when `resource.data` (the existing document) is defined. `oldRevision` is defined only when the existing document's `productInputRevision` field is present and passes the same integer/bound check as the create contract; "existing absent" means the field is missing, not present-and-invalid (a present-but-invalid existing value is a pre-existing data anomaly outside this matrix's scope, and is not specified here — it does not arise from any client write path this contract governs, since every prior write that set it was already validated). The identical convention applies to `sellerRelationship`'s own existing value below.
+
+*`productInputRevision`'s own update matrix, cases A–E (unchanged in substance from Revision 5/7 — restated here under its corrected, update-only heading):*
 
 | # | Existing | Incoming | Rule | Result |
 |---|---|---|---|---|
@@ -583,18 +635,26 @@ Once Slice 4.9's strict Rules deploy, "absent" moves from the allowed row to rej
 
 **Matching-field comparison — exactly five fields, no more (Revision 7 correction 43 adds `sellerRelationship`):** `category`, `brand`, `barcode`, `sku`, `sellerRelationship`. `category` is required and non-nullable in the current schema (`data.category is string` is already enforced elsewhere in this Rules block); `brand`, `barcode`, and `sku` are nullable — `Product.toJson()` always emits all four keys (never an absent key) for any document this app writes, but the Rules-level comparison must still be written to tolerate a genuinely missing key without throwing (for any document not created by this exact client version, current or future), using this codebase's established `keys().hasAll(...)`/map-access-with-default patterns — never a bare `data.brand` access that would throw on a missing key. `sellerRelationship` is a genuinely *new* dormant field, not merely nullable — it is **absent from every current payload today**, exactly like `productInputRevision` itself was at Slice 4.2's own introduction, and needs the identical two-part transitional treatment: its own absence/presence tolerance (below), and its status as a fifth matching field whose value change (including its own adoption from absent to present) requires `productInputRevision`'s `+1` under the same rule already governing `category`/`brand`/`barcode`/`sku`. No additional matching fields are in scope for Slice 4.2/Revision 7.
 
-**`sellerRelationship`'s own dormant create/update contract (Revision 7 correction 43) — structurally identical in shape to `productInputRevision`'s own A–E matrix above, applied to this field itself:**
+*`sellerRelationship`'s own existing-product update contract (Revision 8 correction — retitled from the ambiguous "create/update contract" heading; this table governs `update` only, exactly like `productInputRevision`'s own A–E matrix immediately above, applied to this field itself):*
 
 | # | Existing `sellerRelationship` | Incoming `sellerRelationship` | Result | Effect on required `productInputRevision` delta |
 |---|---|---|---|---|
 | A | absent | absent | **Allowed** — temporary dormant compatibility, matching `productInputRevision`'s own row A exactly | Not itself a matching-field change; whether `+0`/`+1` is required is governed entirely by whether `category`/`brand`/`barcode`/`sku` changed, as before |
-| B | absent | valid enum value | **Allowed** — this is relationship *adoption*, following the same monotonic-adoption semantics as `productInputRevision`'s own row B | Counts as a matching-field change: `productInputRevision` must be exactly `+1` relative to whatever the write's baseline is (existing absent → baseline `0`, so incoming `productInputRevision` must be `1`, exactly as `productInputRevision`'s own row B already requires for *any* matching-field adoption) |
+| B | absent | valid enum value | **Allowed** — this is relationship *adoption*, following the same monotonic-adoption semantics as `productInputRevision`'s own row B. This row applies only on `update`, against a real existing document — never on `create` (§9.B above governs `create`'s own, independent legality for this same absent→valid transition, with no revision-delta requirement at all) | Counts as a matching-field change: `productInputRevision` must be exactly `+1` relative to whatever the write's baseline is (existing absent → baseline `0`, so incoming `productInputRevision` must be `1`, exactly as `productInputRevision`'s own row B already requires for *any* matching-field adoption) |
 | C | valid enum value | valid enum value, unchanged | **Allowed** | Not itself a matching-field change (the value didn't change) — `+0` required unless another matching field also changed this same write |
 | C′ | valid enum value | valid enum value, different | **Allowed** | Counts as a matching-field change: `productInputRevision` must be exactly `+1` — the ordinary rule multiple simultaneously-changed matching fields already share (never `+1` per field) |
 | D | valid enum value | absent | **Always rejected**, unconditionally — the same anti-regression rule as `productInputRevision`'s own row D: an adopted relationship can never be silently deleted by an old, unmigrated full-document client write |
 | E | (any) | present, not one of the 6 `SELLER_RELATIONSHIP` values | **Always rejected** — malformed values are never accepted, dormant or strict |
 
-This table governs only the *field's own* presence/absence and value-change legality; it does not replace or duplicate `productInputRevision`'s own A–E matrix above — the two apply simultaneously, one governing the numeric field itself, the other governing this fifth matching input's contribution to that numeric field's required delta. Once Slice 4.9's strict Rules deploy, row A (absence) moves to rejected for `sellerRelationship` exactly as it does for `productInputRevision` itself — no other row changes.
+This table governs only the *field's own* presence/absence and value-change legality, and only when an existing document is being updated; it does not replace or duplicate `productInputRevision`'s own A–E matrix above — the two apply simultaneously, one governing the numeric field itself, the other governing this fifth matching input's contribution to that numeric field's required delta. Once Slice 4.9's strict Rules deploy, row A (absence) moves to rejected for `sellerRelationship` exactly as it does for `productInputRevision` itself — no other row changes.
+
+**§9.D — Strict Slice 4.9 end state (reconfirmed, unweakened, Revision 8).** Once Slice 4.9's strict Rules deploy:
+
+- **Create:** `sellerRelationship` is required and must be exactly one of the six enum values; `productInputRevision` is required and must be exactly the integer `0`. Absence of either field is rejected outright — this is what "rows 1/3 move from allowed to rejected" (§9.B above) and "row A moves to rejected" (§9.C above) both mean, stated together.
+- **Update:** both fields are required to already exist as valid values; a write that would delete either (row D of either A–E matrix above) remains rejected, unconditionally, exactly as in the dormant window; any matching-field change (including a `sellerRelationship` change) requires `productInputRevision` to increment by exactly `+1`; an unrelated-only change requires exactly `+0`; a malformed value for either field, on either side, is always rejected.
+- No dormant absence, for either field, survives strict activation — the transitional Phase A tolerance (§9.B/§9.C above) exists only for the dormant window and is fully retired at this point, unchanged in scope from Revision 5/7.
+
+This restates, without weakening, the invariant already stated in "Phase B — Slice 4.9, strict steady state" above, now made explicit for both fields together following Revision 7/8's extension of the matching-field set.
 
 **Server-owned compliance fields — dormant rules.** The exact, committed set (§11, unchanged by this revision): `complianceEffectiveStatus`, `complianceValidUntil`, `evidenceRevision`, `complianceUpdatedAt`, `complianceReasonCode` — five fields, fully server-owned, distinct from `productInputRevision`.
 
@@ -784,7 +844,7 @@ Set extended to **seven** fields (Revision 3 adds one, Revision 7 adds another):
 - **Never inferred from matched evidence** — evidence is matched *against* the product's own declared value (§10), never used to guess or override it. Inferring it from evidence would let a seller obtain an easier applicable policy merely by choosing which document type to submit — precisely the circularity this design avoids.
 - **Never silently inherited from the business** — one business may legitimately hold different, independently-verified relationships across different products or brands (confirmed by repository audit: nothing today prevents a business from submitting `complianceDocuments` under several different `sellerRelationship` values), so no business-level default or fallback exists.
 - **A product cannot select multiple relationships at once** — the field holds exactly one enum value, never an array, never a set.
-- **Changing it is a matching-input change**: any write that changes `sellerRelationship` must increment `productInputRevision` by exactly `+1`, under the same rule already governing `category`/`brand`/`barcode`/`sku` (§9's Phase A matrix, extended below; Phase B's strict steady state, unchanged in shape).
+- **Changing it is a matching-input change on an existing product**: any *update* that changes `sellerRelationship` on an existing document must increment `productInputRevision` by exactly `+1`, under the same rule already governing `category`/`brand`/`barcode`/`sku` (§9.C's existing-product update contract, Revision 8 correction; Phase B's strict steady state, unchanged in shape). This is an update-only rule — it has no delta to compute on `create`, where `sellerRelationship` and `productInputRevision` are instead validated independently of each other (§9.B's dormant create contract, Revision 8 correction).
 
 ### Enforcement surfaces, corrected
 
@@ -954,6 +1014,33 @@ Unchanged in structure from the prior plan revision, with corrections-specific a
 - The read bound remains exactly 42 with the revised, relationship-filtered queries — the reconciled §10 table, re-verified.
 - Both Revision 7 composite indexes (§14, `sellerRelationship`-inclusive) exist and match exactly; the superseded Revision 6 forms (without `sellerRelationship`) are absent.
 - No new export, activation, or deployment behavior is introduced by any of this — the same static assertions already required above, unchanged in scope.
+
+**Revision 8 additions (create/update contract split, §9.B/§9.C/§9.D) — required in `marketplaceProductRules.test.js`, explicitly separated by operation to match the corrected §9 headings:**
+
+*Dormant create (§9.B):*
+
+- Absent `sellerRelationship` + absent `productInputRevision` succeeds on create.
+- Absent `sellerRelationship` + `productInputRevision` exactly `0` succeeds on create.
+- Valid `sellerRelationship` + absent `productInputRevision` succeeds on create.
+- Valid `sellerRelationship` + `productInputRevision` exactly `0` succeeds on create.
+- Valid `sellerRelationship` + `productInputRevision` exactly `1` is rejected on create — proving §9.B's independence from §9.C's update-only adoption rule.
+- Invalid/malformed `sellerRelationship` is rejected on create regardless of `productInputRevision`'s state.
+
+*Existing-product update (§9.C):*
+
+- Relationship adoption (existing absent → incoming valid) with both `productInputRevision` sides absent remains temporarily allowed (row A's own acknowledged dormant gap).
+- Relationship adoption with existing `productInputRevision` absent and incoming `productInputRevision` exactly `1` succeeds (row B, baseline `0`).
+- Relationship adoption with existing `productInputRevision` absent and incoming `productInputRevision` exactly `0` is rejected (row B requires the baseline-`0`-to-`1` transition when a matching field changes).
+- Relationship adoption with existing `productInputRevision` exactly `0` and incoming `productInputRevision` exactly `1` succeeds (row C, `existing + 1`).
+- Deletion of an existing, valid `sellerRelationship` (existing valid → incoming absent) is rejected, regardless of `productInputRevision`.
+- Multiple simultaneous matching-field changes (including `sellerRelationship`) in one update require exactly one `+1` increment, never one per field.
+
+*Strict Slice 4.9 (§9.D, reconfirmed, unweakened):*
+
+- Both `sellerRelationship` and `productInputRevision` are required on create once strict Rules deploy.
+- The initial `productInputRevision` on a strict create is exactly `0`.
+
+These are documentation-only test-plan additions; the already-uncommitted `marketplaceProductRules.test.js` correction already implements and passes every dormant-create and existing-product-update case listed above (as `4.2r7-create-*` and `4.2r7-matrix-*`, respectively). No rollout ordering (§17) or implementation scope is changed by this addition.
 
 ---
 
