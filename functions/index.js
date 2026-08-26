@@ -129,6 +129,23 @@ const PRODUCT_MODERATION_REVIEW_ENABLED = defineString(
   { default: "" }
 );
 
+// Marketplace P1-A Slice 4.5 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §10.1/§16/§17) — a single,
+// shared, disabled-by-default flag gating both
+// `getMarketplaceProductList` and `getMarketplaceProductDetail` (§10.1:
+// "Slice 4.5 exports both callables behind a disabled-by-default feature
+// flag" — singular, shared, mirroring
+// `PRODUCT_MODERATION_REVIEW_ENABLED`'s own convention above). Flipping
+// it on is a config-only change; per §17's monotonic 21a-21p sequence,
+// it must not happen in any environment until every activation
+// prerequisite (Rules media-cap deployment, Admin-writer audit, a fresh
+// complete zero-violation readiness traversal, App Check, rate
+// limiting, monitoring) has independently landed.
+const MARKETPLACE_LISTING_ENABLED = defineString(
+  "MARKETPLACE_LISTING_ENABLED",
+  { default: "" }
+);
+
 const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
   default: "iyzico",
 });
@@ -300,6 +317,10 @@ const {
 const {
   reviewProductModeration,
 } = require("./src/marketplace/compliance/productModeration");
+const {
+  getMarketplaceProductList,
+  getMarketplaceProductDetail,
+} = require("./src/marketplace/publicCatalog/marketplaceListing");
 const {
   COMPLIANCE_UPLOAD_SESSION_STATUS,
 } = require("./src/marketplace/compliance/complianceConstants");
@@ -20089,6 +20110,36 @@ exports.reviewProductModeration = onCall({ region: "europe-west3" }, async (requ
     data: request.data,
     featureEnabled: PRODUCT_MODERATION_REVIEW_ENABLED.value() === "true",
   })
+);
+
+// Marketplace P1-A Slice 4.5 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §8/§10.1/§16/§17) — exported,
+// behind the single shared MARKETPLACE_LISTING_ENABLED flag (disabled by
+// default). `enforceAppCheck: false` while dormant, exactly like every
+// other existing `onCall` export in this file (§10.1 "Slice 4.5 dormant
+// App Check posture"). Thin exports.* wiring only — all business logic
+// lives in functions/src/marketplace/publicCatalog/marketplaceListing.js.
+// Unauthenticated invocation permitted; no request-controlled dependency
+// injection of db/evaluator/clock/flags is ever accepted from
+// `request.data` — only this wrapper resolves them.
+exports.getMarketplaceProductList = onCall(
+  { region: "europe-west3", enforceAppCheck: false },
+  async (request) =>
+    getMarketplaceProductList({
+      db: admin.firestore(),
+      data: request.data,
+      featureEnabled: MARKETPLACE_LISTING_ENABLED.value() === "true",
+    })
+);
+
+exports.getMarketplaceProductDetail = onCall(
+  { region: "europe-west3", enforceAppCheck: false },
+  async (request) =>
+    getMarketplaceProductDetail({
+      db: admin.firestore(),
+      data: request.data,
+      featureEnabled: MARKETPLACE_LISTING_ENABLED.value() === "true",
+    })
 );
 
 exports.updateGlobalStats = onDocumentWritten("products/{id}", async (event) => {
