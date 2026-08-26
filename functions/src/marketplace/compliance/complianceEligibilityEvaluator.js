@@ -84,26 +84,112 @@ function normalizedProductInputRevision(product) {
   return typeof product.productInputRevision === "number" ? product.productInputRevision : 0;
 }
 
-async function evaluateLiveProductEligibility({ db, businessId, productId, now = new Date() }) {
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+// Structural shape check only — does not (and, per §10.1, cannot)
+// cryptographically prove the snapshot came from the caller's own
+// current transaction attempt. That guarantee instead comes from this
+// parameter existing at exactly one call site in the codebase
+// (`reviewProductModeration`'s own approval transaction, immediately
+// after its own `tx.get()`) and never being derivable from callable
+// request data (Revision 10 correction 53, §10.1).
+function isDocumentSnapshotShaped(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    typeof value.exists === "boolean" &&
+    value.ref !== null &&
+    typeof value.ref === "object" &&
+    typeof value.ref.path === "string" &&
+    typeof value.data === "function"
+  );
+}
+
+// Revision 10 correction 53 (§10.1) — every one of these is a
+// productSnapshot validation/provenance-contract failure, never a live
+// business outcome: it throws synchronously, exactly like the
+// businessId/productId type guards above, and is never resolved as an
+// ordinary `{ eligible: false }` result. A plain product data object is
+// never accepted as a substitute under any circumstance. This includes
+// `sellerRelationship`: when `productSnapshot` is supplied, an invalid
+// `sellerRelationship` is a productSnapshot validation failure and
+// throws here — it is never resolved as
+// `{ eligible: false, reason: REASON.SELLER_RELATIONSHIP_INVALID }` on
+// this path. This is deliberately asymmetric with the evaluator-owned
+// fresh-read path below (`productSnapshot` omitted), where an invalid
+// `sellerRelationship` remains the pre-existing, unchanged business
+// outcome (`ineligible(REASON.SELLER_RELATIONSHIP_INVALID)`) — the two
+// paths are validated by different code, on purpose, per the committed
+// contract.
+function assertValidProductSnapshot(productSnapshot, { businessId, productId }) {
+  if (!isDocumentSnapshotShaped(productSnapshot)) {
+    throw new Error(
+      "evaluateLiveProductEligibility: productSnapshot must be a DocumentSnapshot, not a plain data object"
+    );
+  }
+  if (productSnapshot.exists !== true) {
+    throw new Error("evaluateLiveProductEligibility: productSnapshot must exist");
+  }
+  const expectedPath = `${PRODUCTS_COLLECTION}/${businessId}/products/${productId}`;
+  if (productSnapshot.ref.path !== expectedPath) {
+    throw new Error("evaluateLiveProductEligibility: productSnapshot.ref.path does not match businessId/productId");
+  }
+  const data = productSnapshot.data();
+  if (!isPlainObject(data)) {
+    throw new Error("evaluateLiveProductEligibility: productSnapshot.data() must be a plain object");
+  }
+  if (data.businessId !== businessId) {
+    throw new Error("evaluateLiveProductEligibility: productSnapshot business identity mismatch");
+  }
+  if (!isValidSellerRelationship(data.sellerRelationship)) {
+    throw new Error("evaluateLiveProductEligibility: productSnapshot sellerRelationship invalid");
+  }
+  return data;
+}
+
+async function evaluateLiveProductEligibility({
+  db,
+  businessId,
+  productId,
+  now = new Date(),
+  tx,
+  productSnapshot,
+}) {
   if (typeof businessId !== "string" || businessId.length === 0) {
     throw new Error("evaluateLiveProductEligibility: businessId is required");
   }
   if (typeof productId !== "string" || productId.length === 0) {
     throw new Error("evaluateLiveProductEligibility: productId is required");
   }
+  if (productSnapshot !== undefined && !tx) {
+    throw new Error("evaluateLiveProductEligibility: productSnapshot may only be supplied together with tx");
+  }
   const nowMs = now instanceof Date ? now.getTime() : Number(now);
 
-  // Fresh product read.
-  const productSnap = await productRef(db, businessId, productId).get();
-  if (!productSnap.exists) return ineligible(REASON.PRODUCT_NOT_FOUND);
-  const product = productSnap.data();
-  if (product.businessId !== businessId) return ineligible(REASON.PRODUCT_BUSINESS_ID_MISMATCH);
-  if (!isValidSellerRelationship(product.sellerRelationship)) {
-    return ineligible(REASON.SELLER_RELATIONSHIP_INVALID);
+  let product;
+  if (productSnapshot !== undefined) {
+    // Reused as-is — the caller's own already-`tx.get()`-read snapshot;
+    // no second read of the product path (§10.1). Validation, including
+    // `sellerRelationship`, either throws (productSnapshot contract
+    // failure) or returns the validated data below — never falls
+    // through to an `ineligible()` return for this path.
+    product = assertValidProductSnapshot(productSnapshot, { businessId, productId });
+  } else {
+    // Fresh product read — transactional when `tx` is supplied, direct
+    // otherwise. No fallback to a plain `.get()` once `tx` is present.
+    const productSnap = await (tx ? tx.get(productRef(db, businessId, productId)) : productRef(db, businessId, productId).get());
+    if (!productSnap.exists) return ineligible(REASON.PRODUCT_NOT_FOUND);
+    product = productSnap.data();
+    if (product.businessId !== businessId) return ineligible(REASON.PRODUCT_BUSINESS_ID_MISMATCH);
+    if (!isValidSellerRelationship(product.sellerRelationship)) {
+      return ineligible(REASON.SELLER_RELATIONSHIP_INVALID);
+    }
   }
 
-  // Fresh decision read.
-  const decisionSnap = await decisionRef(db, productId).get();
+  // Fresh decision read — transactional when `tx` is supplied.
+  const decisionSnap = await (tx ? tx.get(decisionRef(db, productId)) : decisionRef(db, productId).get());
   if (!decisionSnap.exists) return ineligible(REASON.DECISION_NOT_FOUND);
   const decision = decisionSnap.data();
   if (
@@ -147,14 +233,14 @@ async function evaluateLiveProductEligibility({ db, businessId, productId, now =
   // (no active policy) fails this evaluation closed.
   let activeVersionId;
   try {
-    ({ activeVersionId } = await resolveActivePolicy({ db, now }));
+    ({ activeVersionId } = await resolveActivePolicy({ db, now, tx }));
   } catch (err) {
     return ineligible(REASON.POLICY_VERSION_MISMATCH);
   }
   if (decision.policyVersion !== activeVersionId) return ineligible(REASON.POLICY_VERSION_MISMATCH);
 
-  // Fresh business epoch read.
-  const epochSnap = await epochRef(db, businessId).get();
+  // Fresh business epoch read — transactional when `tx` is supplied.
+  const epochSnap = await (tx ? tx.get(epochRef(db, businessId)) : epochRef(db, businessId).get());
   const epoch = epochSnap.exists && typeof epochSnap.data().epoch === "number" ? epochSnap.data().epoch : 0;
   if (decision.evidenceRevision !== epoch) return ineligible(REASON.EVIDENCE_REVISION_MISMATCH);
 

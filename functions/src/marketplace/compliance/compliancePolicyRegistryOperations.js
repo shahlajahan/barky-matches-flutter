@@ -637,7 +637,7 @@ async function createCompliancePolicyVersion({
 //    call — never a cached verdict, never cached bytes.
 // ---------------------------------------------------------------------
 
-async function resolveActivePolicy({ db, now = new Date() }) {
+async function resolveActivePolicy({ db, now = new Date(), tx }) {
   const nowMs = normalizeToEpochMs(now);
 
   const pointerRef = db
@@ -646,7 +646,12 @@ async function resolveActivePolicy({ db, now = new Date() }) {
 
   let pointerSnap;
   try {
-    pointerSnap = await pointerRef.get();
+    // Revision 10 correction 53 (§10.1): additive, optional `tx` — when
+    // supplied, this read joins the caller's own transaction read set
+    // via `tx.get()`; when omitted, behavior is byte-for-byte unchanged
+    // from every existing non-transactional caller. No fallback to a
+    // plain `.get()` once `tx` is supplied.
+    pointerSnap = await (tx ? tx.get(pointerRef) : pointerRef.get());
   } catch (err) {
     unavailable(REASON.POINTER_READ_FAILED);
   }
@@ -655,7 +660,7 @@ async function resolveActivePolicy({ db, now = new Date() }) {
   const versionRef = db.collection(REGISTRY_COLLECTION).doc(activeVersionId);
   let versionSnap;
   try {
-    versionSnap = await versionRef.get();
+    versionSnap = await (tx ? tx.get(versionRef) : versionRef.get());
   } catch (err) {
     unavailable(REASON.VERSION_READ_FAILED);
   }

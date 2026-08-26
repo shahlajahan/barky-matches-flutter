@@ -118,6 +118,17 @@ const COMPLIANCE_UPLOAD_CANARY_BUSINESS_IDS = defineString(
   { default: "" }
 );
 
+// Marketplace P1-A Slice 4.4 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §16/§17 step 6) — disabled by
+// default so this exported callable is deployed inert; flipping it on is
+// a config-only change (setting this value to the literal string
+// "true"), never a code change, and — per §17 step 26 — must not happen
+// in production before Slice 4.9's Rules lock-down has shipped there.
+const PRODUCT_MODERATION_REVIEW_ENABLED = defineString(
+  "PRODUCT_MODERATION_REVIEW_ENABLED",
+  { default: "" }
+);
+
 const PAYMENT_PROVIDER = defineString("PAYMENT_PROVIDER", {
   default: "iyzico",
 });
@@ -286,6 +297,9 @@ const {
   reviewComplianceScopeMembers,
   reviewComplianceScope,
 } = require("./src/marketplace/compliance/complianceDocumentOperations");
+const {
+  reviewProductModeration,
+} = require("./src/marketplace/compliance/productModeration");
 const {
   COMPLIANCE_UPLOAD_SESSION_STATUS,
 } = require("./src/marketplace/compliance/complianceConstants");
@@ -20060,6 +20074,21 @@ exports.reviewComplianceScopeMembers = onCall({ region: "europe-west3" }, async 
 
 exports.reviewComplianceScope = onCall({ region: "europe-west3" }, async (request) =>
   reviewComplianceScope({ db: admin.firestore(), auth: request.auth, data: request.data })
+);
+
+// Marketplace P1-A Slice 4.4 (docs/plans/marketplace_p1a_compliance_
+// review_implementation_plan_2026-08-21.md §8/§16/§17) — exported,
+// behind PRODUCT_MODERATION_REVIEW_ENABLED (disabled by default, §17
+// step 6/26). Thin exports.* wiring only, same convention as the Slice 3
+// callables immediately above; all business logic lives in
+// functions/src/marketplace/compliance/productModeration.js.
+exports.reviewProductModeration = onCall({ region: "europe-west3" }, async (request) =>
+  reviewProductModeration({
+    db: admin.firestore(),
+    auth: request.auth,
+    data: request.data,
+    featureEnabled: PRODUCT_MODERATION_REVIEW_ENABLED.value() === "true",
+  })
 );
 
 exports.updateGlobalStats = onDocumentWritten("products/{id}", async (event) => {

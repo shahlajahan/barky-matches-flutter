@@ -94,10 +94,11 @@ function bumpVersion(store, docPath) {
   store.docVersions.set(docPath, (store.docVersions.get(docPath) || 0) + 1);
 }
 
-function makeDocSnapshot(id, rawValue) {
+function makeDocSnapshot(id, rawValue, ref) {
   return {
     exists: rawValue !== undefined,
     id,
+    ref,
     data: () => rawValue,
   };
 }
@@ -107,19 +108,19 @@ function segmentCount(p) {
 }
 
 function makeRef(fullPath, store) {
-  const parts = fullPath.split("/");
-  const id = parts[parts.length - 1];
-  return {
+  const id = fullPath.split("/").pop();
+  const ref = {
     id,
     path: fullPath,
     async get() {
       store.callLog.push(`get:${fullPath}`);
-      return makeDocSnapshot(id, store.docs.get(fullPath));
+      return makeDocSnapshot(id, store.docs.get(fullPath), ref);
     },
     collection(subName) {
       return makeCollection(`${fullPath}/${subName}`, store);
     },
   };
+  return ref;
 }
 
 function matchesFilters(rawValue, filters) {
@@ -204,6 +205,13 @@ function createFakeDb(store) {
     const staged = [];
     const tx = {
       async get(refOrQuery) {
+        // Real `Transaction.get()` accepts either a DocumentReference or
+        // a Query — distinguish for logging purposes only (a Query has
+        // no `.path`); `evaluateLiveProductEligibility`/
+        // `resolveActivePolicy` only ever pass a document ref here.
+        if (refOrQuery && typeof refOrQuery.path === "string") {
+          store.callLog.push(`tx.get:${refOrQuery.path}`);
+        }
         return refOrQuery.get();
       },
       set(ref, data) {
@@ -1436,6 +1444,334 @@ test("M9. static: evaluateLiveProductEligibility's own source never calls recomp
   );
   assert.equal(/recomputeProductComplianceStatus\s*\(/.test(src), false);
   assert.equal(/\.collection\(\s*["']productEvidenceLinks["']\s*\)/.test(src), false);
+});
+
+// -----------------------------------------------------------------------
+// M10-M24. Transaction-aware `tx`/`productSnapshot` contract — Revision
+// 10 correction 53 (§10.1, §15). Unit-level: calls
+// evaluateLiveProductEligibility directly with a hand-built `tx`/
+// `productSnapshot`, exercising the real, production evaluator — never
+// a reimplementation of its internal logic. This file already owns
+// evaluateLiveProductEligibility's full test coverage (§13.1), so these
+// live here rather than in a new file.
+// -----------------------------------------------------------------------
+
+function productSnapshotPath() {
+  return `${PRODUCTS_ROOT}/${BUSINESS_ID}/products/${PRODUCT_ID}`;
+}
+
+function makeProductSnapshot(store, overrides = {}) {
+  const stored = getRawDoc(store, `${PRODUCTS_ROOT}/${BUSINESS_ID}/products`, PRODUCT_ID);
+  const data = { ...stored, ...overrides };
+  return { exists: true, ref: { path: productSnapshotPath() }, data: () => data };
+}
+
+function makeSpyTx(store) {
+  const getCalls = [];
+  return {
+    getCalls,
+    tx: {
+      // `getCalls` remains this spy's own, dedicated record (used by
+      // M18/M19's simpler duplicate/count checks). It ALSO pushes into
+      // `store.callLog` with the same `tx.get:` prefix the real
+      // `createFakeDb`'s transaction uses (below) — this is what lets
+      // M20 observe both this spy's transactional reads AND any direct,
+      // non-transactional `ref.get()` fallback in one shared, auditable
+      // log, rather than two disjoint ones.
+      async get(ref) {
+        getCalls.push(ref.path);
+        store.callLog.push(`tx.get:${ref.path}`);
+        return makeDocSnapshot(ref.id, store.docs.get(ref.path), ref);
+      },
+    },
+  };
+}
+
+// Every call-log entry this fake ever produces uses exactly one of these
+// prefixes: `get:` (direct, non-transactional `DocumentReference.get()`),
+// `tx.get:` (`Transaction.get()`, real or spy), `query:` (a Query's own
+// `.get()`), or one of the write prefixes below (pushed only for a
+// COMMITTED write). This exhaustively distinguishes "read-like" entries
+// from writes, so a hidden extra or wrongly-routed read — a wrong path,
+// a direct `get:` where a `tx.get:` was required, or a stray query —
+// shows up as a mismatch rather than being silently absorbed into a
+// coarse sum.
+const WRITE_LOG_PREFIXES = ["set:", "create:", "update:", "delete:"];
+
+function isReadLogEntry(entry) {
+  return !WRITE_LOG_PREFIXES.some((p) => entry.startsWith(p));
+}
+
+function readLogEntries(store) {
+  return store.callLog.filter(isReadLogEntry);
+}
+
+function assertExactReadMultiset(store, expectedEntries, message) {
+  assert.deepEqual(readLogEntries(store).slice().sort(), expectedEntries.slice().sort(), message);
+}
+
+async function seedEligibleEvaluatorFixture(store) {
+  seedActivePolicy(store);
+  const product = seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, { scope: { scopeType: "category", scopeValue: "Health > Vitamins" } });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  return { db, product };
+}
+
+test("M10. productSnapshot supplied without tx throws synchronously, never resolves to eligible: false", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const snapshot = makeProductSnapshot(store);
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, productSnapshot: snapshot }),
+    /productSnapshot may only be supplied together with tx/
+  );
+});
+
+test("M11. a plain product data object (no .exists/.ref/.data()) is rejected, never accepted as a productSnapshot substitute", async () => {
+  const store = createStore();
+  const { db, product } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: product }),
+    /must be a DocumentSnapshot/
+  );
+});
+
+test("M12. a productSnapshot with a missing ref is rejected", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store);
+  delete snapshot.ref;
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /must be a DocumentSnapshot/
+  );
+});
+
+test("M13. a productSnapshot whose ref.path does not match businessId/productId is rejected", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store);
+  snapshot.ref = { path: `${PRODUCTS_ROOT}/${BUSINESS_ID}/products/some-other-product` };
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /ref\.path does not match/
+  );
+});
+
+test("M14. a productSnapshot with exists !== true is rejected", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store);
+  snapshot.exists = false;
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /must exist/
+  );
+});
+
+test("M15. a productSnapshot whose data() is malformed (not a plain object) is rejected", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = { exists: true, ref: { path: productSnapshotPath() }, data: () => "not an object" };
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /data\(\) must be a plain object/
+  );
+});
+
+test("M16. a productSnapshot with the correct ref/path but the wrong stored businessId is rejected — tenant check always runs, never skipped", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store, { businessId: "biz-OTHER" });
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /business identity mismatch/
+  );
+});
+
+test("M17. a supplied productSnapshot with an unknown-enum sellerRelationship throws synchronously — a productSnapshot validation/provenance-contract failure, never { eligible: false }", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store, { sellerRelationship: "not-a-real-relationship" });
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /productSnapshot sellerRelationship invalid/
+  );
+});
+
+test("M17b. a supplied productSnapshot with a missing (undefined) sellerRelationship throws synchronously", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store, { sellerRelationship: undefined });
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /productSnapshot sellerRelationship invalid/
+  );
+});
+
+test("M17c. a supplied productSnapshot with a malformed (non-string) sellerRelationship throws synchronously", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store, { sellerRelationship: 12345 });
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot }),
+    /productSnapshot sellerRelationship invalid/
+  );
+});
+
+test("M17d. the sellerRelationship throw occurs before any pointer/version/epoch/decision read — zero reads via this call's tx", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx, getCalls } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store, { sellerRelationship: "not-a-real-relationship" });
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot })
+  );
+  assert.equal(getCalls.length, 0, "no pointer/version/epoch/decision read may occur once productSnapshot validation has already failed");
+});
+
+test("M17e. the sellerRelationship throw performs zero writes", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx } = makeSpyTx(store);
+  const before = new Map(store.docs);
+  const snapshot = makeProductSnapshot(store, { sellerRelationship: "not-a-real-relationship" });
+  await assert.rejects(
+    evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot })
+  );
+  assert.deepEqual(store.docs, before);
+});
+
+test("M17f. productSnapshot omitted, direct mode (tx omitted): an invalid sellerRelationship preserves the pre-existing ineligible business outcome, never a throw", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined, sellerRelationship: undefined });
+  seedEpoch(store, 0);
+  const db = createFakeDb(store);
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal(result.eligible, false);
+  assert.equal(result.reason, "eligibility_seller_relationship_invalid");
+});
+
+test("M17g. productSnapshot omitted, tx mode: an invalid sellerRelationship also preserves the pre-existing ineligible business outcome, never a throw", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined, sellerRelationship: "not-a-real-relationship" });
+  seedEpoch(store, 0);
+  const db = createFakeDb(store);
+  const { tx } = makeSpyTx(store);
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx });
+  assert.equal(result.eligible, false);
+  assert.equal(result.reason, "eligibility_seller_relationship_invalid");
+});
+
+test("M18. a valid productSnapshot is reused as-is — zero additional tx.get calls for the product path", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx, getCalls } = makeSpyTx(store);
+  const snapshot = makeProductSnapshot(store);
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx, productSnapshot: snapshot });
+  assert.equal(result.eligible, true);
+  assert.ok(!getCalls.includes(productSnapshotPath()), "the product must never be re-read once a valid snapshot is supplied");
+});
+
+test("M19. tx supplied with productSnapshot omitted performs exactly one tx.get for the product itself", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx, getCalls } = makeSpyTx(store);
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx });
+  assert.equal(result.eligible, true);
+  assert.equal(getCalls.filter((p) => p === productSnapshotPath()).length, 1);
+});
+
+test("M20. in transaction mode, every one of the five authoritative documents (product, pointer, version, epoch, decision) is read via tx.get exactly once, with zero direct-mode fallback and zero hidden reads of any kind", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx, getCalls } = makeSpyTx(store);
+  const productPath = productSnapshotPath();
+  const pointerPath = `${COMPLIANCE_POLICY_REGISTRY_POINTER_COLLECTION}/${COMPLIANCE_POLICY_REGISTRY_POINTER_DOC_ID}`;
+  const versionPath = `${REGISTRY_COLLECTION}/${VERSION_ID}`;
+  const epochPath = `${EPOCHS_COLLECTION}/${BUSINESS_ID}`;
+  const decisionPath = `${DECISIONS_COLLECTION}/${PRODUCT_ID}`;
+  const expectedPaths = [productPath, pointerPath, versionPath, epochPath, decisionPath];
+  // Fixture setup (recomputeProductComplianceStatus) issues its own
+  // reads/queries against the same store — reset the shared log so this
+  // assertion covers only evaluateLiveProductEligibility's own call.
+  store.callLog.length = 0;
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx });
+  assert.equal(result.eligible, true);
+  assert.equal(getCalls.length, 5, "product, pointer, version, epoch, decision — no fallback, no duplicate");
+  assert.deepEqual(getCalls.sort(), expectedPaths.sort());
+  // Exact, exhaustive multiset over the SHARED log (direct `get:` calls
+  // and this spy's own `tx.get:` calls alike) — proves not merely that
+  // the five expected `tx.get:` entries exist, but that NO direct-mode
+  // `get:` fallback occurred for any of these five paths, and no sixth,
+  // hidden read of any other path (via either mode) occurred either.
+  assertExactReadMultiset(
+    store,
+    [
+      `tx.get:${productPath}`,
+      `tx.get:${pointerPath}`,
+      `tx.get:${versionPath}`,
+      `tx.get:${epochPath}`,
+      `tx.get:${decisionPath}`,
+    ],
+    "transaction mode must read exactly these five documents, each exactly once, each via tx.get — a direct get() fallback on any of them, or a hidden extra read of any path, must fail this assertion"
+  );
+});
+
+test("M21. non-transactional mode (tx omitted) requires productSnapshot to also be absent, and preserves direct-read behavior byte-for-byte", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  assert.equal(result.eligible, true);
+});
+
+test("M22. resolveActivePolicy is called with the same tx the evaluator itself received — its own pointer/version reads participate in the same read set", async () => {
+  const store = createStore();
+  const { db } = await seedEligibleEvaluatorFixture(store);
+  const { tx, getCalls } = makeSpyTx(store);
+  await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW, tx });
+  assert.ok(getCalls.includes(`${COMPLIANCE_POLICY_REGISTRY_POINTER_COLLECTION}/${COMPLIANCE_POLICY_REGISTRY_POINTER_DOC_ID}`));
+  assert.ok(getCalls.includes(`${REGISTRY_COLLECTION}/${VERSION_ID}`));
+});
+
+test("M23. the exact validUntil equality boundary is re-verified identically in transaction mode", async () => {
+  const store = createStore();
+  seedActivePolicy(store);
+  seedProduct(store, { brand: undefined, sku: undefined, barcode: undefined });
+  seedEpoch(store, 0);
+  seedScopeAndDocument(store, {
+    scope: { scopeType: "category", scopeValue: "Health > Vitamins" },
+    document: { validUntil: makeTimestamp(NOW_MS + 1000) },
+  });
+  const db = createFakeDb(store);
+  await recomputeProductComplianceStatus({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: NOW });
+  const { tx } = makeSpyTx(store);
+  const result = await evaluateLiveProductEligibility({ db, businessId: BUSINESS_ID, productId: PRODUCT_ID, now: new Date(NOW_MS + 1000), tx });
+  assert.equal(result.eligible, false);
+  assert.equal(result.reason, "eligibility_valid_until_missing_or_expired");
+});
+
+test("M24. static: productSnapshot/tx are never accepted from, or derivable through, callable request data", () => {
+  const src = fs.readFileSync(
+    path.resolve(__dirname, "../src/marketplace/compliance/complianceEligibilityEvaluator.js"),
+    "utf8"
+  );
+  assert.equal(/require\([^)]*\/index(\.js)?['"]\)/.test(src), false);
+  assert.equal(/request\.data/.test(src), false);
 });
 
 // =======================================================================

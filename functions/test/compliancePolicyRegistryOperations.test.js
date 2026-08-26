@@ -1596,6 +1596,124 @@ test("resolveActivePolicy never returns a fallback — every anomaly rejects, no
   }
 });
 
+// -----------------------------------------------------------------------
+// E-tx. resolveActivePolicy — transaction-aware `tx` contract, Revision
+// 10 correction 53 (§10.1, §15). Invoked via the real `db.runTransaction`
+// so `store.transactionalGetPaths`/`nonTransactionalGetPaths` bucket
+// correctly, exactly matching this file's own established convention.
+// -----------------------------------------------------------------------
+
+test("resolveActivePolicy: tx supplied — pointer and version reads both use tx.get, joining the transaction's own read set, with zero direct-mode fallback", async () => {
+  const store = createStore();
+  const db = createFakeDb(store);
+  seedActiveRegistry({ store, versionId: "v1" });
+  const result = await db.runTransaction(async (tx) => resolveActivePolicy({ db, now: new Date(NOW_MS), tx }));
+  assert.equal(result.activeVersionId, "v1");
+  assert.deepEqual(
+    store.transactionalGetPaths.slice().sort(),
+    [`${POINTER_COLLECTION}/${POINTER_DOC_ID}`, `${REGISTRY_COLLECTION}/v1`].sort()
+  );
+  assert.deepEqual(store.nonTransactionalGetPaths, []);
+});
+
+test("resolveActivePolicy: tx omitted — behavior is byte-for-byte unchanged, every read remains direct-mode", async () => {
+  const store = createStore();
+  const db = createFakeDb(store);
+  seedActiveRegistry({ store, versionId: "v1" });
+  const result = await resolveActivePolicy({ db, now: new Date(NOW_MS) });
+  assert.equal(result.activeVersionId, "v1");
+  assert.deepEqual(
+    store.nonTransactionalGetPaths.slice().sort(),
+    [`${POINTER_COLLECTION}/${POINTER_DOC_ID}`, `${REGISTRY_COLLECTION}/v1`].sort()
+  );
+  assert.deepEqual(store.transactionalGetPaths, []);
+});
+
+test("resolveActivePolicy: a pointer read failure in tx mode maps to the same POINTER_READ_FAILED/unavailable outcome as direct mode", async () => {
+  const store = createStore();
+  const db = createFakeDb(store);
+  seedActiveRegistry({ store, versionId: "v1" });
+  store.failOnRead.add(`${POINTER_COLLECTION}/${POINTER_DOC_ID}`);
+  await assertRejectsWithReason(
+    () => db.runTransaction(async (tx) => resolveActivePolicy({ db, now: new Date(NOW_MS), tx })),
+    REASON.POINTER_READ_FAILED,
+    "unavailable"
+  );
+});
+
+test("resolveActivePolicy: a version read failure in tx mode maps to the same VERSION_READ_FAILED/unavailable outcome as direct mode", async () => {
+  const store = createStore();
+  const db = createFakeDb(store);
+  seedActiveRegistry({ store, versionId: "v1" });
+  store.failOnRead.add(`${REGISTRY_COLLECTION}/v1`);
+  await assertRejectsWithReason(
+    () => db.runTransaction(async (tx) => resolveActivePolicy({ db, now: new Date(NOW_MS), tx })),
+    REASON.VERSION_READ_FAILED,
+    "unavailable"
+  );
+});
+
+test("resolveActivePolicy: malformed/stale policy content fails identically in tx mode (dangling version, status inconsistency, future effectiveFrom)", async () => {
+  function resolveViaTx(store) {
+    const db = createFakeDb(store);
+    return db.runTransaction(async (tx) => resolveActivePolicy({ db, now: new Date(NOW_MS), tx }));
+  }
+
+  const s1 = createStore();
+  seedDoc(s1, POINTER_COLLECTION, POINTER_DOC_ID, { activeVersionId: "v-ghost" });
+  await assertRejectsWithReason(() => resolveViaTx(s1), REASON.VERSION_DANGLING, "failed-precondition");
+
+  const s2 = createStore();
+  seedDoc(s2, POINTER_COLLECTION, POINTER_DOC_ID, { activeVersionId: "v1" });
+  seedDoc(s2, REGISTRY_COLLECTION, "v1", makeValidDocument({ status: "draft" }));
+  await assertRejectsWithReason(
+    () => resolveViaTx(s2),
+    `${REASON.RESOLVE_ACTIVE_INVALID_PREFIX}:${REASON.DOCUMENT_STATUS_NOT_ALLOWED}`,
+    "failed-precondition"
+  );
+
+  const s3 = createStore();
+  seedDoc(s3, POINTER_COLLECTION, POINTER_DOC_ID, { activeVersionId: "v1" });
+  seedDoc(s3, REGISTRY_COLLECTION, "v1", makeValidDocument({ status: "active", effectiveFromMs: NOW_MS + 5000 }));
+  await assertRejectsWithReason(
+    () => resolveViaTx(s3),
+    `${REASON.RESOLVE_ACTIVE_INVALID_PREFIX}:${REASON.EFFECTIVE_FROM_FUTURE}`,
+    "failed-precondition"
+  );
+});
+
+test("resolveActivePolicy: the supplied now's exact effectiveFrom boundary behaves identically in tx mode", async () => {
+  const store = createStore();
+  const db = createFakeDb(store);
+  seedDoc(store, POINTER_COLLECTION, POINTER_DOC_ID, { activeVersionId: "v1" });
+  seedDoc(store, REGISTRY_COLLECTION, "v1", makeValidDocument({ status: "active", effectiveFromMs: NOW_MS + 5000 }));
+  await assertRejectsWithReason(
+    () => db.runTransaction(async (tx) => resolveActivePolicy({ db, now: new Date(NOW_MS), tx })),
+    `${REASON.RESOLVE_ACTIVE_INVALID_PREFIX}:${REASON.EFFECTIVE_FROM_FUTURE}`,
+    "failed-precondition"
+  );
+});
+
+test("resolveActivePolicy: no nested db.runTransaction is ever opened by resolveActivePolicy itself", () => {
+  const src = fs.readFileSync(
+    path.resolve(__dirname, "../src/marketplace/compliance/compliancePolicyRegistryOperations.js"),
+    "utf8"
+  );
+  const start = src.indexOf("async function resolveActivePolicy");
+  const end = src.indexOf("\nasync function bootstrapCompliancePolicyRegistry");
+  const body = src.slice(start, end === -1 ? undefined : end);
+  assert.equal(/db\.runTransaction/.test(body), false);
+});
+
+test("resolveActivePolicy: performs zero writes and zero mutations, whether or not tx is supplied", async () => {
+  const store = createStore();
+  const db = createFakeDb(store);
+  seedActiveRegistry({ store, versionId: "v1" });
+  const before = snapshotDocs(store);
+  await db.runTransaction(async (tx) => resolveActivePolicy({ db, now: new Date(NOW_MS), tx }));
+  assert.deepEqual(store.docs, before);
+});
+
 // =======================================================================
 // F. Architecture / static tests
 // =======================================================================
