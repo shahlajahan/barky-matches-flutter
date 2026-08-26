@@ -2,12 +2,13 @@
 
 // P1-A Slice 4.3 — matching/evaluator engine tests (docs/plans/
 // marketplace_p1a_compliance_review_implementation_plan_2026-08-21.md,
-// §10/§10.1/§13.1/§15, Revision 9 corrections 49-52). Deliberately NOT
-// emulator-backed — none of Slice 4.3's modules are wired into any
-// onCall/HTTP/trigger, so nothing here needs the Firestore emulator,
-// network, credentials, or GCP/Firebase access of any kind (same
-// established convention as compliancePolicyRegistryOperations.test.js's
-// own fake). A hand-rolled, self-contained in-memory fake stands in for
+// §10/§10.1/§13.1/§15, Revision 9 corrections 49-52). The bulk of this
+// file is deliberately NOT emulator-backed — none of Slice 4.3's
+// modules are wired into any onCall/HTTP/trigger, so nothing in the
+// fake-db-backed tests needs the Firestore emulator, network,
+// credentials, or GCP/Firebase access of any kind (same established
+// convention as compliancePolicyRegistryOperations.test.js's own
+// fake). A hand-rolled, self-contained in-memory fake stands in for
 // `db`, extended here to support multi-field equality queries,
 // orderBy/limit, and subcollections — none of which the Slice 4.1 fake
 // needed.
@@ -17,12 +18,39 @@
 // authorized beyond this and complianceConstants.test.js."
 //
 // No conditional test-skipping and no environment-dependent bypass
-// anywhere in this file — every test always runs.
+// anywhere in this file's fake-db-backed tests — every one of those
+// always runs. **Revision 13 (§0.11) adds the one exception**: a
+// clearly isolated, `FIRESTORE_EMULATOR_HOST`-gated test group near the
+// end of this file, proving `evaluateRequiredSlots`/`runComplianceMatching`
+// correctly consume a real, wrapped-shape policy — created, bootstrapped,
+// and resolved through the real `compliancePolicyRegistryOperations.js`
+// production operations, against real `complianceDocumentScopes`/
+// `complianceDocuments` — never rebuilt as a fake object for this one
+// class of test. Those tests, and only those, are skipped when no local
+// emulator is running; every other test in this file is unaffected.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
+const admin = require("firebase-admin");
+
+if (!admin.apps.length) {
+  admin.initializeApp({ projectId: process.env.GCLOUD_PROJECT || "demo-petsupo" });
+}
+
+// Revision 13 (§0.11): gates ONLY the new real-emulator matching-
+// consumption group near the end of this file — every other test in
+// this file uses the in-memory fake below and always runs.
+const hasFirestoreEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
+function itest(name, fn) {
+  test(name, { skip: !hasFirestoreEmulator }, fn);
+}
+
+const {
+  createCompliancePolicyVersion,
+} = require("../src/marketplace/compliance/compliancePolicyRegistryOperations");
 
 const {
   COMPLIANCE_SCOPE_TYPE,
@@ -277,7 +305,7 @@ function seedActivePolicy(store, sellerRelationshipOverride) {
     sellerRelationship: sellerRelationshipOverride || {
       [SELLER_RELATIONSHIP.RESELLER]: {
         acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence"],
-        requiredDocumentTypeGroups: [["purchase_invoice"]],
+        requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
         perDocumentTypePolicy: { purchase_invoice: { validUntilRequired: true, issueDateRequired: false } },
         maximumValidityPeriod: null,
         acceptedScopeTypes: ["business", "brand", "category", "product", "sku_set"],
@@ -522,7 +550,7 @@ test("B6. normalizeBrand throws on non-string input rather than coercing", () =>
 test("C1. every one of the six relationships selects its own branch, never a combination", () => {
   const branches = {};
   for (const rel of Object.values(SELLER_RELATIONSHIP)) {
-    branches[rel] = { requiredDocumentTypeGroups: [["purchase_invoice"]], acceptedScopeTypes: ["business"] };
+    branches[rel] = { requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }], acceptedScopeTypes: ["business"] };
   }
   const activePolicyVersion = { sellerRelationship: branches };
   for (const rel of Object.values(SELLER_RELATIONSHIP)) {
@@ -551,7 +579,7 @@ test("C3. malformed sellerRelationship resolves unresolved", () => {
 test("C4. a valid relationship absent from the active policy's map resolves unresolved", () => {
   const result = selectPolicyBranch({
     product: { sellerRelationship: SELLER_RELATIONSHIP.IMPORTER },
-    activePolicyVersion: { sellerRelationship: { [SELLER_RELATIONSHIP.RESELLER]: { requiredDocumentTypeGroups: [["x"]], acceptedScopeTypes: ["business"] } } },
+    activePolicyVersion: { sellerRelationship: { [SELLER_RELATIONSHIP.RESELLER]: { requiredDocumentTypeGroups: [{ documentTypes: ["x"] }], acceptedScopeTypes: ["business"] } } },
   });
   assert.equal(result.ok, false);
   assert.equal(result.reason, "policy_selection_branch_absent");
@@ -573,7 +601,7 @@ test("C6. category is never read by policy selection at all", () => {
       throw new Error("category must never be read by selectPolicyBranch");
     },
   });
-  const activePolicyVersion = { sellerRelationship: { [SELLER_RELATIONSHIP.RESELLER]: { requiredDocumentTypeGroups: [["x"]], acceptedScopeTypes: ["business"] } } };
+  const activePolicyVersion = { sellerRelationship: { [SELLER_RELATIONSHIP.RESELLER]: { requiredDocumentTypeGroups: [{ documentTypes: ["x"] }], acceptedScopeTypes: ["business"] } } };
   assert.doesNotThrow(() => selectPolicyBranch({ product, activePolicyVersion }));
 });
 
@@ -931,7 +959,7 @@ test("I1. AND-of-OR: two groups, one satisfied via each of two accepted document
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence", "supplier_agreement"],
-      requiredDocumentTypeGroups: [["purchase_invoice"], ["manufacturer_evidence", "supplier_agreement"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }, { documentTypes: ["manufacturer_evidence", "supplier_agreement"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business", "category"],
@@ -955,7 +983,7 @@ test("I2. AND-of-OR: one satisfied group plus one unsatisfied group leaves the d
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence"],
-      requiredDocumentTypeGroups: [["purchase_invoice"], ["manufacturer_evidence"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }, { documentTypes: ["manufacturer_evidence"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -978,7 +1006,7 @@ test("I3. zero-evidence policy_unresolved: acceptedScopeTypes naming only struct
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["supplier"],
@@ -999,7 +1027,7 @@ test("I4. manualAdminOverridePermitted is never consulted and never bypasses mis
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -1116,7 +1144,7 @@ test("J4 (item 43/44). full recompute stays within ≤42 reads and ≤8 operatio
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business", "brand", "category", "product", "sku_set"],
@@ -1267,7 +1295,7 @@ test("L4. cap: at most MATCHED_SCOPE_CAP links are ever written", async () => {
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business", "brand", "category", "product", "sku_set"],
@@ -1911,7 +1939,7 @@ function seedPolicyWithTwoBusinessGroups(store) {
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence"],
-      requiredDocumentTypeGroups: [["purchase_invoice"], ["manufacturer_evidence"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }, { documentTypes: ["manufacturer_evidence"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       // Widened to every real, structurally-available lookup type (not
@@ -1992,7 +2020,7 @@ test("P3 (item 3). one evidence ref whose documentType satisfies TWO required gr
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"], ["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }, { documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -2040,7 +2068,7 @@ test("P5 (item 5). distinct scopeIds sharing a documentId are BOTH preserved as 
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business", "category"],
@@ -2071,7 +2099,7 @@ test("P6 (item 5, extended). two distinct scopeIds sharing one documentId both g
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -2132,7 +2160,7 @@ test("P8 (item 7). invalid first source, second valid fallback for the same slot
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice"],
-      requiredDocumentTypeGroups: [["purchase_invoice"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -2165,7 +2193,7 @@ test("P9 (item 8). five required slots, each with its own alternatives, are all 
   // module's pre-filter checks membership via isValidComplianceDocumentType,
   // so real enum values are used, one per required slot.
   const realTypes = Object.values(COMPLIANCE_DOCUMENT_TYPE).slice(0, 5);
-  const realGroups = realTypes.map((t) => [t]);
+  const realGroups = realTypes.map((t) => ({ documentTypes: [t] }));
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
@@ -2195,7 +2223,7 @@ test("P10 (item 9). source-read cap independent of active-ref cap: 11 distinct d
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes], // one slot, OR across all 8 types
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }], // one slot, OR across all 8 types
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: [...ALL_LANES_ACCEPTED_SCOPE_TYPES],
@@ -2222,7 +2250,7 @@ test("P10 (item 9). source-read cap independent of active-ref cap: 11 distinct d
 test("P11 (item 10). active-ref cap independent of source-read cap: 5 documents, each with 2 distinct scopes, yield 10 distinct refs from only 5 source reads", async () => {
   const store = createStore();
   const realTypes = Object.values(COMPLIANCE_DOCUMENT_TYPE).slice(0, 5); // 5 slots, the schema ceiling
-  const groups = realTypes.map((t) => [t]);
+  const groups = realTypes.map((t) => ({ documentTypes: [t] }));
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
@@ -2298,7 +2326,7 @@ test("Q1 (item 12). the scope's own documentType copy is used to preallocate slo
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence"],
-      requiredDocumentTypeGroups: [["manufacturer_evidence"]],
+      requiredDocumentTypeGroups: [{ documentTypes: ["manufacturer_evidence"] }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -2384,7 +2412,7 @@ test("R1 (item 17). event emitted on source-read-cap truncation: 11 distinct req
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes], // OR across all 8 types — every candidate is eligible
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }], // OR across all 8 types — every candidate is eligible
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: [...ALL_LANES_ACCEPTED_SCOPE_TYPES],
@@ -2417,7 +2445,7 @@ test("R2 (item 18). event emitted on active-ref-cap truncation: 4 documents with
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes],
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: [...ALL_LANES_ACCEPTED_SCOPE_TYPES],
@@ -2533,7 +2561,7 @@ test("R6 (items 22/23/24). exact event fields/enums and exact fixed-key notes fo
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes],
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: [...ALL_LANES_ACCEPTED_SCOPE_TYPES],
@@ -2574,7 +2602,7 @@ test("R7 (item 25/26). exactly one event, written in the SAME transaction as the
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes],
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: [...ALL_LANES_ACCEPTED_SCOPE_TYPES],
@@ -2603,7 +2631,7 @@ test("R8 (item 27). event write failure aborts the whole transaction — zero co
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes],
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -2646,7 +2674,7 @@ test("R9 (item 28). a retried recompute (abandoned first attempt) leaves only th
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes],
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: [...ALL_LANES_ACCEPTED_SCOPE_TYPES],
@@ -3015,7 +3043,7 @@ test("U1 (item 47). write bound with a truncation event: at most 22 writes (10 d
   seedActivePolicy(store, {
     [SELLER_RELATIONSHIP.RESELLER]: {
       acceptedDocumentTypes: realTypes,
-      requiredDocumentTypeGroups: [realTypes],
+      requiredDocumentTypeGroups: [{ documentTypes: realTypes }],
       perDocumentTypePolicy: {},
       maximumValidityPeriod: null,
       acceptedScopeTypes: ["business"],
@@ -3122,5 +3150,255 @@ test("V2 (item 53). no skip/todo/only in any of the four Slice 4.3 production mo
     assert.equal(/\.only\s*\(/.test(src), false);
     assert.equal(/\bTODO\b/.test(src), false);
     assert.equal(/\bFIXME\b/.test(src), false);
+  }
+});
+
+// =======================================================================
+// Revision 13 (docs/plans/marketplace_p1a_compliance_review_
+// implementation_plan_2026-08-21.md, §0.11/§15 items 326-331):
+// real-emulator matching-consumption regression. Every test above this
+// line uses only the in-memory fake `db` — this group proves the same
+// AND/OR/slot-count/no-TypeError claims against a REAL, wrapped-shape
+// policy, created/bootstrapped/resolved through the real
+// `compliancePolicyRegistryOperations.js` production operations, with
+// real `complianceDocumentScopes`/`complianceDocuments` seeded directly.
+// Gated on FIRESTORE_EMULATOR_HOST via `itest` (declared at the top of
+// this file) — skipped, never failed, when no local emulator is
+// running. Never touches real cloud — see the top-of-file note.
+// =======================================================================
+
+const rev13Db = admin.firestore();
+
+let rev13MatchSeq = 0;
+function rev13MatchNextId(prefix) {
+  rev13MatchSeq += 1;
+  return `${prefix}-${crypto.randomUUID()}-${rev13MatchSeq}`;
+}
+
+async function rev13SeedApprovedScope({ scopeId, businessId, documentId, sellerRelationship, documentType, scopeType, scopeValue }) {
+  const nowMs = Date.now();
+  await rev13Db.collection(SCOPES_COLLECTION).doc(scopeId).set({
+    documentId,
+    businessId,
+    scopeType,
+    scopeValue,
+    sellerRelationship,
+    documentType,
+    validUntil: admin.firestore.Timestamp.fromMillis(nowMs + 1_000_000_000),
+    memberCount: 0,
+    status: "approved",
+    approvedAt: admin.firestore.Timestamp.fromMillis(nowMs - 10_000),
+    createdAt: admin.firestore.Timestamp.fromMillis(nowMs - 20_000),
+    createdBy: "rev13-matching-audit",
+  });
+  await rev13Db.collection(DOCUMENTS_COLLECTION).doc(documentId).set({
+    businessId,
+    documentType,
+    sellerRelationship,
+    status: "approved",
+    validUntil: admin.firestore.Timestamp.fromMillis(nowMs + 1_000_000_000),
+  });
+}
+
+async function rev13DeleteAll(refs) {
+  await Promise.all(refs.map((ref) => ref.delete()));
+}
+
+itest("real emulator (Revision 13): runComplianceMatching consumes a real wrapped-shape policy — AND across two groups, OR within each group, correct slot counts, no TypeError", async () => {
+  const businessId = rev13MatchNextId("rmb-biz");
+  const productId = rev13MatchNextId("rmb-prod");
+  const versionId = rev13MatchNextId("rmb-ver");
+  const versionRef = rev13Db.collection(REGISTRY_COLLECTION).doc(versionId);
+  const productRef = rev13Db.collection(PRODUCTS_ROOT).doc(businessId).collection("products").doc(productId);
+  const scopeId1 = rev13MatchNextId("rmb-scope1");
+  const scopeId2 = rev13MatchNextId("rmb-scope2");
+  const documentId1 = rev13MatchNextId("rmb-doc1");
+  const documentId2 = rev13MatchNextId("rmb-doc2");
+  const scope1Ref = rev13Db.collection(SCOPES_COLLECTION).doc(scopeId1);
+  const scope2Ref = rev13Db.collection(SCOPES_COLLECTION).doc(scopeId2);
+  const doc1Ref = rev13Db.collection(DOCUMENTS_COLLECTION).doc(documentId1);
+  const doc2Ref = rev13Db.collection(DOCUMENTS_COLLECTION).doc(documentId2);
+
+  // No pre-cleanup of a shared singleton needed — deliberately never
+  // touches `compliancePolicyRegistryPointer/current` at all (see
+  // below): every path here is uniquely IDed, so this test can run
+  // concurrently with any other real-emulator test in this suite,
+  // including compliancePolicyRegistryOperations.test.js's own
+  // dedicated bootstrap/pointer coverage, without collision.
+  await rev13DeleteAll([versionRef, productRef, scope1Ref, scope2Ref, doc1Ref, doc2Ref]);
+
+  try {
+    // Two required groups (AND): group 1 = purchase_invoice OR
+    // manufacturer_evidence; group 2 = supplier_agreement OR
+    // importer_evidence. Evidence is deliberately provided for the SECOND
+    // alternative of each group, never the first — proving OR genuinely
+    // accepts either alternative, not merely the first-listed one.
+    const wrappedGroups = [
+      { documentTypes: ["purchase_invoice", "manufacturer_evidence"] },
+      { documentTypes: ["supplier_agreement", "importer_evidence"] },
+    ];
+    await createCompliancePolicyVersion({
+      db: rev13Db,
+      sellerRelationship: {
+        manufacturer: {
+          acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence", "supplier_agreement", "importer_evidence"],
+          requiredDocumentTypeGroups: wrappedGroups,
+          perDocumentTypePolicy: {},
+          maximumValidityPeriod: null,
+          acceptedScopeTypes: ["business"],
+          manualAdminOverridePermitted: false,
+        },
+      },
+      effectiveFrom: admin.firestore.Timestamp.fromMillis(Date.now() - 10_000),
+      changeNote: "Revision 13 real-emulator matching regression",
+      initialStatus: "draft",
+      createdBy: "rev13-matching-audit",
+      now: new Date(),
+      generateVersionId: () => versionId,
+    });
+    // Deliberately does NOT call bootstrapCompliancePolicyRegistry/
+    // resolveActivePolicy — both exercise the real, SHARED, singleton
+    // `compliancePolicyRegistryPointer/current` path, which is already
+    // exhaustively proven, in real-emulator (E), by
+    // compliancePolicyRegistryOperations.test.js — the file that owns
+    // that coverage. Reading this uniquely-IDed `draft` version back
+    // directly and constructing the same `{activeVersionId, version}`
+    // shape resolveActivePolicy itself returns is sufficient to prove
+    // this test's own actual subject — that runComplianceMatching
+    // correctly consumes a REAL, writer-produced, wrapped-shape policy
+    // — without re-touching a real cross-file shared singleton.
+    const versionSnap = await versionRef.get();
+    const resolved = { activeVersionId: versionId, version: versionSnap.data() };
+
+    await productRef.set({
+      businessId,
+      sellerRelationship: "manufacturer",
+      productInputRevision: 1,
+    });
+    // Group 1 satisfied via its SECOND alternative (manufacturer_evidence).
+    await rev13SeedApprovedScope({
+      scopeId: scopeId1,
+      businessId,
+      documentId: documentId1,
+      sellerRelationship: "manufacturer",
+      documentType: "manufacturer_evidence",
+      scopeType: "business",
+      scopeValue: businessId,
+    });
+    // Group 2 satisfied via its SECOND alternative (importer_evidence).
+    await rev13SeedApprovedScope({
+      scopeId: scopeId2,
+      businessId,
+      documentId: documentId2,
+      sellerRelationship: "manufacturer",
+      documentType: "importer_evidence",
+      scopeType: "business",
+      scopeValue: businessId,
+    });
+
+    const productSnap = await productRef.get();
+    const product = { ...productSnap.data(), businessId };
+
+    const decision = await rev13Db.runTransaction((tx) =>
+      runComplianceMatching({
+        tx,
+        db: rev13Db,
+        product,
+        productId,
+        activePolicyVersion: resolved.version,
+        now: new Date(),
+        counters: createCounters(),
+      })
+    );
+
+    assert.equal(decision.policyUnresolved, false);
+    assert.equal(decision.requiredEvidenceSlots.length, 2, "one slot per outer group — AND across two groups");
+    assert.deepEqual(decision.requiredEvidenceSlots[0].acceptedDocumentTypes, wrappedGroups[0].documentTypes);
+    assert.deepEqual(decision.requiredEvidenceSlots[1].acceptedDocumentTypes, wrappedGroups[1].documentTypes);
+    assert.equal(decision.satisfiedEvidenceSlots.length, 2, "both groups satisfied via their second OR alternative");
+    assert.equal(decision.allRequiredSlotsSatisfied, true);
+
+    // Input policy object is not mutated by matching.
+    assert.deepEqual(resolved.version.sellerRelationship.manufacturer.requiredDocumentTypeGroups, wrappedGroups);
+  } finally {
+    await rev13DeleteAll([versionRef, productRef, scope1Ref, scope2Ref, doc1Ref, doc2Ref]);
+  }
+});
+
+itest("real emulator (Revision 13): one unsatisfied required group fails the whole decision overall — AND semantics against a real wrapped-shape policy", async () => {
+  const businessId = rev13MatchNextId("rmb2-biz");
+  const productId = rev13MatchNextId("rmb2-prod");
+  const versionId = rev13MatchNextId("rmb2-ver");
+  const versionRef = rev13Db.collection(REGISTRY_COLLECTION).doc(versionId);
+  const productRef = rev13Db.collection(PRODUCTS_ROOT).doc(businessId).collection("products").doc(productId);
+  const scopeId1 = rev13MatchNextId("rmb2-scope1");
+  const documentId1 = rev13MatchNextId("rmb2-doc1");
+  const scope1Ref = rev13Db.collection(SCOPES_COLLECTION).doc(scopeId1);
+  const doc1Ref = rev13Db.collection(DOCUMENTS_COLLECTION).doc(documentId1);
+
+  // Deliberately never touches the shared `compliancePolicyRegistryPointer/current`
+  // singleton — see the positive-case test above for the full rationale.
+  await rev13DeleteAll([versionRef, productRef, scope1Ref, doc1Ref]);
+
+  try {
+    const wrappedGroups = [
+      { documentTypes: ["purchase_invoice"] },
+      { documentTypes: ["importer_evidence"] }, // deliberately never satisfied below
+    ];
+    await createCompliancePolicyVersion({
+      db: rev13Db,
+      sellerRelationship: {
+        manufacturer: {
+          acceptedDocumentTypes: ["purchase_invoice", "importer_evidence"],
+          requiredDocumentTypeGroups: wrappedGroups,
+          perDocumentTypePolicy: {},
+          maximumValidityPeriod: null,
+          acceptedScopeTypes: ["business"],
+          manualAdminOverridePermitted: false,
+        },
+      },
+      effectiveFrom: admin.firestore.Timestamp.fromMillis(Date.now() - 10_000),
+      changeNote: "Revision 13 real-emulator matching regression (negative)",
+      initialStatus: "draft",
+      createdBy: "rev13-matching-audit",
+      now: new Date(),
+      generateVersionId: () => versionId,
+    });
+    const versionSnap = await versionRef.get();
+    const resolved = { activeVersionId: versionId, version: versionSnap.data() };
+
+    await productRef.set({ businessId, sellerRelationship: "manufacturer", productInputRevision: 1 });
+    // Only group 1's requirement is ever provided — group 2 has zero
+    // matching evidence.
+    await rev13SeedApprovedScope({
+      scopeId: scopeId1,
+      businessId,
+      documentId: documentId1,
+      sellerRelationship: "manufacturer",
+      documentType: "purchase_invoice",
+      scopeType: "business",
+      scopeValue: businessId,
+    });
+
+    const productSnap = await productRef.get();
+    const product = { ...productSnap.data(), businessId };
+
+    const decision = await rev13Db.runTransaction((tx) =>
+      runComplianceMatching({
+        tx,
+        db: rev13Db,
+        product,
+        productId,
+        activePolicyVersion: resolved.version,
+        now: new Date(),
+        counters: createCounters(),
+      })
+    );
+
+    assert.equal(decision.requiredEvidenceSlots.length, 2);
+    assert.equal(decision.satisfiedEvidenceSlots.length, 1, "only group 1 is satisfied");
+    assert.equal(decision.allRequiredSlotsSatisfied, false, "one unsatisfied group fails the whole decision, regardless of the other group's own satisfaction");
+  } finally {
+    await rev13DeleteAll([versionRef, productRef, scope1Ref, doc1Ref]);
   }
 });

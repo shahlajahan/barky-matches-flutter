@@ -3824,16 +3824,22 @@ const {
 // compliancePolicyRegistry version document requires at least one
 // non-empty `requiredDocumentTypeGroups` entry — Slice 4.1's own
 // `validateRequiredDocumentTypeGroups` rejects `groups.length < 1` and
-// rejects any inner group with `length === 0` — and that field is
-// structurally an array-of-arrays. Real Firestore rejects nested arrays
-// outright ("3 INVALID_ARGUMENT: Nested arrays are not allowed"),
-// confirmed directly against this same emulator. This is a pre-existing
-// Slice 4.1 schema/Firestore incompatibility, entirely unrelated to and
-// outside the authorized scope of this Slice 4.6 corrective task
-// (compliancePolicyRegistryOperations.js is a forbidden-to-edit file) —
-// it is why Slice 4.1's own test suite is itself never emulator-backed
-// (see that file's own top-of-file doc comment) and uses a fake `db`
-// exclusively. This freshness-integration proof follows the identical,
+// rejects any inner group with `length === 0`. Historical note,
+// resolved by Revision 13 (§0.11): that field was originally shaped as
+// a native array-of-arrays, which real Firestore rejected outright
+// ("3 INVALID_ARGUMENT: Nested arrays are not allowed"), confirmed
+// directly against this same emulator — a pre-existing Slice 4.1
+// schema/Firestore incompatibility, entirely unrelated to and outside
+// the authorized scope of the original Slice 4.6 corrective task that
+// first wrote this comment. Revision 13 has since corrected the field
+// to the wrapped `RequiredDocumentTypeGroup[]` shape used directly
+// below, which real Firestore does accept — but this one fixture stays
+// fake-db-only regardless, matching this test's own actual subject
+// (epoch-freshness integration, not policy-schema serialization); the
+// wrapped shape used here only needs to keep passing the real
+// production validator's own full check (via `resolveActivePolicy`
+// inside `evaluateLiveProductEligibility`), which it does. This
+// freshness-integration proof follows the identical,
 // already-established pattern: a minimal, self-contained, read-only
 // fake `db` (no transactions — evaluateLiveProductEligibility performs
 // only `.get()` reads when no `tx` is supplied) drives the REAL,
@@ -3901,7 +3907,7 @@ function freshnessFixtureDocs({ businessId, productId, activeVersionId, evidence
       sellerRelationship: {
         manufacturer: {
           acceptedDocumentTypes: ["purchase_invoice"],
-          requiredDocumentTypeGroups: [["purchase_invoice"]],
+          requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
           perDocumentTypePolicy: { purchase_invoice: { validUntilRequired: true, issueDateRequired: false } },
           maximumValidityPeriod: null,
           acceptedScopeTypes: ["business"],

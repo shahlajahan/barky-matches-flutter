@@ -304,19 +304,35 @@ function validatePointerSnapshot(snap) {
 }
 
 // ---------------------------------------------------------------------
-// requiredDocumentTypeGroups — outer array = AND, inner array = OR.
-// Outer length bounded [1, 5] UNCONDITIONALLY, for any relationship
-// entry that is actually present — this is not gated by
-// `requireActivationEligible`. The only status-gated exception in this
-// whole schema is whether the TOP-LEVEL `sellerRelationship` map may be
-// `{}` (checked in validateSellerRelationship, below); once any
-// relationship key is present, its entry must always be fully valid,
-// including a non-empty, ≤5-group requirement — even inside an
-// `inactive` document. Each inner group non-empty, unique members,
-// every member ∈ the relationship's own `acceptedDocumentTypes`.
-// Duplicate groups rejected after canonicalization (sorted-member
+// requiredDocumentTypeGroups — outer array = AND, each group's
+// `documentTypes` array = OR. Outer length bounded [1, 5]
+// UNCONDITIONALLY, for any relationship entry that is actually present
+// — this is not gated by `requireActivationEligible`. The only
+// status-gated exception in this whole schema is whether the TOP-LEVEL
+// `sellerRelationship` map may be `{}` (checked in
+// validateSellerRelationship, below); once any relationship key is
+// present, its entry must always be fully valid, including a
+// non-empty, ≤5-group requirement — even inside an `inactive` document.
+//
+// Revision 13 (docs/plans/..., §0.11): each outer entry is a
+// `RequiredDocumentTypeGroup` — a plain object with EXACTLY the one key
+// `documentTypes`, never a bare array. The original Revision 4 shape (a
+// native array-of-arrays) is confirmed, by direct reproduction against
+// a real Firestore emulator, to be unwritable to real Firestore
+// ("Nested arrays are not allowed"); this wrapped-object encoding is
+// the smallest change that clears that restriction while changing
+// nothing else. `group.documentTypes` non-empty, unique members, every
+// member ∈ the relationship's own `acceptedDocumentTypes` — identical
+// rules to the pre-Revision-13 inner array, only the access path moves
+// from `group` to `group.documentTypes`. A bare array, `null`, or any
+// other non-plain-object `group` value is rejected the same way an
+// empty group always was — no new caller-visible reason vocabulary is
+// introduced; only the wrapped shape is ever accepted, never dual-
+// accepted, silently migrated, or auto-converted. Duplicate groups
+// rejected after canonicalization (sorted `documentTypes`-member
 // comparison), so the same alternatives listed in a different order are
-// still caught.
+// still caught; canonicalization never reorders or rewrites any group's
+// own stored `documentTypes`.
 // ---------------------------------------------------------------------
 
 function validateRequiredDocumentTypeGroups(groups, acceptedSet) {
@@ -329,11 +345,16 @@ function validateRequiredDocumentTypeGroups(groups, acceptedSet) {
   }
   const canonicalSeen = new Set();
   for (const group of groups) {
-    if (!Array.isArray(group) || group.length === 0) {
+    if (
+      !isPlainObject(group) ||
+      !hasExactKeys(group, ["documentTypes"]) ||
+      !Array.isArray(group.documentTypes) ||
+      group.documentTypes.length === 0
+    ) {
       return REASON.CONTENT_REQUIRED_GROUP_EMPTY;
     }
     const seenInGroup = new Set();
-    for (const member of group) {
+    for (const member of group.documentTypes) {
       if (typeof member !== "string" || !DOCUMENT_TYPE_VALUES.has(member) || seenInGroup.has(member)) {
         return REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID;
       }
@@ -342,7 +363,7 @@ function validateRequiredDocumentTypeGroups(groups, acceptedSet) {
         return REASON.CONTENT_REQUIRED_NOT_ACCEPTED;
       }
     }
-    const canonicalKey = [...group].sort().join(" ");
+    const canonicalKey = [...group.documentTypes].sort().join(" ");
     if (canonicalSeen.has(canonicalKey)) {
       return REASON.CONTENT_REQUIRED_GROUPS_DUPLICATE;
     }

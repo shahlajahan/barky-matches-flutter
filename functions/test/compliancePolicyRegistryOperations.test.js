@@ -2,22 +2,43 @@
 
 // P1-A Slice 4.1 — compliancePolicyRegistryOperations.js tests (docs/
 // plans/marketplace_p1a_compliance_review_implementation_plan_2026-08-21
-// .md, §4/§13.1/§16, Revision 4). Deliberately NOT emulator-backed —
-// this slice's module is never wired into any onCall/HTTP/trigger, so
-// nothing here needs the Firestore emulator, network, credentials, or
-// GCP/Firebase access of any kind. A hand-rolled, self-contained
-// in-memory fake stands in for `db` (same established repo convention
-// as settlementFinalizer.test.js's `fakeDb()` — no shared fake-Firestore
-// helper exists in this codebase to reuse, so one is built here, scoped
-// to this file only).
+// .md, §4/§13.1/§16, Revision 4). The bulk of this file is deliberately
+// NOT emulator-backed — this slice's module is never wired into any
+// onCall/HTTP/trigger, so nothing in the fake-db-backed tests needs the
+// Firestore emulator, network, credentials, or GCP/Firebase access of
+// any kind. A hand-rolled, self-contained in-memory fake stands in for
+// `db` (same established repo convention as settlementFinalizer.test.js
+// 's `fakeDb()` — no shared fake-Firestore helper exists in this
+// codebase to reuse, so one is built here, scoped to this file only).
 //
 // No conditional test-skipping and no environment-dependent bypass
-// anywhere in this file — every test always runs.
+// anywhere in this file's fake-db-backed tests — every one of those
+// always runs. **Revision 13 (§0.11) adds the one exception**: a
+// clearly isolated, `FIRESTORE_EMULATOR_HOST`-gated test group near the
+// end of this file, proving the wrapped `requiredDocumentTypeGroups`
+// shape actually serializes through the real Admin Firestore SDK —
+// something no fake-db-backed test in this file can ever prove, since
+// the fake has no serialization boundary. Those tests, and only those,
+// are skipped when no local emulator is running; every other test in
+// this file is unaffected and always runs regardless.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const admin = require("firebase-admin");
+
+if (!admin.apps.length) {
+  admin.initializeApp({ projectId: process.env.GCLOUD_PROJECT || "demo-petsupo" });
+}
+
+// Revision 13 (§0.11): gates ONLY the new real-emulator serialization
+// regression group near the end of this file — every other test in
+// this file uses the in-memory fake below and always runs.
+const hasFirestoreEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
+function itest(name, fn) {
+  test(name, { skip: !hasFirestoreEmulator }, fn);
+}
 
 const {
   createCompliancePolicyVersion,
@@ -266,7 +287,10 @@ const NOW_MS = 1_700_000_000_000;
 function makeValidRelationshipEntry(overrides = {}) {
   return {
     acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence", "supplier_agreement"],
-    requiredDocumentTypeGroups: [["purchase_invoice"], ["manufacturer_evidence", "supplier_agreement"]],
+    requiredDocumentTypeGroups: [
+      { documentTypes: ["purchase_invoice"] },
+      { documentTypes: ["manufacturer_evidence", "supplier_agreement"] },
+    ],
     perDocumentTypePolicy: {
       purchase_invoice: { validUntilRequired: true, issueDateRequired: false },
     },
@@ -677,20 +701,20 @@ test("validator: requiredDocumentTypeGroups outer length matrix — 0, 1, 5, 6",
   assert.equal(withGroups([], true).reason, REASON.CONTENT_REQUIRED_GROUPS_INVALID);
 
   // 1 group: legal in both contexts.
-  assert.equal(withGroups([["purchase_invoice"]], true).valid, true);
+  assert.equal(withGroups([{ documentTypes: ["purchase_invoice"] }], true).valid, true);
 
   // 5 groups: legal (exactly the frozen cap).
   const fiveGroups = [
-    ["purchase_invoice"],
-    ["supplier_agreement"],
-    ["authorization_letter"],
-    ["dealership_distribution_agreement"],
-    ["trademark_evidence"],
+    { documentTypes: ["purchase_invoice"] },
+    { documentTypes: ["supplier_agreement"] },
+    { documentTypes: ["authorization_letter"] },
+    { documentTypes: ["dealership_distribution_agreement"] },
+    { documentTypes: ["trademark_evidence"] },
   ];
   assert.equal(withGroups(fiveGroups, true).valid, true);
 
   // 6 groups: illegal always (exceeds the frozen requiredEvidenceSlots cap).
-  const sixGroups = [...fiveGroups, ["manufacturer_evidence"]];
+  const sixGroups = [...fiveGroups, { documentTypes: ["manufacturer_evidence"] }];
   assert.equal(withGroups(sixGroups, true).reason, REASON.CONTENT_REQUIRED_GROUPS_INVALID);
   assert.equal(withGroups(sixGroups, false).reason, REASON.CONTENT_REQUIRED_GROUPS_INVALID);
 });
@@ -702,22 +726,192 @@ test("validator: inner group empty/non-array/invalid-type/duplicate-member rejec
       requireActivationEligible: true,
     });
   }
-  assert.equal(withInner([[]]).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
-  assert.equal(withInner(["not-an-array"]).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
-  assert.equal(withInner([[123]]).reason, REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID);
-  assert.equal(withInner([["not_a_real_type"]]).reason, REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID);
+  assert.equal(withInner([{ documentTypes: [] }]).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+  assert.equal(withInner(["not-an-object"]).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+  assert.equal(withInner([{ documentTypes: [123] }]).reason, REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID);
+  assert.equal(withInner([{ documentTypes: ["not_a_real_type"] }]).reason, REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID);
   assert.equal(
-    withInner([["purchase_invoice", "purchase_invoice"]]).reason,
+    withInner([{ documentTypes: ["purchase_invoice", "purchase_invoice"] }]).reason,
     REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID
   );
+});
+
+// ---------------------------------------------------------------------
+// Revision 13 (docs/plans/..., §0.11/§15 items 304-317): the complete
+// corrected group-shape validation matrix for the wrapped
+// `RequiredDocumentTypeGroup` object. Every case here proves the
+// application validator's own fail-closed rejection directly, never by
+// relying on a real Firestore write to fail — that is a distinct,
+// separately-proven claim in the real-emulator group below.
+// ---------------------------------------------------------------------
+
+test("validator (Revision 13): a valid group's own key set is exactly [\"documentTypes\"]", () => {
+  const entry = makeValidRelationshipEntry({
+    requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
+  });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.valid, true);
+});
+
+test("validator (Revision 13): group missing documentTypes key is rejected", () => {
+  const entry = makeValidRelationshipEntry({ requiredDocumentTypeGroups: [{}] });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+});
+
+test("validator (Revision 13): group carrying documentTypes plus an extra key is rejected", () => {
+  const entry = makeValidRelationshipEntry({
+    requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"], extra: true }],
+  });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+});
+
+test("validator (Revision 13): a null group is rejected", () => {
+  const entry = makeValidRelationshipEntry({ requiredDocumentTypeGroups: [null] });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+});
+
+test("validator (Revision 13): a bare array group (the old, pre-Revision-13 shape) is rejected, never accepted as legacy-compatible", () => {
+  const entry = makeValidRelationshipEntry({ requiredDocumentTypeGroups: [["purchase_invoice"]] });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+});
+
+test("validator (Revision 13): a group that is a string, number, or boolean is rejected", () => {
+  function withGroup(group) {
+    const entry = makeValidRelationshipEntry({ requiredDocumentTypeGroups: [group] });
+    return validateCompliancePolicyVersionDocument(
+      makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+      { requireActivationEligible: true }
+    );
+  }
+  assert.equal(withGroup("purchase_invoice").reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+  assert.equal(withGroup(1).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+  assert.equal(withGroup(true).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+});
+
+test("validator (Revision 13): documentTypes that is not an array (null, string, object) is rejected", () => {
+  function withDocumentTypes(value) {
+    const entry = makeValidRelationshipEntry({ requiredDocumentTypeGroups: [{ documentTypes: value }] });
+    return validateCompliancePolicyVersionDocument(
+      makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+      { requireActivationEligible: true }
+    );
+  }
+  assert.equal(withDocumentTypes(null).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+  assert.equal(withDocumentTypes("purchase_invoice").reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+  assert.equal(withDocumentTypes({ purchase_invoice: true }).reason, REASON.CONTENT_REQUIRED_GROUP_EMPTY);
+});
+
+test("validator (Revision 13): a nested array as one of documentTypes' own entries is rejected by the application validator", () => {
+  // §15 item 314: the application validator rejects this fail-closed,
+  // before any write is attempted — and, independently, real Firestore
+  // itself also rejects this exact shape (proven separately in the
+  // real-emulator group below). Both are true; this test proves only
+  // the validator's own rejection.
+  const entry = makeValidRelationshipEntry({
+    requiredDocumentTypeGroups: [{ documentTypes: [["purchase_invoice"]] }],
+  });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.reason, REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID);
+});
+
+test("validator (Revision 13): a map/object as one of documentTypes' own entries is rejected by the application validator, even though real Firestore structurally permits it", () => {
+  // §15 item 315: this is NOT the same case as item 314 — a map nested
+  // inside an array is not two array levels directly nested, so real
+  // Firestore imposes no rejection of this shape at all (proven
+  // separately in the real-emulator group below). The application
+  // validator is the sole, load-bearing enforcement layer here.
+  const entry = makeValidRelationshipEntry({
+    requiredDocumentTypeGroups: [{ documentTypes: [{ notAString: true }] }],
+  });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.reason, REASON.CONTENT_REQUIRED_GROUP_MEMBER_INVALID);
+});
+
+test("validator (Revision 13): documentTypes member order is preserved exactly as supplied, never sorted/coerced", () => {
+  const suppliedOrder = ["manufacturer_evidence", "supplier_agreement", "purchase_invoice"];
+  const entry = makeValidRelationshipEntry({
+    acceptedDocumentTypes: suppliedOrder,
+    requiredDocumentTypeGroups: [{ documentTypes: suppliedOrder }],
+  });
+  // The validator is pure/side-effect-free — it must not mutate its
+  // input at all, and in particular must never reorder the caller's
+  // own array in place.
+  const beforeJson = JSON.stringify(entry.requiredDocumentTypeGroups);
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.valid, true);
+  assert.equal(JSON.stringify(entry.requiredDocumentTypeGroups), beforeJson);
+  assert.deepEqual(entry.requiredDocumentTypeGroups[0].documentTypes, suppliedOrder);
+});
+
+test("validator (Revision 13): outer group order is preserved exactly as supplied", () => {
+  const entry = makeValidRelationshipEntry({
+    requiredDocumentTypeGroups: [
+      { documentTypes: ["manufacturer_evidence"] },
+      { documentTypes: ["supplier_agreement"] },
+      { documentTypes: ["purchase_invoice"] },
+    ],
+  });
+  const beforeJson = JSON.stringify(entry.requiredDocumentTypeGroups);
+  validateCompliancePolicyVersionDocument(makeValidDocument({ sellerRelationship: { manufacturer: entry } }), {
+    requireActivationEligible: true,
+  });
+  assert.equal(JSON.stringify(entry.requiredDocumentTypeGroups), beforeJson);
 });
 
 test("validator: duplicate groups rejected after canonicalization (order-independent)", () => {
   const entry = makeValidRelationshipEntry({
     acceptedDocumentTypes: ["manufacturer_evidence", "supplier_agreement"],
     requiredDocumentTypeGroups: [
-      ["manufacturer_evidence", "supplier_agreement"],
-      ["supplier_agreement", "manufacturer_evidence"],
+      { documentTypes: ["manufacturer_evidence", "supplier_agreement"] },
+      { documentTypes: ["supplier_agreement", "manufacturer_evidence"] },
+    ],
+  });
+  const result = validateCompliancePolicyVersionDocument(
+    makeValidDocument({ sellerRelationship: { manufacturer: entry } }),
+    { requireActivationEligible: true }
+  );
+  assert.equal(result.reason, REASON.CONTENT_REQUIRED_GROUPS_DUPLICATE);
+});
+
+test("validator (Revision 13): duplicate-group canonicalization compares group.documentTypes content, never raw object identity or key order", () => {
+  // Two distinct group objects (never the same reference, and — since
+  // each is a single-key object — trivially the same "key order" either
+  // way) whose `documentTypes` hold the same members in a different
+  // order are still caught as the same duplicate group.
+  const entry = makeValidRelationshipEntry({
+    acceptedDocumentTypes: ["manufacturer_evidence", "supplier_agreement", "purchase_invoice"],
+    requiredDocumentTypeGroups: [
+      { documentTypes: ["purchase_invoice"] },
+      { documentTypes: ["manufacturer_evidence", "supplier_agreement"] },
+      { documentTypes: ["supplier_agreement", "manufacturer_evidence"] },
     ],
   });
   const result = validateCompliancePolicyVersionDocument(
@@ -730,7 +924,7 @@ test("validator: duplicate groups rejected after canonicalization (order-indepen
 test("validator: required group member not in acceptedDocumentTypes rejected", () => {
   const entry = makeValidRelationshipEntry({
     acceptedDocumentTypes: ["purchase_invoice"],
-    requiredDocumentTypeGroups: [["manufacturer_evidence"]],
+    requiredDocumentTypeGroups: [{ documentTypes: ["manufacturer_evidence"] }],
   });
   const result = validateCompliancePolicyVersionDocument(
     makeValidDocument({ sellerRelationship: { manufacturer: entry } })
@@ -1811,18 +2005,66 @@ test("resolveActivePolicy source never queries by status — only .doc(...).get(
   assert.equal(body.includes(".where("), false);
 });
 
-test("no skip/todo/environment-dependent bypass anywhere in this test file", () => {
-  // Scans only the region BEFORE this test's own definition — this
-  // test's own assertions necessarily contain the denylisted strings as
-  // literal arguments, which would otherwise trivially self-match.
+// REV13-SELF-CHECK-START (marker for the self-check test immediately
+// below — lets that test precisely exclude its own body, which
+// necessarily contains the denylisted strings as literal regex/string
+// arguments, from what it scans).
+test("no skip/todo/environment-dependent bypass anywhere in this file's fake-db-backed tests — the one narrow, clearly-labeled Revision 13 real-emulator exception is confined exactly where it claims to be", () => {
+  // Revision 13 (§0.11) legitimately introduces exactly one skip
+  // mechanism (`itest`, gated on FIRESTORE_EMULATOR_HOST) for the one
+  // real-emulator serialization-regression group this correction adds,
+  // positioned near the end of this file. Every fake-db-backed test
+  // elsewhere in this file (both before and after this self-check's own
+  // position) must remain entirely free of conditional skipping, exactly
+  // as this file's own top-of-file doc comment now states.
   const testSource = fs.readFileSync(__filename, "utf8");
-  const selfStart = testSource.indexOf('test("no skip/todo/environment-dependent bypass');
-  const scanRegion = testSource.slice(0, selfStart);
-  assert.equal(/\{\s*skip\s*:/.test(scanRegion), false);
-  assert.equal(/\btest\.todo\(/.test(scanRegion), false);
-  assert.equal(scanRegion.includes("FIRESTORE_EMULATOR_HOST"), false);
-  assert.equal(scanRegion.includes("GCLOUD_PROJECT"), false);
+  const selfCheckStart = testSource.indexOf("// REV13-SELF-CHECK-START");
+  // The END marker's own name necessarily appears earlier too, as a
+  // plain string-literal argument on the line just above — always
+  // immediately preceded by `"`, never by a newline. Only the real,
+  // standalone comment line is preceded by `\n`, so anchoring the
+  // search on that newline skips the self-reference correctly.
+  const selfCheckEndMarker = "\n// REV13-SELF-CHECK-END";
+  const selfCheckEnd = testSource.indexOf(selfCheckEndMarker) + selfCheckEndMarker.length;
+  assert.ok(selfCheckStart > 0 && selfCheckEnd > selfCheckStart, "self-check markers must exist and be ordered");
+  const emulatorSectionStart = testSource.indexOf(
+    "Revision 13 (docs/plans/marketplace_p1a_compliance_review_",
+    selfCheckEnd
+  );
+  assert.ok(emulatorSectionStart > selfCheckEnd, "the real-emulator section must come after this self-check");
+
+  const itestDefStart = testSource.indexOf("function itest(name, fn)");
+  assert.ok(itestDefStart > 0, "the itest helper must exist");
+  const itestDefEnd = testSource.indexOf("\n}", itestDefStart) + 2;
+
+  // Every fake-db-backed test: everything except (a) this self-check's
+  // own body and (b) the real-emulator section, concatenated back
+  // together as one region. Must contain no direct `{skip: ...}`, no
+  // `test.todo(`, and no `itest(` CALL (only the helper's own single
+  // `function itest(...)` DEFINITION, sliced out separately below, is
+  // permitted to mention the name).
+  const fakeDbRegion =
+    testSource.slice(0, itestDefStart) +
+    testSource.slice(itestDefEnd, selfCheckStart) +
+    testSource.slice(selfCheckEnd, emulatorSectionStart);
+  assert.equal(/\{\s*skip\s*:/.test(fakeDbRegion), false);
+  assert.equal(/\btest\.todo\(/.test(fakeDbRegion), false);
+  assert.equal(/\bitest\(/.test(fakeDbRegion), false);
+
+  // The real-emulator section itself: every test in it must be an
+  // `itest(` call — never a bare `test(` call (which would run
+  // unconditionally against a possibly-absent real emulator) and never
+  // a direct `{skip: ...}` bypassing the shared helper.
+  const emulatorRegion = testSource.slice(emulatorSectionStart);
+  const emulatorTestCalls = emulatorRegion.match(/\b(itest|test)\(/g) || [];
+  assert.ok(emulatorTestCalls.length > 0, "the real-emulator section must contain at least one test");
+  assert.ok(
+    emulatorTestCalls.every((call) => call === "itest("),
+    "every test in the real-emulator section must use itest(), never a bare test() or an inline {skip: ...}"
+  );
+  assert.equal(/\{\s*skip\s*:/.test(emulatorRegion), false);
 });
+// REV13-SELF-CHECK-END
 
 test("isValidRegistryVersionId: identifier-shape allowlist matrix", () => {
   assert.equal(isValidRegistryVersionId("v1"), true);
@@ -1884,4 +2126,153 @@ test("manualAdminOverridePermitted alone cannot satisfy a requirement group — 
   assert.equal(resultTrue.valid, false);
   assert.equal(resultFalse.valid, false);
   assert.equal(resultTrue.reason, resultFalse.reason);
+});
+
+// =======================================================================
+// Revision 13 (docs/plans/marketplace_p1a_compliance_review_
+// implementation_plan_2026-08-21.md, §0.11/§15 items 301-303, 322-325):
+// real-emulator serialization regression. Every test above this line
+// uses only the in-memory fake `db` — this is the one test class this
+// file has never had, and it exists specifically because the fake has
+// no serialization boundary and therefore cannot, by construction,
+// prove anything about what real Firestore actually accepts or rejects.
+// Gated on FIRESTORE_EMULATOR_HOST via `itest` (declared at the top of
+// this file) — skipped, never failed, when no local emulator is
+// running. Never touches real cloud: `admin.initializeApp` above uses
+// only a local project ID, and the Admin SDK talks exclusively to
+// FIRESTORE_EMULATOR_HOST when that environment variable is set.
+// =======================================================================
+
+const db = admin.firestore();
+
+const crypto = require("node:crypto");
+
+let rev13Seq = 0;
+function rev13NextId(prefix) {
+  rev13Seq += 1;
+  return `${prefix}-${crypto.randomUUID()}-${rev13Seq}`;
+}
+
+async function rev13DeleteIfExists(ref) {
+  await ref.delete();
+}
+
+itest("real emulator (A): a native array-of-arrays requiredDocumentTypeGroups is rejected by Firestore itself", async () => {
+  const ref = db.collection(REGISTRY_COLLECTION).doc(rev13NextId("rev13-a"));
+  await assert.rejects(
+    () =>
+      ref.set({
+        requiredDocumentTypeGroups: [["purchase_invoice", "manufacturer_evidence"], ["importer_evidence"]],
+      }),
+    /Nested arrays are not allowed/
+  );
+});
+
+itest("real emulator (B): the wrapped RequiredDocumentTypeGroup[] shape writes and round-trips exactly", async () => {
+  const ref = db.collection(REGISTRY_COLLECTION).doc(rev13NextId("rev13-b"));
+  const shape = [
+    { documentTypes: ["purchase_invoice", "manufacturer_evidence"] },
+    { documentTypes: ["importer_evidence"] },
+  ];
+  try {
+    await ref.set({ requiredDocumentTypeGroups: shape });
+    const snap = await ref.get();
+    assert.deepEqual(snap.data().requiredDocumentTypeGroups, shape);
+  } finally {
+    await rev13DeleteIfExists(ref);
+  }
+});
+
+itest("real emulator (C): a nested array inside documentTypes — validator rejects it, and real Firestore independently rejects the raw write too", async () => {
+  // The application-validator side of this proof (never relying on
+  // Firestore alone) is already covered by the fake-db-backed test
+  // above ("validator (Revision 13): a nested array as one of
+  // documentTypes' own entries..."). This proves the independent,
+  // defense-in-depth Firestore-layer rejection §15 item 314 also
+  // claims, via a raw diagnostic write that bypasses the validator
+  // entirely — never how the real production writer behaves.
+  const ref = db.collection(REGISTRY_COLLECTION).doc(rev13NextId("rev13-c"));
+  await assert.rejects(
+    () => ref.set({ requiredDocumentTypeGroups: [{ documentTypes: [["nested"]] }] }),
+    /invalid nested entity|Nested arrays are not allowed/
+  );
+});
+
+itest("real emulator (D): a map/object inside documentTypes — validator rejects it even though a raw Firestore write structurally succeeds, proving the validator is load-bearing", async () => {
+  // The application-validator side of this proof is already covered by
+  // the fake-db-backed test above ("validator (Revision 13): a
+  // map/object as one of documentTypes' own entries..."). This proves
+  // the other half §15 item 315 claims: real Firestore imposes NO
+  // rejection of this shape at all, so the validator — not storage
+  // serialization — is the sole, load-bearing enforcement layer. The
+  // diagnostic document is written directly (bypassing the validator,
+  // exactly like item C) and cleaned up immediately after.
+  const ref = db.collection(REGISTRY_COLLECTION).doc(rev13NextId("rev13-d"));
+  try {
+    await ref.set({ requiredDocumentTypeGroups: [{ documentTypes: [{ notAString: true }] }] });
+    const snap = await ref.get();
+    assert.equal(snap.exists, true);
+  } finally {
+    await rev13DeleteIfExists(ref);
+  }
+});
+
+itest("real emulator (E): a real activation-eligible policy, created/bootstrapped/resolved through the production operations, stores and round-trips the wrapped shape with no serialization error", async () => {
+  // Deterministic, idempotent cleanup first — `bootstrapCompliancePolicyRegistry`
+  // can only ever succeed once against an empty pointer, and this
+  // singleton pointer path is shared across every real-emulator run of
+  // this test (including three-consecutive-run verification), so a
+  // prior run's leftover state must never be able to fail this one.
+  const versionId = "rev13-audit-e-v1";
+  const pointerRef = db.collection(POINTER_COLLECTION).doc(POINTER_DOC_ID);
+  const versionRef = db.collection(REGISTRY_COLLECTION).doc(versionId);
+  await rev13DeleteIfExists(pointerRef);
+  await rev13DeleteIfExists(versionRef);
+
+  try {
+    const wrappedGroups = [
+      { documentTypes: ["purchase_invoice", "manufacturer_evidence"] },
+      { documentTypes: ["importer_evidence"] },
+    ];
+
+    const created = await createCompliancePolicyVersion({
+      db,
+      sellerRelationship: {
+        manufacturer: {
+          acceptedDocumentTypes: ["purchase_invoice", "manufacturer_evidence", "importer_evidence"],
+          requiredDocumentTypeGroups: wrappedGroups,
+          perDocumentTypePolicy: {},
+          maximumValidityPeriod: null,
+          acceptedScopeTypes: ["business"],
+          manualAdminOverridePermitted: false,
+        },
+      },
+      effectiveFrom: admin.firestore.Timestamp.fromMillis(Date.now() - 10_000),
+      changeNote: "Revision 13 real-emulator regression",
+      initialStatus: "draft",
+      createdBy: "rev13-audit",
+      now: new Date(),
+      generateVersionId: () => versionId,
+    });
+    assert.equal(created.versionId, versionId);
+
+    // Read back directly (bypassing the production reader) to prove the
+    // WRITER itself never converts the wrapped shape back to a native
+    // array-of-arrays before or during the write.
+    const rawSnap = await versionRef.get();
+    assert.deepEqual(rawSnap.data().sellerRelationship.manufacturer.requiredDocumentTypeGroups, wrappedGroups);
+
+    const bootstrapped = await bootstrapCompliancePolicyRegistry({ db, targetVersionId: versionId });
+    assert.equal(bootstrapped.activeVersionId, versionId);
+
+    const resolved = await resolveActivePolicy({ db });
+    assert.equal(resolved.activeVersionId, versionId);
+    assert.deepEqual(
+      resolved.version.sellerRelationship.manufacturer.requiredDocumentTypeGroups,
+      wrappedGroups
+    );
+  } finally {
+    await rev13DeleteIfExists(pointerRef);
+    await rev13DeleteIfExists(versionRef);
+  }
 });

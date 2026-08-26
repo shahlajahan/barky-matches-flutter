@@ -336,7 +336,7 @@ function seedActivePolicy(store) {
     sellerRelationship: {
       [SELLER_RELATIONSHIP.RESELLER]: {
         acceptedDocumentTypes: ["purchase_invoice"],
-        requiredDocumentTypeGroups: [["purchase_invoice"]],
+        requiredDocumentTypeGroups: [{ documentTypes: ["purchase_invoice"] }],
         perDocumentTypePolicy: {},
         maximumValidityPeriod: null,
         acceptedScopeTypes: ["category"],

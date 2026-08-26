@@ -674,8 +674,18 @@ async function selectCoverageFirstExtras({
 // ---------------------------------------------------------------------
 
 async function evaluateRequiredSlots({ tx, db, product, relationship, branch, rawCandidates, nowMs, counters }) {
+  // Revision 13 (docs/plans/..., §0.11): each outer entry of
+  // `requiredDocumentTypeGroups` is now a `RequiredDocumentTypeGroup`
+  // object (`{documentTypes: [...]}`), never a bare array — the
+  // wrapped-shape correction required to make this field writable to
+  // real Firestore. Only this access path changes, from `group` to
+  // `group.documentTypes`; the derived `requiredEvidenceSlots` output
+  // shape (`{acceptedDocumentTypes: [...]}`) is byte-for-byte unchanged,
+  // and every reader downstream of this function's own output
+  // (`decisionHash`, `evaluateLiveProductEligibility`, moderation,
+  // public catalog) is therefore unaffected.
   const requiredEvidenceSlots = branch.requiredDocumentTypeGroups.map((group) => ({
-    acceptedDocumentTypes: [...group],
+    acceptedDocumentTypes: [...group.documentTypes],
   }));
 
   const { filtered, groups } = preFilterAndGroup({
