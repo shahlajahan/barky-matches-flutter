@@ -10,6 +10,7 @@
 // complianceUploadSessionCreation.test.js).
 
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const admin = require("firebase-admin");
@@ -2954,6 +2955,1017 @@ itest("reviewScope: reject then approve fails closed (terminal, cannot flip)", a
 });
 
 // =====================================================================
+// Slice 4.6 (docs/plans/marketplace_p1a_compliance_review_implementation_
+// plan_2026-08-21.md §4/§8) — businessComplianceEpochs epoch-bump
+// integration. Exactly five real, non-idempotent transitions
+// (reviewComplianceDocument-approve, revokeComplianceDocument,
+// supersedeComplianceDocument, reviewComplianceScope-approve,
+// reviewComplianceScopeMembers-approve) bump
+// businessComplianceEpochs/{businessId}.epoch by exactly one, inside the
+// same transaction as the operation's own status change and audit
+// event. Reuses this file's own established Slice 3 seeding/emulator
+// conventions throughout — no new test infrastructure pattern.
+// =====================================================================
+
+async function getEpochDoc(businessId) {
+  const snap = await db.collection("businessComplianceEpochs").doc(businessId).get();
+  return snap.exists ? snap.data() : undefined;
+}
+
+async function seedEpochDoc(businessId, fields) {
+  await db.collection("businessComplianceEpochs").doc(businessId).set(fields);
+}
+
+// One "perform the real, qualifying transition" function per Slice 4.6
+// operation — each seeds exactly what its own operation needs and
+// returns { response, replay, businessId, targetType, targetId } so the
+// same five can be reused, parameterized, across the B/C/E groups below
+// without duplicating each operation's own seeding shape five times per
+// concern.
+
+async function performEpoch_ReviewComplianceDocument({ businessId, ownerUid, adminUid }) {
+  const documentId = await seedCleanDocument({ businessId });
+  await functions.submitComplianceDocument.run({ auth: { uid: ownerUid }, data: validSubmitRequest(documentId) });
+  const invoke = () =>
+    functions.reviewComplianceDocument.run({ auth: { uid: adminUid }, data: { documentId, decision: "approve" } });
+  const response = await invoke();
+  return {
+    response,
+    replay: invoke,
+    businessId,
+    targetType: "document",
+    targetId: documentId,
+    expectedResponse: { documentId, status: "approved", idempotent: false },
+  };
+}
+
+// Raw-seeded prerequisite state, deliberately bypassing the real
+// submit/approve/addScope/addMembers flow: those real operations are
+// themselves either non-qualifying (submit, addComplianceScope,
+// addComplianceScopeMembers — safe to use) or, for
+// reviewComplianceDocument's own approve branch, THEMSELVES a real
+// qualifying Slice 4.6 transition that would bump the epoch as a side
+// effect of merely reaching the prerequisite state — which would
+// silently double-count against a test whose whole point is to prove
+// exactly one bump happens per operation under test. Raw admin writes
+// (matching the exact document/scope shapes already established by
+// seedCleanDocument/addComplianceScope's own tx.create payload) isolate
+// the operation under test from its own fixture setup.
+async function seedApprovedDocumentDirect({ businessId }) {
+  const documentId = await seedCleanDocument({ businessId });
+  await db.collection("complianceDocuments").doc(documentId).update({
+    status: "approved",
+    sellerRelationship: "authorized_distributor",
+    reviewedBy: "epoch-fixture-seed",
+    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return documentId;
+}
+
+async function seedPendingScopeDirect({ businessId, status = "pending_review" }) {
+  const scopeId = crypto.randomUUID();
+  await db.collection("complianceDocumentScopes").doc(scopeId).set({
+    documentId: "epoch-fixture-placeholder-doc",
+    businessId,
+    scopeType: "sku_set",
+    scopeValue: "epoch-fixture-sku-set",
+    sellerRelationship: "authorized_distributor",
+    documentType: "purchase_invoice",
+    validUntil: null,
+    memberCount: 0,
+    status,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: "epoch-fixture-seed",
+    reviewedBy: null,
+    reviewedAt: null,
+    verifiedBrandId: null,
+  });
+  return scopeId;
+}
+
+async function seedPendingScopeWithMemberDirect({ businessId }) {
+  const { deriveScopeMemberId } = require("../src/marketplace/compliance/complianceDocumentOperations");
+  const scopeId = await seedPendingScopeDirect({ businessId });
+  const memberId = deriveScopeMemberId({ scopeId, identifierType: "sku", identifierValue: "SKU-EPOCH-FIXTURE" });
+  await db.collection("complianceDocumentScopes").doc(scopeId).collection("members").doc(memberId).set({
+    identifierType: "sku",
+    identifierValue: "SKU-EPOCH-FIXTURE",
+    status: "pending_review",
+    addedAt: admin.firestore.FieldValue.serverTimestamp(),
+    addedBy: "epoch-fixture-seed",
+    reviewedBy: null,
+    reviewedAt: null,
+    revokedAt: null,
+    revokedBy: null,
+  });
+  return { scopeId, memberIds: [memberId] };
+}
+
+async function performEpoch_RevokeComplianceDocument({ businessId }) {
+  const documentId = await seedApprovedDocumentDirect({ businessId });
+  const adminUid = await seedAdmin();
+  const invoke = () =>
+    functions.revokeComplianceDocument.run({
+      auth: { uid: adminUid },
+      data: { documentId, revocationReason: "epoch-test-revoke" },
+    });
+  const response = await invoke();
+  return {
+    response,
+    replay: invoke,
+    businessId,
+    targetType: "document",
+    targetId: documentId,
+    expectedResponse: { documentId, status: "revoked", idempotent: false },
+  };
+}
+
+async function performEpoch_SupersedeComplianceDocument({ businessId }) {
+  const oldDocumentId = await seedApprovedDocumentDirect({ businessId });
+  const newDocumentId = await seedApprovedDocumentDirect({ businessId });
+  const adminUid = await seedAdmin();
+  const invoke = () =>
+    functions.supersedeComplianceDocument.run({ auth: { uid: adminUid }, data: { newDocumentId, oldDocumentId } });
+  const response = await invoke();
+  return {
+    response,
+    replay: invoke,
+    businessId,
+    targetType: "document",
+    targetId: oldDocumentId,
+    expectedResponse: { newDocumentId, oldDocumentId, oldStatus: "superseded", idempotent: false },
+  };
+}
+
+async function performEpoch_ReviewComplianceScope({ businessId }) {
+  const scopeId = await seedPendingScopeDirect({ businessId });
+  const adminUid = await seedAdmin();
+  const invoke = () =>
+    functions.reviewComplianceScope.run({ auth: { uid: adminUid }, data: { scopeId, decision: "approve" } });
+  const response = await invoke();
+  return {
+    response,
+    replay: invoke,
+    businessId,
+    targetType: "scope",
+    targetId: scopeId,
+    expectedResponse: { scopeId, status: "approved", idempotent: false },
+  };
+}
+
+async function performEpoch_ReviewComplianceScopeMembers({ businessId }) {
+  const { scopeId, memberIds } = await seedPendingScopeWithMemberDirect({ businessId });
+  const adminUid = await seedAdmin();
+  const invoke = () =>
+    functions.reviewComplianceScopeMembers.run({
+      auth: { uid: adminUid },
+      data: { scopeId, memberIds, decision: "approve" },
+    });
+  const response = await invoke();
+  return {
+    response,
+    replay: invoke,
+    businessId,
+    targetType: "scope_member_batch",
+    targetId: scopeId,
+    expectedResponse: { scopeId, status: "active", updatedCount: memberIds.length, idempotent: false },
+  };
+}
+
+const EPOCH_QUALIFYING_OPS = [
+  { name: "reviewComplianceDocument", perform: performEpoch_ReviewComplianceDocument },
+  { name: "revokeComplianceDocument", perform: performEpoch_RevokeComplianceDocument },
+  { name: "supersedeComplianceDocument", perform: performEpoch_SupersedeComplianceDocument },
+  { name: "reviewComplianceScope", perform: performEpoch_ReviewComplianceScope },
+  { name: "reviewComplianceScopeMembers", perform: performEpoch_ReviewComplianceScopeMembers },
+];
+
+// ---------------------------------------------------------------------
+// A. Exact five real transitions — missing epoch document -> 1
+// ---------------------------------------------------------------------
+
+itest("epoch [A1] reviewComplianceDocument approve: missing epoch document -> epoch 1", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  assert.equal(await getEpochDoc(businessId), undefined);
+  const { response, expectedResponse, targetType, targetId } = await performEpoch_ReviewComplianceDocument({
+    businessId,
+    ownerUid: "seller-1",
+    adminUid,
+  });
+  assert.deepEqual(response, expectedResponse);
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+  // submitComplianceDocument's own SUBMITTED event (1) + this
+  // reviewComplianceDocument's own APPROVED event (1) = 2, both
+  // targeted at this same documentId.
+  assert.equal(await countReviewEvents({ targetType, targetId }), 2);
+});
+
+itest("epoch [A2] revokeComplianceDocument real revoke: missing epoch document -> epoch 1", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  assert.equal(await getEpochDoc(businessId), undefined);
+  const { response, expectedResponse, targetType, targetId } = await performEpoch_RevokeComplianceDocument({
+    businessId,
+    ownerUid: "seller-1",
+    adminUid,
+  });
+  assert.deepEqual(response, expectedResponse);
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+  // The prerequisite document is raw-seeded directly at "approved"
+  // (no submit/review flow, no event) — only this revoke's own REVOKED
+  // event exists.
+  assert.equal(await countReviewEvents({ targetType, targetId }), 1);
+});
+
+itest("epoch [A3] supersedeComplianceDocument real supersede: old business epoch document -> epoch 1", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  assert.equal(await getEpochDoc(businessId), undefined);
+  const { response, expectedResponse, businessId: keyedBusinessId } = await performEpoch_SupersedeComplianceDocument({
+    businessId,
+    ownerUid: "seller-1",
+    adminUid,
+  });
+  assert.deepEqual(response, expectedResponse);
+  assert.equal(keyedBusinessId, businessId);
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+});
+
+itest("epoch [A4] reviewComplianceScope approve: missing epoch document -> epoch 1", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  assert.equal(await getEpochDoc(businessId), undefined);
+  const { response, expectedResponse, targetType, targetId } = await performEpoch_ReviewComplianceScope({
+    businessId,
+    ownerUid: "seller-1",
+    adminUid,
+  });
+  assert.deepEqual(response, expectedResponse);
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+  // The prerequisite scope is raw-seeded directly at "pending_review"
+  // (no addComplianceScope call, no event) — only this
+  // reviewComplianceScope's own APPROVED event exists.
+  assert.equal(await countReviewEvents({ targetType, targetId }), 1);
+});
+
+itest("epoch [A5] reviewComplianceScopeMembers approve: missing epoch document -> epoch 1", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  assert.equal(await getEpochDoc(businessId), undefined);
+  const { response, expectedResponse, targetType, targetId } = await performEpoch_ReviewComplianceScopeMembers({
+    businessId,
+    ownerUid: "seller-1",
+    adminUid,
+  });
+  assert.deepEqual(response, expectedResponse);
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+  // The prerequisite scope/member are raw-seeded directly (no
+  // addComplianceScope/addComplianceScopeMembers calls, no events) —
+  // only this reviewComplianceScopeMembers' own APPROVED event exists.
+  assert.equal(await countReviewEvents({ targetType, targetId }), 1);
+});
+
+// ---------------------------------------------------------------------
+// B. Existing epoch behavior
+// ---------------------------------------------------------------------
+
+for (const { name, perform } of EPOCH_QUALIFYING_OPS) {
+  itest(`epoch [B6] ${name}: pre-existing epoch 7 -> 8`, async () => {
+    const businessId = await seedBusiness("seller-1");
+    const adminUid = await seedAdmin();
+    await seedEpochDoc(businessId, { epoch: 7 });
+    const { response, expectedResponse } = await perform({ businessId, ownerUid: "seller-1", adminUid });
+    assert.deepEqual(response, expectedResponse);
+    const epoch = await getEpochDoc(businessId);
+    assert.equal(epoch.epoch, 8);
+  });
+}
+
+itest("epoch [B7] merge:true preserves an unrelated sentinel field on the epoch document", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  await seedEpochDoc(businessId, { epoch: 3, sentinel: "keep-me" });
+  await performEpoch_ReviewComplianceDocument({ businessId, ownerUid: "seller-1", adminUid });
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 4);
+  assert.equal(epoch.sentinel, "keep-me");
+});
+
+itest("epoch [B8] an existing epoch document missing the epoch field behaves as 0 -> 1, preserving unrelated fields", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  await seedEpochDoc(businessId, { sentinel: "keep-me-too" }); // document exists, no `epoch` field
+  await performEpoch_ReviewComplianceDocument({ businessId, ownerUid: "seller-1", adminUid });
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+  assert.equal(epoch.sentinel, "keep-me-too");
+});
+
+// ---------------------------------------------------------------------
+// C. No-bump behavior
+// ---------------------------------------------------------------------
+
+itest("epoch [C9] reviewComplianceDocument reject: no epoch document is created", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await functions.submitComplianceDocument.run({ auth: { uid: "seller-1" }, data: validSubmitRequest(documentId) });
+  await functions.reviewComplianceDocument.run({
+    auth: { uid: adminUid },
+    data: { documentId, decision: "reject", rejectionReason: "no" },
+  });
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+itest("epoch [C10] reviewComplianceScope reject: no bump", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const scopeId = await seedPendingScopeDirect({ businessId });
+  await functions.reviewComplianceScope.run({ auth: { uid: adminUid }, data: { scopeId, decision: "reject" } });
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+itest("epoch [C11] reviewComplianceScopeMembers reject: no bump", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const { scopeId, memberIds } = await seedPendingScopeWithMemberDirect({ businessId });
+  await functions.reviewComplianceScopeMembers.run({
+    auth: { uid: adminUid },
+    data: { scopeId, memberIds, decision: "reject" },
+  });
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+for (const { name, perform } of EPOCH_QUALIFYING_OPS) {
+  itest(`epoch [C12] ${name}: idempotent replay does not bump a second time`, async () => {
+    const businessId = await seedBusiness("seller-1");
+    const adminUid = await seedAdmin();
+    const { replay } = await perform({ businessId, ownerUid: "seller-1", adminUid });
+    let epoch = await getEpochDoc(businessId);
+    assert.equal(epoch.epoch, 1);
+    const replayResponse = await replay();
+    assert.equal(replayResponse.idempotent, true);
+    epoch = await getEpochDoc(businessId);
+    assert.equal(epoch.epoch, 1, "a replay must never bump the epoch a second time");
+  });
+}
+
+itest("epoch [C13] invalid transition/status: no bump (revoke on a still-pending_review document)", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await functions.submitComplianceDocument.run({ auth: { uid: "seller-1" }, data: validSubmitRequest(documentId) });
+  await assert.rejects(
+    functions.revokeComplianceDocument.run({
+      auth: { uid: adminUid },
+      data: { documentId, revocationReason: "not approved yet" },
+    }),
+    (err) => {
+      assert.equal(err.code, "failed-precondition");
+      return true;
+    }
+  );
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+itest("epoch [C14] auth failure: no bump (unauthenticated/non-admin caller)", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const documentId = await seedApprovedDocumentDirect({ businessId });
+  await assert.rejects(
+    functions.revokeComplianceDocument.run({
+      auth: null,
+      data: { documentId, revocationReason: "no auth" },
+    }),
+    (err) => {
+      assert.equal(err.code, "unauthenticated");
+      return true;
+    }
+  );
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+itest("epoch [C15] request validation failure: no bump (missing documentId)", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  await assert.rejects(
+    functions.reviewComplianceDocument.run({ auth: { uid: adminUid }, data: { decision: "approve" } }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+itest("epoch [C16] cross-tenant/business mismatch (supersede across two businesses): no bump", async () => {
+  const businessId1 = await seedBusiness("seller-1");
+  const businessId2 = await seedBusiness("seller-2");
+  const adminUid = await seedAdmin();
+  const oldDocumentId = await seedApprovedDocumentDirect({ businessId: businessId1 });
+  const newDocumentId = await seedApprovedDocumentDirect({ businessId: businessId2 });
+  await assert.rejects(
+    functions.supersedeComplianceDocument.run({ auth: { uid: adminUid }, data: { newDocumentId, oldDocumentId } }),
+    (err) => {
+      assert.equal(err.code, "failed-precondition");
+      return true;
+    }
+  );
+  assert.equal(await getEpochDoc(businessId1), undefined);
+  assert.equal(await getEpochDoc(businessId2), undefined);
+});
+
+itest("epoch [C17] missing source document/scope: no bump (not-found)", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  await assert.rejects(
+    functions.reviewComplianceDocument.run({
+      auth: { uid: adminUid },
+      data: { documentId: "does-not-exist", decision: "approve" },
+    }),
+    (err) => {
+      assert.equal(err.code, "not-found");
+      return true;
+    }
+  );
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+itest("epoch [C18] other existing failed-precondition path (brand scope approved without verifiedBrandId): no bump", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedApprovedDocumentDirect({ businessId });
+  const { scopeId } = await functions.addComplianceScope.run({
+    auth: { uid: "seller-1" },
+    data: { documentId, scopeType: "brand", scopeValue: "Acme" },
+  });
+  await assert.rejects(
+    functions.reviewComplianceScope.run({ auth: { uid: adminUid }, data: { scopeId, decision: "approve" } }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      return true;
+    }
+  );
+  assert.equal(await getEpochDoc(businessId), undefined);
+});
+
+// ---------------------------------------------------------------------
+// D. Atomic failure behavior — a deliberately invalid businessId ("")
+// makes `db.collection("businessComplianceEpochs").doc(businessId)`
+// throw synchronously the instant the epoch write is attempted inside
+// the transaction (Firestore's own Admin SDK rejects an empty document
+// ID at construction time). This is the one write in these five
+// transactions whose failure can be forced deterministically, input-
+// only, without any mock/instrumentation of production code. Each test
+// below proves the *whole* transaction — not just the epoch write —
+// commits nothing: the document/scope's own status update (already
+// staged before the epoch write in every one of these five functions)
+// is rolled back exactly as the audit event (staged after it) is, since
+// Firestore transactions are all-or-nothing. This single mechanism
+// therefore evidences items 19 and 21 together (a failure at the epoch
+// write aborts everything already staged, and the callback as a whole
+// commits zero writes), and item 20's complementary direction (the
+// operation's own write does not survive either) from the same proof.
+// ---------------------------------------------------------------------
+
+itest("epoch [D19/20/21] reviewComplianceDocument approve: forcing the epoch write to throw (businessId \"\") commits zero writes — status, event, and epoch all unchanged", async () => {
+  // Corrected (independent audit finding): the prior version of this
+  // fixture seeded the document at "clean" and attempted "approve"
+  // directly — but clean -> approved is not a legal transition
+  // (COMPLIANCE_DOCUMENT_ALLOWED_TRANSITIONS.clean = ["pending_review"]
+  // only), so the call rejected with the EARLIER, unrelated
+  // failed-precondition "Cannot move a document from \"clean\" to
+  // \"approved\"" — never reaching tx.update, the epoch write, or
+  // writeComplianceReviewEvent at all. Confirmed empirically. The
+  // document is raw-seeded directly at "pending_review" here instead
+  // (bypassing submitComplianceDocument — not because that helper would
+  // itself bump the epoch, it doesn't, but to match this file's own
+  // established D-group raw-seeding convention), so the real approve
+  // branch is genuinely reached: request/auth/tenant/status validation
+  // pass, tx.update(documentRef, ...) is staged, and only then does the
+  // epoch write's own db.collection(...).doc("") throw.
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId: "" });
+  await db.collection("complianceDocuments").doc(documentId).update({ status: "pending_review" });
+
+  let caughtError;
+  try {
+    await functions.reviewComplianceDocument.run({ auth: { uid: adminUid }, data: { documentId, decision: "approve" } });
+  } catch (err) {
+    caughtError = err;
+  }
+  assert.ok(caughtError, "expected the call to reject");
+  // Distinguish the intended epoch-write/path-construction failure from
+  // the old, unrelated invalid-transition shortcut — by class, not by a
+  // platform-version-specific full string. This module's own thrown
+  // failures are always HttpsError instances carrying a `code` (e.g.
+  // "failed-precondition", "invalid-argument"); the raw Firestore Admin
+  // SDK's synchronous document-path validation error (thrown by
+  // db.collection(...).doc("") inside bumpBusinessComplianceEpoch) is a
+  // plain Error with no such `code` at all. That absence is exactly what
+  // proves this rejection came from the epoch write, not from an
+  // earlier, already-HttpsError-wrapped application-level check.
+  assert.equal(
+    caughtError.code,
+    undefined,
+    `expected a raw SDK path-construction error with no HttpsError code, got code=${caughtError.code} message=${caughtError.message}`
+  );
+  assert.doesNotMatch(
+    caughtError.message,
+    /clean.*approved|Cannot move a document/i,
+    "must not be the old, unrelated clean -> approved invalid-transition rejection"
+  );
+  assert.match(caughtError.message, /resource path/i);
+  assert.match(caughtError.message, /non-empty string/i);
+
+  const doc = await getDocument(documentId);
+  assert.equal(
+    doc.status,
+    "pending_review",
+    "the document's own status update must not have committed — still at its pre-attempt state, never \"approved\""
+  );
+  assert.equal(await countReviewEvents({ targetType: "document", targetId: documentId }), 0, "no audit event may have committed");
+  // Note: businessId "" cannot itself be queried (db.collection(...).doc("")
+  // throws the identical "non-empty string" error) — the status/event
+  // assertions above already prove the whole transaction, epoch write
+  // included, committed nothing.
+});
+
+itest("epoch [D19/20/21] revokeComplianceDocument: forcing the epoch write to throw commits zero writes", async () => {
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId: "" });
+  await db.collection("complianceDocuments").doc(documentId).update({ status: "approved" });
+  await assert.rejects(
+    functions.revokeComplianceDocument.run({
+      auth: { uid: adminUid },
+      data: { documentId, revocationReason: "force epoch failure" },
+    })
+  );
+  const doc = await getDocument(documentId);
+  assert.equal(doc.status, "approved", "the document's own status update must not have committed");
+  assert.equal(await countReviewEvents({ targetType: "document", targetId: documentId }), 0);
+  // Note: businessId "" cannot itself be queried (db.collection(...).doc("")
+  // throws the identical "non-empty string" error) — the status/event
+  // assertions above already prove the whole transaction, epoch write
+  // included, committed nothing.
+});
+
+itest("epoch [D19/20/21] supersedeComplianceDocument: forcing the epoch write to throw commits zero writes", async () => {
+  const adminUid = await seedAdmin();
+  const oldDocumentId = await seedCleanDocument({ businessId: "" });
+  await db.collection("complianceDocuments").doc(oldDocumentId).update({ status: "approved" });
+  const newDocumentId = await seedCleanDocument({ businessId: "" });
+  await db.collection("complianceDocuments").doc(newDocumentId).update({ status: "approved" });
+  await assert.rejects(
+    functions.supersedeComplianceDocument.run({ auth: { uid: adminUid }, data: { newDocumentId, oldDocumentId } })
+  );
+  const oldDoc = await getDocument(oldDocumentId);
+  const newDoc = await getDocument(newDocumentId);
+  assert.equal(oldDoc.status, "approved", "neither document's status update may have committed");
+  assert.equal(newDoc.supersedesDocumentId, null);
+  assert.equal(await countReviewEvents({ targetType: "document", targetId: oldDocumentId }), 0);
+  // Note: businessId "" cannot itself be queried (db.collection(...).doc("")
+  // throws the identical "non-empty string" error) — the status/event
+  // assertions above already prove the whole transaction, epoch write
+  // included, committed nothing.
+});
+
+itest("epoch [D19/20/21] reviewComplianceScope approve: forcing the epoch write to throw commits zero writes", async () => {
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId: "" });
+  await db.collection("complianceDocuments").doc(documentId).update({ status: "approved", sellerRelationship: "authorized_distributor" });
+  const scopeId = crypto.randomUUID();
+  await db.collection("complianceDocumentScopes").doc(scopeId).set({
+    documentId,
+    businessId: "",
+    scopeType: "sku_set",
+    scopeValue: "sku-set-1",
+    sellerRelationship: "authorized_distributor",
+    documentType: "purchase_invoice",
+    validUntil: null,
+    memberCount: 0,
+    status: "pending_review",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: "seller-1",
+    reviewedBy: null,
+    reviewedAt: null,
+    verifiedBrandId: null,
+  });
+  await assert.rejects(
+    functions.reviewComplianceScope.run({ auth: { uid: adminUid }, data: { scopeId, decision: "approve" } })
+  );
+  const scopeSnap = await db.collection("complianceDocumentScopes").doc(scopeId).get();
+  assert.equal(scopeSnap.data().status, "pending_review", "the scope's own status update must not have committed");
+  assert.equal(await countReviewEvents({ targetType: "scope", targetId: scopeId }), 0);
+  // Note: businessId "" cannot itself be queried (db.collection(...).doc("")
+  // throws the identical "non-empty string" error) — the status/event
+  // assertions above already prove the whole transaction, epoch write
+  // included, committed nothing.
+});
+
+itest("epoch [D19/20/21] reviewComplianceScopeMembers approve: forcing the epoch write to throw commits zero writes", async () => {
+  const adminUid = await seedAdmin();
+  const scopeId = crypto.randomUUID();
+  await db.collection("complianceDocumentScopes").doc(scopeId).set({
+    documentId: "doc-x",
+    businessId: "",
+    scopeType: "sku_set",
+    scopeValue: "sku-set-1",
+    sellerRelationship: "authorized_distributor",
+    documentType: "purchase_invoice",
+    validUntil: null,
+    memberCount: 0,
+    status: "approved",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: "seller-1",
+    reviewedBy: adminUid,
+    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    verifiedBrandId: null,
+  });
+  const { deriveScopeMemberId } = require("../src/marketplace/compliance/complianceDocumentOperations");
+  const memberId = deriveScopeMemberId({ scopeId, identifierType: "sku", identifierValue: "SKU-EPOCH-D" });
+  await db.collection("complianceDocumentScopes").doc(scopeId).collection("members").doc(memberId).set({
+    identifierType: "sku",
+    identifierValue: "SKU-EPOCH-D",
+    status: "pending_review",
+    addedAt: admin.firestore.FieldValue.serverTimestamp(),
+    addedBy: "seller-1",
+    reviewedBy: null,
+    reviewedAt: null,
+    revokedAt: null,
+    revokedBy: null,
+  });
+  await assert.rejects(
+    functions.reviewComplianceScopeMembers.run({
+      auth: { uid: adminUid },
+      data: { scopeId, memberIds: [memberId], decision: "approve" },
+    })
+  );
+  const memberSnap = await db.collection("complianceDocumentScopes").doc(scopeId).collection("members").doc(memberId).get();
+  assert.equal(memberSnap.data().status, "pending_review", "the member's own status update must not have committed");
+  assert.equal(await countReviewEvents({ targetType: "scope_member_batch", targetId: scopeId }), 0);
+  // Note: businessId "" cannot itself be queried (db.collection(...).doc("")
+  // throws the identical "non-empty string" error) — the status/event
+  // assertions above already prove the whole transaction, epoch write
+  // included, committed nothing.
+});
+
+// ---------------------------------------------------------------------
+// E. Concurrency — real races against the real emulator, same
+// established Promise.allSettled pattern already used elsewhere in this
+// file (e.g. "addScope (Correction B): concurrent duplicate calls...").
+//
+// Explicit concurrency taxonomy (corrected — the prior wording here
+// overclaimed what E23 actually proves):
+//   Type A — one logical invocation's own transaction callback is
+//     internally re-executed by Firestore because a document it read
+//     changed before its own commit (a genuine mid-transaction retry).
+//     NOT directly instrumented or proven by this suite — this file's
+//     own top-of-file doc comment already documents that a controlled,
+//     reliable way to force this against the real emulator (without
+//     breaking the transaction handle) was not found; production
+//     correctness for this case rests on Firestore's own documented
+//     transaction semantics, not on a test observing a callback run
+//     twice for one call.
+//   Type B — several separate, independent invocations race on the
+//     SAME target; exactly one performs the real transition, the rest
+//     converge through this module's own existing idempotent-replay
+//     contract. Proven below by E23.
+//   Type C — several separate, independent invocations succeed on
+//     DIFFERENT targets for the same business, each a genuine, distinct
+//     transition; the shared businessComplianceEpochs/{businessId}
+//     document's FieldValue.increment(1) must not lose any of them.
+//     Proven below by E24 (sequential) and E25 (concurrent).
+// ---------------------------------------------------------------------
+
+itest("epoch [E23] Type B — five competing independent invocations race on the SAME document: exactly one performs the real transition, the other four converge via idempotent replay, exactly one NEW event and one epoch increment are added by the race — proven against an explicit pre-race baseline, not merely a bare final total", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const documentId = await seedCleanDocument({ businessId });
+  await functions.submitComplianceDocument.run({ auth: { uid: "seller-1" }, data: validSubmitRequest(documentId) });
+
+  // Corrected (independent audit finding): a prior version of this test
+  // asserted only the bare FINAL total (2) after the race, backed by a
+  // comment explaining "1 baseline + 1 delta" rather than by an actual
+  // captured-and-compared baseline. That final-total-only check cannot,
+  // by itself, distinguish "the race added exactly one event" from any
+  // other bug combination that happens to also total 2. The baseline is
+  // now captured and asserted explicitly, BEFORE the race, and the
+  // race's own effect is proven as a delta against it.
+  const baselineEventsSnap = await db
+    .collection("complianceReviewEvents")
+    .where("targetType", "==", "document")
+    .where("targetId", "==", documentId)
+    .get();
+  const baselineEventCount = baselineEventsSnap.size;
+  assert.equal(
+    baselineEventCount,
+    1,
+    "exactly one baseline event (submitComplianceDocument's own SUBMITTED event) must exist before the race"
+  );
+  assert.equal(
+    baselineEventsSnap.docs[0].data().action,
+    "submitted",
+    "the baseline event must be the expected SUBMITTED action"
+  );
+
+  const attempts = 5;
+  const outcomes = await Promise.allSettled(
+    Array.from({ length: attempts }, () =>
+      functions.reviewComplianceDocument.run({ auth: { uid: adminUid }, data: { documentId, decision: "approve" } })
+    )
+  );
+  const fulfilled = outcomes.filter((o) => o.status === "fulfilled").map((o) => o.value);
+  assert.equal(fulfilled.length, attempts, "every concurrent attempt against the same target must resolve, not error");
+  const realTransitions = fulfilled.filter((r) => r.idempotent === false);
+  const replays = fulfilled.filter((r) => r.idempotent === true);
+  assert.equal(realTransitions.length, 1, "exactly one attempt performs the real transition");
+  assert.equal(replays.length, attempts - 1, "every other attempt resolves as an idempotent replay");
+
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1, "the epoch increments exactly once, never once per attempt");
+
+  const finalEventsSnap = await db
+    .collection("complianceReviewEvents")
+    .where("targetType", "==", "document")
+    .where("targetId", "==", documentId)
+    .get();
+  const finalEventCount = finalEventsSnap.size;
+  assert.equal(
+    finalEventCount - baselineEventCount,
+    1,
+    "the race must add exactly one NEW event on top of the explicit baseline — the actual claim this test's own name makes, not merely a bare final total"
+  );
+  // Secondary, non-load-bearing sanity check — kept for readability, but
+  // it must never substitute for the baseline/delta proof above.
+  assert.equal(finalEventCount, 2);
+  const approvedEvents = finalEventsSnap.docs.filter((d) => d.data().action === "approved");
+  assert.equal(
+    approvedEvents.length,
+    1,
+    "exactly one new APPROVED event exists after the race — no duplicate APPROVED event was created by any of the four replay attempts"
+  );
+});
+
+itest("epoch [E24] Type C — two independent successful qualifying transitions for the same business (sequential): epoch increases by exactly two", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  await performEpoch_ReviewComplianceDocument({ businessId, ownerUid: "seller-1", adminUid });
+  let epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+  await performEpoch_RevokeComplianceDocument({ businessId, ownerUid: "seller-1", adminUid });
+  epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 2);
+});
+
+itest("epoch [E25] Type C — N concurrent, independent qualifying transitions for the same business (different documents, real race on the shared epoch document only): no lost increment — final epoch equals the successful-transition count", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const n = 8;
+  const documentIds = [];
+  for (let i = 0; i < n; i += 1) {
+    const documentId = await seedCleanDocument({ businessId });
+    await functions.submitComplianceDocument.run({ auth: { uid: "seller-1" }, data: validSubmitRequest(documentId) });
+    documentIds.push(documentId);
+  }
+  // Each attempt targets a DIFFERENT document — no contention on the
+  // document refs themselves, only shared contention on the one
+  // businessComplianceEpochs/{businessId} document every attempt's
+  // FieldValue.increment(1) races to update concurrently.
+  const outcomes = await Promise.all(
+    documentIds.map((documentId) =>
+      functions.reviewComplianceDocument.run({ auth: { uid: adminUid }, data: { documentId, decision: "approve" } })
+    )
+  );
+  assert.equal(outcomes.filter((r) => r.idempotent === false).length, n);
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, n, "FieldValue.increment is atomic under concurrency — no lost update");
+});
+
+// ---------------------------------------------------------------------
+// F. Supersede authoritative business identity
+// ---------------------------------------------------------------------
+
+itest("epoch [F26] supersede increments oldData.businessId, confirmed against the actual old document's stored business", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const { businessId: keyedBusinessId } = await performEpoch_SupersedeComplianceDocument({
+    businessId,
+    ownerUid: "seller-1",
+    adminUid,
+  });
+  assert.equal(keyedBusinessId, businessId);
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1);
+});
+
+itest("epoch [F27] supersede's request shape has no businessId field at all — a caller cannot supply or redirect it", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const oldDocumentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId: oldDocumentId });
+  const newDocumentId = await seedCleanDocument({ businessId });
+  await submitAndApprove({ ownerUid: "seller-1", adminUid, businessId, documentId: newDocumentId });
+  await assert.rejects(
+    functions.supersedeComplianceDocument.run({
+      auth: { uid: adminUid },
+      data: { newDocumentId, oldDocumentId, businessId: "forged-business" },
+    }),
+    (err) => {
+      assert.equal(err.code, "invalid-argument");
+      assert.match(err.message, /unrecognized field/);
+      return true;
+    }
+  );
+  assert.equal(await getEpochDoc("forged-business"), undefined);
+});
+
+itest("epoch [F28] no epoch document is ever written under any businessId other than oldData's own", async () => {
+  const businessId = await seedBusiness("seller-1");
+  const adminUid = await seedAdmin();
+  const { targetId: oldDocumentId } = await performEpoch_SupersedeComplianceDocument({
+    businessId,
+    ownerUid: "seller-1",
+    adminUid,
+  });
+  const epoch = await getEpochDoc(businessId);
+  assert.equal(epoch.epoch, 1, "the one authoritative epoch document, keyed by oldData.businessId, was bumped");
+  // Negative checks: no epoch document was ever created under any of
+  // the other plausible-but-wrong keys a naive implementation might
+  // have used instead (the old document's own ID, mistaken for a
+  // businessId).
+  assert.equal(await getEpochDoc(oldDocumentId), undefined);
+});
+
+// ---------------------------------------------------------------------
+// H. Freshness integration proof — uses the real, unmodified
+// evaluateLiveProductEligibility (complianceEligibilityEvaluator.js),
+// the real computeDecisionHash (complianceProductRecompute.js), and the
+// real bootstrapCompliancePolicyRegistry (compliancePolicyRegistryOperations.js)
+// against this same real emulator — never a reimplementation of any of
+// their algorithms. Only the fixture DATA is hand-built here, using the
+// same minimal-valid-policy-version shape already established by
+// compliancePolicyRegistryOperations.test.js's own fixtures.
+// ---------------------------------------------------------------------
+
+const {
+  evaluateLiveProductEligibility,
+} = require("../src/marketplace/compliance/complianceEligibilityEvaluator");
+const {
+  computeDecisionHash,
+} = require("../src/marketplace/compliance/complianceProductRecompute");
+
+// Empirically confirmed (not guessed): a genuinely activation-eligible
+// compliancePolicyRegistry version document requires at least one
+// non-empty `requiredDocumentTypeGroups` entry — Slice 4.1's own
+// `validateRequiredDocumentTypeGroups` rejects `groups.length < 1` and
+// rejects any inner group with `length === 0` — and that field is
+// structurally an array-of-arrays. Real Firestore rejects nested arrays
+// outright ("3 INVALID_ARGUMENT: Nested arrays are not allowed"),
+// confirmed directly against this same emulator. This is a pre-existing
+// Slice 4.1 schema/Firestore incompatibility, entirely unrelated to and
+// outside the authorized scope of this Slice 4.6 corrective task
+// (compliancePolicyRegistryOperations.js is a forbidden-to-edit file) —
+// it is why Slice 4.1's own test suite is itself never emulator-backed
+// (see that file's own top-of-file doc comment) and uses a fake `db`
+// exclusively. This freshness-integration proof follows the identical,
+// already-established pattern: a minimal, self-contained, read-only
+// fake `db` (no transactions — evaluateLiveProductEligibility performs
+// only `.get()` reads when no `tx` is supplied) drives the REAL,
+// unmodified `evaluateLiveProductEligibility`, exactly mirroring
+// complianceMatching.test.js's own "M3. an epoch bump between calls
+// excludes the product on the next evaluation" test. The REAL
+// production epoch-write path itself (collection name, doc-key-by-
+// businessId, `epoch` field, exact increment/merge shape) is
+// independently and rigorously proven against the REAL emulator by the
+// A-G groups above; this test's own job is only to prove the OTHER half
+// of the integration — that the evaluator correctly treats that same
+// shape as authoritative — without needing both halves to run inside
+// one Firestore instance to make the combined claim honest.
+function makeFreshnessFakeDb(seedDocs) {
+  const store = new Map(Object.entries(seedDocs));
+  function docRef(path) {
+    return {
+      async get() {
+        const data = store.get(path);
+        return { exists: data !== undefined, data: () => data };
+      },
+      // Recursive — productRef() needs businesses/{id}.collection("products").doc(id).
+      collection(subName) {
+        return collectionRef(`${path}/${subName}`);
+      },
+    };
+  }
+  function collectionRef(prefix) {
+    return { doc: (id) => docRef(`${prefix}/${id}`) };
+  }
+  return {
+    collection(name) {
+      return collectionRef(name);
+    },
+    // Test-only helper, not part of the real Firestore interface —
+    // lets a test mutate the epoch "live" between two evaluator calls,
+    // exactly simulating what the real bumpBusinessComplianceEpoch
+    // helper's tx.set({epoch: increment(1)}, {merge:true}) produces.
+    _setEpoch(businessId, epoch) {
+      const key = `businessComplianceEpochs/${businessId}`;
+      const prior = store.get(key) || {};
+      store.set(key, { ...prior, epoch });
+    },
+  };
+}
+
+function freshnessFixtureDocs({ businessId, productId, activeVersionId, evidenceRevision }) {
+  const nowMs = Date.now();
+  const timestamp = (ms) => ({ toMillis: () => ms });
+  const decisionContent = {
+    businessId,
+    policyVersion: activeVersionId,
+    evidenceRevision,
+    productInputRevisionSnapshot: 0,
+    sellerRelationshipSnapshot: "manufacturer",
+    requiredEvidenceSlots: [],
+    satisfiedEvidenceSlots: [],
+    activeEvidenceRefs: [],
+    validUntil: timestamp(nowMs + 365 * 24 * 60 * 60 * 1000),
+    effectiveStatus: "verified_valid",
+  };
+  return {
+    [`compliancePolicyRegistryPointer/current`]: { activeVersionId },
+    [`compliancePolicyRegistry/${activeVersionId}`]: {
+      sellerRelationship: {
+        manufacturer: {
+          acceptedDocumentTypes: ["purchase_invoice"],
+          requiredDocumentTypeGroups: [["purchase_invoice"]],
+          perDocumentTypePolicy: { purchase_invoice: { validUntilRequired: true, issueDateRequired: false } },
+          maximumValidityPeriod: null,
+          acceptedScopeTypes: ["business"],
+          manualAdminOverridePermitted: false,
+        },
+      },
+      status: "active",
+      effectiveFrom: timestamp(nowMs - 10000),
+      createdBy: "s46-freshness-fixture",
+      createdAt: timestamp(nowMs - 10000),
+      changeNote: "Slice 4.6 freshness-integration fixture",
+    },
+    [`businesses/${businessId}/products/${productId}`]: {
+      businessId,
+      sellerRelationship: "manufacturer",
+      productInputRevision: 0,
+    },
+    [`productComplianceDecisions/${productId}`]: {
+      ...decisionContent,
+      decisionHash: computeDecisionHash(decisionContent),
+    },
+  };
+}
+
+itest("epoch [H38] a decision computed at evidenceRevision N becomes stale (eligibility_evidence_revision_mismatch) the moment the business epoch reaches N+1 — the exact shape the real Slice 4.6 write produces", async () => {
+  const businessId = "s46-fresh-biz-1";
+  const productId = "s46-fresh-product-1";
+  const activeVersionId = "s46-fresh-policy-1";
+  const fakeDb = makeFreshnessFakeDb(freshnessFixtureDocs({ businessId, productId, activeVersionId, evidenceRevision: 0 }));
+  fakeDb._setEpoch(businessId, 0);
+
+  const before = await evaluateLiveProductEligibility({ db: fakeDb, businessId, productId, now: new Date() });
+  assert.deepEqual(before, { eligible: true, reason: null }, "the hand-built fixture must be genuinely, fully valid before any bump");
+
+  // Simulate exactly what one real qualifying Slice 4.6 transition
+  // produces: businessComplianceEpochs/{businessId}.epoch 0 -> 1. (The
+  // real production write itself — collection/doc/field/increment/merge
+  // shape — is independently proven against the real emulator by the
+  // A-G groups above.)
+  fakeDb._setEpoch(businessId, 1);
+
+  const after = await evaluateLiveProductEligibility({ db: fakeDb, businessId, productId, now: new Date() });
+  assert.equal(after.eligible, false);
+  assert.equal(after.reason, "eligibility_evidence_revision_mismatch");
+});
+
+itest("epoch [H39] an unchanged epoch (mirroring a non-qualifying reject/idempotent operation, which the A-G groups above independently prove never bumps it) does NOT make the same decision stale", async () => {
+  const businessId = "s46-fresh-biz-2";
+  const productId = "s46-fresh-product-2";
+  const activeVersionId = "s46-fresh-policy-2";
+  const fakeDb = makeFreshnessFakeDb(freshnessFixtureDocs({ businessId, productId, activeVersionId, evidenceRevision: 0 }));
+  fakeDb._setEpoch(businessId, 0);
+
+  const before = await evaluateLiveProductEligibility({ db: fakeDb, businessId, productId, now: new Date() });
+  assert.equal(before.eligible, true);
+
+  // No epoch mutation at all — exactly what a reject or an idempotent
+  // replay produces in production (proven separately: C9-C11/C18 and
+  // C12 above, behaviorally, against the real emulator).
+  const after = await evaluateLiveProductEligibility({ db: fakeDb, businessId, productId, now: new Date() });
+  assert.deepEqual(after, { eligible: true, reason: null }, "an unchanged epoch must never make an otherwise-fresh decision stale");
+});
+
+// =====================================================================
 // Structural / static checks — no emulator required. Mirrors the
 // nonCommentLines-scoped scanning convention already established for
 // the compliance-scanner CI pipeline's own pipelineStatic.test.js.
@@ -3077,4 +4089,94 @@ test("static: documentType/validUntil are written onto complianceDocumentScopes 
   assert.equal(scopeCreateCalls.length, 1, "expected exactly one scope tx.create() call");
   assert.ok(scopeCreateCalls[0].includes("documentType"));
   assert.ok(scopeCreateCalls[0].includes("validUntil"));
+});
+
+// =====================================================================
+// Slice 4.6 — static/exact-write guards (items 29-37). Reuses the
+// nonCommentLines-scoped EXECUTABLE_TEXT/SOURCE_TEXT already defined
+// above.
+// =====================================================================
+
+test("epoch [G29] exactly five production call sites invoke bumpBusinessComplianceEpoch, plus exactly one definition", () => {
+  const calls = EXECUTABLE_TEXT.match(/bumpBusinessComplianceEpoch\(\{/g) || [];
+  // One of the six matches is the function's own definition site
+  // (`function bumpBusinessComplianceEpoch({ tx, db, businessId })`) —
+  // that line uses `({ tx, db, businessId })` as a parameter list, not
+  // a call, so match only literal call sites: `bumpBusinessComplianceEpoch({`
+  // immediately followed eventually by `tx,`/`db,`/`businessId:` as an
+  // argument object in a call context. Simplest precise count: total
+  // occurrences of the identifier minus the one function declaration.
+  const totalOccurrences = (EXECUTABLE_TEXT.match(/bumpBusinessComplianceEpoch/g) || []).length;
+  const definitionCount = (EXECUTABLE_TEXT.match(/function bumpBusinessComplianceEpoch/g) || []).length;
+  assert.equal(definitionCount, 1, "expected exactly one helper definition");
+  assert.equal(totalOccurrences - definitionCount, 5, "expected exactly five call sites");
+});
+
+test("epoch [G30/31/32/33] the helper's own write uses exactly the frozen collection/field/operation/merge shape", () => {
+  const fnMatch = SOURCE_TEXT.match(/function bumpBusinessComplianceEpoch\([^]*?\n\}/);
+  assert.ok(fnMatch, "expected to find the bumpBusinessComplianceEpoch function body");
+  const body = fnMatch[0];
+  assert.match(body, /db\.collection\("businessComplianceEpochs"\)\.doc\(businessId\)/);
+  assert.match(body, /epoch:\s*admin\.firestore\.FieldValue\.increment\(1\)/);
+  assert.match(body, /tx\.set\(\s*epochRef,\s*\{\s*epoch:\s*admin\.firestore\.FieldValue\.increment\(1\)\s*\},\s*\{\s*merge:\s*true\s*\}\s*\)/);
+});
+
+test("epoch [G34] no tx.update ever targets the epoch document/collection", () => {
+  assert.equal(/tx\.update\([^)]*businessComplianceEpochs/.test(EXECUTABLE_TEXT), false);
+  assert.equal(/tx\.update\(\s*epochRef/.test(EXECUTABLE_TEXT), false);
+});
+
+test("epoch [G35] no epoch read is ever added — businessComplianceEpochs/epochRef is never the target of a .get()", () => {
+  assert.equal(/businessComplianceEpochs[^;]*\.get\(/.test(EXECUTABLE_TEXT), false);
+  assert.equal(/epochRef[^;]*\.get\(/.test(EXECUTABLE_TEXT), false);
+  assert.equal(/tx\.get\(\s*epochRef/.test(EXECUTABLE_TEXT), false);
+});
+
+test("epoch [G36] the exact five call sites are the exact five named qualifying operations, no sixth", () => {
+  const fnStarts = [];
+  const fnRe = /^async function (\w+)\(/gm;
+  let m;
+  while ((m = fnRe.exec(EXECUTABLE_TEXT)) !== null) {
+    fnStarts.push({ name: m[1], index: m.index });
+  }
+  fnStarts.push({ name: "__EOF__", index: EXECUTABLE_TEXT.length });
+
+  const callSites = [];
+  const callRe = /bumpBusinessComplianceEpoch\(\{/g;
+  let c;
+  while ((c = callRe.exec(EXECUTABLE_TEXT)) !== null) {
+    // Skip the function's own declaration line.
+    const precedingText = EXECUTABLE_TEXT.slice(Math.max(0, c.index - 40), c.index);
+    if (/function\s+$/.test(precedingText)) continue;
+    // Find which function body this call falls inside.
+    let owner = null;
+    for (let i = 0; i < fnStarts.length - 1; i += 1) {
+      if (c.index >= fnStarts[i].index && c.index < fnStarts[i + 1].index) {
+        owner = fnStarts[i].name;
+        break;
+      }
+    }
+    callSites.push(owner);
+  }
+
+  assert.deepEqual(
+    callSites.sort(),
+    [
+      "reviewComplianceDocument",
+      "revokeComplianceDocument",
+      "supersedeComplianceDocument",
+      "reviewComplianceScope",
+      "reviewComplianceScopeMembers",
+    ].sort()
+  );
+});
+
+test("epoch [G37] no Rules/index/evaluator/recompute/index.js file is referenced by this module's own source", () => {
+  // This module never requires any of the four forbidden-to-touch
+  // sibling files — confirms the Slice 4.6 change is fully self-
+  // contained within complianceDocumentOperations.js, no new coupling.
+  assert.equal(/require\([^)]*complianceEligibilityEvaluator/.test(SOURCE_TEXT), false);
+  assert.equal(/require\([^)]*complianceProductRecompute/.test(SOURCE_TEXT), false);
+  assert.equal(/firestore\.rules/.test(SOURCE_TEXT), false);
+  assert.equal(/firestore\.indexes\.json/.test(SOURCE_TEXT), false);
 });

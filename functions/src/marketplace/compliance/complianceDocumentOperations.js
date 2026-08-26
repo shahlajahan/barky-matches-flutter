@@ -262,6 +262,31 @@ function writeComplianceReviewEvent({
   });
 }
 
+// Slice 4.6 (docs/plans/marketplace_p1a_compliance_review_implementation_
+// plan_2026-08-21.md §4/§8): bumps businessComplianceEpochs/{businessId}
+// .epoch by exactly one, inside the caller's own already-open transaction,
+// on exactly five specific, non-idempotent, real evidence transitions
+// named in §8 — never on an idempotent replay, never on a reject/
+// non-approve branch. `tx.set(..., {merge:true})`, never `tx.update()`
+// (which throws on a nonexistent document, unlike `set`/`merge`) — a
+// missing epoch document behaves as baseline 0 -> 1 via
+// `FieldValue.increment()`'s own documented "starts from 0 on a missing
+// field" semantics (master plan §4), exactly what this collection's
+// existing readers (complianceEligibilityEvaluator.js,
+// complianceProductRecompute.js) already assume when the document is
+// absent. No read of the epoch document is ever performed — the
+// increment is blind and atomic, so this call may be placed anywhere
+// among a transaction's own writes, after its reads, without disturbing
+// the existing reads-before-writes ordering. Private, unexported — this
+// module's own transactions are the only legitimate caller; no
+// `businessComplianceEpochs` collection-name constant is added to
+// complianceConstants.js, matching the same repeated-local-constant
+// convention already established by the collection's own readers.
+function bumpBusinessComplianceEpoch({ tx, db, businessId }) {
+  const epochRef = db.collection("businessComplianceEpochs").doc(businessId);
+  tx.set(epochRef, { epoch: admin.firestore.FieldValue.increment(1) }, { merge: true });
+}
+
 // ---------------------------------------------------------------------
 // 1. submitComplianceDocument (seller)
 //    clean -> pending_review. The one and only place
@@ -456,6 +481,12 @@ async function reviewComplianceDocument({ db, auth, data }) {
       reviewedAt,
       rejectionReason,
     });
+    // Slice 4.6 (§8): bump only on a real approve transition — never on
+    // reject, never on the idempotent-replay branch above (already
+    // returned by this point).
+    if (decision === DECISION.APPROVE) {
+      bumpBusinessComplianceEpoch({ tx, db, businessId: documentData.businessId });
+    }
     writeComplianceReviewEvent({
       tx,
       db,
@@ -662,6 +693,10 @@ async function revokeComplianceDocument({ db, auth, data }) {
       revokedAt,
       revocationReason,
     });
+    // Slice 4.6 (§8): every real revoke transition bumps unconditionally
+    // (revocation has only one meaning) — never on the idempotent-replay
+    // branch above (already returned by this point).
+    bumpBusinessComplianceEpoch({ tx, db, businessId: documentData.businessId });
     writeComplianceReviewEvent({
       tx,
       db,
@@ -757,6 +792,16 @@ async function supersedeComplianceDocument({ db, auth, data }) {
       status: COMPLIANCE_DOCUMENT_STATUS.SUPERSEDED,
       supersededByDocumentId: newDocumentId,
     });
+    // Slice 4.6 (§8): "the superseded document's own write" — keyed
+    // strictly by oldData.businessId (the superseded document's
+    // authoritative business), never the replacement document's
+    // businessId and never any caller-supplied value; both are already
+    // asserted equal above, but this keys off the same field this
+    // function's own review event already uses for exactly this reason.
+    // Bumps unconditionally on every real supersede transition — never
+    // on the idempotent-replay branch above (already returned by this
+    // point).
+    bumpBusinessComplianceEpoch({ tx, db, businessId: oldData.businessId });
     writeComplianceReviewEvent({
       tx,
       db,
@@ -1193,6 +1238,15 @@ async function reviewComplianceScopeMembers({ db, auth, data }) {
     memberRefs.forEach((ref) => {
       tx.update(ref, { status: targetStatus, reviewedBy: adminUid, reviewedAt });
     });
+    // Slice 4.6 (§8): bump only on a real approve transition — never on
+    // reject, never on the idempotent-replay branch above (already
+    // returned by this point). Keyed by currentScope.businessId, the
+    // authoritative in-transaction scope read this function's own review
+    // event already uses — no outer-scope businessId exists in this
+    // function to prefer instead.
+    if (decision === DECISION.APPROVE) {
+      bumpBusinessComplianceEpoch({ tx, db, businessId: currentScope.businessId });
+    }
     writeComplianceReviewEvent({
       tx,
       db,
@@ -1281,6 +1335,12 @@ async function reviewComplianceScope({ db, auth, data }) {
       reviewedAt,
       verifiedBrandId,
     });
+    // Slice 4.6 (§8): bump only on a real approve transition — never on
+    // reject, never on the idempotent-replay branch above (already
+    // returned by this point).
+    if (decision === DECISION.APPROVE) {
+      bumpBusinessComplianceEpoch({ tx, db, businessId: scopeData.businessId });
+    }
     writeComplianceReviewEvent({
       tx,
       db,
