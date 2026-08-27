@@ -1858,7 +1858,47 @@ test("N3 (item 52). no other query shape/field appears anywhere in the two index
 // O. Static architecture.
 // =======================================================================
 
-test("O1. functions/index.js never references any of the four new Slice 4.3 modules", () => {
+// O1's repair contract (Revision 15, §0.13; item 402): a static,
+// module-specifier-aware guard, never a bare substring test. It examines
+// only static `require("...")`/`require('...')`/`import ... from
+// "..."`/`import ... from '...'` module specifiers, normalizes an
+// optional terminal `.js`, and matches the ENTIRE normalized specifier's
+// final path segment against each forbidden module name — never a
+// prefix/substring match. This is why the legitimate
+// `complianceProductRecomputeSweep` module (which contains
+// `complianceProductRecompute` as a literal substring) correctly passes:
+// its own final path segment is `complianceProductRecomputeSweep`, not
+// `complianceProductRecompute`. Local to this one guard only — nothing
+// else in this file changes.
+function extractStaticModuleSpecifiers(src) {
+  const specifiers = [];
+  const requireRe = /\brequire\(\s*(['"])((?:(?!\1).)+)\1\s*\)/g;
+  let m;
+  while ((m = requireRe.exec(src))) {
+    specifiers.push(m[2]);
+  }
+  const importRe = /\bimport\s+[^;'"]*from\s+(['"])((?:(?!\1).)+)\1/g;
+  while ((m = importRe.exec(src))) {
+    specifiers.push(m[2]);
+  }
+  return specifiers;
+}
+
+function normalizeModuleSpecifier(specifier) {
+  return specifier.endsWith(".js") ? specifier.slice(0, -3) : specifier;
+}
+
+function moduleSpecifierReferencesName(specifier, name) {
+  const normalized = normalizeModuleSpecifier(specifier);
+  const finalSegment = normalized.split("/").pop();
+  return finalSegment === name;
+}
+
+function indexReferencesModule(src, name) {
+  return extractStaticModuleSpecifiers(src).some((specifier) => moduleSpecifierReferencesName(specifier, name));
+}
+
+test("O1. functions/index.js never references any of the four new Slice 4.3 modules, via a static require/import module-specifier-aware check (repaired, Revision 15 §0.13)", () => {
   const indexSrc = fs.readFileSync(path.resolve(__dirname, "../index.js"), "utf8");
   for (const name of [
     "complianceMatching",
@@ -1866,7 +1906,47 @@ test("O1. functions/index.js never references any of the four new Slice 4.3 modu
     "complianceEligibilityEvaluator",
     "complianceBrandNormalizer",
   ]) {
-    assert.equal(indexSrc.includes(name), false, `functions/index.js must not reference ${name}`);
+    assert.equal(
+      indexReferencesModule(indexSrc, name),
+      false,
+      `functions/index.js must not import ${name} (require/import module-specifier match, never a bare substring test)`
+    );
+  }
+});
+
+test("[402] the repaired O1 guard rejects every forbidden complianceProductRecompute fixture and accepts every legitimate complianceProductRecomputeSweep fixture, exactly as frozen (Revision 15, §0.13)", () => {
+  const mustFail = [
+    `require("./src/marketplace/compliance/complianceProductRecompute")`,
+    `require("./src/marketplace/compliance/complianceProductRecompute.js")`,
+    `require('./src/marketplace/compliance/complianceProductRecompute')`,
+    `require('./src/marketplace/compliance/complianceProductRecompute.js')`,
+    `import x from "./src/marketplace/compliance/complianceProductRecompute"`,
+    `import x from "./src/marketplace/compliance/complianceProductRecompute.js"`,
+  ];
+  const mustPass = [
+    `require("./src/marketplace/compliance/complianceProductRecomputeSweep")`,
+    `require("./src/marketplace/compliance/complianceProductRecomputeSweep.js")`,
+    `import x from "./src/marketplace/compliance/complianceProductRecomputeSweep"`,
+    `import x from "./src/marketplace/compliance/complianceProductRecomputeSweep.js"`,
+  ];
+  for (const fixture of mustFail) {
+    assert.equal(
+      indexReferencesModule(fixture, "complianceProductRecompute"),
+      true,
+      `guard must reject: ${fixture}`
+    );
+  }
+  for (const fixture of mustPass) {
+    assert.equal(
+      indexReferencesModule(fixture, "complianceProductRecompute"),
+      false,
+      `guard must accept (never flag as complianceProductRecompute): ${fixture}`
+    );
+    // Sanity: the forbidden substring really is present in every
+    // must-pass fixture, proving this guard is genuinely a
+    // module-specifier match, never a bare indexSrc.includes(name)
+    // substring test (which would incorrectly reject every one of these).
+    assert.ok(fixture.includes("complianceProductRecompute"));
   }
 });
 

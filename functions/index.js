@@ -301,6 +301,9 @@ const {
   complianceUploadOrphanCleanup,
 } = require("./src/marketplace/compliance/complianceUploadCleanup");
 const {
+  runComplianceRecomputeSweep,
+} = require("./src/marketplace/compliance/complianceProductRecomputeSweep");
+const {
   reconcileStaleComplianceUploadSessions,
 } = require("./src/marketplace/compliance/complianceUploadReconciliation");
 const {
@@ -20016,6 +20019,30 @@ exports.complianceUploadOrphanCleanup = onSchedule(
       logger,
     });
     logger.info("compliance_upload_orphan_cleanup", result);
+    return result;
+  }
+);
+
+exports.complianceProductRecomputeSweep = onSchedule(
+  {
+    schedule: "every 60 minutes",
+    region: "europe-west3",
+    timeZone: "Europe/Istanbul",
+    retryCount: 2,
+    memory: "256MiB",
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const result = await runComplianceRecomputeSweep({ db: admin.firestore(), now: new Date(), logger });
+    logger.info("compliance_recompute_sweep_completed", {
+      examinedCount: result.examinedCount,
+      recomputedCount: result.recomputedCount,
+      freshCount: result.freshCount,
+      failedCount: result.failedCount,
+      exhausted: result.exhausted,
+      pagesFetched: result.pagesFetched,
+      bounded: result.bounded,
+    }); // nextCursor is intentionally never logged — see complianceProductRecomputeSweep.js's own "Frozen operational-logging contract".
     return result;
   }
 );
